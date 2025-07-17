@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理 - Telegram消息审核系统</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .config-section {
+            margin: 20px 0;
+        }
+        .config-card {
+            margin-bottom: 20px;
+        }
+        .config-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #e4e7ed;
+            border-radius: 4px;
+        }
+        .config-item:hover {
+            background-color: #f5f7fa;
+        }
+        .config-key {
+            font-weight: bold;
+            color: #409EFF;
+            min-width: 200px;
+        }
+        .config-description {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .config-value {
+            flex: 1;
+            margin: 0 15px;
+        }
+        .config-actions {
+            min-width: 120px;
+        }
+        .json-editor {
+            font-family: 'Courier New', monospace;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>⚙️ 配置管理</h1>
+            <p>系统配置 · 实时生效 · 数据库存储</p>
+        </div>
+
+        <el-container style="padding: 20px;">
+            <!-- 操作工具栏 -->
+            <el-card class="config-section">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <el-button @click="loadConfigs" icon="Refresh">刷新配置</el-button>
+                        <el-button @click="showAddDialog = true" type="primary" icon="Plus">添加配置</el-button>
+                        <el-button @click="exportConfigs" icon="Download">导出配置</el-button>
+                        <el-button @click="showImportDialog = true" icon="Upload">导入配置</el-button>
+                    </div>
+                    <div>
+                        <el-button @click="resetDefaults" type="warning" icon="RefreshLeft">重置默认</el-button>
+                        <el-button @click="reloadCache" type="success" icon="Refresh">重载缓存</el-button>
+                    </div>
+                </div>
+            </el-card>
+
+            <!-- 配置分类标签 -->
+            <el-tabs v-model="activeTab" class="nav-tabs" @tab-change="handleTabChange">
+                <el-tab-pane label="全部配置" name="all"></el-tab-pane>
+                <el-tab-pane label="Telegram" name="telegram"></el-tab-pane>
+                <el-tab-pane label="频道设置" name="channels"></el-tab-pane>
+                <el-tab-pane label="审核设置" name="review"></el-tab-pane>
+                <el-tab-pane label="过滤设置" name="filter"></el-tab-pane>
+                <el-tab-pane label="系统设置" name="system"></el-tab-pane>
+            </el-tabs>
+
+            <!-- 配置列表 -->
+            <el-card v-loading="loading">
+                <template #header>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>配置项 ({{ filteredConfigs.length }})</span>
+                        <el-input
+                            v-model="searchText"
+                            placeholder="搜索配置项..."
+                            style="width: 300px;"
+                            clearable>
+                            <template #prefix>
+                                <el-icon><Search /></el-icon>
+                            </template>
+                        </el-input>
+                    </div>
+                </template>
+
+                <div v-if="filteredConfigs.length === 0" style="text-align: center; padding: 40px; color: #999;">
+                    <el-empty description="暂无配置项"></el-empty>
+                </div>
+
+                <div v-for="(config, key) in filteredConfigs" :key="key" class="config-item">
+                    <div style="flex: 1;">
+                        <div class="config-key">{{ key }}</div>
+                        <div class="config-description">{{ config.description || '无描述' }}</div>
+                        <div style="margin-top: 8px;">
+                            <el-tag size="small" :type="getConfigTypeColor(config.config_type)">
+                                {{ getConfigTypeText(config.config_type) }}
+                            </el-tag>
+                            <span style="margin-left: 10px; font-size: 12px; color: #999;">
+                                更新时间: {{ formatTime(config.updated_at) }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="config-value">
+                        <div v-if="editingKey === key">
+                            <!-- 编辑模式 -->
+                            <el-input
+                                v-if="config.config_type === 'string'"
+                                v-model="editingValue"
+                                placeholder="输入配置值"
+                                @keyup.enter="saveConfig(key)"
+                                @keyup.esc="cancelEdit">
+                            </el-input>
+                            
+                            <el-input-number
+                                v-else-if="config.config_type === 'integer'"
+                                v-model="editingValue"
+                                style="width: 100%;"
+                                @keyup.enter="saveConfig(key)">
+                            </el-input-number>
+                            
+                            <el-switch
+                                v-else-if="config.config_type === 'boolean'"
+                                v-model="editingValue">
+                            </el-switch>
+                            
+                            <el-input
+                                v-else-if="config.config_type === 'list' || config.config_type === 'json'"
+                                v-model="editingValue"
+                                type="textarea"
+                                :rows="4"
+                                class="json-editor"
+                                placeholder="输入JSON格式数据"
+                                @keyup.enter="saveConfig(key)"
+                                @keyup.esc="cancelEdit">
+                            </el-input>
+                        </div>
+                        
+                        <div v-else>
+                            <!-- 显示模式 -->
+                            <div v-if="config.config_type === 'boolean'">
+                                <el-tag :type="config.value ? 'success' : 'danger'">
+                                    {{ config.value ? '启用' : '禁用' }}
+                                </el-tag>
+                            </div>
+                            
+                            <div v-else-if="config.config_type === 'list'">
+                                <el-tag v-for="(item, index) in config.value" :key="index" style="margin: 2px;">
+                                    {{ item }}
+                                </el-tag>
+                                <span v-if="!config.value || config.value.length === 0" style="color: #999;">
+                                    空列表
+                                </span>
+                            </div>
+                            
+                            <div v-else-if="config.config_type === 'json'">
+                                <pre style="font-size: 12px; color: #666; max-height: 100px; overflow-y: auto;">{{ JSON.stringify(config.value, null, 2) }}</pre>
+                            </div>
+                            
+                            <div v-else>
+                                <span style="word-break: break-all;">{{ config.value || '(空值)' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="config-actions">
+                        <div v-if="editingKey === key">
+                            <el-button size="small" type="primary" @click="saveConfig(key)" icon="Check">保存</el-button>
+                            <el-button size="small" @click="cancelEdit" icon="Close">取消</el-button>
+                        </div>
+                        <div v-else>
+                            <el-button size="small" @click="editConfig(key, config)" icon="Edit">编辑</el-button>
+                            <el-button size="small" type="danger" @click="deleteConfig(key)" icon="Delete">删除</el-button>
+                        </div>
+                    </div>
+                </div>
+            </el-card>
+        </el-container>
+
+        <!-- 添加配置对话框 -->
+        <el-dialog v-model="showAddDialog" title="添加配置项" width="600px">
+            <el-form :model="newConfig" label-width="120px">
+                <el-form-item label="配置键名">
+                    <el-input v-model="newConfig.key" placeholder="例如: system.new_feature"></el-input>
+                </el-form-item>
+                <el-form-item label="配置类型">
+                    <el-select v-model="newConfig.config_type" placeholder="选择类型">
+                        <el-option label="字符串" value="string"></el-option>
+                        <el-option label="整数" value="integer"></el-option>
+                        <el-option label="布尔值" value="boolean"></el-option>
+                        <el-option label="列表" value="list"></el-option>
+                        <el-option label="JSON对象" value="json"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="配置值">
+                    <el-input
+                        v-if="newConfig.config_type === 'string'"
+                        v-model="newConfig.value"
+                        placeholder="输入字符串值">
+                    </el-input>
+                    
+                    <el-input-number
+                        v-else-if="newConfig.config_type === 'integer'"
+                        v-model="newConfig.value"
+                        style="width: 100%;">
+                    </el-input-number>
+                    
+                    <el-switch
+                        v-else-if="newConfig.config_type === 'boolean'"
+                        v-model="newConfig.value">
+                    </el-switch>
+                    
+                    <el-input
+                        v-else-if="newConfig.config_type === 'list' || newConfig.config_type === 'json'"
+                        v-model="newConfig.value"
+                        type="textarea"
+                        :rows="4"
+                        placeholder="输入JSON格式数据，例如: [&quot;item1&quot;, &quot;item2&quot;] 或 {&quot;key&quot;: &quot;value&quot;}">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="描述">
+                    <el-input v-model="newConfig.description" placeholder="配置项描述"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="showAddDialog = false">取消</el-button>
+                <el-button type="primary" @click="addConfig">确定</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 导入配置对话框 -->
+        <el-dialog v-model="showImportDialog" title="导入配置" width="600px">
+            <el-input
+                v-model="importData"
+                type="textarea"
+                :rows="10"
+                placeholder="粘贴JSON格式的配置数据...">
+            </el-input>
+            <template #footer>
+                <el-button @click="showImportDialog = false">取消</el-button>
+                <el-button type="primary" @click="importConfigs">导入</el-button>
+            </template>
+        </el-dialog>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    loading: false,
+                    configs: {},
+                    activeTab: 'all',
+                    searchText: '',
+                    editingKey: null,
+                    editingValue: null,
+                    showAddDialog: false,
+                    showImportDialog: false,
+                    importData: '',
+                    newConfig: {
+                        key: '',
+                        value: '',
+                        description: '',
+                        config_type: 'string'
+                    }
+                }
+            },
+            computed: {
+                filteredConfigs() {
+                    let filtered = this.configs;
+                    
+                    // 按标签页过滤
+                    if (this.activeTab !== 'all') {
+                        filtered = Object.fromEntries(
+                            Object.entries(filtered).filter(([key]) => 
+                                key.startsWith(this.activeTab + '.')
+                            )
+                        );
+                    }
+                    
+                    // 按搜索文本过滤
+                    if (this.searchText) {
+                        const searchLower = this.searchText.toLowerCase();
+                        filtered = Object.fromEntries(
+                            Object.entries(filtered).filter(([key, config]) =>
+                                key.toLowerCase().includes(searchLower) ||
+                                (config.description && config.description.toLowerCase().includes(searchLower))
+                            )
+                        );
+                    }
+                    
+                    return filtered;
+                }
+            },
+            mounted() {
+                this.loadConfigs();
+            },
+            methods: {
+                async loadConfigs() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.get('/api/config/');
+                        if (response.data.success) {
+                            this.configs = response.data.configs;
+                        }
+                    } catch (error) {
+                        ElMessage.error('加载配置失败');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadCategoryConfigs(category) {
+                    if (category === 'all') {
+                        return this.loadConfigs();
+                    }
+                    
+                    this.loading = true;
+                    try {
+                        const response = await axios.get(`/api/config/categories/${category}`);
+                        if (response.data.success) {
+                            // 只更新对应分类的配置
+                            const categoryConfigs = response.data.configs;
+                            Object.keys(this.configs).forEach(key => {
+                                if (key.startsWith(category + '.')) {
+                                    delete this.configs[key];
+                                }
+                            });
+                            Object.assign(this.configs, categoryConfigs);
+                        }
+                    } catch (error) {
+                        ElMessage.error('加载分类配置失败');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                handleTabChange(tab) {
+                    this.loadCategoryConfigs(tab);
+                },
+                
+                editConfig(key, config) {
+                    this.editingKey = key;
+                    
+                    if (config.config_type === 'list' || config.config_type === 'json') {
+                        this.editingValue = JSON.stringify(config.value, null, 2);
+                    } else {
+                        this.editingValue = config.value;
+                    }
+                },
+                
+                cancelEdit() {
+                    this.editingKey = null;
+                    this.editingValue = null;
+                },
+                
+                async saveConfig(key) {
+                    try {
+                        let value = this.editingValue;
+                        const config = this.configs[key];
+                        
+                        // 处理JSON和列表类型
+                        if (config.config_type === 'list' || config.config_type === 'json') {
+                            try {
+                                value = JSON.parse(this.editingValue);
+                            } catch (e) {
+                                ElMessage.error('JSON格式错误');
+                                return;
+                            }
+                        }
+                        
+                        const response = await axios.put(`/api/config/${key}`, {
+                            value: value,
+                            description: config.description
+                        });
+                        
+                        if (response.data.success) {
+                            ElMessage.success('配置更新成功');
+                            this.cancelEdit();
+                            this.loadConfigs();
+                        }
+                    } catch (error) {
+                        ElMessage.error('保存配置失败');
+                    }
+                },
+                
+                async deleteConfig(key) {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除配置项 "${key}" 吗？`,
+                            '删除确认',
+                            { type: 'warning' }
+                        );
+                        
+                        const response = await axios.delete(`/api/config/${key}`);
+                        if (response.data.success) {
+                            ElMessage.success('配置删除成功');
+                            this.loadConfigs();
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除配置失败');
+                        }
+                    }
+                },
+                
+                async addConfig() {
+                    try {
+                        let value = this.newConfig.value;
+                        
+                        // 处理JSON和列表类型
+                        if (this.newConfig.config_type === 'list' || this.newConfig.config_type === 'json') {
+                            try {
+                                value = JSON.parse(this.newConfig.value);
+                            } catch (e) {
+                                ElMessage.error('JSON格式错误');
+                                return;
+                            }
+                        }
+                        
+                        const response = await axios.post('/api/config/', {
+                            key: this.newConfig.key,
+                            value: value,
+                            description: this.newConfig.description,
+                            config_type: this.newConfig.config_type
+                        });
+                        
+                        if (response.data.success) {
+                            ElMessage.success('配置添加成功');
+                            this.showAddDialog = false;
+                            this.newConfig = { key: '', value: '', description: '', config_type: 'string' };
+                            this.loadConfigs();
+                        }
+                    } catch (error) {
+                        ElMessage.error('添加配置失败');
+                    }
+                },
+                
+                async reloadCache() {
+                    try {
+                        const response = await axios.post('/api/config/reload');
+                        if (response.data.success) {
+                            ElMessage.success('配置缓存重载成功');
+                        }
+                    } catch (error) {
+                        ElMessage.error('重载缓存失败');
+                    }
+                },
+                
+                async resetDefaults() {
+                    try {
+                        await ElMessageBox.confirm(
+                            '确定要重置所有配置为默认值吗？此操作不可撤销！',
+                            '重置确认',
+                            { type: 'warning' }
+                        );
+                        
+                        const response = await axios.post('/api/config/reset-defaults');
+                        if (response.data.success) {
+                            ElMessage.success('配置重置成功');
+                            this.loadConfigs();
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('重置配置失败');
+                        }
+                    }
+                },
+                
+                exportConfigs() {
+                    const dataStr = JSON.stringify(this.configs, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `telegram_configs_${new Date().toISOString().split('T')[0]}.json`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    ElMessage.success('配置导出成功');
+                },
+                
+                async importConfigs() {
+                    try {
+                        const configs = JSON.parse(this.importData);
+                        const configItems = Object.entries(configs).map(([key, config]) => ({
+                            key: key,
+                            value: config.value,
+                            description: config.description || '',
+                            config_type: config.config_type || 'string'
+                        }));
+                        
+                        const response = await axios.post('/api/config/batch-update', configItems);
+                        if (response.data.success) {
+                            ElMessage.success(`成功导入 ${response.data.success_count} 个配置`);
+                            this.showImportDialog = false;
+                            this.importData = '';
+                            this.loadConfigs();
+                        }
+                    } catch (error) {
+                        ElMessage.error('导入配置失败，请检查JSON格式');
+                    }
+                },
+                
+                getConfigTypeColor(type) {
+                    const colors = {
+                        string: 'primary',
+                        integer: 'success',
+                        boolean: 'warning',
+                        list: 'info',
+                        json: 'danger'
+                    };
+                    return colors[type] || 'info';
+                },
+                
+                getConfigTypeText(type) {
+                    const texts = {
+                        string: '字符串',
+                        integer: '整数',
+                        boolean: '布尔值',
+                        list: '列表',
+                        json: 'JSON'
+                    };
+                    return texts[type] || type;
+                },
+                
+                formatTime(timeStr) {
+                    return new Date(timeStr).toLocaleString('zh-CN');
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>
