@@ -217,6 +217,11 @@ DEFAULT_CONFIGS = {
         "description": "目标频道ID",
         "config_type": "string"
     },
+    "channels.history_message_limit": {
+        "value": 50,
+        "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
+        "config_type": "integer"
+    },
     
     # 账号采集配置
     "accounts.collect_accounts": {

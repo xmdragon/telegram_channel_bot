@@ -295,6 +295,7 @@ async def reset_default_configs():
 class ChannelAddRequest(BaseModel):
     channel_id: str
     channel_name: str = ""
+    channel_title: str = ""
     description: str = ""
 
 @router.post("/channels/add")

@@ -23,7 +23,7 @@ const ConfigApp = {
             channels: [],
             newChannel: {
                 name: '',
-                username: ''
+                title: ''
             },
             
             // 过滤规则
@@ -47,7 +47,8 @@ const ConfigApp = {
                 review_mode: 'manual',
                 retention_days: 30,
                 max_concurrent: 10,
-                log_level: 'info'
+                log_level: 'info',
+                history_message_limit: 50
             }
         }
     },
@@ -92,8 +93,8 @@ const ConfigApp = {
                 console.error('加载频道列表失败:', error);
                 // 使用模拟数据
                 this.channels = [
-                    { id: 1, name: '测试频道1', username: 'test_channel_1', status: 'active' },
-                    { id: 2, name: '测试频道2', username: 'test_channel_2', status: 'inactive' }
+                    { id: 1, name: '测试频道1', title: '测试频道标题1', status: 'active' },
+                    { id: 2, name: '测试频道2', title: '测试频道标题2', status: 'inactive' }
                 ];
             }
         },
@@ -118,10 +119,16 @@ const ConfigApp = {
             try {
                 const response = await axios.get('/api/admin/config');
                 if (response.data) {
+                    // 处理目标频道名称显示格式
+                    let targetChannel = response.data.target_channel_id || '';
+                    if (targetChannel && !targetChannel.startsWith('@')) {
+                        targetChannel = '@' + targetChannel;
+                    }
+                    
                     // 从系统配置中提取转发相关设置
                     this.forwardingConfig = {
                         enabled: response.data.auto_forward_delay > 0,
-                        target_channel: response.data.target_channel_id || '',
+                        target_channel: targetChannel,
                         delay: response.data.auto_forward_delay || 0,
                         conditions: ['approved']
                     };
@@ -151,40 +158,89 @@ const ConfigApp = {
         },
         
         async addChannel() {
-            if (!this.newChannel.name || !this.newChannel.username) {
+            if (!this.newChannel.name || !this.newChannel.title) {
                 this.showError('请填写完整的频道信息');
                 return;
             }
             
             try {
-                const response = await axios.post('/api/admin/channels', {
-                    name: this.newChannel.name,
-                    username: this.newChannel.username
+                // 处理频道名称，统一格式
+                let channelName = this.newChannel.name.trim();
+                if (!channelName.startsWith('@')) {
+                    channelName = '@' + channelName;
+                }
+                
+                console.log('添加频道请求数据:', {
+                    channel_id: channelName,
+                    channel_name: channelName,
+                    channel_title: this.newChannel.title,
+                    channel_type: "source"
                 });
+                
+                const response = await axios.post('/api/admin/channels', {
+                    channel_id: "",  // 初始为空，后续通过Telethon获取真实ID
+                    channel_name: channelName,
+                    channel_title: this.newChannel.title,
+                    channel_type: "source"
+                });
+                
+                console.log('添加频道响应:', response.data);
                 
                 if (response.data.success) {
                     this.showSuccess('频道添加成功');
-                    this.newChannel = { name: '', username: '' };
+                    this.newChannel = { name: '', title: '' };
                     await this.loadChannels();
                 } else {
-                    this.showError('频道添加失败');
+                    this.showError('频道添加失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
+                console.error('添加频道错误:', error);
                 this.showError('频道添加失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
         async removeChannel(channelId) {
             try {
-                const response = await axios.delete(`/api/admin/channels/${channelId}`);
+                console.log('删除频道ID:', channelId);
+                
+                const response = await axios.delete(`/api/admin/channels/${encodeURIComponent(channelId)}`);
+                
+                console.log('删除频道响应:', response.data);
+                
                 if (response.data.success) {
                     this.showSuccess('频道删除成功');
                     await this.loadChannels();
                 } else {
-                    this.showError('频道删除失败');
+                    this.showError('频道删除失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
+                console.error('删除频道错误:', error);
                 this.showError('频道删除失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        async toggleChannelStatus(channel) {
+            try {
+                const newStatus = channel.status === 'active' ? 'inactive' : 'active';
+                const isActive = newStatus === 'active';
+                
+                console.log('切换频道状态:', channel.channel_id || channel.name, '从', channel.status, '到', newStatus);
+                
+                const response = await axios.put(`/api/admin/channels/${encodeURIComponent(channel.name)}`, {
+                    is_active: isActive
+                });
+                
+                console.log('状态切换响应:', response.data);
+                
+                if (response.data.success) {
+                    this.showSuccess(`频道状态已切换为${newStatus === 'active' ? '活跃' : '停用'}`);
+                    await this.loadChannels();
+                } else {
+                    this.showError('状态切换失败: ' + (response.data.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('状态切换错误:', error);
+                this.showError('状态切换失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
@@ -229,6 +285,22 @@ const ConfigApp = {
         
         async saveForwardingConfig() {
             try {
+                // 处理目标频道名称，统一格式
+                let targetChannel = this.forwardingConfig.target_channel.trim();
+                if (targetChannel && !targetChannel.startsWith('@')) {
+                    targetChannel = '@' + targetChannel;
+                }
+                
+                console.log('保存转发配置:', {
+                    enabled: this.forwardingConfig.enabled,
+                    target_channel: targetChannel,
+                    delay: this.forwardingConfig.delay,
+                    conditions: this.forwardingConfig.conditions
+                });
+                
+                // 更新配置对象
+                this.forwardingConfig.target_channel = targetChannel;
+                
                 // 暂时使用模拟成功响应，因为后端API可能还不支持这些配置
                 this.showSuccess('转发配置保存成功');
             } catch (error) {
@@ -250,7 +322,8 @@ const ConfigApp = {
                 review_mode: 'manual',
                 retention_days: 30,
                 max_concurrent: 10,
-                log_level: 'info'
+                log_level: 'info',
+                history_message_limit: 50
             };
             this.showSuccess('系统配置已重置为默认值');
         },

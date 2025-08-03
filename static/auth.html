@@ -42,8 +42,30 @@
             <div class="form-container">
                 <div class="form-title">Telegram 认证</div>
                 
+                <!-- 已保存的认证信息 -->
+                <div v-if="showSavedInfo" class="saved-auth-info">
+                    <h3 style="color: #00ff41; margin-bottom: 20px;">已保存的认证信息</h3>
+                    <div class="auth-info-item">
+                        <label>API ID:</label>
+                        <span>{{ savedAuthInfo.api_id }}</span>
+                    </div>
+                    <div class="auth-info-item">
+                        <label>API Hash:</label>
+                        <span>{{ savedAuthInfo.api_hash ? '●●●●●●●●●●●●●●●●' : '' }}</span>
+                    </div>
+                    <div class="auth-info-item">
+                        <label>Session Name:</label>
+                        <span>{{ savedAuthInfo.session_name }}</span>
+                    </div>
+                    <div style="text-align: center; margin-top: 30px;">
+                        <el-button @click="clearAuthData" type="danger" :loading="loading">
+                            清除认证数据
+                        </el-button>
+                    </div>
+                </div>
+                
                 <!-- 步骤指示器 -->
-                <div class="step-indicator">
+                <div v-if="!showSavedInfo" class="step-indicator">
                     <div class="step" :class="{ active: currentStep >= 1, completed: currentStep > 1 }">配置</div>
                     <div class="step-line"></div>
                     <div class="step" :class="{ active: currentStep >= 2, completed: currentStep > 2 }">手机</div>
@@ -56,7 +78,7 @@
                 </div>
 
                 <!-- 步骤1: 配置信息 -->
-                <div class="form-step" :class="{ active: currentStep === 1 }">
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 1 }">
                     <div class="form-group">
                         <label class="form-label">API ID</label>
                         <el-input 
@@ -97,7 +119,7 @@
                 </div>
 
                 <!-- 步骤2: 手机号码 -->
-                <div class="form-step" :class="{ active: currentStep === 2 }">
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 2 }">
                     <div class="form-group">
                         <label class="form-label">手机号码</label>
                         <el-input 
@@ -118,7 +140,7 @@
                 </div>
 
                 <!-- 步骤3: 验证码 -->
-                <div class="form-step" :class="{ active: currentStep === 3 }">
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 3 }">
                     <div class="form-group">
                         <label class="form-label">验证码</label>
                         <el-input 
@@ -139,7 +161,7 @@
                 </div>
 
                 <!-- 步骤4: 两步验证 -->
-                <div class="form-step" :class="{ active: currentStep === 4 }">
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 4 }">
                     <div class="form-group">
                         <label class="form-label">两步验证密码</label>
                         <el-input 
@@ -160,7 +182,7 @@
                 </div>
 
                 <!-- 步骤5: 完成 -->
-                <div class="form-step" :class="{ active: currentStep === 5 }">
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 5 }">
                     <div style="text-align: center; margin: 30px 0;">
                         <div style="font-size: 4em; color: #00ff41; margin-bottom: 20px;">✅</div>
                         <h3 style="color: #00ff41; margin-bottom: 10px;">认证成功！</h3>
@@ -170,9 +192,6 @@
                     <div style="text-align: center; margin-top: 30px;">
                         <el-button @click="goToMain" type="success">
                             进入系统
-                        </el-button>
-                        <el-button @click="disconnect" type="warning">
-                            断开连接
                         </el-button>
                     </div>
                 </div>

@@ -33,6 +33,16 @@ class TelegramClient:
     async def start(self):
         """启动Telegram客户端"""
         try:
+            # 首先尝试加载已保存的认证信息
+            logger.info("尝试加载已保存的认证信息...")
+            auth_loaded = await auth_manager.load_saved_auth()
+            
+            if auth_loaded:
+                logger.info("成功加载已保存的认证信息")
+            else:
+                logger.info("未找到已保存的认证信息，等待用户通过Web界面完成认证...")
+                return
+            
             # 检查认证状态
             auth_status = await auth_manager.get_auth_status()
             if not auth_status["authorized"]:

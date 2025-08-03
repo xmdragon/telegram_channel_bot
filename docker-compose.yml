@@ -15,6 +15,7 @@ services:
       - ./sessions:/app/sessions
       - ./logs:/app/logs
       - ./data:/app/data
+      - ./telegram_system.db:/app/telegram_system.db
     restart: unless-stopped
     networks:
       - telegram_network

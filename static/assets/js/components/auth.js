@@ -29,7 +29,9 @@ const AuthApp = {
                 verificationCode: '',
                 password: '',
                 websocket: null,
-                connected: false
+                connected: false,
+                savedAuthInfo: null,
+                showSavedInfo: false
             }
         },
         
@@ -42,6 +44,7 @@ const AuthApp = {
         mounted() {
             this.connectWebSocket();
             this.checkAuthStatus();
+            this.loadSavedAuthInfo();
         },
         
         beforeUnmount() {
@@ -185,6 +188,10 @@ const AuthApp = {
                     this.handleAuthStatus(state, message);
                 } else if (type === 'error') {
                     this.handleError(message);
+                } else if (type === 'auth_info') {
+                    this.handleAuthInfo(data.data);
+                } else if (type === 'auth_cleared') {
+                    this.handleAuthCleared(message);
                 }
             },
             
@@ -307,8 +314,67 @@ const AuthApp = {
                 window.location.href = '/';
             },
             
-            async disconnect() {
-                this.sendWebSocketMessage('disconnect');
+            async loadSavedAuthInfo() {
+                try {
+                    const response = await axios.get('/api/auth/info');
+                    this.handleAuthInfo(response.data);
+                } catch (error) {
+                    console.log('获取认证信息失败:', error);
+                }
+            },
+            
+            handleAuthInfo(data) {
+                this.savedAuthInfo = data;
+                if (data.has_saved_auth) {
+                    this.showSavedInfo = true;
+                    this.authStatus = '已保存认证信息';
+                } else {
+                    this.showSavedInfo = false;
+                }
+            },
+            
+            handleAuthCleared(message) {
+                this.showSuccess(message);
+                this.savedAuthInfo = null;
+                this.showSavedInfo = false;
+                this.authStatus = '未认证';
+                this.currentStep = 1;
+                this.resetForm();
+            },
+            
+            async clearAuthData() {
+                // 二次确认
+                const confirmed = await this.$confirm(
+                    '此操作将永久删除所有认证数据和Session文件，是否继续？',
+                    '确认清除',
+                    {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                        customClass: 'starcraft-confirm'
+                    }
+                ).catch(() => false);
+                
+                if (!confirmed) {
+                    return;
+                }
+                
+                try {
+                    this.loading = true;
+                    this.loadingMessage = '正在清除认证数据...';
+                    
+                    const response = await axios.post('/api/auth/clear');
+                    if (response.data.success) {
+                        this.handleAuthCleared(response.data.message);
+                    } else {
+                        this.handleError(response.data.error);
+                    }
+                } catch (error) {
+                    console.error('清除认证数据失败:', error);
+                    this.handleError('清除认证数据失败');
+                } finally {
+                    this.loading = false;
+                }
             },
             
             resetForm() {

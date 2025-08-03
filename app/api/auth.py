@@ -94,13 +94,21 @@ async def websocket_auth(websocket: WebSocket):
                 
                 try:
                     result = await auth_manager.send_code(phone)
-                    await manager.send_personal_message(
-                        json.dumps({
-                            "type": "auth_status",
-                            "state": result.get("state", "code_sent"),
-                            "message": result.get("message", "验证码已发送")
-                        }), websocket
-                    )
+                    if result.get("success"):
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "auth_status",
+                                "state": result.get("state", "code_sent"),
+                                "message": result.get("message", "验证码已发送")
+                            }), websocket
+                        )
+                    else:
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "error",
+                                "message": result.get("error", "发送验证码失败")
+                            }), websocket
+                        )
                 except Exception as e:
                     await manager.send_personal_message(
                         json.dumps({
@@ -194,6 +202,50 @@ async def websocket_auth(websocket: WebSocket):
                         json.dumps({
                             "type": "error",
                             "message": f"断开连接失败: {str(e)}"
+                        }), websocket
+                    )
+            
+            elif action == "clear_auth":
+                # 清除认证数据
+                try:
+                    result = await auth_manager.clear_auth_data()
+                    if result.get("success"):
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "auth_cleared",
+                                "message": result.get("message", "认证数据已清除")
+                            }), websocket
+                        )
+                    else:
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "error",
+                                "message": result.get("error", "清除认证数据失败")
+                            }), websocket
+                        )
+                except Exception as e:
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"清除认证数据失败: {str(e)}"
+                        }), websocket
+                    )
+            
+            elif action == "get_auth_info":
+                # 获取认证信息
+                try:
+                    result = await auth_manager.get_saved_auth_info()
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "auth_info",
+                            "data": result
+                        }), websocket
+                    )
+                except Exception as e:
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"获取认证信息失败: {str(e)}"
                         }), websocket
                     )
             
@@ -296,4 +348,24 @@ async def disconnect():
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"断开连接失败: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"断开连接失败: {str(e)}")
+
+@router.post("/clear")
+async def clear_auth():
+    """清除认证数据"""
+    try:
+        result = await auth_manager.clear_auth_data()
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"清除认证数据失败: {str(e)}")
+
+@router.get("/info")
+async def get_auth_info():
+    """获取认证信息"""
+    try:
+        result = await auth_manager.get_saved_auth_info()
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取认证信息失败: {str(e)}") 

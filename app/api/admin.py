@@ -4,8 +4,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from typing import List
+from typing import List, Optional
 from datetime import datetime
+from pydantic import BaseModel
 import os
 import shutil
 import tarfile
@@ -17,6 +18,20 @@ from app.services.config_manager import config_manager
 
 router = APIRouter()
 
+class ChannelCreateRequest(BaseModel):
+    channel_id: str = ""
+    channel_name: str
+    channel_title: str = ""
+    channel_type: str = "source"
+    config: Optional[dict] = None
+
+class ChannelUpdateRequest(BaseModel):
+    channel_id: Optional[str] = None
+    channel_title: Optional[str] = None
+    channel_type: Optional[str] = None
+    is_active: Optional[bool] = None
+    config: Optional[dict] = None
+
 @router.get("/channels")
 async def get_channels(db: AsyncSession = Depends(get_db)):
     """获取频道配置"""
@@ -24,13 +39,15 @@ async def get_channels(db: AsyncSession = Depends(get_db)):
     channels = result.scalars().all()
     
     return {
+        "success": True,
         "channels": [
             {
                 "id": ch.id,
+                "name": ch.channel_name,
+                "title": ch.channel_title or "",
+                "status": "active" if ch.is_active else "inactive",
                 "channel_id": ch.channel_id,
-                "channel_name": ch.channel_name,
                 "channel_type": ch.channel_type,
-                "is_active": ch.is_active,
                 "config": ch.config,
                 "created_at": ch.created_at
             }
@@ -40,72 +57,92 @@ async def get_channels(db: AsyncSession = Depends(get_db)):
 
 @router.post("/channels")
 async def add_channel(
-    channel_id: str,
-    channel_name: str,
-    channel_type: str,
-    config: dict = None,
+    request: ChannelCreateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """添加频道配置"""
-    channel = Channel(
-        channel_id=channel_id,
-        channel_name=channel_name,
-        channel_type=channel_type,
-        config=config or {}
-    )
-    
-    db.add(channel)
-    await db.commit()
-    await db.refresh(channel)
-    
-    return {"message": "频道添加成功", "channel_id": channel.id}
+    try:
+        # 检查频道名称是否已存在
+        existing = await db.execute(select(Channel).where(Channel.channel_name == request.channel_name))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="频道名称已存在")
+        
+        channel = Channel(
+            channel_id=request.channel_id if request.channel_id else None,
+            channel_name=request.channel_name,
+            channel_title=request.channel_title,
+            channel_type=request.channel_type,
+            config=request.config or {}
+        )
+        
+        db.add(channel)
+        await db.commit()
+        await db.refresh(channel)
+        
+        return {"success": True, "message": "频道添加成功", "channel_id": channel.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
 
-@router.put("/channels/{channel_id}")
+@router.put("/channels/{channel_name}")
 async def update_channel(
-    channel_id: str,
-    channel_name: str = None,
-    channel_type: str = None,
-    is_active: bool = None,
-    config: dict = None,
+    channel_name: str,
+    request: ChannelUpdateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """更新频道配置"""
-    result = await db.execute(select(Channel).where(Channel.channel_id == channel_id))
-    channel = result.scalar_one_or_none()
-    
-    if not channel:
-        raise HTTPException(status_code=404, detail="频道不存在")
-    
-    if channel_name is not None:
-        channel.channel_name = channel_name
-    if channel_type is not None:
-        channel.channel_type = channel_type
-    if is_active is not None:
-        channel.is_active = is_active
-    if config is not None:
-        channel.config = config
-    
-    await db.commit()
-    await db.refresh(channel)
-    
-    return {"message": "频道更新成功", "channel_id": channel.id}
+    try:
+        result = await db.execute(select(Channel).where(Channel.channel_name == channel_name))
+        channel = result.scalar_one_or_none()
+        
+        if not channel:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+        if request.channel_id is not None:
+            channel.channel_id = request.channel_id
+        if request.channel_title is not None:
+            channel.channel_title = request.channel_title
+        if request.channel_type is not None:
+            channel.channel_type = request.channel_type
+        if request.is_active is not None:
+            channel.is_active = request.is_active
+        if request.config is not None:
+            channel.config = request.config
+        
+        await db.commit()
+        await db.refresh(channel)
+        
+        return {"success": True, "message": "频道更新成功", "channel_id": channel.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"更新频道失败: {str(e)}")
 
-@router.delete("/channels/{channel_id}")
+@router.delete("/channels/{channel_name}")
 async def delete_channel(
-    channel_id: str,
+    channel_name: str,
     db: AsyncSession = Depends(get_db)
 ):
     """删除频道配置"""
-    result = await db.execute(select(Channel).where(Channel.channel_id == channel_id))
-    channel = result.scalar_one_or_none()
-    
-    if not channel:
-        raise HTTPException(status_code=404, detail="频道不存在")
-    
-    await db.delete(channel)
-    await db.commit()
-    
-    return {"message": "频道删除成功"}
+    try:
+        result = await db.execute(select(Channel).where(Channel.channel_name == channel_name))
+        channel = result.scalar_one_or_none()
+        
+        if not channel:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+        await db.delete(channel)
+        await db.commit()
+        
+        return {"success": True, "message": "频道删除成功"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"删除频道失败: {str(e)}")
 
 @router.get("/filter-rules")
 async def get_filter_rules(db: AsyncSession = Depends(get_db)):
@@ -197,11 +234,14 @@ async def delete_filter_rule(
 @router.get("/config")
 async def get_system_config():
     """获取系统配置"""
+    from app.core.config import db_settings
+    
     return {
         "auto_forward_delay": settings.AUTO_FORWARD_DELAY,
         "source_channels": settings.SOURCE_CHANNELS,
         "review_group_id": settings.REVIEW_GROUP_ID,
         "target_channel_id": settings.TARGET_CHANNEL_ID,
+        "history_message_limit": await db_settings.get_history_message_limit(),
         "ad_keywords": settings.AD_KEYWORDS,
         "channel_replacements": settings.CHANNEL_REPLACEMENTS
     }

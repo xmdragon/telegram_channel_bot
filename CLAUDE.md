@@ -131,3 +131,51 @@ python test_web_auth.py
 - 日志文件: `./logs/`
 - 数据文件: `./data/`
 - 数据库文件: `telegram_system.db`
+
+## 🚨 重要数据库操作规则
+
+### 严禁删除整个数据库
+**除非用户明确要求删除整个数据库，否则绝对不允许执行以下操作：**
+
+❌ **禁止的操作：**
+```bash
+# 禁止删除数据库文件
+rm telegram_system.db
+rm *.db
+
+# 禁止删除整个数据库
+DROP DATABASE telegram_system;
+```
+
+✅ **允许的操作：**
+```sql
+-- 只允许单表操作
+DROP TABLE IF EXISTS table_name;
+ALTER TABLE table_name ADD COLUMN new_column VARCHAR;
+DELETE FROM table_name WHERE condition;
+UPDATE table_name SET column = value WHERE condition;
+```
+
+### 表结构修改原则
+1. **优先使用 ALTER TABLE** 添加列
+2. **如需重建表，必须先备份数据**
+3. **一次只操作一个表**
+4. **保护其他表的数据完整性**
+
+### 数据库包含的表
+- `messages`: 消息数据
+- `channels`: 频道配置
+- `filter_rules`: 过滤规则
+- `system_configs`: 系统配置（重要！包含21条初始配置）
+
+**任何影响多个表的操作都需要用户明确授权！**
+
+## 数据库结构同步要求
+
+**如果修改数据表结构，在数据库初始化的代码中要同步修改**
+
+当修改了 `app/core/database.py` 中的模型定义时，必须：
+
+1. **更新 init_db.py** - 确保数据库初始化脚本与新的表结构一致
+2. **更新 docker-compose.yml** - 如果需要挂载数据库文件，确保路径正确
+3. **测试新环境** - 在全新环境中验证初始化脚本能正确创建表结构

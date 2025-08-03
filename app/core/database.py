@@ -58,8 +58,9 @@ class Channel(Base):
     __tablename__ = "channels"
     
     id = Column(Integer, primary_key=True, index=True)
-    channel_id = Column(String, unique=True, nullable=False)
-    channel_name = Column(String)
+    channel_id = Column(String, unique=True, nullable=True)  # 允许为空，等待Telethon获取
+    channel_name = Column(String, unique=True, nullable=False)  # 频道名称唯一
+    channel_title = Column(String)  # 频道标题
     channel_type = Column(String)  # source/review/target
     is_active = Column(Boolean, default=True)
     config = Column(JSON)  # 频道特定配置

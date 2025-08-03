@@ -277,4 +277,54 @@
     .form-container {
         padding: 15px;
     }
+}
+
+/* 已保存认证信息样式 */
+.saved-auth-info {
+    background: rgba(26, 26, 46, 0.95);
+    border: 2px solid #00ff41;
+    border-radius: 10px;
+    padding: 30px;
+    margin-bottom: 30px;
+}
+
+.auth-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid rgba(127, 219, 255, 0.2);
+}
+
+.auth-info-item:last-child {
+    border-bottom: none;
+}
+
+.auth-info-item label {
+    color: #7fdbff;
+    font-weight: bold;
+    min-width: 120px;
+}
+
+.auth-info-item span {
+    color: #00ff41;
+    font-family: 'Courier New', monospace;
+    background: rgba(0, 255, 65, 0.1);
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 1px solid rgba(0, 255, 65, 0.3);
+}
+
+/* 确认对话框样式 */
+.starcraft-confirm .el-message-box {
+    background: rgba(26, 26, 46, 0.95) !important;
+    border: 2px solid #00ff41 !important;
+}
+
+.starcraft-confirm .el-message-box__title {
+    color: #00ff41 !important;
+}
+
+.starcraft-confirm .el-message-box__content {
+    color: #7fdbff !important;
 } 

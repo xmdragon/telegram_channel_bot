@@ -68,6 +68,10 @@ class DatabaseSettings:
         await self._ensure_initialized()
         return await self._config_manager.get_config("channels.target_channel_id", "")
     
+    async def get_history_message_limit(self) -> int:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("channels.history_message_limit", 50)
+    
     # 账号采集配置
     async def get_collect_accounts(self) -> bool:
         await self._ensure_initialized()
