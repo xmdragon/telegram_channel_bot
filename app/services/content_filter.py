@@ -16,8 +16,11 @@ class ContentFilter:
     async def _load_config(self):
         """加载配置"""
         if not self._config_loaded:
-            self.ad_keywords = await db_settings.get_ad_keywords()
+            self.ad_keywords_text = await db_settings.get_ad_keywords_text()
+            self.ad_keywords_line = await db_settings.get_ad_keywords_line()
             self.replacements = await db_settings.get_channel_replacements()
+            self.enable_keyword_filter = await db_settings.get_enable_keyword_filter()
+            self.enable_line_filter = await db_settings.get_enable_line_filter()
             self._config_loaded = True
     
     async def filter_message(self, content: str) -> Tuple[bool, str]:
@@ -41,12 +44,24 @@ class ContentFilter:
     
     async def detect_advertisement(self, content: str) -> bool:
         """检测是否为广告"""
+        if not self.enable_keyword_filter:
+            return False
+            
         content_lower = content.lower()
         
-        # 关键词检测
-        for keyword in self.ad_keywords:
+        # 文中关键词检测（消息内容包含这些关键词时过滤）
+        for keyword in self.ad_keywords_text:
             if keyword.lower() in content_lower:
                 return True
+        
+        # 行中关键词检测（消息行包含这些关键词时过滤整行）
+        if self.enable_line_filter:
+            lines = content.split('\n')
+            for line in lines:
+                line_lower = line.lower().strip()
+                for keyword in self.ad_keywords_line:
+                    if keyword.lower() in line_lower:
+                        return True
         
         # 正则表达式检测
         ad_patterns = [
@@ -74,6 +89,25 @@ class ContentFilter:
         
         # 移除底部频道信息
         filtered_content = self.remove_channel_footer(filtered_content)
+        
+        # 如果启用了行过滤，移除包含行中关键词的行
+        if self.enable_line_filter:
+            lines = filtered_content.split('\n')
+            filtered_lines = []
+            for line in lines:
+                line_lower = line.lower().strip()
+                should_keep = True
+                
+                # 检查是否包含行中关键词
+                for keyword in self.ad_keywords_line:
+                    if keyword.lower() in line_lower:
+                        should_keep = False
+                        break
+                
+                if should_keep:
+                    filtered_lines.append(line)
+            
+            filtered_content = '\n'.join(filtered_lines).strip()
         
         return filtered_content
     

@@ -1,0 +1,239 @@
+/* 导入字体 */
+@import url('./fonts.css');
+
+/* 基础重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 基础样式 */
+body {
+    font-family: 'Orbitron', monospace;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+    color: #00ff41;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* 扫描线动画 */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00ff41, transparent);
+    animation: scan 3s linear infinite;
+    z-index: 1000;
+}
+
+@keyframes scan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100vw); }
+}
+
+/* 头部样式 */
+.header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #00ff41;
+    padding: 30px 20px;
+    text-align: center;
+    border-bottom: 3px solid #00ff41;
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.1), transparent);
+    animation: headerScan 4s linear infinite;
+}
+
+@keyframes headerScan {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.header h1 {
+    font-size: 2.5em;
+    font-weight: 900;
+    text-shadow: 0 0 20px #00ff41;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.header p {
+    font-size: 1.2em;
+    color: #7fdbff;
+    text-shadow: 0 0 10px #7fdbff;
+    position: relative;
+    z-index: 1;
+}
+
+/* 导航栏 */
+.nav-bar {
+    background: rgba(26, 26, 46, 0.9);
+    padding: 15px 20px;
+    border-bottom: 2px solid #00ff41;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+}
+
+.nav-links {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-link {
+    color: #00ff41;
+    text-decoration: none;
+    padding: 10px 20px;
+    border: 2px solid transparent;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.nav-link:hover {
+    border-color: #00ff41;
+    background: rgba(0, 255, 65, 0.1);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+    transform: translateY(-2px);
+}
+
+.nav-link.active {
+    border-color: #00ff41;
+    background: rgba(0, 255, 65, 0.2);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.7);
+}
+
+/* 按钮样式 */
+.el-button {
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.el-button--primary {
+    background: linear-gradient(135deg, #00ff41, #00d4aa);
+    border-color: #00ff41;
+    color: #000;
+}
+
+.el-button--primary:hover {
+    background: linear-gradient(135deg, #00d4aa, #00ff41);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+    transform: translateY(-2px);
+}
+
+.el-button--success {
+    background: linear-gradient(135deg, #2ed573, #00d4aa);
+    border-color: #2ed573;
+    color: #000;
+}
+
+.el-button--success:hover {
+    background: linear-gradient(135deg, #00d4aa, #2ed573);
+    box-shadow: 0 0 20px rgba(46, 213, 115, 0.5);
+    transform: translateY(-2px);
+}
+
+.el-button--danger {
+    background: linear-gradient(135deg, #ff4757, #ff3838);
+    border-color: #ff4757;
+    color: #fff;
+}
+
+.el-button--danger:hover {
+    background: linear-gradient(135deg, #ff3838, #ff4757);
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+    transform: translateY(-2px);
+}
+
+/* 状态消息 */
+.status-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    z-index: 1001;
+    animation: slideIn 0.5s ease;
+}
+
+.status-message.success {
+    background: rgba(46, 213, 115, 0.9);
+    color: #000;
+    border: 2px solid #2ed573;
+}
+
+.status-message.error {
+    background: rgba(255, 71, 87, 0.9);
+    color: #fff;
+    border: 2px solid #ff4757;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* 加载动画 */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1002;
+}
+
+.loading-content {
+    text-align: center;
+    color: #00ff41;
+}
+
+.loading-content .el-icon {
+    font-size: 3em;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 2em;
+    }
+    
+    .nav-links {
+        flex-direction: column;
+        gap: 10px;
+    }
+} 

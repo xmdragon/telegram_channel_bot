@@ -183,6 +183,23 @@ async def get_filter_configs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取过滤配置失败: {str(e)}")
 
+@router.get("/categories/accounts")
+async def get_accounts_configs():
+    """获取账号采集相关配置"""
+    try:
+        all_configs = await config_manager.get_all_configs()
+        accounts_configs = {
+            key: value for key, value in all_configs.items()
+            if key.startswith('accounts.')
+        }
+        
+        return {
+            "success": True,
+            "configs": accounts_configs
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取账号采集配置失败: {str(e)}")
+
 @router.get("/categories/review")
 async def get_review_configs():
     """获取审核相关配置"""
@@ -273,3 +290,231 @@ async def reset_default_configs():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"重置默认配置失败: {str(e)}")
+
+# 频道管理相关API
+class ChannelAddRequest(BaseModel):
+    channel_id: str
+    channel_name: str = ""
+    description: str = ""
+
+@router.post("/channels/add")
+async def add_channel(request: ChannelAddRequest):
+    """添加监听频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        success = await channel_manager.add_channel(
+            channel_id=request.channel_id,
+            channel_name=request.channel_name,
+            description=request.description,
+            channel_type="source"
+        )
+        
+        if success:
+            return {"success": True, "message": f"频道 {request.channel_id} 添加成功"}
+        else:
+            raise HTTPException(status_code=400, detail="频道已存在或添加失败")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
+
+@router.delete("/channels/{channel_id}")
+async def remove_channel(channel_id: str):
+    """移除监听频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        success = await channel_manager.delete_channel(channel_id)
+        
+        if success:
+            return {"success": True, "message": f"频道 {channel_id} 移除成功"}
+        else:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"移除频道失败: {str(e)}")
+
+class ChannelStatusRequest(BaseModel):
+    enabled: bool
+
+@router.put("/channels/{channel_id}/status")
+async def update_channel_status(channel_id: str, request: ChannelStatusRequest):
+    """更新频道监听状态"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        success = await channel_manager.update_channel(
+            channel_id, 
+            is_active=request.enabled
+        )
+        
+        if success:
+            return {"success": True, "message": f"频道 {channel_id} 状态更新成功"}
+        else:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新频道状态失败: {str(e)}")
+
+@router.get("/channels/")
+async def get_channels():
+    """获取所有频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        channels = await channel_manager.get_source_channels()
+        
+        return {
+            "success": True,
+            "channels": channels
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取频道列表失败: {str(e)}")
+
+@router.get("/channels/{channel_id}")
+async def get_channel(channel_id: str):
+    """获取单个频道信息"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        channel = await channel_manager.get_channel_by_id(channel_id)
+        
+        if channel:
+            return {
+                "success": True,
+                "channel": channel
+            }
+        else:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
+
+# 关键词管理相关API
+class KeywordAddRequest(BaseModel):
+    keyword: str
+
+@router.post("/keywords/text/add")
+async def add_text_keyword(request: KeywordAddRequest):
+    """添加文中过滤关键词"""
+    try:
+        keywords = await config_manager.get_config("filter.ad_keywords_text", [])
+        if request.keyword not in keywords:
+            keywords.append(request.keyword)
+            await config_manager.set_config("filter.ad_keywords_text", keywords, "文中出现过滤消息的广告关键词", "list")
+        
+        return {"success": True, "message": f"关键词 '{request.keyword}' 添加成功"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加关键词失败: {str(e)}")
+
+@router.delete("/keywords/text/{keyword}")
+async def remove_text_keyword(keyword: str):
+    """移除文中过滤关键词"""
+    try:
+        keywords = await config_manager.get_config("filter.ad_keywords_text", [])
+        if keyword in keywords:
+            keywords.remove(keyword)
+            await config_manager.set_config("filter.ad_keywords_text", keywords, "文中出现过滤消息的广告关键词", "list")
+        
+        return {"success": True, "message": f"关键词 '{keyword}' 移除成功"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"移除关键词失败: {str(e)}")
+
+@router.post("/keywords/line/add")
+async def add_line_keyword(request: KeywordAddRequest):
+    """添加行中过滤关键词"""
+    try:
+        keywords = await config_manager.get_config("filter.ad_keywords_line", [])
+        if request.keyword not in keywords:
+            keywords.append(request.keyword)
+            await config_manager.set_config("filter.ad_keywords_line", keywords, "行中出现过滤本行的广告关键词", "list")
+        
+        return {"success": True, "message": f"关键词 '{request.keyword}' 添加成功"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加关键词失败: {str(e)}")
+
+@router.delete("/keywords/line/{keyword}")
+async def remove_line_keyword(keyword: str):
+    """移除行中过滤关键词"""
+    try:
+        keywords = await config_manager.get_config("filter.ad_keywords_line", [])
+        if keyword in keywords:
+            keywords.remove(keyword)
+            await config_manager.set_config("filter.ad_keywords_line", keywords, "行中出现过滤本行的广告关键词", "list")
+        
+        return {"success": True, "message": f"关键词 '{keyword}' 移除成功"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"移除关键词失败: {str(e)}")
+
+# 账号管理相关API
+class AccountAddRequest(BaseModel):
+    account: str
+
+@router.post("/accounts/blacklist/add")
+async def add_account_to_blacklist(request: AccountAddRequest):
+    """添加账号到黑名单"""
+    try:
+        blacklist = await config_manager.get_config("accounts.account_blacklist", [])
+        if request.account not in blacklist:
+            blacklist.append(request.account)
+            await config_manager.set_config("accounts.account_blacklist", blacklist, "账号黑名单", "list")
+        
+        return {"success": True, "message": f"账号 '{request.account}' 已添加到黑名单"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加账号到黑名单失败: {str(e)}")
+
+@router.delete("/accounts/blacklist/{account}")
+async def remove_account_from_blacklist(account: str):
+    """从黑名单移除账号"""
+    try:
+        blacklist = await config_manager.get_config("accounts.account_blacklist", [])
+        if account in blacklist:
+            blacklist.remove(account)
+            await config_manager.set_config("accounts.account_blacklist", blacklist, "账号黑名单", "list")
+        
+        return {"success": True, "message": f"账号 '{account}' 已从黑名单移除"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"从黑名单移除账号失败: {str(e)}")
+
+@router.post("/accounts/whitelist/add")
+async def add_account_to_whitelist(request: AccountAddRequest):
+    """添加账号到白名单"""
+    try:
+        whitelist = await config_manager.get_config("accounts.account_whitelist", [])
+        if request.account not in whitelist:
+            whitelist.append(request.account)
+            await config_manager.set_config("accounts.account_whitelist", whitelist, "账号白名单", "list")
+        
+        return {"success": True, "message": f"账号 '{request.account}' 已添加到白名单"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加账号到白名单失败: {str(e)}")
+
+@router.delete("/accounts/whitelist/{account}")
+async def remove_account_from_whitelist(account: str):
+    """从白名单移除账号"""
+    try:
+        whitelist = await config_manager.get_config("accounts.account_whitelist", [])
+        if account in whitelist:
+            whitelist.remove(account)
+            await config_manager.set_config("accounts.account_whitelist", whitelist, "账号白名单", "list")
+        
+        return {"success": True, "message": f"账号 '{account}' 已从白名单移除"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"从白名单移除账号失败: {str(e)}")

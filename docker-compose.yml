@@ -1,38 +1,56 @@
-version: '3.8'
-
 services:
   app:
     build: .
+    container_name: telegram_bot_app
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/telegram_system
+      - DATABASE_URL=sqlite:///./telegram_system.db
       - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+      - TZ=Asia/Shanghai
     depends_on:
-      - db
       - redis
     volumes:
-      - .:/app
+      - ./sessions:/app/sessions
+      - ./logs:/app/logs
+      - ./data:/app/data
     restart: unless-stopped
-
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: telegram_system
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - telegram_network
 
   redis:
     image: redis:7-alpine
+    container_name: telegram_bot_redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - telegram_network
+    command: redis-server --appendonly yes
+
+  # 可选：PostgreSQL 数据库（如果需要）
+  # postgres:
+  #   image: postgres:15
+  #   container_name: telegram_bot_postgres
+  #   environment:
+  #     POSTGRES_DB: telegram_system
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   restart: unless-stopped
+  #   networks:
+  #     - telegram_network
+
+networks:
+  telegram_network:
+    driver: bridge
 
 volumes:
-  postgres_data:
   redis_data:
+  # postgres_data:

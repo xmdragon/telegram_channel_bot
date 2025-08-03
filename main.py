@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_db
 from app.api import api_router
-from app.telegram.bot import TelegramBot
+from app.telegram.bot import TelegramClient
 from app.services.scheduler import MessageScheduler
 
 # 配置日志
@@ -40,8 +40,8 @@ async def lifespan(app: FastAPI):
     from app.core.config import settings
     await settings.load_db_configs()
     
-    # 启动Telegram机器人
-    bot = TelegramBot()
+    # 启动Telegram客户端
+    bot = TelegramClient()
     await bot.start()
     
     # 启动消息调度器
@@ -98,6 +98,18 @@ async def config():
     """配置管理界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/static/config.html")
+
+@app.get("/auth")
+async def auth():
+    """Telegram 登录界面"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/auth.html")
+
+@app.get("/status")
+async def status():
+    """系统状态检查界面"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/status.html")
 
 if __name__ == "__main__":
     import uvicorn

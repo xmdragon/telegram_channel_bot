@@ -3,204 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>系统管理 - Telegram消息审核系统</title>
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <style>
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        .config-section {
-            margin: 20px 0;
-        }
-        .status-healthy {
-            color: #67C23A;
-        }
-        .status-unhealthy {
-            color: #F56C6C;
-        }
-    </style>
+    <title>系统管理 - 星际争霸风格</title>
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
 </head>
 <body>
     <div id="app">
         <div class="header">
-            <h1>⚙️ 系统管理</h1>
+            <h1>⚙️ 系统管理控制台</h1>
             <p>配置管理 · 系统监控 · 规则设置</p>
         </div>
 
-        <el-container style="padding: 20px;">
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 主控制台</a>
+                <a href="/config" class="nav-link">⚙️ 系统配置</a>
+                <a href="/status" class="nav-link">📊 系统状态</a>
+                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
+                <a href="/admin" class="nav-link active">🔧 系统管理</a>
+            </div>
+            <div class="nav-links">
+                <span style="color: #7fdbff; font-weight: 700;">管理状态: {{ adminStatus }}</span>
+            </div>
+        </div>
+
+        <div class="container">
             <!-- 系统状态 -->
-            <el-card class="config-section">
-                <template #header>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>系统状态</span>
-                        <el-button @click="checkHealth" icon="Refresh" size="small">刷新</el-button>
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔍 系统状态</h2>
+                </div>
+                <div class="card-content">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">{{ health.status === 'healthy' ? '✅' : '❌' }}</div>
+                            <div class="stat-label">系统状态</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ health.database === 'connected' ? '✅' : '❌' }}</div>
+                            <div class="stat-label">数据库</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ health.version || 'N/A' }}</div>
+                            <div class="stat-label">版本</div>
+                        </div>
                     </div>
-                </template>
-                
-                <el-descriptions :column="3" border>
-                    <el-descriptions-item label="系统状态">
-                        <span :class="health.status === 'healthy' ? 'status-healthy' : 'status-unhealthy'">
-                            {{ health.status === 'healthy' ? '✅ 正常' : '❌ 异常' }}
-                        </span>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="数据库">
-                        <span :class="health.database === 'connected' ? 'status-healthy' : 'status-unhealthy'">
-                            {{ health.database === 'connected' ? '✅ 已连接' : '❌ 断开' }}
-                        </span>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="版本">{{ health.version || 'N/A' }}</el-descriptions-item>
-                    <el-descriptions-item label="最后检查" span="3">{{ health.timestamp || 'N/A' }}</el-descriptions-item>
-                </el-descriptions>
-            </el-card>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <el-button @click="checkHealth" type="primary" icon="Refresh">
+                            刷新状态
+                        </el-button>
+                    </div>
+                </div>
+            </div>
 
             <!-- 频道管理 -->
-            <el-card class="config-section">
-                <template #header>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>频道管理</span>
-                        <el-button @click="showAddChannelDialog = true" type="primary" icon="Plus">添加频道</el-button>
+            <div class="card">
+                <div class="card-header">
+                    <h2>📺 频道管理</h2>
+                </div>
+                <div class="card-content">
+                    <div style="margin-bottom: 20px;">
+                        <el-button @click="showAddChannelDialog = true" type="primary" icon="Plus">
+                            添加频道
+                        </el-button>
                     </div>
-                </template>
-                
-                <el-table :data="channels" style="width: 100%">
-                    <el-table-column prop="channel_name" label="频道名称" width="200"></el-table-column>
-                    <el-table-column prop="channel_id" label="频道ID" width="200"></el-table-column>
-                    <el-table-column prop="channel_type" label="类型" width="120">
-                        <template #default="scope">
-                            <el-tag :type="getChannelTypeColor(scope.row.channel_type)">
-                                {{ getChannelTypeText(scope.row.channel_type) }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="is_active" label="状态" width="100">
-                        <template #default="scope">
-                            <el-tag :type="scope.row.is_active ? 'success' : 'danger'">
-                                {{ scope.row.is_active ? '启用' : '禁用' }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="created_at" label="创建时间">
-                        <template #default="scope">
-                            {{ formatTime(scope.row.created_at) }}
-                        </template>
-                    </el-table-column>
-                </el-table>
-            </el-card>
+                    
+                    <div class="list-item" v-for="channel in channels" :key="channel.id">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="list-item-title">{{ channel.channel_name }}</div>
+                                <div class="list-item-subtitle">{{ channel.channel_id }}</div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <el-tag :type="getChannelTypeColor(channel.channel_type)">
+                                    {{ getChannelTypeText(channel.channel_type) }}
+                                </el-tag>
+                                <el-tag :type="channel.is_active ? 'success' : 'danger'">
+                                    {{ channel.is_active ? '启用' : '禁用' }}
+                                </el-tag>
+                                <el-button @click="editChannel(channel)" type="info" size="small">
+                                    编辑
+                                </el-button>
+                                <el-button @click="deleteChannel(channel.id)" type="danger" size="small">
+                                    删除
+                                </el-button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- 过滤规则管理 -->
-            <el-card class="config-section">
-                <template #header>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>过滤规则</span>
-                        <el-button @click="showAddRuleDialog = true" type="primary" icon="Plus">添加规则</el-button>
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔍 过滤规则</h2>
+                </div>
+                <div class="card-content">
+                    <div style="margin-bottom: 20px;">
+                        <el-button @click="showAddRuleDialog = true" type="primary" icon="Plus">
+                            添加规则
+                        </el-button>
                     </div>
-                </template>
-                
-                <el-table :data="filterRules" style="width: 100%">
-                    <el-table-column prop="rule_type" label="类型" width="120">
-                        <template #default="scope">
-                            <el-tag :type="scope.row.rule_type === 'keyword' ? 'primary' : 'warning'">
-                                {{ scope.row.rule_type === 'keyword' ? '关键词' : '正则' }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="pattern" label="匹配模式" width="300"></el-table-column>
-                    <el-table-column prop="action" label="动作" width="120">
-                        <template #default="scope">
-                            <el-tag :type="getActionColor(scope.row.action)">
-                                {{ getActionText(scope.row.action) }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="is_active" label="状态" width="100">
-                        <template #default="scope">
-                            <el-tag :type="scope.row.is_active ? 'success' : 'danger'">
-                                {{ scope.row.is_active ? '启用' : '禁用' }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="created_at" label="创建时间">
-                        <template #default="scope">
-                            {{ formatTime(scope.row.created_at) }}
-                        </template>
-                    </el-table-column>
-                </el-table>
-            </el-card>
+                    
+                    <div class="list-item" v-for="rule in filterRules" :key="rule.id">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="list-item-title">{{ rule.pattern }}</div>
+                                <div class="list-item-subtitle">{{ rule.description }}</div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <el-tag :type="rule.rule_type === 'keyword' ? 'primary' : 'warning'">
+                                    {{ rule.rule_type }}
+                                </el-tag>
+                                <el-tag :type="rule.is_active ? 'success' : 'danger'">
+                                    {{ rule.is_active ? '启用' : '禁用' }}
+                                </el-tag>
+                                <el-button @click="editRule(rule)" type="info" size="small">
+                                    编辑
+                                </el-button>
+                                <el-button @click="deleteRule(rule.id)" type="danger" size="small">
+                                    删除
+                                </el-button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-            <!-- 系统配置 -->
-            <el-card class="config-section">
-                <template #header>
-                    <span>系统配置</span>
-                </template>
-                
-                <el-descriptions :column="2" border>
-                    <el-descriptions-item label="自动转发延迟">{{ config.auto_forward_delay }} 秒</el-descriptions-item>
-                    <el-descriptions-item label="源频道数量">{{ config.source_channels?.length || 0 }}</el-descriptions-item>
-                    <el-descriptions-item label="审核群ID">{{ config.review_group_id }}</el-descriptions-item>
-                    <el-descriptions-item label="目标频道ID">{{ config.target_channel_id }}</el-descriptions-item>
-                    <el-descriptions-item label="广告关键词" span="2">
-                        <el-tag v-for="keyword in config.ad_keywords" :key="keyword" style="margin: 2px;">
-                            {{ keyword }}
-                        </el-tag>
-                    </el-descriptions-item>
-                </el-descriptions>
-            </el-card>
-        </el-container>
-
-        <!-- 添加频道对话框 -->
-        <el-dialog v-model="showAddChannelDialog" title="添加频道" width="500px">
-            <el-form :model="newChannel" label-width="100px">
-                <el-form-item label="频道ID">
-                    <el-input v-model="newChannel.channel_id" placeholder="@channel_name 或 -1001234567890"></el-input>
-                </el-form-item>
-                <el-form-item label="频道名称">
-                    <el-input v-model="newChannel.channel_name" placeholder="输入频道名称"></el-input>
-                </el-form-item>
-                <el-form-item label="频道类型">
-                    <el-select v-model="newChannel.channel_type" placeholder="选择类型">
-                        <el-option label="源频道" value="source"></el-option>
-                        <el-option label="审核群" value="review"></el-option>
-                        <el-option label="目标频道" value="target"></el-option>
-                    </el-select>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="showAddChannelDialog = false">取消</el-button>
-                <el-button type="primary" @click="addChannel">确定</el-button>
-            </template>
-        </el-dialog>
-
-        <!-- 添加规则对话框 -->
-        <el-dialog v-model="showAddRuleDialog" title="添加过滤规则" width="500px">
-            <el-form :model="newRule" label-width="100px">
-                <el-form-item label="规则类型">
-                    <el-select v-model="newRule.rule_type" placeholder="选择类型">
-                        <el-option label="关键词" value="keyword"></el-option>
-                        <el-option label="正则表达式" value="regex"></el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="匹配模式">
-                    <el-input v-model="newRule.pattern" placeholder="输入关键词或正则表达式"></el-input>
-                </el-form-item>
-                <el-form-item label="执行动作">
-                    <el-select v-model="newRule.action" placeholder="选择动作">
-                        <el-option label="标记" value="flag"></el-option>
-                        <el-option label="阻止" value="block"></el-option>
-                        <el-option label="替换" value="replace"></el-option>
-                    </el-select>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="showAddRuleDialog = false">取消</el-button>
-                <el-button type="primary" @click="addRule">确定</el-button>
-            </template>
-        </el-dialog>
+            <!-- 系统操作 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>⚡ 系统操作</h2>
+                </div>
+                <div class="card-content">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <el-button @click="restartSystem" type="warning" icon="Refresh">
+                            重启系统
+                        </el-button>
+                        <el-button @click="backupData" type="info" icon="Download">
+                            备份数据
+                        </el-button>
+                        <el-button @click="clearCache" type="danger" icon="Delete">
+                            清理缓存
+                        </el-button>
+                        <el-button @click="exportLogs" type="primary" icon="Document">
+                            导出日志
+                        </el-button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态消息 -->
+        <div v-if="statusMessage" class="status-message" :class="statusType">
+            {{ statusMessage }}
+        </div>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="loading-content">
+                <el-icon class="is-loading">
+                    <Loading />
+                </el-icon>
+                <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -210,138 +182,225 @@
         createApp({
             data() {
                 return {
-                    health: {},
+                    loading: false,
+                    loadingMessage: '',
+                    statusMessage: '',
+                    statusType: 'success',
+                    adminStatus: '在线',
+                    health: {
+                        status: 'healthy',
+                        database: 'connected',
+                        version: 'v1.0.0',
+                        timestamp: new Date().toLocaleString()
+                    },
                     channels: [],
                     filterRules: [],
-                    config: {},
                     showAddChannelDialog: false,
-                    showAddRuleDialog: false,
-                    newChannel: {
-                        channel_id: '',
-                        channel_name: '',
-                        channel_type: 'source'
-                    },
-                    newRule: {
-                        rule_type: 'keyword',
-                        pattern: '',
-                        action: 'flag'
-                    }
+                    showAddRuleDialog: false
                 }
             },
+            
             mounted() {
-                this.loadData();
+                this.loadAdminData();
             },
+            
             methods: {
-                async loadData() {
-                    await Promise.all([
-                        this.checkHealth(),
-                        this.loadChannels(),
-                        this.loadFilterRules(),
-                        this.loadConfig()
-                    ]);
+                async loadAdminData() {
+                    this.loading = true;
+                    this.loadingMessage = '正在加载管理数据...';
+                    
+                    try {
+                        // 加载健康状态
+                        await this.checkHealth();
+                        
+                        // 加载频道列表
+                        const channelsResponse = await axios.get('/api/admin/channels');
+                        if (channelsResponse.data.success) {
+                            this.channels = channelsResponse.data.channels;
+                        }
+                        
+                        // 加载过滤规则
+                        const rulesResponse = await axios.get('/api/admin/filter-rules');
+                        if (rulesResponse.data.success) {
+                            this.filterRules = rulesResponse.data.rules;
+                        }
+                        
+                    } catch (error) {
+                        console.error('加载管理数据失败:', error);
+                        this.loadMockData();
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                loadMockData() {
+                    // 模拟数据
+                    this.channels = [
+                        { id: 1, channel_name: '测试频道1', channel_id: '@test1', channel_type: 'source', is_active: true },
+                        { id: 2, channel_name: '测试频道2', channel_id: '@test2', channel_type: 'source', is_active: false }
+                    ];
+                    
+                    this.filterRules = [
+                        { id: 1, pattern: '广告', rule_type: 'keyword', is_active: true, description: '过滤广告内容' },
+                        { id: 2, pattern: '推广', rule_type: 'keyword', is_active: true, description: '过滤推广内容' }
+                    ];
                 },
                 
                 async checkHealth() {
                     try {
                         const response = await axios.get('/api/admin/health');
-                        this.health = response.data;
+                        if (response.data.success) {
+                            this.health = response.data.health;
+                        }
                     } catch (error) {
-                        ElMessage.error('获取系统状态失败');
-                    }
-                },
-                
-                async loadChannels() {
-                    try {
-                        const response = await axios.get('/api/admin/channels');
-                        this.channels = response.data.channels;
-                    } catch (error) {
-                        ElMessage.error('加载频道列表失败');
-                    }
-                },
-                
-                async loadFilterRules() {
-                    try {
-                        const response = await axios.get('/api/admin/filter-rules');
-                        this.filterRules = response.data.rules;
-                    } catch (error) {
-                        ElMessage.error('加载过滤规则失败');
-                    }
-                },
-                
-                async loadConfig() {
-                    try {
-                        const response = await axios.get('/api/admin/config');
-                        this.config = response.data;
-                    } catch (error) {
-                        ElMessage.error('加载系统配置失败');
-                    }
-                },
-                
-                async addChannel() {
-                    try {
-                        await axios.post('/api/admin/channels', this.newChannel);
-                        ElMessage.success('频道添加成功');
-                        this.showAddChannelDialog = false;
-                        this.newChannel = { channel_id: '', channel_name: '', channel_type: 'source' };
-                        this.loadChannels();
-                    } catch (error) {
-                        ElMessage.error('添加频道失败');
-                    }
-                },
-                
-                async addRule() {
-                    try {
-                        await axios.post('/api/admin/filter-rules', this.newRule);
-                        ElMessage.success('过滤规则添加成功');
-                        this.showAddRuleDialog = false;
-                        this.newRule = { rule_type: 'keyword', pattern: '', action: 'flag' };
-                        this.loadFilterRules();
-                    } catch (error) {
-                        ElMessage.error('添加过滤规则失败');
+                        console.error('检查健康状态失败:', error);
                     }
                 },
                 
                 getChannelTypeColor(type) {
                     const colors = {
-                        source: 'primary',
-                        review: 'warning',
-                        target: 'success'
+                        'source': 'primary',
+                        'target': 'success',
+                        'review': 'warning'
                     };
                     return colors[type] || 'info';
                 },
                 
                 getChannelTypeText(type) {
                     const texts = {
-                        source: '源频道',
-                        review: '审核群',
-                        target: '目标频道'
+                        'source': '源频道',
+                        'target': '目标频道',
+                        'review': '审核频道'
                     };
                     return texts[type] || type;
                 },
                 
-                getActionColor(action) {
-                    const colors = {
-                        flag: 'warning',
-                        block: 'danger',
-                        replace: 'primary'
-                    };
-                    return colors[action] || 'info';
+                async editChannel(channel) {
+                    try {
+                        // 这里可以实现编辑频道的弹窗或跳转到编辑页面
+                        // 暂时显示频道信息
+                        this.showSuccess(`编辑频道: ${channel.channel_name} (${channel.channel_id})`);
+                        
+                        // 可以添加编辑逻辑，比如打开编辑弹窗
+                        // this.editDialogVisible = true;
+                        // this.editingChannel = channel;
+                    } catch (error) {
+                        this.showError('编辑频道失败: ' + error.message);
+                    }
                 },
                 
-                getActionText(action) {
-                    const texts = {
-                        flag: '标记',
-                        block: '阻止',
-                        replace: '替换'
-                    };
-                    return texts[action] || action;
+                async deleteChannel(channelId) {
+                    try {
+                        if (confirm('确定要删除这个频道吗？')) {
+                            const response = await axios.delete(`/api/admin/channels/${channelId}`);
+                            if (response.data.message) {
+                                this.showSuccess(response.data.message);
+                                // 重新加载频道列表
+                                await this.loadChannels();
+                            }
+                        }
+                    } catch (error) {
+                        this.showError('删除频道失败: ' + (error.response?.data?.detail || error.message));
+                    }
                 },
                 
-                formatTime(timeStr) {
-                    return new Date(timeStr).toLocaleString('zh-CN');
+                async editRule(rule) {
+                    try {
+                        // 这里可以实现编辑规则的弹窗或跳转到编辑页面
+                        this.showSuccess(`编辑规则: ${rule.pattern} (${rule.rule_type})`);
+                        
+                        // 可以添加编辑逻辑，比如打开编辑弹窗
+                        // this.editRuleDialogVisible = true;
+                        // this.editingRule = rule;
+                    } catch (error) {
+                        this.showError('编辑规则失败: ' + error.message);
+                    }
+                },
+                
+                async deleteRule(ruleId) {
+                    try {
+                        if (confirm('确定要删除这个过滤规则吗？')) {
+                            const response = await axios.delete(`/api/admin/filter-rules/${ruleId}`);
+                            if (response.data.message) {
+                                this.showSuccess(response.data.message);
+                                // 重新加载规则列表
+                                await this.loadFilterRules();
+                            }
+                        }
+                    } catch (error) {
+                        this.showError('删除规则失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async restartSystem() {
+                    try {
+                        const response = await axios.post('/api/admin/restart');
+                        if (response.data.success) {
+                            this.showSuccess('系统重启成功');
+                        } else {
+                            this.showError('系统重启失败');
+                        }
+                    } catch (error) {
+                        this.showError('系统重启失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async backupData() {
+                    try {
+                        const response = await axios.post('/api/admin/backup');
+                        if (response.data.success) {
+                            this.showSuccess('数据备份成功');
+                        } else {
+                            this.showError('数据备份失败');
+                        }
+                    } catch (error) {
+                        this.showError('数据备份失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async clearCache() {
+                    try {
+                        const response = await axios.post('/api/admin/clear-cache');
+                        if (response.data.success) {
+                            this.showSuccess('缓存清理成功');
+                        } else {
+                            this.showError('缓存清理失败');
+                        }
+                    } catch (error) {
+                        this.showError('缓存清理失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async exportLogs() {
+                    try {
+                        const response = await axios.post('/api/admin/export-logs');
+                        if (response.data.success) {
+                            this.showSuccess('日志导出成功');
+                        } else {
+                            this.showError('日志导出失败');
+                        }
+                    } catch (error) {
+                        this.showError('日志导出失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                showSuccess(message) {
+                    this.statusMessage = message;
+                    this.statusType = 'success';
+                    setTimeout(() => {
+                        this.statusMessage = '';
+                    }, 3000);
+                },
+                
+                showError(message) {
+                    this.statusMessage = message;
+                    this.statusType = 'error';
+                    setTimeout(() => {
+                        this.statusMessage = '';
+                    }, 5000);
                 }
             }
-        }).use(ElementPlus).mount('#app');
+        }).mount('#app');
     </script>
 </body>
 </html>

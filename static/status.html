@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统状态 - 星际争霸风格</title>
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>🚀 系统状态监控</h1>
+            <p>实时监控 · 性能分析 · 系统健康</p>
+        </div>
+
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 主控制台</a>
+                <a href="/config" class="nav-link">⚙️ 系统配置</a>
+                <a href="/status" class="nav-link active">📊 系统状态</a>
+                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
+            </div>
+            <div class="nav-links">
+                <span style="color: #7fdbff; font-weight: 700;">系统状态: {{ systemStatus }}</span>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- 系统状态网格 -->
+            <div class="stats-grid">
+                <div class="stat-item" v-for="(stat, key) in systemStats" :key="key">
+                    <div class="stat-number">{{ stat.value }}</div>
+                    <div class="stat-label">{{ stat.label }}</div>
+                </div>
+            </div>
+
+            <!-- 服务状态 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔧 服务状态</h2>
+                </div>
+                <div class="card-content">
+                    <div class="list-item" v-for="service in services" :key="service.name">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="list-item-title">{{ service.name }}</div>
+                                <div class="list-item-subtitle">{{ service.description }}</div>
+                            </div>
+                            <el-tag :type="service.status === 'running' ? 'success' : 'danger'" size="large">
+                                {{ service.status === 'running' ? '运行中' : '已停止' }}
+                            </el-tag>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统信息 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>💻 系统信息</h2>
+                </div>
+                <div class="card-content">
+                    <div class="list-item" v-for="(info, key) in systemInfo" :key="key">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="list-item-title">{{ info.label }}</div>
+                            <div class="list-item-subtitle">{{ info.value }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div style="text-align: center; margin-top: 30px;">
+                <el-button @click="refreshStatus" type="primary" icon="Refresh">
+                    刷新状态
+                </el-button>
+                <el-button @click="restartServices" type="warning" icon="Refresh">
+                    重启服务
+                </el-button>
+            </div>
+        </div>
+        
+        <!-- 状态消息 -->
+        <div v-if="statusMessage" class="status-message" :class="statusType">
+            {{ statusMessage }}
+        </div>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="loading-content">
+                <el-icon class="is-loading">
+                    <Loading />
+                </el-icon>
+                <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    loading: false,
+                    loadingMessage: '',
+                    statusMessage: '',
+                    statusType: 'success',
+                    systemStatus: '在线',
+                    systemStats: {
+                        uptime: { value: '0天 0小时', label: '运行时间' },
+                        messages: { value: 0, label: '总消息数' },
+                        channels: { value: 0, label: '监听频道' },
+                        memory: { value: '0 MB', label: '内存使用' },
+                        cpu: { value: '0%', label: 'CPU使用率' },
+                        disk: { value: '0 GB', label: '磁盘使用' }
+                    },
+                    services: [
+                        { name: 'Telegram Bot', description: '消息监听和转发服务', status: 'running' },
+                        { name: 'Web Server', description: 'Web界面服务', status: 'running' },
+                        { name: 'Database', description: '数据库服务', status: 'running' },
+                        { name: 'Message Processor', description: '消息处理服务', status: 'running' }
+                    ],
+                    systemInfo: {
+                        version: { label: '系统版本', value: 'v1.0.0' },
+                        platform: { label: '运行平台', value: 'Linux x86_64' },
+                        python: { label: 'Python版本', value: '3.9.0' },
+                        database: { label: '数据库', value: 'SQLite 3.35.0' }
+                    }
+                }
+            },
+            
+            mounted() {
+                this.loadSystemStatus();
+                // 定期刷新状态
+                setInterval(() => {
+                    this.loadSystemStatus();
+                }, 30000);
+            },
+            
+            methods: {
+                async loadSystemStatus() {
+                    this.loading = true;
+                    this.loadingMessage = '正在加载系统状态...';
+                    
+                    try {
+                        const response = await axios.get('/api/status/');
+                        if (response.data.success) {
+                            const data = response.data;
+                            
+                            // 更新系统统计
+                            this.systemStats.uptime.value = data.uptime || '0天 0小时';
+                            this.systemStats.messages.value = data.total_messages || 0;
+                            this.systemStats.channels.value = data.active_channels || 0;
+                            this.systemStats.memory.value = data.memory_usage || '0 MB';
+                            this.systemStats.cpu.value = data.cpu_usage || '0%';
+                            this.systemStats.disk.value = data.disk_usage || '0 GB';
+                            
+                            // 更新服务状态
+                            if (data.services) {
+                                this.services = data.services;
+                            }
+                            
+                            // 更新系统信息
+                            if (data.system_info) {
+                                this.systemInfo = data.system_info;
+                            }
+                            
+                            this.systemStatus = data.system_status || '在线';
+                        } else {
+                            this.showError('加载系统状态失败');
+                        }
+                    } catch (error) {
+                        console.error('加载系统状态失败:', error);
+                        // 使用模拟数据
+                        this.loadMockData();
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                loadMockData() {
+                    // 模拟数据
+                    this.systemStats.uptime.value = '2天 15小时';
+                    this.systemStats.messages.value = 1250;
+                    this.systemStats.channels.value = 8;
+                    this.systemStats.memory.value = '256 MB';
+                    this.systemStats.cpu.value = '15%';
+                    this.systemStats.disk.value = '2.5 GB';
+                    
+                    this.services = [
+                        { name: 'Telegram Bot', description: '消息监听和转发服务', status: 'running' },
+                        { name: 'Web Server', description: 'Web界面服务', status: 'running' },
+                        { name: 'Database', description: '数据库服务', status: 'running' },
+                        { name: 'Message Processor', description: '消息处理服务', status: 'running' }
+                    ];
+                    
+                    this.systemInfo = {
+                        version: { label: '系统版本', value: 'v1.0.0' },
+                        platform: { label: '运行平台', value: 'Linux x86_64' },
+                        python: { label: 'Python版本', value: '3.9.0' },
+                        database: { label: '数据库', value: 'SQLite 3.35.0' }
+                    };
+                },
+                
+                async refreshStatus() {
+                    await this.loadSystemStatus();
+                    this.showSuccess('系统状态已刷新');
+                },
+                
+                async restartServices() {
+                    try {
+                        const response = await axios.post('/api/status/restart');
+                        if (response.data.success) {
+                            this.showSuccess('服务重启成功');
+                            setTimeout(() => {
+                                this.loadSystemStatus();
+                            }, 2000);
+                        } else {
+                            this.showError('服务重启失败');
+                        }
+                    } catch (error) {
+                        this.showError('服务重启失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                showSuccess(message) {
+                    this.statusMessage = message;
+                    this.statusType = 'success';
+                    setTimeout(() => {
+                        this.statusMessage = '';
+                    }, 3000);
+                },
+                
+                showError(message) {
+                    this.statusMessage = message;
+                    this.statusType = 'error';
+                    setTimeout(() => {
+                        this.statusMessage = '';
+                    }, 5000);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html> 

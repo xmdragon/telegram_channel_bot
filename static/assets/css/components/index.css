@@ -1,0 +1,139 @@
+/* 主页面特定样式 */
+
+/* 统计容器 */
+.stats-container {
+    padding: 20px;
+}
+
+.stats-card {
+    margin: 20px 0;
+}
+
+.stats-card .el-card {
+    background: rgba(26, 26, 46, 0.8);
+    border: 2px solid #00ff41;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.stats-card .el-card:hover {
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+    transform: translateY(-5px);
+}
+
+.stats-card .el-card__body {
+    padding: 20px;
+}
+
+.stat-value {
+    font-size: 2em;
+    font-weight: 900;
+    color: #00ff41;
+    text-shadow: 0 0 15px #00ff41;
+    text-align: center;
+}
+
+.stat-label {
+    color: #7fdbff;
+    text-align: center;
+    margin-top: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* 消息卡片 */
+.message-card {
+    margin: 15px 0;
+    border: 2px solid #00ff41;
+    border-radius: 10px;
+    background: rgba(26, 26, 46, 0.8);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.message-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, transparent, rgba(0, 255, 65, 0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.message-card:hover::before {
+    opacity: 1;
+}
+
+.message-card:hover {
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+    transform: translateY(-3px);
+}
+
+.message-card.ad {
+    border-color: #ff4757;
+}
+
+.message-card.approved {
+    border-color: #2ed573;
+}
+
+.message-card.rejected {
+    border-color: #ffa502;
+}
+
+.message-card .el-card__body {
+    padding: 20px;
+}
+
+.content-preview {
+    max-height: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #7fdbff;
+    line-height: 1.6;
+}
+
+/* 工具栏 */
+.toolbar {
+    margin: 20px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: rgba(26, 26, 46, 0.8);
+    border: 2px solid #00ff41;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+/* 选择器样式 */
+.el-select {
+    margin-right: 10px;
+}
+
+.el-select .el-input__wrapper {
+    background: rgba(26, 26, 46, 0.8);
+    border: 2px solid #00ff41;
+    border-radius: 5px;
+    color: #00ff41;
+}
+
+.el-select .el-input__wrapper:hover {
+    border-color: #00d4aa;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+}
+
+/* 响应式工具栏 */
+@media (max-width: 768px) {
+    .toolbar {
+        flex-direction: column;
+        gap: 15px;
+    }
+} 

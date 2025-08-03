@@ -63,8 +63,10 @@ class Channel(Base):
     channel_type = Column(String)  # source/review/target
     is_active = Column(Boolean, default=True)
     config = Column(JSON)  # 频道特定配置
+    description = Column(String)  # 频道描述
     
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class FilterRule(Base):
     """过滤规则模型"""

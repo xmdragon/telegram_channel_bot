@@ -27,46 +27,71 @@
 - **数据库**: SQLite/PostgreSQL + SQLAlchemy
 - **缓存**: Redis
 - **前端**: Vue.js 3 + Element Plus
-- **Telegram**: python-telegram-bot
+- **Telegram**: Telethon (支持真人账号)
 - **部署**: Docker + Docker Compose
 
 ## 🚀 快速开始
 
-### 1. 环境准备
+### 方式一：Docker 部署（推荐）
 
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd telegram-message-system
+cd telegram_channel_bot
+
+# 构建并启动
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f app
+
+# 访问系统
+# 状态检查: http://localhost:8000/status
+# 登录页面: http://localhost:8000/auth
+```
+
+详细说明请参考：[Docker 部署指南](DOCKER_GUIDE.md)
+
+### 方式二：本地部署
+
+#### 1. 环境准备
+
+```bash
+# 克隆项目
+git clone <repository-url>
+cd telegram_channel_bot
 
 # 安装依赖
 pip install -r requirements.txt
 ```
 
-### 2. 配置系统
+#### 2. 配置系统
 
 系统现在使用**数据库存储配置**，不再依赖.env文件。所有配置都可以通过Web界面或命令行动态管理。
 
 ```bash
 # 初始化数据库和默认配置
 python init_db.py
+
+# 运行 Telethon 设置脚本（推荐）
+python setup_telethon.py
 ```
 
 **重要配置项**（必须通过Web界面或命令行设置）：
-- `telegram.bot_token`: Telegram机器人Token
-- `telegram.api_id`: Telegram API ID  
-- `telegram.api_hash`: Telegram API Hash
+- `telegram.api_id`: Telegram API ID (从 https://my.telegram.org 获取)
+- `telegram.api_hash`: Telegram API Hash (从 https://my.telegram.org 获取)
+- `telegram.phone`: Telegram手机号码 (格式: +8613800138000)
 - `channels.source_channels`: 源频道列表
 - `channels.review_group_id`: 审核群ID
 - `channels.target_channel_id`: 目标频道ID
 
-### 3. 初始化数据库
+#### 3. 初始化数据库
 
 ```bash
 python init_db.py
 ```
 
-### 4. 启动系统
+#### 4. 启动系统
 
 ```bash
 # 开发模式
@@ -76,43 +101,70 @@ python main.py
 docker-compose up -d
 ```
 
-### 5. 配置系统参数
+#### 5. 登录 Telegram
 
-通过Web界面配置必要参数：
+通过 Web 界面完成 Telegram 登录：
 
 ```bash
 # 启动系统
 python main.py
 
+# 访问状态检查页面
+http://localhost:8000/status
+
+# 或直接访问登录页面
+http://localhost:8000/auth
+```
+
+**登录步骤**：
+1. 输入 API ID、API Hash 和手机号码
+2. 输入发送到手机的验证码
+3. 如果启用了两步验证，输入两步验证密码
+4. 登录成功后自动跳转到主界面
+
+#### 6. 配置系统参数
+
+通过Web界面配置必要参数：
+
+```bash
 # 访问配置界面
 http://localhost:8000/config
 ```
 
 **必须配置的参数**：
-1. 在Telegram分类中设置机器人Token和API信息
-2. 在频道设置中配置源频道、审核群和目标频道
-3. 根据需要调整审核和过滤设置
+1. 在频道设置中配置源频道、审核群和目标频道
+2. 根据需要调整审核和过滤设置
 
-### 6. 访问管理界面
+#### 7. 访问管理界面
 
+- **状态检查**: http://localhost:8000/status - 系统状态和认证检查
+- **Telegram 登录**: http://localhost:8000/auth - Web 界面登录 Telegram
 - **主界面**: http://localhost:8000 - 消息审核和统计
 - **管理界面**: http://localhost:8000/admin - 频道和规则管理  
 - **配置界面**: http://localhost:8000/config - 系统配置管理
 
 ## 📋 使用指南
 
-### 机器人设置
+### Telegram 账号设置
 
-1. 创建Telegram机器人:
-   - 联系 @BotFather
-   - 发送 `/newbot` 创建机器人
-   - 获取机器人Token
+1. 获取 Telegram API 凭据:
+   - 访问 https://my.telegram.org
+   - 登录您的 Telegram 账号
+   - 点击 "API development tools"
+   - 创建一个新的应用
+   - 记录下 API ID 和 API Hash
 
-2. 配置机器人权限:
-   - 将机器人添加到审核群（需要管理员权限）
-   - 将机器人添加到目标频道（需要发送消息权限）
+2. 配置账号权限:
+   - 确保您的账号已加入源频道
+   - 确保您的账号是审核群的管理员
+   - 确保您的账号有目标频道的发送消息权限
 
-3. 获取频道ID:
+3. 运行设置脚本:
+   ```bash
+   python setup_telethon.py
+   ```
+
+4. 获取频道ID:
    ```bash
    # 使用管理脚本
    python scripts/manage.py list-channels
@@ -249,15 +301,20 @@ docker-compose exec db pg_dump -U postgres telegram_system > backup.sql
 
 ### 常见问题
 
-1. **机器人无法接收消息**:
-   - 检查Token是否正确
-   - 确认机器人已添加到相应群组/频道
+1. **Telegram 客户端无法连接**:
+   - 检查 API ID 和 API Hash 是否正确
+   - 确认手机号码格式是否正确 (+8613800138000)
+   - 首次启动时需要输入验证码
 
-2. **数据库连接失败**:
+2. **无法接收频道消息**:
+   - 确认您的账号已加入源频道
+   - 检查频道ID是否正确
+
+3. **数据库连接失败**:
    - 检查数据库URL配置
    - 确认数据库服务正在运行
 
-3. **消息过滤不准确**:
+4. **消息过滤不准确**:
    - 调整过滤关键词
    - 优化正则表达式规则
 

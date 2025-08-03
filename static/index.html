@@ -3,67 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram消息审核系统</title>
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <style>
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        .stats-card {
-            margin: 20px 0;
-        }
-        .message-card {
-            margin: 10px 0;
-            border-left: 4px solid #409EFF;
-        }
-        .message-card.ad {
-            border-left-color: #F56C6C;
-        }
-        .message-card.approved {
-            border-left-color: #67C23A;
-        }
-        .message-card.rejected {
-            border-left-color: #E6A23C;
-        }
-        .content-preview {
-            max-height: 100px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .toolbar {
-            margin: 20px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-    </style>
+    <title>Telegram消息审核系统 - 星际争霸风格</title>
+    
+    <!-- 外部样式文件 -->
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/components/index.css">
+    
+    <!-- 外部脚本文件 -->
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/index.js"></script>
 </head>
 <body>
     <div id="app">
         <div class="header">
-            <h1>📱 Telegram消息审核系统</h1>
+            <h1>🚀 TELEGRAM 消息审核系统</h1>
             <p>智能采集 · 高效审核 · 自动转发</p>
         </div>
 
-        <el-container style="padding: 20px;">
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="/" class="nav-link active">🏠 主控制台</a>
+                <a href="/config" class="nav-link">⚙️ 系统配置</a>
+                <a href="/status" class="nav-link">📊 系统状态</a>
+                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
+            </div>
+            <div class="nav-links">
+                <span style="color: #7fdbff; font-weight: 700;">系统状态: {{ systemStatus }}</span>
+            </div>
+        </div>
+
+        <div class="stats-container">
             <!-- 统计面板 -->
             <el-row :gutter="20" class="stats-card">
                 <el-col :span="4" v-for="(stat, key) in stats" :key="key">
                     <el-card>
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: bold; color: #409EFF;">
-                                {{ stat.value }}
-                            </div>
-                            <div style="color: #666; margin-top: 5px;">
-                                {{ stat.label }}
-                            </div>
-                        </div>
+                        <div class="stat-value">{{ stat.value }}</div>
+                        <div class="stat-label">{{ stat.label }}</div>
                     </el-card>
                 </el-col>
             </el-row>
@@ -83,7 +63,7 @@
                         <el-option label="正常消息" :value="false"></el-option>
                     </el-select>
                     
-                    <el-button @click="loadMessages" icon="Refresh">刷新</el-button>
+                    <el-button @click="loadMessages" icon="Refresh">刷新数据</el-button>
                 </div>
                 
                 <div>
@@ -98,294 +78,79 @@
             </div>
 
             <!-- 消息列表 -->
-            <el-card>
-                <template #header>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>消息列表</span>
-                        <el-checkbox v-model="selectAll" @change="handleSelectAll">全选</el-checkbox>
+            <div v-for="message in messages" :key="message.id" class="message-card" 
+                 :class="[message.is_ad ? 'ad' : '', message.status]">
+                <el-card>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div>
+                            <strong style="color: #00ff41;">{{ message.source_channel }}</strong>
+                            <span style="color: #7fdbff; margin-left: 10px;">#{{ message.message_id }}</span>
+                        </div>
+                        <div>
+                            <el-tag :type="getStatusType(message.status)" size="small">
+                                {{ getStatusText(message.status) }}
+                            </el-tag>
+                            <el-tag v-if="message.is_ad" type="danger" size="small" style="margin-left: 5px;">
+                                广告
+                            </el-tag>
+                        </div>
                     </div>
-                </template>
-
-                <div v-loading="loading">
-                    <div v-for="message in messages" :key="message.id" 
-                         :class="['message-card', message.status, { 'ad': message.is_ad }]">
-                        <el-card>
-                            <div style="display: flex; align-items: flex-start;">
-                                <el-checkbox 
-                                    v-model="selectedMessages" 
-                                    :label="message.id"
-                                    style="margin-right: 15px; margin-top: 5px;">
-                                </el-checkbox>
-                                
-                                <div style="flex: 1;">
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                                        <div>
-                                            <el-tag :type="getStatusType(message.status)">
-                                                {{ getStatusText(message.status) }}
-                                            </el-tag>
-                                            <el-tag v-if="message.is_ad" type="danger" style="margin-left: 5px;">
-                                                广告
-                                            </el-tag>
-                                            <span style="margin-left: 10px; color: #666; font-size: 12px;">
-                                                来源: {{ message.source_channel }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <el-button-group>
-                                                <el-button 
-                                                    size="small" 
-                                                    @click="viewMessage(message)"
-                                                    icon="View">
-                                                    详情
-                                                </el-button>
-                                                <el-button 
-                                                    v-if="message.status === 'pending'"
-                                                    size="small" 
-                                                    type="success"
-                                                    @click="approveMessage(message.id)"
-                                                    icon="Check">
-                                                    批准
-                                                </el-button>
-                                                <el-button 
-                                                    v-if="message.status === 'pending'"
-                                                    size="small" 
-                                                    type="danger"
-                                                    @click="rejectMessage(message.id)"
-                                                    icon="Close">
-                                                    拒绝
-                                                </el-button>
-                                            </el-button-group>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="content-preview">
-                                        {{ message.content }}
-                                    </div>
-                                    
-                                    <div style="margin-top: 10px; color: #999; font-size: 12px;">
-                                        创建时间: {{ formatTime(message.created_at) }}
-                                        <span v-if="message.reviewed_by" style="margin-left: 20px;">
-                                            审核人: {{ message.reviewed_by }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </el-card>
+                    
+                    <div class="content-preview">
+                        {{ message.content || '无文本内容' }}
                     </div>
-                </div>
-
-                <!-- 分页 -->
-                <div style="text-align: center; margin-top: 20px;">
-                    <el-pagination
-                        v-model:current-page="pagination.page"
-                        :page-size="pagination.size"
-                        :total="pagination.total"
-                        layout="prev, pager, next, jumper"
-                        @current-change="loadMessages">
-                    </el-pagination>
-                </div>
-            </el-card>
-        </el-container>
-
-        <!-- 消息详情对话框 -->
-        <el-dialog v-model="dialogVisible" title="消息详情" width="60%">
-            <div v-if="currentMessage">
-                <el-descriptions :column="2" border>
-                    <el-descriptions-item label="消息ID">{{ currentMessage.id }}</el-descriptions-item>
-                    <el-descriptions-item label="状态">
-                        <el-tag :type="getStatusType(currentMessage.status)">
-                            {{ getStatusText(currentMessage.status) }}
-                        </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="来源频道">{{ currentMessage.source_channel }}</el-descriptions-item>
-                    <el-descriptions-item label="媒体类型">{{ currentMessage.media_type || '文本' }}</el-descriptions-item>
-                    <el-descriptions-item label="是否广告">
-                        <el-tag :type="currentMessage.is_ad ? 'danger' : 'success'">
-                            {{ currentMessage.is_ad ? '是' : '否' }}
-                        </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="审核人">{{ currentMessage.reviewed_by || '未审核' }}</el-descriptions-item>
-                </el-descriptions>
-                
-                <el-divider>原始内容</el-divider>
-                <div style="background: #f5f5f5; padding: 15px; border-radius: 4px;">
-                    {{ currentMessage.content }}
-                </div>
-                
-                <el-divider>过滤后内容</el-divider>
-                <div style="background: #f0f9ff; padding: 15px; border-radius: 4px;">
-                    {{ currentMessage.filtered_content }}
-                </div>
+                    
+                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="color: #7fdbff; font-size: 12px;">
+                            {{ formatTime(message.created_at) }}
+                        </div>
+                        <div>
+                            <el-button 
+                                v-if="message.status === 'pending'"
+                                type="success" 
+                                size="small" 
+                                @click="approveMessage(message.id)"
+                                icon="Check">
+                                批准
+                            </el-button>
+                            <el-button 
+                                v-if="message.status === 'pending'"
+                                type="danger" 
+                                size="small" 
+                                @click="rejectMessage(message.id)"
+                                icon="Close">
+                                拒绝
+                            </el-button>
+                            <el-checkbox 
+                                v-model="selectedMessages" 
+                                :label="message.id"
+                                style="margin-left: 10px;">
+                            </el-checkbox>
+                        </div>
+                    </div>
+                </el-card>
             </div>
-        </el-dialog>
+        </div>
+        
+        <!-- 状态消息 -->
+        <div v-if="statusMessage" class="status-message" :class="statusType">
+            {{ statusMessage }}
+        </div>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="loading-content">
+                <el-icon class="is-loading">
+                    <Loading />
+                </el-icon>
+                <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
+            </div>
+        </div>
     </div>
 
     <script>
-        const { createApp } = Vue;
-        const { ElMessage, ElMessageBox } = ElementPlus;
-
-        createApp({
-            data() {
-                return {
-                    loading: false,
-                    messages: [],
-                    stats: {
-                        total: { label: '总消息', value: 0 },
-                        pending: { label: '待审核', value: 0 },
-                        approved: { label: '已批准', value: 0 },
-                        rejected: { label: '已拒绝', value: 0 },
-                        ads: { label: '广告消息', value: 0 },
-                        auto_forwarded: { label: '自动转发', value: 0 }
-                    },
-                    filters: {
-                        status: '',
-                        is_ad: null
-                    },
-                    pagination: {
-                        page: 1,
-                        size: 20,
-                        total: 0
-                    },
-                    selectedMessages: [],
-                    selectAll: false,
-                    dialogVisible: false,
-                    currentMessage: null
-                }
-            },
-            mounted() {
-                this.loadStats();
-                this.loadMessages();
-            },
-            methods: {
-                async loadStats() {
-                    try {
-                        const response = await axios.get('/api/messages/stats/overview');
-                        const data = response.data;
-                        this.stats.total.value = data.total;
-                        this.stats.pending.value = data.pending;
-                        this.stats.approved.value = data.approved;
-                        this.stats.rejected.value = data.rejected;
-                        this.stats.ads.value = data.ads;
-                        this.stats.auto_forwarded.value = data.auto_forwarded;
-                    } catch (error) {
-                        ElMessage.error('加载统计数据失败');
-                    }
-                },
-                
-                async loadMessages() {
-                    this.loading = true;
-                    try {
-                        const params = {
-                            page: this.pagination.page,
-                            size: this.pagination.size,
-                            ...this.filters
-                        };
-                        
-                        const response = await axios.get('/api/messages/', { params });
-                        this.messages = response.data.messages;
-                        this.pagination.total = response.data.total || this.messages.length * 10; // 估算总数
-                    } catch (error) {
-                        ElMessage.error('加载消息列表失败');
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-                
-                async approveMessage(messageId) {
-                    try {
-                        await axios.post(`/api/messages/${messageId}/approve`, {
-                            reviewer: 'admin' // 这里应该从用户登录信息获取
-                        });
-                        ElMessage.success('消息已批准');
-                        this.loadMessages();
-                        this.loadStats();
-                    } catch (error) {
-                        ElMessage.error('批准失败');
-                    }
-                },
-                
-                async rejectMessage(messageId) {
-                    try {
-                        await axios.post(`/api/messages/${messageId}/reject`, {
-                            reviewer: 'admin'
-                        });
-                        ElMessage.success('消息已拒绝');
-                        this.loadMessages();
-                        this.loadStats();
-                    } catch (error) {
-                        ElMessage.error('拒绝失败');
-                    }
-                },
-                
-                async batchApprove() {
-                    if (this.selectedMessages.length === 0) return;
-                    
-                    try {
-                        await ElMessageBox.confirm(
-                            `确定要批准选中的 ${this.selectedMessages.length} 条消息吗？`,
-                            '批量操作确认'
-                        );
-                        
-                        await axios.post('/api/messages/batch-approve', {
-                            message_ids: this.selectedMessages,
-                            reviewer: 'admin'
-                        });
-                        
-                        ElMessage.success('批量批准成功');
-                        this.selectedMessages = [];
-                        this.selectAll = false;
-                        this.loadMessages();
-                        this.loadStats();
-                    } catch (error) {
-                        if (error !== 'cancel') {
-                            ElMessage.error('批量批准失败');
-                        }
-                    }
-                },
-                
-                async viewMessage(message) {
-                    try {
-                        const response = await axios.get(`/api/messages/${message.id}`);
-                        this.currentMessage = response.data;
-                        this.dialogVisible = true;
-                    } catch (error) {
-                        ElMessage.error('加载消息详情失败');
-                    }
-                },
-                
-                handleSelectAll(val) {
-                    if (val) {
-                        this.selectedMessages = this.messages.map(m => m.id);
-                    } else {
-                        this.selectedMessages = [];
-                    }
-                },
-                
-                getStatusType(status) {
-                    const types = {
-                        pending: 'warning',
-                        approved: 'success',
-                        rejected: 'danger',
-                        auto_forwarded: 'info'
-                    };
-                    return types[status] || 'info';
-                },
-                
-                getStatusText(status) {
-                    const texts = {
-                        pending: '待审核',
-                        approved: '已批准',
-                        rejected: '已拒绝',
-                        auto_forwarded: '自动转发'
-                    };
-                    return texts[status] || status;
-                },
-                
-                formatTime(timeStr) {
-                    return new Date(timeStr).toLocaleString('zh-CN');
-                }
-            }
-        }).use(ElementPlus).mount('#app');
+        // 使用外部组件
+        createApp(MainApp).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>

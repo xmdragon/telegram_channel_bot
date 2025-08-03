@@ -4,7 +4,7 @@
 import os
 import asyncio
 from typing import List, Optional, Any
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 # 基础环境配置（仍从环境变量读取）
 class BaseSettings(BaseSettings):
@@ -38,10 +38,6 @@ class DatabaseSettings:
             self._config_manager = config_manager
             self._initialized = True
     
-    async def get_telegram_bot_token(self) -> str:
-        await self._ensure_initialized()
-        return await self._config_manager.get_config("telegram.bot_token", "")
-    
     async def get_telegram_api_id(self) -> str:
         await self._ensure_initialized()
         return await self._config_manager.get_config("telegram.api_id", "")
@@ -50,9 +46,19 @@ class DatabaseSettings:
         await self._ensure_initialized()
         return await self._config_manager.get_config("telegram.api_hash", "")
     
-    async def get_source_channels(self) -> List[str]:
+    async def get_telegram_phone(self) -> str:
         await self._ensure_initialized()
-        return await self._config_manager.get_config("channels.source_channels", [])
+        return await self._config_manager.get_config("telegram.phone", "")
+    
+    async def get_source_channels(self) -> List[str]:
+        """获取活跃的源频道ID列表"""
+        from app.services.channel_manager import channel_manager
+        return await channel_manager.get_active_source_channels()
+    
+    async def get_source_channels_info(self) -> List[dict]:
+        """获取源频道详细信息"""
+        from app.services.channel_manager import channel_manager
+        return await channel_manager.get_source_channels()
     
     async def get_review_group_id(self) -> str:
         await self._ensure_initialized()
@@ -62,6 +68,28 @@ class DatabaseSettings:
         await self._ensure_initialized()
         return await self._config_manager.get_config("channels.target_channel_id", "")
     
+    # 账号采集配置
+    async def get_collect_accounts(self) -> bool:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("accounts.collect_accounts", True)
+    
+    async def get_collected_accounts(self) -> List[str]:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("accounts.collected_accounts", [])
+    
+    async def get_account_blacklist(self) -> List[str]:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("accounts.account_blacklist", [])
+    
+    async def get_account_whitelist(self) -> List[str]:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("accounts.account_whitelist", [])
+    
+    async def get_auto_collect(self) -> bool:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("accounts.auto_collect", True)
+    
+    # 审核配置
     async def get_auto_forward_delay(self) -> int:
         await self._ensure_initialized()
         return await self._config_manager.get_config("review.auto_forward_delay", 1800)
@@ -70,9 +98,22 @@ class DatabaseSettings:
         await self._ensure_initialized()
         return await self._config_manager.get_config("review.auto_filter_ads", False)
     
-    async def get_ad_keywords(self) -> List[str]:
+    async def get_enable_keyword_filter(self) -> bool:
         await self._ensure_initialized()
-        return await self._config_manager.get_config("filter.ad_keywords", [])
+        return await self._config_manager.get_config("review.enable_keyword_filter", True)
+    
+    async def get_enable_line_filter(self) -> bool:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("review.enable_line_filter", True)
+    
+    # 过滤配置
+    async def get_ad_keywords_text(self) -> List[str]:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("filter.ad_keywords_text", [])
+    
+    async def get_ad_keywords_line(self) -> List[str]:
+        await self._ensure_initialized()
+        return await self._config_manager.get_config("filter.ad_keywords_line", [])
     
     async def get_channel_replacements(self) -> dict:
         await self._ensure_initialized()
@@ -106,15 +147,25 @@ class Settings:
             
         try:
             self._db_configs = {
-                'TELEGRAM_BOT_TOKEN': await db_settings.get_telegram_bot_token(),
                 'TELEGRAM_API_ID': await db_settings.get_telegram_api_id(),
                 'TELEGRAM_API_HASH': await db_settings.get_telegram_api_hash(),
+                'TELEGRAM_PHONE': await db_settings.get_telegram_phone(),
                 'SOURCE_CHANNELS': await db_settings.get_source_channels(),
+                'CHANNEL_NAMES': await db_settings.get_channel_names(),
+                'CHANNEL_STATUS': await db_settings.get_channel_status(),
                 'REVIEW_GROUP_ID': await db_settings.get_review_group_id(),
                 'TARGET_CHANNEL_ID': await db_settings.get_target_channel_id(),
+                'COLLECT_ACCOUNTS': await db_settings.get_collect_accounts(),
+                'COLLECTED_ACCOUNTS': await db_settings.get_collected_accounts(),
+                'ACCOUNT_BLACKLIST': await db_settings.get_account_blacklist(),
+                'ACCOUNT_WHITELIST': await db_settings.get_account_whitelist(),
+                'AUTO_COLLECT': await db_settings.get_auto_collect(),
                 'AUTO_FORWARD_DELAY': await db_settings.get_auto_forward_delay(),
                 'AUTO_FILTER_ADS': await db_settings.get_auto_filter_ads(),
-                'AD_KEYWORDS': await db_settings.get_ad_keywords(),
+                'ENABLE_KEYWORD_FILTER': await db_settings.get_enable_keyword_filter(),
+                'ENABLE_LINE_FILTER': await db_settings.get_enable_line_filter(),
+                'AD_KEYWORDS_TEXT': await db_settings.get_ad_keywords_text(),
+                'AD_KEYWORDS_LINE': await db_settings.get_ad_keywords_line(),
                 'CHANNEL_REPLACEMENTS': await db_settings.get_channel_replacements(),
                 'SECRET_KEY': await db_settings.get_secret_key(),
             }
@@ -129,15 +180,25 @@ class Settings:
         
         # 如果配置未加载，返回默认值
         defaults = {
-            'TELEGRAM_BOT_TOKEN': '',
             'TELEGRAM_API_ID': '',
             'TELEGRAM_API_HASH': '',
+            'TELEGRAM_PHONE': '',
             'SOURCE_CHANNELS': [],
+            'CHANNEL_NAMES': {},
+            'CHANNEL_STATUS': {},
             'REVIEW_GROUP_ID': '',
             'TARGET_CHANNEL_ID': '',
+            'COLLECT_ACCOUNTS': True,
+            'COLLECTED_ACCOUNTS': [],
+            'ACCOUNT_BLACKLIST': [],
+            'ACCOUNT_WHITELIST': [],
+            'AUTO_COLLECT': True,
             'AUTO_FORWARD_DELAY': 1800,
             'AUTO_FILTER_ADS': False,
-            'AD_KEYWORDS': [],
+            'ENABLE_KEYWORD_FILTER': True,
+            'ENABLE_LINE_FILTER': True,
+            'AD_KEYWORDS_TEXT': [],
+            'AD_KEYWORDS_LINE': [],
             'CHANNEL_REPLACEMENTS': {},
             'SECRET_KEY': 'default-secret-key',
         }
