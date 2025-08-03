@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram消息审核系统 - 星际争霸风格</title>
+    <title>Telegram消息审核系统</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
     
     <!-- 外部样式文件 -->
     <link rel="stylesheet" href="assets/css/element-plus.css">
@@ -12,7 +13,7 @@
     <link rel="stylesheet" href="assets/css/components/index.css">
     
     <!-- 外部脚本文件 -->
-    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
     <script src="assets/js/components/index.js"></script>
@@ -41,16 +42,17 @@
             <!-- 统计面板 -->
             <el-row :gutter="20" class="stats-card">
                 <el-col :span="4" v-for="(stat, key) in stats" :key="key">
-                    <el-card>
+                    <el-card class="stat-card" @click="handleStatClick(key)" :class="key">
                         <div class="stat-value">{{ stat.value }}</div>
                         <div class="stat-label">{{ stat.label }}</div>
+                        <div class="stat-hint">点击查看详情</div>
                     </el-card>
                 </el-col>
             </el-row>
 
             <!-- 工具栏 -->
             <div class="toolbar">
-                <div>
+                <div class="filter-group">
                     <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="loadMessages">
                         <el-option label="待审核" value="pending"></el-option>
                         <el-option label="已批准" value="approved"></el-option>
@@ -66,7 +68,7 @@
                     <el-button @click="loadMessages" icon="Refresh">刷新数据</el-button>
                 </div>
                 
-                <div>
+                <div class="action-group">
                     <el-button 
                         type="success" 
                         @click="batchApprove" 
@@ -140,9 +142,7 @@
         <!-- 加载遮罩 -->
         <div v-if="loading" class="loading-overlay">
             <div class="loading-content">
-                <el-icon class="is-loading">
-                    <Loading />
-                </el-icon>
+                <div class="loading-spinner"></div>
                 <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
             </div>
         </div>

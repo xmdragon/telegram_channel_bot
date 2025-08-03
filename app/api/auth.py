@@ -1,9 +1,11 @@
 """
-Telethon 认证 API
+Telethon 认证 API - 支持 WebSocket 交互式认证
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import Dict, Any
+import json
+import asyncio
 
 from app.telegram.auth import auth_manager
 
@@ -12,7 +14,7 @@ router = APIRouter()
 class AuthRequest(BaseModel):
     api_id: int
     api_hash: str
-    phone: str
+    session_name: str
 
 class CodeRequest(BaseModel):
     code: str
@@ -20,6 +22,193 @@ class CodeRequest(BaseModel):
 class PasswordRequest(BaseModel):
     password: str
 
+class PhoneRequest(BaseModel):
+    phone: str
+
+# WebSocket 连接管理器
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+manager = ConnectionManager()
+
+@router.websocket("/ws/auth")
+async def websocket_auth(websocket: WebSocket):
+    """WebSocket 认证端点"""
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            action = message.get("action")
+            
+            if action == "init_auth":
+                # 初始化认证
+                api_id = message.get("api_id")
+                api_hash = message.get("api_hash")
+                session_name = message.get("session_name")
+                
+                try:
+                    success = await auth_manager.create_client(
+                        api_id, api_hash, session_name
+                    )
+                    
+                    if success:
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "auth_status",
+                                "state": "authorized",
+                                "message": "客户端已授权"
+                            }), websocket
+                        )
+                    else:
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "auth_status",
+                                "state": "phone_needed",
+                                "message": "请输入手机号码"
+                            }), websocket
+                        )
+                except Exception as e:
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"初始化失败: {str(e)}"
+                        }), websocket
+                    )
+            
+            elif action == "send_phone":
+                # 发送手机号码
+                phone = message.get("phone")
+                
+                try:
+                    result = await auth_manager.send_code(phone)
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "auth_status",
+                            "state": result.get("state", "code_sent"),
+                            "message": result.get("message", "验证码已发送")
+                        }), websocket
+                    )
+                except Exception as e:
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"发送验证码失败: {str(e)}"
+                        }), websocket
+                    )
+            
+            elif action == "verify_code":
+                # 验证验证码
+                code = message.get("code")
+                
+                try:
+                    result = await auth_manager.verify_code(code)
+                    
+                    if result.get("success"):
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "auth_status",
+                                "state": "authorized",
+                                "message": "认证成功"
+                            }), websocket
+                        )
+                    else:
+                        if result.get("state") == "password_needed":
+                            await manager.send_personal_message(
+                                json.dumps({
+                                    "type": "auth_status",
+                                    "state": "password_needed",
+                                    "message": "需要两步验证密码"
+                                }), websocket
+                            )
+                        else:
+                            await manager.send_personal_message(
+                                json.dumps({
+                                    "type": "error",
+                                    "message": result.get("error", "验证失败")
+                                }), websocket
+                            )
+                except Exception as e:
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"验证码验证失败: {str(e)}"
+                        }), websocket
+                    )
+            
+            elif action == "verify_password":
+                # 验证两步验证密码
+                password = message.get("password")
+                
+                try:
+                    result = await auth_manager.verify_password(password)
+                    
+                    if result.get("success"):
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "auth_status",
+                                "state": "authorized",
+                                "message": "认证成功"
+                            }), websocket
+                        )
+                    else:
+                        await manager.send_personal_message(
+                            json.dumps({
+                                "type": "error",
+                                "message": result.get("error", "两步验证失败")
+                            }), websocket
+                        )
+                except Exception as e:
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"两步验证失败: {str(e)}"
+                        }), websocket
+                    )
+            
+            elif action == "disconnect":
+                # 断开连接
+                try:
+                    await auth_manager.disconnect()
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "auth_status",
+                            "state": "disconnected",
+                            "message": "已断开连接"
+                        }), websocket
+                    )
+                except Exception as e:
+                    await manager.send_personal_message(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"断开连接失败: {str(e)}"
+                        }), websocket
+                    )
+            
+            else:
+                await manager.send_personal_message(
+                    json.dumps({
+                        "type": "error",
+                        "message": "未知操作"
+                    }), websocket
+                )
+                
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# 保留原有的 REST API 端点用于兼容性
 @router.post("/init")
 async def init_auth(request: AuthRequest):
     """初始化认证"""
@@ -27,7 +216,7 @@ async def init_auth(request: AuthRequest):
         success = await auth_manager.create_client(
             request.api_id,
             request.api_hash,
-            request.phone
+            request.session_name
         )
         
         if success:
@@ -47,10 +236,10 @@ async def init_auth(request: AuthRequest):
         raise HTTPException(status_code=500, detail=f"初始化失败: {str(e)}")
 
 @router.post("/send-code")
-async def send_code():
+async def send_code(request: PhoneRequest):
     """发送验证码"""
     try:
-        result = await auth_manager.send_code()
+        result = await auth_manager.send_code(request.phone)
         return result
         
     except Exception as e:

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue.js 测试页面</title>
+    
+    <!-- 外部样式文件 -->
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    
+    <!-- 外部脚本文件 -->
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>🧪 Vue.js 测试页面</h1>
+            <p>测试 Vue.js 和 Element Plus 是否正常工作</p>
+        </div>
+
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2>测试信息</h2>
+                </div>
+                <div class="card-content">
+                    <p>Vue.js 版本: {{ vueVersion }}</p>
+                    <p>Element Plus 版本: {{ elementPlusVersion }}</p>
+                    <p>当前时间: {{ currentTime }}</p>
+                    
+                    <el-button type="primary" @click="updateTime">更新时间</el-button>
+                    <el-button type="success" @click="showMessage">显示消息</el-button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 简单的测试应用
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+
+        const TestApp = {
+            data() {
+                return {
+                    vueVersion: Vue.version,
+                    elementPlusVersion: ElementPlus.version,
+                    currentTime: new Date().toLocaleString()
+                }
+            },
+            methods: {
+                updateTime() {
+                    this.currentTime = new Date().toLocaleString();
+                },
+                showMessage() {
+                    ElMessage.success('Vue.js 和 Element Plus 工作正常！');
+                }
+            }
+        };
+
+        const app = createApp(TestApp);
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html> 

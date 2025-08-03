@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统配置管理</title>
+    <!-- 外部样式文件 -->
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/components/config.css">
+    
+    <!-- 外部脚本文件 -->
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/config.js"></script>
+        /* 系统样式 */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00ff41;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* 扫描线动画 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff41, transparent);
+            animation: scan 3s linear infinite;
+            z-index: 1000;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100vw); }
+        }
+        
+        .app-container {
+            min-height: 100vh;
+            background: transparent;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #00ff41;
+            padding: 30px 0;
+            border-bottom: 3px solid #00ff41;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.1), transparent);
+            animation: headerScan 4s linear infinite;
+        }
+        
+        @keyframes headerScan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 900;
+            text-shadow: 0 0 20px #00ff41;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            color: #7fdbff;
+            text-shadow: 0 0 10px #7fdbff;
+            font-size: 1.2em;
+        }
+        
+        .main-content {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .config-card {
+            background: rgba(26, 26, 46, 0.8);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .config-card:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+            transform: translateY(-3px);
+        }
+        
+        .config-header {
+            background: rgba(15, 52, 96, 0.8);
+            padding: 20px;
+            border-bottom: 2px solid #00ff41;
+        }
+        
+        .config-header h2 {
+            margin: 0;
+            color: #00ff41;
+            font-size: 1.5em;
+            font-weight: 700;
+            text-shadow: 0 0 10px #00ff41;
+        }
+        
+        .config-content {
+            padding: 20px;
+        }
+        
+        .config-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .config-item {
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            background: #fafbfc;
+        }
+        
+        .config-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .config-key {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .config-type {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .config-description {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .status-message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .status-success {
+            background: #f0f9ff;
+            color: #67C23A;
+            border: 1px solid #c2e7b0;
+        }
+        
+        .status-error {
+            background: #fef0f0;
+            color: #f56c6c;
+            border: 1px solid #fbc4c4;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .category-tabs {
+            margin-bottom: 20px;
+        }
+        
+        .config-summary {
+            background: rgba(26, 26, 46, 0.8);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .config-summary:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+            transform: translateY(-3px);
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .summary-item {
+            text-align: center;
+            padding: 15px;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+        
+        .summary-number {
+            font-size: 2em;
+            font-weight: 900;
+            color: #00ff41;
+            text-shadow: 0 0 15px #00ff41;
+        }
+        
+        .summary-label {
+            font-size: 14px;
+            color: #7fdbff;
+            margin-top: 5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .nav-buttons {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .channel-list {
+            margin-top: 15px;
+        }
+        
+        .channel-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #00ff41;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .channel-item:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .channel-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .channel-name {
+            font-weight: 700;
+            color: #00ff41;
+            text-shadow: 0 0 10px #00ff41;
+        }
+        
+        .channel-id {
+            color: #7fdbff;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .keyword-list {
+            margin-top: 15px;
+        }
+        
+        .keyword-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            background: white;
+        }
+        
+        .keyword-text {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .account-list {
+            margin-top: 15px;
+        }
+        
+        .account-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            background: white;
+        }
+        
+        .account-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .account-name {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .add-form {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .form-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: 600;
+            color: #409EFF;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app-container">
+            <!-- 头部 -->
+            <div class="header">
+                <div class="header-content">
+                    <h1>⚙️ 系统配置管理</h1>
+                    <p>管理 Telegram 消息审核系统的所有配置项，包括频道监听、账号采集和广告过滤</p>
+                </div>
+            </div>
+            
+            <!-- 主要内容 -->
+            <div class="main-content">
+                <!-- 导航按钮 -->
+                <div class="nav-buttons">
+                    <el-button @click="goToMain">🏠 主界面</el-button>
+                    <el-button @click="goToStatus">📊 系统状态</el-button>
+                    <el-button @click="goToAuth">🔐 Telegram 登录</el-button>
+                </div>
+                
+                <!-- 配置概览 -->
+                <div class="config-summary">
+                    <h3>📋 配置概览</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">{{ channelStats.total }}</div>
+                            <div class="stat-label">监听频道</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ channelStats.active }}</div>
+                            <div class="stat-label">启用频道</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ keywordStats.text }}</div>
+                            <div class="stat-label">文中关键词</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ keywordStats.line }}</div>
+                            <div class="stat-label">行中关键词</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ accountStats.collected }}</div>
+                            <div class="stat-label">已采集账号</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ accountStats.blacklist }}</div>
+                            <div class="stat-label">黑名单账号</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ accountStats.whitelist }}</div>
+                            <div class="stat-label">白名单账号</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 分类标签页 -->
+                <div class="category-tabs">
+                    <el-tabs v-model="activeTab" @tab-click="handleTabClick">
+                        <!-- Telegram 配置 -->
+                        <el-tab-pane label="📱 Telegram 配置" name="telegram">
+                            <div class="config-card">
+                                <div class="config-header">
+                                    <h2>Telegram API 配置</h2>
+                                    <p>配置 Telegram API 凭据和连接信息</p>
+                                </div>
+                                <div class="config-content">
+                                    <div class="config-form">
+                                        <div v-for="(config, key) in telegramConfigs" :key="key" class="config-item">
+                                            <div class="config-item-header">
+                                                <span class="config-key">{{ key }}</span>
+                                                <span class="config-type">{{ config.config_type }}</span>
+                                            </div>
+                                            <div class="config-description">{{ config.description }}</div>
+                                            <el-input 
+                                                v-if="config.config_type === 'string'"
+                                                v-model="config.value" 
+                                                :placeholder="'请输入 ' + key">
+                                            </el-input>
+                                            <el-input 
+                                                v-else-if="config.config_type === 'password'"
+                                                v-model="config.value" 
+                                                type="password"
+                                                :placeholder="'请输入 ' + key">
+                                            </el-input>
+                                        </div>
+                                    </div>
+                                    <div class="actions">
+                                        <el-button @click="saveTelegramConfigs" type="primary" :loading="saving">
+                                            保存 Telegram 配置
+                                        </el-button>
+                                        <el-button @click="resetTelegramConfigs">
+                                            重置为默认值
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-tab-pane>
+                        
+                        <!-- 频道配置 -->
+                        <el-tab-pane label="📺 频道监听" name="channels">
+                            <div class="config-card">
+                                <div class="config-header">
+                                    <h2>频道监听管理</h2>
+                                    <p>管理监听的频道列表和状态</p>
+                                </div>
+                                <div class="config-content">
+                                    <!-- 添加频道 -->
+                                    <div class="add-form">
+                                        <h4>添加监听频道</h4>
+                                                                <div class="form-row">
+                            <el-input 
+                                v-model="newChannel.id" 
+                                placeholder="频道ID或用户名"
+                                style="flex: 1;">
+                            </el-input>
+                            <el-input 
+                                v-model="newChannel.name" 
+                                placeholder="频道显示名称（可选）"
+                                style="flex: 1;">
+                            </el-input>
+                            <el-input 
+                                v-model="newChannel.description" 
+                                placeholder="频道描述（可选）"
+                                style="flex: 1;">
+                            </el-input>
+                            <el-button @click="addChannel" type="primary">
+                                添加频道
+                            </el-button>
+                        </div>
+                                    </div>
+                                    
+                                    <!-- 频道列表 -->
+                                    <div class="channel-list">
+                                        <h4>监听频道列表</h4>
+                                        <div v-for="channel in channelList" :key="channel.id" class="channel-item">
+                                            <div class="channel-info">
+                                                <el-switch 
+                                                    v-model="channel.enabled"
+                                                    @change="updateChannelStatus(channel.id, channel.enabled)">
+                                                </el-switch>
+                                                <div>
+                                                    <div class="channel-name">{{ channel.name || channel.id }}</div>
+                                                    <div class="channel-id">{{ channel.id }}</div>
+                                                </div>
+                                            </div>
+                                            <el-button @click="removeChannel(channel.id)" type="danger" size="small">
+                                                移除
+                                            </el-button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 基础配置 -->
+                                    <div class="config-form" style="margin-top: 20px;">
+                                        <div v-for="(config, key) in channelConfigs" :key="key" class="config-item">
+                                            <div class="config-item-header">
+                                                <span class="config-key">{{ key }}</span>
+                                                <span class="config-type">{{ config.config_type }}</span>
+                                            </div>
+                                            <div class="config-description">{{ config.description }}</div>
+                                            <el-input 
+                                                v-if="config.config_type === 'string'"
+                                                v-model="config.value" 
+                                                :placeholder="'请输入 ' + key">
+                                            </el-input>
+                                        </div>
+                                    </div>
+                                    <div class="actions">
+                                        <el-button @click="saveChannelConfigs" type="primary" :loading="saving">
+                                            保存频道配置
+                                        </el-button>
+                                        <el-button @click="resetChannelConfigs">
+                                            重置为默认值
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-tab-pane>
+                        
+                        <!-- 账号采集 -->
+                        <el-tab-pane label="👥 账号采集" name="accounts">
+                            <div class="config-card">
+                                <div class="config-header">
+                                    <h2>账号采集管理</h2>
+                                    <p>管理账号采集功能和黑白名单</p>
+                                </div>
+                                <div class="config-content">
+                                    <!-- 基础设置 -->
+                                    <div class="config-form">
+                                        <div v-for="(config, key) in accountsConfigs" :key="key" class="config-item">
+                                            <div class="config-item-header">
+                                                <span class="config-key">{{ key }}</span>
+                                                <span class="config-type">{{ config.config_type }}</span>
+                                            </div>
+                                            <div class="config-description">{{ config.description }}</div>
+                                            <el-switch 
+                                                v-if="config.config_type === 'boolean'"
+                                                v-model="config.value">
+                                            </el-switch>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 白名单管理 -->
+                                    <div style="margin-top: 20px;">
+                                        <h4>账号白名单</h4>
+                                        <div class="add-form">
+                                            <div class="form-row">
+                                                <el-input 
+                                                    v-model="newWhitelistAccount" 
+                                                    placeholder="输入账号ID或用户名"
+                                                    style="flex: 1;">
+                                                </el-input>
+                                                <el-button @click="addToWhitelist" type="success">
+                                                    添加到白名单
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                        <div class="account-list">
+                                            <div v-for="account in whitelistAccounts" :key="account" class="account-item">
+                                                <div class="account-info">
+                                                    <span class="account-name">{{ account }}</span>
+                                                </div>
+                                                <el-button @click="removeFromWhitelist(account)" type="danger" size="small">
+                                                    移除
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 黑名单管理 -->
+                                    <div style="margin-top: 20px;">
+                                        <h4>账号黑名单</h4>
+                                        <div class="add-form">
+                                            <div class="form-row">
+                                                <el-input 
+                                                    v-model="newBlacklistAccount" 
+                                                    placeholder="输入账号ID或用户名"
+                                                    style="flex: 1;">
+                                                </el-input>
+                                                <el-button @click="addToBlacklist" type="warning">
+                                                    添加到黑名单
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                        <div class="account-list">
+                                            <div v-for="account in blacklistAccounts" :key="account" class="account-item">
+                                                <div class="account-info">
+                                                    <span class="account-name">{{ account }}</span>
+                                                </div>
+                                                <el-button @click="removeFromBlacklist(account)" type="danger" size="small">
+                                                    移除
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="actions">
+                                        <el-button @click="saveAccountsConfigs" type="primary" :loading="saving">
+                                            保存账号配置
+                                        </el-button>
+                                        <el-button @click="resetAccountsConfigs">
+                                            重置为默认值
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-tab-pane>
+                        
+                        <!-- 广告过滤 -->
+                        <el-tab-pane label="🔍 广告过滤" name="filter">
+                            <div class="config-card">
+                                <div class="config-header">
+                                    <h2>广告过滤配置</h2>
+                                    <p>配置消息过滤规则和关键词</p>
+                                </div>
+                                <div class="config-content">
+                                    <!-- 基础设置 -->
+                                    <div class="config-form">
+                                        <div v-for="(config, key) in reviewConfigs" :key="key" class="config-item">
+                                            <div class="config-item-header">
+                                                <span class="config-key">{{ key }}</span>
+                                                <span class="config-type">{{ config.config_type }}</span>
+                                            </div>
+                                            <div class="config-description">{{ config.description }}</div>
+                                            <el-switch 
+                                                v-if="config.config_type === 'boolean'"
+                                                v-model="config.value">
+                                            </el-switch>
+                                            <el-input-number 
+                                                v-else-if="config.config_type === 'integer'"
+                                                v-model="config.value" 
+                                                :min="0"
+                                                :max="10000">
+                                            </el-input-number>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 文中关键词 -->
+                                    <div style="margin-top: 20px;">
+                                        <h4>文中过滤关键词（消息内容包含这些关键词时过滤）</h4>
+                                        <div class="add-form">
+                                            <div class="form-row">
+                                                <el-input 
+                                                    v-model="newTextKeyword" 
+                                                    placeholder="输入关键词"
+                                                    style="flex: 1;">
+                                                </el-input>
+                                                <el-button @click="addTextKeyword" type="primary">
+                                                    添加关键词
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                        <div class="keyword-list">
+                                            <div v-for="keyword in textKeywords" :key="keyword" class="keyword-item">
+                                                <span class="keyword-text">{{ keyword }}</span>
+                                                <el-button @click="removeTextKeyword(keyword)" type="danger" size="small">
+                                                    删除
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 行中关键词 -->
+                                    <div style="margin-top: 20px;">
+                                        <h4>行中过滤关键词（消息行包含这些关键词时过滤整行）</h4>
+                                        <div class="add-form">
+                                            <div class="form-row">
+                                                <el-input 
+                                                    v-model="newLineKeyword" 
+                                                    placeholder="输入关键词"
+                                                    style="flex: 1;">
+                                                </el-input>
+                                                <el-button @click="addLineKeyword" type="primary">
+                                                    添加关键词
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                        <div class="keyword-list">
+                                            <div v-for="keyword in lineKeywords" :key="keyword" class="keyword-item">
+                                                <span class="keyword-text">{{ keyword }}</span>
+                                                <el-button @click="removeLineKeyword(keyword)" type="danger" size="small">
+                                                    删除
+                                                </el-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="actions">
+                                        <el-button @click="saveFilterConfigs" type="primary" :loading="saving">
+                                            保存过滤配置
+                                        </el-button>
+                                        <el-button @click="resetFilterConfigs">
+                                            重置为默认值
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-tab-pane>
+                        
+                        <!-- 系统配置 -->
+                        <el-tab-pane label="🔧 系统配置" name="system">
+                            <div class="config-card">
+                                <div class="config-header">
+                                    <h2>系统高级配置</h2>
+                                    <p>配置系统运行参数和高级设置</p>
+                                </div>
+                                <div class="config-content">
+                                    <div class="config-form">
+                                        <div v-for="(config, key) in systemConfigs" :key="key" class="config-item">
+                                            <div class="config-item-header">
+                                                <span class="config-key">{{ key }}</span>
+                                                <span class="config-type">{{ config.config_type }}</span>
+                                            </div>
+                                            <div class="config-description">{{ config.description }}</div>
+                                            <el-input 
+                                                v-if="config.config_type === 'string'"
+                                                v-model="config.value" 
+                                                :placeholder="'请输入 ' + key">
+                                            </el-input>
+                                        </div>
+                                    </div>
+                                    <div class="actions">
+                                        <el-button @click="saveSystemConfigs" type="primary" :loading="saving">
+                                            保存系统配置
+                                        </el-button>
+                                        <el-button @click="reloadConfigs" type="info" :loading="reloading">
+                                            重新加载配置
+                                        </el-button>
+                                        <el-button @click="resetAllConfigs" type="warning">
+                                            重置所有配置
+                                        </el-button>
+                                        <el-button @click="exportConfigs">
+                                            导出配置
+                                        </el-button>
+                                        <el-button @click="importConfigs">
+                                            导入配置
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-tab-pane>
+                    </el-tabs>
+                </div>
+                
+                <!-- 状态消息 -->
+                <div v-if="statusMessage" class="status-message" :class="statusType">
+                    {{ statusMessage }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="loading-content">
+                <el-icon class="is-loading" style="font-size: 24px; color: #409EFF;">
+                    <Loading />
+                </el-icon>
+                <p style="margin-top: 15px;">{{ loadingMessage }}</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    loading: false,
+                    loadingMessage: '',
+                    saving: false,
+                    reloading: false,
+                    statusMessage: '',
+                    statusType: 'success',
+                    activeTab: 'telegram',
+                    
+                    // 配置数据
+                    allConfigs: {},
+                    telegramConfigs: {},
+                    channelConfigs: {},
+                    accountsConfigs: {},
+                    filterConfigs: {},
+                    reviewConfigs: {},
+                    systemConfigs: {},
+                    
+                    // 频道管理
+                    newChannel: { id: '', name: '', description: '' },
+                    channelList: [],
+                    
+                    // 关键词管理
+                    newTextKeyword: '',
+                    newLineKeyword: '',
+                    textKeywords: [],
+                    lineKeywords: [],
+                    
+                    // 账号管理
+                    newWhitelistAccount: '',
+                    newBlacklistAccount: '',
+                    whitelistAccounts: [],
+                    blacklistAccounts: [],
+                    
+                    // 统计信息
+                    channelStats: { total: 0, active: 0 },
+                    keywordStats: { text: 0, line: 0 },
+                    accountStats: { collected: 0, blacklist: 0, whitelist: 0 }
+                }
+            },
+            mounted() {
+                this.loadConfigs();
+            },
+            methods: {
+                async loadConfigs() {
+                    this.loading = true;
+                    this.loadingMessage = '正在加载配置...';
+                    
+                    try {
+                        const response = await axios.get('/api/config/');
+                        if (response.data.success) {
+                            this.allConfigs = response.data.configs;
+                            this.categorizeConfigs();
+                            await this.updateChannelList();
+                            this.updateKeywordLists();
+                            this.updateAccountLists();
+                            this.updateStats();
+                        } else {
+                            this.showError('加载配置失败');
+                        }
+                    } catch (error) {
+                        this.showError('加载配置失败: ' + (error.response?.data?.detail || error.message));
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                categorizeConfigs() {
+                    this.telegramConfigs = {};
+                    this.channelConfigs = {};
+                    this.accountsConfigs = {};
+                    this.filterConfigs = {};
+                    this.reviewConfigs = {};
+                    this.systemConfigs = {};
+                    
+                    for (const [key, config] of Object.entries(this.allConfigs)) {
+                        // 确保配置项有正确的结构
+                        const configItem = {
+                            value: config.value,
+                            description: config.description || '',
+                            config_type: config.config_type || 'string'
+                        };
+                        
+                        if (key.startsWith('telegram.')) {
+                            this.telegramConfigs[key] = configItem;
+                        } else if (key.startsWith('channels.')) {
+                            this.channelConfigs[key] = configItem;
+                        } else if (key.startsWith('accounts.')) {
+                            this.accountsConfigs[key] = configItem;
+                        } else if (key.startsWith('filter.')) {
+                            this.filterConfigs[key] = configItem;
+                        } else if (key.startsWith('review.')) {
+                            this.reviewConfigs[key] = configItem;
+                        } else if (key.startsWith('system.')) {
+                            this.systemConfigs[key] = configItem;
+                        }
+                    }
+                },
+                
+                async updateChannelList() {
+                    try {
+                        const response = await axios.get('/api/config/channels/');
+                        if (response.data.success) {
+                            this.channelList = response.data.channels.map(channel => ({
+                                id: channel.channel_id,
+                                name: channel.channel_name,
+                                enabled: channel.is_active,
+                                description: channel.description
+                            }));
+                        }
+                    } catch (error) {
+                        console.error('获取频道列表失败:', error);
+                        this.channelList = [];
+                    }
+                },
+                
+                updateKeywordLists() {
+                    this.textKeywords = this.allConfigs['filter.ad_keywords_text']?.value || [];
+                    this.lineKeywords = this.allConfigs['filter.ad_keywords_line']?.value || [];
+                },
+                
+                updateAccountLists() {
+                    this.whitelistAccounts = this.allConfigs['accounts.account_whitelist']?.value || [];
+                    this.blacklistAccounts = this.allConfigs['accounts.account_blacklist']?.value || [];
+                },
+                
+                updateStats() {
+                    // 频道统计
+                    this.channelStats.total = this.channelList.length;
+                    this.channelStats.active = this.channelList.filter(c => c.enabled).length;
+                    
+                    // 关键词统计
+                    this.keywordStats.text = this.textKeywords.length;
+                    this.keywordStats.line = this.lineKeywords.length;
+                    
+                    // 账号统计
+                    this.accountStats.collected = this.allConfigs['accounts.collected_accounts']?.value?.length || 0;
+                    this.accountStats.blacklist = this.blacklistAccounts.length;
+                    this.accountStats.whitelist = this.whitelistAccounts.length;
+                },
+                
+                // 频道管理
+                async addChannel() {
+                    if (!this.newChannel.id) {
+                        this.showError('请输入频道ID');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.post('/api/config/channels/add', {
+                            channel_id: this.newChannel.id,
+                            channel_name: this.newChannel.name,
+                            description: this.newChannel.description || ''
+                        });
+                        
+                        if (response.data.success) {
+                            this.showSuccess('频道添加成功');
+                            this.newChannel = { id: '', name: '', description: '' };
+                            await this.updateChannelList();
+                        } else {
+                            this.showError('频道添加失败');
+                        }
+                    } catch (error) {
+                        this.showError('频道添加失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async removeChannel(channelId) {
+                    try {
+                        const response = await axios.delete(`/api/config/channels/${channelId}`);
+                        
+                        if (response.data.success) {
+                            this.showSuccess('频道移除成功');
+                            await this.updateChannelList();
+                        } else {
+                            this.showError('频道移除失败');
+                        }
+                    } catch (error) {
+                        this.showError('频道移除失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async updateChannelStatus(channelId, enabled) {
+                    try {
+                        const response = await axios.put(`/api/config/channels/${channelId}/status`, {
+                            enabled: enabled
+                        });
+                        
+                        if (response.data.success) {
+                            this.showSuccess('频道状态更新成功');
+                            await this.updateChannelList();
+                        } else {
+                            this.showError('频道状态更新失败');
+                        }
+                    } catch (error) {
+                        this.showError('频道状态更新失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                // 关键词管理
+                async addTextKeyword() {
+                    if (!this.newTextKeyword) {
+                        this.showError('请输入关键词');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.post('/api/config/keywords/text/add', {
+                            keyword: this.newTextKeyword
+                        });
+                        
+                        if (response.data.success) {
+                            this.showSuccess('关键词添加成功');
+                            this.newTextKeyword = '';
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('关键词添加失败');
+                        }
+                    } catch (error) {
+                        this.showError('关键词添加失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async removeTextKeyword(keyword) {
+                    try {
+                        const response = await axios.delete(`/api/config/keywords/text/${encodeURIComponent(keyword)}`);
+                        
+                        if (response.data.success) {
+                            this.showSuccess('关键词移除成功');
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('关键词移除失败');
+                        }
+                    } catch (error) {
+                        this.showError('关键词移除失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async addLineKeyword() {
+                    if (!this.newLineKeyword) {
+                        this.showError('请输入关键词');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.post('/api/config/keywords/line/add', {
+                            keyword: this.newLineKeyword
+                        });
+                        
+                        if (response.data.success) {
+                            this.showSuccess('关键词添加成功');
+                            this.newLineKeyword = '';
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('关键词添加失败');
+                        }
+                    } catch (error) {
+                        this.showError('关键词添加失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async removeLineKeyword(keyword) {
+                    try {
+                        const response = await axios.delete(`/api/config/keywords/line/${encodeURIComponent(keyword)}`);
+                        
+                        if (response.data.success) {
+                            this.showSuccess('关键词移除成功');
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('关键词移除失败');
+                        }
+                    } catch (error) {
+                        this.showError('关键词移除失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                // 账号管理
+                async addToWhitelist() {
+                    if (!this.newWhitelistAccount) {
+                        this.showError('请输入账号');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.post('/api/config/accounts/whitelist/add', {
+                            account: this.newWhitelistAccount
+                        });
+                        
+                        if (response.data.success) {
+                            this.showSuccess('账号添加到白名单成功');
+                            this.newWhitelistAccount = '';
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('添加账号到白名单失败');
+                        }
+                    } catch (error) {
+                        this.showError('添加账号到白名单失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async removeFromWhitelist(account) {
+                    try {
+                        const response = await axios.delete(`/api/config/accounts/whitelist/${encodeURIComponent(account)}`);
+                        
+                        if (response.data.success) {
+                            this.showSuccess('账号从白名单移除成功');
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('从白名单移除账号失败');
+                        }
+                    } catch (error) {
+                        this.showError('从白名单移除账号失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async addToBlacklist() {
+                    if (!this.newBlacklistAccount) {
+                        this.showError('请输入账号');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.post('/api/config/accounts/blacklist/add', {
+                            account: this.newBlacklistAccount
+                        });
+                        
+                        if (response.data.success) {
+                            this.showSuccess('账号添加到黑名单成功');
+                            this.newBlacklistAccount = '';
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('添加账号到黑名单失败');
+                        }
+                    } catch (error) {
+                        this.showError('添加账号到黑名单失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async removeFromBlacklist(account) {
+                    try {
+                        const response = await axios.delete(`/api/config/accounts/blacklist/${encodeURIComponent(account)}`);
+                        
+                        if (response.data.success) {
+                            this.showSuccess('账号从黑名单移除成功');
+                            await this.loadConfigs();
+                        } else {
+                            this.showError('从黑名单移除账号失败');
+                        }
+                    } catch (error) {
+                        this.showError('从黑名单移除账号失败: ' + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                // 配置保存
+                async saveTelegramConfigs() {
+                    await this.saveConfigs(this.telegramConfigs, 'Telegram');
+                },
+                
+                async saveChannelConfigs() {
+                    await this.saveConfigs(this.channelConfigs, '频道');
+                },
+                
+                async saveAccountsConfigs() {
+                    await this.saveConfigs(this.accountsConfigs, '账号');
+                },
+                
+                async saveFilterConfigs() {
+                    await this.saveConfigs(this.filterConfigs, '过滤');
+                },
+                
+                async saveSystemConfigs() {
+                    await this.saveConfigs(this.systemConfigs, '系统');
+                },
+                
+                async saveConfigs(configs, category) {
+                    this.saving = true;
+                    
+                    try {
+                        const configItems = Object.entries(configs).map(([key, config]) => ({
+                            key: key,
+                            value: config.value,
+                            description: config.description,
+                            config_type: config.config_type
+                        }));
+                        
+                        const response = await axios.post('/api/config/batch-update', configItems);
+                        
+                        if (response.data.success) {
+                            this.showSuccess(`${category}配置保存成功`);
+                            await this.loadConfigs(); // 重新加载配置
+                        } else {
+                            this.showError(`${category}配置保存失败`);
+                        }
+                    } catch (error) {
+                        this.showError(`${category}配置保存失败: ` + (error.response?.data?.detail || error.message));
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+                
+                async resetTelegramConfigs() {
+                    await this.resetConfigs('telegram', 'Telegram');
+                },
+                
+                async resetChannelConfigs() {
+                    await this.resetConfigs('channels', '频道');
+                },
+                
+                async resetAccountsConfigs() {
+                    await this.resetConfigs('accounts', '账号');
+                },
+                
+                async resetFilterConfigs() {
+                    await this.resetConfigs('filter', '过滤');
+                },
+                
+                async resetConfigs(category, categoryName) {
+                    try {
+                        const response = await axios.post(`/api/config/categories/${category}`);
+                        
+                        if (response.data.success) {
+                            this.showSuccess(`${categoryName}配置重置成功`);
+                            await this.loadConfigs(); // 重新加载配置
+                        } else {
+                            this.showError(`${categoryName}配置重置失败`);
+                        }
+                    } catch (error) {
+                        this.showError(`${categoryName}配置重置失败: ` + (error.response?.data?.detail || error.message));
+                    }
+                },
+                
+                async reloadConfigs() {
+                    this.reloading = true;
+                    
+                    try {
+                        const response = await axios.post('/api/config/reload');
+                        
+                        if (response.data.success) {
+                            this.showSuccess('配置重新加载成功');
+                            await this.loadConfigs(); // 重新加载配置
+                        } else {
+                            this.showError('配置重新加载失败');
+                        }
+                    } catch (error) {
+                        this.showError('配置重新加载失败: ' + (error.response?.data?.detail || error.message));
+                    } finally {
+                        this.reloading = false;
+                    }
+                },
+                
+                async resetAllConfigs() {
+                    try {
+                        const confirmed = await this.$confirm('确定要重置所有配置为默认值吗？此操作不可撤销。', '确认重置', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+                        
+                        if (confirmed) {
+                            const response = await axios.post('/api/config/reset-defaults');
+                            
+                            if (response.data.success) {
+                                this.showSuccess('所有配置重置成功');
+                                await this.loadConfigs(); // 重新加载配置
+                            } else {
+                                this.showError('配置重置失败');
+                            }
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            this.showError('配置重置失败: ' + (error.response?.data?.detail || error.message));
+                        }
+                    }
+                },
+                
+                exportConfigs() {
+                    const configData = {
+                        timestamp: new Date().toISOString(),
+                        configs: this.allConfigs
+                    };
+                    
+                    const dataStr = JSON.stringify(configData, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(dataBlob);
+                    link.download = `telegram_config_${new Date().toISOString().split('T')[0]}.json`;
+                    link.click();
+                    
+                    this.showSuccess('配置导出成功');
+                },
+                
+                importConfigs() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    
+                    input.onchange = async (event) => {
+                        const file = event.target.files[0];
+                        if (!file) return;
+                        
+                        try {
+                            const text = await file.text();
+                            const configData = JSON.parse(text);
+                            
+                            if (configData.configs) {
+                                // 这里可以实现导入逻辑
+                                this.showSuccess('配置导入功能开发中...');
+                            } else {
+                                this.showError('配置文件格式错误');
+                            }
+                        } catch (error) {
+                            this.showError('配置文件读取失败: ' + error.message);
+                        }
+                    };
+                    
+                    input.click();
+                },
+                
+                handleTabClick(tab) {
+                    this.activeTab = tab.name;
+                },
+                
+                goToMain() {
+                    window.location.href = '/';
+                },
+                
+                goToStatus() {
+                    window.location.href = '/status';
+                },
+                
+                goToAuth() {
+                    window.location.href = '/auth';
+                },
+                
+                showSuccess(message) {
+                    this.statusMessage = message;
+                    this.statusType = 'success';
+                    setTimeout(() => {
+                        this.statusMessage = '';
+                    }, 3000);
+                },
+                
+                showError(message) {
+                    this.statusMessage = message;
+                    this.statusType = 'error';
+                    setTimeout(() => {
+                        this.statusMessage = '';
+                    }, 5000);
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

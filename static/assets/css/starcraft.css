@@ -1,5 +1,4 @@
 /* 星际争霸风格样式 */
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
 * {
     margin: 0;
@@ -162,8 +161,8 @@ body::before {
 /* 统计网格 */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 15px;
     margin: 20px 0;
 }
 
@@ -171,9 +170,13 @@ body::before {
     background: rgba(26, 26, 46, 0.8);
     border: 2px solid #00ff41;
     border-radius: 10px;
-    padding: 20px;
+    padding: 12px;
     text-align: center;
     transition: all 0.3s ease;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .stat-item:hover {
@@ -182,11 +185,14 @@ body::before {
 }
 
 .stat-number {
-    font-size: 2em;
+    font-size: 1.1em;
     font-weight: 900;
     color: #00ff41;
     text-shadow: 0 0 15px #00ff41;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stat-label {
@@ -194,6 +200,8 @@ body::before {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
+    font-size: 0.8em;
+    margin-top: 3px;
 }
 
 /* 按钮样式 */
@@ -244,23 +252,45 @@ body::before {
 
 /* 输入框样式 */
 .el-input .el-input__wrapper {
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
-    border-radius: 5px;
-    color: #00ff41;
+    background: rgba(26, 26, 46, 0.9) !important;
+    border: 2px solid #00ff41 !important;
+    border-radius: 5px !important;
+    color: #00ff41 !important;
+    box-shadow: none !important;
 }
 
 .el-input .el-input__wrapper:hover {
-    border-color: #00d4aa;
-    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+    border-color: #00d4aa !important;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3) !important;
+}
+
+.el-input .el-input__wrapper.is-focus {
+    border-color: #00d4aa !important;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.5) !important;
 }
 
 .el-input .el-input__inner {
-    color: #00ff41;
+    color: #00ff41 !important;
+    background: transparent !important;
+    font-family: 'Orbitron', monospace !important;
+    font-weight: 500 !important;
 }
 
 .el-input .el-input__inner::placeholder {
-    color: #7fdbff;
+    color: #7fdbff !important;
+    opacity: 0.8 !important;
+}
+
+/* 确保输入框在各种状态下都可见 */
+.el-input input {
+    color: #00ff41 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.el-input input:focus {
+    color: #00ff41 !important;
+    background: transparent !important;
 }
 
 /* 选择器样式 */
@@ -422,6 +452,12 @@ body::before {
 }
 
 /* 响应式设计 */
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
     .header h1 {
         font-size: 2em;
@@ -433,11 +469,17 @@ body::before {
     }
     
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
     
     .form-container {
         margin: 20px;
         padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
     }
 } 

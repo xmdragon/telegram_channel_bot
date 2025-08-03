@@ -1,0 +1,280 @@
+/* Telegram 认证页面样式 */
+
+/* 步骤指示器 */
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.step {
+    width: 60px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(26, 26, 46, 0.8);
+    border: 2px solid #00ff41;
+    color: #00ff41;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 10px;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.step.active {
+    background: #00ff41;
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+}
+
+.step.completed {
+    background: #2ed573;
+    border-color: #2ed573;
+    color: #000;
+}
+
+.step-line {
+    width: 60px;
+    height: 2px;
+    background: rgba(0, 255, 65, 0.3);
+}
+
+/* 表单步骤 - 重要：确保只有当前步骤显示 */
+.form-step {
+    display: none !important;
+}
+
+.form-step.active {
+    display: block !important;
+}
+
+/* 表单组 */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    color: #7fdbff;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+/* 表单容器 */
+.form-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 30px;
+    background: rgba(26, 26, 46, 0.8);
+    border: 2px solid #00ff41;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+}
+
+.form-title {
+    text-align: center;
+    color: #00ff41;
+    font-size: 1.5em;
+    margin-bottom: 30px;
+    font-weight: bold;
+}
+
+/* 错误信息 */
+.error-message {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 71, 87, 0.1);
+    border: 2px solid #ff4757;
+    border-radius: 5px;
+    color: #ff4757;
+}
+
+/* 加载遮罩 */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-content {
+    text-align: center;
+    color: #00ff41;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(0, 255, 65, 0.3);
+    border-top: 3px solid #00ff41;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 状态消息 */
+.status-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    z-index: 1001;
+    animation: slideIn 0.5s ease;
+}
+
+.status-message.success {
+    background: rgba(46, 213, 115, 0.9);
+    color: #000;
+    border: 2px solid #2ed573;
+}
+
+.status-message.error {
+    background: rgba(255, 71, 87, 0.9);
+    color: #fff;
+    border: 2px solid #ff4757;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* 输入框专门样式 - 覆盖Element Plus和其他样式 */
+.el-input {
+    width: 100% !important;
+}
+
+.el-input .el-input__wrapper {
+    background: rgba(26, 26, 46, 0.95) !important;
+    border: 2px solid #00ff41 !important;
+    border-radius: 5px !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    box-shadow: none !important;
+    transition: all 0.3s ease !important;
+}
+
+.el-input .el-input__wrapper:hover {
+    border-color: #00d4aa !important;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3) !important;
+}
+
+.el-input .el-input__wrapper.is-focus {
+    border-color: #00d4aa !important;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.5) !important;
+}
+
+.el-input .el-input__inner,
+.el-input input {
+    color: #00ff41 !important;
+    background: transparent !important;
+    border: none !important;
+    font-family: 'Orbitron', monospace !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    height: auto !important;
+    line-height: 1.5 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.el-input .el-input__inner::placeholder,
+.el-input input::placeholder {
+    color: #7fdbff !important;
+    opacity: 0.8 !important;
+}
+
+.el-input .el-input__inner:focus,
+.el-input input:focus {
+    color: #00ff41 !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* 密码输入框特殊处理 */
+.el-input input[type="password"] {
+    color: #00ff41 !important;
+    background: transparent !important;
+    font-family: 'Orbitron', monospace !important;
+}
+
+/* 调试信息 */
+.debug-info {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #00ff41;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .form-container {
+        max-width: 90%;
+        padding: 20px;
+    }
+    
+    .step {
+        width: 50px;
+        height: 35px;
+        font-size: 10px;
+        margin: 0 5px;
+    }
+    
+    .step-line {
+        width: 40px;
+    }
+    
+    .form-title {
+        font-size: 1.2em;
+    }
+}
+
+@media (max-width: 480px) {
+    .step-indicator {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .step {
+        width: 40px;
+        height: 30px;
+        font-size: 9px;
+        margin: 0 3px;
+    }
+    
+    .step-line {
+        width: 30px;
+    }
+    
+    .form-container {
+        padding: 15px;
+    }
+} 

@@ -3,12 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram 登录 - 星际争霸风格</title>
+    <title>Telegram 登录</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
+    
+    <!-- CSS 加载顺序：Element Plus -> Main -> Starcraft主题 -> 组件样式 -->
     <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/starcraft.css">
-    <script src="assets/js/vue.js"></script>
+    <link rel="stylesheet" href="assets/css/components/auth.css">
+    
+    <!-- JavaScript 库 -->
+    <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/auth.js"></script>
 </head>
 <body>
     <div id="app">
@@ -36,11 +44,15 @@
                 
                 <!-- 步骤指示器 -->
                 <div class="step-indicator">
-                    <div class="step" :class="{ active: currentStep >= 1, completed: currentStep > 1 }">1</div>
+                    <div class="step" :class="{ active: currentStep >= 1, completed: currentStep > 1 }">配置</div>
                     <div class="step-line"></div>
-                    <div class="step" :class="{ active: currentStep >= 2, completed: currentStep > 2 }">2</div>
+                    <div class="step" :class="{ active: currentStep >= 2, completed: currentStep > 2 }">手机</div>
                     <div class="step-line"></div>
-                    <div class="step" :class="{ active: currentStep >= 3, completed: currentStep > 3 }">3</div>
+                    <div class="step" :class="{ active: currentStep >= 3, completed: currentStep > 3 }">验证</div>
+                    <div class="step-line"></div>
+                    <div class="step" :class="{ active: currentStep >= 4, completed: currentStep > 4 }">两步</div>
+                    <div class="step-line"></div>
+                    <div class="step" :class="{ active: currentStep >= 5, completed: currentStep > 5 }">完成</div>
                 </div>
 
                 <!-- 步骤1: 配置信息 -->
@@ -50,8 +62,13 @@
                         <el-input 
                             v-model="config.api_id" 
                             placeholder="请输入 Telegram API ID"
-                            type="text">
+                            type="text"
+                            style="background: rgba(26, 26, 46, 0.95) !important; border: 2px solid #00ff41 !important;">
                         </el-input>
+                        <!-- 调试信息 -->
+                        <div style="margin-top: 5px; font-size: 12px; color: #7fdbff;">
+                            当前值: {{ config.api_id || '空' }}
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -64,6 +81,24 @@
                     </div>
                     
                     <div class="form-group">
+                        <label class="form-label">Session Name</label>
+                        <el-input 
+                            v-model="config.session_name" 
+                            placeholder="请输入会话名称 (如: my_bot)"
+                            type="text">
+                        </el-input>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <el-button @click="submitConfig" type="primary" :disabled="!canProceed" :loading="loading">
+                            提交配置
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 步骤2: 手机号码 -->
+                <div class="form-step" :class="{ active: currentStep === 2 }">
+                    <div class="form-group">
                         <label class="form-label">手机号码</label>
                         <el-input 
                             v-model="config.phone" 
@@ -73,29 +108,23 @@
                     </div>
                     
                     <div style="text-align: center; margin-top: 30px;">
-                        <el-button @click="nextStep" type="primary" :disabled="!canProceed">
-                            下一步
+                        <el-button @click="prevStep" type="info">
+                            上一步
+                        </el-button>
+                        <el-button @click="sendCode" type="primary" :loading="loading">
+                            发送验证码
                         </el-button>
                     </div>
                 </div>
 
-                <!-- 步骤2: 验证码 -->
-                <div class="form-step" :class="{ active: currentStep === 2 }">
+                <!-- 步骤3: 验证码 -->
+                <div class="form-step" :class="{ active: currentStep === 3 }">
                     <div class="form-group">
                         <label class="form-label">验证码</label>
                         <el-input 
                             v-model="verificationCode" 
                             placeholder="请输入收到的验证码"
                             type="text">
-                        </el-input>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">密码 (如果有)</label>
-                        <el-input 
-                            v-model="password" 
-                            placeholder="请输入两步验证密码 (可选)"
-                            type="password">
                         </el-input>
                     </div>
                     
@@ -109,8 +138,29 @@
                     </div>
                 </div>
 
-                <!-- 步骤3: 完成 -->
-                <div class="form-step" :class="{ active: currentStep === 3 }">
+                <!-- 步骤4: 两步验证 -->
+                <div class="form-step" :class="{ active: currentStep === 4 }">
+                    <div class="form-group">
+                        <label class="form-label">两步验证密码</label>
+                        <el-input 
+                            v-model="password" 
+                            placeholder="请输入两步验证密码"
+                            type="password">
+                        </el-input>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <el-button @click="prevStep" type="info">
+                            上一步
+                        </el-button>
+                        <el-button @click="verifyPassword" type="primary" :loading="verifying">
+                            验证
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 步骤5: 完成 -->
+                <div class="form-step" :class="{ active: currentStep === 5 }">
                     <div style="text-align: center; margin: 30px 0;">
                         <div style="font-size: 4em; color: #00ff41; margin-bottom: 20px;">✅</div>
                         <h3 style="color: #00ff41; margin-bottom: 10px;">认证成功！</h3>
@@ -128,7 +178,7 @@
                 </div>
 
                 <!-- 错误信息 -->
-                <div v-if="errorMessage" style="margin-top: 20px; padding: 15px; background: rgba(255, 71, 87, 0.1); border: 2px solid #ff4757; border-radius: 5px; color: #ff4757;">
+                <div v-if="errorMessage" class="error-message">
                     {{ errorMessage }}
                 </div>
             </div>
@@ -142,212 +192,10 @@
         <!-- 加载遮罩 -->
         <div v-if="loading" class="loading-overlay">
             <div class="loading-content">
-                <el-icon class="is-loading">
-                    <Loading />
-                </el-icon>
+                <div class="loading-spinner"></div>
                 <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
             </div>
         </div>
     </div>
-
-    <script>
-        const { createApp } = Vue;
-        const { ElMessage } = ElementPlus;
-
-        createApp({
-            data() {
-                return {
-                    loading: false,
-                    loadingMessage: '',
-                    statusMessage: '',
-                    statusType: 'success',
-                    authStatus: '未认证',
-                    currentStep: 1,
-                    verifying: false,
-                    errorMessage: '',
-                    config: {
-                        api_id: '',
-                        api_hash: '',
-                        phone: ''
-                    },
-                    verificationCode: '',
-                    password: ''
-                }
-            },
-            
-            computed: {
-                canProceed() {
-                    return this.config.api_id && this.config.api_hash && this.config.phone;
-                }
-            },
-            
-            mounted() {
-                this.checkAuthStatus();
-            },
-            
-            methods: {
-                async checkAuthStatus() {
-                    try {
-                        const response = await axios.get('/api/auth/status');
-                        if (response.data.authorized) {
-                            this.authStatus = '已认证';
-                            this.currentStep = 3;
-                        } else {
-                            this.authStatus = '未认证';
-                        }
-                    } catch (error) {
-                        console.error('检查认证状态失败:', error);
-                    }
-                },
-                
-                nextStep() {
-                    if (this.canProceed) {
-                        this.currentStep = 2;
-                        this.sendCode();
-                    }
-                },
-                
-                prevStep() {
-                    if (this.currentStep > 1) {
-                        this.currentStep--;
-                    }
-                },
-                
-                async sendCode() {
-                    this.loading = true;
-                    this.loadingMessage = '正在发送验证码...';
-                    this.errorMessage = '';
-                    
-                    try {
-                        const response = await axios.post('/api/auth/send-code', {
-                            api_id: this.config.api_id,
-                            api_hash: this.config.api_hash,
-                            phone: this.config.phone
-                        });
-                        
-                        if (response.data.success) {
-                            this.showSuccess('验证码已发送');
-                        } else {
-                            this.errorMessage = response.data.message || '发送验证码失败';
-                        }
-                    } catch (error) {
-                        this.errorMessage = '发送验证码失败: ' + (error.response?.data?.detail || error.message);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-                
-                async verifyCode() {
-                    this.verifying = true;
-                    this.errorMessage = '';
-                    
-                    try {
-                        const response = await axios.post('/api/auth/verify-code', {
-                            code: this.verificationCode,
-                            password: this.password
-                        });
-                        
-                        if (response.data.success) {
-                            this.currentStep = 3;
-                            this.authStatus = '已认证';
-                            this.showSuccess('认证成功');
-                        } else {
-                            this.errorMessage = response.data.message || '验证失败';
-                        }
-                    } catch (error) {
-                        this.errorMessage = '验证失败: ' + (error.response?.data?.detail || error.message);
-                    } finally {
-                        this.verifying = false;
-                    }
-                },
-                
-                goToMain() {
-                    window.location.href = '/';
-                },
-                
-                async disconnect() {
-                    try {
-                        const response = await axios.post('/api/auth/disconnect');
-                        if (response.data.success) {
-                            this.authStatus = '未认证';
-                            this.currentStep = 1;
-                            this.showSuccess('已断开连接');
-                        } else {
-                            this.showError('断开连接失败');
-                        }
-                    } catch (error) {
-                        this.showError('断开连接失败: ' + (error.response?.data?.detail || error.message));
-                    }
-                },
-                
-                showSuccess(message) {
-                    this.statusMessage = message;
-                    this.statusType = 'success';
-                    setTimeout(() => {
-                        this.statusMessage = '';
-                    }, 3000);
-                },
-                
-                showError(message) {
-                    this.statusMessage = message;
-                    this.statusType = 'error';
-                    setTimeout(() => {
-                        this.statusMessage = '';
-                    }, 5000);
-                }
-            }
-        }).mount('#app');
-    </script>
-
-    <style>
-        .step-indicator {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-        
-        .step {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(26, 26, 46, 0.8);
-            border: 2px solid #00ff41;
-            color: #00ff41;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 10px;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        
-        .step.active {
-            background: #00ff41;
-            color: #000;
-            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
-        }
-        
-        .step.completed {
-            background: #2ed573;
-            border-color: #2ed573;
-            color: #000;
-        }
-        
-        .step-line {
-            width: 60px;
-            height: 2px;
-            background: rgba(0, 255, 65, 0.3);
-        }
-        
-        .form-step {
-            display: none;
-        }
-        
-        .form-step.active {
-            display: block;
-        }
-    </style>
 </body>
 </html> 

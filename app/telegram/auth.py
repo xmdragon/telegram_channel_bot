@@ -19,11 +19,11 @@ class TelethonAuthManager:
         self.auth_state = "idle"  # idle, phone_sent, code_sent, password_needed, authorized
         self.auth_data = {}
     
-    async def create_client(self, api_id: int, api_hash: str, phone: str) -> bool:
+    async def create_client(self, api_id: int, api_hash: str, session_name: str) -> bool:
         """创建客户端"""
         try:
             self.client = TelegramClient(
-                f'sessions/{phone}',
+                f'sessions/{session_name}',
                 api_id,
                 api_hash
             )
@@ -39,7 +39,7 @@ class TelethonAuthManager:
                 self.auth_data = {
                     "api_id": api_id,
                     "api_hash": api_hash,
-                    "phone": phone
+                    "session_name": session_name
                 }
                 logger.info("需要登录认证")
                 return False
@@ -48,13 +48,14 @@ class TelethonAuthManager:
             logger.error(f"创建客户端失败: {e}")
             return False
     
-    async def send_code(self) -> Dict[str, Any]:
+    async def send_code(self, phone: str) -> Dict[str, Any]:
         """发送验证码"""
         try:
             if not self.client:
                 return {"success": False, "error": "客户端未初始化"}
             
-            await self.client.send_code_request(self.auth_data["phone"])
+            self.auth_data["phone"] = phone
+            await self.client.send_code_request(phone)
             self.auth_state = "phone_sent"
             
             return {

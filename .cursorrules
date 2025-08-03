@@ -1,0 +1,12 @@
+rules:
+ - 使用中文简短回复
+ - 项目只保留README.md一个markdown文件，有新的说明时在这个文件更新
+ - 项目目录结构要清晰，要模块化，要css,js,html分离
+ - 项目要使用element-plus组件库
+ - 项目要使用vue3框架
+ - 项目要使用axios进行网络请求
+ - 项目要使用scss进行样式管理
+ - 项目要使用eslint进行代码规范
+ - 项目要使用prettier进行代码格式化
+ - 项目要使用commitlint进行commit规范
+ - 调试代码和测试文件在用完要及时删除

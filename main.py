@@ -77,6 +77,10 @@ app.add_middleware(
 # 注册API路由
 app.include_router(api_router, prefix="/api")
 
+# 直接注册WebSocket路由（避免prefix问题）
+from app.api.auth import websocket_auth
+app.add_websocket_route("/api/auth/ws/auth", websocket_auth)
+
 # 静态文件服务
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

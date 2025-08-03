@@ -3,7 +3,7 @@
     font-family: 'Orbitron';
     font-style: normal;
     font-weight: 400;
-    src: url('../fonts/orbitron-regular.woff2') format('woff2');
+    src: url('../fonts/orbitron-regular.ttf') format('truetype');
     font-display: swap;
 }
 
@@ -11,7 +11,7 @@
     font-family: 'Orbitron';
     font-style: normal;
     font-weight: 700;
-    src: url('../fonts/orbitron-bold.woff2') format('woff2');
+    src: url('../fonts/orbitron-bold.ttf') format('truetype');
     font-display: swap;
 }
 
@@ -19,6 +19,6 @@
     font-family: 'Orbitron';
     font-style: normal;
     font-weight: 900;
-    src: url('../fonts/orbitron-black.woff2') format('woff2');
+    src: url('../fonts/orbitron-black.ttf') format('truetype');
     font-display: swap;
 } 

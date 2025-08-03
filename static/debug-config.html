@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue.js 调试页面</title>
+    
+    <!-- 外部样式文件 -->
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    
+    <!-- 外部脚本文件 -->
+    <script src="assets/js/vue.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>🔧 Vue.js 调试页面</h1>
+            <p>测试 Vue.js 挂载问题</p>
+        </div>
+
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2>调试信息</h2>
+                </div>
+                <div class="card-content">
+                    <p>Vue.js 版本: {{ vueVersion }}</p>
+                    <p>Element Plus 版本: {{ elementPlusVersion }}</p>
+                    <p>当前时间: {{ currentTime }}</p>
+                    <p>应用状态: {{ appStatus }}</p>
+                    
+                    <el-button type="primary" @click="updateTime">更新时间</el-button>
+                    <el-button type="success" @click="showMessage">显示消息</el-button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Script starting...');
+        console.log('Vue available:', typeof Vue !== 'undefined');
+        console.log('ElementPlus available:', typeof ElementPlus !== 'undefined');
+        
+        // 等待 DOM 加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, checking for #app element...');
+            
+            const appElement = document.getElementById('app');
+            console.log('App element found:', appElement);
+            
+            if (!appElement) {
+                console.error('App element not found!');
+                return;
+            }
+            
+            const { createApp } = Vue;
+            const { ElMessage } = ElementPlus;
+
+            const DebugApp = {
+                data() {
+                    return {
+                        vueVersion: Vue.version,
+                        elementPlusVersion: ElementPlus.version,
+                        currentTime: new Date().toLocaleString(),
+                        appStatus: '初始化中...'
+                    }
+                },
+                mounted() {
+                    console.log('Vue app mounted!');
+                    this.appStatus = '已挂载';
+                },
+                methods: {
+                    updateTime() {
+                        this.currentTime = new Date().toLocaleString();
+                    },
+                    showMessage() {
+                        ElMessage.success('Vue.js 工作正常！');
+                    }
+                }
+            };
+
+            try {
+                const app = createApp(DebugApp);
+                app.use(ElementPlus);
+                app.mount('#app');
+                console.log('Vue app mounted successfully');
+            } catch (error) {
+                console.error('Failed to mount Vue app:', error);
+            }
+        });
+    </script>
+</body>
+</html> 
