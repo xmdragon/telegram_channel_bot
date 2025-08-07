@@ -1,0 +1,105 @@
+/* 关键词管理页面样式 */
+
+.filter-bar {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.description-text {
+    color: #606266;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+/* 对话框样式 */
+.form-tips {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #909399;
+}
+
+.form-tips p {
+    margin: 4px 0;
+    font-weight: 500;
+}
+
+.form-tips ul {
+    margin: 4px 0;
+    padding-left: 16px;
+}
+
+.form-tips li {
+    margin: 2px 0;
+}
+
+/* 关键词类型说明 */
+.el-radio__label {
+    font-size: 13px;
+}
+
+/* 表格样式优化 */
+.el-table .el-table__cell {
+    padding: 8px 0;
+}
+
+.el-tag {
+    font-size: 12px;
+}
+
+/* 批量操作按钮 */
+.filter-bar .el-button--danger {
+    background-color: #f56c6c;
+    border-color: #f56c6c;
+}
+
+.filter-bar .el-button--danger:hover {
+    background-color: #f78989;
+    border-color: #f78989;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .filter-bar .el-col {
+        margin-bottom: 8px;
+    }
+    
+    .el-table .el-table__cell {
+        padding: 6px 0;
+    }
+    
+    .el-button--small {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+}
+
+/* 表格选择状态 */
+.el-table__row.hover-row {
+    background-color: #f5f7fa;
+}
+
+.el-table__row.selected {
+    background-color: #ecf5ff;
+}
+
+/* 关键词标签样式 */
+.el-tag.el-tag--danger {
+    background-color: #fef0f0;
+    border-color: #fde2e2;
+    color: #f56c6c;
+}
+
+.el-tag.el-tag--warning {
+    background-color: #fdf6ec;
+    border-color: #faecd8;
+    color: #e6a23c;
+}

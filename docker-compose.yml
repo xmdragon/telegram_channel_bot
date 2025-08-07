@@ -1,21 +1,24 @@
 services:
   app:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: telegram_bot_app
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./telegram_system.db
+      - DATABASE_URL=postgresql+asyncpg://postgres:telegram123@postgres:5432/telegram_system
       - REDIS_URL=redis://redis:6379
       - LOG_LEVEL=INFO
       - TZ=Asia/Shanghai
     depends_on:
       - redis
+      - postgres
     volumes:
-      - ./sessions:/app/sessions
+      # 持久化数据目录
       - ./logs:/app/logs
       - ./data:/app/data
-      - ./telegram_system.db:/app/telegram_system.db
+      - ./temp_media:/app/temp_media
     restart: unless-stopped
     networks:
       - telegram_network
@@ -32,21 +35,21 @@ services:
       - telegram_network
     command: redis-server --appendonly yes
 
-  # 可选：PostgreSQL 数据库（如果需要）
-  # postgres:
-  #   image: postgres:15
-  #   container_name: telegram_bot_postgres
-  #   environment:
-  #     POSTGRES_DB: telegram_system
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: password
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-  #   restart: unless-stopped
-  #   networks:
-  #     - telegram_network
+  postgres:
+    image: postgres:15
+    container_name: telegram_bot_postgres
+    environment:
+      POSTGRES_DB: telegram_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: telegram123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - telegram_network
 
 networks:
   telegram_network:
@@ -54,4 +57,4 @@ networks:
 
 volumes:
   redis_data:
-  # postgres_data:
+  postgres_data:

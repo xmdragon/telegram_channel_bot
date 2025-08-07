@@ -4,44 +4,54 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 常用命令
 
-### 开发和运行
+### 本地开发
+
+#### 脚本说明
+- **dev.sh**: 开发模式启动脚本（推荐）
+  - 自动检测并使用uvicorn的`--reload`参数
+  - 代码修改后自动重载，无需手动重启
+  - 自动处理venv、依赖安装、数据库初始化
+  - 适合开发调试使用
+
+- **start.sh**: 标准启动脚本
+  - 生产模式启动，不支持热重载
+  - 自动处理venv、依赖安装、数据库初始化
+  - 适合稳定运行使用
+
+- **stop.sh**: 停止脚本
+  - 安全停止运行中的应用
+  - 自动查找并终止main.py进程
+  - 清理可能的僵尸进程
+
+- **restart.sh**: 重启脚本
+  - 先调用stop.sh停止，再调用start.sh启动
+  - 适合需要完全重启时使用
+
+#### 使用方法
 ```bash
-# 本地开发
-python main.py                          # 启动主应用
-python init_db.py                       # 初始化数据库
-python setup_telethon.py               # Telethon设置脚本
+# 开发调试（推荐）
+./dev.sh                                 # 开发模式，支持热重载
 
-# 使用管理脚本
-python scripts/manage.py stats          # 显示系统统计
-python scripts/manage.py cleanup --days 30  # 清理30天前的消息
-python scripts/manage.py add-channel @channel "频道名"  # 添加源频道
-python scripts/manage.py list-channels  # 列出所有频道
-python scripts/manage.py add-rule keyword "广告词"  # 添加过滤规则
-python scripts/manage.py config list    # 列出所有配置
-python scripts/manage.py config get key # 获取配置值
-python scripts/manage.py config set key value --type string  # 设置配置
+# 生产运行
+./start.sh                               # 标准启动
+./stop.sh                                # 停止应用
+./restart.sh                             # 重启应用
 
-# Docker部署
-docker-compose up -d                     # 启动服务
-docker-compose build                     # 构建镜像
-docker-compose logs -f app              # 查看应用日志
-docker-compose down                      # 停止服务
-docker-compose -f docker-compose.dev.yml up -d  # 开发环境
-
-# 数据库操作
-python init_config.py                   # 初始化默认配置
+# 手动步骤（如需自定义）
+python3 -m venv venv                     # 创建虚拟环境
+source venv/bin/activate                 # 激活虚拟环境 (Linux/Mac)
+pip install -r requirements.txt          # 安装依赖
+python3 init_db.py                       # 初始化数据库（首次运行）
+python3 main.py                          # 启动主应用
 ```
 
-### 测试和调试
+### Docker部署（生产环境）
 ```bash
-# 目前没有正式的测试套件
-# 测试文件在根目录：test_*.py
-python test_admin_functionality.py
-python test_channel_management.py
-python test_config_management.py
-python test_docker.py
-python test_telethon.py
-python test_web_auth.py
+docker compose up -d --build             # 启动并构建
+docker compose down                      # 停止服务
+docker compose logs -f app              # 查看应用日志
+docker compose ps                       # 查看服务状态
+docker compose restart app              # 重启应用服务
 ```
 
 ## 系统架构
@@ -54,29 +64,37 @@ python test_web_auth.py
 - **消息处理** (`app/services/message_processor.py`): 消息接收、过滤和转发逻辑
 - **内容过滤** (`app/services/content_filter.py`): 广告检测和内容过滤
 - **调度器** (`app/services/scheduler.py`): 自动转发任务调度
+- **消息分组** (`app/services/message_grouper.py`): 处理Telegram媒体组合消息
+- **媒体处理** (`app/services/media_handler.py`): 媒体文件下载和处理
+- **历史采集** (`app/services/history_collector.py`): 频道历史消息采集
+- **系统监控** (`app/services/system_monitor.py`): 系统状态监控
 
 ### 数据库模型
-- **Message**: 消息存储和状态跟踪
+- **Message**: 消息存储和状态跟踪（支持媒体组合消息）
 - **Channel**: 频道配置（源频道、目标频道、审核群）
 - **FilterRule**: 过滤规则配置
-- **SystemConfig**: 系统配置存储
-- **Account**: 账号信息收集
+- **SystemConfig**: 系统配置存储（包含所有运行时配置）
+- **AdKeyword**: 广告关键词管理（支持文中关键词和行过滤）
 
 ### API路由结构
 - `/api/messages`: 消息管理API
 - `/api/admin`: 管理员功能API
 - `/api/config`: 配置管理API
 - `/api/auth`: Telegram认证API
+- `/api/keywords`: 关键词管理API
+- `/api/system`: 系统状态API
+- `/api/websocket`: WebSocket连接（用于实时认证）
 
 ### 前端组件
 - **Vue.js 3 + Element Plus**: 主要前端框架
 - **WebSocket认证**: 实时Telegram登录流程
-- 静态文件结构：
-  - `static/index.html`: 主界面（消息审核）
-  - `static/config.html`: 配置管理界面
-  - `static/auth.html`: Telegram认证界面
-  - `static/admin.html`: 管理员界面
-  - `static/status.html`: 系统状态监控
+- 页面功能：
+  - `index.html`: 主界面（消息审核）
+  - `config.html`: 配置管理界面
+  - `auth.html`: Telegram认证界面
+  - `admin.html`: 管理员界面
+  - `status.html`: 系统状态监控
+  - `keywords.html`: 关键词管理界面
 
 ### 消息处理流程
 ```
@@ -86,8 +104,12 @@ python test_web_auth.py
 ## 配置系统
 
 ### 配置层级
-1. **环境变量配置** (`.env`): DATABASE_URL, REDIS_URL, LOG_LEVEL
-2. **数据库配置** (`SystemConfig`表): 运行时动态配置
+1. **环境变量配置** (docker-compose.yml或直接设置): 
+   - DATABASE_URL: `postgresql+asyncpg://postgres:telegram123@postgres:5432/telegram_system`
+   - REDIS_URL: `redis://redis:6379`
+   - LOG_LEVEL: `INFO`
+   - TZ: `Asia/Shanghai`
+2. **数据库配置** (`system_configs`表): 所有运行时配置通过Web界面管理
 3. **默认配置** (`app/services/config_manager.py`): 初始化默认值
 
 ### 关键配置项
@@ -97,40 +119,52 @@ python test_web_auth.py
 - `review.*`: 审核相关设置（自动转发延时等）
 - `accounts.*`: 账号采集配置
 
-## Cursor规则要点
+## 项目维护原则
 
 - 使用中文简短回复
-- 只保留README.md一个markdown文件
-- 目录结构清晰，CSS/JS/HTML分离
-- 使用Element Plus组件库和Vue3框架
-- 使用Axios进行网络请求
-- 删除调试代码和测试文件（用完即删）
+- 避免创建测试文件，测试完成立即删除
+- 保持项目目录整洁，不保留临时文件
+- 前端使用Vue3 + Element Plus + Axios
+- 配置统一通过Web界面管理，不使用配置文件
 
 ## 开发注意事项
 
+### 开发规范
+- **开发环境**: 使用Python虚拟环境(venv)进行本地开发，不使用Docker
+- **部署环境**: 仅在Linux生产环境使用Docker部署
+- **Python命令**: 始终使用 `python3` 而不是 `python`
+- **Docker命令**: 始终使用 `docker compose` 而不是 `docker-compose`
+- **重要**: 不要创建开发版Docker配置（如docker-compose.dev.yml, docker-compose.m4.yml等）
+
 ### 技术栈
-- 后端: Python 3.11 + FastAPI + SQLAlchemy + Telethon
-- 前端: Vue.js 3 + Element Plus + Axios
-- 数据库: SQLite（默认）/ PostgreSQL
-- 缓存: Redis
-- 部署: Docker + Docker Compose
+- **后端**: Python 3.11 + FastAPI + SQLAlchemy + Telethon
+- **前端**: Vue.js 3 + Element Plus + Axios
+- **数据库**: PostgreSQL
+- **缓存**: Redis
+- **部署**: Docker Compose（生产环境）
 
-### 认证流程
-- 使用WebSocket进行实时认证
-- 认证状态存储在`app/telegram/auth.py`
-- 首次使用需要通过Web界面完成Telegram登录
 
-### 消息处理机制
-- 异步事件驱动的消息监听
-- 自动过滤广告内容
-- 人工审核机制（30分钟自动转发）
-- 支持批量操作和内容替换
+### 工作流程
+
+1. **初始化设置**
+   - 运行 `./start.sh` 或 `python3 init_db.py` 初始化数据库
+   - 访问 `http://localhost:8000/auth.html` 完成Telegram认证
+   - 访问 `http://localhost:8000/config.html` 配置频道和系统参数
+   - 访问 `http://localhost:8000/keywords.html` 设置过滤关键词
+
+2. **消息处理**
+   - 自动监听源频道新消息
+   - 根据关键词自动过滤广告
+   - 发送到审核群供人工审核
+   - 通过Web界面批量审核
+   - 30分钟自动转发到目标频道
 
 ### 数据持久化
-- 会话文件: `./sessions/`
 - 日志文件: `./logs/`
 - 数据文件: `./data/`
-- 数据库文件: `telegram_system.db`
+- 临时媒体文件: `./temp_media/`
+- 数据库: PostgreSQL (数据库名: telegram_system)
+- Telegram会话: 使用StringSession存储在数据库中
 
 ## 🚨 重要数据库操作规则
 
@@ -139,10 +173,6 @@ python test_web_auth.py
 
 ❌ **禁止的操作：**
 ```bash
-# 禁止删除数据库文件
-rm telegram_system.db
-rm *.db
-
 # 禁止删除整个数据库
 DROP DATABASE telegram_system;
 ```
@@ -165,8 +195,9 @@ UPDATE table_name SET column = value WHERE condition;
 ### 数据库包含的表
 - `messages`: 消息数据
 - `channels`: 频道配置
-- `filter_rules`: 过滤规则
-- `system_configs`: 系统配置（重要！包含21条初始配置）
+- `filter_rules`: 过滤规则（已弃用，使用ad_keywords表）
+- `system_configs`: 系统配置（重要！包含所有系统配置项）
+- `ad_keywords`: 广告关键词（支持文中关键词和行过滤）
 
 **任何影响多个表的操作都需要用户明确授权！**
 

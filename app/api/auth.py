@@ -14,7 +14,6 @@ router = APIRouter()
 class AuthRequest(BaseModel):
     api_id: int
     api_hash: str
-    session_name: str
 
 class CodeRequest(BaseModel):
     code: str
@@ -57,12 +56,22 @@ async def websocket_auth(websocket: WebSocket):
                 # 初始化认证
                 api_id = message.get("api_id")
                 api_hash = message.get("api_hash")
-                session_name = message.get("session_name")
                 
                 try:
-                    success = await auth_manager.create_client(
-                        api_id, api_hash, session_name
-                    )
+                    # 首先尝试使用保存的StringSession
+                    from app.services.config_manager import config_manager
+                    saved_session = await config_manager.get_config("telegram.session")
+                    
+                    if saved_session:
+                        # 尝试使用StringSession
+                        success = await auth_manager.create_client_from_string(
+                            api_id, api_hash, saved_session
+                        )
+                    else:
+                        # 创建新的认证会话
+                        success = await auth_manager.create_client(
+                            api_id, api_hash
+                        )
                     
                     if success:
                         await manager.send_personal_message(
@@ -267,8 +276,7 @@ async def init_auth(request: AuthRequest):
     try:
         success = await auth_manager.create_client(
             request.api_id,
-            request.api_hash,
-            request.session_name
+            request.api_hash
         )
         
         if success:

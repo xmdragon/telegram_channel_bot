@@ -16,6 +16,7 @@
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/message-manager.js?v=1"></script>
     <script src="assets/js/components/config.js"></script>
 </head>
 <body>
@@ -30,6 +31,7 @@
             <div class="nav-links">
                 <a href="/" class="nav-link">🏠 主控制台</a>
                 <a href="/config" class="nav-link active">⚙️ 系统配置</a>
+                <a href="/keywords" class="nav-link">🔍 关键词管理</a>
                 <a href="/status" class="nav-link">📊 系统状态</a>
                 <a href="/auth" class="nav-link">🔐 Telegram登录</a>
             </div>
@@ -44,12 +46,33 @@
                 <!-- 频道管理 -->
                 <el-tab-pane label="📡 频道管理" name="channels">
                     <div class="config-section">
+                        <div class="add-channel-form">
+                            <h4>添加新频道</h4>
+                            <el-form :model="newChannel" label-width="100px">
+                                <el-form-item label="频道名称">
+                                    <el-input v-model="newChannel.name" placeholder="输入频道名称（如：@channelname）"></el-input>
+                                </el-form-item>
+                                <el-form-item label="频道标题">
+                                    <el-input v-model="newChannel.title" placeholder="输入频道标题（可选）"></el-input>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-button type="primary" @click="addChannel" icon="Plus">添加频道</el-button>
+                                </el-form-item>
+                            </el-form>
+                        </div>
+
                         <h3>监听频道列表</h3>
                         <div class="channel-list">
                             <div v-for="channel in channels" :key="channel.id" class="channel-item">
                                 <div class="channel-info">
-                                    <strong>{{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }}</strong>
-                                    <span class="channel-id">{{ channel.title }}</span>
+                                    <div class="channel-name">
+                                        {{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }}
+                                    </div>
+                                    <div class="channel-details">
+                                        <span class="channel-title">{{ channel.title || '未设置标题' }}</span>
+                                        <span v-if="!channel.channel_id" class="channel-status no-id">(无ID)</span>
+                                        <span v-else class="channel-status has-id">(ID: {{ channel.channel_id }})</span>
+                                    </div>
                                 </div>
                                 <div class="channel-actions">
                                     <el-tag 
@@ -59,6 +82,13 @@
                                         @click="toggleChannelStatus(channel)">
                                         {{ channel.status === 'active' ? '活跃' : '停用' }}
                                     </el-tag>
+                                    <el-button 
+                                        v-if="!channel.channel_id" 
+                                        size="small" 
+                                        type="primary" 
+                                        @click="resolveChannelId(channel.name)">
+                                        解析ID
+                                    </el-button>
                                     <el-button size="small" type="danger" @click="removeChannel(channel.name)">
                                         删除
                                     </el-button>
@@ -66,19 +96,10 @@
                             </div>
                         </div>
                         
-                        <div class="add-channel-form">
-                            <h4>添加新频道</h4>
-                            <el-form :model="newChannel" label-width="100px">
-                                <el-form-item label="频道名称">
-                                    <el-input v-model="newChannel.name" placeholder="输入频道名称"></el-input>
-                                </el-form-item>
-                                <el-form-item label="频道标题">
-                                    <el-input v-model="newChannel.title" placeholder="输入频道标题"></el-input>
-                                </el-form-item>
-                                <el-form-item>
-                                    <el-button type="primary" @click="addChannel">添加频道</el-button>
-                                </el-form-item>
-                            </el-form>
+                        <div class="channel-actions-toolbar">
+                            <el-button type="primary" @click="resolveChannelIds" icon="Refresh">
+                                批量解析频道ID
+                            </el-button>
                         </div>
                     </div>
                 </el-tab-pane>
@@ -136,10 +157,37 @@
                                 <el-switch v-model="forwardingConfig.enabled"></el-switch>
                             </el-form-item>
                             <el-form-item label="目标频道">
-                                <el-input v-model="forwardingConfig.target_channel" placeholder="输入目标频道名称（支持带@或不带@）"></el-input>
+                                <el-input v-model="forwardingConfig.target_channel" placeholder="输入目标频道名称（支持带@或不带@）" @blur="updateTargetChannelId"></el-input>
+                            </el-form-item>
+                            <el-form-item label="解析的频道ID" v-if="forwardingConfig.resolved_target_channel_id">
+                                <el-input :value="forwardingConfig.resolved_target_channel_id" readonly>
+                                    <template #prepend>
+                                        <el-icon><InfoFilled /></el-icon>
+                                    </template>
+                                </el-input>
+                            </el-form-item>
+                            <el-form-item label="审核群">
+                                <el-input v-model="forwardingConfig.review_group" placeholder="输入审核群链接、ID或用户名" @blur="updateReviewGroupId">
+                                    <template #prepend>
+                                        <el-button @click="showReviewGroupHelp">💡</el-button>
+                                    </template>
+                                </el-input>
+                                <div class="form-hint">
+                                    <small>支持群链接（如：https://t.me/+xxx）、群ID（如：-1001234567890）或群用户名（如：@review_group）。</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="解析的群ID" v-if="forwardingConfig.resolved_group_id">
+                                <el-input :value="forwardingConfig.resolved_group_id" readonly>
+                                    <template #prepend>
+                                        <el-icon><InfoFilled /></el-icon>
+                                    </template>
+                                </el-input>
                             </el-form-item>
                             <el-form-item label="转发延迟（秒）">
                                 <el-input-number v-model="forwardingConfig.delay" :min="0" :max="3600"></el-input-number>
+                                <div class="form-hint">
+                                    <small>消息在审核群中停留多长时间后自动转发（0表示不自动转发）</small>
+                                </div>
                             </el-form-item>
                             <el-form-item label="转发条件">
                                 <el-checkbox-group v-model="forwardingConfig.conditions">

@@ -209,12 +209,22 @@ DEFAULT_CONFIGS = {
     },
     "channels.review_group_id": {
         "value": "",
-        "description": "审核群ID",
+        "description": "审核群ID或链接",
+        "config_type": "string"
+    },
+    "channels.review_group_id_cached": {
+        "value": "",
+        "description": "缓存的审核群ID（由系统自动解析链接后设置）",
         "config_type": "string"
     },
     "channels.target_channel_id": {
         "value": "",
         "description": "目标频道ID",
+        "config_type": "string"
+    },
+    "channels.target_channel_id_cached": {
+        "value": "",
+        "description": "目标频道解析后的真实ID",
         "config_type": "string"
     },
     "channels.history_message_limit": {
@@ -303,7 +313,7 @@ DEFAULT_CONFIGS = {
         "config_type": "string"
     },
     "system.database_url": {
-        "value": "sqlite:///./telegram_system.db",
+        "value": "postgresql://postgres:telegram123@postgres:5432/telegram_system",
         "description": "数据库连接URL",
         "config_type": "string"
     },

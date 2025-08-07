@@ -11,12 +11,15 @@
     <link rel="stylesheet" href="assets/css/starcraft.css">
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/components/index.css">
+    <link rel="stylesheet" href="assets/css/components/telegram-message.css">
+    <link rel="stylesheet" href="assets/css/components/media-group.css">
     
     <!-- 外部脚本文件 -->
-    <script src="assets/js/vue.prod.js"></script>
-    <script src="assets/js/element-plus.js"></script>
-    <script src="assets/js/axios.js"></script>
-    <script src="assets/js/components/index.js"></script>
+    <script src="assets/js/vue.prod.js?v=2"></script>
+    <script src="assets/js/element-plus.js?v=2"></script>
+    <script src="assets/js/axios.js?v=2"></script>
+    <script src="assets/js/message-manager.js?v=1"></script>
+    <script src="assets/js/components/index.js?v=2"></script>
 </head>
 <body>
     <div id="app">
@@ -30,6 +33,7 @@
             <div class="nav-links">
                 <a href="/" class="nav-link active">🏠 主控制台</a>
                 <a href="/config" class="nav-link">⚙️ 系统配置</a>
+                <a href="/keywords" class="nav-link">🔍 关键词管理</a>
                 <a href="/status" class="nav-link">📊 系统状态</a>
                 <a href="/auth" class="nav-link">🔐 Telegram登录</a>
             </div>
@@ -79,64 +83,195 @@
                 </div>
             </div>
 
-            <!-- 消息列表 -->
-            <div v-for="message in messages" :key="message.id" class="message-card" 
-                 :class="[message.is_ad ? 'ad' : '', message.status]">
-                <el-card>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <div>
-                            <strong style="color: #00ff41;">{{ message.source_channel }}</strong>
-                            <span style="color: #7fdbff; margin-left: 10px;">#{{ message.message_id }}</span>
+            <!-- 消息列表 - 类似Telegram频道格式 -->
+            <div v-for="message in messages" :key="message.id" class="telegram-message" 
+                 :class="[message.is_ad ? 'ad-message' : '', message.status]">
+                
+                <!-- 频道信息头 -->
+                <div class="channel-header">
+                    <div class="channel-info">
+                        <div class="channel-avatar">📢</div>
+                        <div class="channel-details">
+                            <div class="channel-name">{{ getChannelName(message.source_channel) }}</div>
                         </div>
-                        <div>
-                            <el-tag :type="getStatusType(message.status)" size="small">
-                                {{ getStatusText(message.status) }}
-                            </el-tag>
-                            <el-tag v-if="message.is_ad" type="danger" size="small" style="margin-left: 5px;">
-                                广告
-                            </el-tag>
+                    </div>
+                    <div class="message-status">
+                        <el-tag :type="getStatusType(message.status)" size="small">
+                            {{ getStatusText(message.status) }}
+                        </el-tag>
+                        <el-tag v-if="message.is_ad" type="danger" size="small" style="margin-left: 5px;">
+                            广告
+                        </el-tag>
+                    </div>
+                </div>
+                
+                <!-- 消息内容 -->
+                <div class="message-content">
+                    <!-- 组合媒体内容（媒体组） -->
+                    <div v-if="isCombinedMessage(message)" class="message-media-group">
+                        <div class="media-group-container" :data-count="getMediaGroupCount(message)">
+                            <div v-for="(media, index) in message.media_group_display" :key="index" class="media-group-item">
+                                <!-- 图片 -->
+                                <div v-if="media.media_type === 'photo' && media.display_url" class="media-display">
+                                    <img :src="media.display_url" 
+                                         :alt="'图片 ' + index"
+                                         class="media-image group-media"
+                                         @click="openMediaPreview(media.display_url)"
+                                         @error="handleMediaError($event, message)">
+                                </div>
+                                
+                                <!-- 视频 -->
+                                <div v-else-if="media.media_type === 'video' && media.display_url" class="media-display">
+                                    <video :src="media.display_url" 
+                                           class="media-video group-media" 
+                                           controls
+                                           preload="metadata"
+                                           @error="handleMediaError($event, message)">
+                                        您的浏览器不支持视频播放。
+                                    </video>
+                                </div>
+                                
+                                <!-- 动画/GIF -->
+                                <div v-else-if="media.media_type === 'animation' && media.display_url" class="media-display">
+                                    <img :src="media.display_url" 
+                                         :alt="'动画 ' + index"
+                                         class="media-image group-media"
+                                         @click="openMediaPreview(media.display_url)"
+                                         @error="handleMediaError($event, message)">
+                                </div>
+                                
+                                <!-- 文档 -->
+                                <div v-else-if="media.media_type === 'document' && media.display_url" class="media-document group-media">
+                                    <div class="document-icon">📄</div>
+                                    <div class="document-info">
+                                        <div class="document-name">文档文件</div>
+                                        <div class="document-size">点击下载</div>
+                                    </div>
+                                    <a :href="media.display_url" 
+                                       class="download-button" 
+                                       target="_blank" 
+                                       download>
+                                        下载
+                                    </a>
+                                </div>
+                                
+                                <!-- 不支持的媒体类型 -->
+                                <div v-else class="media-placeholder group-media">
+                                    {{ getMediaTypeIcon(media.media_type) }} {{ media.media_type }}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="content-preview">
-                        {{ message.content || '无文本内容' }}
+                    <!-- 单个媒体内容 -->
+                    <div v-else-if="message.media_type && !isCombinedMessage(message)" class="message-media">
+                        <!-- 图片显示 -->
+                        <div v-if="message.media_type === 'photo' && message.media_display_url" class="media-display">
+                            <img :src="message.media_display_url" 
+                                 :alt="'图片 ' + message.id"
+                                 class="media-image"
+                                 @click="openMediaPreview(message.media_display_url)"
+                                 @error="handleMediaError($event, message)">
+                        </div>
+                        
+                        <!-- 视频显示 -->
+                        <div v-else-if="message.media_type === 'video' && message.media_display_url" class="media-display">
+                            <video :src="message.media_display_url" 
+                                   class="media-video" 
+                                   controls
+                                   preload="metadata"
+                                   @error="handleMediaError($event, message)">
+                                您的浏览器不支持视频播放。
+                            </video>
+                        </div>
+                        
+                        <!-- 动画/GIF显示 -->
+                        <div v-else-if="message.media_type === 'animation' && message.media_display_url" class="media-display">
+                            <img :src="message.media_display_url" 
+                                 :alt="'动画 ' + message.id"
+                                 class="media-image"
+                                 @click="openMediaPreview(message.media_display_url)"
+                                 @error="handleMediaError($event, message)">
+                        </div>
+                        
+                        <!-- 文档显示 -->
+                        <div v-else-if="message.media_type === 'document' && message.media_display_url" class="media-document">
+                            <div class="document-icon">📄</div>
+                            <div class="document-info">
+                                <div class="document-name">文档文件</div>
+                                <div class="document-size">点击下载</div>
+                            </div>
+                            <a :href="message.media_display_url" 
+                               class="download-button" 
+                               target="_blank" 
+                               download>
+                                下载
+                            </a>
+                        </div>
+                        
+                        <!-- 媒体加载错误或不支持的类型 -->
+                        <div v-else class="media-placeholder">
+                            <span v-if="message.media_type === 'photo'">🖼️ 图片</span>
+                            <span v-else-if="message.media_type === 'video'">🎥 视频</span>
+                            <span v-else-if="message.media_type === 'document'">📄 文档</span>
+                            <span v-else-if="message.media_type === 'animation'">🎬 动画</span>
+                            <span v-else-if="message.media_type === 'audio'">🎧 音频</span>
+                            <span v-else>📎 {{ message.media_type }}</span>
+                        </div>
                     </div>
                     
-                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <div style="color: #7fdbff; font-size: 12px;">
-                            {{ formatTime(message.created_at) }}
-                        </div>
-                        <div>
-                            <el-button 
-                                v-if="message.status === 'pending'"
-                                type="success" 
-                                size="small" 
-                                @click="approveMessage(message.id)"
-                                icon="Check">
-                                批准
-                            </el-button>
-                            <el-button 
-                                v-if="message.status === 'pending'"
-                                type="danger" 
-                                size="small" 
-                                @click="rejectMessage(message.id)"
-                                icon="Close">
-                                拒绝
-                            </el-button>
-                            <el-checkbox 
-                                v-model="selectedMessages" 
-                                :label="message.id"
-                                style="margin-left: 10px;">
-                            </el-checkbox>
-                        </div>
+                    <!-- 文本内容 -->
+                    <div v-if="formatMessageContent(message)" class="message-text">
+                        {{ formatMessageContent(message) }}
                     </div>
-                </el-card>
+                </div>
+                
+                <!-- 消息底部 -->
+                <div class="message-footer">
+                    <div class="message-time">
+                        <span>🕰️ {{ formatTime(message.created_at) }}</span>
+                        <span style="margin-left: 10px; color: #888;">#{{ message.message_id }}</span>
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div class="message-actions">
+                        <el-button 
+                            type="primary" 
+                            size="small" 
+                            @click="publishMessage(message.id)"
+                            icon="Promotion">
+                            发布
+                        </el-button>
+                        <el-button 
+                            type="warning" 
+                            size="small" 
+                            @click="editMessage(message)"
+                            icon="Edit">
+                            编辑
+                        </el-button>
+                        <el-button 
+                            type="danger" 
+                            size="small" 
+                            @click="rejectMessage(message.id)"
+                            icon="Delete">
+                            拒绝
+                        </el-button>
+                    </div>
+                </div>
             </div>
         </div>
         
         <!-- 状态消息 -->
         <div v-if="statusMessage" class="status-message" :class="statusType">
             {{ statusMessage }}
+        </div>
+        
+        <!-- 媒体预览模态框 -->
+        <div v-if="mediaPreview.show" class="media-preview-modal" @click="closeMediaPreview">
+            <div class="media-preview-content" @click.stop>
+                <button class="media-preview-close" @click="closeMediaPreview">×</button>
+                <img :src="mediaPreview.url" class="media-preview-image" alt="媒体预览">
+            </div>
         </div>
         
         <!-- 加载遮罩 -->
@@ -146,11 +281,27 @@
                 <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
             </div>
         </div>
+        
+        <!-- 编辑消息对话框 -->
+        <el-dialog v-model="editDialog.visible" title="编辑消息" width="70%">
+            <el-form>
+                <el-form-item label="消息内容">
+                    <el-input 
+                        v-model="editDialog.content" 
+                        type="textarea" 
+                        :rows="10"
+                        placeholder="请输入消息内容">
+                    </el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="editDialog.visible = false">取消</el-button>
+                    <el-button type="primary" @click="saveEditedMessage">保存</el-button>
+                </span>
+            </template>
+        </el-dialog>
     </div>
 
-    <script>
-        // 使用外部组件
-        createApp(MainApp).use(ElementPlus).mount('#app');
-    </script>
 </body>
 </html>

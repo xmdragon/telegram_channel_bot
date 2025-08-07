@@ -11,7 +11,7 @@ class BaseSettings(BaseSettings):
     """基础配置（从环境变量读取）"""
     
     # 数据库配置（启动时需要）
-    DATABASE_URL: str = "sqlite:///./telegram_system.db"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:telegram123@localhost:5432/telegram_system")
     
     # Redis配置
     REDIS_URL: str = "redis://localhost:6379"
@@ -72,6 +72,10 @@ class DatabaseSettings:
         await self._ensure_initialized()
         return await self._config_manager.get_config("channels.history_message_limit", 50)
     
+    async def get_history_limit(self) -> int:
+        """获取历史消息采集限制"""
+        return await self.get_history_message_limit()
+    
     # 账号采集配置
     async def get_collect_accounts(self) -> bool:
         await self._ensure_initialized()
@@ -126,6 +130,18 @@ class DatabaseSettings:
     async def get_secret_key(self) -> str:
         await self._ensure_initialized()
         return await self._config_manager.get_config("system.secret_key", "default-secret-key")
+    
+    async def get_channel_names(self) -> dict:
+        """获取频道名称映射"""
+        from app.services.channel_manager import channel_manager
+        channels = await channel_manager.get_all_channels()
+        return {ch['channel_name']: ch['channel_title'] for ch in channels}
+    
+    async def get_channel_status(self) -> dict:
+        """获取频道状态映射"""
+        from app.services.channel_manager import channel_manager
+        channels = await channel_manager.get_all_channels()
+        return {ch['channel_name']: ch['is_active'] for ch in channels}
 
 # 全局数据库配置实例
 db_settings = DatabaseSettings()

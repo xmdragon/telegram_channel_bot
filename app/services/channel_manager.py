@@ -209,21 +209,103 @@ class ChannelManager:
             return None
     
     async def get_active_source_channels(self) -> List[str]:
-        """获取活跃的源频道ID列表"""
+        """获取活跃的源频道ID列表，自动解析空的channel_id"""
         try:
             async with AsyncSessionLocal() as db:
                 result = await db.execute(
-                    select(Channel.channel_id).where(
+                    select(Channel).where(
                         Channel.channel_type == "source",
                         Channel.is_active == True
                     )
                 )
                 channels = result.scalars().all()
-                return list(channels)
+                
+                resolved_channels = []
+                
+                for channel in channels:
+                    channel_id = channel.channel_id
+                    
+                    # 如果channel_id为空或None，尝试解析
+                    if not channel_id or channel_id.strip() == '':
+                        logger.info(f"频道 {channel.channel_name} 的ID为空，正在解析...")
+                        
+                        # 导入解析器（避免循环导入）
+                        from app.services.channel_id_resolver import channel_id_resolver
+                        resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
+                        
+                        if resolved_id:
+                            resolved_channels.append(resolved_id)
+                            logger.info(f"频道 {channel.channel_name} ID解析成功: {resolved_id}")
+                        else:
+                            logger.warning(f"频道 {channel.channel_name} ID解析失败")
+                    else:
+                        resolved_channels.append(channel_id)
+                
+                # 过滤掉None值
+                return [ch_id for ch_id in resolved_channels if ch_id is not None]
                 
         except Exception as e:
             logger.error(f"获取活跃源频道列表失败: {e}")
             return []
+    
+    async def resolve_missing_channel_ids(self) -> int:
+        """解析所有缺失的频道ID，返回解析成功的数量"""
+        try:
+            resolved_count = 0
+            
+            # 导入解析器
+            from app.services.channel_id_resolver import channel_id_resolver
+            
+            async with AsyncSessionLocal() as db:
+                # 获取所有channel_id为空的活跃频道
+                result = await db.execute(
+                    select(Channel).where(
+                        Channel.is_active == True,
+                        (Channel.channel_id.is_(None) | (Channel.channel_id == ''))
+                    )
+                )
+                channels = result.scalars().all()
+                
+                for channel in channels:
+                    logger.info(f"正在解析频道 {channel.channel_name} 的ID...")
+                    resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
+                    
+                    if resolved_id:
+                        resolved_count += 1
+                        logger.info(f"频道 {channel.channel_name} ID解析成功: {resolved_id}")
+                    else:
+                        logger.warning(f"频道 {channel.channel_name} ID解析失败")
+            
+            logger.info(f"频道ID解析完成，成功解析 {resolved_count} 个频道")
+            return resolved_count
+            
+        except Exception as e:
+            logger.error(f"批量解析频道ID失败: {e}")
+            return 0
+    
+    async def get_channel_info_for_display(self) -> Dict[str, Dict]:
+        """获取用于显示的频道信息映射"""
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Channel).where(Channel.is_active == True)
+                )
+                channels = result.scalars().all()
+                
+                channel_info = {}
+                for channel in channels:
+                    if channel.channel_id:
+                        channel_info[channel.channel_id] = {
+                            'name': channel.channel_name,
+                            'title': channel.channel_title or channel.channel_name,
+                            'type': channel.channel_type
+                        }
+                
+                return channel_info
+                
+        except Exception as e:
+            logger.error(f"获取频道显示信息失败: {e}")
+            return {}
 
 # 全局频道管理器实例
 channel_manager = ChannelManager() 

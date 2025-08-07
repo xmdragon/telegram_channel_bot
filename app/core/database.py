@@ -10,14 +10,8 @@ import asyncio
 
 from .config import settings
 
-# 创建异步数据库引擎
-if settings.DATABASE_URL.startswith("sqlite"):
-    engine = create_async_engine(
-        settings.DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://"),
-        echo=True
-    )
-else:
-    engine = create_async_engine(settings.DATABASE_URL, echo=True)
+# 创建异步数据库引擎 - 仅支持PostgreSQL
+engine = create_async_engine(settings.DATABASE_URL, echo=True)
 
 AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
@@ -35,6 +29,12 @@ class Message(Base):
     content = Column(Text)  # 消息内容
     media_type = Column(String)  # 媒体类型
     media_url = Column(String)  # 媒体URL
+    
+    # 消息组合相关
+    grouped_id = Column(String)  # Telegram的grouped_id，用于标识组合消息
+    is_combined = Column(Boolean, default=False)  # 是否为组合消息的主消息
+    combined_messages = Column(JSON)  # 存储组合消息的所有内容和媒体
+    media_group = Column(JSON)  # 存储媒体组信息
     
     # 审核相关
     review_message_id = Column(Integer)  # 审核群消息ID
@@ -91,6 +91,19 @@ class SystemConfig(Base):
     description = Column(String)
     config_type = Column(String)  # string/integer/boolean/json/list
     is_active = Column(Boolean, default=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AdKeyword(Base):
+    """广告关键词模型"""
+    __tablename__ = "ad_keywords"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    keyword = Column(String, nullable=False, index=True)  # 关键词
+    keyword_type = Column(String, nullable=False)  # text(文中关键词) 或 line(行过滤关键词)
+    description = Column(String)  # 关键词描述
+    is_active = Column(Boolean, default=True)  # 是否启用
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

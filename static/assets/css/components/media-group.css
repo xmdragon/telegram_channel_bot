@@ -1,0 +1,201 @@
+/* 媒体组样式 */
+.message-media-group {
+    margin-top: 10px;
+}
+
+.media-group-container {
+    display: grid;
+    grid-gap: 8px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* 根据媒体数量自动调整网格布局 */
+.media-group-container[data-count="1"] {
+    grid-template-columns: 1fr;
+}
+
+.media-group-container[data-count="2"] {
+    grid-template-columns: 1fr 1fr;
+}
+
+.media-group-container[data-count="3"] {
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.media-group-container[data-count="4"] {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.media-group-container[data-count="5"],
+.media-group-container[data-count="6"] {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.media-group-container[data-count="7"],
+.media-group-container[data-count="8"],
+.media-group-container[data-count="9"] {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+/* 特殊布局：3个媒体时的第一个占用两行 */
+.media-group-container[data-count="3"] .media-group-item:first-child {
+    grid-row: span 2;
+}
+
+.media-group-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #1a1a1a;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.group-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.group-media:hover {
+    transform: scale(1.02);
+}
+
+/* 图片组媒体样式 */
+.media-group-item .media-image.group-media {
+    max-height: 200px;
+    border-radius: 8px;
+}
+
+/* 视频组媒体样式 */
+.media-group-item .media-video.group-media {
+    max-height: 200px;
+    border-radius: 8px;
+}
+
+/* 文档组媒体样式 */
+.media-group-item .media-document.group-media {
+    padding: 15px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    min-height: auto;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.media-group-item .media-document.group-media:hover {
+    background: #333;
+}
+
+.media-group-item .media-document.group-media .document-icon {
+    font-size: 24px;
+    margin-right: 10px;
+}
+
+.media-group-item .media-document.group-media .document-info {
+    flex: 1;
+    color: #fff;
+}
+
+.media-group-item .media-document.group-media .download-button {
+    background: #00ff41;
+    color: #000;
+    padding: 5px 10px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+}
+
+.media-group-item .media-document.group-media .download-button:hover {
+    background: #00cc33;
+}
+
+/* 不支持媒体类型的占位样式 */
+.media-group-item .media-placeholder.group-media {
+    background: #333;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    min-height: 120px;
+    border-radius: 8px;
+}
+
+/* 媒体计数显示（当媒体超过9个时） */
+.media-group-item .media-count-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .media-group-container {
+        grid-gap: 4px;
+    }
+    
+    .media-group-container[data-count="2"],
+    .media-group-container[data-count="3"],
+    .media-group-container[data-count="4"] {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .media-group-container[data-count="5"],
+    .media-group-container[data-count="6"],
+    .media-group-container[data-count="7"],
+    .media-group-container[data-count="8"],
+    .media-group-container[data-count="9"] {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .media-group-item {
+        min-height: 100px;
+    }
+    
+    .media-group-item .media-image.group-media,
+    .media-group-item .media-video.group-media {
+        max-height: 150px;
+    }
+}
+
+/* 暗色主题适配 */
+.media-group-item {
+    border: 1px solid rgba(127, 219, 255, 0.1);
+}
+
+.media-group-item:hover {
+    border-color: rgba(127, 219, 255, 0.3);
+}
+
+/* 媒体组合消息标识 */
+.message-media-group::before {
+    content: "📸 媒体组合";
+    display: block;
+    font-size: 12px;
+    color: #7fdbff;
+    margin-bottom: 8px;
+    opacity: 0.8;
+}

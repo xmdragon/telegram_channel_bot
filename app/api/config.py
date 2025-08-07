@@ -132,6 +132,90 @@ async def reload_configs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"重新加载配置失败: {str(e)}")
 
+@router.get("/resolve-group-id")
+async def resolve_group_id(group_link: str):
+    """解析群组ID"""
+    try:
+        from app.services.telegram_link_resolver import link_resolver
+        
+        # 尝试解析群ID
+        resolved_id = await link_resolver.resolve_group_id(group_link)
+        
+        if resolved_id:
+            return {
+                "success": True,
+                "group_id": resolved_id
+            }
+        else:
+            return {
+                "success": False,
+                "message": "无法解析群ID"
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"解析失败: {str(e)}"
+        }
+
+@router.post("/resolve-target-channel")
+async def resolve_target_channel(request: dict):
+    """解析目标频道ID"""
+    try:
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        
+        target_channel = request.get("target_channel", "").strip()
+        if not target_channel:
+            return {"success": False, "message": "目标频道不能为空"}
+        
+        # 获取认证信息
+        api_id = await config_manager.get_config('telegram.api_id')
+        api_hash = await config_manager.get_config('telegram.api_hash')
+        string_session = await config_manager.get_config('telegram.session', '')
+        
+        if not all([api_id, api_hash, string_session]):
+            return {"success": False, "message": "Telegram认证信息不完整"}
+        
+        # 创建临时客户端
+        client = TelegramClient(StringSession(string_session), int(api_id), api_hash)
+        await client.connect()
+        
+        try:
+            # 解析频道
+            if target_channel.lstrip('-').isdigit():
+                # 如果是数字ID，直接返回
+                resolved_id = target_channel
+            else:
+                # 如果是用户名，获取实体
+                entity = await client.get_entity(target_channel)
+                if hasattr(entity, 'broadcast') and entity.broadcast:
+                    resolved_id = f"-100{entity.id}"
+                else:
+                    resolved_id = str(entity.id)
+            
+            # 缓存解析的ID
+            await config_manager.set_config('channels.target_channel_id_cached', resolved_id, '目标频道解析后的ID', 'string')
+            
+            return {
+                "success": True,
+                "resolved_id": resolved_id
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"解析目标频道失败: {str(e)}"
+            }
+        finally:
+            await client.disconnect()
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"解析失败: {str(e)}"
+        }
+
 @router.get("/categories/telegram")
 async def get_telegram_configs():
     """获取Telegram相关配置"""

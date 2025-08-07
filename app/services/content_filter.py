@@ -3,7 +3,9 @@
 """
 import re
 from typing import Tuple, List
+from sqlalchemy import select
 from app.core.config import db_settings
+from app.core.database import AdKeyword, AsyncSessionLocal
 
 class ContentFilter:
     """内容过滤器"""
@@ -16,12 +18,40 @@ class ContentFilter:
     async def _load_config(self):
         """加载配置"""
         if not self._config_loaded:
-            self.ad_keywords_text = await db_settings.get_ad_keywords_text()
-            self.ad_keywords_line = await db_settings.get_ad_keywords_line()
+            # 从数据库加载关键词
+            await self._load_keywords_from_db()
+            
+            # 从系统配置加载其他设置
             self.replacements = await db_settings.get_channel_replacements()
             self.enable_keyword_filter = await db_settings.get_enable_keyword_filter()
             self.enable_line_filter = await db_settings.get_enable_line_filter()
             self._config_loaded = True
+    
+    async def _load_keywords_from_db(self):
+        """从数据库加载关键词"""
+        async with AsyncSessionLocal() as db:
+            # 加载文中关键词（检测到则判定为广告）
+            text_query = select(AdKeyword).where(
+                AdKeyword.keyword_type == "text",
+                AdKeyword.is_active == True
+            )
+            text_result = await db.execute(text_query)
+            text_keywords = text_result.scalars().all()
+            self.ad_keywords_text = [kw.keyword for kw in text_keywords]
+            
+            # 加载行过滤关键词（检测到则过滤该行）
+            line_query = select(AdKeyword).where(
+                AdKeyword.keyword_type == "line",
+                AdKeyword.is_active == True
+            )
+            line_result = await db.execute(line_query)
+            line_keywords = line_result.scalars().all()
+            self.ad_keywords_line = [kw.keyword for kw in line_keywords]
+    
+    async def reload_keywords(self):
+        """重新加载关键词配置"""
+        self._config_loaded = False
+        await self._load_config()
     
     async def filter_message(self, content: str) -> Tuple[bool, str]:
         """

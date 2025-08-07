@@ -49,6 +49,9 @@ sessions/
 *.session
 *.session-journal
 
+# Temp media
+temp_media/
+
 # Environment variables
 .env
 .env.local

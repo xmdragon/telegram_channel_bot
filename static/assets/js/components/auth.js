@@ -23,7 +23,6 @@ const AuthApp = {
                 config: {
                     api_id: '',
                     api_hash: '',
-                    session_name: '',
                     phone: ''
                 },
                 verificationCode: '',
@@ -37,7 +36,7 @@ const AuthApp = {
         
         computed: {
             canProceed() {
-                return this.config.api_id && this.config.api_hash && this.config.session_name;
+                return this.config.api_id && this.config.api_hash;
             }
         },
         
@@ -131,8 +130,7 @@ const AuthApp = {
                             url = '/api/auth/init';
                             payload = {
                                 api_id: parseInt(data.api_id),
-                                api_hash: data.api_hash,
-                                session_name: data.session_name
+                                api_hash: data.api_hash
                             };
                             break;
                         case 'send_phone':
@@ -248,8 +246,7 @@ const AuthApp = {
                     
                     this.sendWebSocketMessage('init_auth', {
                         api_id: parseInt(this.config.api_id),
-                        api_hash: this.config.api_hash,
-                        session_name: this.config.session_name
+                        api_hash: this.config.api_hash
                     });
                 }
             },
@@ -381,7 +378,6 @@ const AuthApp = {
                 this.config = {
                     api_id: '',
                     api_hash: '',
-                    session_name: '',
                     phone: ''
                 };
                 this.verificationCode = '';

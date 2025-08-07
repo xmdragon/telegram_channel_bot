@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关键词管理 - Telegram消息审核系统</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+    
+    <!-- 外部样式文件 -->
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    <link rel="stylesheet" href="assets/css/components/keywords.css">
+    
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>🔍 关键词管理中心</h1>
+            <p>广告过滤 · 内容筛选 · 智能识别</p>
+        </div>
+
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 主控制台</a>
+                <a href="/config" class="nav-link">⚙️ 系统配置</a>
+                <a href="/keywords" class="nav-link active">🔍 关键词管理</a>
+                <a href="/status" class="nav-link">📊 系统状态</a>
+                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
+            </div>
+            <div class="nav-links">
+                <span style="color: #7fdbff; font-weight: 700;">关键词状态: {{ loading ? '加载中' : '正常' }}</span>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- 关键词管理标签页 -->
+            <el-tabs v-model="activeTab" type="border-card" class="config-tabs">
+                <!-- 关键词列表 -->
+                <el-tab-pane label="📝 关键词列表" name="list">
+                    <div class="config-section">
+                        <!-- 工具栏 -->
+                        <div class="toolbar">
+                            <div class="filter-group">
+                                <el-input
+                                    v-model="searchKeyword"
+                                    placeholder="搜索关键词"
+                                    prefix-icon="Search"
+                                    @input="filterKeywords"
+                                    clearable
+                                    style="width: 200px; margin-right: 10px;">
+                                </el-input>
+                                
+                                <el-select
+                                    v-model="filterType"
+                                    placeholder="选择类型"
+                                    @change="filterKeywords"
+                                    clearable
+                                    style="width: 120px; margin-right: 10px;">
+                                    <el-option label="文中关键词" value="text"></el-option>
+                                    <el-option label="行过滤关键词" value="line"></el-option>
+                                </el-select>
+                                
+                                <el-select
+                                    v-model="filterStatus"
+                                    placeholder="选择状态"
+                                    @change="filterKeywords"
+                                    clearable
+                                    style="width: 100px; margin-right: 10px;">
+                                    <el-option label="启用" :value="true"></el-option>
+                                    <el-option label="禁用" :value="false"></el-option>
+                                </el-select>
+                                
+                                <el-button type="primary" @click="loadKeywords" icon="Refresh">刷新</el-button>
+                            </div>
+                            
+                            <div class="action-group">
+                                <el-button 
+                                    type="success" 
+                                    @click="showAddDialog" 
+                                    icon="Plus">
+                                    添加关键词
+                                </el-button>
+                                <el-button 
+                                    type="warning" 
+                                    @click="showBatchImportDialog" 
+                                    icon="Upload">
+                                    批量导入
+                                </el-button>
+                                <el-button 
+                                    type="danger" 
+                                    @click="batchDelete"
+                                    :disabled="selectedKeywords.length === 0"
+                                    icon="Delete">
+                                    批量删除 ({{ selectedKeywords.length }})
+                                </el-button>
+                            </div>
+                        </div>
+
+                        <!-- 关键词表格 -->
+                        <el-table 
+                            :data="filteredKeywords" 
+                            @selection-change="handleSelectionChange"
+                            stripe 
+                            border
+                            :header-cell-style="{ background: '#1a1a2e', color: '#00ff41' }"
+                            :row-style="{ background: '#16213e' }"
+                            style="width: 100%">
+                            
+                            <el-table-column type="selection" width="55"></el-table-column>
+                            
+                            <el-table-column prop="keyword" label="关键词" min-width="200">
+                                <template #default="scope">
+                                    <el-tag :type="scope.row.keyword_type === 'text' ? 'danger' : 'warning'">
+                                        {{ scope.row.keyword }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            
+                            <el-table-column prop="keyword_type" label="类型" width="120">
+                                <template #default="scope">
+                                    <span v-if="scope.row.keyword_type === 'text'">
+                                        <i class="el-icon-warning-outline"></i> 文中关键词
+                                    </span>
+                                    <span v-else>
+                                        <i class="el-icon-filter"></i> 行过滤
+                                    </span>
+                                </template>
+                            </el-table-column>
+                            
+                            <el-table-column prop="description" label="描述" min-width="200">
+                                <template #default="scope">
+                                    <span style="color: #7fdbff;">{{ scope.row.description || '无描述' }}</span>
+                                </template>
+                            </el-table-column>
+                            
+                            <el-table-column prop="is_active" label="状态" width="100">
+                                <template #default="scope">
+                                    <el-switch 
+                                        v-model="scope.row.is_active"
+                                        @change="toggleKeywordStatus(scope.row)">
+                                    </el-switch>
+                                </template>
+                            </el-table-column>
+                            
+                            <el-table-column label="操作" width="180">
+                                <template #default="scope">
+                                    <el-button 
+                                        type="primary" 
+                                        size="small"
+                                        @click="editKeyword(scope.row)"
+                                        icon="Edit">
+                                        编辑
+                                    </el-button>
+                                    <el-button 
+                                        type="danger" 
+                                        size="small"
+                                        @click="deleteKeyword(scope.row)"
+                                        icon="Delete">
+                                        删除
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+
+                        <!-- 分页 -->
+                        <div class="pagination-wrapper">
+                            <el-pagination
+                                @size-change="handleSizeChange"
+                                @current-change="handleCurrentChange"
+                                :current-page="currentPage"
+                                :page-sizes="[10, 20, 50, 100]"
+                                :page-size="pageSize"
+                                layout="total, sizes, prev, pager, next, jumper"
+                                :total="totalKeywords">
+                            </el-pagination>
+                        </div>
+                    </div>
+                </el-tab-pane>
+
+                <!-- 统计信息 -->
+                <el-tab-pane label="📊 统计信息" name="stats">
+                    <div class="config-section">
+                        <h3>关键词统计</h3>
+                        <el-row :gutter="20">
+                            <el-col :span="6">
+                                <el-card class="stat-card">
+                                    <div class="stat-value">{{ stats.total }}</div>
+                                    <div class="stat-label">总关键词数</div>
+                                </el-card>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-card class="stat-card">
+                                    <div class="stat-value">{{ stats.textKeywords }}</div>
+                                    <div class="stat-label">文中关键词</div>
+                                </el-card>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-card class="stat-card">
+                                    <div class="stat-value">{{ stats.lineKeywords }}</div>
+                                    <div class="stat-label">行过滤关键词</div>
+                                </el-card>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-card class="stat-card">
+                                    <div class="stat-value">{{ stats.activeKeywords }}</div>
+                                    <div class="stat-label">启用关键词</div>
+                                </el-card>
+                            </el-col>
+                        </el-row>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
+        </div>
+        
+        <!-- 添加/编辑关键词对话框 -->
+        <el-dialog 
+            :title="dialogMode === 'add' ? '添加关键词' : '编辑关键词'"
+            v-model="dialogVisible"
+            width="500px">
+            <el-form :model="keywordForm" :rules="keywordRules" ref="keywordFormRef" label-width="100px">
+                <el-form-item label="关键词" prop="keyword">
+                    <el-input v-model="keywordForm.keyword" placeholder="请输入关键词"></el-input>
+                </el-form-item>
+                <el-form-item label="类型" prop="keyword_type">
+                    <el-radio-group v-model="keywordForm.keyword_type">
+                        <el-radio label="text">文中关键词（检测到判定为广告）</el-radio>
+                        <el-radio label="line">行过滤关键词（过滤该行内容）</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="描述" prop="description">
+                    <el-input 
+                        v-model="keywordForm.description" 
+                        type="textarea" 
+                        placeholder="请输入关键词描述（可选）">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="状态" prop="is_active">
+                    <el-switch v-model="keywordForm.is_active"></el-switch>
+                    <span style="margin-left: 10px; color: #7fdbff;">
+                        {{ keywordForm.is_active ? '启用' : '禁用' }}
+                    </span>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="dialogVisible = false">取消</el-button>
+                    <el-button type="primary" @click="saveKeyword" :loading="saving">确定</el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- 批量导入对话框 -->
+        <el-dialog title="批量导入关键词" v-model="batchImportVisible" width="600px">
+            <el-form :model="batchForm" label-width="100px">
+                <el-form-item label="关键词类型">
+                    <el-radio-group v-model="batchForm.keyword_type">
+                        <el-radio label="text">文中关键词</el-radio>
+                        <el-radio label="line">行过滤关键词</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="关键词列表">
+                    <el-input 
+                        v-model="batchForm.keywords" 
+                        type="textarea" 
+                        :rows="8"
+                        placeholder="请输入关键词，每行一个">
+                    </el-input>
+                    <div style="color: #888; font-size: 12px; margin-top: 5px;">
+                        每行输入一个关键词，支持批量导入
+                    </div>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="batchImportVisible = false">取消</el-button>
+                    <el-button type="primary" @click="batchImport" :loading="batchImporting">导入</el-button>
+                </span>
+            </template>
+        </el-dialog>
+        
+        <!-- 状态消息 -->
+        <div v-if="statusMessage" class="status-message" :class="statusType">
+            {{ statusMessage }}
+        </div>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p>{{ loadingMessage }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 外部脚本文件 -->
+    <script src="assets/js/vue.prod.js?v=3"></script>
+    <script src="assets/js/element-plus.js?v=3"></script>
+    <script src="assets/js/axios.js?v=3"></script>
+    <script src="assets/js/message-manager.js?v=1"></script>
+    <script src="assets/js/components/keywords.js?v=3"></script>
+</body>
+</html>

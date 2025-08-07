@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_db
 from app.api import api_router
-from app.telegram.bot import TelegramClient
+from app.telegram.bot import TelegramBot
 from app.services.scheduler import MessageScheduler
 
 # 配置日志
@@ -40,9 +40,13 @@ async def lifespan(app: FastAPI):
     from app.core.config import settings
     await settings.load_db_configs()
     
-    # 启动Telegram客户端
-    bot = TelegramClient()
+    # 启动Telegram客户端和监控系统
+    bot = TelegramBot()
     await bot.start()
+    
+    # 设置全局bot实例供其他模块使用
+    from app.telegram import bot as bot_module
+    bot_module.telegram_bot = bot
     
     # 启动消息调度器
     scheduler = MessageScheduler()
@@ -81,8 +85,19 @@ app.include_router(api_router, prefix="/api")
 from app.api.auth import websocket_auth
 app.add_websocket_route("/api/auth/ws/auth", websocket_auth)
 
+# 注册实时消息推送WebSocket路由
+from app.api.websocket import websocket_endpoint
+app.add_websocket_route("/api/ws/messages", websocket_endpoint)
+
 # 静态文件服务
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 临时媒体文件服务
+import os
+temp_media_dir = "./temp_media"
+if not os.path.exists(temp_media_dir):
+    os.makedirs(temp_media_dir)
+app.mount("/media", StaticFiles(directory=temp_media_dir), name="media")
 
 # 添加根路径重定向
 @app.get("/")
@@ -115,11 +130,16 @@ async def status():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/static/status.html")
 
+@app.get("/keywords")
+async def keywords():
+    """关键词管理界面"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/keywords.html")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
-    )
+        reload=False

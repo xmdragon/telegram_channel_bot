@@ -1,7 +1,7 @@
 """
 管理员API
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from typing import List, Optional
@@ -34,9 +34,13 @@ class ChannelUpdateRequest(BaseModel):
 
 @router.get("/channels")
 async def get_channels(db: AsyncSession = Depends(get_db)):
-    """获取频道配置"""
-    result = await db.execute(select(Channel))
+    """获取频道配置 - 只返回源频道"""
+    # 只查询源频道，排除目标频道和审核群
+    result = await db.execute(select(Channel).where(Channel.channel_type == "source"))
     channels = result.scalars().all()
+    
+    # 按创建时间倒序排列，新添加的频道在最上面
+    channels = sorted(channels, key=lambda x: x.created_at, reverse=True)
     
     return {
         "success": True,
@@ -231,19 +235,82 @@ async def delete_filter_rule(
     
     return {"message": "过滤规则删除成功"}
 
+@router.post("/collect-history/{channel_id}")
+async def collect_channel_history(
+    channel_id: str,
+    limit: int = Query(default=100, description="采集消息数量限制")
+):
+    """采集频道历史消息"""
+    from app.services.history_collector import history_collector
+    
+    # 启动历史消息采集
+    success = await history_collector.start_collection(channel_id, limit)
+    
+    if success:
+        return {
+            "success": True,
+            "message": f"已启动频道 {channel_id} 的历史消息采集，限制 {limit} 条"
+        }
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="启动历史消息采集失败，请检查频道ID或是否已在采集中"
+        )
+
+@router.get("/collect-history/progress")
+async def get_collection_progress():
+    """获取所有历史消息采集进度"""
+    from app.services.history_collector import history_collector
+    
+    all_progress = await history_collector.get_all_progress()
+    
+    # 转换为可序列化的格式
+    result = {}
+    for channel_id, progress in all_progress.items():
+        result[channel_id] = {
+            "channel_name": progress.channel_name,
+            "total_messages": progress.total_messages,
+            "collected_messages": progress.collected_messages,
+            "status": progress.status,
+            "start_time": progress.start_time.isoformat() if progress.start_time else None,
+            "end_time": progress.end_time.isoformat() if progress.end_time else None,
+            "error_message": progress.error_message
+        }
+    
+    return result
+
+@router.post("/collect-history/{channel_id}/stop")
+async def stop_collection(channel_id: str):
+    """停止频道历史消息采集"""
+    from app.services.history_collector import history_collector
+    
+    success = await history_collector.stop_collection(channel_id)
+    
+    if success:
+        return {
+            "success": True,
+            "message": f"已停止频道 {channel_id} 的历史消息采集"
+        }
+    else:
+        return {
+            "success": False,
+            "message": f"频道 {channel_id} 当前没有在采集中"
+        }
+
 @router.get("/config")
 async def get_system_config():
     """获取系统配置"""
     from app.core.config import db_settings
     
     return {
-        "auto_forward_delay": settings.AUTO_FORWARD_DELAY,
-        "source_channels": settings.SOURCE_CHANNELS,
-        "review_group_id": settings.REVIEW_GROUP_ID,
-        "target_channel_id": settings.TARGET_CHANNEL_ID,
+        "auto_forward_delay": await db_settings.get_auto_forward_delay(),
+        "source_channels": await db_settings.get_source_channels(),
+        "review_group_id": await db_settings.get_review_group_id(),
+        "review_group_id_cached": await config_manager.get_config('channels.review_group_id_cached', ''),
+        "target_channel_id": await db_settings.get_target_channel_id(),
         "history_message_limit": await db_settings.get_history_message_limit(),
-        "ad_keywords": settings.AD_KEYWORDS,
-        "channel_replacements": settings.CHANNEL_REPLACEMENTS
+        "ad_keywords": await db_settings.get_ad_keywords_text(),
+        "channel_replacements": await db_settings.get_channel_replacements()
     }
 
 @router.post("/restart")
@@ -270,9 +337,15 @@ async def backup_data():
         
         # 创建备份文件
         with tarfile.open(backup_file, "w:gz") as tar:
-            # 备份数据库文件
-            if os.path.exists("telegram_system.db"):
-                tar.add("telegram_system.db", arcname="database/telegram_system.db")
+            # 备份PostgreSQL数据（需要使用pg_dump，这里只备份配置说明）
+            # 注意：PostgreSQL数据库备份应该使用pg_dump命令
+            backup_info = "PostgreSQL数据库备份需要使用pg_dump命令\n"
+            backup_info += "示例：pg_dump -h postgres -U postgres telegram_system > backup.sql\n"
+            info_file = f"{backup_dir}/database_backup_info.txt"
+            with open(info_file, "w") as f:
+                f.write(backup_info)
+            tar.add(info_file, arcname="database/backup_info.txt")
+            os.remove(info_file)
             
             # 备份会话文件
             if os.path.exists("sessions"):
@@ -366,3 +439,159 @@ async def health_check():
             "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }
+
+class ConfigUpdateRequest(BaseModel):
+    key: str
+    value: str
+    config_type: str = "string"
+
+@router.post("/config")
+async def update_config(request: ConfigUpdateRequest):
+    """更新单个配置项"""
+    try:
+        success = await config_manager.set_config(
+            key=request.key,
+            value=request.value,
+            config_type=request.config_type
+        )
+        
+        if success:
+            return {"success": True, "message": f"配置 {request.key} 更新成功"}
+        else:
+            raise HTTPException(status_code=500, detail="配置更新失败")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
+
+@router.post("/config/batch")
+async def update_config_batch(configs: dict):
+    """批量更新配置项"""
+    try:
+        success_count = 0
+        errors = []
+        
+        for key, value in configs.items():
+            try:
+                # 自动推断配置类型
+                config_type = "string"
+                if isinstance(value, bool):
+                    config_type = "boolean"
+                elif isinstance(value, int):
+                    config_type = "integer"
+                elif isinstance(value, (list, dict)):
+                    config_type = "json"
+                
+                success = await config_manager.set_config(
+                    key=key,
+                    value=value,
+                    config_type=config_type
+                )
+                
+                if success:
+                    success_count += 1
+                else:
+                    errors.append(f"配置 {key} 更新失败")
+                    
+            except Exception as e:
+                errors.append(f"配置 {key} 更新失败: {str(e)}")
+        
+        return {
+            "success": len(errors) == 0,
+            "message": f"成功更新 {success_count} 个配置项",
+            "errors": errors if errors else None
+        }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量更新配置失败: {str(e)}")
+
+class ReviewGroupResolveRequest(BaseModel):
+    review_group_config: str
+
+@router.post("/resolve-review-group")
+async def resolve_review_group(request: ReviewGroupResolveRequest):
+    """解析审核群链接并缓存ID"""
+    try:
+        from app.services.telegram_link_resolver import link_resolver
+        
+        resolved_id = await link_resolver.resolve_and_cache_group_id(request.review_group_config)
+        
+        if resolved_id:
+            return {
+                "success": True,
+                "original_config": request.review_group_config,
+                "resolved_id": resolved_id,
+                "message": f"审核群链接解析成功，ID: {resolved_id}"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "无法解析审核群链接，请检查链接是否正确或机器人是否已加入该群"
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"解析审核群链接失败: {str(e)}")
+
+@router.get("/review-group-status")
+async def get_review_group_status():
+    """获取审核群状态信息"""
+    try:
+        from app.services.telegram_link_resolver import link_resolver
+        
+        # 获取配置的审核群
+        review_group_config = await config_manager.get_config('channels.review_group_id', '')
+        cached_id = await link_resolver.get_cached_group_id()
+        effective_id = await link_resolver.get_effective_group_id()
+        
+        return {
+            "review_group_config": review_group_config,
+            "cached_id": cached_id,
+            "effective_id": effective_id,
+            "is_link": link_resolver.is_telegram_link(review_group_config) if review_group_config else False
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取审核群状态失败: {str(e)}")
+
+@router.post("/resolve-channel-ids")
+async def resolve_channel_ids():
+    """解析所有缺失的频道ID"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        resolved_count = await channel_manager.resolve_missing_channel_ids()
+        
+        return {
+            "success": True,
+            "resolved_count": resolved_count,
+            "message": f"成功解析 {resolved_count} 个频道ID"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"解析频道ID失败: {str(e)}")
+
+class ChannelResolveRequest(BaseModel):
+    channel_name: str
+
+@router.post("/resolve-channel-id")
+async def resolve_single_channel_id(request: ChannelResolveRequest):
+    """解析单个频道的ID"""
+    try:
+        from app.services.channel_id_resolver import channel_id_resolver
+        
+        resolved_id = await channel_id_resolver.resolve_and_update_channel(request.channel_name)
+        
+        if resolved_id:
+            return {
+                "success": True,
+                "channel_name": request.channel_name,
+                "resolved_id": resolved_id,
+                "message": f"频道 {request.channel_name} ID解析成功: {resolved_id}"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"无法解析频道 {request.channel_name} 的ID，请检查频道名称或机器人权限"
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"解析频道ID失败: {str(e)}")
