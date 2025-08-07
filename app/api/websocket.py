@@ -81,6 +81,15 @@ class WebSocketManager:
             "timestamp": datetime.utcnow().isoformat()
         }
         await self.broadcast(json.dumps(payload, ensure_ascii=False))
+        
+    async def broadcast_log_message(self, log_data: Dict):
+        """广播日志消息"""
+        payload = {
+            "type": "log_message",
+            "data": log_data,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await self.broadcast(json.dumps(payload, ensure_ascii=False))
 
 # 全局WebSocket管理器实例
 websocket_manager = WebSocketManager()

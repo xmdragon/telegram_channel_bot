@@ -79,11 +79,48 @@ body::before {
     z-index: 1;
 }
 
+/* 导航栏容器 */
+.nav-bar-container {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-bottom: 2px solid #00ff41;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 导航栏头部 */
+.nav-bar-header {
+    padding: 12px 20px 8px;
+    text-align: center;
+}
+
+.nav-title-wrapper {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 15px;
+}
+
+.nav-page-title {
+    font-size: 1.5em;
+    font-weight: 900;
+    color: #00ff41;
+    text-shadow: 0 0 15px #00ff41;
+    margin: 0;
+    display: inline-block;
+}
+
+.nav-page-subtitle {
+    font-size: 0.85em;
+    color: #7fdbff;
+    text-shadow: 0 0 8px #7fdbff;
+    margin: 0;
+    display: inline-block;
+}
+
 /* 导航栏 */
 .nav-bar {
     background: rgba(26, 26, 46, 0.9);
-    padding: 15px 20px;
-    border-bottom: 2px solid #00ff41;
+    padding: 10px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -92,7 +129,8 @@ body::before {
 
 .nav-links {
     display: flex;
-    gap: 20px;
+    gap: 15px;
+    font-size: 14px;
 }
 
 .nav-link {

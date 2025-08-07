@@ -69,6 +69,7 @@ class Channel(Base):
     is_active = Column(Boolean, default=True)
     config = Column(JSON)  # 频道特定配置
     description = Column(String)  # 频道描述
+    last_collected_message_id = Column(Integer, nullable=True)  # 最后采集的消息ID
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

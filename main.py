@@ -4,6 +4,7 @@ Telegram消息采集审核系统主入口
 """
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -16,10 +17,41 @@ from app.api import api_router
 from app.telegram.bot import TelegramBot
 from app.services.scheduler import MessageScheduler
 
+# 确保日志目录存在
+os.makedirs('./logs', exist_ok=True)
+
+from logging.handlers import TimedRotatingFileHandler
+
+# 创建自定义的文件处理器，过滤数据库日志
+class FilteredTimedRotatingFileHandler(TimedRotatingFileHandler):
+    """过滤特定模块的按时间轮转文件处理器"""
+    def emit(self, record):
+        # 过滤掉数据库相关的日志
+        if record.name.startswith(('sqlalchemy', 'asyncpg', 'databases')):
+            return
+        # 过滤掉包含特定关键词的日志
+        if any(keyword in record.getMessage().lower() for keyword in ['sql', 'database', 'query', 'insert', 'update', 'delete', 'select']):
+            return
+        super().emit(record)
+
+# 创建按小时轮转的日志处理器
+file_handler = FilteredTimedRotatingFileHandler(
+    filename='./logs/app.log',
+    when='H',  # 按小时轮转
+    interval=1,  # 每1小时
+    backupCount=24*7,  # 保留7天的日志
+    encoding='utf-8'
+)
+file_handler.suffix = "%Y%m%d_%H"  # 文件名后缀格式
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # 输出到控制台
+        file_handler  # 按时间轮转输出到文件
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -101,6 +133,7 @@ app.add_websocket_route("/api/auth/ws/auth", websocket_auth)
 # 注册实时消息推送WebSocket路由
 from app.api.websocket import websocket_endpoint
 app.add_websocket_route("/api/ws/messages", websocket_endpoint)
+app.add_websocket_route("/api/websocket", websocket_endpoint)  # 兼容性路由
 
 # 静态文件服务
 app.mount("/static", StaticFiles(directory="static"), name="static")

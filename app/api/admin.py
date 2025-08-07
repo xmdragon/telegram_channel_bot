@@ -375,7 +375,8 @@ async def get_system_config():
         "target_channel_id": await db_settings.get_target_channel_id(),
         "history_message_limit": await db_settings.get_history_message_limit(),
         "ad_keywords": await db_settings.get_ad_keywords_text(),
-        "channel_replacements": await db_settings.get_channel_replacements()
+        "channel_replacements": await db_settings.get_channel_replacements(),
+        "channels.signature": await config_manager.get_config('channels.signature', '')
     }
 
 @router.post("/restart")

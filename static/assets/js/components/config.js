@@ -1,9 +1,9 @@
 // 配置页面 JavaScript 组件
 
 // 检查依赖是否加载
-console.log('Vue loaded:', typeof Vue !== 'undefined');
-console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
-console.log('Axios loaded:', typeof axios !== 'undefined');
+// console.log('Vue loaded:', typeof Vue !== 'undefined');
+// console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
+// console.log('Axios loaded:', typeof axios !== 'undefined');
 
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
@@ -22,9 +22,17 @@ const ConfigApp = {
             // 频道管理
             channels: [],
             channelSearchFilter: '', // 频道列表搜索过滤
+            addChannelTab: 'single', // 添加频道的标签页
             newChannel: {
                 name: '',
                 title: ''
+            },
+            batchChannel: {
+                channels: '',
+                loading: false,
+                results: null,
+                message: '',
+                success: false
             },
             
             // 频道搜索（添加新频道）
@@ -182,7 +190,7 @@ const ConfigApp = {
                 }
             } catch (error) {
                 // 静默处理错误，使用默认配置
-                console.log('使用默认转发配置');
+//                 console.log('使用默认转发配置');
             }
         },
         
@@ -197,12 +205,12 @@ const ConfigApp = {
                         max_concurrent: 10,
                         log_level: 'info',
                         history_message_limit: response.data.history_message_limit || 50,
-                        channel_signature: response.data.channel_signature || ''
+                        channel_signature: response.data['channels.signature'] || ''
                     };
                 }
             } catch (error) {
                 // 静默处理错误，使用默认配置
-                console.log('使用默认系统配置');
+//                 console.log('使用默认系统配置');
             }
         },
         
@@ -219,12 +227,12 @@ const ConfigApp = {
                     channelName = '@' + channelName;
                 }
                 
-                console.log('添加频道请求数据:', {
-                    channel_id: channelName,
-                    channel_name: channelName,
-                    channel_title: this.newChannel.title,
-                    channel_type: "source"
-                });
+                // console.log('添加频道请求数据:', {
+                //     channel_id: channelName,
+                //     channel_name: channelName,
+                //     channel_title: this.newChannel.title,
+                //     channel_type: "source"
+                // });
                 
                 const response = await axios.post('/api/admin/channels', {
                     channel_id: "",  // 初始为空，后续通过Telethon获取真实ID
@@ -233,7 +241,7 @@ const ConfigApp = {
                     channel_type: "source"
                 });
                 
-                console.log('添加频道响应:', response.data);
+//                 console.log('添加频道响应:', response.data);
                 
                 if (response.data.success) {
                     MessageManager.success('频道添加成功');
@@ -250,11 +258,11 @@ const ConfigApp = {
         
         async removeChannel(channelId) {
             try {
-                console.log('删除频道ID:', channelId);
+//                 console.log('删除频道ID:', channelId);
                 
                 const response = await axios.delete(`/api/admin/channels/${encodeURIComponent(channelId)}`);
                 
-                console.log('删除频道响应:', response.data);
+//                 console.log('删除频道响应:', response.data);
                 
                 if (response.data.success) {
                     MessageManager.success('频道删除成功');
@@ -288,6 +296,48 @@ const ConfigApp = {
             }
         },
         
+        async batchAddChannels() {
+            if (!this.batchChannel.channels.trim()) {
+                MessageManager.warning('请输入要添加的频道列表');
+                return;
+            }
+            
+            this.batchChannel.loading = true;
+            this.batchChannel.results = null;
+            
+            try {
+                const response = await axios.post('/api/config/channels/batch-add', {
+                    channels: this.batchChannel.channels
+                });
+                
+                if (response.data) {
+                    this.batchChannel.results = response.data.results;
+                    this.batchChannel.message = response.data.message;
+                    this.batchChannel.success = response.data.success;
+                    
+                    if (response.data.success) {
+                        // 如果有成功添加的频道，重新加载频道列表
+                        if (response.data.results?.added?.length > 0) {
+                            await this.loadChannels();
+                            
+                            // 清空输入框
+                            setTimeout(() => {
+                                this.batchChannel.channels = '';
+                            }, 2000);
+                        }
+                    } else {
+                        MessageManager.error(response.data.message);
+                    }
+                }
+            } catch (error) {
+                console.error('批量添加频道错误:', error);
+                MessageManager.error('批量添加频道失败: ' + (error.response?.data?.detail || error.message));
+                this.batchChannel.results = null;
+            } finally {
+                this.batchChannel.loading = false;
+            }
+        },
+        
         async resolveChannelId(channelName) {
             try {
                 const response = await axios.post('/api/admin/resolve-channel-id', {
@@ -310,13 +360,13 @@ const ConfigApp = {
                 const newStatus = channel.status === 'active' ? 'inactive' : 'active';
                 const isActive = newStatus === 'active';
                 
-                console.log('切换频道状态:', channel.channel_id || channel.name, '从', channel.status, '到', newStatus);
+//                 console.log('切换频道状态:', channel.channel_id || channel.name, '从', channel.status, '到', newStatus);
                 
                 const response = await axios.put(`/api/admin/channels/${encodeURIComponent(channel.name)}`, {
                     is_active: isActive
                 });
                 
-                console.log('状态切换响应:', response.data);
+//                 console.log('状态切换响应:', response.data);
                 
                 if (response.data.success) {
                     MessageManager.success(`频道状态已切换为${newStatus === 'active' ? '活跃' : '停用'}`);
@@ -390,13 +440,13 @@ const ConfigApp = {
                     reviewGroup = '@' + reviewGroup;
                 }
                 
-                console.log('保存转发配置:', {
-                    enabled: this.forwardingConfig.enabled,
-                    target_channel: targetChannel,
-                    review_group: reviewGroup,
-                    delay: this.forwardingConfig.delay,
-                    conditions: this.forwardingConfig.conditions
-                });
+                // console.log('保存转发配置:', {
+                //     enabled: this.forwardingConfig.enabled,
+                //     target_channel: targetChannel,
+                //     review_group: reviewGroup,
+                //     delay: this.forwardingConfig.delay,
+                //     conditions: this.forwardingConfig.conditions
+                // });
                 
                 // 使用批量更新API
                 const configData = {
@@ -420,7 +470,7 @@ const ConfigApp = {
                         });
                         
                         if (resolveResponse.data.success) {
-                            console.log('审核群链接解析成功:', resolveResponse.data);
+//                             console.log('审核群链接解析成功:', resolveResponse.data);
                             MessageManager.success(`转发配置保存成功，审核群ID已解析为: ${resolveResponse.data.resolved_id}`);
                         } else {
                             MessageManager.warning('转发配置保存成功，但审核群链接解析失败，请检查链接或机器人权限');
@@ -616,11 +666,11 @@ const ConfigApp = {
 
 // 等待 DOM 加载完成
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, mounting Vue app...');
+//     console.log('DOM loaded, mounting Vue app...');
     
     // 创建应用实例
-    console.log('Vue version:', Vue.version);
-    console.log('ElementPlus version:', ElementPlus.version);
+//     console.log('Vue version:', Vue.version);
+//     console.log('ElementPlus version:', ElementPlus.version);
 
     try {
         const app = createApp(ConfigApp);
@@ -646,7 +696,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 挂载应用
         app.mount('#app');
-        console.log('Vue app mounted successfully');
+//         console.log('Vue app mounted successfully');
     } catch (error) {
         console.error('Failed to mount Vue app:', error);
         document.body.innerHTML = '<div style="color: red; padding: 20px;">Vue 应用挂载失败: ' + error.message + '</div>';

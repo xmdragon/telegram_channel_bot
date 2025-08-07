@@ -63,8 +63,8 @@
 
 .channel-info {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    gap: 15px;
     flex: 1;
     min-width: 0;
 }
@@ -72,20 +72,31 @@
 .channel-name {
     color: #00ff41;
     font-weight: 700;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1.2;
     text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
     font-family: 'Courier New', monospace;
-    text-align: left;
-    width: 100%;
-    display: block;
+    flex-shrink: 0;
 }
 
-.channel-details {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+.channel-id {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.channel-id.no-id {
+    color: #f56c6c;
+    background-color: rgba(245, 108, 108, 0.1);
+    border: 1px solid rgba(245, 108, 108, 0.3);
+}
+
+.channel-id.has-id {
+    color: #67c23a;
+    background-color: rgba(103, 194, 58, 0.1);
+    border: 1px solid rgba(103, 194, 58, 0.3);
 }
 
 .channel-title {
@@ -93,26 +104,10 @@
     font-size: 14px;
     font-weight: 500;
     line-height: 1.2;
-}
-
-.channel-status {
-    font-size: 12px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 3px;
-    text-transform: uppercase;
-}
-
-.channel-status.no-id {
-    color: #f56c6c;
-    background-color: rgba(245, 108, 108, 0.1);
-    border: 1px solid rgba(245, 108, 108, 0.3);
-}
-
-.channel-status.has-id {
-    color: #67c23a;
-    background-color: rgba(103, 194, 58, 0.1);
-    border: 1px solid rgba(103, 194, 58, 0.3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
 }
 
 .channel-actions {

@@ -75,22 +75,26 @@ class ChannelManager:
     
     async def add_channel(self, channel_id: str, channel_name: str = "", 
                          channel_type: str = "source", description: str = "",
-                         config: Dict = None) -> bool:
+                         channel_title: str = "", config: Dict = None) -> bool:
         """添加频道"""
         try:
             async with AsyncSessionLocal() as db:
-                # 检查频道是否已存在
+                # 检查频道是否已存在（同时检查channel_id和channel_name）
                 existing = await db.execute(
-                    select(Channel).where(Channel.channel_id == channel_id)
+                    select(Channel).where(
+                        (Channel.channel_id == channel_id) | 
+                        (Channel.channel_name == channel_name)
+                    )
                 )
                 if existing.scalar_one_or_none():
-                    logger.warning(f"频道 {channel_id} 已存在")
+                    logger.warning(f"频道 {channel_id} 或 {channel_name} 已存在")
                     return False
                 
                 # 创建新频道
                 channel = Channel(
                     channel_id=channel_id,
                     channel_name=channel_name or channel_id,
+                    channel_title=channel_title or channel_name or channel_id,
                     channel_type=channel_type,
                     description=description,
                     config=config or {},
@@ -100,7 +104,7 @@ class ChannelManager:
                 db.add(channel)
                 await db.commit()
                 
-                logger.info(f"频道 {channel_id} 添加成功")
+                logger.info(f"频道 {channel_name} (ID: {channel_id}) 添加成功")
                 return True
                 
         except Exception as e:
@@ -306,6 +310,35 @@ class ChannelManager:
         except Exception as e:
             logger.error(f"获取频道显示信息失败: {e}")
             return {}
+    
+    async def get_channel_by_name(self, channel_name: str) -> Optional[Dict]:
+        """根据频道名称获取频道信息"""
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Channel).where(Channel.channel_name == channel_name)
+                )
+                channel = result.scalar_one_or_none()
+                
+                if not channel:
+                    return None
+                
+                return {
+                    'id': channel.id,
+                    'channel_id': channel.channel_id,
+                    'channel_name': channel.channel_name,
+                    'channel_title': channel.channel_title,
+                    'channel_type': channel.channel_type,
+                    'is_active': channel.is_active,
+                    'config': channel.config or {},
+                    'description': channel.description,
+                    'created_at': channel.created_at,
+                    'updated_at': channel.updated_at
+                }
+                
+        except Exception as e:
+            logger.error(f"根据名称获取频道信息失败: {e}")
+            return None
 
 # 全局频道管理器实例
 channel_manager = ChannelManager() 

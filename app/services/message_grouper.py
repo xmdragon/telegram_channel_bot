@@ -146,6 +146,12 @@ class MessageGrouper:
             logger.info(f"消息组 {grouped_id} 已存在，跳过处理")
             return None
         
+        # 检查这条消息是否已经被作为单独消息保存过
+        existing_single = await self._get_existing_single_message(channel_id, message_data['message_id'])
+        if existing_single:
+            logger.info(f"消息 {message_data['message_id']} 已作为单独消息存在，跳过处理")
+            return None
+        
         # 将消息添加到待处理组
         if group_key not in self.pending_groups:
             self.pending_groups[group_key] = []
@@ -304,6 +310,9 @@ class MessageGrouper:
             is_ad = combined_message.get('is_ad', False)
             filtered_content = combined_message.get('filtered_content', combined_message['content'])
             
+            # 首先删除已经单独保存的组内消息（如果有的话）
+            await self._cleanup_individual_messages(channel_id, combined_message)
+            
             # 处理JSON序列化 - 清理包含datetime的对象
             def serialize_for_json(obj):
                 """递归处理对象，将datetime转换为字符串"""
@@ -340,7 +349,7 @@ class MessageGrouper:
                 await db.commit()
                 await db.refresh(db_message)
                 
-                logger.info(f"组合消息已保存: ID={db_message.id}, grouped_id={combined_message['grouped_id']}")
+                logger.info(f"组合消息已保存: ID={db_message.id}, grouped_id={combined_message['grouped_id']}, 包含 {len(combined_message.get('combined_messages', []))} 条消息")
                 
                 # 转发到审核群（延迟导入避免循环引用）
                 try:
@@ -373,6 +382,53 @@ class MessageGrouper:
         except Exception as e:
             logger.error(f"检查现有组合消息时出错: {e}")
             return None
+    
+    async def _get_existing_single_message(self, channel_id: str, message_id: int) -> Optional[Message]:
+        """检查是否已存在单独消息"""
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Message).where(
+                        Message.source_channel == channel_id,
+                        Message.message_id == message_id
+                    )
+                )
+                return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"检查现有单独消息时出错: {e}")
+            return None
+    
+    async def _cleanup_individual_messages(self, channel_id: str, combined_message: Dict):
+        """清理已经被组合的单独消息"""
+        try:
+            if not combined_message.get('combined_messages'):
+                return
+            
+            async with AsyncSessionLocal() as db:
+                # 获取所有相关的单独消息ID
+                message_ids = [msg['message_id'] for msg in combined_message['combined_messages']]
+                
+                # 查找并删除这些单独消息
+                result = await db.execute(
+                    select(Message).where(
+                        Message.source_channel == channel_id,
+                        Message.message_id.in_(message_ids),
+                        Message.is_combined == False  # 只删除单独消息，不删除组合消息
+                    )
+                )
+                
+                messages_to_delete = result.scalars().all()
+                
+                if messages_to_delete:
+                    for msg in messages_to_delete:
+                        logger.info(f"删除已被组合的单独消息: ID={msg.id}, message_id={msg.message_id}")
+                        await db.delete(msg)
+                    
+                    await db.commit()
+                    logger.info(f"已清理 {len(messages_to_delete)} 条被组合的单独消息")
+                
+        except Exception as e:
+            logger.error(f"清理单独消息时出错: {e}")
     
     async def cleanup_expired_groups(self):
         """清理过期的消息组"""

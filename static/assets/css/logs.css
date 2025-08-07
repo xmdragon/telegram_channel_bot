@@ -1,0 +1,220 @@
+.main-content {
+    padding: 10px;
+}
+
+.logs-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.control-bar, .filter-bar, .stats-bar {
+    margin-bottom: 10px;
+}
+
+.control-bar .el-card__body {
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    height: 32px;
+}
+
+.status-info .el-badge {
+    font-size: 13px;
+}
+
+.badge-item {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    height: 32px;
+}
+
+.control-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    align-items: center;
+    height: 32px;
+}
+
+.control-buttons .el-button {
+    height: 32px;
+    line-height: 1;
+    font-size: 13px;
+}
+
+.logs-display {
+    min-height: 500px;
+}
+
+.logs-header {
+    border-bottom: 1px solid #ebeef5;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+.logs-header h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+}
+
+.timestamp {
+    font-size: 11px;
+    color: #909399;
+    font-weight: normal;
+}
+
+.logs-content {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ebeef5;
+    border-radius: 6px;
+    background: #fafafa;
+    /* 确保滚动行为平滑 */
+    scroll-behavior: smooth;
+}
+
+.no-logs {
+    padding: 30px;
+    text-align: center;
+}
+
+.log-entry {
+    padding: 4px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry:hover {
+    background-color: #f5f7fa;
+}
+
+.log-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.log-time {
+    color: #909399;
+    font-size: 11px;
+    min-width: 60px;
+    flex-shrink: 0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.log-level {
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 40px;
+    text-align: center;
+    padding: 1px 3px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+.log-level.log-level-debug {
+    color: #6b7280;
+    background-color: #f3f4f6;
+}
+
+.log-level.log-level-info {
+    color: #059669;
+    background-color: #d1fae5;
+}
+
+.log-level.log-level-warning {
+    color: #d97706;
+    background-color: #fef3c7;
+}
+
+.log-level.log-level-error {
+    color: #dc2626;
+    background-color: #fecaca;
+}
+
+.log-level.log-level-critical {
+    color: #ffffff;
+    background-color: #dc2626;
+    font-weight: bold;
+}
+
+.log-text {
+    color: #303133;
+    white-space: pre-wrap;
+    word-break: break-word;
+    flex: 1;
+}
+
+/* 不同日志级别的整行背景样式 */
+.log-entry.log-level-debug {
+    background-color: #fafafa;
+}
+
+.log-entry.log-level-info {
+    background-color: #f9fffe;
+}
+
+.log-entry.log-level-warning {
+    background-color: #fefcf6;
+}
+
+.log-entry.log-level-error {
+    background-color: #fef9f9;
+}
+
+.log-entry.log-level-critical {
+    background-color: #fef7f7;
+    border-left: 3px solid #f56c6c;
+}
+
+/* 保持与其他页面一致的样式 */
+.logs-display .el-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.logs-display .el-card__body {
+    padding: 15px;
+}
+
+.stats-bar .el-statistic {
+    text-align: center;
+}
+
+/* 滚动条样式 */
+.logs-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.logs-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.logs-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+.logs-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

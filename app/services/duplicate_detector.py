@@ -63,6 +63,7 @@ class DuplicateDetector:
                                   combined_media_hash: Optional[str] = None,
                                   content: Optional[str] = None,
                                   message_time: Optional[datetime] = None,
+                                  message_id: Optional[int] = None,
                                   db: Optional[AsyncSession] = None) -> Tuple[bool, Optional[int], str]:
         """
         整合的重复消息检测：优先媒体哈希，其次jieba文本相似度
@@ -84,7 +85,7 @@ class DuplicateDetector:
         # 优先进行媒体哈希检测（跨频道）
         if media_hash or combined_media_hash:
             is_media_dup, orig_id = await self._check_media_duplicate(
-                media_hash, combined_media_hash, message_time, db
+                media_hash, combined_media_hash, message_time, message_id, db
             )
             if is_media_dup:
                 return True, orig_id, "media"
@@ -92,7 +93,7 @@ class DuplicateDetector:
         # 其次进行文本相似度检测（跨频道）
         if content and content.strip():
             is_text_dup, orig_id = await self._check_text_duplicate(
-                content, source_channel, message_time, db
+                content, source_channel, message_time, message_id, db
             )
             if is_text_dup:
                 return True, orig_id, "text"
@@ -119,6 +120,7 @@ class DuplicateDetector:
     async def _check_media_duplicate(self, media_hash: Optional[str], 
                                     combined_media_hash: Optional[str],
                                     message_time: datetime,
+                                    message_id: Optional[int] = None,
                                     db: Optional[AsyncSession] = None) -> Tuple[bool, Optional[int]]:
         """检查媒体重复（跨频道）"""
         if not media_hash and not combined_media_hash:
@@ -137,6 +139,10 @@ class DuplicateDetector:
                 Message.created_at >= time_threshold,
                 Message.status != "rejected"  # 不考虑已拒绝的消息
             ]
+            
+            # 排除当前消息本身
+            if message_id is not None:
+                conditions.append(Message.id != message_id)
             
             # 媒体哈希匹配条件
             hash_conditions = []
@@ -169,6 +175,7 @@ class DuplicateDetector:
     
     async def _check_text_duplicate(self, content: str, source_channel: str,
                                    message_time: datetime,
+                                   message_id: Optional[int] = None,
                                    db: Optional[AsyncSession] = None) -> Tuple[bool, Optional[int]]:
         """检查文本重复（跨频道，使用jieba分词）"""
         use_external_db = db is not None
@@ -180,17 +187,21 @@ class DuplicateDetector:
             time_start = message_time - timedelta(minutes=self.text_time_window_minutes)
             time_end = message_time + timedelta(minutes=self.text_time_window_minutes)
             
-            # 查询时间窗口内的其他频道消息
+            # 构建查询条件
+            conditions = [
+                Message.created_at >= time_start,
+                Message.created_at <= time_end,
+                Message.content.isnot(None),  # 有文本内容
+                Message.status != "rejected"  # 非拒绝消息
+            ]
+            
+            # 排除当前消息本身
+            if message_id is not None:
+                conditions.append(Message.id != message_id)
+            
+            # 查询时间窗口内的所有消息（包括同频道）
             result = await db.execute(
-                select(Message).where(
-                    and_(
-                        Message.created_at >= time_start,
-                        Message.created_at <= time_end,
-                        Message.source_channel != source_channel,  # 不同频道
-                        Message.content.isnot(None),  # 有文本内容
-                        Message.status != "rejected"  # 非拒绝消息
-                    )
-                ).order_by(Message.created_at.desc())
+                select(Message).where(and_(*conditions)).order_by(Message.created_at.desc())
             )
             recent_messages = result.scalars().all()
             

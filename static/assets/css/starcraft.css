@@ -121,7 +121,7 @@ body::before {
 .container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 15px;
 }
 
 /* 卡片样式 */
@@ -131,7 +131,7 @@ body::before {
     border-radius: 10px;
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     overflow: hidden;
 }
 
@@ -142,38 +142,38 @@ body::before {
 
 .card-header {
     background: rgba(15, 52, 96, 0.8);
-    padding: 20px;
+    padding: 15px;
     border-bottom: 2px solid #00ff41;
 }
 
 .card-header h2 {
     margin: 0;
     color: #00ff41;
-    font-size: 1.5em;
+    font-size: 1.3em;
     font-weight: 700;
     text-shadow: 0 0 10px #00ff41;
 }
 
 .card-content {
-    padding: 20px;
+    padding: 15px;
 }
 
 /* 统计网格 */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 15px;
-    margin: 20px 0;
+    gap: 10px;
+    margin: 15px 0;
 }
 
 .stat-item {
     background: rgba(26, 26, 46, 0.8);
     border: 2px solid #00ff41;
     border-radius: 10px;
-    padding: 12px;
+    padding: 10px;
     text-align: center;
     transition: all 0.3s ease;
-    min-height: 70px;
+    min-height: 60px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -185,11 +185,11 @@ body::before {
 }
 
 .stat-number {
-    font-size: 1.1em;
+    font-size: 1em;
     font-weight: 900;
     color: #00ff41;
     text-shadow: 0 0 15px #00ff41;
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

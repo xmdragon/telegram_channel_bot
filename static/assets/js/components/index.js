@@ -50,6 +50,15 @@ const MainApp = {
         }
     },
     
+    watch: {
+        'filters.status': function(newVal, oldVal) {
+            // 如果状态筛选器被清空（变为null），自动设置为'pending'
+            if (newVal === null) {
+                this.filters.status = 'pending';
+            }
+        }
+    },
+    
     mounted() {
         this.loadMessages();
         this.loadStats();
@@ -99,11 +108,17 @@ const MainApp = {
             this.loadingMessage = '正在加载消息数据...';
             
             try {
+                // 确保status有默认值，避免清空筛选器时显示所有消息
+                const params = {
+                    ...this.filters,
+                    status: this.filters.status || 'pending'  // 如果status为null或空，默认使用'pending'
+                };
+                
                 const response = await axios.get('/api/messages/', {
-                    params: this.filters
+                    params: params
                 });
                 
-                console.log('API响应:', response.data);
+//                 console.log('API响应:', response.data);
                 
                 if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
                     const newMessages = response.data.messages;
@@ -117,10 +132,10 @@ const MainApp = {
                     
                     // 只有当有真正的新消息时才显示提示
                     if (reallyNewMessages.length > 0) {
-                        console.log('发现', reallyNewMessages.length, '条新消息');
+//                         console.log('发现', reallyNewMessages.length, '条新消息');
                         MessageManager.success(`收到 ${reallyNewMessages.length} 条新消息`);
                     } else {
-                        console.log('消息已是最新，共', this.messages.length, '条');
+//                         console.log('消息已是最新，共', this.messages.length, '条');
                     }
                     
                     // 更新已知消息ID集合
@@ -128,7 +143,7 @@ const MainApp = {
                     
                     // 强制Vue下一帧重新渲染，确保媒体URL被正确加载
                     this.$nextTick(() => {
-                        console.log('消息列表已更新，触发媒体重新加载');
+//                         console.log('消息列表已更新，触发媒体重新加载');
                     });
                 } else {
                     this.messages = [];
@@ -267,15 +282,29 @@ const MainApp = {
         // 拒绝消息
         async rejectMessage(messageId) {
             try {
+                // 先找到消息对象（在移除之前）
+                const message = this.messages.find(msg => msg.id === messageId);
+                
                 const response = await axios.post(`/api/messages/${messageId}/reject?reviewer=Web用户`);
                 if (response.data.success) {
                     MessageManager.success('消息已拒绝');
-                    // 从列表中移除消息
-                    this.messages = this.messages.filter(msg => msg.id !== messageId);
+                    
+                    // 如果当前筛选状态不是"已拒绝"，才从列表中移除消息
+                    // 如果筛选状态是"已拒绝"，则更新消息状态而不是移除
+                    if (this.filters.status === 'rejected') {
+                        // 更新消息状态
+                        const msgIndex = this.messages.findIndex(msg => msg.id === messageId);
+                        if (msgIndex !== -1) {
+                            this.messages[msgIndex].status = 'rejected';
+                        }
+                    } else {
+                        // 从列表中移除消息
+                        this.messages = this.messages.filter(msg => msg.id !== messageId);
+                    }
+                    
                     this.loadStats();
                     
                     // 如果消息有审核群消息ID，删除审核群中的消息
-                    const message = this.messages.find(msg => msg.id === messageId);
                     if (message && message.review_message_id) {
                         try {
                             // 调用删除审核群消息的API
@@ -392,7 +421,7 @@ const MainApp = {
                 this.websocket = new WebSocket(wsUrl);
                 
                 this.websocket.onopen = () => {
-                    console.log('WebSocket连接已建立');
+//                     console.log('WebSocket连接已建立');
                     this.websocketConnected = true;
                     this.systemStatus = '在线';
                     
@@ -405,7 +434,7 @@ const MainApp = {
                 };
                 
                 this.websocket.onclose = () => {
-                    console.log('WebSocket连接已关闭');
+//                     console.log('WebSocket连接已关闭');
                     this.websocketConnected = false;
                     this.systemStatus = '离线';
                     
@@ -455,7 +484,7 @@ const MainApp = {
                         // 心跳响应，不需要处理
                         break;
                     default:
-                        console.log('未知WebSocket消息类型:', data.type);
+//                         console.log('未知WebSocket消息类型:', data.type);
                 }
             } catch (error) {
                 console.error('处理WebSocket消息失败:', error);
@@ -470,7 +499,7 @@ const MainApp = {
             if (existingIndex === -1) {
                 // 新消息，添加到列表顶部
                 this.messages.unshift(messageData);
-                console.log('收到新消息:', messageData.content.substring(0, 50) + '...');
+//                 console.log('收到新消息:', messageData.content.substring(0, 50) + '...');
                 
                 // 显示通知
                 MessageManager.success(`收到新消息: ${messageData.content.substring(0, 30)}...`);
@@ -482,7 +511,7 @@ const MainApp = {
                 this.$nextTick(() => {
                     // 确保媒体URL被正确加载
                     if (messageData.media_display_url || messageData.media_group_display) {
-                        console.log('新消息包含媒体，触发重新渲染');
+//                         console.log('新消息包含媒体，触发重新渲染');
                     }
                 });
             }
@@ -506,10 +535,10 @@ const MainApp = {
                 if (this.filters.status === 'pending' && 
                     (updateData.status === 'approved' || updateData.status === 'rejected')) {
                     this.messages.splice(messageIndex, 1);
-                    console.log(`消息 ${updateData.message_id} 已从列表中移除（状态: ${updateData.status}）`);
+//                     console.log(`消息 ${updateData.message_id} 已从列表中移除（状态: ${updateData.status}）`);
                 } else {
                     this.messages[messageIndex].status = updateData.status;
-                    console.log(`消息 ${updateData.message_id} 状态更新为: ${updateData.status}`);
+//                     console.log(`消息 ${updateData.message_id} 状态更新为: ${updateData.status}`);
                 }
             }
         },
@@ -517,7 +546,7 @@ const MainApp = {
         // 检查WebSocket连接状态
         checkWebSocketConnection() {
             if (!this.websocketConnected && (!this.websocket || this.websocket.readyState === WebSocket.CLOSED)) {
-                console.log('WebSocket断开，尝试重连...');
+//                 console.log('WebSocket断开，尝试重连...');
                 this.connectWebSocket();
             }
         },
@@ -585,7 +614,7 @@ window.MainApp = MainApp;
 
 // 等待 DOM 加载完成后初始化Vue应用
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, mounting Vue app...');
+//     console.log('DOM loaded, mounting Vue app...');
     try {
         const app = createApp(MainApp);
         app.use(ElementPlus);
@@ -594,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
             app.component('nav-bar', window.NavBar);
         }
         app.mount('#app');
-        console.log('Vue app mounted successfully');
+//         console.log('Vue app mounted successfully');
     } catch (error) {
         console.error('Failed to mount Vue app:', error);
     }

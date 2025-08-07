@@ -135,8 +135,8 @@ class MediaHandler:
                 file_name = f"{file_prefix}_{media_info['media_type']}{extension}"
                 file_path = self.temp_dir / file_name
                 
-                # 检查文件大小限制（50MB）
-                if document.size > 50 * 1024 * 1024:
+                # 检查文件大小限制（512MB）
+                if document.size > 512 * 1024 * 1024:
                     logger.warning(f"文件太大，跳过下载: {document.size} bytes")
                     return None
                     

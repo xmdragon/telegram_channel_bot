@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统日志监控 - Telegram频道机器人</title>
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/starcraft.css">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/logs.css">
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
+</head>
+<body>
+    <div id="app">
+        <nav-bar page-title="📋 系统日志监控" page-subtitle="实时日志 · 系统监控 · 运行状态"></nav-bar>
+        
+        <div class="main-content">
+                    <div class="logs-container">
+                        <!-- 控制栏 -->
+                        <el-row :gutter="20" class="control-bar">
+                            <el-col :span="24">
+                                <el-card shadow="never">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <!-- 日志级别选择 -->
+                                        <el-select v-model="selectedLevel" placeholder="选择日志级别" clearable @change="filterLogs" style="width: 140px;">
+                                            <el-option label="全部" value=""></el-option>
+                                            <el-option label="DEBUG" value="DEBUG"></el-option>
+                                            <el-option label="INFO" value="INFO"></el-option>
+                                            <el-option label="WARNING" value="WARNING"></el-option>
+                                            <el-option label="ERROR" value="ERROR"></el-option>
+                                            <el-option label="CRITICAL" value="CRITICAL"></el-option>
+                                        </el-select>
+                                        
+                                        <!-- 搜索框 -->
+                                        <el-input 
+                                            v-model="searchText" 
+                                            placeholder="搜索日志内容..." 
+                                            @input="filterLogs"
+                                            clearable
+                                            style="flex: 1; max-width: 400px;"
+                                        >
+                                            <template #prefix>
+                                                <el-icon><Search /></el-icon>
+                                            </template>
+                                        </el-input>
+                                        
+                                        <!-- 按钮组 -->
+                                        <div style="margin-left: auto; display: flex; gap: 10px;">
+                                            <el-button @click="toggleAutoRefresh" :type="autoRefresh ? 'success' : 'info'" size="default">
+                                                <el-icon><Timer /></el-icon>
+                                                {{ autoRefresh ? '停止自动刷新' : '开始自动刷新' }}
+                                            </el-button>
+                                            <el-button @click="clearLogs" type="warning" size="default">
+                                                <el-icon><Delete /></el-icon>
+                                                清空日志
+                                            </el-button>
+                                        </div>
+                                    </div>
+                                </el-card>
+                            </el-col>
+                        </el-row>
+
+                        <!-- 日志显示区域 -->
+                        <el-card shadow="never" class="logs-display">
+                            <div class="logs-header">
+                                <h3>系统日志 <span class="timestamp">{{ lastUpdate }}</span></h3>
+                                <p style="margin: 0; font-size: 12px; color: #909399;">
+                                    📌 最新日志显示在顶部，按时间倒序排列
+                                </p>
+                            </div>
+                            
+                            <div class="logs-content" ref="logsContainer">
+                                <div v-if="filteredLogs.length === 0" class="no-logs">
+                                    <el-empty description="暂无日志数据" />
+                                </div>
+                                
+                                <div 
+                                    v-for="(log, index) in filteredLogs" 
+                                    :key="index" 
+                                    class="log-entry"
+                                    :class="'log-level-' + (log.level || 'info').toLowerCase()"
+                                >
+                                    <div class="log-compact">
+                                        <span class="log-time">{{ formatTime(log.timestamp || log.time || '') }}</span>
+                                        <span :class="'log-level log-level-' + (log.level || 'info').toLowerCase()">{{ log.level || 'INFO' }}</span>
+                                        <span class="log-text">{{ log.message || log.content || 'No message' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-card>
+
+                        <!-- 统计信息 -->
+                        <el-row :gutter="20" class="stats-bar">
+                            <el-col :span="8">
+                                <el-statistic title="总日志数" :value="logs.length" />
+                            </el-col>
+                            <el-col :span="8">
+                                <el-statistic title="显示日志数" :value="filteredLogs.length" />
+                            </el-col>
+                            <el-col :span="8">
+                                <el-statistic title="更新间隔" :value="refreshInterval / 1000" suffix="秒" />
+                            </el-col>
+                        </el-row>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./assets/js/components/logs.js"></script>
+</body>
+</html>

@@ -4,10 +4,12 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any, List
 from pydantic import BaseModel
+import logging
 
 from app.services.config_manager import config_manager
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class ConfigItem(BaseModel):
     key: str
@@ -462,6 +464,159 @@ async def get_channels():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取频道列表失败: {str(e)}")
+
+class ChannelBatchAddRequest(BaseModel):
+    channels: str  # 多行文本，每行一个频道
+
+@router.post("/channels/batch-add")
+async def batch_add_channels(request: ChannelBatchAddRequest):
+    """批量添加频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+        from app.services.config_manager import config_manager
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        from telethon.tl.functions.channels import JoinChannelRequest
+        import re
+        
+        # 获取认证信息
+        api_id = await config_manager.get_config('telegram.api_id')
+        api_hash = await config_manager.get_config('telegram.api_hash')
+        string_session = await config_manager.get_config('telegram.session', '')
+        
+        if not all([api_id, api_hash, string_session]):
+            return {"success": False, "message": "Telegram认证信息不完整，请先完成认证"}
+        
+        # 解析频道列表
+        channel_lines = request.channels.strip().split('\n')
+        channels_to_add = []
+        
+        for line in channel_lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # 支持多种格式：@channel_name, https://t.me/channel_name, channel_name
+            if line.startswith('https://t.me/'):
+                channel_name = line.replace('https://t.me/', '@')
+            elif not line.startswith('@'):
+                channel_name = '@' + line
+            else:
+                channel_name = line
+                
+            # 去除多余的@符号
+            channel_name = '@' + channel_name.lstrip('@')
+            
+            if channel_name not in channels_to_add:
+                channels_to_add.append(channel_name)
+        
+        if not channels_to_add:
+            return {"success": False, "message": "没有有效的频道需要添加"}
+        
+        # 创建Telegram客户端
+        client = TelegramClient(StringSession(string_session), int(api_id), api_hash)
+        await client.connect()
+        
+        results = {
+            "added": [],
+            "existed": [],
+            "failed": [],
+            "subscribed": []
+        }
+        
+        try:
+            for channel_name in channels_to_add:
+                try:
+                    # 检查频道是否已存在（通过channel_name检查）
+                    existing_channel = await channel_manager.get_channel_by_name(channel_name)
+                    if existing_channel:
+                        results["existed"].append(channel_name)
+                        continue
+                    
+                    # 获取频道实体
+                    try:
+                        entity = await client.get_entity(channel_name)
+                        
+                        # 获取频道信息
+                        channel_id = None
+                        channel_title = channel_name
+                        
+                        if hasattr(entity, 'id'):
+                            if hasattr(entity, 'broadcast') and entity.broadcast:
+                                channel_id = f"-100{entity.id}"
+                            else:
+                                channel_id = str(entity.id)
+                        
+                        if hasattr(entity, 'title'):
+                            channel_title = entity.title
+                        
+                        # 检查是否需要订阅
+                        if hasattr(entity, 'left') and entity.left:
+                            # 频道未订阅，尝试订阅
+                            try:
+                                await client(JoinChannelRequest(entity))
+                                results["subscribed"].append(channel_name)
+                            except Exception as join_error:
+                                logger.warning(f"订阅频道 {channel_name} 失败: {join_error}")
+                        
+                        # 添加频道到数据库
+                        success = await channel_manager.add_channel(
+                            channel_id=channel_id,
+                            channel_name=channel_name,
+                            channel_title=channel_title,
+                            channel_type="source",
+                            description=f"批量添加的频道: {channel_title}"
+                        )
+                        
+                        if success:
+                            results["added"].append({
+                                "channel_name": channel_name,
+                                "channel_title": channel_title,
+                                "channel_id": channel_id
+                            })
+                        else:
+                            results["failed"].append({
+                                "channel_name": channel_name,
+                                "reason": "添加到数据库失败"
+                            })
+                            
+                    except Exception as e:
+                        results["failed"].append({
+                            "channel_name": channel_name,
+                            "reason": str(e)
+                        })
+                        
+                except Exception as e:
+                    results["failed"].append({
+                        "channel_name": channel_name,
+                        "reason": str(e)
+                    })
+            
+            # 构建响应消息
+            message_parts = []
+            if results["added"]:
+                message_parts.append(f"成功添加 {len(results['added'])} 个频道")
+            if results["existed"]:
+                message_parts.append(f"{len(results['existed'])} 个频道已存在")
+            if results["subscribed"]:
+                message_parts.append(f"自动订阅了 {len(results['subscribed'])} 个频道")
+            if results["failed"]:
+                message_parts.append(f"{len(results['failed'])} 个频道添加失败")
+            
+            return {
+                "success": len(results["added"]) > 0 or len(results["existed"]) > 0,
+                "message": "，".join(message_parts) if message_parts else "没有频道被添加",
+                "results": results
+            }
+            
+        finally:
+            await client.disconnect()
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"批量添加频道失败: {str(e)}"
+        }
 
 @router.get("/channels/{channel_id}")
 async def get_channel(channel_id: str):

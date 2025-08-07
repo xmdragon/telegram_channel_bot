@@ -95,7 +95,7 @@ const keywordsApp = {
                 const response = await axios.get('/api/keywords/');
                 this.keywords = response.data || [];
                 this.filterKeywords();
-                console.log('加载关键词:', this.keywords.length, '个');
+//                 console.log('加载关键词:', this.keywords.length, '个');
             } catch (error) {
                 console.error('加载关键词失败:', error);
                 ElMessage.error('加载关键词列表失败');

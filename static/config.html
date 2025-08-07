@@ -22,13 +22,8 @@
 </head>
 <body>
     <div id="app">
-        <div class="header">
-            <h1>⚙️ 系统配置中心</h1>
-            <p>频道管理 · 过滤规则 · 转发设置</p>
-        </div>
-
         <!-- 导航栏 -->
-        <nav-bar></nav-bar>
+        <nav-bar page-title="⚙️ 系统配置中心" page-subtitle="频道管理 · 过滤规则 · 转发设置"></nav-bar>
 
         <div class="container">
             <!-- 配置标签页 -->
@@ -37,18 +32,85 @@
                 <el-tab-pane label="📡 频道管理" name="channels">
                     <div class="config-section">
                         <div class="add-channel-form">
-                            <h4>添加新频道</h4>
-                            <el-form :model="newChannel" label-width="100px">
-                                <el-form-item label="频道名称">
-                                    <el-input v-model="newChannel.name" placeholder="输入频道名称（如：@channelname）"></el-input>
-                                </el-form-item>
-                                <el-form-item label="频道标题">
-                                    <el-input v-model="newChannel.title" placeholder="输入频道标题（可选）"></el-input>
-                                </el-form-item>
-                                <el-form-item>
-                                    <el-button type="primary" @click="addChannel" icon="Plus">添加频道</el-button>
-                                </el-form-item>
-                            </el-form>
+                            <el-tabs v-model="addChannelTab" type="card">
+                                <!-- 单个添加 -->
+                                <el-tab-pane label="单个添加" name="single">
+                                    <el-form :model="newChannel" label-width="100px">
+                                        <el-form-item label="频道名称">
+                                            <el-input v-model="newChannel.name" placeholder="输入频道名称（如：@channelname）"></el-input>
+                                        </el-form-item>
+                                        <el-form-item label="频道标题">
+                                            <el-input v-model="newChannel.title" placeholder="输入频道标题（可选）"></el-input>
+                                        </el-form-item>
+                                        <el-form-item>
+                                            <el-button type="primary" @click="addChannel" icon="Plus">添加频道</el-button>
+                                        </el-form-item>
+                                    </el-form>
+                                </el-tab-pane>
+                                
+                                <!-- 批量添加 -->
+                                <el-tab-pane label="批量添加" name="batch">
+                                    <el-form :model="batchChannel" label-width="100px">
+                                        <el-form-item label="频道列表">
+                                            <el-input
+                                                v-model="batchChannel.channels"
+                                                type="textarea"
+                                                :rows="6"
+                                                placeholder="每行输入一个频道名称，支持以下格式：&#10;@channelname&#10;https://t.me/channelname&#10;channelname">
+                                            </el-input>
+                                        </el-form-item>
+                                        <el-form-item>
+                                            <el-button type="primary" @click="batchAddChannels" :loading="batchChannel.loading" icon="Upload">
+                                                批量添加
+                                            </el-button>
+                                            <el-button @click="batchChannel.channels = ''" icon="Delete">清空</el-button>
+                                        </el-form-item>
+                                    </el-form>
+                                    
+                                    <!-- 批量添加结果 -->
+                                    <div v-if="batchChannel.results" style="margin-top: 20px;">
+                                        <el-alert 
+                                            :title="batchChannel.message" 
+                                            :type="batchChannel.success ? 'success' : 'warning'"
+                                            :closable="false"
+                                            show-icon>
+                                        </el-alert>
+                                        
+                                        <!-- 添加成功的频道 -->
+                                        <div v-if="batchChannel.results.added && batchChannel.results.added.length > 0" style="margin-top: 10px;">
+                                            <h5>✅ 成功添加的频道：</h5>
+                                            <el-tag v-for="channel in batchChannel.results.added" :key="channel.channel_name" style="margin: 2px;">
+                                                {{ channel.channel_title }} ({{ channel.channel_name }})
+                                            </el-tag>
+                                        </div>
+                                        
+                                        <!-- 已存在的频道 -->
+                                        <div v-if="batchChannel.results.existed && batchChannel.results.existed.length > 0" style="margin-top: 10px;">
+                                            <h5>ℹ️ 已存在的频道：</h5>
+                                            <el-tag v-for="channel in batchChannel.results.existed" :key="channel" type="info" style="margin: 2px;">
+                                                {{ channel }}
+                                            </el-tag>
+                                        </div>
+                                        
+                                        <!-- 自动订阅的频道 -->
+                                        <div v-if="batchChannel.results.subscribed && batchChannel.results.subscribed.length > 0" style="margin-top: 10px;">
+                                            <h5>🔔 自动订阅的频道：</h5>
+                                            <el-tag v-for="channel in batchChannel.results.subscribed" :key="channel" type="success" style="margin: 2px;">
+                                                {{ channel }}
+                                            </el-tag>
+                                        </div>
+                                        
+                                        <!-- 添加失败的频道 -->
+                                        <div v-if="batchChannel.results.failed && batchChannel.results.failed.length > 0" style="margin-top: 10px;">
+                                            <h5>❌ 添加失败的频道：</h5>
+                                            <div v-for="item in batchChannel.results.failed" :key="item.channel_name" style="margin: 5px 0;">
+                                                <el-tag type="danger">{{ item.channel_name }}</el-tag>
+                                                <span style="color: #F56C6C; margin-left: 10px;">{{ item.reason }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </el-tab-pane>
+                            </el-tabs>
                         </div>
 
                         <!-- 搜索Telegram频道（暂时隐藏） -->
@@ -118,14 +180,12 @@
                         <div class="channel-list">
                             <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item">
                                 <div class="channel-info">
-                                    <div class="channel-name">
+                                    <span class="channel-name">
                                         {{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }}
-                                    </div>
-                                    <div class="channel-details">
-                                        <span class="channel-title">{{ channel.title || '未设置标题' }}</span>
-                                        <span v-if="!channel.channel_id" class="channel-status no-id">(无ID)</span>
-                                        <span v-else class="channel-status has-id">(ID: {{ channel.channel_id }})</span>
-                                    </div>
+                                    </span>
+                                    <span v-if="!channel.channel_id" class="channel-id no-id">(无ID)</span>
+                                    <span v-else class="channel-id has-id">(ID: {{ channel.channel_id }})</span>
+                                    <span class="channel-title">{{ channel.title || '未设置标题' }}</span>
                                 </div>
                                 <div class="channel-actions">
                                     <el-tag 

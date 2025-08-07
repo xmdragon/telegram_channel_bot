@@ -72,29 +72,24 @@ class MessageProcessor:
             True如果是重复消息，False如果不重复
         """
         try:
-            is_duplicate = await self.duplicate_detector.is_duplicate_message(
+            is_duplicate, orig_id, dup_type = await self.duplicate_detector.is_duplicate_message(
                 source_channel=message.source_channel,
                 media_hash=message.media_hash,
                 combined_media_hash=message.combined_media_hash,
-                content=message.content
+                content=message.content,
+                message_time=message.created_at,
+                message_id=message.id
             )
             
-            if is_duplicate:
-                # 获取相似的历史消息
-                similar_messages = await self.duplicate_detector.get_similar_messages(
-                    source_channel=message.source_channel,
-                    media_hash=message.media_hash or message.combined_media_hash
+            if is_duplicate and orig_id:
+                # 直接标记为重复并指向原始消息
+                await self.duplicate_detector.mark_as_duplicate(
+                    message_id=message.id,
+                    original_message_id=orig_id
                 )
                 
-                if similar_messages:
-                    # 标记为重复并指向原始消息
-                    await self.duplicate_detector.mark_as_duplicate(
-                        message_id=message.id,
-                        original_message_id=similar_messages[0].id
-                    )
-                    
-                    logger.info(f"消息 {message.id} 被检测为重复消息，已自动过滤")
-                    return True
+                logger.info(f"消息 {message.id} 被检测为{dup_type}重复消息（原消息ID: {orig_id}），已自动过滤")
+                return True
             
             return False
             

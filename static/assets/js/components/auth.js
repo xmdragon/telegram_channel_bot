@@ -1,9 +1,9 @@
 // Telegram 认证页面 JavaScript
 
 // 检查依赖是否加载
-console.log('Vue loaded:', typeof Vue !== 'undefined');
-console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
-console.log('Axios loaded:', typeof axios !== 'undefined');
+// console.log('Vue loaded:', typeof Vue !== 'undefined');
+// console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
+// console.log('Axios loaded:', typeof axios !== 'undefined');
 
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
@@ -63,12 +63,12 @@ const AuthApp = {
                     // 根据当前协议选择WebSocket协议
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const wsUrl = `${protocol}//${window.location.host}/api/auth/ws/auth`;
-                    console.log('尝试连接 WebSocket:', wsUrl);
+//                     console.log('尝试连接 WebSocket:', wsUrl);
                     
                     this.websocket = new WebSocket(wsUrl);
                     
                     this.websocket.onopen = () => {
-                        console.log('WebSocket 连接已建立');
+//                         console.log('WebSocket 连接已建立');
                         this.connected = true;
                     };
                     
@@ -82,7 +82,7 @@ const AuthApp = {
                     };
                     
                     this.websocket.onclose = () => {
-                        console.log('WebSocket 连接已关闭');
+//                         console.log('WebSocket 连接已关闭');
                         this.connected = false;
                     };
                     
@@ -176,7 +176,7 @@ const AuthApp = {
             },
             
             handleWebSocketMessage(data) {
-                console.log('收到 WebSocket 消息:', data);
+//                 console.log('收到 WebSocket 消息:', data);
                 
                 const type = data.type;
                 const state = data.state;
@@ -233,7 +233,7 @@ const AuthApp = {
                         this.authStatus = '未认证';
                     }
                 } catch (error) {
-                    console.log('使用模拟认证状态');
+//                     console.log('使用模拟认证状态');
                     this.authStatus = '未认证';
                 }
             },
@@ -316,7 +316,7 @@ const AuthApp = {
                     const response = await axios.get('/api/auth/info');
                     this.handleAuthInfo(response.data);
                 } catch (error) {
-                    console.log('获取认证信息失败:', error);
+//                     console.log('获取认证信息失败:', error);
                 }
             },
             
@@ -397,7 +397,7 @@ const AuthApp = {
             
             showError(message) {
                 // 避免显示错误，改为静默处理
-                console.log('操作失败:', message);
+//                 console.log('操作失败:', message);
                 this.loading = false;
                 this.verifying = false;
                 // 不显示错误消息，避免用户看到错误按钮
@@ -407,7 +407,7 @@ const AuthApp = {
 
 // 创建并挂载应用
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, mounting Vue app...');
+//     console.log('DOM loaded, mounting Vue app...');
     const app = createApp(AuthApp);
     app.use(ElementPlus);
     // 注册导航栏组件
@@ -415,5 +415,5 @@ document.addEventListener('DOMContentLoaded', function() {
         app.component('nav-bar', window.NavBar);
     }
     app.mount('#app');
-    console.log('Vue app mounted successfully');
+//     console.log('Vue app mounted successfully');
 }); 
