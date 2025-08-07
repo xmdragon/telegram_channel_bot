@@ -306,6 +306,13 @@ DEFAULT_CONFIGS = {
         "config_type": "json"
     },
     
+    # 频道落款配置
+    "channels.signature": {
+        "value": "",
+        "description": "频道落款内容（支持多行，用\\n分隔）",
+        "config_type": "string"
+    },
+    
     # 系统配置
     "system.secret_key": {
         "value": "your-secret-key-change-this-in-production",

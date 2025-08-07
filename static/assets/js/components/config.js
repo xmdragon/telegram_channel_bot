@@ -21,9 +21,18 @@ const ConfigApp = {
             
             // 频道管理
             channels: [],
+            channelSearchFilter: '', // 频道列表搜索过滤
             newChannel: {
                 name: '',
                 title: ''
+            },
+            
+            // 频道搜索（添加新频道）
+            searchForm: {
+                query: '',
+                results: [],
+                loading: false,
+                searched: false
             },
             
             // 过滤规则
@@ -54,13 +63,30 @@ const ConfigApp = {
                 retention_days: 30,
                 max_concurrent: 10,
                 log_level: 'info',
-                history_message_limit: 50
+                history_message_limit: 50,
+                channel_signature: ''
             }
         }
     },
     
     mounted() {
         this.loadConfigData();
+    },
+    
+    computed: {
+        // 过滤后的频道列表
+        filteredChannels() {
+            if (!this.channelSearchFilter) {
+                return this.channels;
+            }
+            
+            const filter = this.channelSearchFilter.toLowerCase();
+            return this.channels.filter(channel => {
+                const name = (channel.name || '').toLowerCase();
+                const title = (channel.title || '').toLowerCase();
+                return name.includes(filter) || title.includes(filter);
+            });
+        }
     },
     
     methods: {
@@ -169,7 +195,9 @@ const ConfigApp = {
                         review_mode: 'manual', // 默认手动审核
                         retention_days: 30,
                         max_concurrent: 10,
-                        log_level: 'info'
+                        log_level: 'info',
+                        history_message_limit: response.data.history_message_limit || 50,
+                        channel_signature: response.data.channel_signature || ''
                     };
                 }
             } catch (error) {
@@ -417,9 +445,22 @@ const ConfigApp = {
         
         async saveSystemConfig() {
             try {
-                // 暂时使用模拟成功响应，因为后端API可能还不支持这些配置
-                MessageManager.success('系统配置保存成功');
+                // 准备保存的配置数据
+                const configData = {
+                    'channels.history_message_limit': this.systemConfig.history_message_limit,
+                    'channels.signature': this.systemConfig.channel_signature
+                };
+                
+                // 批量保存配置
+                const response = await axios.post('/api/admin/config/batch', configData);
+                
+                if (response.data.success) {
+                    MessageManager.success('系统配置保存成功');
+                } else {
+                    throw new Error(response.data.message || '保存配置失败');
+                }
             } catch (error) {
+                console.error('保存系统配置失败:', error);
                 MessageManager.error('系统配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -430,7 +471,8 @@ const ConfigApp = {
                 retention_days: 30,
                 max_concurrent: 10,
                 log_level: 'info',
-                history_message_limit: 50
+                history_message_limit: 50,
+                channel_signature: ''
             };
             MessageManager.success('系统配置已重置为默认值');
         },
@@ -504,6 +546,70 @@ const ConfigApp = {
                     console.error('解析目标频道ID失败:', error);
                 }
             }
+        },
+        
+        // 搜索频道
+        async searchChannels() {
+            if (!this.searchForm.query) {
+                MessageManager.warning('请输入搜索关键词');
+                return;
+            }
+            
+            this.searchForm.loading = true;
+            this.searchForm.searched = false;
+            
+            try {
+                const response = await axios.get('/api/admin/search-channels', {
+                    params: { query: this.searchForm.query }
+                });
+                
+                if (response.data.success) {
+                    this.searchForm.results = response.data.channels || [];
+                    this.searchForm.searched = true;
+                    
+                    if (this.searchForm.results.length === 0) {
+                        MessageManager.info('没有找到相关频道');
+                    } else {
+                        MessageManager.success(`找到 ${this.searchForm.results.length} 个频道`);
+                    }
+                } else {
+                    MessageManager.error(response.data.message || '搜索失败');
+                }
+            } catch (error) {
+                console.error('搜索频道失败:', error);
+                MessageManager.error('搜索频道失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                this.searchForm.loading = false;
+            }
+        },
+        
+        // 添加搜索到的频道
+        async addSearchedChannel(channel) {
+            try {
+                // 准备频道数据
+                const channelData = {
+                    name: channel.username || channel.id.toString(),
+                    title: channel.title,
+                    channel_id: channel.id.toString()
+                };
+                
+                const response = await axios.post('/api/admin/add-channel', channelData);
+                
+                if (response.data.success) {
+                    MessageManager.success('频道添加成功');
+                    // 重新加载频道列表
+                    await this.loadChannels();
+                    // 清空搜索结果
+                    this.searchForm.query = '';
+                    this.searchForm.results = [];
+                    this.searchForm.searched = false;
+                } else {
+                    MessageManager.error(response.data.message || '添加失败');
+                }
+            } catch (error) {
+                console.error('添加频道失败:', error);
+                MessageManager.error('添加频道失败: ' + (error.response?.data?.detail || error.message));
+            }
         }
     }
 };
@@ -519,6 +625,11 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const app = createApp(ConfigApp);
         app.use(ElementPlus);
+        
+        // 注册导航栏组件
+        if (window.NavBar) {
+            app.component('nav-bar', window.NavBar);
+        }
 
         // 添加错误处理
         app.config.errorHandler = (err, vm, info) => {

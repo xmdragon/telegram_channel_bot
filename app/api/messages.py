@@ -97,6 +97,43 @@ async def get_channel_info():
             "error": str(e)
         }
 
+@router.post("/batch/approve")
+async def batch_approve_messages(
+    request: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """批量批准消息"""
+    message_ids = request.get("message_ids", [])
+    if not message_ids:
+        return {"success": False, "message": "未提供消息ID列表"}
+    
+    result = await db.execute(
+        select(Message).where(
+            and_(
+                Message.id.in_(message_ids),
+                Message.status == "pending"
+            )
+        )
+    )
+    messages = result.scalars().all()
+    
+    for message in messages:
+        message.status = "approved"
+        message.reviewed_by = "Web用户"
+        message.review_time = datetime.now()
+    
+    await db.commit()
+    
+    # 广播批量状态更新到WebSocket客户端
+    try:
+        from app.api.websocket import websocket_manager
+        for message in messages:
+            await websocket_manager.broadcast_message_status_update(message.id, "approved")
+    except Exception as e:
+        print(f"广播批量状态更新失败: {e}")
+    
+    return {"success": True, "message": f"已批准 {len(messages)} 条消息"}
+
 @router.get("/{message_id}")
 async def get_message(
     message_id: int,
@@ -173,6 +210,17 @@ async def reject_message(
     
     if message.status != "pending":
         raise HTTPException(status_code=400, detail="消息状态不允许此操作")
+    
+    # 从审核群删除消息
+    try:
+        from app.telegram.bot import telegram_bot
+        if telegram_bot and telegram_bot.client and message.review_message_id:
+            await telegram_bot.delete_review_message(message.review_message_id)
+            
+            # 清理媒体文件
+            await telegram_bot._cleanup_message_files(message)
+    except Exception as e:
+        print(f"删除审核群消息失败: {e}")
     
     message.status = "rejected"
     message.reviewed_by = reviewer
@@ -334,12 +382,18 @@ async def edit_and_publish_message(
     if not new_content:
         return {"success": False, "message": "消息内容不能为空"}
     
-    message.filtered_content = new_content
+    # 自动添加频道落款（如果还没有的话）
+    from app.services.content_filter import ContentFilter
+    content_filter = ContentFilter()
+    new_content_with_signature = await content_filter.add_channel_signature(new_content)
+    
+    message.filtered_content = new_content_with_signature
     
     # 如果消息已经在审核群，更新审核群的消息
     try:
         from app.telegram.bot import telegram_bot
-        if telegram_bot and telegram_bot.client and message.review_message_id:
+        if telegram_bot and hasattr(telegram_bot, 'client') and telegram_bot.client and \
+           hasattr(telegram_bot, 'update_review_message') and message.review_message_id:
             await telegram_bot.update_review_message(message)
         
         await db.commit()
@@ -348,39 +402,6 @@ async def edit_and_publish_message(
         await db.rollback()
         return {"success": False, "message": f"编辑失败: {str(e)}"}
 
-@router.post("/batch-approve")
-async def batch_approve_messages(
-    message_ids: List[int],
-    reviewer: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """批量批准消息"""
-    result = await db.execute(
-        select(Message).where(
-            and_(
-                Message.id.in_(message_ids),
-                Message.status == "pending"
-            )
-        )
-    )
-    messages = result.scalars().all()
-    
-    for message in messages:
-        message.status = "approved"
-        message.reviewed_by = reviewer
-        message.review_time = datetime.now()
-    
-    await db.commit()
-    
-    # 广播批量状态更新到WebSocket客户端
-    try:
-        from app.api.websocket import websocket_manager
-        for message in messages:
-            await websocket_manager.broadcast_message_status_update(message.id, "approved")
-    except Exception as e:
-        print(f"广播批量状态更新失败: {e}")
-    
-    return {"success": True, "message": f"已批准 {len(messages)} 条消息"}
 
 @router.get("/stats/overview")
 async def get_message_stats():

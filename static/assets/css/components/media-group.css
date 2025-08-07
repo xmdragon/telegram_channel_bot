@@ -1,13 +1,15 @@
 /* 媒体组样式 */
 .message-media-group {
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 .media-group-container {
     display: grid;
-    grid-gap: 8px;
+    grid-gap: 2px;
     border-radius: 12px;
     overflow: hidden;
+    background: #000;
+    max-width: 450px;
 }
 
 /* 根据媒体数量自动调整网格布局 */
@@ -19,9 +21,27 @@
     grid-template-columns: 1fr 1fr;
 }
 
+/* 3张图片：左侧两张竖图上下排列，右侧一张大图 */
 .media-group-container[data-count="3"] {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 150px 1fr;
     grid-template-rows: 1fr 1fr;
+    height: 280px;
+}
+
+/* 3张图片的特殊布局定位 */
+.media-group-container[data-count="3"] .media-group-item:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.media-group-container[data-count="3"] .media-group-item:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.media-group-container[data-count="3"] .media-group-item:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1 / 3;
 }
 
 .media-group-container[data-count="4"] {
@@ -40,20 +60,42 @@
     grid-template-columns: repeat(3, 1fr);
 }
 
-/* 特殊布局：3个媒体时的第一个占用两行 */
-.media-group-container[data-count="3"] .media-group-item:first-child {
-    grid-row: span 2;
-}
-
 .media-group-item {
     position: relative;
     overflow: hidden;
-    border-radius: 8px;
     background: #1a1a1a;
-    min-height: 120px;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* 圆角处理 - 仅外侧有圆角 */
+.media-group-container[data-count="3"] .media-group-item:nth-child(1) {
+    border-top-left-radius: 12px;
+}
+
+.media-group-container[data-count="3"] .media-group-item:nth-child(2) {
+    border-bottom-left-radius: 12px;
+}
+
+.media-group-container[data-count="3"] .media-group-item:nth-child(3) {
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+/* 通用圆角处理 */
+.media-group-container[data-count="1"] .media-group-item,
+.media-group-container[data-count="2"] .media-group-item:first-child {
+    border-top-left-radius: 12px;
+}
+
+.media-group-container[data-count="2"] .media-group-item:last-child {
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.media-group-container[data-count="2"] .media-group-item:first-child {
+    border-bottom-left-radius: 12px;
 }
 
 .group-media {
@@ -61,33 +103,35 @@
     height: 100%;
     object-fit: cover;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: opacity 0.2s ease;
 }
 
 .group-media:hover {
-    transform: scale(1.02);
+    opacity: 0.9;
 }
 
 /* 图片组媒体样式 */
 .media-group-item .media-image.group-media {
-    max-height: 200px;
-    border-radius: 8px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* 视频组媒体样式 */
 .media-group-item .media-video.group-media {
-    max-height: 200px;
-    border-radius: 8px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* 文档组媒体样式 */
 .media-group-item .media-document.group-media {
-    padding: 15px;
+    padding: 10px;
     background: #2a2a2a;
-    border-radius: 8px;
     display: flex;
     align-items: center;
-    min-height: auto;
+    width: 100%;
+    height: 100%;
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
@@ -128,9 +172,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    min-height: 120px;
-    border-radius: 8px;
+    font-size: 14px;
+    width: 100%;
+    height: 100%;
 }
 
 /* 媒体计数显示（当媒体超过9个时） */
@@ -147,18 +191,21 @@
     color: #fff;
     font-size: 24px;
     font-weight: bold;
-    border-radius: 8px;
     cursor: pointer;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
     .media-group-container {
-        grid-gap: 4px;
+        grid-gap: 2px;
+    }
+    
+    .media-group-container[data-count="3"] {
+        grid-template-columns: 120px 1fr;
+        height: 240px;
     }
     
     .media-group-container[data-count="2"],
-    .media-group-container[data-count="3"],
     .media-group-container[data-count="4"] {
         grid-template-columns: 1fr 1fr;
     }
@@ -169,15 +216,6 @@
     .media-group-container[data-count="8"],
     .media-group-container[data-count="9"] {
         grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .media-group-item {
-        min-height: 100px;
-    }
-    
-    .media-group-item .media-image.group-media,
-    .media-group-item .media-video.group-media {
-        max-height: 150px;
     }
 }
 
@@ -190,12 +228,24 @@
     border-color: rgba(127, 219, 255, 0.3);
 }
 
-/* 媒体组合消息标识 */
+/* 移除媒体组合消息标识 */
 .message-media-group::before {
-    content: "📸 媒体组合";
+    display: none;
+}
+
+/* 图片预览弹窗样式 */
+.el-dialog__body.media-preview-body {
+    padding: 0;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.el-dialog__body.media-preview-body img {
+    max-width: 100%;
+    height: auto;
     display: block;
-    font-size: 12px;
-    color: #7fdbff;
-    margin-bottom: 8px;
-    opacity: 0.8;
 }

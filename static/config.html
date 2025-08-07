@@ -16,6 +16,7 @@
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/message-manager.js?v=1"></script>
     <script src="assets/js/components/config.js"></script>
 </head>
@@ -27,18 +28,7 @@
         </div>
 
         <!-- 导航栏 -->
-        <div class="nav-bar">
-            <div class="nav-links">
-                <a href="/" class="nav-link">🏠 主控制台</a>
-                <a href="/config" class="nav-link active">⚙️ 系统配置</a>
-                <a href="/keywords" class="nav-link">🔍 关键词管理</a>
-                <a href="/status" class="nav-link">📊 系统状态</a>
-                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
-            </div>
-            <div class="nav-links">
-                <span style="color: #7fdbff; font-weight: 700;">配置状态: {{ configStatus }}</span>
-            </div>
-        </div>
+        <nav-bar></nav-bar>
 
         <div class="container">
             <!-- 配置标签页 -->
@@ -61,9 +51,72 @@
                             </el-form>
                         </div>
 
+                        <!-- 搜索Telegram频道（暂时隐藏） -->
+                        <div class="search-channel-form" style="margin-top: 20px; padding: 15px; border: 1px solid #e4e7ed; border-radius: 4px; display: none;">
+                            <h4>搜索Telegram频道</h4>
+                            <el-form :model="searchForm" label-width="100px">
+                                <el-form-item label="搜索关键词">
+                                    <el-input 
+                                        v-model="searchForm.query" 
+                                        placeholder="输入频道名称或关键词搜索"
+                                        clearable
+                                        @keyup.enter="searchChannels">
+                                        <template #append>
+                                            <el-button @click="searchChannels" :loading="searchForm.loading">
+                                                <el-icon><Search /></el-icon> 搜索
+                                            </el-button>
+                                        </template>
+                                    </el-input>
+                                </el-form-item>
+                            </el-form>
+                            
+                            <!-- 搜索结果 -->
+                            <div v-if="searchForm.results.length > 0" class="search-results" style="margin-top: 15px;">
+                                <h5>搜索结果：</h5>
+                                <div v-for="result in searchForm.results" :key="result.id" class="search-result-item" style="padding: 10px; margin: 5px 0; border: 1px solid #e4e7ed; border-radius: 4px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <strong>{{ result.title }}</strong>
+                                            <span style="color: #909399; margin-left: 10px;">@{{ result.username || 'N/A' }}</span>
+                                            <el-tag size="small" style="margin-left: 10px;">{{ result.participants_count || 'N/A' }} 成员</el-tag>
+                                        </div>
+                                        <el-button 
+                                            size="small" 
+                                            type="primary"
+                                            @click="addSearchedChannel(result)">
+                                            添加监听
+                                        </el-button>
+                                    </div>
+                                    <div v-if="result.description" style="color: #606266; margin-top: 5px; font-size: 13px;">
+                                        {{ result.description }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 无结果提示 -->
+                            <div v-else-if="searchForm.searched && searchForm.results.length === 0" style="margin-top: 15px; text-align: center; color: #909399;">
+                                没有找到相关频道
+                            </div>
+                        </div>
+
                         <h3>监听频道列表</h3>
+                        
+                        <!-- 频道搜索过滤 -->
+                        <div style="margin-bottom: 20px;">
+                            <el-input 
+                                v-model="channelSearchFilter" 
+                                placeholder="搜索频道名称或标题..."
+                                clearable
+                                prefix-icon="Search"
+                                style="width: 300px;">
+                            </el-input>
+                            <span style="margin-left: 10px; color: #909399;">
+                                共 {{ filteredChannels.length }} / {{ channels.length }} 个频道
+                            </span>
+                        </div>
+                        
                         <div class="channel-list">
-                            <div v-for="channel in channels" :key="channel.id" class="channel-item">
+                            <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item">
                                 <div class="channel-info">
                                     <div class="channel-name">
                                         {{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }}
@@ -232,6 +285,17 @@
                                 <el-input-number v-model="systemConfig.history_message_limit" :min="1" :max="1000" placeholder="50"></el-input-number>
                                 <div style="font-size: 12px; color: #999; margin-top: 5px;">
                                     首次采集或重启后从频道获取的历史消息条数
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="频道落款">
+                                <el-input 
+                                    type="textarea" 
+                                    v-model="systemConfig.channel_signature" 
+                                    placeholder="输入频道落款内容，支持多行（用回车换行）"
+                                    :rows="4">
+                                </el-input>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    消息经过智能去除尾部内容后，会自动添加此落款到消息尾部
                                 </div>
                             </el-form-item>
                             <el-form-item>

@@ -410,6 +410,10 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, mounting Vue app...');
     const app = createApp(AuthApp);
     app.use(ElementPlus);
+    // 注册导航栏组件
+    if (window.NavBar) {
+        app.component('nav-bar', window.NavBar);
+    }
     app.mount('#app');
     console.log('Vue app mounted successfully');
 }); 

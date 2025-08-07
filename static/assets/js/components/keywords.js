@@ -3,7 +3,7 @@ const { ElMessage, ElMessageBox } = ElementPlus;
 
 // 使用全局MessageManager
 
-createApp({
+const keywordsApp = {
     data() {
         return {
             // 数据状态
@@ -355,4 +355,13 @@ createApp({
             window.location.href = '/';
         }
     }
-}).use(ElementPlus).mount('#app');
+};
+
+// 创建应用并注册组件
+const app = createApp(keywordsApp);
+app.use(ElementPlus);
+// 注册导航栏组件
+if (window.NavBar) {
+    app.component('nav-bar', window.NavBar);
+}
+app.mount('#app');

@@ -67,7 +67,8 @@ class MediaHandler:
                 "file_size": 0,
                 "file_name": None,
                 "mime_type": None,
-                "download_time": datetime.utcnow()
+                "download_time": datetime.utcnow(),
+                "hash": None  # 添加哈希字段
             }
             
             if isinstance(message.media, MessageMediaPhoto):
@@ -79,11 +80,17 @@ class MediaHandler:
                 # 下载图片
                 await client.download_media(message.media, file_path)
                 
+                # 计算文件哈希
+                file_hash = None
+                if file_path.exists():
+                    file_hash = await self._calculate_file_hash(str(file_path))
+                
                 media_info.update({
                     "file_path": str(file_path),
                     "file_name": file_name,
                     "file_size": file_path.stat().st_size if file_path.exists() else 0,
-                    "mime_type": "image/jpeg"
+                    "mime_type": "image/jpeg",
+                    "hash": file_hash
                 })
                 
                 logger.info(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
@@ -118,6 +125,12 @@ class MediaHandler:
                         original_name = attr.file_name
                         extension = os.path.splitext(original_name)[1] or extension
                         break
+                
+                # 检查是否为危险文件类型
+                dangerous_extensions = ['.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar', '.msi', '.dll', '.bin']
+                if extension.lower() in dangerous_extensions or (original_name and any(original_name.lower().endswith(ext) for ext in dangerous_extensions)):
+                    logger.warning(f"🚫 检测到危险文件类型: {original_name or extension}，跳过下载")
+                    return None
                         
                 file_name = f"{file_prefix}_{media_info['media_type']}{extension}"
                 file_path = self.temp_dir / file_name
@@ -130,12 +143,18 @@ class MediaHandler:
                 # 下载文件
                 await client.download_media(message.media, file_path)
                 
+                # 计算文件哈希
+                file_hash = None
+                if file_path.exists():
+                    file_hash = await self._calculate_file_hash(str(file_path))
+                
                 media_info.update({
                     "file_path": str(file_path),
                     "file_name": file_name,
                     "file_size": file_path.stat().st_size if file_path.exists() else 0,
                     "mime_type": mime_type,
-                    "original_name": original_name
+                    "original_name": original_name,
+                    "hash": file_hash
                 })
                 
                 logger.info(f"{media_info['media_type']}下载完成: {file_name} ({media_info['file_size']} bytes)")
@@ -251,13 +270,65 @@ class MediaHandler:
                 "file_size": stat.st_size,
                 "created_time": datetime.fromtimestamp(stat.st_ctime),
                 "modified_time": datetime.fromtimestamp(stat.st_mtime),
-                "exists": True
+                "exists": True,
+                "hash": await self._calculate_file_hash(file_path)
             }
             
         except Exception as e:
             logger.error(f"获取文件信息失败: {file_path}, 错误: {e}")
             return None
             
+    async def _calculate_file_hash(self, file_path: str) -> Optional[str]:
+        """
+        计算文件的SHA256哈希值
+        
+        Args:
+            file_path: 文件路径
+            
+        Returns:
+            文件哈希值
+        """
+        try:
+            hash_sha256 = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_sha256.update(chunk)
+            return hash_sha256.hexdigest()
+        except Exception as e:
+            logger.error(f"计算文件哈希失败: {file_path}, 错误: {e}")
+            return None
+    
+    async def process_media_group(self, media_list: List[Dict[str, Any]]) -> Optional[str]:
+        """
+        处理媒体组合并计算组合哈希
+        
+        Args:
+            media_list: 媒体信息列表
+            
+        Returns:
+            组合媒体的哈希值
+        """
+        try:
+            if not media_list:
+                return None
+            
+            # 收集所有媒体的哈希值
+            hash_list = []
+            for media in sorted(media_list, key=lambda x: x.get('message_id', 0)):
+                if media.get('hash'):
+                    hash_list.append(media['hash'])
+            
+            if hash_list:
+                # 将所有哈希值组合起来计算最终哈希
+                combined_hash_data = ''.join(hash_list)
+                return hashlib.sha256(combined_hash_data.encode()).hexdigest()
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"处理媒体组合哈希失败: {e}")
+            return None
+    
     async def get_storage_stats(self) -> Dict[str, Any]:
         """获取存储统计信息"""
         try:

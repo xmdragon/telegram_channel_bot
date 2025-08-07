@@ -98,6 +98,10 @@ class TelegramBot:
                 me = await self.client.get_me()
                 logger.info(f"✅ 客户端已成功连接，登录用户: {me.first_name} (@{me.username})")
                 
+                # 更新 auth_manager 的客户端实例，让系统监控器能正确检测状态
+                from app.telegram.auth import auth_manager
+                auth_manager.client = self.client
+                
                 # 启动媒体处理器
                 await media_handler.start()
                 
@@ -243,9 +247,27 @@ class TelegramBot:
                 if media_info:
                     media_type = media_info['media_type']
                     media_url = media_info['file_path']
+                elif message.media and hasattr(message.media, 'document'):
+                    # media_info 为 None 表示文件被拒绝（可能是危险文件）
+                    logger.warning(f"🚫 消息包含危险文件，自动过滤")
+                    return
             
-            # 内容过滤
+            # 内容过滤（包含智能去尾部）
+            logger.info(f"📝 开始内容过滤，原始内容长度: {len(content)} 字符")
             is_ad, filtered_content = await self.content_filter.filter_message(content)
+            
+            # 记录过滤结果
+            if len(filtered_content) < len(content):
+                logger.info(f"📝 内容过滤完成，过滤后长度: {len(filtered_content)} 字符，减少: {len(content) - len(filtered_content)} 字符")
+            else:
+                logger.info(f"📝 内容过滤完成，长度无变化: {len(filtered_content)} 字符")
+            
+            # 检查是否为纯广告（无新闻价值）
+            if self.content_filter.is_pure_advertisement(content):
+                logger.warning(f"🚫 检测到纯广告，自动拒绝: {content[:50]}...")
+                if media_info:
+                    await media_handler.cleanup_file(media_info['file_path'])
+                return
             
             # 如果是广告且配置了自动过滤，则跳过
             auto_filter_ads = await db_settings.get_auto_filter_ads()
@@ -320,6 +342,14 @@ class TelegramBot:
             
             # 准备消息内容（使用过滤后的内容）
             message_text = db_message.filtered_content or db_message.content
+            
+            # 记录智能去尾部效果
+            if db_message.filtered_content and len(db_message.filtered_content) < len(db_message.content or ""):
+                removed_chars = len(db_message.content) - len(db_message.filtered_content)
+                logger.info(f"📤 转发到审核群，智能去尾部已生效，减少 {removed_chars} 字符")
+            
+            # 在转发时添加频道落款
+            message_text = await self.content_filter.add_channel_signature(message_text)
             
             # 检查是否为组合消息
             if db_message.is_combined and db_message.media_group:
@@ -622,6 +652,79 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"清理消息文件时出错: {e}")
     
+    async def update_review_message(self, message: Message):
+        """更新审核群中的消息内容"""
+        try:
+            if not message.review_message_id:
+                logger.warning("消息没有审核群消息ID，无法更新")
+                return
+            
+            # 获取审核群ID
+            from app.services.telegram_link_resolver import link_resolver
+            review_group_id = await link_resolver.get_effective_group_id()
+            
+            if not review_group_id:
+                logger.error("未配置审核群ID或无法解析审核群链接")
+                return
+            
+            # 准备更新后的消息内容
+            # 注意：落款已经在API层面添加并保存到filtered_content中，这里直接使用
+            updated_content = message.filtered_content or message.content
+            
+            # 检查消息是否包含媒体
+            has_media = (message.media_type and message.media_url) or (message.is_combined and message.media_group)
+            
+            if has_media:
+                # 对于带媒体的消息，需要删除旧消息并重新发送
+                logger.info(f"消息包含媒体，需要重新发送到审核群")
+                
+                # 1. 删除旧的审核群消息
+                await self.delete_review_message(message.review_message_id)
+                
+                # 2. 重新发送到审核群
+                sent_message = None
+                
+                # 检查是否为组合消息
+                if message.is_combined and message.media_group:
+                    # 发送组合消息到审核群
+                    sent_message = await self._send_combined_message_to_review(review_group_id, message, updated_content)
+                elif message.media_type and message.media_url and os.path.exists(message.media_url):
+                    # 发送单个媒体消息到审核群
+                    sent_message = await self._send_single_media_to_review(review_group_id, message, updated_content)
+                else:
+                    # 媒体文件不存在，只发送文本
+                    logger.warning(f"媒体文件不存在: {message.media_url}")
+                    sent_message = await self.client.send_message(
+                        entity=int(review_group_id),
+                        message=updated_content
+                    )
+                
+                # 3. 更新数据库中的review_message_id
+                if sent_message:
+                    async with AsyncSessionLocal() as db:
+                        result = await db.execute(
+                            select(Message).where(Message.id == message.id)
+                        )
+                        db_message = result.scalar_one()
+                        if isinstance(sent_message, list):
+                            # 组合消息返回列表，保存第一个消息的ID
+                            db_message.review_message_id = sent_message[0].id
+                        else:
+                            db_message.review_message_id = sent_message.id
+                        await db.commit()
+                        logger.info(f"已更新审核群消息ID: {message.id} -> {db_message.review_message_id}")
+            else:
+                # 纯文本消息，直接编辑
+                await self.client.edit_message(
+                    entity=int(review_group_id),
+                    message=message.review_message_id,
+                    text=updated_content
+                )
+                logger.info(f"已更新审核群消息: {message.review_message_id}")
+            
+        except Exception as e:
+            logger.error(f"更新审核群消息失败: {e}")
+    
     async def delete_review_message(self, review_message_id: int):
         """删除审核群的消息"""
         try:
@@ -784,11 +887,12 @@ class TelegramBot:
                 logger.error(f"获取频道 {channel.channel_name} 实体失败: {e}")
                 return
             
-            # 采集历史消息
-            collected = 0
+            # 采集历史消息 - 先收集到列表，然后按时间顺序处理
+            collected_messages = []
             async for message in self.client.iter_messages(entity, limit=need_collect):
                 try:
-                    if not message or not message.text:
+                    # 修复：与实时监听保持一致，处理所有消息（包括纯媒体）
+                    if not message:
                         continue
                         
                     # 检查消息是否已存在
@@ -802,18 +906,37 @@ class TelegramBot:
                         if result.scalar_one_or_none():
                             continue  # 消息已存在，跳过
                     
+                    collected_messages.append(message)
+                    
+                    if len(collected_messages) >= need_collect:
+                        break
+                        
+                except Exception as e:
+                    logger.error(f"收集历史消息失败: {e}")
+                    continue
+            
+            # 按时间顺序（旧的在前）处理消息，这样媒体组能正确组合
+            collected_messages.reverse()
+            logger.info(f"收集到 {len(collected_messages)} 条历史消息，开始处理...")
+            
+            # 处理收集到的消息
+            collected = 0
+            for message in collected_messages:
+                try:
                     # 处理消息（包括媒体下载）
                     await self._process_and_save_message(message, channel.channel_id, is_history=True)
                     collected += 1
                     
                     if collected % 10 == 0:
-                        logger.info(f"已采集 {collected}/{need_collect} 条历史消息...")
+                        logger.info(f"已处理 {collected}/{len(collected_messages)} 条历史消息...")
                         
                 except Exception as e:
                     logger.error(f"处理历史消息失败: {e}")
                     continue
                     
-            logger.info(f"频道 {channel.channel_name} 历史消息采集完成，共采集 {collected} 条")
+            # 等待一小段时间，确保所有媒体组都处理完成
+            await asyncio.sleep(1)
+            logger.info(f"频道 {channel.channel_name} 历史消息采集完成，共处理 {collected} 条")
             
         except Exception as e:
             logger.error(f"采集频道 {channel.channel_name} 历史消息失败: {e}")
@@ -821,6 +944,19 @@ class TelegramBot:
     async def _process_and_save_message(self, message, channel_id: str, is_history: bool = False):
         """处理并保存消息（包括媒体处理和消息组合）"""
         try:
+            # 获取消息文本
+            content = message.text or message.message or ''
+            
+            # 先进行内容过滤（历史消息也需要过滤）
+            is_ad, filtered_content = await self.content_filter.filter_message(content)
+            
+            logger.info(f"📝 历史消息过滤: 原始长度={len(content)}, 过滤后长度={len(filtered_content)}, 是否广告={is_ad}")
+            
+            # 检查是否为纯广告（与实时监听保持一致）
+            if content and self.content_filter.is_pure_advertisement(content):
+                logger.warning(f"🚫 历史消息检测到纯广告，跳过: {content[:50]}...")
+                return
+            
             # 下载媒体文件（如果有）
             media_info = None
             if message.media:
@@ -828,11 +964,21 @@ class TelegramBot:
                     media_info = await media_handler.download_media(self.client, message, message.id)
                     if media_info:
                         logger.debug(f"媒体文件已下载: {media_info['file_path']}")
+                    elif message.media:
+                        # media_info 为 None 表示文件被拒绝（可能是危险文件）
+                        logger.warning(f"🚫 历史消息包含危险文件，跳过")
+                        return
                 except Exception as e:
                     logger.error(f"下载媒体文件失败: {e}")
             
-            # 使用消息组合器处理消息
-            combined_message = await message_grouper.process_message(message, channel_id, media_info)
+            # 使用消息组合器处理消息，传递过滤后的内容
+            # 历史消息采集使用批量模式
+            combined_message = await message_grouper.process_message(
+                message, channel_id, media_info,
+                filtered_content=filtered_content,
+                is_ad=is_ad,
+                is_batch=is_history  # 历史消息使用批量模式
+            )
             
             # 如果返回None，说明消息正在等待组合，暂时不处理
             if combined_message is None:
@@ -851,35 +997,132 @@ class TelegramBot:
     async def _save_processed_message(self, message_data: dict, channel_id: str, is_history: bool = False):
         """保存处理后的消息"""
         try:
-            # 内容过滤
-            is_ad, filtered_content = await self.content_filter.filter_message(message_data['content'])
+            # 检查是否已经有过滤后的内容（从message_grouper传递过来的）
+            if 'filtered_content' in message_data:
+                # 已经过滤过了，直接使用
+                filtered_content = message_data['filtered_content']
+                is_ad = message_data.get('is_ad', False)
+                logger.info(f"📝 使用预过滤内容，长度: {len(filtered_content)} 字符")
+            else:
+                # 未过滤，进行过滤（兼容旧的调用方式）
+                logger.info(f"📝 开始内容过滤，原始内容长度: {len(message_data.get('content', ''))} 字符")
+                if message_data.get('content'):
+                    logger.info(f"📝 内容预览: {message_data['content'][:100]}...")
+                
+                # 内容过滤
+                is_ad, filtered_content = await self.content_filter.filter_message(message_data['content'])
+                
+                # 对于组合消息，如果文本被判定为广告，保留原始内容供审核
+                # 避免出现只有媒体没有文本的情况
+                if message_data.get('is_combined') and is_ad and not filtered_content:
+                    logger.info(f"📝 组合消息被判定为广告，保留原始文本供审核")
+                    filtered_content = message_data['content']  # 保留原始内容
+                
+                # 添加过滤后的日志
+                if message_data.get('content') != filtered_content:
+                    logger.info(f"📝 内容过滤完成，长度变化: {len(message_data.get('content', ''))} -> {len(filtered_content)} 字符")
+                else:
+                    logger.info(f"📝 内容过滤完成，长度无变化: {len(filtered_content)} 字符")
             
-            # 如果是广告且配置了自动过滤，则跳过（仅适用于实时消息）
-            if not is_history:
-                auto_filter_ads = await db_settings.get_auto_filter_ads()
-                if is_ad and auto_filter_ads:
-                    logger.info(f"自动过滤广告消息: {message_data['content'][:50]}...")
+            # 初始化媒体哈希变量
+            media_hash = None
+            combined_media_hash = None
+            
+            # 如果是广告且配置了自动过滤，则跳过
+            auto_filter_ads = await db_settings.get_auto_filter_ads()
+            if is_ad and auto_filter_ads:
+                logger.info(f"{'历史' if is_history else '实时'}消息：自动过滤广告消息: {message_data.get('content', '')[:50]}...")
+                
+                # 清理已下载的媒体文件
+                if message_data.get('media_url') and os.path.exists(message_data['media_url']):
+                    await media_handler.cleanup_file(message_data['media_url'])
+                
+                # 对于组合消息，清理所有媒体文件
+                if message_data.get('is_combined') and message_data.get('combined_messages'):
+                    for msg in message_data['combined_messages']:
+                        if msg.get('media_info') and msg['media_info'].get('file_path'):
+                            if os.path.exists(msg['media_info']['file_path']):
+                                await media_handler.cleanup_file(msg['media_info']['file_path'])
+                
+                # 对于媒体组，清理所有媒体文件
+                if message_data.get('media_group'):
+                    for media_item in message_data['media_group']:
+                        if media_item.get('file_path') and os.path.exists(media_item['file_path']):
+                            await media_handler.cleanup_file(media_item['file_path'])
+                
+                return
+            
+            # 计算媒体哈希（先计算，再检查重复）
+            logger.info(f"📊 开始计算媒体哈希: is_combined={message_data.get('is_combined')}, media_type={message_data.get('media_type')}, media_url={message_data.get('media_url')}")
+            
+            # 单个媒体哈希
+            if message_data.get('media_type') and message_data.get('media_url'):
+                # 从文件计算哈希
+                media_hash = await media_handler._calculate_file_hash(message_data['media_url'])
+                logger.info(f"📊 单个媒体哈希计算完成: {media_hash}")
+            
+            # 组合媒体哈希
+            if message_data.get('is_combined'):
+                combined_media_list = []
+                
+                # 优先从media_group获取（新格式）
+                if message_data.get('media_group'):
+                    logger.info(f"📊 处理媒体组: {len(message_data['media_group'])} 个文件")
+                    for i, media_item in enumerate(message_data['media_group']):
+                        if media_item.get('file_path'):
+                            # 计算每个媒体文件的哈希
+                            file_hash = await media_handler._calculate_file_hash(media_item['file_path'])
+                            logger.info(f"📊 媒体{i+1}哈希: {file_hash} (文件: {media_item.get('file_path')})")
+                            if file_hash:
+                                combined_media_list.append({
+                                    'hash': file_hash,
+                                    'message_id': media_item.get('message_id', 0)
+                                })
+                # 兼容旧格式combined_messages
+                elif message_data.get('combined_messages'):
+                    logger.info(f"📊 处理旧格式组合消息: {len(message_data['combined_messages'])} 个")
+                    for msg in message_data['combined_messages']:
+                        if msg.get('media_info') and msg['media_info'].get('file_path'):
+                            # 计算每个媒体文件的哈希
+                            file_hash = await media_handler._calculate_file_hash(msg['media_info']['file_path'])
+                            if file_hash:
+                                combined_media_list.append({
+                                    'hash': file_hash,
+                                    'message_id': msg.get('message_id', 0)
+                                })
+                
+                if combined_media_list:
+                    combined_media_hash = await media_handler.process_media_group(combined_media_list)
+                    logger.info(f"📊 组合媒体哈希计算完成: {combined_media_hash}")
+                else:
+                    logger.warning("📊 没有有效的媒体文件用于计算组合哈希")
+            
+            # 使用整合的重复检测器（历史消息和实时消息都需要检测重复）
+            from app.services.duplicate_detector import DuplicateDetector
+            duplicate_detector = DuplicateDetector()
+            
+            async with AsyncSessionLocal() as check_db:
+                # 执行整合的重复检测
+                is_duplicate, original_msg_id, duplicate_type = await duplicate_detector.is_duplicate_message(
+                    source_channel=channel_id,
+                    media_hash=media_hash,
+                    combined_media_hash=combined_media_hash,
+                    content=message_data.get('content'),
+                    message_time=message_data.get('date') or datetime.now(),
+                    db=check_db
+                )
+                
+                if is_duplicate:
+                    logger.info(f"{'历史' if is_history else '实时'}消息：发现重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，跳过处理")
                     # 清理已下载的媒体文件
                     if message_data.get('media_url') and os.path.exists(message_data['media_url']):
                         await media_handler.cleanup_file(message_data['media_url'])
+                    # 清理组合消息的媒体文件
+                    if message_data.get('media_group'):
+                        for media_item in message_data['media_group']:
+                            if media_item.get('file_path') and os.path.exists(media_item['file_path']):
+                                await media_handler.cleanup_file(media_item['file_path'])
                     return
-                
-                # 检查是否为重复消息
-                from app.services.message_deduplicator import message_deduplicator
-                async with AsyncSessionLocal() as check_db:
-                    is_duplicate, original_msg_id = await message_deduplicator.is_duplicate(
-                        message_data['content'],
-                        channel_id,
-                        message_data.get('date') or datetime.now(),
-                        check_db
-                    )
-                    
-                    if is_duplicate:
-                        logger.info(f"发现重复消息，原始消息ID: {original_msg_id}，跳过处理")
-                        # 清理已下载的媒体文件
-                        if message_data.get('media_url') and os.path.exists(message_data['media_url']):
-                            await media_handler.cleanup_file(message_data['media_url'])
-                        return
             
             # 保存到数据库
             async with AsyncSessionLocal() as db:
@@ -892,6 +1135,9 @@ class TelegramBot:
                     grouped_id=str(message_data.get('grouped_id')) if message_data.get('grouped_id') else None,
                     is_combined=message_data.get('is_combined', False),
                     combined_messages=message_data.get('combined_messages'),
+                    # 添加媒体哈希字段
+                    media_hash=media_hash,
+                    combined_media_hash=combined_media_hash,
                     media_group=message_data.get('media_group'),
                     is_ad=is_ad,
                     filtered_content=filtered_content,

@@ -16,6 +16,7 @@
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/components/auth.js"></script>
 </head>
 <body>
@@ -26,17 +27,7 @@
         </div>
 
         <!-- 导航栏 -->
-        <div class="nav-bar">
-            <div class="nav-links">
-                <a href="/" class="nav-link">🏠 主控制台</a>
-                <a href="/config" class="nav-link">⚙️ 系统配置</a>
-                <a href="/status" class="nav-link">📊 系统状态</a>
-                <a href="/auth" class="nav-link active">🔐 Telegram登录</a>
-            </div>
-            <div class="nav-links">
-                <span style="color: #7fdbff; font-weight: 700;">认证状态: {{ authStatus }}</span>
-            </div>
-        </div>
+        <nav-bar></nav-bar>
 
         <div class="container">
             <div class="form-container">

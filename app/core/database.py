@@ -11,7 +11,7 @@ import asyncio
 from .config import settings
 
 # 创建异步数据库引擎 - 仅支持PostgreSQL
-engine = create_async_engine(settings.DATABASE_URL, echo=True)
+engine = create_async_engine(settings.DATABASE_URL, echo=False)
 
 AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
@@ -49,6 +49,10 @@ class Message(Base):
     # 过滤和处理
     is_ad = Column(Boolean, default=False)  # 是否为广告
     filtered_content = Column(Text)  # 过滤后内容
+    
+    # 媒体哈希用于检测重复
+    media_hash = Column(String, index=True)  # 媒体文件的哈希值
+    combined_media_hash = Column(String, index=True)  # 组合媒体的哈希值
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

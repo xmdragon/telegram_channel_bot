@@ -23,6 +23,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 减少不必要的日志输出
+logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)  # 只显示错误级别的SQL日志
+logging.getLogger('sqlalchemy.pool').setLevel(logging.ERROR)    # 关闭连接池日志
+logging.getLogger('sqlalchemy.orm').setLevel(logging.ERROR)     # 关闭ORM日志
+logging.getLogger('uvicorn.access').setLevel(logging.WARNING)   # 减少访问日志
+logging.getLogger('httpx').setLevel(logging.WARNING)            # 减少HTTP客户端日志
+logging.getLogger('telethon').setLevel(logging.WARNING)         # 减少Telethon日志
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
@@ -52,6 +60,10 @@ async def lifespan(app: FastAPI):
     scheduler = MessageScheduler()
     scheduler.start()
     
+    # 启动系统监控
+    from app.services.system_monitor import system_monitor
+    await system_monitor.start()
+    
     logger.info("系统启动完成")
     
     yield
@@ -59,6 +71,7 @@ async def lifespan(app: FastAPI):
     # 关闭时清理
     logger.info("正在关闭系统...")
     await bot.stop()
+    await system_monitor.stop()
     scheduler.shutdown()
 
 # 创建FastAPI应用
@@ -143,3 +156,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=False
+    )

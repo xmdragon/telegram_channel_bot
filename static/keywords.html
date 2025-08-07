@@ -21,18 +21,7 @@
         </div>
 
         <!-- 导航栏 -->
-        <div class="nav-bar">
-            <div class="nav-links">
-                <a href="/" class="nav-link">🏠 主控制台</a>
-                <a href="/config" class="nav-link">⚙️ 系统配置</a>
-                <a href="/keywords" class="nav-link active">🔍 关键词管理</a>
-                <a href="/status" class="nav-link">📊 系统状态</a>
-                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
-            </div>
-            <div class="nav-links">
-                <span style="color: #7fdbff; font-weight: 700;">关键词状态: {{ loading ? '加载中' : '正常' }}</span>
-            </div>
-        </div>
+        <nav-bar></nav-bar>
 
         <div class="container">
             <!-- 关键词管理标签页 -->
@@ -298,6 +287,7 @@
     <script src="assets/js/vue.prod.js?v=3"></script>
     <script src="assets/js/element-plus.js?v=3"></script>
     <script src="assets/js/axios.js?v=3"></script>
+    <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/message-manager.js?v=1"></script>
     <script src="assets/js/components/keywords.js?v=3"></script>
 </body>

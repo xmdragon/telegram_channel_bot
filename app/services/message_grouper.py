@@ -18,10 +18,13 @@ class MessageGrouper:
         self.group_timers: Dict[str, asyncio.Task] = {}  # 组合超时定时器
         self.group_timeout = 5  # 消息组合超时时间（秒）
     
-    async def process_message(self, message, channel_id: str, media_info: Optional[Dict] = None, filtered_content: Optional[str] = None, is_ad: bool = False) -> Optional[Dict]:
+    async def process_message(self, message, channel_id: str, media_info: Optional[Dict] = None, filtered_content: Optional[str] = None, is_ad: bool = False, is_batch: bool = False) -> Optional[Dict]:
         """
         处理消息，检查是否需要与其他消息组合
         返回完整的组合消息或None（如果消息还在等待组合）
+        
+        Args:
+            is_batch: 是否为批量处理模式（如历史消息采集），批量模式下会立即处理完整个组
         """
         try:
             # 提取消息基本信息
@@ -40,7 +43,12 @@ class MessageGrouper:
                 return await self._create_single_message(message_data, channel_id)
             
             # 有grouped_id，需要处理消息组合
-            return await self._handle_grouped_message(message_data, channel_id)
+            if is_batch:
+                # 批量模式，使用更短的超时或立即处理
+                return await self._handle_grouped_message_batch(message_data, channel_id)
+            else:
+                # 实时模式，使用正常的超时机制
+                return await self._handle_grouped_message(message_data, channel_id)
             
         except Exception as e:
             logger.error(f"处理消息组合时出错: {e}")
@@ -71,6 +79,58 @@ class MessageGrouper:
             'media_group': None,
             'date': message_data['date']
         }
+    
+    async def _handle_grouped_message_batch(self, message_data: Dict, channel_id: str) -> Optional[Dict]:
+        """批量模式下处理组合消息（用于历史消息采集）"""
+        grouped_id = str(message_data['grouped_id']) if message_data.get('grouped_id') else None
+        if not grouped_id:
+            return await self._create_single_message(message_data, channel_id)
+            
+        group_key = f"{channel_id}_{grouped_id}"
+        
+        # 检查是否已经处理过这个消息组
+        existing_combined = await self._get_existing_combined_message(channel_id, grouped_id)
+        if existing_combined:
+            logger.debug(f"消息组 {grouped_id} 已存在，跳过处理")
+            return None
+        
+        # 将消息添加到待处理组
+        if group_key not in self.pending_groups:
+            self.pending_groups[group_key] = []
+            # 批量模式下，设置短超时（0.5秒）
+            asyncio.create_task(self._process_batch_group_after_timeout(group_key, channel_id, 0.5))
+        
+        self.pending_groups[group_key].append(message_data)
+        logger.debug(f"批量模式：消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
+        
+        # 批量模式下返回None，等待短超时后处理
+        return None
+    
+    async def _process_batch_group_after_timeout(self, group_key: str, channel_id: str, timeout: float):
+        """批量模式下的超时处理"""
+        try:
+            await asyncio.sleep(timeout)
+            
+            if group_key not in self.pending_groups:
+                return
+            
+            messages = self.pending_groups[group_key]
+            if not messages:
+                return
+            
+            logger.info(f"批量处理消息组 {group_key}，共 {len(messages)} 条消息")
+            
+            # 创建组合消息
+            combined_message = await self._create_combined_message(messages, channel_id)
+            
+            # 保存组合消息到数据库
+            await self._save_combined_message(combined_message, channel_id)
+            
+            # 清理
+            del self.pending_groups[group_key]
+                
+        except Exception as e:
+            logger.error(f"批量处理消息组 {group_key} 时出错: {e}")
     
     async def _handle_grouped_message(self, message_data: Dict, channel_id: str) -> Optional[Dict]:
         """处理组合消息"""

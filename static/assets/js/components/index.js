@@ -30,7 +30,7 @@ const MainApp = {
                 channels: { value: 0, label: '监听频道' }
             },
             filters: {
-                status: '',
+                status: 'pending',
                 is_ad: null
             },
             previousMessageIds: new Set(),  // 存储之前加载的消息ID
@@ -125,6 +125,11 @@ const MainApp = {
                     
                     // 更新已知消息ID集合
                     this.previousMessageIds = currentMessageIds;
+                    
+                    // 强制Vue下一帧重新渲染，确保媒体URL被正确加载
+                    this.$nextTick(() => {
+                        console.log('消息列表已更新，触发媒体重新加载');
+                    });
                 } else {
                     this.messages = [];
                     console.warn('API返回格式异常:', response.data);
@@ -240,10 +245,15 @@ const MainApp = {
                 const response = await axios.post(`/api/messages/${messageId}/approve`);
                 if (response.data.success) {
                     MessageManager.success('消息已批准');
-                    // 本地更新消息状态
-                    const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
-                    if (messageIndex !== -1) {
-                        this.messages[messageIndex].status = 'approved';
+                    // 如果当前过滤器是待审核状态，从列表中移除已批准的消息
+                    if (this.filters.status === 'pending') {
+                        this.messages = this.messages.filter(msg => msg.id !== messageId);
+                    } else {
+                        // 本地更新消息状态
+                        const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
+                        if (messageIndex !== -1) {
+                            this.messages[messageIndex].status = 'approved';
+                        }
                     }
                     this.loadStats();
                 } else {
@@ -467,6 +477,14 @@ const MainApp = {
                 
                 // 刷新统计信息
                 this.loadStats();
+                
+                // 强制Vue重新渲染媒体元素
+                this.$nextTick(() => {
+                    // 确保媒体URL被正确加载
+                    if (messageData.media_display_url || messageData.media_group_display) {
+                        console.log('新消息包含媒体，触发重新渲染');
+                    }
+                });
             }
         },
 
@@ -484,8 +502,15 @@ const MainApp = {
         handleMessageStatusUpdate(updateData) {
             const messageIndex = this.messages.findIndex(msg => msg.id === updateData.message_id);
             if (messageIndex !== -1) {
-                this.messages[messageIndex].status = updateData.status;
-                console.log(`消息 ${updateData.message_id} 状态更新为: ${updateData.status}`);
+                // 如果当前过滤器是待审核，且消息状态变为已批准或已拒绝，从列表中移除
+                if (this.filters.status === 'pending' && 
+                    (updateData.status === 'approved' || updateData.status === 'rejected')) {
+                    this.messages.splice(messageIndex, 1);
+                    console.log(`消息 ${updateData.message_id} 已从列表中移除（状态: ${updateData.status}）`);
+                } else {
+                    this.messages[messageIndex].status = updateData.status;
+                    console.log(`消息 ${updateData.message_id} 状态更新为: ${updateData.status}`);
+                }
             }
         },
 
@@ -564,6 +589,10 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const app = createApp(MainApp);
         app.use(ElementPlus);
+        // 注册导航栏组件
+        if (window.NavBar) {
+            app.component('nav-bar', window.NavBar);
+        }
         app.mount('#app');
         console.log('Vue app mounted successfully');
     } catch (error) {

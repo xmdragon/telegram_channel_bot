@@ -10,6 +10,7 @@
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
 </head>
 <body>
     <div id="app">
@@ -19,17 +20,7 @@
         </div>
 
         <!-- 导航栏 -->
-        <div class="nav-bar">
-            <div class="nav-links">
-                <a href="/" class="nav-link">🏠 主控制台</a>
-                <a href="/config" class="nav-link">⚙️ 系统配置</a>
-                <a href="/status" class="nav-link active">📊 系统状态</a>
-                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
-            </div>
-            <div class="nav-links">
-                <span style="color: #7fdbff; font-weight: 700;">系统状态: {{ systemStatus }}</span>
-            </div>
-        </div>
+        <nav-bar></nav-bar>
 
         <div class="container">
             <!-- 系统状态网格 -->
@@ -104,7 +95,7 @@
         const { createApp } = Vue;
         const { ElMessage } = ElementPlus;
 
-        createApp({
+        const app = createApp({
             data() {
                 return {
                     loading: false,
@@ -121,16 +112,16 @@
                         disk: { value: '0 GB', label: '磁盘使用' }
                     },
                     services: [
-                        { name: 'Telegram Bot', description: '消息监听和转发服务', status: 'running' },
+                        { name: 'Telegram Bot', description: '消息监听和转发服务', status: 'stopped' },
                         { name: 'Web Server', description: 'Web界面服务', status: 'running' },
                         { name: 'Database', description: '数据库服务', status: 'running' },
                         { name: 'Message Processor', description: '消息处理服务', status: 'running' }
                     ],
                     systemInfo: {
                         version: { label: '系统版本', value: 'v1.0.0' },
-                        platform: { label: '运行平台', value: 'Linux x86_64' },
-                        python: { label: 'Python版本', value: '3.9.0' },
-                        database: { label: '数据库', value: 'SQLite 3.35.0' }
+                        platform: { label: '运行平台', value: 'Loading...' },
+                        python: { label: 'Python版本', value: 'Loading...' },
+                        database: { label: '数据库', value: 'PostgreSQL' }
                     }
                 }
             },
@@ -140,7 +131,7 @@
                 // 定期刷新状态
                 setInterval(() => {
                     this.loadSystemStatus();
-                }, 30000);
+                }, 10000);  // 每10秒刷新一次
             },
             
             methods: {
@@ -149,45 +140,83 @@
                     this.loadingMessage = '正在加载系统状态...';
                     
                     try {
-                        // 尝试获取系统状态，如果失败则使用模拟数据
-                        const response = await axios.get('/api/admin/config');
-                        if (response.data) {
-                            // 使用配置数据更新部分统计
-                            this.systemStats.messages.value = 1250; // 模拟数据
-                            this.systemStats.channels.value = 8; // 模拟数据
-                            this.systemStatus = '在线';
+                        // 获取真实系统状态
+                        const response = await axios.get('/api/system/status/detailed');
+                        if (response.data && response.data.success) {
+                            const data = response.data.data;
+                            
+                            // 更新系统统计
+                            this.systemStats.uptime.value = data.system.uptime;
+                            this.systemStats.messages.value = data.statistics.total_messages;
+                            this.systemStats.channels.value = data.statistics.source_channels;
+                            this.systemStats.memory.value = data.system.memory_mb;
+                            this.systemStats.cpu.value = data.system.cpu_percent + '%';
+                            this.systemStats.disk.value = data.system.disk_gb;
+                            
+                            // 更新服务状态
+                            this.services = [
+                                { 
+                                    name: 'Telegram Bot', 
+                                    description: '消息监听和转发服务', 
+                                    status: data.services.telegram_bot 
+                                },
+                                { 
+                                    name: 'Web Server', 
+                                    description: 'Web界面服务', 
+                                    status: data.services.web_server 
+                                },
+                                { 
+                                    name: 'Database', 
+                                    description: '数据库服务', 
+                                    status: data.services.database 
+                                },
+                                { 
+                                    name: 'Message Processor', 
+                                    description: '消息处理服务', 
+                                    status: data.services.message_processor 
+                                },
+                                {
+                                    name: 'System Monitor',
+                                    description: '系统监控服务',
+                                    status: data.services.system_monitor
+                                }
+                            ];
+                            
+                            // 更新系统信息
+                            this.systemInfo = {
+                                version: { label: '系统版本', value: 'v1.0.0' },
+                                platform: { label: '运行平台', value: data.system.platform },
+                                python: { label: 'Python版本', value: data.system.python_version },
+                                database: { label: '数据库', value: 'PostgreSQL' },
+                                telegram: { label: 'Telegram状态', value: data.telegram.status },
+                                telegram_user: { label: 'Telegram账号', value: data.telegram.user || '未登录' }
+                            };
+                            
+                            // 更新系统状态
+                            // 只有真正的系统错误才显示异常，Telegram未认证不算异常
+                            const criticalErrors = data.errors ? data.errors.filter(err => 
+                                !err.includes('Telegram未认证') && 
+                                !err.includes('Telegram客户端未初始化')
+                            ) : [];
+                            
+                            if (criticalErrors.length > 0) {
+                                this.systemStatus = '异常';
+                            } else if (data.warnings && data.warnings.length > 0) {
+                                this.systemStatus = '警告';
+                            } else if (data.telegram.connected) {
+                                this.systemStatus = '在线';
+                            } else if (!data.telegram.auth) {
+                                this.systemStatus = '未认证';
+                            } else {
+                                this.systemStatus = '离线';
+                            }
                         }
                     } catch (error) {
-                        console.log('使用模拟系统状态数据');
+                        console.error('获取系统状态失败:', error);
+                        // 如果API调用失败，保持当前数据
                     } finally {
-                        // 始终加载模拟数据
-                        this.loadMockData();
                         this.loading = false;
                     }
-                },
-                
-                loadMockData() {
-                    // 模拟数据
-                    this.systemStats.uptime.value = '2天 15小时';
-                    this.systemStats.messages.value = 1250;
-                    this.systemStats.channels.value = 8;
-                    this.systemStats.memory.value = '256 MB';
-                    this.systemStats.cpu.value = '15%';
-                    this.systemStats.disk.value = '2.5 GB';
-                    
-                    this.services = [
-                        { name: 'Telegram Bot', description: '消息监听和转发服务', status: 'running' },
-                        { name: 'Web Server', description: 'Web界面服务', status: 'running' },
-                        { name: 'Database', description: '数据库服务', status: 'running' },
-                        { name: 'Message Processor', description: '消息处理服务', status: 'running' }
-                    ];
-                    
-                    this.systemInfo = {
-                        version: { label: '系统版本', value: 'v1.0.0' },
-                        platform: { label: '运行平台', value: 'Linux x86_64' },
-                        python: { label: 'Python版本', value: '3.9.0' },
-                        database: { label: '数据库', value: 'SQLite 3.35.0' }
-                    };
                 },
                 
                 async refreshStatus() {
@@ -222,7 +251,13 @@
                     // 不显示错误消息，避免用户看到错误按钮
                 }
             }
-        }).mount('#app');
+        });
+        app.use(ElementPlus);
+        // 注册导航栏组件
+        if (window.NavBar) {
+            app.component('nav-bar', window.NavBar);
+        }
+        app.mount('#app');
     </script>
 </body>
 </html> 

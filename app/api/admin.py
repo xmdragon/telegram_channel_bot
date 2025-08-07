@@ -33,10 +33,26 @@ class ChannelUpdateRequest(BaseModel):
     config: Optional[dict] = None
 
 @router.get("/channels")
-async def get_channels(db: AsyncSession = Depends(get_db)):
-    """获取频道配置 - 只返回源频道"""
-    # 只查询源频道，排除目标频道和审核群
-    result = await db.execute(select(Channel).where(Channel.channel_type == "source"))
+async def get_channels(
+    search: Optional[str] = Query(None, description="搜索关键词，支持名称精准匹配或标题模糊匹配"),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取频道配置 - 只返回源频道，支持搜索"""
+    # 基础查询，只查询源频道
+    query = select(Channel).where(Channel.channel_type == "source")
+    
+    # 如果有搜索关键词，添加搜索条件
+    if search:
+        from sqlalchemy import or_
+        # 支持名称精准匹配或标题模糊匹配
+        query = query.where(
+            or_(
+                Channel.channel_name == search,  # 名称精准匹配
+                Channel.channel_title.ilike(f"%{search}%")  # 标题模糊匹配（不区分大小写）
+            )
+        )
+    
+    result = await db.execute(query)
     channels = result.scalars().all()
     
     # 按创建时间倒序排列，新添加的频道在最上面
@@ -234,6 +250,55 @@ async def delete_filter_rule(
     await db.commit()
     
     return {"message": "过滤规则删除成功"}
+
+@router.get("/search-channels")
+async def search_channels(
+    query: str = Query(..., description="搜索关键词"),
+    db: AsyncSession = Depends(get_db)
+):
+    """从数据库搜索已存在的频道"""
+    try:
+        from sqlalchemy import or_
+        from app.core.database import Channel
+        
+        # 搜索频道名称或标题包含关键词的频道
+        search_pattern = f"%{query}%"
+        result = await db.execute(
+            select(Channel).where(
+                or_(
+                    Channel.channel_name.ilike(search_pattern),
+                    Channel.channel_title.ilike(search_pattern)
+                )
+            )
+        )
+        channels = result.scalars().all()
+        
+        # 转换为返回格式
+        channel_list = []
+        for channel in channels:
+            channel_list.append({
+                'id': channel.channel_id,
+                'title': channel.channel_title or channel.channel_name,
+                'username': channel.channel_name.replace('@', '') if channel.channel_name and channel.channel_name.startswith('@') else channel.channel_name,
+                'channel_type': channel.channel_type,
+                'is_active': channel.is_active,
+                'description': channel.description
+            })
+        
+        return {
+            "success": True,
+            "channels": channel_list,
+            "count": len(channel_list),
+            "message": f"找到 {len(channel_list)} 个匹配的频道"
+        }
+            
+    except Exception as e:
+        logger.error(f"搜索频道失败: {e}")
+        return {
+            "success": False,
+            "message": f"搜索失败: {str(e)}",
+            "channels": []
+        }
 
 @router.post("/collect-history/{channel_id}")
 async def collect_channel_history(

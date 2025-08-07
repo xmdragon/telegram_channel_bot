@@ -9,6 +9,7 @@
     <script src="assets/js/vue.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
 </head>
 <body>
     <div id="app">
@@ -18,18 +19,7 @@
         </div>
 
         <!-- 导航栏 -->
-        <div class="nav-bar">
-            <div class="nav-links">
-                <a href="/" class="nav-link">🏠 主控制台</a>
-                <a href="/config" class="nav-link">⚙️ 系统配置</a>
-                <a href="/status" class="nav-link">📊 系统状态</a>
-                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
-                <a href="/admin" class="nav-link active">🔧 系统管理</a>
-            </div>
-            <div class="nav-links">
-                <span style="color: #7fdbff; font-weight: 700;">管理状态: {{ adminStatus }}</span>
-            </div>
-        </div>
+        <nav-bar></nav-bar>
 
         <div class="container">
             <!-- 系统状态 -->
@@ -67,7 +57,17 @@
                     <h2>📺 频道管理</h2>
                 </div>
                 <div class="card-content">
-                    <div style="margin-bottom: 20px;">
+                    <div style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center;">
+                        <el-input
+                            v-model="channelSearchKeyword"
+                            placeholder="搜索频道（名称精准匹配或标题模糊匹配）"
+                            clearable
+                            @input="searchChannels"
+                            style="max-width: 400px;">
+                            <template #prefix>
+                                <el-icon><Search /></el-icon>
+                            </template>
+                        </el-input>
                         <el-button @click="showAddChannelDialog = true" type="primary" icon="Plus">
                             添加频道
                         </el-button>
@@ -179,7 +179,7 @@
         const { createApp } = Vue;
         const { ElMessage } = ElementPlus;
 
-        createApp({
+        const app = createApp({
             data() {
                 return {
                     loading: false,
@@ -196,7 +196,8 @@
                     channels: [],
                     filterRules: [],
                     showAddChannelDialog: false,
-                    showAddRuleDialog: false
+                    showAddRuleDialog: false,
+                    channelSearchKeyword: ''
                 }
             },
             
@@ -214,10 +215,7 @@
                         await this.checkHealth();
                         
                         // 加载频道列表
-                        const channelsResponse = await axios.get('/api/admin/channels');
-                        if (channelsResponse.data.success) {
-                            this.channels = channelsResponse.data.channels;
-                        }
+                        await this.loadChannels();
                         
                         // 加载过滤规则
                         const rulesResponse = await axios.get('/api/admin/filter-rules');
@@ -302,6 +300,25 @@
                     } catch (error) {
                         this.showError('删除频道失败: ' + (error.response?.data?.detail || error.message));
                     }
+                },
+                
+                async loadChannels() {
+                    try {
+                        const params = {};
+                        if (this.channelSearchKeyword) {
+                            params.search = this.channelSearchKeyword;
+                        }
+                        const response = await axios.get('/api/admin/channels', { params });
+                        if (response.data.success) {
+                            this.channels = response.data.channels;
+                        }
+                    } catch (error) {
+                        this.showError('加载频道失败: ' + error.message);
+                    }
+                },
+                
+                async searchChannels() {
+                    await this.loadChannels();
                 },
                 
                 async editRule(rule) {
@@ -400,7 +417,13 @@
                     }, 5000);
                 }
             }
-        }).mount('#app');
+        });
+        app.use(ElementPlus);
+        // 注册导航栏组件
+        if (window.NavBar) {
+            app.component('nav-bar', window.NavBar);
+        }
+        app.mount('#app');
     </script>
 </body>
 </html>

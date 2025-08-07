@@ -18,6 +18,7 @@
     <script src="assets/js/vue.prod.js?v=2"></script>
     <script src="assets/js/element-plus.js?v=2"></script>
     <script src="assets/js/axios.js?v=2"></script>
+    <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/message-manager.js?v=1"></script>
     <script src="assets/js/components/index.js?v=2"></script>
 </head>
@@ -29,18 +30,7 @@
         </div>
 
         <!-- 导航栏 -->
-        <div class="nav-bar">
-            <div class="nav-links">
-                <a href="/" class="nav-link active">🏠 主控制台</a>
-                <a href="/config" class="nav-link">⚙️ 系统配置</a>
-                <a href="/keywords" class="nav-link">🔍 关键词管理</a>
-                <a href="/status" class="nav-link">📊 系统状态</a>
-                <a href="/auth" class="nav-link">🔐 Telegram登录</a>
-            </div>
-            <div class="nav-links">
-                <span style="color: #7fdbff; font-weight: 700;">系统状态: {{ systemStatus }}</span>
-            </div>
-        </div>
+        <nav-bar></nav-bar>
 
         <div class="stats-container">
             <!-- 统计面板 -->
@@ -115,6 +105,7 @@
                                 <div v-if="media.media_type === 'photo' && media.display_url" class="media-display">
                                     <img :src="media.display_url" 
                                          :alt="'图片 ' + index"
+                                         :key="`group-photo-${message.id}-${index}-${Date.now()}`"
                                          class="media-image group-media"
                                          @click="openMediaPreview(media.display_url)"
                                          @error="handleMediaError($event, message)">
@@ -123,6 +114,7 @@
                                 <!-- 视频 -->
                                 <div v-else-if="media.media_type === 'video' && media.display_url" class="media-display">
                                     <video :src="media.display_url" 
+                                           :key="`group-video-${message.id}-${index}-${Date.now()}`"
                                            class="media-video group-media" 
                                            controls
                                            preload="metadata"
@@ -135,6 +127,7 @@
                                 <div v-else-if="media.media_type === 'animation' && media.display_url" class="media-display">
                                     <img :src="media.display_url" 
                                          :alt="'动画 ' + index"
+                                         :key="`group-animation-${message.id}-${index}-${Date.now()}`"
                                          class="media-image group-media"
                                          @click="openMediaPreview(media.display_url)"
                                          @error="handleMediaError($event, message)">
@@ -169,6 +162,7 @@
                         <div v-if="message.media_type === 'photo' && message.media_display_url" class="media-display">
                             <img :src="message.media_display_url" 
                                  :alt="'图片 ' + message.id"
+                                 :key="`photo-${message.id}-${Date.now()}`"
                                  class="media-image"
                                  @click="openMediaPreview(message.media_display_url)"
                                  @error="handleMediaError($event, message)">
@@ -177,6 +171,7 @@
                         <!-- 视频显示 -->
                         <div v-else-if="message.media_type === 'video' && message.media_display_url" class="media-display">
                             <video :src="message.media_display_url" 
+                                   :key="`video-${message.id}-${Date.now()}`"
                                    class="media-video" 
                                    controls
                                    preload="metadata"
@@ -189,6 +184,7 @@
                         <div v-else-if="message.media_type === 'animation' && message.media_display_url" class="media-display">
                             <img :src="message.media_display_url" 
                                  :alt="'动画 ' + message.id"
+                                 :key="`animation-${message.id}-${Date.now()}`"
                                  class="media-image"
                                  @click="openMediaPreview(message.media_display_url)"
                                  @error="handleMediaError($event, message)">

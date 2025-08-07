@@ -122,21 +122,33 @@ class SystemMonitor:
             auth_status = await auth_manager.get_auth_status()
             authorized = auth_status.get('authorized', False)
             
-            if not authorized:
-                errors.append("Telegram未认证")
+            # 首先检查是否有客户端实例
+            if auth_manager.client:
+                # 有客户端，尝试检查连接状态
+                try:
+                    # 尝试获取当前用户信息来测试连接
+                    me = await auth_manager.client.get_me()
+                    connected = True
+                    authorized = True  # 能获取用户信息说明已认证
+                    logger.debug(f"Telegram连接正常，用户: {me.username or me.first_name}")
+                except Exception as e:
+                    # 连接失败，但不一定是未认证
+                    error_msg = str(e).lower()
+                    if 'flood' in error_msg:
+                        errors.append(f"Telegram API限流: {str(e)}")
+                    elif 'network' in error_msg or 'connection' in error_msg or 'timeout' in error_msg:
+                        errors.append(f"网络连接问题: {str(e)}")
+                    elif 'unauthorized' in error_msg or 'auth' in error_msg:
+                        errors.append("Telegram认证已失效，请重新登录")
+                    else:
+                        errors.append(f"Telegram连接异常: {str(e)}")
+                    connected = False
+            elif not authorized:
+                # 既没有客户端也没有认证
+                errors.append("Telegram未认证，请先完成登录")
             else:
-                # 检查连接状态
-                if auth_manager.client:
-                    try:
-                        # 尝试获取当前用户信息来测试连接
-                        me = await auth_manager.client.get_me()
-                        connected = True
-                        logger.debug(f"Telegram连接正常，用户: {me.username or me.first_name}")
-                    except Exception as e:
-                        errors.append(f"Telegram连接失败: {str(e)}")
-                        connected = False
-                else:
-                    errors.append("Telegram客户端未初始化")
+                # 有认证状态但没有客户端实例
+                errors.append("Telegram客户端未初始化")
                     
         except Exception as e:
             errors.append(f"检查Telegram认证出错: {str(e)}")
