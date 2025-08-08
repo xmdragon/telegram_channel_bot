@@ -221,6 +221,14 @@
                     <div class="message-time">
                         <span>🕰️ {{ formatTime(message.created_at) }}</span>
                         <span style="margin-left: 10px; color: #888;">#{{ message.message_id }}</span>
+                        <!-- 原消息链接 -->
+                        <a v-if="message.source_channel && message.message_id" 
+                           :href="getOriginalMessageLink(message)"
+                           target="_blank"
+                           class="original-link"
+                           style="margin-left: 15px; color: #00d4ff; text-decoration: none; font-size: 12px;">
+                            📎 查看原消息
+                        </a>
                     </div>
                     
                     <!-- 操作按钮 -->

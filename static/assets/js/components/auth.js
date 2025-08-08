@@ -30,7 +30,8 @@ const AuthApp = {
                 websocket: null,
                 connected: false,
                 savedAuthInfo: null,
-                showSavedInfo: false
+                showSavedInfo: false,
+                hasSavedSession: false
             }
         },
         
@@ -325,8 +326,11 @@ const AuthApp = {
                 if (data.has_saved_auth) {
                     this.showSavedInfo = true;
                     this.authStatus = '已保存认证信息';
+                    // 检查是否有有效的session
+                    this.hasSavedSession = data.has_session || false;
                 } else {
                     this.showSavedInfo = false;
+                    this.hasSavedSession = false;
                 }
             },
             
@@ -372,6 +376,22 @@ const AuthApp = {
                 } finally {
                     this.loading = false;
                 }
+            },
+            
+            async startReAuth() {
+                // 直接开始新的认证流程，无需清除现有session
+                this.showSavedInfo = false;
+                this.currentStep = 1;
+                this.authStatus = '重新认证';
+                this.errorMessage = '';
+                
+                // 如果有保存的API配置，预填充
+                if (this.savedAuthInfo) {
+                    this.config.api_id = this.savedAuthInfo.api_id || '';
+                    this.config.api_hash = this.savedAuthInfo.api_hash || '';
+                }
+                
+                ElMessage.info('开始重新认证流程');
             },
             
             resetForm() {

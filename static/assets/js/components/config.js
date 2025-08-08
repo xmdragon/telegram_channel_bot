@@ -170,12 +170,8 @@ const ConfigApp = {
                     const cachedGroupId = response.data.review_group_id_cached || '';
                     const cachedTargetChannelId = response.data.target_channel_id_cached || '';
                     
-                    // 如果有缓存的ID，显示格式为 "原配置 (ID: 缓存ID)"
-                    if (reviewGroup && cachedGroupId && reviewGroup !== cachedGroupId) {
-                        reviewGroup = `${reviewGroup} (ID: ${cachedGroupId})`;
-                    } else if (reviewGroup && !reviewGroup.startsWith('@') && !reviewGroup.startsWith('-') && !reviewGroup.includes('t.me')) {
-                        reviewGroup = '@' + reviewGroup;
-                    }
+                    // 保持原始格式，不进行修改
+                    // 只在页面上通过只读字段显示解析后的ID
                     
                     // 从系统配置中提取转发相关设置
                     this.forwardingConfig = {
@@ -427,6 +423,11 @@ const ConfigApp = {
                     targetChannel = '@' + targetChannel;
                 }
                 
+                // 在保存前先解析目标频道ID
+                if (targetChannel && !this.forwardingConfig.resolved_target_channel_id) {
+                    await this.updateTargetChannelId();
+                }
+                
                 // 处理审核群名称，智能格式化
                 let reviewGroup = this.forwardingConfig.review_group.trim();
                 // 如果是HTTP/HTTPS链接，保持原样
@@ -438,6 +439,11 @@ const ConfigApp = {
                 } else if (reviewGroup && !reviewGroup.startsWith('@') && !reviewGroup.startsWith('-') && !reviewGroup.includes('t.me')) {
                     // 如果不是链接且不是ID，添加@符号
                     reviewGroup = '@' + reviewGroup;
+                }
+                
+                // 在保存前先解析审核群ID
+                if (reviewGroup && !this.forwardingConfig.resolved_group_id) {
+                    await this.updateReviewGroupId();
                 }
                 
                 // console.log('保存转发配置:', {
@@ -452,6 +458,8 @@ const ConfigApp = {
                 const configData = {
                     'channels.target_channel_id': targetChannel,
                     'channels.review_group_id': reviewGroup,
+                    'channels.target_channel_id_cached': this.forwardingConfig.resolved_target_channel_id || '',
+                    'channels.review_group_id_cached': this.forwardingConfig.resolved_group_id || '',
                     'review.auto_forward_delay': this.forwardingConfig.delay
                 };
                 

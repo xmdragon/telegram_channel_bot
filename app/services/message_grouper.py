@@ -16,7 +16,8 @@ class MessageGrouper:
     def __init__(self):
         self.pending_groups: Dict[str, List[Dict]] = {}  # 待处理的消息组
         self.group_timers: Dict[str, asyncio.Task] = {}  # 组合超时定时器
-        self.group_timeout = 5  # 消息组合超时时间（秒）
+        self.group_timeout = 10  # 消息组合超时时间（秒）- 统一使用10秒
+        self.telegram_messages: Dict[str, Any] = {}  # 保存原始Telegram消息对象，用于异步下载
     
     async def process_message(self, message, channel_id: str, media_info: Optional[Dict] = None, filtered_content: Optional[str] = None, is_ad: bool = False, is_batch: bool = False) -> Optional[Dict]:
         """
@@ -97,13 +98,13 @@ class MessageGrouper:
         # 将消息添加到待处理组
         if group_key not in self.pending_groups:
             self.pending_groups[group_key] = []
-            # 批量模式下，设置短超时（0.5秒）
-            asyncio.create_task(self._process_batch_group_after_timeout(group_key, channel_id, 0.5))
+            # 批量模式下，使用统一的超时时间
+            asyncio.create_task(self._process_batch_group_after_timeout(group_key, channel_id, self.group_timeout))
         
         self.pending_groups[group_key].append(message_data)
         logger.debug(f"批量模式：消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
         
-        # 批量模式下返回None，等待短超时后处理
+        # 批量模式下返回None，等待超时后处理
         return None
     
     async def _process_batch_group_after_timeout(self, group_key: str, channel_id: str, timeout: float):
@@ -217,17 +218,25 @@ class MessageGrouper:
         
         for msg in messages:
             content = msg.get('content') or ''
-            filtered_content = msg.get('filtered_content') or ''
+            filtered_content = msg.get('filtered_content')
             
+            # 始终保存原始内容
             if content.strip():
                 all_texts.append(content)
-            if filtered_content.strip():
+            
+            # 如果有过滤后的内容，使用过滤后的；否则使用原始内容
+            if filtered_content and filtered_content.strip():
                 all_filtered_texts.append(filtered_content)
+            elif content.strip():
+                all_filtered_texts.append(content)
+            
+            # 如果组内任何一条消息被判定为广告，整组都标记为广告
             if msg.get('is_ad'):
                 is_ad = True
+                logger.info(f"🚫 消息组中检测到广告，整组标记为广告")
         
         combined_content = '\n'.join(all_texts) if all_texts else ""
-        combined_filtered_content = '\n'.join(all_filtered_texts) if all_filtered_texts else combined_content
+        combined_filtered_content = '\n'.join(all_filtered_texts) if all_filtered_texts else ""
         
         # 提取所有媒体信息
         media_group = []
@@ -239,11 +248,15 @@ class MessageGrouper:
                 media_group.append({
                     'message_id': msg['message_id'],
                     'media_type': media_info['media_type'],
-                    'file_path': media_info['file_path'],
+                    'file_path': media_info.get('file_path'),  # 可能为None（下载失败）
                     'file_size': media_info.get('file_size'),
-                    'mime_type': media_info.get('mime_type')
+                    'mime_type': media_info.get('mime_type'),
+                    'download_failed': media_info.get('download_failed', False),
+                    'error': media_info.get('error')
                 })
-                media_types.add(media_info['media_type'])
+                # 只有成功下载的媒体才计入类型统计
+                if not media_info.get('download_failed'):
+                    media_types.add(media_info['media_type'])
         
         # 确定主要媒体类型
         if len(media_types) == 1:
@@ -350,6 +363,8 @@ class MessageGrouper:
                 await db.refresh(db_message)
                 
                 logger.info(f"组合消息已保存: ID={db_message.id}, grouped_id={combined_message['grouped_id']}, 包含 {len(combined_message.get('combined_messages', []))} 条消息")
+                
+                # 媒体已经同步下载完成，无需额外处理
                 
                 # 转发到审核群（延迟导入避免循环引用）
                 try:

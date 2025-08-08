@@ -41,8 +41,14 @@ class TelegramClientManager:
             api_hash = await self.config_manager.get_config("telegram.api_hash") 
             session_string = await self.config_manager.get_config("telegram.session")
             
-            if not all([api_id, api_hash, session_string]):
-                logger.warning("缺少Telegram认证信息，等待用户认证")
+            # 检查认证信息，session_string必须是有效的session，而不仅仅是非空字符串
+            if not all([api_id, api_hash]) or not session_string or session_string == "":
+                logger.warning("缺少Telegram认证信息，请通过Web界面进行认证")
+                return False
+            
+            # 验证session_string格式（StringSession通常以1开头且长度较长）
+            if len(session_string) < 100 or not session_string.startswith('1'):
+                logger.warning("Telegram session无效或未认证，请通过Web界面进行认证")
                 return False
             
             logger.info(f"准备连接Telegram客户端，API ID: {api_id}")

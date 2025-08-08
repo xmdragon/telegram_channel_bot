@@ -189,29 +189,47 @@ class HistoryCollector:
             
             logger.info(f"开始采集频道 {channel_id} 历史消息，目标 {limit} 条")
             
+            # 收集所有消息，按组分批处理
+            all_messages = []
             async for message in telegram_bot.client.iter_messages(entity, limit=limit):
                 try:
                     # 检查任务是否被取消
                     if asyncio.current_task().cancelled():
                         progress.status = 'paused'
                         return
-                        
-                    # 处理消息
-                    await self._process_history_message(message, channel_id)
-                    collected += 1
-                    progress.collected_messages = collected
                     
-                    # 每采集一批休息一下，避免被限制
-                    if collected % batch_size == 0:
-                        logger.info(f"频道 {channel_id} 已采集 {collected}/{limit} 条消息")
-                        await asyncio.sleep(1)  # 1秒间隔
-                        
+                    all_messages.append(message)
+                    
                 except FloodWaitError as e:
                     logger.warning(f"遇到频率限制，等待 {e.seconds} 秒")
                     await asyncio.sleep(e.seconds)
                 except Exception as e:
-                    logger.error(f"处理消息时出错: {e}")
+                    logger.error(f"收集消息时出错: {e}")
                     continue
+            
+            # 反转消息列表，从旧到新处理（保持正确的时间顺序）
+            all_messages.reverse()
+            
+            # 识别并分组消息
+            message_groups = await self._group_messages(all_messages)
+            
+            # 处理每个消息组
+            for group in message_groups:
+                # 批量处理同组的消息
+                for msg in group:
+                    await self._process_history_message(msg, channel_id)
+                    collected += 1
+                    progress.collected_messages = collected
+                
+                # 如果是组合消息，给额外时间完成处理
+                if len(group) > 1:
+                    logger.info(f"处理组合消息，包含 {len(group)} 条")
+                    await asyncio.sleep(5)  # 给组合消息充足时间
+                
+                # 每处理20条消息休息一下
+                if collected % batch_size == 0:
+                    logger.info(f"频道 {channel_id} 已采集 {collected}/{limit} 条消息")
+                    await asyncio.sleep(1)  # 避免频率限制
                     
             # 采集完成
             progress.status = 'completed'
@@ -282,12 +300,15 @@ class HistoryCollector:
             
             # 使用实时消息相同的处理流程
             # process_source_message会：
-            # 1. 下载媒体文件
+            # 1. 创建媒体占位符（不立即下载）
             # 2. 过滤内容
-            # 3. 保存到数据库（状态为pending）
-            # 4. 转发到审核群
-            # 5. 广播WebSocket更新
+            # 3. 保存到数据库（状态为auto_forwarded）
+            # 4. 添加到异步下载队列
+            # 5. 不转发到审核群（历史消息不需要审核）
             await telegram_bot.process_source_message(tl_message, entity)
+            
+            # 历史消息需要异步下载媒体
+            # 注意：这个功能需要在process_source_message中实现
             
             logger.debug(f"历史消息 {tl_message.id} 已通过标准流程处理")
                 
@@ -311,6 +332,41 @@ class HistoryCollector:
             logger.error(f"检查消息是否存在失败: {e}")
             return False
             
+    async def _group_messages(self, messages: List[Any]) -> List[List[Any]]:
+        """将消息按组分组，确保同组消息一起处理"""
+        groups = []
+        current_group = []
+        current_group_id = None
+        
+        for msg in messages:
+            # 获取消息的grouped_id
+            msg_group_id = getattr(msg, 'grouped_id', None)
+            
+            if msg_group_id:
+                # 如果是组合消息
+                if msg_group_id == current_group_id:
+                    # 同一组，添加到当前组
+                    current_group.append(msg)
+                else:
+                    # 新的组
+                    if current_group:
+                        groups.append(current_group)
+                    current_group = [msg]
+                    current_group_id = msg_group_id
+            else:
+                # 独立消息
+                if current_group:
+                    groups.append(current_group)
+                    current_group = []
+                    current_group_id = None
+                groups.append([msg])
+        
+        # 添加最后一组
+        if current_group:
+            groups.append(current_group)
+        
+        return groups
+    
     async def auto_collect_for_new_channels(self):
         """为新添加的频道自动采集历史消息"""
         try:

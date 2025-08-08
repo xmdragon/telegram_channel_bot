@@ -78,12 +78,12 @@ class TelethonAuthManager:
                 "api_hash": api_hash
             }
             
-            # 使用start()方法，这是参考实现使用的方式
-            logger.info("开始启动Telethon客户端...")
+            # 连接客户端但不启动（避免进入交互模式）
+            logger.info("连接Telethon客户端...")
             try:
-                # 使用非交互式的start方法
-                await self.client.start()
-                logger.info("Telethon客户端启动成功")
+                # 只连接，不调用start()以避免交互模式
+                await self.client.connect()
+                logger.info("Telethon客户端连接成功")
                 
                 # 检查授权状态
                 is_authorized = await self.client.is_user_authorized()
@@ -369,8 +369,12 @@ class TelethonAuthManager:
             api_hash = await self.config_manager.get_config("telegram.api_hash")
             session_string = await self.config_manager.get_config("telegram.session")
             
+            # 检查session是否有效（StringSession格式）
+            has_valid_session = bool(session_string and len(session_string) > 100 and session_string.startswith('1'))
+            
             return {
-                "has_saved_auth": bool(api_id and api_hash and session_string),
+                "has_saved_auth": bool(api_id and api_hash),
+                "has_session": has_valid_session,
                 "api_id": api_id if api_id else "",
                 "api_hash": api_hash if api_hash else "",
                 "session": session_string if session_string else ""
@@ -379,6 +383,7 @@ class TelethonAuthManager:
             logger.error(f"获取认证信息失败: {e}")
             return {
                 "has_saved_auth": False,
+                "has_session": False,
                 "api_id": "",
                 "api_hash": "", 
                 "session": ""

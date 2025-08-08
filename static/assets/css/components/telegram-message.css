@@ -358,6 +358,30 @@
     margin-bottom: 8px;
 }
 
+/* 原消息链接样式 */
+.original-link {
+    color: #00d4ff !important;
+    text-decoration: none !important;
+    font-size: 12px;
+    margin-left: 15px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0, 212, 255, 0.1);
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.original-link:hover {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00ff41 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
+}
+
+.original-link:active {
+    transform: translateY(0);
+}
+
 /* 选中状态 */
 .telegram-message.selected {
     border-color: #00ff41;

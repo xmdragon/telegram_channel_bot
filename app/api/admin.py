@@ -373,6 +373,7 @@ async def get_system_config():
         "review_group_id": await db_settings.get_review_group_id(),
         "review_group_id_cached": await config_manager.get_config('channels.review_group_id_cached', ''),
         "target_channel_id": await db_settings.get_target_channel_id(),
+        "target_channel_id_cached": await config_manager.get_config('channels.target_channel_id_cached', ''),
         "history_message_limit": await db_settings.get_history_message_limit(),
         "ad_keywords": await db_settings.get_ad_keywords_text(),
         "channel_replacements": await db_settings.get_channel_replacements(),

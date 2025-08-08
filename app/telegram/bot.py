@@ -144,38 +144,114 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"处理消息时出错: {e}")
     
-    async def process_source_message(self, message: TLMessage, chat):
-        """处理源频道消息 - 保持原有接口"""
+    async def _common_message_processing(self, message: TLMessage, channel_id: str, is_history: bool = False):
+        """
+        通用消息处理逻辑
+        
+        Args:
+            message: Telegram消息对象
+            channel_id: 频道ID（已格式化）
+            is_history: 是否为历史消息
+            
+        Returns:
+            处理后的消息数据字典，如果消息被过滤则返回None
+        """
         try:
             # 提取消息内容
-            content = message.text or message.raw_text or ""
+            content = message.text or message.raw_text or message.message or ""
             media_type = None
             media_url = None
             media_info = None
             
-            # 处理媒体消息 - 下载到本地
+            # 处理媒体消息 - 同步下载到本地
             if message.media:
                 if hasattr(message.media, 'photo'):
                     media_type = "photo"
                 elif hasattr(message.media, 'document'):
                     media_type = "document"
                     
-                # 下载媒体文件
-                media_info = await media_handler.download_media(self.client, message, message.id)
-                if media_info:
-                    media_type = media_info['media_type']
-                    media_url = media_info['file_path']
-                elif message.media and hasattr(message.media, 'document'):
-                    # media_info 为 None 表示文件被拒绝（可能是危险文件）
-                    logger.warning(f"🚫 消息包含危险文件，自动过滤")
-                    return
+                # 下载媒体文件（视频120秒，图片30秒）
+                try:
+                    # 根据媒体类型设置超时时间
+                    if media_type == "photo":
+                        timeout = 30.0  # 图片30秒
+                    elif media_type == "document" and hasattr(message.media, 'document'):
+                        # 检查是否为视频
+                        document = message.media.document
+                        mime_type = document.mime_type or ""
+                        if mime_type.startswith("video/"):
+                            timeout = 120.0  # 视频120秒
+                        else:
+                            timeout = 60.0  # 其他文档60秒
+                    else:
+                        timeout = 60.0  # 默认60秒
+                    
+                    media_info = await media_handler.download_media(self.client, message, message.id, timeout=timeout)
+                    
+                    if media_info:
+                        media_type = media_info['media_type']
+                        media_url = media_info['file_path']
+                        logger.info(f"✅ 媒体下载成功: {media_url}")
+                    elif message.media and hasattr(message.media, 'document'):
+                        # media_info 为 None 表示文件被拒绝（可能是危险文件）
+                        document = message.media.document
+                        mime_type = document.mime_type or "application/octet-stream"
+                        # 检查是否为危险文件
+                        dangerous_extensions = ['.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar', '.msi', '.dll', '.bin']
+                        is_dangerous = False
+                        for attr in document.attributes:
+                            if hasattr(attr, 'file_name') and attr.file_name:
+                                if any(attr.file_name.lower().endswith(ext) for ext in dangerous_extensions):
+                                    is_dangerous = True
+                                    break
+                        
+                        if is_dangerous:
+                            logger.warning(f"🚫 消息包含危险文件，自动过滤")
+                            return None
+                        else:
+                            # 不是危险文件，只是下载超时，创建占位信息
+                            logger.warning(f"⏳ 媒体下载超时（{timeout}秒），创建占位信息 (message_id={message.id})")
+                            media_info = {
+                                'message_id': message.id,
+                                'media_type': media_type or "document",
+                                'file_path': None,
+                                'file_size': 0,
+                                'download_failed': True,
+                                'timeout': timeout
+                            }
+                    else:
+                        # 其他下载失败情况，创建占位信息
+                        logger.warning(f"⏳ 媒体下载失败（超时{timeout}秒） (message_id={message.id})")
+                        media_info = {
+                            'message_id': message.id,
+                            'media_type': media_type,
+                            'file_path': None,
+                            'file_size': 0,
+                            'download_failed': True,
+                            'timeout': timeout
+                        }
+                except Exception as e:
+                    logger.error(f"下载媒体异常 (message_id={message.id}): {e}")
+                    # 创建占位信息
+                    media_info = {
+                        'message_id': message.id,
+                        'media_type': media_type,
+                        'file_path': None,
+                        'file_size': 0,
+                        'download_failed': True,
+                        'error': str(e)
+                    }
             
             # 内容过滤（包含智能去尾部）
             logger.info(f"📝 开始内容过滤，原始内容长度: {len(content)} 字符")
-            is_ad, filtered_content = await self.content_filter.filter_message(content)
+            is_ad, filtered_content, filter_reason = await self.content_filter.filter_message(content)
             
-            # 记录过滤结果
-            if len(filtered_content) < len(content):
+            # 记录过滤结果和原因
+            if filter_reason == "tail_only":
+                logger.info(f"📝 内容过滤完成：文本完全是尾部推广，已过滤")
+            elif filter_reason == "ad_filtered":
+                logger.info(f"📝 内容过滤完成：检测到广告内容")
+            elif filter_reason == "normal":
                 logger.info(f"📝 内容过滤完成，过滤后长度: {len(filtered_content)} 字符，减少: {len(content) - len(filtered_content)} 字符")
             else:
                 logger.info(f"📝 内容过滤完成，长度无变化: {len(filtered_content)} 字符")
@@ -183,29 +259,82 @@ class TelegramBot:
             # 检查是否为纯广告（无新闻价值）
             if self.content_filter.is_pure_advertisement(content):
                 logger.warning(f"🚫 检测到纯广告，自动拒绝: {content[:50]}...")
-                if media_info:
+                if media_info and media_info.get('file_path'):
                     await media_handler.cleanup_file(media_info['file_path'])
-                return
+                return None
+            
+            # 处理文本被完全过滤的情况
+            if content and not filtered_content:
+                if filter_reason == "tail_only":
+                    # 文本完全是尾部推广
+                    if media_info:
+                        # 有媒体，保留媒体，文本为空
+                        logger.info(f"ℹ️ 媒体消息的文本为纯尾部推广，已过滤，保留媒体")
+                        filtered_content = ""  # 文本为空，但保留媒体
+                        # 继续处理，不返回None
+                    else:
+                        # 纯文本且完全是尾部，可能是只发了推广信息
+                        logger.info(f"ℹ️ 纯文本消息完全是尾部推广，已过滤")
+                        # 这种情况通常不需要采集，但不是广告
+                        return None
+                else:
+                    # 其他原因导致文本为空（如广告过滤）
+                    logger.warning(f"🚫 文本被完全过滤（原因: {filter_reason}），拒绝消息")
+                    if media_info and media_info.get('file_path'):
+                        await media_handler.cleanup_file(media_info['file_path'])
+                    return None
             
             # 如果是广告且配置了自动过滤，则跳过
             auto_filter_ads = await db_settings.get_auto_filter_ads()
             if is_ad and auto_filter_ads:
                 logger.info(f"自动过滤广告消息: {content[:50]}...")
-                if media_info:
+                if media_info and media_info.get('file_path'):
                     await media_handler.cleanup_file(media_info['file_path'])
-                return
+                return None
             
             # 检查是否为空消息（没有内容也没有媒体）
             if not filtered_content and not media_info:
                 logger.warning(f"🚫 消息无内容也无媒体，自动跳过")
-                return
+                return None
             
-            # 保存到数据库 - 使用统一的ID格式
+            # 返回处理后的消息数据
+            return {
+                'message': message,
+                'content': content,
+                'filtered_content': filtered_content,
+                'is_ad': is_ad,
+                'media_info': media_info,
+                'channel_id': channel_id
+            }
+            
+        except Exception as e:
+            logger.error(f"通用消息处理失败: {e}")
+            # 清理可能已下载的媒体
+            if 'media_info' in locals() and media_info and media_info.get('file_path'):
+                await media_handler.cleanup_file(media_info['file_path'])
+            return None
+    
+    async def process_source_message(self, message: TLMessage, chat):
+        """处理源频道消息 - 保持原有接口"""
+        try:
+            
+            # 获取格式化的频道ID
             raw_chat_id = chat.id
             if raw_chat_id > 0:
                 channel_id = f"-100{raw_chat_id}"
             else:
                 channel_id = str(raw_chat_id)
+            
+            # 使用通用处理逻辑
+            processed_data = await self._common_message_processing(message, channel_id, is_history=False)
+            if not processed_data:
+                return  # 消息被过滤
+            
+            # 提取处理后的数据
+            content = processed_data['content']
+            filtered_content = processed_data['filtered_content']
+            is_ad = processed_data['is_ad']
+            media_info = processed_data['media_info']
             
             # 使用message_grouper处理可能的组合消息
             combined_message = await message_grouper.process_message(
@@ -486,32 +615,16 @@ class TelegramBot:
     async def _process_and_save_message(self, message, channel_id: str, is_history: bool = False):
         """处理并保存消息（用于历史消息采集）"""
         try:
-            # 获取消息文本
-            content = message.text or message.message or ''
+            # 使用通用处理逻辑
+            processed_data = await self._common_message_processing(message, channel_id, is_history=True)
+            if not processed_data:
+                return  # 消息被过滤
             
-            # 先进行内容过滤（历史消息也需要过滤）
-            is_ad, filtered_content = await self.content_filter.filter_message(content)
-            
-            logger.info(f"📝 历史消息过滤: 原始长度={len(content)}, 过滤后长度={len(filtered_content)}, 是否广告={is_ad}")
-            
-            # 检查是否为纯广告（与实时监听保持一致）
-            if content and self.content_filter.is_pure_advertisement(content):
-                logger.warning(f"🚫 历史消息检测到纯广告，跳过: {content[:50]}...")
-                return
-            
-            # 下载媒体文件（如果有）
-            media_info = None
-            if message.media:
-                try:
-                    media_info = await media_handler.download_media(self.client, message, message.id)
-                    if media_info:
-                        logger.debug(f"媒体文件已下载: {media_info['file_path']}")
-                    elif message.media:
-                        # media_info 为 None 表示文件被拒绝（可能是危险文件）
-                        logger.warning(f"🚫 历史消息包含危险文件，跳过")
-                        return
-                except Exception as e:
-                    logger.error(f"下载媒体文件失败: {e}")
+            # 提取处理后的数据
+            content = processed_data['content']
+            filtered_content = processed_data['filtered_content']
+            is_ad = processed_data['is_ad']
+            media_info = processed_data['media_info']
             
             # 使用消息组合器处理消息，传递过滤后的内容
             # 历史消息采集使用批量模式
@@ -690,12 +803,11 @@ class TelegramBot:
                 await db.commit()
                 await db.refresh(db_message)
                 
-                # 如果不是历史消息，转发到审核群
-                if not is_history:
-                    await self.forward_to_review(db_message)
-                    
-                    # 广播新消息到WebSocket客户端
-                    await self._broadcast_new_message(db_message)
+                # 转发到审核群（历史消息和实时消息都需要审核）
+                await self.forward_to_review(db_message)
+                
+                # 广播新消息到WebSocket客户端
+                await self._broadcast_new_message(db_message)
                     
         except Exception as e:
             logger.error(f"保存处理后的消息失败: {e}")

@@ -272,12 +272,15 @@
                             <el-form-item label="目标频道">
                                 <el-input v-model="forwardingConfig.target_channel" placeholder="输入目标频道名称（支持带@或不带@）" @blur="updateTargetChannelId"></el-input>
                             </el-form-item>
-                            <el-form-item label="解析的频道ID" v-if="forwardingConfig.resolved_target_channel_id">
-                                <el-input :value="forwardingConfig.resolved_target_channel_id" readonly>
+                            <el-form-item label="目标频道ID">
+                                <el-input :value="forwardingConfig.resolved_target_channel_id || '未解析'" readonly>
                                     <template #prepend>
                                         <el-icon><InfoFilled /></el-icon>
                                     </template>
                                 </el-input>
+                                <div class="form-hint">
+                                    <small>此ID由系统自动解析生成，不可手动修改</small>
+                                </div>
                             </el-form-item>
                             <el-form-item label="审核群">
                                 <el-input v-model="forwardingConfig.review_group" placeholder="输入审核群链接、ID或用户名" @blur="updateReviewGroupId">
@@ -289,12 +292,15 @@
                                     <small>支持群链接（如：https://t.me/+xxx）、群ID（如：-1001234567890）或群用户名（如：@review_group）。</small>
                                 </div>
                             </el-form-item>
-                            <el-form-item label="解析的群ID" v-if="forwardingConfig.resolved_group_id">
-                                <el-input :value="forwardingConfig.resolved_group_id" readonly>
+                            <el-form-item label="审核群ID">
+                                <el-input :value="forwardingConfig.resolved_group_id || '未解析'" readonly>
                                     <template #prepend>
                                         <el-icon><InfoFilled /></el-icon>
                                     </template>
                                 </el-input>
+                                <div class="form-hint">
+                                    <small>此ID由系统自动解析生成，不可手动修改</small>
+                                </div>
                             </el-form-item>
                             <el-form-item label="转发延迟（秒）">
                                 <el-input-number v-model="forwardingConfig.delay" :min="0" :max="3600"></el-input-number>

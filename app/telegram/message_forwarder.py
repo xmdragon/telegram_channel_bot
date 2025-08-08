@@ -64,9 +64,32 @@ class MessageForwarder:
                 if db_message.is_combined and db_message.media_group:
                     # 发送组合消息到审核群
                     sent_message = await self._send_combined_message_to_review(client, review_group_id, db_message, message_text)
-                elif db_message.media_type and db_message.media_url and os.path.exists(db_message.media_url):
-                    # 发送单个媒体消息到审核群
-                    sent_message = await self._send_single_media_to_review(client, review_group_id, db_message, message_text)
+                elif db_message.media_type:
+                    # 检查媒体文件是否存在
+                    if db_message.media_url and os.path.exists(db_message.media_url):
+                        # 发送单个媒体消息到审核群
+                        sent_message = await self._send_single_media_to_review(client, review_group_id, db_message, message_text)
+                    else:
+                        # 媒体文件不存在（下载失败或超时），添加占位符
+                        media_type_name = {
+                            'photo': '图片',
+                            'video': '视频',
+                            'document': '文件',
+                            'animation': '动图',
+                            'audio': '音频'
+                        }.get(db_message.media_type, '媒体')
+                        
+                        placeholder = f"📎 [{media_type_name}下载超时，未能显示]"
+                        
+                        if message_text:
+                            message_text = f"{placeholder}\n\n{message_text}"
+                        else:
+                            message_text = placeholder
+                        
+                        sent_message = await client.send_message(
+                            entity=int(review_group_id),
+                            message=message_text
+                        )
                 else:
                     # 发送纯文本消息到审核群
                     sent_message = await client.send_message(
@@ -239,12 +262,27 @@ class MessageForwarder:
                 )
             
             media_files = []
+            missing_items = []
             
             # 准备媒体文件列表
             for media_item in message.media_group:
-                file_path = media_item['file_path']
-                if os.path.exists(file_path):
+                file_path = media_item.get('file_path')
+                if file_path and os.path.exists(file_path):
                     media_files.append(file_path)
+                else:
+                    media_type_name = {
+                        'photo': '图片',
+                        'video': '视频',
+                        'document': '文件',
+                        'animation': '动图',
+                        'audio': '音频'
+                    }.get(media_item.get('media_type', 'unknown'), '媒体')
+                    missing_items.append(media_type_name)
+            
+            # 如果有媒体文件缺失，添加占位符
+            if missing_items:
+                missing_text = f"📎 [{len(missing_items)}个{'/'.join(set(missing_items))}下载超时，未能显示]"
+                caption = f"{missing_text}\n\n{caption}" if caption else missing_text
             
             if not media_files:
                 # 没有媒体文件，发送纯文本

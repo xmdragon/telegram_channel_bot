@@ -56,33 +56,53 @@ class ContentFilter:
         self._config_loaded = False
         await self._load_config()
     
-    async def filter_message(self, content: str) -> Tuple[bool, str]:
+    async def filter_message(self, content: str) -> Tuple[bool, str, str]:
         """
         过滤消息内容
-        返回: (是否为广告, 过滤后的内容)
+        返回: (是否为广告, 过滤后的内容, 过滤原因)
+        
+        过滤原因:
+        - "tail_only": 文本完全是尾部推广
+        - "ad_filtered": 广告内容被过滤
+        - "normal": 正常过滤（只移除了部分尾部）
+        - "": 没有过滤
+        
+        重要：区分尾部过滤和广告过滤
+        - 尾部过滤：只是移除频道推广，不影响消息采集
+        - 广告过滤：真正的广告内容，需要拒绝
         """
         if not content:
-            return False, ""
+            return False, "", ""
         
         # 加载配置
         await self._load_config()
         
-        # 先进行内容替换（包括尾部过滤）
+        # 第一步：先进行尾部过滤和内容替换
         filtered_content = await self.replace_content(content)
         
-        # 基于过滤后的内容判断是否为广告
-        # 如果过滤后内容太少（可能原本就是纯广告），则判定为广告
+        # 记录是否因为尾部过滤导致内容为空
+        is_empty_due_to_tail = (len(content) > 0 and len(filtered_content) == 0)
+        
+        if is_empty_due_to_tail:
+            logger.info(f"📝 文本完全是尾部推广，已过滤（不是广告）")
+            # 尾部过滤导致为空，这不是广告，返回False
+            return False, filtered_content, "tail_only"
+        elif len(filtered_content) < len(content):
+            logger.info(f"📝 第一步：尾部过滤完成，原始长度: {len(content)}, 过滤后: {len(filtered_content)}")
+            filter_reason = "normal"
+        else:
+            filter_reason = ""
+        
+        # 第二步：基于过滤后的内容判断是否为广告
         is_ad = False
         if filtered_content:
             # 对过滤后的内容进行广告检测
             is_ad = await self.detect_advertisement(filtered_content)
-        else:
-            # 如果过滤后没有内容了，说明原消息可能全是广告
-            is_ad = await self.detect_advertisement(content)
             if is_ad:
-                logger.info("内容过滤后为空，原内容被判定为纯广告")
+                logger.info(f"🚫 第二步：检测到广告内容")
+                filter_reason = "ad_filtered"
         
-        return is_ad, filtered_content
+        return is_ad, filtered_content, filter_reason
     
     def is_pure_advertisement(self, content: str) -> bool:
         """检测是否为纯广告（无新闻价值）"""
@@ -265,7 +285,13 @@ class ContentFilter:
         return filtered_content
     
     def remove_channel_footer(self, content: str) -> str:
-        """智能移除消息底部的频道推广内容"""
+        """智能移除消息底部的频道推广内容
+        
+        处理原则：
+        1. 只处理消息尾部，不影响正文内容
+        2. 对于短消息（≤5行），检查是否整体都是推广内容
+        3. 对于长消息，只检查最后10行
+        """
         if not content:
             return content
             
@@ -275,33 +301,205 @@ class ContentFilter:
         # 从后往前找到第一个推广相关内容的位置
         promo_start_index = len(lines)
         
-        # 定义推广关键词和模式
+        # 定义推广关键词和模式（基于实际截图分析优化）
         promo_keywords = [
-            '投稿', '爆料', '订阅', '联系', '合作', '对接', '反馈', '关注',
-            '频道', '群组', 'channel', 'group', 'subscribe', 'join',
-            '客服', '欢迎', '添加', '认准', '置顶', '推荐', '转载', '来源',
-            '更多', '搜索', '私聊', '咨询', '进群', '转发', '分享',
-            'vip', 'vx', '微信', 'qq', 'tg', 'telegram', '内推',
-            '独家', '资源', '福利', '优惠', '限时', '免费', '会员',
+            # 核心推广词
+            '投稿', '爆料', '订阅', '订閱', '联系', '聯系', '合作', '对接', '對接', '反馈', '反饋', '关注', '關注',
+            '频道', '頻道', '群组', '群組', 'channel', 'group', 'subscribe', 'join',
+            '客服', '欢迎', '歡迎', '添加', '认准', '認準', '置顶', '置頂', '推荐', '推薦', '转载', '轉載', '来源',
+            '更多', '搜索', '私聊', '咨询', '諮詢', '进群', '進群', '转发', '轉發', '分享',
+            'vip', 'vx', '微信', 'qq', 'tg', 'telegram', '内推', '內推',
+            '独家', '獨家', '资源', '資源', '福利', '优惠', '優惠', '限时', '限時', '免费', '免費', '会员', '會員',
             # 广告赞助相关
-            '广告', '赞助商', '赞助', '娱乐', '首充', '送', '充值', '返利',
-            '注册', '开户', '体验', '试玩', '彩票', '博彩', '游戏', '平台',
-            '代理', '推广', '佣金', '奖金', '活动', '优惠券', '红包'
+            '广告', '廣告', '赞助商', '贊助商', '赞助', '贊助', '娱乐', '娛樂', '首充', '送', '充值', '返利',
+            '注册', '註冊', '开户', '開戶', '体验', '體驗', '试玩', '試玩', '彩票', '博彩', '游戏', '遊戲', '平台',
+            '代理', '推广', '推廣', '佣金', '奖金', '獎金', '活动', '活動', '优惠券', '優惠券', '红包', '紅包',
+            # 群组和社区相关
+            '互助群', '交流群', '讨论群', '討論群', '互助组', '互助組', '交流组', '交流組', '讨论组', '討論組',
+            '华人群', '華人群', '华人组', '華人組', '同胞群', '老乡群', '老鄉群', '群聊', '群友',
+            # 事件频道相关（基于截图新增）
+            '事件频道', '事件頻道', '事件群', '新闻频道', '新聞頻道', '曝光频道', '曝光頻道', '爆料频道', '爆料頻道',
+            '茶水间', '茶水間', '闯荡记', '闖蕩記', '大事件', '悬赏', '懸賞', '情报站', '情報站',
+            # 服务类（基于截图新增）
+            '商务曝光', '商務曝光', '商务对接', '商務對接', '投稿澄清', '投稿澄清爆料', '意见反馈', '意見反饋',
+            '失联', '失聯', '寻前', '尋前', '查档', '查檔', '开户', '開戶', '海外交友', '全球线上', '全球線上'
         ]
         
-        # 定义推广表情符号
+        # 定义推广表情符号（基于截图扩充）
         promo_emojis = [
+            # 常见推广表情
             '📢', '📣', '✅', '🔔', '⭐️', '👇', '🔥', '💰', '🎁', 
             '🍉', '🔋', '💬', '👆', '⬇️', '🔗', '💎', '🚀', '📎',
             '🎯', '💡', '🛒', '🎊', '🎉', '💯', '🔞', '📝', '📲',
-            '💌', '🔴', '🟢', '🔵', '⚡', '🌟', '💫', '🎈', '🎪'
+            '💌', '🔴', '🟢', '🔵', '⚡', '🌟', '💫', '🎈', '🎪',
+            # 新增（基于截图）
+            '👌', '😍', '☎️', '📍', '🏳️', '🏁', '✝️', '🧐', '📡',
+            '❤️', '💙', '🍒', '😉', '☺️', '😊', '🤝', '👍', '👏',
+            '🔸', '🔹', '▪️', '▫️', '◆', '◇', '➖', '➡️', '⬅️',
+            # 警告和提示类
+            '⚠️', '🚨', '‼️', '❗', '❓', '❔', '💭', '💡', '🔍',
+            # 国旗表情（常用于地区群组推广）
+            '🇵🇭', '🇨🇳', '🇺🇸', '🇲🇾', '🇸🇬', '🇹🇭', '🇻🇳', '🇰🇭',
+            '🇲🇲', '🇱🇦', '🇮🇩', '🇯🇵', '🇰🇷', '🇭🇰', '🇹🇼', '🇲🇴'
         ]
         
         # 从后往前扫描，找到推广内容开始的位置
         found_strong_promo = False  # 是否发现强推广信号
         
+        # -1. 使用正则表达式检测推广模式（基于截图分析优化）
+        promo_patterns = [
+            # 包围符格式：一XXX一、【XXX】、▼XXX▼、➖XXX➖等（优先级最高）
+            r'^[➖—－一▼▪️◆●〓=【]+.*[订訂][阅閱].*[频頻][道].*[➖—－一】▼▪️◆●〓=]+$',  # 特殊格式：➖订阅西港事件频道➖
+            r'^[一【▼◆●—－➖〓=]+.*[一】▼◆●—－➖〓=]+$',  # 通用包围符格式
+            
+            # 订阅/关注类（各种变体）
+            r'[订訂][阅閱阅][^。，！？]*[频頻][道]',  # 订阅XX频道
+            r'[关關][注註注][^。，！？]*[频頻群][道组組]',  # 关注XX群组
+            r'[📣🔔👌💬😍🔗].*[订訂][阅閱]',  # 表情+订阅
+            r'[订訂][阅閱].*[新闻新聞|事件|曝光|爆料|茶水间茶水間|闯荡记闖蕩記]',  # 订阅+特定频道名
+            
+            # 投稿/爆料/商务类
+            r'[投][稿搞].*[@:]',  # 投稿爆料
+            r'[爆][料].*[@:]',
+            r'[商][务務].*[合作|对接對接|曝光].*[@:]',
+            r'[澄清|反馈反饋|意见意見].*[投稿|爆料].*[@:]',
+            r'[免费免費].*[爆料|投稿].*[@:]',
+            
+            # Telegram链接和用户名（更全面）
+            r'@[a-zA-Z][a-zA-Z0-9_]{2,}',  # @username（降低长度要求）
+            r't\.me/[^\s]+',  # t.me链接
+            r'https?://t\.me/[^\s]+',  # 完整t.me链接
+            r'telegram\.me/[^\s]+',
+            
+            # 带表情的投稿/商务行（基于截图）
+            r'^[📢📣☎️💬😍🔗👌✅🔔⭐️🔥].{0,3}[投稿|爆料|商务商務|对接對接|联系聯系]',
+            r'[投稿|爆料|商务商務].*：.*@',
+            
+            # 服务类推广（基于截图新增）
+            r'[查档查檔|开户開戶].*@',  # 查档开户服务
+            r'[全球].*[线上線上|线下線下].*@',  # 全球线上线下服务
+            r'[海外].*[交友|互助]',  # 海外交友/互助
+            r'[失联失聯|寻前尋前].*@',  # 失联寻前
+            
+            # 频道列表推广（多个频道）
+            r'⭐️\[.*\]\(.*t\.me.*\)',  # ⭐️[频道名](链接)
+            r'[👍🔞💯📍].{0,5}https?://t\.me',  # 表情+链接
+            r'便民服务.*中文包',  # 便民服务中文包
+            
+            # 分隔线和装饰符
+            r'^[-=_—➖▪▫◆◇■□●○•]{3,}$',  # 符号分隔线
+            r'^[😉☺️😊😄😃😀🙂]{5,}$',  # 表情分隔线
+            r'^"""{3,}|^={5,}',  # 引号或等号分隔
+            
+            # 组合模式（基于截图常见组合）
+            r'[订訂阅閱].*[频頻道].*\n.*[投稿|爆料].*@',  # 订阅+投稿组合
+            r'[商务商務].*[合作|对接對接].*\n.*[投稿|爆料]',  # 商务+投稿组合
+            
+            # 推广/赞助标识（开头检测）
+            r'^[🔥🎯💰🎁].*[推广推廣|赞助贊助|广告廣告|合作]',  # 表情开头的推广
+            r'^推广推廣|^赞助贊助|^广告廣告|^AD|^ads|^PR',  # 明确的推广标识
+            r'本频道推荐|本頻道推薦|点击加入|點擊加入',  # 推荐加入类
+            r'利充慢充|首充加赠|首充加贈|充值优惠|充值優惠',  # 赌博推广
+        ]
+        
+        # 特殊情况处理：如果消息很短（少于5行），可能整个文本都是推广内容
+        is_short_message = len(lines) <= 5
+        
+        # 检查最后10行是否匹配推广模式（只在尾部搜索）
+        # 对于短消息，检查所有行；对于长消息，只检查最后10行
+        search_start = 0 if is_short_message else max(0, len(lines) - 10)
+        
+        for i in range(len(lines) - 1, search_start - 1, -1):
+            line = lines[i].strip()
+            if not line:
+                continue
+            
+            # 使用正则表达式匹配
+            for pattern in promo_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    # 对于短消息，如果匹配到推广模式，可能整个消息都是推广
+                    if is_short_message:
+                        # 检查是否所有非空行都包含推广特征
+                        non_empty_lines = [l for l in lines if l.strip()]
+                        promo_line_count = 0
+                        for check_line in non_empty_lines:
+                            # 检查是否包含推广特征
+                            if any(kw in check_line.lower() for kw in ['订阅', '投稿', '爆料', '商务', '@', 't.me']):
+                                promo_line_count += 1
+                        
+                        # 如果超过80%的行都是推广内容，认为整个消息都是推广
+                        if promo_line_count >= len(non_empty_lines) * 0.8:
+                            promo_start_index = 0
+                            found_strong_promo = True
+                            logger.info(f"🎯 短消息检测：整个文本都是推广内容")
+                            break
+                    else:
+                        # 长消息：正常处理，只标记尾部
+                        promo_start_index = i
+                        found_strong_promo = True
+                        logger.info(f"🎯 正则匹配到推广内容: '{line[:50]}...' (第{i+1}行，模式: {pattern})")
+                        break
+            
+            if found_strong_promo:
+                break
+        
+        # 0. 检测连续的短行推广模式（只在消息尾部检测）
+        # 只检查最后8行，避免误删正文内容
+        if len(lines) >= 2:
+            # 从后往前检查连续的短行（只在尾部）
+            short_line_count = 0
+            has_promo_content = False
+            tail_start = max(0, len(lines) - 8)  # 只检查最后8行
+            
+            for i in range(len(lines) - 1, tail_start, -1):
+                line = lines[i].strip()
+                if not line:
+                    continue
+                    
+                # 判断是否为短行（少于50个字符）
+                if len(line) < 50:
+                    short_line_count += 1
+                    
+                    # 检查是否包含推广特征
+                    line_lower = line.lower()
+                    if (any(kw in line_lower for kw in ['群', '组', 'ps', '大赛', '上分', '互助', '华人']) or
+                        any(emoji in line for emoji in ['🇵🇭', '🏁', '**']) or
+                        '##' in line or '****' in line):
+                        has_promo_content = True
+                else:
+                    # 遇到长行，停止检查
+                    break
+            
+            # 如果在尾部连续有2行以上的短行且包含推广内容
+            if short_line_count >= 2 and has_promo_content:
+                # 找到这些短行的起始位置（只在尾部范围内）
+                for i in range(len(lines) - 1, tail_start, -1):
+                    line = lines[i].strip()
+                    if line and len(line) < 50:
+                        line_lower = line.lower()
+                        if any(kw in line_lower for kw in ['群', '组', 'ps', '大赛', '上分', '互助', '华人']):
+                            promo_start_index = min(promo_start_index, i)
+                            found_strong_promo = True
+                
+                if found_strong_promo:
+                    logger.info(f"🎯 检测到尾部连续短行推广模式，从第{promo_start_index+1}行开始")
+                
+        # 1. 检测国旗+群组名称模式（只在尾部最后6行检测）
+        if not found_strong_promo:
+            tail_start = max(0, len(lines) - 6)  # 只检查最后6行
+            for i in range(len(lines) - 1, tail_start, -1):
+                line = lines[i].strip()
+                # 检查是否包含国旗表情
+                if any(flag in line for flag in ['🇵🇭', '🇨🇳', '🇺🇸', '🇲🇾', '🇸🇬', '🇹🇭', '🇻🇳', '🇰🇭', '🇲🇲', '🇱🇦', '🇮🇩']):
+                    # 同时包含群组相关关键词
+                    if any(kw in line for kw in ['群', '组', 'group', 'chat', '互助', '交流', '讨论']):
+                        promo_start_index = i
+                        found_strong_promo = True
+                        logger.info(f"🎯 检测到尾部国旗+群组推广: '{line}' (第{i+1}行)")
+                        break
+        
         # 1. 检测典型的三行尾部模式（订阅+群组+投稿）
-        if len(lines) >= 3:
+        if len(lines) >= 3 and not found_strong_promo:
             last_3_lines = '\n'.join(lines[-3:]).lower()
             # 检查是否包含典型的尾部关键词组合
             if ('订阅' in last_3_lines or 'subscribe' in last_3_lines) and \
@@ -317,28 +515,38 @@ class ContentFilter:
                         logger.info(f"🎯 检测到典型三行尾部模式 (第{promo_start_index + 1}行开始)")
                         break
         
-        # 2. 检查是否有单独的hashtag行作为频道标识
+        # 2. 检查是否有单独的hashtag行作为频道标识（只在尾部检测）
         if not found_strong_promo:
-            for i in range(len(lines) - 1, -1, -1):
+            tail_start = max(0, len(lines) - 5)  # 只检查最后5行
+            for i in range(len(lines) - 1, tail_start, -1):
                 line = lines[i].strip()
-                # 如果是单独的hashtag行（如 #国际爆料）且在消息末尾附近
-                if line.startswith('#') and len(line) < 50 and i >= len(lines) - 5:
+                # 如果是单独的hashtag行（如 #国际爆料）
+                if line.startswith('#') and len(line) < 50:
                     # 检查是否包含推广相关词汇
                     if any(kw in line.lower() for kw in ['爆料', '频道', '订阅', '关注', '资讯', '新闻', '独家', '投稿', '曝光', '事件']):
                         promo_start_index = i
                         found_strong_promo = True
-                        logger.info(f"🎯 检测到频道hashtag: '{line}' (第{i+1}行)")
+                        logger.info(f"🎯 检测到尾部频道hashtag: '{line}' (第{i+1}行)")
                         break
+                        
+                # 检查特殊格式文本（##开头或包含****）
+                if ('##' in line and len(line) < 50) or ('****' in line and len(line) < 50):
+                    # 这种格式在尾部通常是推广内容
+                    promo_start_index = min(promo_start_index, i)
+                    found_strong_promo = True
+                    logger.info(f"🎯 检测到尾部特殊格式推广: '{line}' (第{i+1}行)")
+                    break
         
-        # 检查是否有明显的广告分界线或广告内容
+        # 检查是否有明显的广告分界线或广告内容（只在后半部分检测）
         ad_section_markers = [
             '频道广告赞助商', '广告赞助商', '赞助商', '频道广告', '广告位',
             '商业推广', '合作推广', '友情推广', '广告合作', '赞助内容'
         ]
         
-        # 检查各种广告模式
-        for i, line in enumerate(lines):
-            line_clean = line.strip()
+        # 只检查消息的后半部分，避免误删正文
+        mid_point = len(lines) // 2
+        for i in range(mid_point, len(lines)):
+            line_clean = lines[i].strip()
             
             # 检查是否包含广告分界线标识
             if any(marker in line_clean for marker in ad_section_markers):
@@ -368,7 +576,9 @@ class ContentFilter:
                 'X9体育', '体育综合', '负盈利', '全网独家', '返水', 
                 '实力U盘', '优惠多多', '大额无忧', '首发', '注册就送', '神秘彩金',
                 '玩游戏上', 'UC', '首存', '赠送', '日出千万', 'USDT', '巨款无忧',
-                '不限IP', 'UU国际', 'NO钱包', 'X6.com', '新葡京', '惠旺娱乐', 'U68国际'
+                '不限IP', 'UU国际', 'NO钱包', 'X6.com', '新葡京', '惠旺娱乐', 'U68国际',
+                # PS游戏相关
+                'PS大赛', 'PS 大赛', '持续上分', '上分', 'PS大赛子', '赛子'
             ]
             if any(kw in line_clean for kw in gambling_keywords):
                 promo_start_index = i
@@ -376,7 +586,9 @@ class ContentFilter:
                 logger.info(f"🎯 检测到赌博广告: '{line_clean[:50]}...' (第{i+1}行)")
                 break
         
-        for i in range(len(lines) - 1, -1, -1):
+        # 主要推广内容扫描（只扫描尾部最后10行）
+        tail_scan_start = max(0, len(lines) - 10)
+        for i in range(len(lines) - 1, tail_scan_start, -1):
             line = lines[i].strip()
             if not line:  # 跳过空行
                 continue
@@ -482,9 +694,9 @@ class ContentFilter:
                 if i > len(lines) - 5:
                     promo_start_index = min(promo_start_index, i)
         
-        # 如果没有发现强推广信号，但找到了分隔符，也要处理
+        # 如果没有发现强推广信号，但找到了分隔符（只在尾部检查）
         if not found_strong_promo:
-            for i in range(len(lines) - 1, max(0, len(lines) - 8), -1):
+            for i in range(len(lines) - 1, max(0, len(lines) - 6), -1):
                 line = lines[i].strip()
                 if re.search(r'(.)\1{4,}', line) and len(line.strip()) < 50:
                     # 检查分隔符后是否有推广内容
@@ -507,14 +719,29 @@ class ContentFilter:
         
         # 保留非推广部分
         if promo_start_index < len(lines):
-            filtered_lines = lines[:promo_start_index]
-            # 移除尾部空行和分隔符
-            while filtered_lines:
-                last_line = filtered_lines[-1].strip()
-                if not last_line or re.match(r'^[-=_*~`]{3,}$', last_line):
-                    filtered_lines.pop()
-                else:
-                    break
+            # 确保不会删除太多内容
+            lines_to_remove = len(lines) - promo_start_index
+            
+            # 只有满足以下条件之一时才过滤：
+            # 1. 推广内容在最后10行内
+            # 2. 推广内容少于总行数的40%
+            # 3. 推广内容起始位置在总行数的60%之后
+            if (lines_to_remove <= 10 or 
+                lines_to_remove < len(lines) * 0.4 or 
+                promo_start_index > len(lines) * 0.6):
+                
+                filtered_lines = lines[:promo_start_index]
+                # 移除尾部空行和分隔符
+                while filtered_lines:
+                    last_line = filtered_lines[-1].strip()
+                    if not last_line or re.match(r'^[-=_*~`]{3,}$', last_line):
+                        filtered_lines.pop()
+                    else:
+                        break
+            else:
+                # 推广内容太多，可能是误判，不过滤
+                logger.warning(f"⚠️ 检测到的推广内容过多（{lines_to_remove}行），可能是误判，不进行过滤")
+                filtered_lines = lines
         else:
             filtered_lines = lines
         

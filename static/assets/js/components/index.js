@@ -232,6 +232,33 @@ const MainApp = {
             }
         },
         
+        // 获取原消息链接
+        getOriginalMessageLink(message) {
+            if (!message.source_channel || !message.message_id) {
+                return '#';
+            }
+            
+            // 处理频道名称，确保格式正确
+            let channelName = message.source_channel;
+            
+            // 如果是数字ID（如 -1001234567890），需要特殊处理
+            if (channelName.startsWith('-100')) {
+                // 私有频道使用 c/ 格式
+                const channelId = channelName.substring(4);  // 移除 -100 前缀
+                return `https://t.me/c/${channelId}/${message.message_id}`;
+            } else if (channelName.startsWith('@')) {
+                // 公开频道使用频道名
+                channelName = channelName.substring(1);  // 移除 @ 符号
+                return `https://t.me/${channelName}/${message.message_id}`;
+            } else if (!isNaN(channelName)) {
+                // 纯数字ID
+                return `https://t.me/c/${channelName}/${message.message_id}`;
+            } else {
+                // 假设是频道用户名
+                return `https://t.me/${channelName}/${message.message_id}`;
+            }
+        },
+        
         // 统计面板点击事件
         handleStatClick(statKey) {
             switch(statKey) {

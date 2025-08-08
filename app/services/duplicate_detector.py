@@ -81,6 +81,9 @@ class DuplicateDetector:
         """
         if message_time is None:
             message_time = datetime.utcnow()
+        # 确保时间没有时区信息（naive datetime）
+        if hasattr(message_time, 'tzinfo') and message_time.tzinfo is not None:
+            message_time = message_time.replace(tzinfo=None)
             
         # 优先进行媒体哈希检测（跨频道）
         if media_hash or combined_media_hash:
@@ -131,6 +134,10 @@ class DuplicateDetector:
             db = AsyncSessionLocal()
             
         try:
+            # 确保时间没有时区信息
+            if hasattr(message_time, 'tzinfo') and message_time.tzinfo is not None:
+                message_time = message_time.replace(tzinfo=None)
+            
             # 查询时间范围（跨所有频道）
             time_threshold = message_time - timedelta(hours=self.media_cache_hours)
             
@@ -183,6 +190,10 @@ class DuplicateDetector:
             db = AsyncSessionLocal()
             
         try:
+            # 确保时间没有时区信息
+            if hasattr(message_time, 'tzinfo') and message_time.tzinfo is not None:
+                message_time = message_time.replace(tzinfo=None)
+            
             # 设置时间窗口
             time_start = message_time - timedelta(minutes=self.text_time_window_minutes)
             time_end = message_time + timedelta(minutes=self.text_time_window_minutes)

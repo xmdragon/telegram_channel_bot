@@ -385,24 +385,6 @@
   ],
   "channels": [
     {
-      "channel_id": "@bigeventsinsea",
-      "channel_name": "@bigeventsinsea",
-      "channel_title": "目标发布频道",
-      "channel_type": "target",
-      "is_active": true,
-      "config": {},
-      "description": "自动转发的目标频道"
-    },
-    {
-      "channel_id": "-1002871459104",
-      "channel_name": "review_group",
-      "channel_title": "审核群",
-      "channel_type": "review",
-      "is_active": true,
-      "config": {},
-      "description": "消息审核群"
-    },
-    {
       "channel_id": "-1002557968812",
       "channel_name": "@cn_zhm0",
       "channel_title": "东南亚曝光 东南亚爆料 东南亚悬赏",
@@ -436,7 +418,7 @@
       "channel_type": "source",
       "is_active": true,
       "config": {},
-      "description": null
+      "description": "手动添加"
     },
     {
       "channel_id": "-1001956665373",
@@ -445,7 +427,7 @@
       "channel_type": "source",
       "is_active": true,
       "config": {},
-      "description": null
+      "description": "手动添加"
     },
     {
       "channel_id": "-1002477782460",
@@ -454,7 +436,7 @@
       "channel_type": "source",
       "is_active": true,
       "config": {},
-      "description": null
+      "description": "手动添加"
     },
     {
       "channel_id": "-1002705755618",
@@ -463,7 +445,7 @@
       "channel_type": "source",
       "is_active": true,
       "config": {},
-      "description": null
+      "description": "手动添加"
     },
     {
       "channel_id": "-1002167120993",
@@ -536,15 +518,6 @@
       "is_active": true,
       "config": {},
       "description": "批量添加的频道: 缅甸❤️亚太茶水间-亚太大事件"
-    },
-    {
-      "channel_id": "-1001006503122",
-      "channel_name": "@durov",
-      "channel_title": "Pavel Durov",
-      "channel_type": "source",
-      "is_active": true,
-      "config": {},
-      "description": "批量添加的频道: Pavel Durov"
     },
     {
       "channel_id": "-1002244833076",
@@ -679,7 +652,7 @@
       "channel_type": "source",
       "is_active": true,
       "config": {},
-      "description": null
+      "description": "手动添加"
     },
     {
       "channel_id": "-1002137718790",
@@ -725,15 +698,6 @@
       "is_active": true,
       "config": {},
       "description": "批量添加的频道: 东南亚大事件"
-    },
-    {
-      "channel_id": "-1001005640892",
-      "channel_name": "@telegram",
-      "channel_title": "Telegram News",
-      "channel_type": "source",
-      "is_active": true,
-      "config": {},
-      "description": "批量添加的频道: Telegram News"
     },
     {
       "channel_id": "-1001969693044",

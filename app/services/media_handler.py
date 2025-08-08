@@ -40,7 +40,7 @@ class MediaHandler:
             self._cleanup_task = None
             logger.info("媒体处理器已停止")
             
-    async def download_media(self, client: TelegramClient, message, message_id: int) -> Optional[Dict[str, Any]]:
+    async def download_media(self, client: TelegramClient, message, message_id: int, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """
         下载消息中的媒体文件
         
@@ -48,6 +48,7 @@ class MediaHandler:
             client: Telegram客户端
             message: Telegram消息对象
             message_id: 消息ID（用于文件命名）
+            timeout: 自定义超时时间（秒），None则使用默认值
             
         Returns:
             媒体文件信息字典或None
@@ -77,8 +78,16 @@ class MediaHandler:
                 file_name = f"{file_prefix}_photo.jpg"
                 file_path = self.temp_dir / file_name
                 
-                # 下载图片
-                await client.download_media(message.media, file_path)
+                # 下载图片（默认30秒超时）
+                download_timeout = timeout if timeout else 30.0
+                try:
+                    await asyncio.wait_for(
+                        client.download_media(message.media, file_path),
+                        timeout=download_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(f"下载图片超时（{download_timeout}秒）: {file_name}")
+                    return None
                 
                 # 计算文件哈希
                 file_hash = None
@@ -140,8 +149,19 @@ class MediaHandler:
                     logger.warning(f"文件太大，跳过下载: {document.size} bytes")
                     return None
                     
-                # 下载文件
-                await client.download_media(message.media, file_path)
+                # 下载文件（自定义超时或使用默认值：视频120秒，其他60秒）
+                if timeout:
+                    download_timeout = timeout
+                else:
+                    download_timeout = 120.0 if media_info['media_type'] == 'video' else 60.0
+                try:
+                    await asyncio.wait_for(
+                        client.download_media(message.media, file_path),
+                        timeout=download_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(f"下载{media_info['media_type']}超时（{download_timeout}秒）: {file_name}")
+                    return None
                 
                 # 计算文件哈希
                 file_hash = None

@@ -92,18 +92,6 @@
                             </div>
                         </el-card>
 
-                        <!-- 统计信息 -->
-                        <el-row :gutter="20" class="stats-bar">
-                            <el-col :span="8">
-                                <el-statistic title="总日志数" :value="logs.length" />
-                            </el-col>
-                            <el-col :span="8">
-                                <el-statistic title="显示日志数" :value="filteredLogs.length" />
-                            </el-col>
-                            <el-col :span="8">
-                                <el-statistic title="更新间隔" :value="refreshInterval / 1000" suffix="秒" />
-                            </el-col>
-                        </el-row>
                     </div>
                 </div>
             </div>

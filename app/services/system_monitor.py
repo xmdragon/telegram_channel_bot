@@ -23,7 +23,7 @@ class SystemStatus:
     telegram_auth: bool
     telegram_connected: bool
     source_channels: List[str]
-    target_channels: List[str]
+    target_channel: str
     review_group: Optional[str]
     errors: List[str]
     warnings: List[str]
@@ -87,7 +87,7 @@ class SystemMonitor:
                 telegram_auth=auth_status['authorized'],
                 telegram_connected=auth_status['connected'],
                 source_channels=channel_status['source_channels'],
-                target_channels=channel_status['target_channels'],
+                target_channel=channel_status['target_channel'],
                 review_group=channel_status['review_group'],
                 errors=auth_status['errors'] + channel_status['errors'],
                 warnings=auth_status['warnings'] + channel_status['warnings'],
@@ -165,11 +165,11 @@ class SystemMonitor:
         errors = []
         warnings = []
         source_channels = []
-        target_channels = []
+        target_channel = None
         review_group = None
         
         try:
-            # 获取频道配置
+            # 获取频道配置（源频道从channels表）
             channels = await self.channel_manager.get_all_channels()
             
             for channel in channels:
@@ -178,15 +178,16 @@ class SystemMonitor:
                 
                 if channel_type == 'source':
                     source_channels.append(channel_id)
-                elif channel_type == 'target':
-                    target_channels.append(channel_id)
-                elif channel_type == 'review':
-                    review_group = channel_id
+            
+            # 获取目标频道和审核群配置（从系统配置表）
+            from app.services.config_manager import config_manager
+            target_channel = await config_manager.get_config('channels.target_channel_id')
+            review_group = await config_manager.get_config('channels.review_group_id')
                     
             # 验证必要配置
             if not source_channels:
                 errors.append("未配置源频道")
-            if not target_channels:
+            if not target_channel:
                 errors.append("未配置目标频道")
             if not review_group:
                 warnings.append("未配置审核群")
@@ -194,14 +195,19 @@ class SystemMonitor:
             # 如果有认证，验证频道可访问性
             auth_status = await auth_manager.get_auth_status()
             if auth_manager.client and auth_status.get('authorized', False):
-                await self._verify_channel_access(source_channels + target_channels + ([review_group] if review_group else []))
+                channels_to_verify = source_channels.copy()
+                if target_channel:
+                    channels_to_verify.append(target_channel)
+                if review_group:
+                    channels_to_verify.append(review_group)
+                await self._verify_channel_access(channels_to_verify)
                 
         except Exception as e:
             errors.append(f"检查频道配置出错: {str(e)}")
             
         return {
             'source_channels': source_channels,
-            'target_channels': target_channels,
+            'target_channel': target_channel,
             'review_group': review_group,
             'errors': errors,
             'warnings': warnings

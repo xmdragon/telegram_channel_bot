@@ -40,8 +40,18 @@
                         <span>{{ savedAuthInfo.api_hash ? '●●●●●●●●●●●●●●●●' : '' }}</span>
                     </div>
                     <div style="text-align: center; margin-top: 30px;">
-                        <el-button @click="clearAuthData" type="danger" :loading="loading">
+                        <el-button 
+                            @click="clearAuthData" 
+                            type="danger" 
+                            :loading="loading"
+                            :disabled="!hasSavedSession">
                             清除认证数据
+                        </el-button>
+                        <el-button 
+                            @click="startReAuth" 
+                            type="primary" 
+                            :loading="loading">
+                            重新认证
                         </el-button>
                     </div>
                 </div>

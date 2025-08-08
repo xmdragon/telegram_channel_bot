@@ -31,8 +31,29 @@ class MessageEventHandler:
         """注册事件处理器到客户端"""
         logger.info("注册事件处理器...")
         
-        # 新消息事件处理器
-        @client.on(events.NewMessage())
+        # 获取需要监听的频道ID列表
+        source_channels = await db_settings.get_source_channels()
+        review_group_id = await link_resolver.get_effective_group_id()
+        
+        # 构建监听列表（转换为整数格式）
+        chats_to_monitor = []
+        for channel_id in source_channels:
+            try:
+                chats_to_monitor.append(int(channel_id))
+            except (ValueError, TypeError):
+                logger.warning(f"无法转换频道ID: {channel_id}")
+        
+        # 添加审核群
+        if review_group_id:
+            try:
+                chats_to_monitor.append(int(review_group_id))
+            except (ValueError, TypeError):
+                logger.warning(f"无法转换审核群ID: {review_group_id}")
+        
+        logger.info(f"将监听以下频道/群组: {chats_to_monitor}")
+        
+        # 新消息事件处理器 - 只监听指定的频道
+        @client.on(events.NewMessage(chats=chats_to_monitor if chats_to_monitor else None))
         async def handle_new_message(event):
             """处理新消息事件"""
             logger.info("[事件触发] 收到新消息！")
