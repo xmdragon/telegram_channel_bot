@@ -14,6 +14,8 @@
 - 🚀 **批量操作**: 支持批量审核和管理
 - 🔐 **WebSocket认证**: 交互式 Telegram 登录
 - 📱 **响应式设计**: 适配各种设备
+- 📦 **媒体组合**: 支持 Telegram 媒体组消息
+- 📜 **历史采集**: 支持采集频道历史消息
 
 ## 🏗️ 系统架构
 
@@ -25,79 +27,71 @@
 
 ## 🛠️ 技术栈
 
-- **后端**: Python 3.11 + FastAPI
-- **数据库**: SQLite/PostgreSQL + SQLAlchemy
+- **后端**: Python 3.11 + FastAPI + SQLAlchemy
+- **数据库**: PostgreSQL（生产环境）/ SQLite（开发环境）
 - **缓存**: Redis
-- **前端**: Vue.js 3 + Element Plus
+- **前端**: Vue.js 3 + Element Plus + Axios
 - **Telegram**: Telethon (支持真人账号)
-- **部署**: Docker + Docker Compose
+- **部署**: Docker Compose（生产环境）
 - **通信**: WebSocket (实时认证)
 
 ## 🚀 快速开始
 
-### 方式一：Docker 部署（推荐）
+### 方式一：本地开发（推荐）
 
 ```bash
 # 克隆项目
 git clone <repository-url>
 cd telegram_channel_bot
 
-# 构建并启动
-docker-compose up -d
+# 使用开发脚本（支持热重载）
+./dev.sh
 
-# 查看日志
-docker-compose logs -f app
+# 或使用标准启动脚本
+./start.sh
 
-# 访问系统
-# 状态检查: http://localhost:8000/status
-# 登录页面: http://localhost:8000/auth
-# 主界面: http://localhost:8000
-# 配置界面: http://localhost:8000/config
+# 停止服务
+./stop.sh
+
+# 重启服务
+./restart.sh
 ```
 
-### 方式二：本地部署
-
-#### 1. 环境准备
+### 方式二：Docker 部署（生产环境）
 
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd telegram_channel_bot
+# 构建并启动
+docker compose up -d --build
 
+# 查看日志
+docker compose logs -f app
+
+# 停止服务
+docker compose down
+```
+
+### 方式三：手动启动
+
+```bash
 # 创建虚拟环境
 python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
-# 或 venv\Scripts\activate  # Windows
 
 # 安装依赖
 pip install -r requirements.txt
-```
 
-#### 2. 初始化系统
+# 初始化数据库
+python3 init_db.py
 
-```bash
-# 初始化数据库和默认配置
-python init_db.py
-
-# 运行 Telethon 设置脚本（推荐）
-python setup_telethon.py
-```
-
-#### 3. 启动系统
-
-```bash
-# 开发模式
-python main.py
-
-# 或使用Docker
-docker-compose up -d
+# 启动应用
+python3 main.py
 ```
 
 ## 📱 系统配置
 
 ### 1. Telegram 认证
 
-访问 http://localhost:8000/auth 完成 Telegram 登录：
+访问 http://localhost:8000/auth.html 完成 Telegram 登录：
 
 **认证流程**：
 1. 输入 API ID、API Hash 和 Session Name
@@ -115,65 +109,145 @@ docker-compose up -d
 
 ### 2. 频道配置
 
-访问 http://localhost:8000/config 配置频道：
+访问 http://localhost:8000/config.html 配置频道：
 
 **必须配置的参数**：
 - **源频道**: 添加要监听的频道
 - **审核群**: 设置审核群 ID
 - **目标频道**: 设置转发目标频道
 
-### 3. 过滤配置
+### 3. 关键词管理
 
-在配置界面设置过滤规则：
+访问 http://localhost:8000/keywords.html 管理过滤关键词：
 
-- **关键词过滤**: 包含关键词的消息会被过滤
-- **正则表达式**: 支持复杂的匹配规则
-- **自定义规则**: 添加自定义过滤规则
+- **文中关键词**: 消息内容包含这些词会被标记为广告
+- **行过滤关键词**: 删除包含这些词的整行内容
 
-## �� 使用指南
+## 📋 使用指南
 
-### Web 界面操作
+### Web 界面
 
-#### 主界面 (http://localhost:8000)
-- **消息审核**: 查看待审核消息列表，单个或批量批准/拒绝消息
-- **统计监控**: 实时查看消息处理统计，监控系统运行状态
-- **点击统计模块**: 可以筛选不同类型的消息
+| 页面 | 路径 | 功能 |
+|------|------|------|
+| 主界面 | `/` 或 `/index.html` | 消息审核、批量操作 |
+| 配置管理 | `/config.html` | 系统配置、频道管理 |
+| Telegram认证 | `/auth.html` | Telegram账号登录 |
+| 管理员界面 | `/admin.html` | 高级管理功能 |
+| 系统状态 | `/status.html` | 系统监控、性能指标 |
+| 关键词管理 | `/keywords.html` | 广告关键词配置 |
 
-#### 配置界面 (http://localhost:8000/config)
-- **频道管理**: 添加、编辑、删除、启用/禁用频道
-- **规则管理**: 添加、编辑、删除过滤规则
-- **系统设置**: 配置系统参数和缓存管理
+### API 接口
 
-#### 状态界面 (http://localhost:8000/status)
-- **系统状态**: 查看系统运行状态和性能指标
-- **服务监控**: 监控各个服务的运行状态
+- `/api/messages` - 消息管理
+- `/api/admin` - 管理员功能
+- `/api/config` - 配置管理
+- `/api/auth` - Telegram认证
+- `/api/keywords` - 关键词管理
+- `/api/system` - 系统状态
+- `/api/websocket` - WebSocket连接
 
-### 命令行管理
+## 🔄 配置迁移
+
+配置导入导出工具用于在部署新环境时快速迁移系统配置，避免手动重新配置。
+
+### 功能特点
+
+- 导出除session外的所有系统配置
+- 支持导出系统配置、广告关键词、频道配置、过滤规则
+- 支持合并导入和替换导入两种模式
+- 自动跳过敏感的session信息
+
+### 导出配置
+
+从现有系统导出配置：
 
 ```bash
-# 查看系统统计
-python scripts/manage.py stats
-
-# 添加源频道
-python scripts/manage.py add-channel @new_channel "新频道"
-
-# 列出所有频道
-python scripts/manage.py list-channels
-
-# 添加过滤规则
-python scripts/manage.py add-rule keyword "广告词"
-
-# 清理旧消息
-python scripts/manage.py cleanup --days 30
+# 在虚拟环境中运行
+source venv/bin/activate
+python3 export_config.py
 ```
+
+导出的文件格式：`config_export_YYYYMMDD_HHMMSS.json`
+
+### 导入配置
+
+在新环境中导入配置：
+
+```bash
+# 激活虚拟环境
+source venv/bin/activate
+
+# 合并模式（默认）- 保留现有配置，更新相同的配置项
+python3 import_config.py config_export_20250808_095913.json
+
+# 替换模式 - 删除现有配置（除session外），完全使用导入的配置
+python3 import_config.py config_export_20250808_095913.json --mode replace
+```
+
+### 部署新环境步骤
+
+1. **初始化新环境**
+   ```bash
+   # 克隆代码
+   git clone <repository>
+   cd telegram_channel_bot
+   
+   # 初始化环境
+   ./start.sh  # 或 python3 init_db.py
+   ```
+
+2. **导入配置**
+   ```bash
+   source venv/bin/activate
+   python3 import_config.py config_export_YYYYMMDD_HHMMSS.json
+   ```
+
+3. **完成认证**
+   - 访问 `http://localhost:8000/auth.html` 完成Telegram认证
+   - 系统会生成新的session
+
+4. **启动服务**
+   ```bash
+   ./dev.sh  # 开发模式
+   # 或
+   ./start.sh  # 生产模式
+   ```
+
+### 配置内容说明
+
+导出的JSON文件包含：
+
+- **system_configs**: 系统配置项（排除telegram.session）
+  - Telegram API配置
+  - 频道设置
+  - 过滤设置
+  - 审核设置等
+
+- **ad_keywords**: 广告关键词
+  - 文中关键词
+  - 行过滤关键词
+
+- **channels**: 频道配置
+  - 源频道
+  - 目标频道
+  - 审核群
+
+- **filter_rules**: 过滤规则（如有）
+
+### 注意事项
+
+1. **session不会被导出**：每个环境需要独立认证
+2. **建议使用合并模式**：避免意外删除重要配置
+3. **导入前备份**：建议先导出当前配置作为备份
+4. **配置版本**：注意检查导出文件的版本兼容性
 
 ## 🐳 Docker 部署
 
-### 环境变量配置
+### 环境变量
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
-| `DATABASE_URL` | `sqlite:///./telegram_system.db` | 数据库连接URL |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:telegram123@postgres:5432/telegram_system` | 数据库连接URL |
 | `REDIS_URL` | `redis://redis:6379` | Redis连接URL |
 | `LOG_LEVEL` | `INFO` | 日志级别 |
 | `TZ` | `Asia/Shanghai` | 时区设置 |
@@ -182,151 +256,122 @@ python scripts/manage.py cleanup --days 30
 
 ```bash
 # 构建镜像
-docker-compose build
+docker compose build
 
 # 启动服务
-docker-compose up -d
+docker compose up -d
 
 # 查看日志
-docker-compose logs -f app
+docker compose logs -f app
 
 # 停止服务
-docker-compose down
+docker compose down
 
-# 开发环境（代码热重载）
-docker-compose -f docker-compose.dev.yml up -d
+# 重启应用
+docker compose restart app
+
+# 进入容器
+docker compose exec app bash
 ```
 
 ### 数据持久化
 
-项目会自动创建以下目录：
-- `./sessions/` - Telegram 会话文件
 - `./logs/` - 应用日志
 - `./data/` - 数据文件
+- `./temp_media/` - 临时媒体文件
+- PostgreSQL数据 - Docker卷持久化
 
 ## ⚙️ 高级配置
 
-### 过滤规则配置
-
-系统支持多种过滤规则：
-
-1. **关键词过滤**:
-   ```python
-   AD_KEYWORDS = ["广告", "推广", "代理", "加微信"]
-   ```
-
-2. **正则表达式过滤**:
-   - 微信号: `微信[：:]\s*\w+`
-   - QQ号: `QQ[：:]\s*\d+`
-   - 手机号: `联系.*\d{11}`
-
-3. **内容替换**:
-   ```python
-   CHANNEL_REPLACEMENTS = {
-       "@原频道": "@你的频道",
-       "原频道链接": "你的频道链接"
-   }
-   ```
-
 ### 数据库配置
 
-支持 SQLite 和 PostgreSQL：
+系统通过 `system_configs` 表存储所有配置：
 
-```env
-# SQLite (默认)
-DATABASE_URL=sqlite:///./telegram_system.db
+- `telegram.*` - Telegram API配置
+- `channels.*` - 频道配置
+- `filter.*` - 过滤规则
+- `review.*` - 审核设置
+- `accounts.*` - 账号采集配置
 
-# PostgreSQL
-DATABASE_URL=postgresql://user:password@localhost:5432/telegram_system
-```
+### 关键词过滤
+
+通过 `ad_keywords` 表管理：
+- **text类型**: 文中关键词检测
+- **line类型**: 行过滤关键词
 
 ## 📊 监控和维护
 
 ### 日志查看
 
 ```bash
-# 查看应用日志
-docker-compose logs app
+# 本地开发
+tail -f logs/*.log
 
-# 实时日志
-docker-compose logs -f app
+# Docker环境
+docker compose logs -f app
 ```
 
 ### 数据备份
 
 ```bash
-# 备份 SQLite 数据库
-cp telegram_system.db backup_$(date +%Y%m%d).db
+# 导出配置
+python3 export_config.py
 
-# 备份 PostgreSQL
-docker-compose exec db pg_dump -U postgres telegram_system > backup.sql
+# PostgreSQL备份
+docker compose exec postgres pg_dump -U postgres telegram_system > backup.sql
 ```
-
-### 性能优化
-
-1. **数据库优化**:
-   - 定期清理旧消息
-   - 添加适当的索引
-
-2. **内存优化**:
-   - 调整 Redis 配置
-   - 限制消息缓存大小
 
 ## 🔧 故障排除
 
 ### 常见问题
 
 1. **Telegram 客户端无法连接**:
-   - 检查 API ID 和 API Hash 是否正确
-   - 确认手机号码格式是否正确 (+8613800138000)
-   - 首次启动时需要输入验证码
+   - 检查 API ID 和 API Hash
+   - 确认手机号码格式 (+8613800138000)
+   - 检查网络代理设置
 
 2. **无法接收频道消息**:
-   - 确认您的账号已加入源频道
-   - 检查频道 ID 是否正确
+   - 确认账号已加入源频道
+   - 检查频道配置是否正确
+   - 查看系统日志排查错误
 
 3. **数据库连接失败**:
-   - 检查数据库 URL 配置
-   - 确认数据库服务正在运行
+   - 本地开发使用 SQLite，无需配置
+   - Docker环境检查 PostgreSQL 容器状态
 
-4. **消息过滤不准确**:
-   - 调整过滤关键词
-   - 优化正则表达式规则
-
-5. **WebSocket 连接失败**:
-   - 检查服务器是否正常运行
-   - 确认防火墙设置
-
-### 调试模式
-
-```bash
-# 启用调试日志
-export LOG_LEVEL=DEBUG
-python main.py
-```
+4. **WebSocket 连接失败**:
+   - 检查防火墙设置
+   - 确认端口 8000 未被占用
 
 ## 📁 项目结构
 
 ```
 telegram_channel_bot/
 ├── app/                    # 应用核心代码
-│   ├── api/               # API 路由
+│   ├── api/               # API路由
 │   ├── core/              # 核心配置
 │   ├── services/          # 业务服务
-│   └── telegram/          # Telegram 相关
+│   └── telegram/          # Telegram相关
 ├── static/                # 前端静态文件
-│   ├── assets/            # 资源文件
-│   │   ├── css/          # 样式文件
-│   │   ├── js/           # JavaScript 文件
-│   │   └── fonts/        # 字体文件
-│   └── *.html            # HTML 页面
-├── scripts/               # 管理脚本
-├── sessions/              # Telegram 会话文件
+│   ├── css/              # 样式文件
+│   ├── js/               # JavaScript文件
+│   └── *.html            # HTML页面
 ├── logs/                  # 日志文件
 ├── data/                  # 数据文件
-├── docker-compose.yml     # Docker 配置
-├── requirements.txt       # Python 依赖
-└── main.py               # 应用入口
+├── temp_media/           # 临时媒体文件
+├── venv/                 # Python虚拟环境
+├── dev.sh                # 开发启动脚本
+├── start.sh              # 标准启动脚本
+├── stop.sh               # 停止脚本
+├── restart.sh            # 重启脚本
+├── init_db.py            # 数据库初始化
+├── export_config.py      # 配置导出工具
+├── import_config.py      # 配置导入工具
+├── docker-compose.yml    # Docker配置
+├── Dockerfile            # Docker镜像定义
+├── requirements.txt      # Python依赖
+├── main.py              # 应用入口
+└── CLAUDE.md            # AI助手指南
 ```
 
 ## 🤝 贡献指南

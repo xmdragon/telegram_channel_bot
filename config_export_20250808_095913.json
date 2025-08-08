@@ -1,0 +1,749 @@
+{
+  "export_time": "2025-08-08T09:59:13.422882",
+  "version": "1.0",
+  "system_configs": [
+    {
+      "key": "telegram.phone",
+      "value": "",
+      "description": "Telegram手机号码 (格式: +8613800138000)",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "channels.history_message_limit",
+      "value": "50",
+      "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
+      "config_type": "integer",
+      "is_active": true
+    },
+    {
+      "key": "accounts.collect_accounts",
+      "value": "true",
+      "description": "是否启用账号采集功能",
+      "config_type": "boolean",
+      "is_active": true
+    },
+    {
+      "key": "accounts.collected_accounts",
+      "value": "[]",
+      "description": "已采集的账号列表",
+      "config_type": "list",
+      "is_active": true
+    },
+    {
+      "key": "accounts.account_blacklist",
+      "value": "[]",
+      "description": "账号黑名单 (不采集这些账号)",
+      "config_type": "list",
+      "is_active": true
+    },
+    {
+      "key": "accounts.account_whitelist",
+      "value": "[]",
+      "description": "账号白名单 (只采集这些账号)",
+      "config_type": "list",
+      "is_active": true
+    },
+    {
+      "key": "accounts.auto_collect",
+      "value": "true",
+      "description": "是否自动采集新账号",
+      "config_type": "boolean",
+      "is_active": true
+    },
+    {
+      "key": "filter.ad_keywords_text",
+      "value": "[\"广告\", \"推广\", \"代理\", \"加微信\", \"联系方式\", \"优惠\", \"折扣\", \"限时\", \"抢购\", \"秒杀\", \"代理\", \"代购\", \"批发\", \"零售\", \"加盟\", \"招商\", \"合作\", \"投资\", \"理财\", \"股票\", \"基金\", \"保险\", \"贷款\", \"信用卡\", \"网贷\", \"高利贷\", \"赌博\", \"博彩\", \"彩票\", \"六合彩\", \"时时彩\", \"快三\", \"快彩\", \"时时乐\", \"11选5\", \"排列3\", \"排列5\", \"福彩3D\", \"体彩\", \"足彩\", \"竞彩\", \"单场\", \"任选\", \"胆拖\", \"复式\", \"倍投\", \"跟单\", \"计划\", \"稳赚\", \"包赚\", \"必中\", \"必赢\", \"稳赢\", \"包赢\", \"包中\", \"包赚\", \"稳赚\", \"必赚\", \"必赢\", \"稳赢\", \"包赢\", \"包中\", \"包赚\", \"稳赚\", \"必赚\"]",
+      "description": "文中出现过滤消息的广告关键词 (消息内容包含这些关键词时过滤)",
+      "config_type": "list",
+      "is_active": true
+    },
+    {
+      "key": "filter.ad_keywords_line",
+      "value": "[\"联系QQ\", \"联系微信\", \"联系QQ群\", \"联系微信群\", \"加QQ\", \"加微信\", \"QQ群\", \"微信群\", \"QQ:\", \"微信:\", \"QQ：\", \"微信：\", \"QQ号:\", \"微信号:\", \"QQ号：\", \"微信号：\", \"QQ群:\", \"微信群:\", \"QQ群：\", \"微信群：\", \"QQ号码:\", \"微信账号:\", \"QQ号码：\", \"微信账号：\", \"QQ联系:\", \"微信联系:\", \"QQ联系：\", \"微信联系：\", \"QQ客服:\", \"微信客服:\", \"QQ客服：\", \"微信客服：\", \"QQ咨询:\", \"微信咨询:\", \"QQ咨询：\", \"微信咨询：\", \"QQ交流:\", \"微信交流:\", \"QQ交流：\", \"微信交流：\", \"QQ讨论:\", \"微信讨论:\", \"QQ讨论：\", \"微信讨论：\", \"QQ分享:\", \"微信分享:\", \"QQ分享：\", \"微信分享：\", \"QQ学习:\", \"微信学习:\", \"QQ学习：\", \"微信学习：\", \"QQ培训:\", \"微信培训:\", \"QQ培训：\", \"微信培训：\", \"QQ课程:\", \"微信课程:\", \"QQ课程：\", \"微信课程：\", \"QQ教程:\", \"微信教程:\", \"QQ教程：\", \"微信教程：\", \"QQ资料:\", \"微信资料:\", \"QQ资料：\", \"微信资料：\", \"QQ资源:\", \"微信资源:\", \"QQ资源：\", \"微信资源：\", \"QQ工具:\", \"微信工具:\", \"QQ工具：\", \"微信工具：\", \"QQ软件:\", \"微信软件:\", \"QQ软件：\", \"微信软件：\", \"QQ应用:\", \"微信应用:\", \"QQ应用：\", \"微信应用：\", \"QQ平台:\", \"微信平台:\", \"QQ平台：\", \"微信平台：\", \"QQ网站:\", \"微信网站:\", \"QQ网站：\", \"微信网站：\", \"QQ链接:\", \"微信链接:\", \"QQ链接：\", \"微信链接：\", \"QQ地址:\", \"微信地址:\", \"QQ地址：\", \"微信地址：\", \"QQ网址:\", \"微信网址:\", \"QQ网址：\", \"微信网址：\", \"QQ域名:\", \"微信域名:\", \"QQ域名：\", \"微信域名：\", \"QQ空间:\", \"微信空间:\", \"QQ空间：\", \"微信空间：\", \"QQ博客:\", \"微信博客:\", \"QQ博客：\", \"微信博客：\", \"QQ微博:\", \"微信微博:\", \"QQ微博：\", \"微信微博：\", \"QQ论坛:\", \"微信论坛:\", \"QQ论坛：\", \"微信论坛：\", \"QQ贴吧:\", \"微信贴吧:\", \"QQ贴吧：\", \"微信贴吧：\", \"QQ知道:\", \"微信知道:\", \"QQ知道：\", \"微信知道：\", \"QQ百科:\", \"微信百科:\", \"QQ百科：\", \"微信百科：\", \"QQ文库:\", \"微信文库:\", \"QQ文库：\", \"微信文库：\", \"QQ视频:\", \"微信视频:\", \"QQ视频：\", \"微信视频：\", \"QQ音乐:\", \"微信音乐:\", \"QQ音乐：\", \"微信音乐：\", \"QQ游戏:\", \"微信游戏:\", \"QQ游戏：\", \"微信游戏：\", \"QQ直播:\", \"微信直播:\", \"QQ直播：\", \"微信直播：\", \"QQ短视频:\", \"微信短视频:\", \"QQ短视频：\", \"微信短视频：\", \"QQ小视频:\", \"微信小视频:\", \"QQ小视频：\", \"微信小视频：\", \"QQ朋友圈:\", \"微信朋友圈:\", \"QQ朋友圈：\", \"微信朋友圈：\", \"QQ动态:\", \"微信动态:\", \"QQ动态：\", \"微信动态：\", \"QQ说说:\", \"微信说说:\", \"QQ说说：\", \"微信说说：\", \"QQ日志:\", \"微信日志:\", \"QQ日志：\", \"微信日志：\", \"QQ相册:\", \"微信相册:\", \"QQ相册：\", \"微信相册：\", \"QQ收藏:\", \"微信收藏:\", \"QQ收藏：\", \"微信收藏：\", \"QQ钱包:\", \"微信钱包:\", \"QQ钱包：\", \"微信钱包：\", \"QQ支付:\", \"微信支付:\", \"QQ支付：\", \"微信支付：\", \"QQ转账:\", \"微信转账:\", \"QQ转账：\", \"微信转账：\", \"QQ红包:\", \"微信红包:\", \"QQ红包：\", \"微信红包：\", \"QQ理财:\", \"微信理财:\", \"QQ理财：\", \"微信理财：\", \"QQ基金:\", \"微信基金:\", \"QQ基金：\", \"微信基金：\", \"QQ股票:\", \"微信股票:\", \"QQ股票：\", \"微信股票：\", \"QQ保险:\", \"微信保险:\", \"QQ保险：\", \"微信保险：\", \"QQ贷款:\", \"微信贷款:\", \"QQ贷款：\", \"微信贷款：\", \"QQ信用卡:\", \"微信信用卡:\", \"QQ信用卡：\", \"微信信用卡：\", \"QQ网贷:\", \"微信网贷:\", \"QQ网贷：\", \"微信网贷：\", \"QQ高利贷:\", \"微信高利贷:\", \"QQ高利贷：\", \"微信高利贷：\", \"QQ赌博:\", \"微信赌博:\", \"QQ赌博：\", \"微信赌博：\", \"QQ博彩:\", \"微信博彩:\", \"QQ博彩：\", \"微信博彩：\", \"QQ彩票:\", \"微信彩票:\", \"QQ彩票：\", \"微信彩票：\", \"QQ六合彩:\", \"微信六合彩:\", \"QQ六合彩：\", \"微信六合彩：\", \"QQ时时彩:\", \"微信时时彩:\", \"QQ时时彩：\", \"微信时时彩：\", \"QQ快三:\", \"微信快三:\", \"QQ快三：\", \"微信快三：\", \"QQ快彩:\", \"微信快彩:\", \"QQ快彩：\", \"微信快彩：\", \"QQ时时乐:\", \"微信时时乐:\", \"QQ时时乐：\", \"微信时时乐：\", \"QQ11选5:\", \"微信11选5:\", \"QQ11选5：\", \"微信11选5：\", \"QQ排列3:\", \"微信排列3:\", \"QQ排列3：\", \"微信排列3：\", \"QQ排列5:\", \"微信排列5:\", \"QQ排列5：\", \"微信排列5：\", \"QQ福彩3D:\", \"微信福彩3D:\", \"QQ福彩3D：\", \"微信福彩3D：\", \"QQ体彩:\", \"微信体彩:\", \"QQ体彩：\", \"微信体彩：\", \"QQ足彩:\", \"微信足彩:\", \"QQ足彩：\", \"微信足彩：\", \"QQ竞彩:\", \"微信竞彩:\", \"QQ竞彩：\", \"微信竞彩：\", \"QQ单场:\", \"微信单场:\", \"QQ单场：\", \"微信单场：\", \"QQ任选:\", \"微信任选:\", \"QQ任选：\", \"微信任选：\", \"QQ胆拖:\", \"微信胆拖:\", \"QQ胆拖：\", \"微信胆拖：\", \"QQ复式:\", \"微信复式:\", \"QQ复式：\", \"微信复式：\", \"QQ倍投:\", \"微信倍投:\", \"QQ倍投：\", \"微信倍投：\", \"QQ跟单:\", \"微信跟单:\", \"QQ跟单：\", \"微信跟单：\", \"QQ计划:\", \"微信计划:\", \"QQ计划：\", \"微信计划：\", \"QQ稳赚:\", \"微信稳赚:\", \"QQ稳赚：\", \"微信稳赚：\", \"QQ包赚:\", \"微信包赚:\", \"QQ包赚：\", \"微信包赚：\", \"QQ必中:\", \"微信必中:\", \"QQ必中：\", \"微信必中：\", \"QQ必赢:\", \"微信必赢:\", \"QQ必赢：\", \"微信必赢：\", \"QQ稳赢:\", \"微信稳赢:\", \"QQ稳赢：\", \"微信稳赢：\", \"QQ包赢:\", \"微信包赢:\", \"QQ包赢：\", \"微信包赢：\", \"QQ包中:\", \"微信包中:\", \"QQ包中：\", \"微信包中：\", \"QQ包赚:\", \"微信包赚:\", \"QQ包赚：\", \"微信包赚：\", \"QQ稳赚:\", \"微信稳赚:\", \"QQ稳赚：\", \"微信稳赚：\", \"QQ必赚:\", \"微信必赚:\", \"QQ必赚：\", \"微信必赚：\", \"QQ必赢:\", \"微信必赢:\", \"QQ必赢：\", \"微信必赢：\", \"QQ稳赢:\", \"微信稳赢:\", \"QQ稳赢：\", \"微信稳赢：\", \"QQ包赢:\", \"微信包赢:\", \"QQ包赢：\", \"微信包赢：\", \"QQ包中:\", \"微信包中:\", \"QQ包中：\", \"微信包中：\", \"QQ包赚:\", \"微信包赚:\", \"QQ包赚：\", \"微信包赚：\", \"QQ稳赚:\", \"微信稳赚:\", \"QQ稳赚：\", \"微信稳赚：\", \"QQ必赚:\", \"微信必赚:\", \"QQ必赚：\", \"微信必赚：\"]",
+      "description": "行中出现过滤本行的广告关键词 (消息行包含这些关键词时过滤整行)",
+      "config_type": "list",
+      "is_active": true
+    },
+    {
+      "key": "review.auto_forward_delay",
+      "value": "1800",
+      "description": "自动转发延迟(秒)",
+      "config_type": "integer",
+      "is_active": true
+    },
+    {
+      "key": "review.auto_filter_ads",
+      "value": "false",
+      "description": "是否自动过滤广告消息",
+      "config_type": "boolean",
+      "is_active": true
+    },
+    {
+      "key": "review.enable_keyword_filter",
+      "value": "true",
+      "description": "是否启用关键词过滤",
+      "config_type": "boolean",
+      "is_active": true
+    },
+    {
+      "key": "review.enable_line_filter",
+      "value": "true",
+      "description": "是否启用行过滤",
+      "config_type": "boolean",
+      "is_active": true
+    },
+    {
+      "key": "filter.channel_replacements",
+      "value": "{\"@原频道\": \"@你的频道\", \"原频道链接\": \"你的频道链接\"}",
+      "description": "频道信息替换规则",
+      "config_type": "json",
+      "is_active": true
+    },
+    {
+      "key": "system.secret_key",
+      "value": "your-secret-key-change-this-in-production",
+      "description": "系统密钥",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "system.database_url",
+      "value": "postgresql://postgres:telegram123@postgres:5432/telegram_system",
+      "description": "数据库连接URL",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "system.redis_url",
+      "value": "redis://localhost:6379",
+      "description": "Redis连接URL",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "channels.target_channel_id",
+      "value": "@bigeventsinsea",
+      "description": "目标频道ID",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "channels.review_group_id_cached",
+      "value": "-1002871459104",
+      "description": "缓存的审核群ID（由系统自动解析链接后设置）",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "channels.source_channels",
+      "value": "[\"@dongnanya0027\", \"-1002062871756\", \"1546415661\"]",
+      "description": "监听的源频道列表 (频道ID或用户名)",
+      "config_type": "list",
+      "is_active": true
+    },
+    {
+      "key": "telegram.api_id",
+      "value": "24382238",
+      "description": "Telegram API ID",
+      "config_type": "integer",
+      "is_active": true
+    },
+    {
+      "key": "telegram.api_hash",
+      "value": "a926790195b42a472477e7709a74fc24",
+      "description": "Telegram API Hash",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "channels.review_group_id",
+      "value": "https://t.me/+LKlb6v-pOo1jNGZl",
+      "description": "审核群ID或链接",
+      "config_type": "string",
+      "is_active": true
+    },
+    {
+      "key": "channels.signature",
+      "value": "🔔 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
+      "description": "频道落款内容（支持多行，用\\n分隔）",
+      "config_type": "string",
+      "is_active": true
+    }
+  ],
+  "ad_keywords": [
+    {
+      "keyword": "广告",
+      "keyword_type": "text",
+      "description": "测试关键词",
+      "is_active": true
+    },
+    {
+      "keyword": "投稿联系",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 投稿联系",
+      "is_active": true
+    },
+    {
+      "keyword": "投稿爆料",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 投稿爆料",
+      "is_active": true
+    },
+    {
+      "keyword": "欢迎投稿",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 欢迎投稿",
+      "is_active": true
+    },
+    {
+      "keyword": "免费投稿",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 免费投稿",
+      "is_active": true
+    },
+    {
+      "keyword": "点击投稿",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 点击投稿",
+      "is_active": true
+    },
+    {
+      "keyword": "投稿邮箱",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 投稿邮箱",
+      "is_active": true
+    },
+    {
+      "keyword": "意见反馈",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 意见反馈",
+      "is_active": true
+    },
+    {
+      "keyword": "技术对接",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 技术对接",
+      "is_active": true
+    },
+    {
+      "keyword": "认准对接",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 认准对接",
+      "is_active": true
+    },
+    {
+      "keyword": "商务合作",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 商务合作",
+      "is_active": true
+    },
+    {
+      "keyword": "联系我们",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 联系我们",
+      "is_active": true
+    },
+    {
+      "keyword": "客服联系",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 客服联系",
+      "is_active": true
+    },
+    {
+      "keyword": "@",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - @",
+      "is_active": true
+    },
+    {
+      "keyword": "t.me/",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - t.me/",
+      "is_active": true
+    },
+    {
+      "keyword": "https://t.me/",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - https://t.me/",
+      "is_active": true
+    },
+    {
+      "keyword": "订阅📡",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 订阅📡",
+      "is_active": true
+    },
+    {
+      "keyword": "🔔 订阅",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 🔔 订阅",
+      "is_active": true
+    },
+    {
+      "keyword": "订阅频道",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 订阅频道",
+      "is_active": true
+    },
+    {
+      "keyword": "加入频道",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 加入频道",
+      "is_active": true
+    },
+    {
+      "keyword": "关注频道",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 关注频道",
+      "is_active": true
+    },
+    {
+      "keyword": "⭐️[",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - ⭐️[",
+      "is_active": true
+    },
+    {
+      "keyword": "✅投稿",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - ✅投稿",
+      "is_active": true
+    },
+    {
+      "keyword": "📢订阅",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 📢订阅",
+      "is_active": true
+    },
+    {
+      "keyword": "👇点击",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 👇点击",
+      "is_active": true
+    },
+    {
+      "keyword": "🫢 意见",
+      "keyword_type": "line",
+      "description": "尾部推广过滤 - 🫢 意见",
+      "is_active": true
+    },
+    {
+      "keyword": "投稿澄清爆料",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 投稿澄清爆料",
+      "is_active": true
+    },
+    {
+      "keyword": "全球线上线下人工翻译",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 全球线上线下人工翻译",
+      "is_active": true
+    },
+    {
+      "keyword": "金三角大事件",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 金三角大事件",
+      "is_active": true
+    },
+    {
+      "keyword": "电报中文教程",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 电报中文教程",
+      "is_active": true
+    },
+    {
+      "keyword": "万能搜索",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 万能搜索",
+      "is_active": true
+    },
+    {
+      "keyword": "美女热舞",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 美女热舞",
+      "is_active": true
+    },
+    {
+      "keyword": "吃瓜搞笑",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 吃瓜搞笑",
+      "is_active": true
+    },
+    {
+      "keyword": "二手交易",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 二手交易",
+      "is_active": true
+    },
+    {
+      "keyword": "人才招聘",
+      "keyword_type": "text",
+      "description": "广告内容检测 - 人才招聘",
+      "is_active": true
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "@bigeventsinsea",
+      "channel_name": "@bigeventsinsea",
+      "channel_title": "目标发布频道",
+      "channel_type": "target",
+      "is_active": true,
+      "config": {},
+      "description": "自动转发的目标频道"
+    },
+    {
+      "channel_id": "-1002871459104",
+      "channel_name": "review_group",
+      "channel_title": "审核群",
+      "channel_type": "review",
+      "is_active": true,
+      "config": {},
+      "description": "消息审核群"
+    },
+    {
+      "channel_id": "-1002557968812",
+      "channel_name": "@cn_zhm0",
+      "channel_title": "东南亚曝光 东南亚爆料 东南亚悬赏",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002668816919",
+      "channel_name": "@zh_cnjjii",
+      "channel_title": "东南亚曝光 柬埔寨大事件 东南亚大事件 东南亚新闻 柬埔寨曝光",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1001548749089",
+      "channel_name": "@kk90690",
+      "channel_title": "金三角大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002062871756",
+      "channel_name": "@tx100",
+      "channel_title": "东南亚大事件曝光-聚集时刻",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": null
+    },
+    {
+      "channel_id": "-1001956665373",
+      "channel_name": "@PG134",
+      "channel_title": "东南亚闯荡记",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": null
+    },
+    {
+      "channel_id": "-1002477782460",
+      "channel_name": "@dongnanya127",
+      "channel_title": "亚太新闻 ｜ 妙瓦底新闻 ｜ 东南亚新闻 ｜ 爆料 甩人",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": null
+    },
+    {
+      "channel_id": "-1002705755618",
+      "channel_name": "@dny9527",
+      "channel_title": "东南亚曝光台",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": null
+    },
+    {
+      "channel_id": "-1002167120993",
+      "channel_name": "@YTCSJ6",
+      "channel_title": "亚太茶水间|亚太新闻|东南亚曝光",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002071977670",
+      "channel_name": "@dj17baoguang",
+      "channel_title": "东南亚大事件/曝光@dj17",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002655094027",
+      "channel_name": "@miandiandashijian168",
+      "channel_title": "缅甸大事件|妙瓦底曝光|东南亚大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002662224030",
+      "channel_name": "@zh_cnshk",
+      "channel_title": "亚太新闻 亚太曝光 亚太吃瓜 亚太茶水间",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1001300513859",
+      "channel_name": "@PG13400",
+      "channel_title": "东南亚/柬埔寨闯荡记【吃瓜】",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002691437675",
+      "channel_name": "@zh_cnyes1",
+      "channel_title": "海外大事件🌏灰产新闻🌏曝光平台🌏投稿吃瓜",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1001369325078",
+      "channel_name": "@bx1OO",
+      "channel_title": "金三角大事件/新闻曝光",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "2335000498",
+      "channel_name": "@yatai123123",
+      "channel_title": "缅甸❤️亚太茶水间-亚太大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "批量添加的频道: 缅甸❤️亚太茶水间-亚太大事件"
+    },
+    {
+      "channel_id": "-1001006503122",
+      "channel_name": "@durov",
+      "channel_title": "Pavel Durov",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "批量添加的频道: Pavel Durov"
+    },
+    {
+      "channel_id": "-1002244833076",
+      "channel_name": "@Spri1te3mr",
+      "channel_title": "东南亚大事件📢",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002373762238",
+      "channel_name": "@MB98888",
+      "channel_title": "柬埔寨大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1001443319944",
+      "channel_name": "@jpz_888",
+      "channel_title": "再看吴哥频道/华人信息",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002588709747",
+      "channel_name": "@miandiande",
+      "channel_title": "缅甸新闻|缅甸曝光|缅甸事件|缅甸大事件|缅甸安危事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002610200443",
+      "channel_name": "@feilvbingi",
+      "channel_title": "菲律宾新闻|菲律宾曝光|菲律宾事件|菲律宾大事件|菲律宾安危事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002403532207",
+      "channel_name": "@haiwaidjs",
+      "channel_title": "海外大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002693789874",
+      "channel_name": "@sucain7",
+      "channel_title": "东南亚大事件|東南亞大事件|缅甸大事件|柬埔寨大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002829999238",
+      "channel_name": "@ksir_6688",
+      "channel_title": "东南亚大事件（曝光）",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002583988661",
+      "channel_name": "@flbadrj",
+      "channel_title": "菲律宾挨打日记 日常吃瓜 内涵段子",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1001242178638",
+      "channel_name": "@eeollse",
+      "channel_title": "东南亚悬赏情报站",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1001535978705",
+      "channel_name": "@feilvbindsj0",
+      "channel_title": "菲律宾大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002282656522",
+      "channel_name": "@SJTJPZ",
+      "channel_title": "柬埔寨大事件曝光新闻黑料",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002396282873",
+      "channel_name": "@SJTFLP",
+      "channel_title": "菲律宾大事件-黑料曝光",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002059048471",
+      "channel_name": "@dashijian9",
+      "channel_title": "菲律宾大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1001546415661",
+      "channel_name": "@dnyggg",
+      "channel_title": "东南亚悬赏-吃瓜中心",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": null
+    },
+    {
+      "channel_id": "-1002137718790",
+      "channel_name": "@miandianDS",
+      "channel_title": "东南亚大事件|東南亞大事件|缅甸大事件|柬埔寨大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    },
+    {
+      "channel_id": "-1002495270592",
+      "channel_name": "@yyds518899",
+      "channel_title": "亚太茶水间 - 新闻爆料 娱乐 生活咨询",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "批量添加的频道: 亚太茶水间 - 新闻爆料 娱乐 生活咨询"
+    },
+    {
+      "channel_id": "-1002305901042",
+      "channel_name": "@dny858",
+      "channel_title": "东南亚大事件|東南亞大事件|柬埔寨大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "批量添加的频道: 东南亚大事件|東南亞大事件|柬埔寨大事件"
+    },
+    {
+      "channel_id": "-1002610935821",
+      "channel_name": "@dny103",
+      "channel_title": "东南亚大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "批量添加的频道: 东南亚大事件"
+    },
+    {
+      "channel_id": "-1002839600858",
+      "channel_name": "@dny107",
+      "channel_title": "东南亚大事件",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "批量添加的频道: 东南亚大事件"
+    },
+    {
+      "channel_id": "-1001005640892",
+      "channel_name": "@telegram",
+      "channel_title": "Telegram News",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "批量添加的频道: Telegram News"
+    },
+    {
+      "channel_id": "-1001969693044",
+      "channel_name": "@xgsj9",
+      "channel_title": "西港事件 | 柬埔寨新闻",
+      "channel_type": "source",
+      "is_active": true,
+      "config": {},
+      "description": "自动导入的订阅频道 - 2025-08-06 21:31:30"
+    }
+  ],
+  "filter_rules": []
+}

@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 重大变更历史
+
+- 2025-08-08: 添加配置导入导出工具（export_config.py, import_config.py），支持环境间配置迁移
+- 2025-08-07: 添加开发模式脚本（dev.sh），支持热重载开发
+- 有大的改动，特别是涉及脚本及重大功能变化，要记录到CLAUDE.md和README.md
+
 ## 常用命令
 
 ### 本地开发
@@ -210,3 +216,18 @@ UPDATE table_name SET column = value WHERE condition;
 1. **更新 init_db.py** - 确保数据库初始化脚本与新的表结构一致
 2. **更新 docker-compose.yml** - 如果需要挂载数据库文件，确保路径正确
 3. **测试新环境** - 在全新环境中验证初始化脚本能正确创建表结构
+
+## 配置导入导出工具
+
+系统提供了配置导入导出工具，用于在不同环境间迁移配置：
+
+- **export_config.py**: 导出系统配置（排除session）
+  - 导出系统配置、广告关键词、频道配置、过滤规则
+  - 生成带时间戳的JSON文件
+  
+- **import_config.py**: 导入配置
+  - 支持合并模式（默认）：保留现有配置，更新相同项
+  - 支持替换模式：删除现有配置（除session外），完全使用导入的配置
+  - 自动跳过session信息，需要每个环境独立认证
+
+这些工具在部署新环境或备份配置时非常有用。详见README.md中的配置迁移章节。
