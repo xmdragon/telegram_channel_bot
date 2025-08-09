@@ -13,24 +13,22 @@ const NavBar = {
         }
     },
     template: `
-        <div class="nav-bar-container">
-            <div class="nav-bar-header" v-if="pageTitle">
-                <div class="nav-title-wrapper">
-                    <h1 class="nav-page-title">{{ pageTitle }}</h1>
-                    <span class="nav-page-subtitle" v-if="pageSubtitle">{{ pageSubtitle }}</span>
+        <nav class="navbar">
+            <div class="navbar-content">
+                <div class="navbar-title">
+                    <h1>{{ pageTitle || '🚀 Telegram 消息审核系统' }}</h1>
+                    <span class="navbar-subtitle" v-if="pageSubtitle">{{ pageSubtitle }}</span>
+                </div>
+                <div class="navbar-links">
+                    <a href="./index.html" :class="['nav-link', isActive('/index.html') ? 'active' : '']">🏠 主控制台</a>
+                    <a href="./config.html" :class="['nav-link', isActive('/config.html') ? 'active' : '']">⚙️ 系统配置</a>
+                    <a href="./keywords.html" :class="['nav-link', isActive('/keywords.html') ? 'active' : '']">🔍 关键词管理</a>
+                    <a href="./status.html" :class="['nav-link', isActive('/status.html') ? 'active' : '']">📊 系统状态</a>
+                    <a href="./logs.html" :class="['nav-link', isActive('/logs.html') ? 'active' : '']">📋 系统日志</a>
+                    <a href="./auth.html" :class="['nav-link', isActive('/auth.html') ? 'active' : '']">🔐 登录</a>
                 </div>
             </div>
-            <div class="nav-bar">
-                <div class="nav-links">
-                    <a href="./index.html" :class="['nav-link', currentPath === '/' || currentPath === '/index.html' ? 'active' : '']">🏠 主控制台</a>
-                    <a href="./config.html" :class="['nav-link', currentPath === '/config' || currentPath === '/config.html' ? 'active' : '']">⚙️ 系统配置</a>
-                    <a href="./keywords.html" :class="['nav-link', currentPath === '/keywords' || currentPath === '/keywords.html' ? 'active' : '']">🔍 关键词管理</a>
-                    <a href="./status.html" :class="['nav-link', currentPath === '/status' || currentPath === '/status.html' ? 'active' : '']">📊 系统状态</a>
-                    <a href="./logs.html" :class="['nav-link', currentPath === '/logs' || currentPath === '/logs.html' || currentPath.includes('logs.html') ? 'active' : '']">📋 系统日志</a>
-                    <a href="./auth.html" :class="['nav-link', currentPath === '/auth' || currentPath === '/auth.html' ? 'active' : '']">🔐 Telegram登录</a>
-                </div>
-            </div>
-        </div>
+        </nav>
     `,
     data() {
         return {
@@ -40,6 +38,13 @@ const NavBar = {
     mounted() {
         // 获取当前路径
         this.currentPath = window.location.pathname;
+    },
+    methods: {
+        isActive(path) {
+            const currentPath = window.location.pathname;
+            return currentPath.includes(path) || 
+                   (path === '/index.html' && (currentPath === '/' || currentPath === ''));
+        }
     }
 };
 

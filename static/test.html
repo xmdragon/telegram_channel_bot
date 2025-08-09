@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI测试页面</title>
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+</head>
+<body>
+    <div id="app">
+        <nav class="navbar">
+            <div class="navbar-content">
+                <div class="navbar-title">
+                    <h1>测试页面</h1>
+                    <span class="navbar-subtitle">验证UI是否正常工作</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+            <!-- 测试卡片 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">测试卡片</div>
+                </div>
+                <div class="card-body">
+                    <p>这是一个测试卡片，用于验证CSS是否正常加载。</p>
+                    <div class="btn-group mt-2">
+                        <button class="btn btn-primary" @click="testClick">主要按钮</button>
+                        <button class="btn btn-success">成功按钮</button>
+                        <button class="btn btn-danger">危险按钮</button>
+                        <button class="btn btn-secondary">次要按钮</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 测试统计卡片 -->
+            <div class="stats-grid mt-3">
+                <div class="stat-card">
+                    <div class="stat-value">{{ counter }}</div>
+                    <div class="stat-label">点击次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">100</div>
+                    <div class="stat-label">测试数值</div>
+                </div>
+            </div>
+
+            <!-- 测试表单 -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <div class="card-title">表单测试</div>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">输入框</label>
+                        <input type="text" v-model="testInput" class="form-input" placeholder="请输入内容">
+                        <div class="form-hint">输入的内容: {{ testInput }}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择框</label>
+                        <select v-model="testSelect" class="form-select">
+                            <option value="">请选择</option>
+                            <option value="1">选项1</option>
+                            <option value="2">选项2</option>
+                        </select>
+                        <div class="form-hint">选择的值: {{ testSelect }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 测试消息列表 -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <div class="card-title">消息列表测试</div>
+                </div>
+                <div class="card-body">
+                    <div class="message-list">
+                        <div class="message-item" v-for="i in 3" :key="i">
+                            <div class="message-header">
+                                <div class="message-info">
+                                    <span class="message-channel">📢 测试频道 {{ i }}</span>
+                                    <span class="message-time">5分钟前</span>
+                                </div>
+                                <div>
+                                    <span class="tag tag-primary">标签{{ i }}</span>
+                                </div>
+                            </div>
+                            <div class="message-content">
+                                这是测试消息 {{ i }} 的内容
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/vue.prod.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    counter: 0,
+                    testInput: '',
+                    testSelect: ''
+                }
+            },
+            methods: {
+                testClick() {
+                    this.counter++;
+                    alert('按钮点击成功！点击次数：' + this.counter);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

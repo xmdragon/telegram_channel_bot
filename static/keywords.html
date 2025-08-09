@@ -3,20 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>关键词管理 - Telegram消息审核系统</title>
+    <title>🔍 关键词管理</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
     
-    <!-- 外部样式文件 -->
     <link rel="stylesheet" href="assets/css/element-plus.css">
-    <link rel="stylesheet" href="assets/css/main.css">
-    <link rel="stylesheet" href="assets/css/starcraft.css">
-    <link rel="stylesheet" href="assets/css/components/keywords.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
     
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="🔍 关键词管理中心" page-subtitle="广告过滤 · 内容筛选 · 智能识别"></nav-bar>
+        <nav-bar page-title="🔍 关键词管理" page-subtitle="广告过滤 · 内容筛选 · 智能识别"></nav-bar>
 
         <div class="container">
             <!-- 关键词管理标签页 -->
@@ -88,8 +85,6 @@
                             @selection-change="handleSelectionChange"
                             stripe 
                             border
-                            :header-cell-style="{ background: '#1a1a2e', color: '#00ff41' }"
-                            :row-style="{ background: '#16213e' }"
                             style="width: 100%">
                             
                             <el-table-column type="selection" width="55"></el-table-column>
@@ -115,7 +110,7 @@
                             
                             <el-table-column prop="description" label="描述" min-width="200">
                                 <template #default="scope">
-                                    <span style="color: #7fdbff;">{{ scope.row.description || '无描述' }}</span>
+                                    <span>{{ scope.row.description || '无描述' }}</span>
                                 </template>
                             </el-table-column>
                             
@@ -222,7 +217,7 @@
                 </el-form-item>
                 <el-form-item label="状态" prop="is_active">
                     <el-switch v-model="keywordForm.is_active"></el-switch>
-                    <span style="margin-left: 10px; color: #7fdbff;">
+                    <span style="margin-left: 10px;">
                         {{ keywordForm.is_active ? '启用' : '禁用' }}
                     </span>
                 </el-form-item>
@@ -280,7 +275,7 @@
     
     <!-- 外部脚本文件 -->
     <script src="assets/js/vue.prod.js?v=3"></script>
-    <script src="assets/js/element-plus.js?v=3"></script>
+    <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js?v=3"></script>
     <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/message-manager.js?v=1"></script>

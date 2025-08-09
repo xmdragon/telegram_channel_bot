@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试页面</title>
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+</head>
+<body>
+    <div id="app">
+        <h1>测试页面</h1>
+        <p>消息数量: {{ messages.length }}</p>
+        <p>过滤后消息数量: {{ filteredMessages.length }}</p>
+        <button @click="testLoad">加载测试</button>
+    </div>
+
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+        
+        const app = createApp({
+            data() {
+                return {
+                    messages: [],
+                    filters: {
+                        status: 'pending'
+                    }
+                }
+            },
+            computed: {
+                filteredMessages() {
+                    console.log('Computing filteredMessages, messages:', this.messages);
+                    return this.messages || [];
+                }
+            },
+            methods: {
+                testLoad() {
+                    this.messages = [
+                        { id: 1, content: 'Test 1', status: 'pending' },
+                        { id: 2, content: 'Test 2', status: 'approved' }
+                    ];
+                    ElMessage.success('加载成功');
+                }
+            },
+            mounted() {
+                console.log('App mounted');
+                this.testLoad();
+            }
+        });
+        
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html>

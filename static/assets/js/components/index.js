@@ -3,6 +3,22 @@
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
 
+// 消息管理器
+const MessageManager = {
+    success(message) {
+        ElMessage.success(message);
+    },
+    error(message) {
+        ElMessage.error(message);
+    },
+    warning(message) {
+        ElMessage.warning(message);
+    },
+    info(message) {
+        ElMessage.info(message);
+    }
+};
+
 // 主应用组件
 const MainApp = {
     data() {
@@ -41,6 +57,26 @@ const MainApp = {
                 content: '',
                 originalMessage: null
             }
+        }
+    },
+    
+    computed: {
+        // 过滤后的消息列表
+        filteredMessages() {
+            if (!this.messages || !Array.isArray(this.messages)) {
+                return [];
+            }
+            return this.messages;
+        },
+        
+        // 是否全选
+        allSelected() {
+            if (!this.filteredMessages || this.filteredMessages.length === 0) {
+                return false;
+            }
+            const selectableMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
+            return selectableMessages.length > 0 && 
+                   selectableMessages.every(msg => this.selectedMessages.includes(msg.id));
         }
     },
     
@@ -675,6 +711,131 @@ const MainApp = {
             } catch (error) {
                 MessageManager.error('编辑失败: ' + (error.response?.data?.detail || error.message));
             }
+        },
+        
+        // 切换全选
+        toggleSelectAll() {
+            if (this.allSelected) {
+                this.selectedMessages = [];
+            } else {
+                const selectableMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
+                this.selectedMessages = selectableMessages.map(msg => msg.id);
+            }
+        },
+        
+        // 检查消息是否被选中
+        isSelected(messageId) {
+            return this.selectedMessages.includes(messageId);
+        },
+        
+        // 切换消息选择
+        toggleMessage(messageId) {
+            const index = this.selectedMessages.indexOf(messageId);
+            if (index > -1) {
+                this.selectedMessages.splice(index, 1);
+            } else {
+                this.selectedMessages.push(messageId);
+            }
+        },
+        
+        // 批量批准消息
+        async approveMessages() {
+            if (this.selectedMessages.length === 0) {
+                MessageManager.warning('请先选择要批准的消息');
+                return;
+            }
+            
+            try {
+                const response = await axios.post('/api/messages/batch/approve', {
+                    message_ids: this.selectedMessages
+                });
+                if (response.data.success) {
+                    MessageManager.success(`成功批准 ${this.selectedMessages.length} 条消息`);
+                    this.selectedMessages = [];
+                    this.loadMessages();
+                    this.loadStats();
+                } else {
+                    MessageManager.error('批量批准失败: ' + response.data.message);
+                }
+            } catch (error) {
+                MessageManager.error('批量批准失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 批量拒绝消息
+        async rejectMessages() {
+            if (this.selectedMessages.length === 0) {
+                MessageManager.warning('请先选择要拒绝的消息');
+                return;
+            }
+            
+            try {
+                const response = await axios.post('/api/messages/batch/reject', {
+                    message_ids: this.selectedMessages
+                });
+                if (response.data.success) {
+                    MessageManager.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
+                    this.selectedMessages = [];
+                    this.loadMessages();
+                    this.loadStats();
+                } else {
+                    MessageManager.error('批量拒绝失败: ' + response.data.message);
+                }
+            } catch (error) {
+                MessageManager.error('批量拒绝失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 批量删除消息
+        async deleteMessages() {
+            if (this.selectedMessages.length === 0) {
+                MessageManager.warning('请先选择要删除的消息');
+                return;
+            }
+            
+            if (!confirm(`确定要删除 ${this.selectedMessages.length} 条消息吗？`)) {
+                return;
+            }
+            
+            try {
+                const response = await axios.post('/api/messages/batch/delete', {
+                    message_ids: this.selectedMessages
+                });
+                if (response.data.success) {
+                    MessageManager.success(`成功删除 ${this.selectedMessages.length} 条消息`);
+                    this.selectedMessages = [];
+                    this.loadMessages();
+                    this.loadStats();
+                } else {
+                    MessageManager.error('批量删除失败: ' + response.data.message);
+                }
+            } catch (error) {
+                MessageManager.error('批量删除失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 打开编辑对话框
+        openEditDialog(message) {
+            this.editDialog.messageId = message.id;
+            this.editDialog.content = message.filtered_content || message.content;
+            this.editDialog.originalMessage = message;
+            this.editDialog.visible = true;
+        },
+        
+        // 保存编辑
+        async saveEdit() {
+            await this.saveEditedMessage();
+        },
+        
+        // 获取状态标签
+        getStatusTag(status) {
+            const statusMap = {
+                'pending': { text: '待审核', type: 'warning' },
+                'approved': { text: '已批准', type: 'success' },
+                'rejected': { text: '已拒绝', type: 'danger' },
+                'auto_forwarded': { text: '自动转发', type: 'info' }
+            };
+            return statusMap[status] || { text: status, type: 'default' };
         }
     }
 };

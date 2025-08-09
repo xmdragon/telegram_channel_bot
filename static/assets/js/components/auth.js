@@ -322,7 +322,14 @@ const AuthApp = {
             },
             
             handleAuthInfo(data) {
-                this.savedAuthInfo = data;
+                // 创建响应式数据对象
+                this.savedAuthInfo = {
+                    api_id: data.api_id || '',
+                    api_hash: data.api_hash || '',
+                    has_saved_auth: data.has_saved_auth,
+                    has_session: data.has_session
+                };
+                
                 if (data.has_saved_auth) {
                     this.showSavedInfo = true;
                     this.authStatus = '已保存认证信息';
@@ -379,19 +386,21 @@ const AuthApp = {
             },
             
             async startReAuth() {
-                // 直接开始新的认证流程，无需清除现有session
-                this.showSavedInfo = false;
-                this.currentStep = 1;
-                this.authStatus = '重新认证';
-                this.errorMessage = '';
-                
-                // 如果有保存的API配置，预填充
-                if (this.savedAuthInfo) {
-                    this.config.api_id = this.savedAuthInfo.api_id || '';
-                    this.config.api_hash = this.savedAuthInfo.api_hash || '';
+                // 使用输入框中的新值进行认证
+                if (this.savedAuthInfo && this.savedAuthInfo.api_id && this.savedAuthInfo.api_hash) {
+                    this.config.api_id = this.savedAuthInfo.api_id;
+                    this.config.api_hash = this.savedAuthInfo.api_hash;
+                    
+                    // 直接开始新的认证流程
+                    this.showSavedInfo = false;
+                    this.currentStep = 1;
+                    this.authStatus = '重新认证';
+                    this.errorMessage = '';
+                    
+                    ElMessage.info('开始重新认证流程');
+                } else {
+                    ElMessage.warning('请输入 API ID 和 API Hash');
                 }
-                
-                ElMessage.info('开始重新认证流程');
             },
             
             resetForm() {

@@ -43,12 +43,14 @@ class ContentFilter:
             
             # === 推广关键词组合（必须带链接或@） ===
             # 订阅、投稿、商务等推广词+@用户名（需要更精确的匹配）
-            (r'^[📢📣🔔💬❤️🔗☎️😍].{0,5}(?:订阅|訂閱|投稿|爆料|商务|商務|联系|聯系)[^\n]{0,5}@[a-zA-Z]', 10),  # 表情+推广词+@
+            (r'^[📢📣🔔💬❤️🔗☎️😍✉️📮📬📭📧].{0,5}(?:订阅|訂閱|投稿|爆料|商务|商務|联系|聯系|失联|导航|對接|对接)[^\n]{0,10}@[a-zA-Z]', 10),  # 表情+推广词+@
             (r'(?:欢迎|歡迎)(?:投稿|爆料|加入)[^\n]{0,5}@', 9),  # 欢迎投稿+@
+            (r'(?:失联|失聯)(?:导航|導航)[^\n]{0,5}@', 10),  # 失联导航
+            (r'(?:商务|商務)(?:对接|對接|合作)[^\n]{0,5}@', 10),  # 商务对接
             
             # === 频道推广固定格式 ===
-            (r'^[📢📣🔔💬❤️🔗🔍].{0,5}(?:订阅|投稿|商务|联系)', 8),  # 表情+推广词
-            (r'(?:^|\n)[📢📣🔔💬❤️🔗👇🔍].{0,3}(?:@|t\.me|https?://)', 9),  # 表情+链接
+            (r'^[📢📣🔔💬❤️🔗🔍✉️📮😍].{0,5}(?:订阅|投稿|商务|联系|失联|导航)', 8),  # 表情+推广词
+            (r'(?:^|\n)[📢📣🔔💬❤️🔗👇🔍✉️😍].{0,3}(?:@|t\.me|https?://)', 9),  # 表情+链接
             (r'(?:订阅|訂閱).*(?:t\.me/|@)', 9),  # 订阅+链接
             
             # === 纯表情分隔线 ===
@@ -136,44 +138,72 @@ class ContentFilter:
     
     def filter_promotional_content(self, content: str) -> str:
         """
-        精准过滤推广内容
-        逐行分析，只删除确定是推广的行
+        精准过滤推广内容 - 简化版
+        重点过滤尾部推广内容
         """
         if not content:
             return content
             
         lines = content.split('\n')
+        total_lines = len(lines)
         filtered_lines = []
         
-        # 逐行分析
+        # 检查最后10行中的推广内容
+        tail_start = max(0, total_lines - 10)
+        tail_promo_count = 0
+        first_promo_index = total_lines
+        
+        # 扫描尾部，找到第一个推广行的位置
+        for i in range(tail_start, total_lines):
+            is_promo, score = self.is_promo_line(lines[i])
+            if is_promo and score >= 7:
+                tail_promo_count += 1
+                if first_promo_index == total_lines:
+                    first_promo_index = i
+                    # 如果推广行前面有分隔符，也包括分隔符
+                    if i > 0 and re.match(r'^[-=_—➖▪▫◆◇■□●○•]{3,}$', lines[i-1].strip()):
+                        first_promo_index = i - 1
+        
+        # 如果尾部有2行或以上推广内容，从第一个推广行开始全部过滤
+        if tail_promo_count >= 2:
+            # 只保留推广内容之前的部分
+            for i in range(first_promo_index):
+                filtered_lines.append(lines[i])
+            
+            # 清理尾部空行
+            while filtered_lines and not filtered_lines[-1].strip():
+                filtered_lines.pop()
+                
+            result = '\n'.join(filtered_lines)
+            logger.info(f"过滤尾部推广内容: {len(content)} -> {len(result)} 字符, 删除了 {total_lines - len(filtered_lines)} 行")
+            return result
+        
+        # 如果尾部推广内容不足2行，进行逐行精细过滤
         for i, line in enumerate(lines):
             is_promo, score = self.is_promo_line(line)
             
-            if is_promo:
-                # 高置信度直接过滤
-                if score >= 8:
-                    logger.info(f"过滤推广行(分数:{score}): {line[:50]}...")
+            # 尾部区域（最后20%）更严格
+            if i >= total_lines * 0.8:
+                if is_promo and score >= 7:
+                    logger.info(f"过滤推广行(位置:{i+1}/{total_lines}, 分数:{score}): {line[:50]}...")
                     continue
-                    
-                # 中等置信度需要额外判断
-                elif score >= 6:
-                    # 检查是否是分隔符
-                    if re.match(r'^[-=_—➖▪▫◆◇■□●○•]{5,}$', line.strip()):
-                        # 分隔符后面是否有推广内容
-                        has_promo_after = False
-                        for j in range(i+1, min(i+3, len(lines))):
-                            next_is_promo, next_score = self.is_promo_line(lines[j])
-                            if next_is_promo and next_score >= 7:
-                                has_promo_after = True
-                                break
-                        if has_promo_after:
-                            logger.info(f"过滤分隔符: {line[:50]}...")
-                            continue
-                    else:
-                        logger.info(f"过滤推广行(分数:{score}): {line[:50]}...")
+                if re.match(r'^[-=_—➖▪▫◆◇■□●○•]{5,}$', line.strip()):
+                    # 检查分隔符后是否有推广内容
+                    has_promo_after = False
+                    for j in range(i+1, min(i+3, total_lines)):
+                        next_promo, next_score = self.is_promo_line(lines[j])
+                        if next_promo and next_score >= 7:
+                            has_promo_after = True
+                            break
+                    if has_promo_after:
+                        logger.info(f"过滤分隔符(后有推广): {line[:50]}...")
                         continue
+            # 正文部分（前80%）只过滤高置信度
+            else:
+                if is_promo and score >= 9:
+                    logger.info(f"过滤正文推广行(分数:{score}): {line[:50]}...")
+                    continue
             
-            # 保留非推广内容
             filtered_lines.append(line)
         
         # 清理尾部空行
@@ -214,26 +244,54 @@ class ContentFilter:
             logger.error(f"加载广告关键词失败: {e}")
     
     def check_db_keywords(self, content: str) -> Tuple[bool, str]:
-        """检查数据库中的广告关键词"""
+        """检查数据库中的广告关键词 - 优化版，仅对尾部内容严格检查"""
         if not content:
             return False, ""
         
         content_lower = content.lower()
-        lines = content_lower.split('\n')
+        lines = content.split('\n')  # 保留原始大小写用于更精确的判断
         
-        # 检查文中关键词
+        # 检查文中关键词（这些是明确的广告词汇）
         for keyword in self.db_keywords_text:
             if keyword in content_lower:
                 return True, f"包含广告关键词: {keyword}"
         
-        # 检查行过滤关键词
-        for line in lines:
-            line = line.strip()
-            if not line:
+        # 行过滤关键词 - 仅检查最后5行（尾部推广内容）
+        # 不再对全文进行行关键词检查，避免误判
+        tail_lines = lines[-5:] if len(lines) > 5 else lines
+        tail_ad_indicators = 0
+        detected_keywords = []
+        
+        for line in tail_lines:
+            line_lower = line.lower().strip()
+            if not line_lower:
                 continue
+            
+            # 检查这一行是否包含推广关键词
             for keyword in self.db_keywords_line:
-                if keyword in line:
-                    return True, f"行中包含过滤关键词: {keyword}"
+                if keyword in line_lower:
+                    # 特殊处理过于通用的关键词
+                    if keyword == '@':
+                        # @ 符号需要配合其他推广词汇才算广告
+                        if any(promo_word in line_lower for promo_word in ['投稿', '商务', '合作', '联系', '导航', '频道']):
+                            tail_ad_indicators += 1
+                            detected_keywords.append(f"@+推广词")
+                            break
+                    elif keyword == 't.me/':
+                        # Telegram链接需要配合推广语境
+                        if any(promo_word in line_lower for promo_word in ['关注', '订阅', '加入', '失联', '备用']):
+                            tail_ad_indicators += 1
+                            detected_keywords.append(f"t.me/+推广词")
+                            break
+                    else:
+                        # 其他关键词直接计数
+                        tail_ad_indicators += 1
+                        detected_keywords.append(keyword)
+                        break
+        
+        # 只有当尾部有2行或以上包含推广内容时，才判定为广告
+        if tail_ad_indicators >= 2:
+            return True, f"尾部推广内容过多（{tail_ad_indicators}行包含: {', '.join(detected_keywords[:3])}）"
         
         return False, ""
     
