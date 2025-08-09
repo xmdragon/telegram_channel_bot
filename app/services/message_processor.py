@@ -72,13 +72,22 @@ class MessageProcessor:
             True如果是重复消息，False如果不重复
         """
         try:
+            # 准备视觉哈希（如果有）
+            visual_hashes = None
+            if hasattr(message, 'visual_hash') and message.visual_hash:
+                try:
+                    visual_hashes = eval(message.visual_hash)
+                except:
+                    pass
+            
             is_duplicate, orig_id, dup_type = await self.duplicate_detector.is_duplicate_message(
                 source_channel=message.source_channel,
                 media_hash=message.media_hash,
                 combined_media_hash=message.combined_media_hash,
                 content=message.content,
                 message_time=message.created_at,
-                message_id=message.id
+                message_id=message.id,
+                visual_hashes=visual_hashes
             )
             
             if is_duplicate and orig_id:

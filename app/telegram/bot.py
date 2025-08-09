@@ -89,6 +89,9 @@ class TelegramBot:
             # 保持向后兼容
             self.client = client
             
+            # 加载广告关键词到内存
+            await self.content_filter.load_keywords_from_db()
+            
             # 启动媒体处理器
             await media_handler.start()
             
@@ -244,7 +247,7 @@ class TelegramBot:
             
             # 内容过滤（包含智能去尾部）
             logger.info(f"📝 开始内容过滤，原始内容长度: {len(content)} 字符")
-            is_ad, filtered_content, filter_reason = await self.content_filter.filter_message(content)
+            is_ad, filtered_content, filter_reason = self.content_filter.filter_message(content)
             
             # 记录过滤结果和原因
             if filter_reason == "tail_only":
@@ -354,15 +357,29 @@ class TelegramBot:
                 return
             
             # 处理单独消息
+            # 提取媒体类型和URL
+            media_type = media_info.get('media_type') if media_info else None
+            media_url = media_info.get('file_path') if media_info else None
+            
+            # 提取视觉哈希（如果有）
+            visual_hash = None
+            media_hash = None
+            if media_info:
+                if media_info.get('visual_hashes'):
+                    visual_hash = str(media_info['visual_hashes'])  # 转换为字符串存储
+                media_hash = media_info.get('hash')  # SHA256哈希
+            
             async with AsyncSessionLocal() as db:
                 db_message = Message(
                     source_channel=channel_id,
                     message_id=message.id,
-                    content=content,
+                    content=content,  # 保存原始内容
                     media_type=media_type,
                     media_url=media_url,
+                    media_hash=media_hash,
+                    visual_hash=visual_hash,
                     is_ad=is_ad,
-                    filtered_content=filtered_content,
+                    filtered_content=filtered_content,  # 保存过滤后内容
                     grouped_id=str(message.grouped_id) if hasattr(message, 'grouped_id') and message.grouped_id else None,
                     is_combined=False
                 )
@@ -665,7 +682,7 @@ class TelegramBot:
                     logger.info(f"📝 内容预览: {message_data['content'][:100]}...")
                 
                 # 内容过滤
-                is_ad, filtered_content = await self.content_filter.filter_message(message_data['content'])
+                is_ad, filtered_content, filter_reason = self.content_filter.filter_message(message_data['content'])
                 
                 # 对于组合消息，如果文本被判定为广告，保留原始内容供审核
                 # 避免出现只有媒体没有文本的情况
@@ -710,11 +727,28 @@ class TelegramBot:
             # 计算媒体哈希（先计算，再检查重复）
             logger.info(f"📊 开始计算媒体哈希: is_combined={message_data.get('is_combined')}, media_type={message_data.get('media_type')}, media_url={message_data.get('media_url')}")
             
-            # 单个媒体哈希
+            # 初始化视觉哈希
+            visual_hash = None
+            combined_visual_hashes = []
+            
+            # 单个媒体哈希和视觉哈希
             if message_data.get('media_type') and message_data.get('media_url'):
                 # 从文件计算哈希
                 media_hash = await media_handler._calculate_file_hash(message_data['media_url'])
                 logger.info(f"📊 单个媒体哈希计算完成: {media_hash}")
+                
+                # 计算视觉哈希（仅对图片）
+                if message_data.get('media_type') in ['photo', 'animation']:
+                    try:
+                        from app.services.visual_similarity import visual_detector
+                        if visual_detector and os.path.exists(message_data['media_url']):
+                            with open(message_data['media_url'], 'rb') as f:
+                                image_data = f.read()
+                            visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
+                            visual_hash = str(visual_hashes)
+                            logger.info(f"📊 单个媒体视觉哈希计算完成")
+                    except Exception as e:
+                        logger.debug(f"计算视觉哈希失败: {e}")
             
             # 组合媒体哈希
             if message_data.get('is_combined'):
@@ -733,6 +767,19 @@ class TelegramBot:
                                     'hash': file_hash,
                                     'message_id': media_item.get('message_id', 0)
                                 })
+                            
+                            # 计算视觉哈希（仅对图片）
+                            if media_item.get('media_type') in ['photo', 'animation']:
+                                try:
+                                    from app.services.visual_similarity import visual_detector
+                                    if visual_detector and os.path.exists(media_item['file_path']):
+                                        with open(media_item['file_path'], 'rb') as f:
+                                            image_data = f.read()
+                                        item_visual_hash = visual_detector.calculate_perceptual_hashes(image_data)
+                                        combined_visual_hashes.append(item_visual_hash)
+                                        logger.info(f"📊 媒体{i+1}视觉哈希计算完成")
+                                except Exception as e:
+                                    logger.debug(f"计算媒体{i+1}视觉哈希失败: {e}")
                 # 兼容旧格式combined_messages
                 elif message_data.get('combined_messages'):
                     logger.info(f"📊 处理旧格式组合消息: {len(message_data['combined_messages'])} 个")
@@ -751,19 +798,36 @@ class TelegramBot:
                     logger.info(f"📊 组合媒体哈希计算完成: {combined_media_hash}")
                 else:
                     logger.warning("📊 没有有效的媒体文件用于计算组合哈希")
+                
+                # 组合视觉哈希列表为字符串
+                if combined_visual_hashes:
+                    visual_hash = str(combined_visual_hashes)
+                    logger.info(f"📊 组合媒体包含 {len(combined_visual_hashes)} 个视觉哈希")
             
             # 使用整合的重复检测器（历史消息和实时消息都需要检测重复）
             from app.services.duplicate_detector import DuplicateDetector
             duplicate_detector = DuplicateDetector()
             
             async with AsyncSessionLocal() as check_db:
-                # 执行整合的重复检测
+                # 执行整合的重复检测（包括视觉相似度）
+                visual_hashes_dict = None
+                if visual_hash:
+                    try:
+                        # 尝试解析视觉哈希字符串
+                        visual_hashes_dict = eval(visual_hash) if isinstance(visual_hash, str) else visual_hash
+                        # 如果是列表（组合媒体），取第一个
+                        if isinstance(visual_hashes_dict, list) and visual_hashes_dict:
+                            visual_hashes_dict = visual_hashes_dict[0]
+                    except:
+                        pass
+                
                 is_duplicate, original_msg_id, duplicate_type = await duplicate_detector.is_duplicate_message(
                     source_channel=channel_id,
                     media_hash=media_hash,
                     combined_media_hash=combined_media_hash,
                     content=message_data.get('content'),
                     message_time=message_data.get('date') or datetime.now(),
+                    visual_hashes=visual_hashes_dict,
                     db=check_db
                 )
                 
@@ -793,6 +857,7 @@ class TelegramBot:
                     # 添加媒体哈希字段
                     media_hash=media_hash,
                     combined_media_hash=combined_media_hash,
+                    visual_hash=visual_hash,  # 添加视觉哈希
                     media_group=message_data.get('media_group'),
                     is_ad=is_ad,
                     filtered_content=filtered_content,

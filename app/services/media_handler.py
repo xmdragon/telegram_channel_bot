@@ -16,6 +16,14 @@ from app.core.config import db_settings
 
 logger = logging.getLogger(__name__)
 
+# 导入视觉相似度检测器
+try:
+    from app.services.visual_similarity import visual_detector
+    logger.info("✅ 视觉相似度检测器导入成功")
+except ImportError as e:
+    visual_detector = None
+    logger.error(f"❌ 视觉相似度检测器导入失败: {e}")
+
 class MediaHandler:
     """媒体文件处理器"""
     
@@ -91,15 +99,28 @@ class MediaHandler:
                 
                 # 计算文件哈希
                 file_hash = None
+                visual_hashes = None
                 if file_path.exists():
                     file_hash = await self._calculate_file_hash(str(file_path))
+                    # 计算视觉哈希（仅对图片）
+                    if visual_detector:
+                        try:
+                            with open(file_path, 'rb') as f:
+                                image_data = f.read()
+                            visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
+                            logger.info(f"📊 图片视觉哈希计算成功: {file_name}")
+                        except Exception as e:
+                            logger.error(f"❌ 计算视觉哈希失败: {e}")
+                    else:
+                        logger.warning("⚠️ 视觉检测器未初始化，跳过视觉哈希计算")
                 
                 media_info.update({
                     "file_path": str(file_path),
                     "file_name": file_name,
                     "file_size": file_path.stat().st_size if file_path.exists() else 0,
                     "mime_type": "image/jpeg",
-                    "hash": file_hash
+                    "hash": file_hash,
+                    "visual_hashes": visual_hashes
                 })
                 
                 logger.info(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
@@ -165,8 +186,21 @@ class MediaHandler:
                 
                 # 计算文件哈希
                 file_hash = None
+                visual_hashes = None
                 if file_path.exists():
                     file_hash = await self._calculate_file_hash(str(file_path))
+                    # 计算视觉哈希（仅对图片类型）
+                    if visual_detector and media_info["media_type"] in ["photo", "animation"]:
+                        try:
+                            with open(file_path, 'rb') as f:
+                                image_data = f.read()
+                            visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
+                            logger.info(f"📊 {media_info['media_type']}视觉哈希计算成功: {file_name}")
+                        except Exception as e:
+                            logger.error(f"❌ 计算视觉哈希失败: {e}")
+                    else:
+                        if not visual_detector:
+                            logger.warning(f"⚠️ 视觉检测器未初始化，跳过{media_info['media_type']}视觉哈希计算")
                 
                 media_info.update({
                     "file_path": str(file_path),
@@ -174,7 +208,8 @@ class MediaHandler:
                     "file_size": file_path.stat().st_size if file_path.exists() else 0,
                     "mime_type": mime_type,
                     "original_name": original_name,
-                    "hash": file_hash
+                    "hash": file_hash,
+                    "visual_hashes": visual_hashes
                 })
                 
                 logger.info(f"{media_info['media_type']}下载完成: {file_name} ({media_info['file_size']} bytes)")

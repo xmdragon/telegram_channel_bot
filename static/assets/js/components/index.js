@@ -16,6 +16,7 @@ const MainApp = {
             websocket: null,
             websocketConnected: false,
             selectedMessages: [],
+            searchKeyword: '',  // 搜索关键词
             channelInfo: {},
             mediaPreview: {
                 show: false,
@@ -113,6 +114,11 @@ const MainApp = {
                     ...this.filters,
                     status: this.filters.status || 'pending'  // 如果status为null或空，默认使用'pending'
                 };
+                
+                // 添加搜索关键词参数
+                if (this.searchKeyword && this.searchKeyword.trim()) {
+                    params.search = this.searchKeyword.trim();
+                }
                 
                 const response = await axios.get('/api/messages/', {
                     params: params
@@ -348,6 +354,28 @@ const MainApp = {
             }
         },
         
+        // 搜索消息
+        searchMessages() {
+            // 直接加载消息，不设置最小长度限制
+            // 允许空搜索和单字符搜索
+            this.loadMessages();
+        },
+        
+        // 切换消息选择状态
+        toggleMessageSelection(message) {
+            const index = this.selectedMessages.indexOf(message.id);
+            if (index > -1) {
+                this.selectedMessages.splice(index, 1);
+            } else {
+                this.selectedMessages.push(message.id);
+            }
+        },
+        
+        // 检查消息是否被选中
+        isMessageSelected(messageId) {
+            return this.selectedMessages.includes(messageId);
+        },
+        
         // 批量批准
         async batchApprove() {
             if (this.selectedMessages.length === 0) {
@@ -430,7 +458,22 @@ const MainApp = {
         // 处理媒体加载错误
         handleMediaError(event, message) {
             console.error('媒体加载失败:', message.id, event.target.src);
-            event.target.style.display = 'none';
+            
+            // 创建错误占位符
+            const placeholder = document.createElement('div');
+            placeholder.className = 'media-error-placeholder';
+            placeholder.innerHTML = `
+                <div class="error-icon">📷</div>
+                <div class="error-text">图片加载失败</div>
+            `;
+            
+            // 替换失败的图片
+            const parent = event.target.parentNode;
+            if (parent) {
+                parent.replaceChild(placeholder, event.target);
+            } else {
+                event.target.style.display = 'none';
+            }
         },
 
         // 获取媒体组数据属性

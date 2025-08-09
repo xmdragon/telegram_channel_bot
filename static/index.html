@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="assets/css/components/index.css">
     <link rel="stylesheet" href="assets/css/components/telegram-message.css">
     <link rel="stylesheet" href="assets/css/components/media-group.css">
+    <link rel="stylesheet" href="assets/css/checkbox-fix.css">
+    <link rel="stylesheet" href="assets/css/media-error.css">
     
     <!-- 外部脚本文件 -->
     <script src="assets/js/vue.prod.js?v=2"></script>
@@ -41,6 +43,22 @@
             <!-- 工具栏 -->
             <div class="toolbar">
                 <div class="filter-group">
+                    <!-- 搜索框 -->
+                    <el-input 
+                        v-model="searchKeyword" 
+                        placeholder="搜索消息内容..." 
+                        clearable
+                        @clear="searchMessages"
+                        @keyup.enter="searchMessages"
+                        style="width: 350px; margin-right: 10px;">
+                        <template #prefix>
+                            <el-icon><i class="el-icon-search"></i></el-icon>
+                        </template>
+                        <template #append>
+                            <el-button @click="searchMessages">搜索</el-button>
+                        </template>
+                    </el-input>
+                    
                     <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="loadMessages">
                         <el-option label="待审核" value="pending"></el-option>
                         <el-option label="已批准" value="approved"></el-option>
@@ -69,11 +87,19 @@
 
             <!-- 消息列表 - 类似Telegram频道格式 -->
             <div v-for="message in messages" :key="message.id" class="telegram-message" 
-                 :class="[message.is_ad ? 'ad-message' : '', message.status]">
+                 :class="[message.is_ad ? 'ad-message' : '', message.status, isMessageSelected(message.id) ? 'selected' : '']">
                 
                 <!-- 频道信息头 -->
                 <div class="channel-header">
                     <div class="channel-info">
+                        <!-- 选择框 - 只在pending状态显示 -->
+                        <el-checkbox 
+                            v-if="message.status === 'pending'"
+                            :model-value="isMessageSelected(message.id)"
+                            @change="toggleMessageSelection(message)"
+                            class="message-checkbox"
+                            style="margin-right: 10px;">
+                        </el-checkbox>
                         <div class="channel-avatar">📢</div>
                         <div class="channel-details">
                             <div class="channel-name">{{ getChannelName(message.source_channel) }}</div>

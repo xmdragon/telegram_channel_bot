@@ -13,6 +13,12 @@ from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal, Message
 
+# 导入视觉相似度检测器
+try:
+    from app.services.visual_similarity import visual_detector
+except ImportError:
+    visual_detector = None
+
 logger = logging.getLogger(__name__)
 
 class DuplicateDetector:
@@ -64,9 +70,11 @@ class DuplicateDetector:
                                   content: Optional[str] = None,
                                   message_time: Optional[datetime] = None,
                                   message_id: Optional[int] = None,
+                                  media_data: Optional[bytes] = None,
+                                  visual_hashes: Optional[dict] = None,
                                   db: Optional[AsyncSession] = None) -> Tuple[bool, Optional[int], str]:
         """
-        整合的重复消息检测：优先媒体哈希，其次jieba文本相似度
+        整合的重复消息检测：优先视觉相似度，其次媒体哈希，最后jieba文本相似度
         
         Args:
             source_channel: 源频道
@@ -74,6 +82,9 @@ class DuplicateDetector:
             combined_media_hash: 组合媒体的哈希值
             content: 消息文本内容
             message_time: 消息时间
+            message_id: 消息ID
+            media_data: 媒体文件的二进制数据（用于视觉相似度检测）
+            visual_hashes: 预计算的视觉哈希值
             db: 数据库会话
             
         Returns:
@@ -84,8 +95,17 @@ class DuplicateDetector:
         # 确保时间没有时区信息（naive datetime）
         if hasattr(message_time, 'tzinfo') and message_time.tzinfo is not None:
             message_time = message_time.replace(tzinfo=None)
+        
+        # 最优先进行视觉相似度检测（如果有图片数据）
+        if visual_detector and (media_data or visual_hashes):
+            is_visual_dup, orig_id, similarity = await self._check_visual_duplicate(
+                media_data, visual_hashes, message_time, message_id, db
+            )
+            if is_visual_dup:
+                logger.info(f"检测到视觉相似图片，相似度: {similarity:.1f}%")
+                return True, orig_id, "visual"
             
-        # 优先进行媒体哈希检测（跨频道）
+        # 其次进行媒体哈希检测（跨频道）
         if media_hash or combined_media_hash:
             is_media_dup, orig_id = await self._check_media_duplicate(
                 media_hash, combined_media_hash, message_time, message_id, db
@@ -116,6 +136,81 @@ class DuplicateDetector:
         except Exception as e:
             logger.error(f"检测重复消息时出错: {e}")
             return False
+        finally:
+            if not use_external_db:
+                await db.close()
+    
+    async def _check_visual_duplicate(self, media_data: Optional[bytes],
+                                     visual_hashes: Optional[dict],
+                                     message_time: datetime,
+                                     message_id: Optional[int] = None,
+                                     db: Optional[AsyncSession] = None) -> Tuple[bool, Optional[int], float]:
+        """
+        检查视觉相似度重复
+        
+        Args:
+            media_data: 媒体文件数据
+            visual_hashes: 预计算的视觉哈希
+            message_time: 消息时间
+            message_id: 当前消息ID
+            db: 数据库会话
+            
+        Returns:
+            (是否重复, 原始消息ID, 相似度分数)
+        """
+        if not visual_detector:
+            return False, None, 0.0
+        
+        # 如果有媒体数据但没有视觉哈希，先计算
+        if media_data and not visual_hashes:
+            visual_hashes = visual_detector.calculate_perceptual_hashes(media_data)
+        
+        if not visual_hashes:
+            return False, None, 0.0
+        
+        use_external_db = db is not None
+        if not use_external_db:
+            db = AsyncSessionLocal()
+        
+        try:
+            # 确保时间没有时区信息
+            if hasattr(message_time, 'tzinfo') and message_time.tzinfo is not None:
+                message_time = message_time.replace(tzinfo=None)
+            
+            # 查询时间范围内的消息
+            time_threshold = message_time - timedelta(hours=48)  # 48小时窗口
+            
+            conditions = [
+                Message.created_at >= time_threshold,
+                Message.status != "rejected",
+                Message.visual_hash.isnot(None)  # 只查询有视觉哈希的消息
+            ]
+            
+            # 排除当前消息
+            if message_id is not None:
+                conditions.append(Message.id != message_id)
+            
+            result = await db.execute(
+                select(Message).where(and_(*conditions)).order_by(Message.created_at.desc())
+            )
+            messages = result.scalars().all()
+            
+            # 检查每个历史消息的视觉相似度
+            for msg in messages:
+                try:
+                    stored_hashes = eval(msg.visual_hash)  # 将字符串转换回字典
+                    is_similar, similarity = visual_detector.is_visually_similar(visual_hashes, stored_hashes)
+                    if is_similar:
+                        logger.info(f"发现视觉相似图片，消息ID: {msg.id}, 相似度: {similarity:.1f}%")
+                        return True, msg.id, similarity
+                except Exception as e:
+                    logger.debug(f"比较视觉哈希时出错: {e}")
+            
+            return False, None, 0.0
+            
+        except Exception as e:
+            logger.error(f"检查视觉重复时出错: {e}")
+            return False, None, 0.0
         finally:
             if not use_external_db:
                 await db.close()

@@ -1,0 +1,76 @@
+/* 媒体加载错误占位符样式 */
+
+.media-error-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(40, 40, 60, 0.95), rgba(30, 30, 50, 0.98));
+    border: 2px dashed rgba(255, 107, 107, 0.3);
+    border-radius: 8px;
+    min-height: 200px;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* 媒体组中的错误占位符 */
+.media-group-item .media-error-placeholder {
+    min-height: 150px;
+    height: 100%;
+}
+
+.media-error-placeholder .error-icon {
+    font-size: 48px;
+    opacity: 0.5;
+    margin-bottom: 10px;
+    filter: grayscale(100%);
+}
+
+.media-error-placeholder .error-text {
+    color: rgba(255, 107, 107, 0.7);
+    font-size: 14px;
+    text-align: center;
+}
+
+/* 悬停效果 */
+.media-error-placeholder:hover {
+    border-color: rgba(255, 107, 107, 0.5);
+    background: linear-gradient(135deg, rgba(50, 40, 40, 0.95), rgba(40, 30, 30, 0.98));
+}
+
+/* 动画效果 */
+@keyframes pulse {
+    0% {
+        opacity: 0.5;
+    }
+    50% {
+        opacity: 0.8;
+    }
+    100% {
+        opacity: 0.5;
+    }
+}
+
+.media-error-placeholder .error-icon {
+    animation: pulse 2s infinite;
+}
+
+/* 针对不同媒体类型的占位符调整 */
+.media-display .media-error-placeholder {
+    cursor: not-allowed;
+}
+
+/* 视频错误占位符 */
+video + .media-error-placeholder .error-icon::before {
+    content: "🎬";
+    position: absolute;
+    font-size: 48px;
+}
+
+/* 确保占位符在组合媒体中正确显示 */
+.media-group-container .media-error-placeholder {
+    flex: 1;
+    min-width: 0;
+}

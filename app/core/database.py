@@ -53,6 +53,7 @@ class Message(Base):
     # 媒体哈希用于检测重复
     media_hash = Column(String, index=True)  # 媒体文件的哈希值
     combined_media_hash = Column(String, index=True)  # 组合媒体的哈希值
+    visual_hash = Column(Text)  # 视觉感知哈希（包含phash、dhash等多种哈希）
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

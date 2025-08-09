@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/starcraft.css">
+    <link rel="stylesheet" href="assets/css/checkbox-fix.css">
     <link rel="stylesheet" href="assets/css/components/config.css">
     
     <!-- 外部脚本文件 -->
@@ -121,8 +122,7 @@
                                     <el-input 
                                         v-model="searchForm.query" 
                                         placeholder="输入频道名称或关键词搜索"
-                                        clearable
-                                        @keyup.enter="searchChannels">
+                                        clearable>
                                         <template #append>
                                             <el-button @click="searchChannels" :loading="searchForm.loading">
                                                 <el-icon><Search /></el-icon> 搜索

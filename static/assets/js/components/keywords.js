@@ -123,9 +123,9 @@ const keywordsApp = {
             }
             
             // 状态筛选
-            if (this.filterStatus !== '') {
-                const isActive = this.filterStatus === 'true';
-                filtered = filtered.filter(keyword => keyword.is_active === isActive);
+            if (this.filterStatus !== '' && this.filterStatus !== null) {
+                // filterStatus本身就是boolean类型，不需要转换
+                filtered = filtered.filter(keyword => keyword.is_active === this.filterStatus);
             }
             
             this.filteredKeywords = filtered;

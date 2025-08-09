@@ -1,5 +1,17 @@
 /* Telegram消息样式 */
 
+/* 选中状态 */
+.telegram-message.selected {
+    background: linear-gradient(135deg, rgba(26, 46, 26, 0.95), rgba(20, 40, 20, 0.98));
+    border: 2px solid rgba(0, 255, 65, 0.6);
+    box-shadow: 0 6px 20px rgba(0, 255, 65, 0.3);
+}
+
+.message-checkbox {
+    display: inline-flex;
+    align-items: center;
+}
+
 .telegram-message {
     background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(20, 20, 40, 0.98));
     border: 1px solid rgba(0, 255, 65, 0.3);

@@ -21,6 +21,7 @@ async def get_messages(
     status: Optional[str] = Query(None, description="消息状态过滤"),
     source_channel: Optional[str] = Query(None, description="源频道过滤"),
     is_ad: Optional[bool] = Query(None, description="是否为广告"),
+    search: Optional[str] = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(get_db)
@@ -35,6 +36,17 @@ async def get_messages(
         conditions.append(Message.source_channel == source_channel)
     if is_ad is not None:
         conditions.append(Message.is_ad == is_ad)
+    
+    # 添加搜索条件
+    if search:
+        from sqlalchemy import or_
+        search_term = f"%{search}%"
+        conditions.append(
+            or_(
+                Message.content.ilike(search_term),
+                Message.filtered_content.ilike(search_term)
+            )
+        )
     
     # 执行查询
     query = select(Message)

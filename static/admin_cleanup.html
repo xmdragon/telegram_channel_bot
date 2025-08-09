@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统清理 - Telegram消息审核系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/element-plus@2.3.14/dist/index.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.3.14/dist/index.full.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.5.0/dist/axios.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .cleanup-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .status-item {
+            text-align: center;
+            padding: 20px;
+            background: #f5f7fa;
+            border-radius: 8px;
+        }
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #409EFF;
+            margin-bottom: 8px;
+        }
+        .status-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .cleanup-actions {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .back-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <div class="header">
+                <h1>系统清理管理</h1>
+                <p>管理和清理系统临时文件</p>
+            </div>
+
+            <div class="cleanup-card">
+                <h2>临时媒体文件清理</h2>
+                <el-alert
+                    title="清理说明"
+                    type="info"
+                    :closable="false"
+                    show-icon>
+                    系统会自动每6小时清理一次超过1天的临时媒体文件。您也可以手动执行清理。
+                </el-alert>
+
+                <div class="status-info" v-if="mediaStatus">
+                    <div class="status-item">
+                        <div class="status-value">{{ mediaStatus.total_files }}</div>
+                        <div class="status-label">总文件数</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-value">{{ mediaStatus.total_size }}</div>
+                        <div class="status-label">总大小</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-value">{{ mediaStatus.old_files }}</div>
+                        <div class="status-label">待清理文件</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-value">{{ mediaStatus.old_files_size }}</div>
+                        <div class="status-label">待清理大小</div>
+                    </div>
+                </div>
+
+                <div class="cleanup-actions">
+                    <el-button 
+                        type="primary" 
+                        size="large"
+                        @click="cleanupTempMedia"
+                        :loading="cleaning"
+                        :disabled="!mediaStatus || mediaStatus.old_files === 0">
+                        <span v-if="!cleaning">立即清理过期文件</span>
+                        <span v-else>清理中...</span>
+                    </el-button>
+                    <el-button 
+                        size="large"
+                        @click="refreshStatus"
+                        :loading="loading">
+                        刷新状态
+                    </el-button>
+                </div>
+            </div>
+
+            <el-button 
+                class="back-btn" 
+                type="success" 
+                circle 
+                size="large"
+                @click="goBack">
+                <el-icon><i class="el-icon-back"></i></el-icon>
+            </el-button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    mediaStatus: null,
+                    loading: false,
+                    cleaning: false
+                }
+            },
+            mounted() {
+                this.refreshStatus();
+            },
+            methods: {
+                async refreshStatus() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.get('/api/admin/cleanup/temp-media/status');
+                        this.mediaStatus = response.data;
+                        if (this.mediaStatus.old_files === 0) {
+                            ElMessage.success('没有需要清理的文件');
+                        }
+                    } catch (error) {
+                        ElMessage.error('获取状态失败：' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async cleanupTempMedia() {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要清理 ${this.mediaStatus.old_files} 个过期文件吗？这将释放 ${this.mediaStatus.old_files_size} 空间。`,
+                            '确认清理',
+                            {
+                                confirmButtonText: '确定清理',
+                                cancelButtonText: '取消',
+                                type: 'warning'
+                            }
+                        );
+
+                        this.cleaning = true;
+                        const response = await axios.post('/api/admin/cleanup/temp-media');
+                        
+                        ElMessage.success(response.data.message);
+                        
+                        // 刷新状态
+                        await this.refreshStatus();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('清理失败：' + (error.response?.data?.detail || error.message));
+                        }
+                    } finally {
+                        this.cleaning = false;
+                    }
+                },
+
+                goBack() {
+                    window.location.href = '/admin.html';
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

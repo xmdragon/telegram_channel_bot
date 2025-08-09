@@ -15,6 +15,7 @@ import tempfile
 from app.core.database import get_db, Channel, FilterRule, AsyncSessionLocal
 from app.core.config import settings
 from app.services.config_manager import config_manager
+from app.services.scheduler import MessageScheduler
 
 router = APIRouter()
 
@@ -183,6 +184,111 @@ async def get_filter_rules(db: AsyncSession = Depends(get_db)):
             for rule in rules
         ]
     }
+
+@router.post("/cleanup/temp-media")
+async def cleanup_temp_media():
+    """立即执行临时媒体文件清理"""
+    try:
+        # 创建调度器实例并执行清理
+        scheduler = MessageScheduler()
+        await scheduler.cleanup_temp_media()
+        
+        # 获取目录状态
+        from pathlib import Path
+        temp_media_dir = Path("temp_media")
+        
+        if temp_media_dir.exists():
+            files = list(temp_media_dir.iterdir())
+            file_count = len([f for f in files if f.is_file()])
+            total_size = sum(f.stat().st_size for f in files if f.is_file())
+            
+            # 转换文件大小为可读格式
+            if total_size > 1024 * 1024 * 1024:  # GB
+                size_str = f"{total_size / (1024 * 1024 * 1024):.2f} GB"
+            elif total_size > 1024 * 1024:  # MB
+                size_str = f"{total_size / (1024 * 1024):.2f} MB"
+            elif total_size > 1024:  # KB
+                size_str = f"{total_size / 1024:.2f} KB"
+            else:
+                size_str = f"{total_size} bytes"
+            
+            return {
+                "status": "success",
+                "message": "临时媒体文件清理完成",
+                "remaining_files": file_count,
+                "remaining_size": size_str
+            }
+        else:
+            return {
+                "status": "success",
+                "message": "temp_media目录不存在",
+                "remaining_files": 0,
+                "remaining_size": "0 bytes"
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"清理失败: {str(e)}")
+
+@router.get("/cleanup/temp-media/status")
+async def get_temp_media_status():
+    """获取临时媒体文件目录状态"""
+    try:
+        from pathlib import Path
+        import time
+        
+        temp_media_dir = Path("temp_media")
+        
+        if not temp_media_dir.exists():
+            return {
+                "exists": False,
+                "total_files": 0,
+                "total_size": "0 bytes",
+                "old_files": 0,
+                "old_files_size": "0 bytes"
+            }
+        
+        current_time = time.time()
+        one_day_ago = current_time - 86400
+        
+        total_files = 0
+        total_size = 0
+        old_files = 0
+        old_files_size = 0
+        
+        for file_path in temp_media_dir.iterdir():
+            if file_path.is_file():
+                file_size = file_path.stat().st_size
+                file_mtime = file_path.stat().st_mtime
+                
+                total_files += 1
+                total_size += file_size
+                
+                if file_mtime < one_day_ago:
+                    old_files += 1
+                    old_files_size += file_size
+        
+        # 格式化大小
+        def format_size(size):
+            if size > 1024 * 1024 * 1024:  # GB
+                return f"{size / (1024 * 1024 * 1024):.2f} GB"
+            elif size > 1024 * 1024:  # MB
+                return f"{size / (1024 * 1024):.2f} MB"
+            elif size > 1024:  # KB
+                return f"{size / 1024:.2f} KB"
+            else:
+                return f"{size} bytes"
+        
+        return {
+            "exists": True,
+            "total_files": total_files,
+            "total_size": format_size(total_size),
+            "old_files": old_files,
+            "old_files_size": format_size(old_files_size),
+            "message": f"共 {total_files} 个文件，其中 {old_files} 个超过1天未使用"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
 
 @router.post("/filter-rules")
 async def add_filter_rule(
