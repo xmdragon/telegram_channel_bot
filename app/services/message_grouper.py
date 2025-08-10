@@ -15,6 +15,7 @@ class MessageGrouper:
     
     def __init__(self):
         self.pending_groups: Dict[str, List[Dict]] = {}  # 待处理的消息组
+        self.completed_groups: Dict[str, Dict] = {}  # 已完成的组合消息数据
         self.group_timers: Dict[str, asyncio.Task] = {}  # 组合超时定时器
         self.group_timeout = 10  # 消息组合超时时间（秒）- 统一使用10秒
         self.telegram_messages: Dict[str, Any] = {}  # 保存原始Telegram消息对象，用于异步下载
@@ -204,8 +205,12 @@ class MessageGrouper:
             # 创建组合消息
             combined_message = await self._create_combined_message(messages, channel_id)
             
-            # 保存组合消息到数据库
-            await self._save_combined_message(combined_message, channel_id)
+            # 准备组合消息数据
+            processed_data = await self._save_combined_message(combined_message, channel_id)
+            
+            # 将处理后的数据存储，供后续获取
+            if processed_data:
+                self.completed_groups[group_key] = processed_data
             
             # 清理
             del self.pending_groups[group_key]
@@ -313,26 +318,19 @@ class MessageGrouper:
         }
     
     async def _save_combined_message(self, combined_message: Dict, channel_id: str):
-        """保存组合消息到数据库"""
+        """准备组合消息数据（不再直接保存）"""
         try:
-            # 这里只创建消息数据，实际保存由调用方处理
-            # 因为需要配合现有的过滤和审核流程
-            
-            # 触发组合消息处理事件
-            await self._trigger_combined_message_event(combined_message, channel_id)
+            # 返回处理后的组合消息数据
+            return await self._trigger_combined_message_event(combined_message, channel_id)
             
         except Exception as e:
-            logger.error(f"保存组合消息时出错: {e}")
+            logger.error(f"准备组合消息数据时出错: {e}")
+            return None
     
     async def _trigger_combined_message_event(self, combined_message: Dict, channel_id: str):
-        """触发组合消息处理事件"""
+        """返回组合消息数据（不再直接保存）"""
         try:
-            # 导入并调用消息处理器
-            from app.services.message_processor import MessageProcessor
-            import json
             from datetime import datetime
-            
-            processor = MessageProcessor()
             
             # 使用已经过滤的内容（在创建组合消息时已经处理）
             is_ad = combined_message.get('is_ad', False)
@@ -367,46 +365,39 @@ class MessageGrouper:
             # 如果有视觉哈希，存储为字符串
             visual_hash = str(combined_visual_hashes) if combined_visual_hashes else None
             
-            # 保存到数据库
-            async with AsyncSessionLocal() as db:
-                db_message = Message(
-                    source_channel=channel_id,
-                    message_id=combined_message['message_id'],
-                    content=combined_message['content'],
-                    media_type=combined_message['media_type'],
-                    media_url=combined_message['media_url'],
-                    grouped_id=str(combined_message['grouped_id']) if combined_message.get('grouped_id') else None,
-                    is_combined=combined_message['is_combined'],
-                    combined_messages=clean_combined_messages,
-                    media_group=clean_media_group,
-                    visual_hash=visual_hash,  # 添加视觉哈希
-                    is_ad=is_ad,
-                    filtered_content=filtered_content,
-                    created_at=datetime.now()  # 使用当前时间，避免时区问题
-                )
-                db.add(db_message)
-                await db.commit()
-                await db.refresh(db_message)
-                
-                logger.info(f"组合消息已保存: ID={db_message.id}, grouped_id={combined_message['grouped_id']}, 包含 {len(combined_message.get('combined_messages', []))} 条消息")
-                
-                # 媒体已经同步下载完成，无需额外处理
-                
-                # 转发到审核群（延迟导入避免循环引用）
-                try:
-                    from app.telegram.bot import telegram_bot
-                    if telegram_bot and hasattr(telegram_bot, 'forward_to_review'):
-                        await telegram_bot.forward_to_review(db_message)
-                        
-                    # 广播新消息到WebSocket客户端
-                    if telegram_bot and hasattr(telegram_bot, '_broadcast_new_message'):
-                        await telegram_bot._broadcast_new_message(db_message)
-                        
-                except ImportError:
-                    logger.warning("无法导入telegram_bot，跳过转发到审核群和WebSocket广播")
+            # 计算组合媒体哈希
+            combined_media_hash = None
+            if clean_media_group:
+                import hashlib
+                hashes = []
+                for media_item in clean_media_group:
+                    if media_item.get('hash'):
+                        hashes.append(media_item['hash'])
+                if hashes:
+                    combined_media_hash = hashlib.sha256(''.join(sorted(hashes)).encode()).hexdigest()
+            
+            # 返回处理后的消息数据，由统一处理器保存
+            logger.info(f"组合消息准备完成: grouped_id={combined_message['grouped_id']}, 包含 {len(combined_message.get('combined_messages', []))} 条消息")
+            
+            return {
+                'message_id': combined_message['message_id'],
+                'content': combined_message['content'],
+                'filtered_content': filtered_content,
+                'is_ad': is_ad,
+                'media_type': combined_message['media_type'],
+                'media_url': combined_message['media_url'],
+                'grouped_id': combined_message.get('grouped_id'),
+                'is_combined': True,
+                'combined_messages': clean_combined_messages,
+                'media_group': clean_media_group,
+                'visual_hash': visual_hash,
+                'combined_media_hash': combined_media_hash,
+                'date': combined_message.get('date', datetime.now())
+            }
                 
         except Exception as e:
-            logger.error(f"触发组合消息事件时出错: {e}")
+            logger.error(f"处理组合消息数据时出错: {e}")
+            return None
     
     async def force_complete_all_groups(self):
         """强制完成所有待处理的消息组（用于历史采集结束时）"""

@@ -57,6 +57,13 @@ class Message(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 添加唯一约束防止重复消息
+    __table_args__ = (
+        Index('idx_unique_message', 'source_channel', 'message_id', unique=True),
+        Index('idx_media_hash', 'media_hash'),
+        Index('idx_combined_media_hash', 'combined_media_hash'),
+    )
 
 class Channel(Base):
     """频道配置模型"""

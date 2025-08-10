@@ -45,6 +45,24 @@ class MessageProcessor:
     async def auto_forward_message(self, message: Message):
         """自动转发消息"""
         try:
+            # 首先检查审核群是否已配置
+            from app.services.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            review_group = await config_manager.get_config('channels.review_group_id')
+            
+            if not review_group:
+                logger.error("❌ 审核群未配置，阻止自动转发！所有消息必须经过审核群。")
+                # 更新消息状态为错误状态
+                async with AsyncSessionLocal() as db:
+                    result = await db.execute(
+                        select(Message).where(Message.id == message.id)
+                    )
+                    db_message = result.scalar_one()
+                    db_message.status = "error"
+                    db_message.reject_reason = "审核群未配置，自动转发被阻止"
+                    await db.commit()
+                return
+            
             # 这里应该调用Telegram API转发消息
             # 为了简化，这里只更新状态
             async with AsyncSessionLocal() as db:
@@ -106,7 +124,7 @@ class MessageProcessor:
             logger.error(f"检查重复消息时出错: {e}")
             return False
     
-    async def process_new_message(self, message_data: dict) -> Message:
+    async def process_new_message(self, message_data: dict) -> Optional[Message]:
         """
         处理新消息，包括重复检测
         
@@ -114,24 +132,45 @@ class MessageProcessor:
             message_data: 消息数据字典
             
         Returns:
-            处理后的消息对象
+            处理后的消息对象，如果重复则返回None
         """
         try:
+            # 先进行重复检测（在插入数据库之前）
+            is_duplicate, original_msg_id, duplicate_type = await self.duplicate_detector.is_duplicate_message(
+                source_channel=message_data.get('source_channel'),
+                media_hash=message_data.get('media_hash'),
+                combined_media_hash=message_data.get('combined_media_hash'),
+                content=message_data.get('content'),
+                message_time=message_data.get('created_at') or datetime.utcnow(),
+                visual_hashes=message_data.get('visual_hash')
+            )
+            
+            if is_duplicate:
+                logger.info(f"检测到重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，拒绝处理")
+                return None
+            
+            # 非重复消息，检查数据库中是否已存在相同的source_channel+message_id
             async with AsyncSessionLocal() as db:
-                # 创建消息对象
+                from sqlalchemy import and_
+                existing_result = await db.execute(
+                    select(Message).where(and_(
+                        Message.source_channel == message_data.get('source_channel'),
+                        Message.message_id == message_data.get('message_id')
+                    ))
+                )
+                existing_message = existing_result.scalar_one_or_none()
+                
+                if existing_message:
+                    logger.info(f"消息已存在于数据库中：频道 {message_data.get('source_channel')}，消息ID {message_data.get('message_id')}")
+                    return existing_message
+                
+                # 插入新消息
                 message = Message(**message_data)
                 db.add(message)
                 await db.commit()
                 await db.refresh(message)
                 
-                # 检查是否为重复消息
-                is_duplicate = await self.check_and_filter_duplicates(message)
-                
-                if is_duplicate:
-                    logger.info(f"新消息 {message.id} 被标记为重复，已过滤")
-                else:
-                    logger.info(f"新消息 {message.id} 通过重复检测")
-                
+                logger.info(f"新消息 {message.id} 成功保存到数据库")
                 return message
                 
         except Exception as e:

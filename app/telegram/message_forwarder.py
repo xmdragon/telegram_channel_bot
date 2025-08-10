@@ -30,7 +30,14 @@ class MessageForwarder:
             review_group_id = await link_resolver.get_effective_group_id()
             
             if not review_group_id:
-                logger.error("未配置审核群ID或无法解析审核群链接")
+                logger.error("❌ 审核群未配置！为了安全起见，消息不会被转发")
+                # 更新消息状态为错误，防止自动转发
+                async with AsyncSessionLocal() as db:
+                    db_message.status = 'error'
+                    db_message.reject_reason = '审核群未配置，消息被阻止'
+                    db.add(db_message)
+                    await db.commit()
+                raise ValueError("审核群未配置，消息转发被阻止。请先配置审核群！")
                 return
             
             sent_message = None

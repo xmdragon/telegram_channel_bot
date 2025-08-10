@@ -1,6 +1,20 @@
 {
   "history": [
     {
+      "id": 50,
+      "channel_id": "-1001153220419",
+      "channel_name": "@dny185",
+      "tail_length": 28,
+      "created_at": "2025-08-10T15:01:07.499476"
+    },
+    {
+      "id": 49,
+      "channel_id": "-1002495270592",
+      "channel_name": "@yyds518899",
+      "tail_length": 150,
+      "created_at": "2025-08-10T14:59:57.701973"
+    },
+    {
       "id": 48,
       "channel_id": "-1001443319944",
       "channel_name": "@jpz_888",
@@ -338,9 +352,9 @@
     }
   ],
   "stats": {
-    "total_samples": 48,
+    "total_samples": 50,
     "channels_trained": 0
   },
-  "updated_at": "2025-08-10T12:12:17.252691",
-  "integrity_hash": "1e40e7613268cb2e92a3e9e662bc044b9dfc5693868a6bef163967f5d5fef1c3"
+  "updated_at": "2025-08-10T15:01:07.499494",
+  "integrity_hash": "e7b26e3188517385b61fdfcbcf1020de5c39914f32d8be40c11dd1d629d36ae7"
 }

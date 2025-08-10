@@ -249,37 +249,60 @@ class StartupChecker:
             review_group = await self.config_manager.get_config('channels.review_group_id')
             review_group_name = await self.config_manager.get_config('channels.review_group_name')
             
+            # 导入telegram_link_resolver来处理可能的邀请链接
+            from app.services.telegram_link_resolver import link_resolver
+            
             if not review_group:
                 if review_group_name:
                     # 有群名但没有ID，尝试解析
                     logger.info(f"  - 审核群 {review_group_name} 需要解析ID...")
-                    resolved_id = await channel_id_resolver.resolve_channel_id(review_group_name)
+                    
+                    # 首先检查是否为Telegram链接
+                    if link_resolver.is_telegram_link(review_group_name):
+                        resolved_id = await link_resolver.resolve_and_cache_group_id(review_group_name)
+                    else:
+                        resolved_id = await channel_id_resolver.resolve_channel_id(review_group_name)
                     
                     if resolved_id:
                         # 保存解析的ID
-                        await self.config_manager.set_config('channels.review_group_id', resolved_id)
-                        result['group_id'] = resolved_id
+                        await self.config_manager.set_config('channels.review_group_id', str(resolved_id))
+                        result['group_id'] = str(resolved_id)
                         result['resolved'] = f"审核群 {review_group_name} -> {resolved_id}"
                         logger.info(f"    ✅ 解析成功: {resolved_id}")
                     else:
                         result['warning'] = f"审核群 {review_group_name} ID解析失败"
                         logger.warning(f"    ❌ 解析失败")
                 else:
-                    result['warning'] = "未配置审核群（将直接转发到目标频道）"
-                    logger.warning("  - 未配置审核群")
+                    result['error'] = "未配置审核群（消息将被阻止，不会转发）"
+                    logger.error("  - ❌ 未配置审核群！为了安全起见，消息不会被转发")
             else:
-                # 检查是否为用户名而非ID
-                if review_group.startswith('@') or not review_group.startswith('-100'):
+                # 检查是否为链接、用户名或非标准ID
+                if link_resolver.is_telegram_link(review_group):
+                    # 这是一个Telegram链接（可能是邀请链接）
+                    logger.info(f"  - 审核群 {review_group} 是Telegram链接，需要解析ID...")
+                    resolved_id = await link_resolver.resolve_and_cache_group_id(review_group)
+                    
+                    if resolved_id:
+                        # 保存解析的ID
+                        await self.config_manager.set_config('channels.review_group_id', str(resolved_id))
+                        await self.config_manager.set_config('channels.review_group_name', review_group)  # 保存原始链接
+                        result['group_id'] = str(resolved_id)
+                        result['resolved'] = f"审核群 {review_group} -> {resolved_id}"
+                        logger.info(f"    ✅ 解析成功: {resolved_id}")
+                    else:
+                        result['warning'] = f"审核群链接 {review_group} ID解析失败"
+                        logger.warning(f"    ❌ 解析失败")
+                elif review_group.startswith('@') or not review_group.lstrip('-').isdigit():
                     # 这是用户名或格式不正确的ID，需要解析
                     logger.info(f"  - 审核群 {review_group} 需要解析ID...")
                     resolved_id = await channel_id_resolver.resolve_channel_id(review_group)
                     
                     if resolved_id:
                         # 保存解析的ID，同时保存原始名称
-                        await self.config_manager.set_config('channels.review_group_id', resolved_id)
+                        await self.config_manager.set_config('channels.review_group_id', str(resolved_id))
                         if review_group.startswith('@'):
                             await self.config_manager.set_config('channels.review_group_name', review_group)
-                        result['group_id'] = resolved_id
+                        result['group_id'] = str(resolved_id)
                         result['resolved'] = f"审核群 {review_group} -> {resolved_id}"
                         logger.info(f"    ✅ 解析成功: {resolved_id}")
                     else:

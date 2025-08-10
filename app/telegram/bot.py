@@ -20,6 +20,7 @@ from app.services.media_handler import media_handler
 from app.services.message_grouper import message_grouper
 from app.services.config_manager import ConfigManager
 from app.services.channel_manager import channel_manager
+from app.services.unified_message_processor import unified_processor
 
 # 新的组件化模块
 from app.telegram.client_manager import client_manager
@@ -360,9 +361,8 @@ class TelegramBot:
             return None
     
     async def process_source_message(self, message: TLMessage, chat):
-        """处理源频道消息 - 保持原有接口"""
+        """处理源频道消息 - 使用统一处理器"""
         try:
-            
             # 获取格式化的频道ID
             raw_chat_id = chat.id
             if raw_chat_id > 0:
@@ -370,70 +370,15 @@ class TelegramBot:
             else:
                 channel_id = str(raw_chat_id)
             
-            # 使用通用处理逻辑
-            processed_data = await self._common_message_processing(message, channel_id, is_history=False)
-            if not processed_data:
-                return  # 消息被过滤
-            
-            # 提取处理后的数据
-            content = processed_data['content']
-            filtered_content = processed_data['filtered_content']
-            is_ad = processed_data['is_ad']
-            media_info = processed_data['media_info']
-            
-            # 使用message_grouper处理可能的组合消息
-            combined_message = await message_grouper.process_message(
-                message, channel_id, media_info, 
-                filtered_content=filtered_content, 
-                is_ad=is_ad
+            # 使用统一处理器
+            db_message = await unified_processor.process_telegram_message(
+                message, 
+                channel_id, 
+                is_history=False
             )
             
-            # 如果返回None，说明消息还在等待组合，暂时不处理
-            if combined_message is None:
-                logger.info(f"消息 {message.id} 正在等待组合...")
-                return
-            
-            # 如果是组合消息，message_grouper已经处理了保存和转发
-            if combined_message.get('is_combined'):
-                logger.info(f"组合消息 {combined_message['grouped_id']} 已由message_grouper处理")
-                return
-            
-            # 处理单独消息
-            # 提取媒体类型和URL
-            media_type = media_info.get('media_type') if media_info else None
-            media_url = media_info.get('file_path') if media_info else None
-            
-            # 提取视觉哈希（如果有）
-            visual_hash = None
-            media_hash = None
-            if media_info:
-                if media_info.get('visual_hashes'):
-                    visual_hash = str(media_info['visual_hashes'])  # 转换为字符串存储
-                media_hash = media_info.get('hash')  # SHA256哈希
-            
-            async with AsyncSessionLocal() as db:
-                db_message = Message(
-                    source_channel=channel_id,
-                    message_id=message.id,
-                    content=content,  # 保存原始内容
-                    media_type=media_type,
-                    media_url=media_url,
-                    media_hash=media_hash,
-                    visual_hash=visual_hash,
-                    is_ad=is_ad,
-                    filtered_content=filtered_content,  # 保存过滤后内容
-                    grouped_id=str(message.grouped_id) if hasattr(message, 'grouped_id') and message.grouped_id else None,
-                    is_combined=False
-                )
-                db.add(db_message)
-                await db.commit()
-                await db.refresh(db_message)
-                
-                # 转发到审核群
-                await self.forward_to_review(db_message)
-                
-                # 广播新消息到WebSocket客户端
-                await self._broadcast_new_message(db_message)
+            if not db_message:
+                logger.debug(f"消息 {message.id} 处理完成（被过滤或等待组合）")
                 
         except Exception as e:
             logger.error(f"处理源频道消息时出错: {e}")
@@ -677,7 +622,8 @@ class TelegramBot:
             if check_results['review_group']:
                 logger.info(f"审核群已配置: {check_results['review_group']}")
             else:
-                logger.warning("⚠️ 审核群未配置，消息将直接转发到目标频道")
+                logger.error("❌ 审核群未配置！为了安全起见，消息不会被转发到目标频道")
+                logger.error("请通过Web界面配置审核群，否则所有消息将被阻止！")
                 
         except Exception as e:
             logger.error(f"启动检查失败: {e}")
@@ -692,41 +638,20 @@ class TelegramBot:
             logger.error(f"自动采集历史消息失败: {e}")
     
     async def _process_and_save_message(self, message, channel_id: str, is_history: bool = False):
-        """处理并保存消息（用于历史消息采集）"""
+        """处理并保存消息（用于历史消息采集） - 使用统一处理器"""
         try:
-            # 使用通用处理逻辑
-            processed_data = await self._common_message_processing(message, channel_id, is_history=True)
-            if not processed_data:
-                return  # 消息被过滤
-            
-            # 提取处理后的数据
-            content = processed_data['content']
-            filtered_content = processed_data['filtered_content']
-            is_ad = processed_data['is_ad']
-            media_info = processed_data['media_info']
-            
-            # 使用消息组合器处理消息，传递过滤后的内容
-            # 历史消息采集使用批量模式
-            combined_message = await message_grouper.process_message(
-                message, channel_id, media_info,
-                filtered_content=filtered_content,
-                is_ad=is_ad,
-                is_batch=is_history  # 历史消息使用批量模式
+            # 使用统一处理器
+            db_message = await unified_processor.process_telegram_message(
+                message, 
+                channel_id, 
+                is_history=True
             )
             
-            # 如果返回None，说明消息正在等待组合，暂时不处理
-            if combined_message is None:
-                logger.debug(f"消息 {message.id} 正在等待组合")
-                return
-            
-            # 处理完整的消息（单独消息或组合消息）
-            await self._save_processed_message(combined_message, channel_id, is_history, media_info)
-                    
+            if not db_message:
+                logger.debug(f"历史消息 {message.id} 处理完成（被过滤或等待组合）")
+                
         except Exception as e:
-            logger.error(f"处理并保存消息失败: {e}")
-            # 出错时清理媒体文件
-            if media_info:
-                await media_handler.cleanup_file(media_info['file_path'])
+            logger.error(f"处理历史消息失败: {e}")
     
     async def _save_processed_message(self, message_data: dict, channel_id: str, is_history: bool = False, original_media_info: dict = None):
         """保存处理后的消息"""
@@ -913,36 +838,38 @@ class TelegramBot:
                                 await media_handler.cleanup_file(media_item['file_path'])
                     return
             
-            # 保存到数据库
-            async with AsyncSessionLocal() as db:
-                db_message = Message(
-                    source_channel=channel_id,
-                    message_id=message_data['message_id'],
-                    content=message_data['content'],
-                    media_type=message_data.get('media_type'),
-                    media_url=message_data.get('media_url'),
-                    grouped_id=str(message_data.get('grouped_id')) if message_data.get('grouped_id') else None,
-                    is_combined=message_data.get('is_combined', False),
-                    combined_messages=message_data.get('combined_messages'),
-                    # 添加媒体哈希字段
-                    media_hash=media_hash,
-                    combined_media_hash=combined_media_hash,
-                    visual_hash=visual_hash,  # 添加视觉哈希
-                    media_group=message_data.get('media_group'),
-                    is_ad=is_ad,
-                    filtered_content=filtered_content,
-                    status='pending' if not is_history else 'auto_forwarded',
-                    created_at=message_data.get('date').replace(tzinfo=None) if message_data.get('date') and hasattr(message_data.get('date'), 'tzinfo') else (message_data.get('date') or datetime.now())
-                )
-                db.add(db_message)
-                await db.commit()
-                await db.refresh(db_message)
+            # 使用消息处理器进行处理（包含重复检测）
+            process_message_data = {
+                'source_channel': channel_id,
+                'message_id': message_data['message_id'],
+                'content': message_data['content'],
+                'media_type': message_data.get('media_type'),
+                'media_url': message_data.get('media_url'),
+                'grouped_id': str(message_data.get('grouped_id')) if message_data.get('grouped_id') else None,
+                'is_combined': message_data.get('is_combined', False),
+                'combined_messages': message_data.get('combined_messages'),
+                'media_hash': media_hash,
+                'combined_media_hash': combined_media_hash,
+                'visual_hash': visual_hash,
+                'media_group': message_data.get('media_group'),
+                'is_ad': is_ad,
+                'filtered_content': filtered_content,
+                'status': 'pending' if not is_history else 'auto_forwarded',
+                'created_at': message_data.get('date').replace(tzinfo=None) if message_data.get('date') and hasattr(message_data.get('date'), 'tzinfo') else (message_data.get('date') or datetime.now())
+            }
+            
+            db_message = await self.message_processor.process_new_message(process_message_data)
+            
+            # 如果消息被重复检测拒绝，则不进行后续处理
+            if not db_message:
+                logger.info(f"{'历史' if is_history else '实时'}消息 {message_data['message_id']} 被重复检测拒绝")
+                return
                 
-                # 转发到审核群（历史消息和实时消息都需要审核）
-                await self.forward_to_review(db_message)
+            # 转发到审核群（历史消息和实时消息都需要审核）
+            await self.forward_to_review(db_message)
                 
-                # 广播新消息到WebSocket客户端
-                await self._broadcast_new_message(db_message)
+            # 广播新消息到WebSocket客户端
+            await self._broadcast_new_message(db_message)
                     
         except Exception as e:
             logger.error(f"保存处理后的消息失败: {e}")
