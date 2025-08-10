@@ -306,6 +306,32 @@ h4 { font-size: 1.125rem; }
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: white;
+    font-weight: 600;
+    border: none;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.25);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+    color: white;
+    font-weight: 600;
+    border: none;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #0284c7, #0ea5e9);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(14, 165, 233, 0.25);
+}
+
 .btn-outline {
     background: transparent;
     border: 1px solid var(--border-color);
@@ -783,6 +809,25 @@ h4 { font-size: 1.125rem; }
 .page-item.disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* 右下角消息提示样式 */
+.bottom-right-message {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    top: auto !important;
+    left: auto !important;
+}
+
+/* Element Plus 消息框位置覆盖 */
+.el-message.bottom-right-message {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
 }
 
 /* Responsive */

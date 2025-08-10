@@ -30,6 +30,10 @@ class ConfigManager:
     
     async def set_config(self, key: str, value: Any, description: str = "", config_type: str = "string") -> bool:
         """设置配置值"""
+        # 确保缓存已加载
+        if not self._cache_loaded:
+            await self._load_cache()
+            
         try:
             async with AsyncSessionLocal() as db:
                 # 查找现有配置
@@ -46,13 +50,15 @@ class ConfigManager:
                     config.value = serialized_value
                     config.description = description or config.description
                     config.config_type = config_type
+                    config.is_active = True  # 确保配置是活跃的
                 else:
                     # 创建新配置
                     config = SystemConfig(
                         key=key,
                         value=serialized_value,
                         description=description,
-                        config_type=config_type
+                        config_type=config_type,
+                        is_active=True  # 新配置默认活跃
                     )
                     db.add(config)
                 
@@ -222,11 +228,6 @@ DEFAULT_CONFIGS = {
         "description": "目标频道ID",
         "config_type": "string"
     },
-    "channels.target_channel_id_cached": {
-        "value": "",
-        "description": "目标频道解析后的真实ID",
-        "config_type": "string"
-    },
     "channels.history_message_limit": {
         "value": 50,
         "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
@@ -337,7 +338,8 @@ async def init_default_configs():
     
     for key, config_info in DEFAULT_CONFIGS.items():
         existing_value = await config_manager.get_config(key)
-        if existing_value is None:
+        # 只有当值为None或空字符串时才初始化（对于cached字段，保留已有的值）
+        if existing_value is None or (existing_value == "" and not key.endswith("_cached")):
             await config_manager.set_config(
                 key=key,
                 value=config_info["value"],

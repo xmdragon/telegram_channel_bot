@@ -1,0 +1,13 @@
+{
+  "recovery_session": {
+    "timestamp": "20250809_235556",
+    "operations": [
+      {
+        "timestamp": "2025-08-09T23:55:56.435460",
+        "operation": "数据完整性检查",
+        "details": "健康: 2, 损坏: 0, 丢失: 0, 有效备份: 5",
+        "success": true
+      }
+    ]
+  }
+}

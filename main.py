@@ -181,11 +181,6 @@ async def status():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/static/status.html")
 
-@app.get("/keywords")
-async def keywords():
-    """关键词管理界面"""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/keywords.html")
 
 @app.get("/train")
 async def train():

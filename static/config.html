@@ -218,9 +218,12 @@
                         </div>
                         
                         <div class="channel-actions-toolbar">
-                            <el-button type="primary" @click="resolveChannelIds" icon="Refresh">
-                                批量解析频道ID
+                            <el-button type="primary" @click="resolveAllChannels" icon="Refresh">
+                                批量解析所有频道ID
                             </el-button>
+                            <el-text type="info" style="margin-left: 10px;">
+                                <small>包括源频道、目标频道、审核群</small>
+                            </el-text>
                         </div>
                     </div>
                 </el-tab-pane>
@@ -241,9 +244,14 @@
                                     <template #prepend>
                                         <el-icon><InfoFilled /></el-icon>
                                     </template>
+                                    <template #append>
+                                        <el-button @click="manualResolveTargetChannel" :loading="loading" size="small">
+                                            手动解析
+                                        </el-button>
+                                    </template>
                                 </el-input>
                                 <div class="form-hint">
-                                    <small>此ID由系统自动解析生成，不可手动修改</small>
+                                    <small>此ID由系统自动解析生成，点击"手动解析"可重新解析</small>
                                 </div>
                             </el-form-item>
                             <el-form-item label="审核群">
@@ -261,9 +269,14 @@
                                     <template #prepend>
                                         <el-icon><InfoFilled /></el-icon>
                                     </template>
+                                    <template #append>
+                                        <el-button @click="manualResolveReviewGroup" :loading="loading" size="small">
+                                            手动解析
+                                        </el-button>
+                                    </template>
                                 </el-input>
                                 <div class="form-hint">
-                                    <small>此ID由系统自动解析生成，不可手动修改</small>
+                                    <small>此ID由系统自动解析生成，点击"手动解析"可重新解析</small>
                                 </div>
                             </el-form-item>
                             <el-form-item label="转发延迟（秒）">

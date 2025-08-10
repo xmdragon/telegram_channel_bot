@@ -6,9 +6,8 @@ import re
 import logging
 import asyncio
 from typing import Tuple, List, Set
-from sqlalchemy import select
-from app.core.database import AsyncSessionLocal, AdKeyword
 from app.services.ai_filter import ai_filter
+from app.services.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +16,6 @@ class ContentFilter:
     
     def __init__(self):
         """初始化过滤器"""
-        # 数据库关键词缓存
-        self.db_keywords_text: Set[str] = set()  # 文中关键词
-        self.db_keywords_line: Set[str] = set()  # 行过滤关键词
-        self.keywords_loaded = False
-        
         # AI过滤器实例
         self.ai_filter = ai_filter
         
@@ -259,31 +253,6 @@ class ContentFilter:
             
         return result
     
-    async def load_keywords_from_db(self):
-        """从数据库加载广告关键词"""
-        try:
-            async with AsyncSessionLocal() as session:
-                result = await session.execute(
-                    select(AdKeyword).where(AdKeyword.is_active == True)
-                )
-                keywords = result.scalars().all()
-                
-                # 清空缓存
-                self.db_keywords_text.clear()
-                self.db_keywords_line.clear()
-                
-                # 分类存储关键词
-                for kw in keywords:
-                    if kw.keyword_type == 'text':
-                        self.db_keywords_text.add(kw.keyword.lower())
-                    elif kw.keyword_type == 'line':
-                        self.db_keywords_line.add(kw.keyword.lower())
-                
-                self.keywords_loaded = True
-                logger.info(f"已加载广告关键词: {len(self.db_keywords_text)}个文中关键词, {len(self.db_keywords_line)}个行过滤关键词")
-                
-        except Exception as e:
-            logger.error(f"加载广告关键词失败: {e}")
     
     def is_commercial_ad(self, content: str) -> bool:
         """检测是否为商业广告"""
@@ -314,57 +283,6 @@ class ContentFilter:
         # 如果有3个或以上商业指标，判定为商业广告
         return commercial_indicators >= 3
     
-    def check_db_keywords(self, content: str) -> Tuple[bool, str]:
-        """检查数据库中的广告关键词 - 优化版，仅对尾部内容严格检查"""
-        if not content:
-            return False, ""
-        
-        content_lower = content.lower()
-        lines = content.split('\n')  # 保留原始大小写用于更精确的判断
-        
-        # 检查文中关键词（这些是明确的广告词汇）
-        for keyword in self.db_keywords_text:
-            if keyword in content_lower:
-                return True, f"包含广告关键词: {keyword}"
-        
-        # 行过滤关键词 - 仅检查最后5行（尾部推广内容）
-        # 不再对全文进行行关键词检查，避免误判
-        tail_lines = lines[-5:] if len(lines) > 5 else lines
-        tail_ad_indicators = 0
-        detected_keywords = []
-        
-        for line in tail_lines:
-            line_lower = line.lower().strip()
-            if not line_lower:
-                continue
-            
-            # 检查这一行是否包含推广关键词
-            for keyword in self.db_keywords_line:
-                if keyword in line_lower:
-                    # 特殊处理过于通用的关键词
-                    if keyword == '@':
-                        # @ 符号需要配合其他推广词汇才算广告
-                        if any(promo_word in line_lower for promo_word in ['投稿', '商务', '合作', '联系', '导航', '频道']):
-                            tail_ad_indicators += 1
-                            detected_keywords.append(f"@+推广词")
-                            break
-                    elif keyword == 't.me/':
-                        # Telegram链接需要配合推广语境
-                        if any(promo_word in line_lower for promo_word in ['关注', '订阅', '加入', '失联', '备用']):
-                            tail_ad_indicators += 1
-                            detected_keywords.append(f"t.me/+推广词")
-                            break
-                    else:
-                        # 其他关键词直接计数
-                        tail_ad_indicators += 1
-                        detected_keywords.append(keyword)
-                        break
-        
-        # 只有当尾部有2行或以上包含推广内容时，才判定为广告
-        if tail_ad_indicators >= 2:
-            return True, f"尾部推广内容过多（{tail_ad_indicators}行包含: {', '.join(detected_keywords[:3])}）"
-        
-        return False, ""
     
     def filter_message(self, content: str, channel_id: str = None) -> Tuple[bool, str, str]:
         """
@@ -380,22 +298,6 @@ class ContentFilter:
         if not content:
             return False, content, ""
         
-        # 确保关键词已加载（同步检查）
-        if not self.keywords_loaded:
-            # 在同步函数中运行异步加载
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # 如果事件循环正在运行，创建任务
-                    task = asyncio.create_task(self.load_keywords_from_db())
-                    # 这里不能等待，因为是同步函数
-                    logger.warning("关键词未加载，将在后台加载")
-                else:
-                    # 如果没有运行的事件循环，创建新的
-                    asyncio.run(self.load_keywords_from_db())
-            except Exception as e:
-                logger.error(f"加载关键词失败: {e}")
-        
         # 1. 首先使用AI过滤器检测广告（如果可用）
         if self.ai_filter and self.ai_filter.initialized:
             is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(content)
@@ -403,20 +305,15 @@ class ContentFilter:
                 logger.info(f"AI检测到广告内容，置信度: {ai_confidence:.2f}")
                 return True, "", f"AI检测为广告 (置信度: {ai_confidence:.2f})"
         
-        # 2. 检查数据库关键词
-        is_ad_by_keyword, keyword_reason = self.check_db_keywords(content)
-        
         # 3. 检查是否为商业广告
         is_commercial = self.is_commercial_ad(content)
         
-        if is_ad_by_keyword or is_commercial:
-            # 如果检测到广告关键词或商业广告，进行内容过滤
+        if is_commercial:
+            # 如果检测到商业广告，进行内容过滤
             filtered = self.filter_promotional_content(content, channel_id)
             if not filtered.strip():
-                reason = keyword_reason if is_ad_by_keyword else "商业广告"
-                return True, "", reason
-            reason = keyword_reason if is_ad_by_keyword else "商业广告"
-            return True, filtered, reason
+                return True, "", "商业广告"
+            return True, filtered, "商业广告"
         
         # 4. 进行推广内容过滤（包括AI尾部过滤）
         filtered = self.filter_promotional_content(content, channel_id)
@@ -424,11 +321,6 @@ class ContentFilter:
         # 检查是否整条消息都是广告
         if not filtered.strip():
             return True, "", "整条消息都是推广内容"
-        
-        # 再次检查过滤后的内容是否包含广告关键词
-        is_ad_after_filter, keyword_reason_after = self.check_db_keywords(filtered)
-        if is_ad_after_filter:
-            return True, filtered, keyword_reason_after
         
         return False, filtered, ""
     
@@ -459,9 +351,34 @@ class ContentFilter:
         """
         return self.filter_promotional_content(content)
     
+    async def is_pure_advertisement_ai(self, content: str) -> bool:
+        """
+        使用AI判断是否为广告内容
+        """
+        if not content:
+            return False
+        
+        try:
+            # 尝试使用AI广告检测器
+            from app.services.ad_detector import ad_detector
+            
+            if ad_detector.initialized and len(ad_detector.ad_embeddings) > 0:
+                # 使用纯AI检测
+                is_ad, confidence = ad_detector.is_advertisement_ai(content)
+                if confidence > 0.8:  # 高置信度时直接返回结果
+                    logger.debug(f"AI广告检测: {'是' if is_ad else '否'}, 置信度: {confidence:.2f}")
+                    return is_ad
+                elif is_ad and confidence > 0.7:  # 中等置信度的广告也认为是广告
+                    return True
+        except Exception as e:
+            logger.error(f"AI广告检测失败: {e}")
+        
+        # AI检测失败或置信度不足，回退到规则检测
+        return self.is_pure_advertisement(content)
+    
     def is_pure_advertisement(self, content: str) -> bool:
         """
-        判断是否纯广告内容（兼容旧接口）
+        判断是否纯广告内容（基于规则的传统方法）
         """
         if not content:
             return False

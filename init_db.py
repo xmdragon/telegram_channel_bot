@@ -26,8 +26,7 @@ async def initialize_database():
     print("1. 启动系统: python3 main.py")
     print("2. 访问 http://localhost:8000/auth.html 进行Telegram认证")
     print("3. 访问 http://localhost:8000/config.html 配置系统参数")
-    print("4. 访问 http://localhost:8000/keywords.html 管理过滤关键词")
-    print("5. 访问 http://localhost:8000 开始审核消息")
+    print("4. 访问 http://localhost:8000 开始审核消息")
 
 if __name__ == "__main__":
     asyncio.run(initialize_database())

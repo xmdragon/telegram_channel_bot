@@ -6,16 +6,36 @@ const { ElMessage } = ElementPlus;
 // 消息管理器
 const MessageManager = {
     success(message) {
-        ElMessage.success(message);
+        ElMessage({
+            message: message,
+            type: 'success',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
     },
     error(message) {
-        ElMessage.error(message);
+        ElMessage({
+            message: message,
+            type: 'error',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
     },
     warning(message) {
-        ElMessage.warning(message);
+        ElMessage({
+            message: message,
+            type: 'warning',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
     },
     info(message) {
-        ElMessage.info(message);
+        ElMessage({
+            message: message,
+            type: 'info',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
     }
 };
 
@@ -121,60 +141,6 @@ const MainApp = {
         
         // 添加滚动监听
         this.setupScrollListener();
-    },
-    
-    setupScrollListener() {
-        // 尝试两种滚动监听方式
-        const messageContainer = document.querySelector('.message-list');
-        
-        // 使用防抖处理滚动事件
-        let scrollTimeout;
-        
-        const handleScroll = () => {
-            clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(() => {
-                let shouldLoadMore = false;
-                
-                // 检查消息容器的滚动
-                if (messageContainer) {
-                    const containerScrollTop = messageContainer.scrollTop;
-                    const containerScrollHeight = messageContainer.scrollHeight;
-                    const containerClientHeight = messageContainer.clientHeight;
-                    
-                    if (containerScrollHeight - containerScrollTop - containerClientHeight < 100) {
-                        shouldLoadMore = true;
-                        console.log('容器滚动触发加载更多');
-                    }
-                }
-                
-                // 同时检查窗口滚动
-                const windowHeight = window.innerHeight;
-                const documentHeight = document.documentElement.scrollHeight;
-                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                
-                if (documentHeight - scrollTop - windowHeight < 100) {
-                    shouldLoadMore = true;
-                    console.log('窗口滚动触发加载更多');
-                }
-                
-                if (shouldLoadMore && this.hasMore && !this.isLoadingMore) {
-                    this.loadMore();
-                }
-            }, 200);
-        };
-        
-        // 监听容器滚动
-        if (messageContainer) {
-            messageContainer.addEventListener('scroll', handleScroll);
-        }
-        
-        // 同时监听窗口滚动
-        window.addEventListener('scroll', handleScroll);
-        
-        // 如果没有找到容器，稍后重试
-        if (!messageContainer) {
-            setTimeout(() => this.setupScrollListener(), 500);
-        }
     },
     
     beforeUnmount() {
@@ -968,6 +934,98 @@ const MainApp = {
                 'auto_forwarded': { text: '自动转发', type: 'info' }
             };
             return statusMap[status] || { text: status, type: 'default' };
+        },
+
+        // 标记为广告并加入训练样本
+        async markAsAd(message) {
+            try {
+                if (!confirm('确定将此消息标记为广告吗？这将帮助AI更好地识别广告内容。')) {
+                    return;
+                }
+                
+                const response = await axios.post('/api/training/mark-ad', {
+                    message_id: message.id
+                });
+                
+                if (response.data.success) {
+                    MessageManager.success('已标记为广告并加入训练样本');
+                    // 从消息列表中移除该消息
+                    this.messages = this.messages.filter(m => m.id !== message.id);
+                    await this.loadStats();
+                } else {
+                    MessageManager.error(response.data.message || '标记失败');
+                }
+            } catch (error) {
+                console.error('标记广告失败:', error);
+                MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 跳转到尾部训练页面
+        trainTail(message) {
+            // 准备URL参数，不传递content
+            const params = new URLSearchParams({
+                channel_id: message.source_channel,
+                message_id: message.id
+            });
+            
+            // 跳转到训练页面
+            window.location.href = '/static/train.html?' + params.toString();
+        },
+        
+        // 设置滚动监听
+        setupScrollListener() {
+            // 尝试两种滚动监听方式
+            const messageContainer = document.querySelector('.message-list');
+            
+            // 使用防抖处理滚动事件
+            let scrollTimeout;
+            
+            const handleScroll = () => {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    let shouldLoadMore = false;
+                    
+                    // 检查消息容器的滚动
+                    if (messageContainer) {
+                        const containerScrollTop = messageContainer.scrollTop;
+                        const containerScrollHeight = messageContainer.scrollHeight;
+                        const containerClientHeight = messageContainer.clientHeight;
+                        
+                        if (containerScrollHeight - containerScrollTop - containerClientHeight < 100) {
+                            shouldLoadMore = true;
+                            console.log('容器滚动触发加载更多');
+                        }
+                    }
+                    
+                    // 同时检查窗口滚动
+                    const windowHeight = window.innerHeight;
+                    const documentHeight = document.documentElement.scrollHeight;
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    
+                    if (documentHeight - scrollTop - windowHeight < 100) {
+                        shouldLoadMore = true;
+                        console.log('窗口滚动触发加载更多');
+                    }
+                    
+                    if (shouldLoadMore && this.hasMore && !this.isLoadingMore) {
+                        this.loadMore();
+                    }
+                }, 200);
+            };
+            
+            // 监听容器滚动
+            if (messageContainer) {
+                messageContainer.addEventListener('scroll', handleScroll);
+            }
+            
+            // 同时监听窗口滚动
+            window.addEventListener('scroll', handleScroll);
+            
+            // 如果没有找到容器，稍后重试
+            if (!messageContainer) {
+                setTimeout(() => this.setupScrollListener(), 500);
+            }
         }
     }
 };

@@ -433,13 +433,17 @@ async def get_system_config():
     """获取系统配置"""
     from app.core.config import db_settings
     
+    # 直接从数据库获取
+    target_channel_id = await db_settings.get_target_channel_id()
+    review_group_id = await db_settings.get_review_group_id()
+    
     return {
         "auto_forward_delay": await db_settings.get_auto_forward_delay(),
         "source_channels": await db_settings.get_source_channels(),
-        "review_group_id": await db_settings.get_review_group_id(),
+        "review_group_id": review_group_id,
         "review_group_id_cached": await config_manager.get_config('channels.review_group_id_cached', ''),
-        "target_channel_id": await db_settings.get_target_channel_id(),
-        "target_channel_id_cached": await config_manager.get_config('channels.target_channel_id_cached', ''),
+        "target_channel_id": target_channel_id,
+        "target_channel_id_cached": target_channel_id if target_channel_id and target_channel_id.startswith('-100') else '',
         "history_message_limit": await db_settings.get_history_message_limit(),
         "ad_keywords": await db_settings.get_ad_keywords_text(),
         "channel_replacements": await db_settings.get_channel_replacements(),

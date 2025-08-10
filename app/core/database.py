@@ -75,19 +75,6 @@ class Channel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# FilterRule表已废弃，使用AdKeyword和AITrainingSample代替
-# 保留表定义以避免数据库迁移问题
-class FilterRule(Base):
-    """过滤规则模型（已废弃）"""
-    __tablename__ = "filter_rules"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    rule_type = Column(String)  # keyword/regex/ml
-    pattern = Column(String)
-    action = Column(String)  # block/flag/replace
-    is_active = Column(Boolean, default=True)
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
 
 class SystemConfig(Base):
     """系统配置模型"""
@@ -103,18 +90,6 @@ class SystemConfig(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class AdKeyword(Base):
-    """广告关键词模型"""
-    __tablename__ = "ad_keywords"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    keyword = Column(String, nullable=False, index=True)  # 关键词
-    keyword_type = Column(String, nullable=False)  # text(文中关键词) 或 line(行过滤关键词)
-    description = Column(String)  # 关键词描述
-    is_active = Column(Boolean, default=True)  # 是否启用
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class AITrainingSample(Base):
     """AI训练样本模型"""

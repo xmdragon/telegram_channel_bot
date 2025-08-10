@@ -639,65 +639,6 @@ async def get_channel(channel_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
 
-# 关键词管理相关API
-class KeywordAddRequest(BaseModel):
-    keyword: str
-
-@router.post("/keywords/text/add")
-async def add_text_keyword(request: KeywordAddRequest):
-    """添加文中过滤关键词"""
-    try:
-        keywords = await config_manager.get_config("filter.ad_keywords_text", [])
-        if request.keyword not in keywords:
-            keywords.append(request.keyword)
-            await config_manager.set_config("filter.ad_keywords_text", keywords, "文中出现过滤消息的广告关键词", "list")
-        
-        return {"success": True, "message": f"关键词 '{request.keyword}' 添加成功"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"添加关键词失败: {str(e)}")
-
-@router.delete("/keywords/text/{keyword}")
-async def remove_text_keyword(keyword: str):
-    """移除文中过滤关键词"""
-    try:
-        keywords = await config_manager.get_config("filter.ad_keywords_text", [])
-        if keyword in keywords:
-            keywords.remove(keyword)
-            await config_manager.set_config("filter.ad_keywords_text", keywords, "文中出现过滤消息的广告关键词", "list")
-        
-        return {"success": True, "message": f"关键词 '{keyword}' 移除成功"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"移除关键词失败: {str(e)}")
-
-@router.post("/keywords/line/add")
-async def add_line_keyword(request: KeywordAddRequest):
-    """添加行中过滤关键词"""
-    try:
-        keywords = await config_manager.get_config("filter.ad_keywords_line", [])
-        if request.keyword not in keywords:
-            keywords.append(request.keyword)
-            await config_manager.set_config("filter.ad_keywords_line", keywords, "行中出现过滤本行的广告关键词", "list")
-        
-        return {"success": True, "message": f"关键词 '{request.keyword}' 添加成功"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"添加关键词失败: {str(e)}")
-
-@router.delete("/keywords/line/{keyword}")
-async def remove_line_keyword(keyword: str):
-    """移除行中过滤关键词"""
-    try:
-        keywords = await config_manager.get_config("filter.ad_keywords_line", [])
-        if keyword in keywords:
-            keywords.remove(keyword)
-            await config_manager.set_config("filter.ad_keywords_line", keywords, "行中出现过滤本行的广告关键词", "list")
-        
-        return {"success": True, "message": f"关键词 '{keyword}' 移除成功"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"移除关键词失败: {str(e)}")
 
 # 账号管理相关API
 class AccountAddRequest(BaseModel):

@@ -20,7 +20,8 @@ const TrainApp = {
             trainingForm: {
                 channel_id: '',
                 original_message: '',
-                tail_content: ''
+                tail_content: '',
+                message_id: null  // 添加message_id字段
             },
             
             // 预览
@@ -40,10 +41,90 @@ const TrainApp = {
     },
     
     mounted() {
+        // 先检查URL参数
+        this.checkUrlParams();
+        // 然后初始化
         this.init();
     },
     
     methods: {
+        // 检查URL参数并自动填充表单
+        async checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // 只有当有message_id参数时才处理
+            const messageId = params.get('message_id');
+            const channelId = params.get('channel_id');
+            
+            // 如果没有任何参数，直接返回
+            if (!messageId && !channelId) {
+                return;
+            }
+            
+            // 保存message_id到表单中
+            this.trainingForm.message_id = messageId;
+            
+            // 如果有消息ID，从API获取消息内容
+            if (messageId) {
+                try {
+                    const response = await axios.get(`/api/messages/${messageId}`);
+                    if (response.data && response.data.success && response.data.message) {
+                        // 自动填充表单，优先使用原始内容
+                        const msg = response.data.message;
+                        this.trainingForm.channel_id = channelId || msg.source_channel;
+                        this.trainingForm.original_message = msg.content || msg.filtered_content || '';
+                        
+                        // 显示提示信息
+                        ElMessage({
+                            message: '已自动填充消息内容，请标记出需要过滤的尾部内容',
+                            type: 'info',
+                            offset: 20,
+                            customClass: 'bottom-right-message'
+                        });
+                        
+                        // 切换到训练标签页
+                        this.activeTab = 'train';
+                        
+                        // 焦点设置到尾部内容输入框
+                        this.$nextTick(() => {
+                            const tailInput = document.querySelector('textarea[placeholder*="尾部内容"]');
+                            if (tailInput) {
+                                tailInput.focus();
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('获取消息详情失败:', error);
+                    // 如果是404错误，消息不存在
+                    if (error.response && error.response.status === 404) {
+                        ElMessage({
+                            message: '消息不存在或已被删除',
+                            type: 'error',
+                            offset: 20,
+                            customClass: 'bottom-right-message'
+                        });
+                    } else {
+                        ElMessage({
+                            message: '获取消息内容失败，请手动输入',
+                            type: 'error',
+                            offset: 20,
+                            customClass: 'bottom-right-message'
+                        });
+                    }
+                    // 仅设置频道ID
+                    if (channelId) this.trainingForm.channel_id = channelId;
+                }
+                
+                // 清除URL参数，避免刷新页面时重复处理
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (channelId) {
+                // 只有频道ID，没有消息ID
+                this.trainingForm.channel_id = channelId;
+                // 清除URL参数
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        },
+        
         async init() {
             await this.loadChannels();
             await this.loadStats();
@@ -56,7 +137,12 @@ const TrainApp = {
                 this.channels = response.data.channels || [];
             } catch (error) {
                 console.error('加载频道失败:', error);
-                ElMessage.error('加载频道列表失败');
+                ElMessage({
+                    message: '加载频道列表失败',
+                    type: 'error',
+                    offset: 20,
+                    customClass: 'bottom-right-message'
+                });
             }
         },
         
@@ -95,28 +181,50 @@ const TrainApp = {
             this.trainingForm = {
                 channel_id: '',
                 original_message: '',
-                tail_content: ''
+                tail_content: '',
+                message_id: null
             };
             this.filteredPreview = '';
         },
         
         async submitTraining() {
             if (!this.trainingForm.channel_id) {
-                ElMessage.warning('请选择频道');
+                ElMessage({
+                    message: '请选择频道',
+                    type: 'warning',
+                    offset: 20,
+                    customClass: 'bottom-right-message'
+                });
                 return;
             }
             
             if (!this.trainingForm.original_message || !this.trainingForm.tail_content) {
-                ElMessage.warning('请填写完整的训练数据');
+                ElMessage({
+                    message: '请填写完整的训练数据',
+                    type: 'warning',
+                    offset: 20,
+                    customClass: 'bottom-right-message'
+                });
                 return;
             }
             
             this.submitting = true;
             try {
-                const response = await axios.post('/api/training/submit', this.trainingForm);
+                // 提交训练数据，包括message_id
+                const response = await axios.post('/api/training/submit', {
+                    channel_id: this.trainingForm.channel_id,
+                    original_message: this.trainingForm.original_message,
+                    tail_content: this.trainingForm.tail_content,
+                    message_id: this.trainingForm.message_id  // 传递message_id
+                });
                 
                 if (response.data.success) {
-                    ElMessage.success('训练样本已提交');
+                    ElMessage({
+                        message: '训练样本已提交，消息已更新',
+                        type: 'success',
+                        offset: 20,
+                        customClass: 'bottom-right-message'
+                    });
                     this.clearForm();
                     await this.loadHistory();
                     await this.loadStats();
@@ -127,10 +235,20 @@ const TrainApp = {
                         channel.trained_count = (channel.trained_count || 0) + 1;
                     }
                 } else {
-                    ElMessage.error(response.data.message || '提交失败');
+                    ElMessage({
+                        message: response.data.message || '提交失败',
+                        type: 'error',
+                        offset: 20,
+                        customClass: 'bottom-right-message'
+                    });
                 }
             } catch (error) {
-                ElMessage.error('提交失败: ' + (error.response?.data?.detail || error.message));
+                ElMessage({
+                    message: '提交失败: ' + (error.response?.data?.detail || error.message),
+                    type: 'error',
+                    offset: 20,
+                    customClass: 'bottom-right-message'
+                });
             } finally {
                 this.submitting = false;
             }
@@ -151,13 +269,28 @@ const TrainApp = {
                 this.applying = true;
                 const response = await axios.post('/api/training/apply');
                 if (response.data.success) {
-                    ElMessage.success(response.data.message || '训练已应用，AI模型已更新');
+                    ElMessage({
+                        message: response.data.message || '训练已应用，AI模型已更新',
+                        type: 'success',
+                        offset: 20,
+                        customClass: 'bottom-right-message'
+                    });
                 } else {
-                    ElMessage.error(response.data.message || '应用失败');
+                    ElMessage({
+                        message: response.data.message || '应用失败',
+                        type: 'error',
+                        offset: 20,
+                        customClass: 'bottom-right-message'
+                    });
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage.error('应用失败: ' + (error.response?.data?.detail || error.message));
+                    ElMessage({
+                        message: '应用失败: ' + (error.response?.data?.detail || error.message),
+                        type: 'error',
+                        offset: 20,
+                        customClass: 'bottom-right-message'
+                    });
                 }
             } finally {
                 this.applying = false;
@@ -178,11 +311,21 @@ const TrainApp = {
                 
                 const response = await axios.delete(`/api/training/${id}`);
                 if (response.data.success) {
-                    ElMessage.success('删除成功');
+                    ElMessage({
+                        message: '删除成功',
+                        type: 'success',
+                        offset: 20,
+                        customClass: 'bottom-right-message'
+                    });
                     await this.loadHistory();
                     await this.loadStats();
                 } else {
-                    ElMessage.error(response.data.message || '删除失败');
+                    ElMessage({
+                        message: response.data.message || '删除失败',
+                        type: 'error',
+                        offset: 20,
+                        customClass: 'bottom-right-message'
+                    });
                 }
             } catch (error) {
                 if (error !== 'cancel') {
@@ -213,3 +356,18 @@ const TrainApp = {
 
 // 导出到全局变量供页面使用
 window.TrainApp = TrainApp;
+
+// 等待DOM加载完成后初始化Vue应用
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const app = createApp(TrainApp);
+        app.use(ElementPlus);
+        if (window.NavBar) {
+            app.component('nav-bar', window.NavBar);
+        }
+        app.mount('#app');
+        console.log('训练页面初始化成功');
+    } catch (error) {
+        console.error('训练页面初始化失败:', error);
+    }
+});

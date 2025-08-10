@@ -112,14 +112,12 @@ docker compose restart app              # 重启应用服务
 - **Channel**: 频道配置（源频道、目标频道、审核群）
 - **FilterRule**: 过滤规则配置
 - **SystemConfig**: 系统配置存储（包含所有运行时配置）
-- **AdKeyword**: 广告关键词管理（支持文中关键词和行过滤）
 
 ### API路由结构
 - `/api/messages`: 消息管理API
 - `/api/admin`: 管理员功能API
 - `/api/config`: 配置管理API
 - `/api/auth`: Telegram认证API
-- `/api/keywords`: 关键词管理API
 - `/api/system`: 系统状态API
 - `/api/websocket`: WebSocket连接（用于实时认证）
 
@@ -132,7 +130,6 @@ docker compose restart app              # 重启应用服务
   - `auth.html`: Telegram认证界面
   - `admin.html`: 管理员界面
   - `status.html`: 系统状态监控
-  - `keywords.html`: 关键词管理界面
 
 ### 消息处理流程
 ```
@@ -188,11 +185,10 @@ docker compose restart app              # 重启应用服务
    - 运行 `./start.sh` 或 `python3 init_db.py` 初始化数据库
    - 访问 `http://localhost:8000/auth.html` 完成Telegram认证
    - 访问 `http://localhost:8000/config.html` 配置频道和系统参数
-   - 访问 `http://localhost:8000/keywords.html` 设置过滤关键词
 
 2. **消息处理**
    - 自动监听源频道新消息
-   - 根据关键词自动过滤广告
+   - 自动过滤广告内容
    - 发送到审核群供人工审核
    - 通过Web界面批量审核
    - 30分钟自动转发到目标频道

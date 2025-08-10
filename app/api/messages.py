@@ -164,20 +164,23 @@ async def get_message(
         raise HTTPException(status_code=404, detail="消息不存在")
     
     return {
-        "id": message.id,
-        "source_channel": message.source_channel,
-        "message_id": message.message_id,
-        "content": message.content,
-        "filtered_content": message.filtered_content,
-        "media_type": message.media_type,
-        "media_url": message.media_url,
-        "status": message.status,
-        "is_ad": message.is_ad,
-        "reviewed_by": message.reviewed_by,
-        "review_time": message.review_time,
-        "forwarded_time": message.forwarded_time,
-        "created_at": message.created_at,
-        "updated_at": message.updated_at
+        "success": True,
+        "message": {
+            "id": message.id,
+            "source_channel": message.source_channel,
+            "message_id": message.message_id,
+            "content": message.content,
+            "filtered_content": message.filtered_content,
+            "media_type": message.media_type,
+            "media_url": message.media_url,
+            "status": message.status,
+            "is_ad": message.is_ad,
+            "reviewed_by": message.reviewed_by,
+            "review_time": message.review_time,
+            "forwarded_time": message.forwarded_time,
+            "created_at": message.created_at,
+            "updated_at": message.updated_at
+        }
     }
 
 @router.post("/{message_id}/approve")

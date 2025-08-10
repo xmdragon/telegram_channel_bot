@@ -143,7 +143,15 @@ const ConfigApp = {
                     // 处理审核群名称显示格式
                     let reviewGroup = response.data.review_group_id || '';
                     const cachedGroupId = response.data.review_group_id_cached || '';
-                    const cachedTargetChannelId = response.data.target_channel_id_cached || '';
+                    
+                    // 对于目标频道，如果已经是ID格式（-100开头），直接使用
+                    // 否则使用cached值
+                    let resolvedTargetId = '';
+                    if (response.data.target_channel_id && response.data.target_channel_id.startsWith('-100')) {
+                        resolvedTargetId = response.data.target_channel_id;
+                    } else if (response.data.target_channel_id_cached) {
+                        resolvedTargetId = response.data.target_channel_id_cached;
+                    }
                     
                     // 保持原始格式，不进行修改
                     // 只在页面上通过只读字段显示解析后的ID
@@ -154,7 +162,7 @@ const ConfigApp = {
                         target_channel: targetChannel,
                         review_group: response.data.review_group_id || '',
                         resolved_group_id: cachedGroupId || '',
-                        resolved_target_channel_id: cachedTargetChannelId || '',
+                        resolved_target_channel_id: resolvedTargetId || '',
                         delay: response.data.auto_forward_delay || 0,
                         conditions: ['approved']
                     };
@@ -520,6 +528,101 @@ const ConfigApp = {
                 } catch (error) {
                     console.error('解析群ID失败:', error);
                 }
+            }
+        },
+        
+        // 手动解析目标频道
+        async manualResolveTargetChannel() {
+            if (!this.forwardingConfig.target_channel) {
+                MessageManager.warning('请先输入目标频道');
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                const response = await axios.post('/api/channel-resolver/resolve-target');
+                
+                if (response.data.success) {
+                    this.forwardingConfig.resolved_target_channel_id = response.data.resolved_id;
+                    MessageManager.success(`目标频道已解析: ${response.data.resolved_id}`);
+                    
+                    // 重新加载配置
+                    await this.loadForwardingConfig();
+                } else {
+                    MessageManager.error('解析失败: ' + response.data.message);
+                }
+            } catch (error) {
+                console.error('手动解析目标频道失败:', error);
+                MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        // 手动解析审核群
+        async manualResolveReviewGroup() {
+            if (!this.forwardingConfig.review_group) {
+                MessageManager.warning('请先输入审核群');
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                const response = await axios.post('/api/channel-resolver/resolve-review');
+                
+                if (response.data.success) {
+                    this.forwardingConfig.resolved_group_id = response.data.resolved_id;
+                    MessageManager.success(`审核群已解析: ${response.data.resolved_id}`);
+                    
+                    // 重新加载配置
+                    await this.loadForwardingConfig();
+                } else {
+                    MessageManager.error('解析失败: ' + response.data.message);
+                }
+            } catch (error) {
+                console.error('手动解析审核群失败:', error);
+                MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        // 批量解析所有频道
+        async resolveAllChannels() {
+            try {
+                this.loading = true;
+                this.loadingMessage = '正在解析所有频道ID...';
+                
+                const response = await axios.post('/api/channel-resolver/resolve-all');
+                
+                if (response.data.success) {
+                    let message = '频道解析完成\n';
+                    
+                    if (response.data.resolved && response.data.resolved.length > 0) {
+                        message += `\n✅ 已解析: ${response.data.resolved.length} 个`;
+                    }
+                    
+                    if (response.data.errors && response.data.errors.length > 0) {
+                        message += `\n❌ 错误: ${response.data.errors.length} 个`;
+                    }
+                    
+                    if (response.data.warnings && response.data.warnings.length > 0) {
+                        message += `\n⚠️ 警告: ${response.data.warnings.length} 个`;
+                    }
+                    
+                    MessageManager.success(message);
+                    
+                    // 重新加载配置
+                    await this.loadChannels();
+                    await this.loadForwardingConfig();
+                } else {
+                    MessageManager.error('解析失败: ' + response.data.message);
+                }
+            } catch (error) {
+                console.error('批量解析频道失败:', error);
+                MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                this.loading = false;
             }
         },
         

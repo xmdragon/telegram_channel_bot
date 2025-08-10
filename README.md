@@ -116,12 +116,6 @@ python3 main.py
 - **审核群**: 设置审核群 ID
 - **目标频道**: 设置转发目标频道
 
-### 3. 关键词管理
-
-访问 http://localhost:8000/keywords.html 管理过滤关键词：
-
-- **文中关键词**: 消息内容包含这些词会被标记为广告
-- **行过滤关键词**: 删除包含这些词的整行内容
 
 ## 📋 使用指南
 
@@ -134,7 +128,6 @@ python3 main.py
 | Telegram认证 | `/auth.html` | Telegram账号登录 |
 | 管理员界面 | `/admin.html` | 高级管理功能 |
 | 系统状态 | `/status.html` | 系统监控、性能指标 |
-| 关键词管理 | `/keywords.html` | 广告关键词配置 |
 
 ### API 接口
 
@@ -142,7 +135,6 @@ python3 main.py
 - `/api/admin` - 管理员功能
 - `/api/config` - 配置管理
 - `/api/auth` - Telegram认证
-- `/api/keywords` - 关键词管理
 - `/api/system` - 系统状态
 - `/api/websocket` - WebSocket连接
 
@@ -153,7 +145,7 @@ python3 main.py
 ### 功能特点
 
 - 导出除session外的所有系统配置
-- 支持导出系统配置、广告关键词、频道配置、过滤规则
+- 支持导出系统配置、频道配置
 - 支持合并导入和替换导入两种模式
 - 自动跳过敏感的session信息
 
@@ -223,9 +215,6 @@ python3 import_config.py config_export_20250808_095913.json --mode replace
   - 过滤设置
   - 审核设置等
 
-- **ad_keywords**: 广告关键词
-  - 文中关键词
-  - 行过滤关键词
 
 - **channels**: 频道配置
   - 源频道
@@ -293,11 +282,6 @@ docker compose exec app bash
 - `review.*` - 审核设置
 - `accounts.*` - 账号采集配置
 
-### 关键词过滤
-
-通过 `ad_keywords` 表管理：
-- **text类型**: 文中关键词检测
-- **line类型**: 行过滤关键词
 
 ## 📊 监控和维护
 

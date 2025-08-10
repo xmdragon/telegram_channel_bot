@@ -98,8 +98,8 @@ class TelegramBot:
             # 注册事件处理器
             await message_event_handler.register_event_handlers(client)
             
-            # 解析缺失的频道ID
-            await self._resolve_missing_channel_ids()
+            # 执行完整的启动检查（包括解析所有频道ID）
+            await self._perform_startup_checks()
             
             # 首次连接时进行历史消息采集
             if not self.auto_collection_done:
@@ -170,10 +170,22 @@ class TelegramBot:
                     content = message.caption or ""
                 elif hasattr(message, 'raw_text'):
                     content = message.raw_text or ""
+            
+            # 对于组合消息，某些情况下文本可能在message属性中
+            if not content:
+                # 再次尝试获取，某些组合消息的文本可能存储在不同字段
+                if hasattr(message, 'message') and message.message:
+                    content = message.message
+                    logger.debug(f"📝 从message属性提取到内容")
+            
+            # 如果组合消息仍无文本，可能是纯图片组
+            if not content and hasattr(message, 'grouped_id') and message.grouped_id:
+                # 对于纯媒体组合消息，某些消息可能没有文本
+                logger.debug(f"📝 组合消息 {message.grouped_id} 中的消息 {message.id} 无文本内容")
                     
             # 记录内容提取结果
             if content:
-                logger.debug(f"📝 提取到消息内容: {content[:100]}...")
+                logger.info(f"📝 提取到消息内容: {content[:100]}...")
             else:
                 logger.debug(f"📝 消息无文本内容（纯媒体）")
             media_type = None
@@ -273,12 +285,31 @@ class TelegramBot:
             else:
                 logger.info(f"📝 内容过滤完成，长度无变化: {len(filtered_content)} 字符")
             
-            # 检查是否为纯广告（无新闻价值）
-            if self.content_filter.is_pure_advertisement(content):
-                logger.warning(f"🚫 检测到纯广告，自动拒绝: {content[:50]}...")
-                if media_info and media_info.get('file_path'):
-                    await media_handler.cleanup_file(media_info['file_path'])
-                return None
+            # 检查是否为纯广告（优先使用AI检测）
+            try:
+                # 获取是否启用AI广告检测
+                use_ai_ad_detection = await config_manager.get_config('ai.use_ad_detection', True)
+                
+                if use_ai_ad_detection:
+                    # 使用AI检测
+                    is_pure_ad = await self.content_filter.is_pure_advertisement_ai(content)
+                else:
+                    # 使用传统规则检测
+                    is_pure_ad = self.content_filter.is_pure_advertisement(content)
+                
+                if is_pure_ad:
+                    logger.warning(f"🚫 检测到纯广告，自动拒绝: {content[:50]}...")
+                    if media_info and media_info.get('file_path'):
+                        await media_handler.cleanup_file(media_info['file_path'])
+                    return None
+            except Exception as e:
+                logger.error(f"广告检测失败，使用传统方法: {e}")
+                # 回退到传统检测
+                if self.content_filter.is_pure_advertisement(content):
+                    logger.warning(f"🚫 检测到纯广告（规则），自动拒绝: {content[:50]}...")
+                    if media_info and media_info.get('file_path'):
+                        await media_handler.cleanup_file(media_info['file_path'])
+                    return None
             
             # 处理文本被完全过滤的情况
             if content and not filtered_content:
@@ -623,17 +654,37 @@ class TelegramBot:
             logger.error(f"准备媒体组显示数据时出错: {e}")
             return None
     
-    async def _resolve_missing_channel_ids(self):
-        """解析缺失的频道ID"""
+    async def _perform_startup_checks(self):
+        """执行启动时的完整配置检查"""
         try:
-            logger.info("检查并解析缺失的频道ID...")
-            resolved_count = await channel_manager.resolve_missing_channel_ids()
-            if resolved_count > 0:
-                logger.info(f"成功解析 {resolved_count} 个频道ID")
+            from app.services.startup_checker import startup_checker
+            
+            # 执行完整检查，传递已连接的客户端
+            check_results = await startup_checker.check_and_resolve_all_channels(self.client)
+            
+            # 如果有严重错误，记录但继续运行（让用户可以通过Web界面修复）
+            if not check_results['success']:
+                logger.error("启动检查发现配置问题，请通过Web界面修复配置")
+                # 可以选择在这里停止启动，或继续运行让用户修复
+                # raise Exception("启动检查失败，请修复配置后重试")
+            
+            # 更新内存中的频道列表
+            if check_results['source_channels']:
+                logger.info(f"已加载 {len(check_results['source_channels'])} 个源频道")
+            
+            if check_results['target_channel']:
+                logger.info(f"目标频道已配置: {check_results['target_channel']}")
             else:
-                logger.info("所有频道ID都已解析或无需解析")
+                logger.warning("⚠️ 目标频道未配置，消息将无法转发")
+                
+            if check_results['review_group']:
+                logger.info(f"审核群已配置: {check_results['review_group']}")
+            else:
+                logger.warning("⚠️ 审核群未配置，消息将直接转发到目标频道")
+                
         except Exception as e:
-            logger.error(f"解析频道ID失败: {e}")
+            logger.error(f"启动检查失败: {e}")
+            # 继续运行，让用户可以通过Web界面修复
     
     async def _auto_collect_history(self, client):
         """自动采集频道历史消息"""

@@ -8,7 +8,7 @@ import asyncio
 import json
 from datetime import datetime
 from sqlalchemy import select
-from app.core.database import AsyncSessionLocal, SystemConfig, AdKeyword, Channel, FilterRule
+from app.core.database import AsyncSessionLocal, SystemConfig, Channel
 import sys
 
 async def export_configs():
@@ -18,9 +18,7 @@ async def export_configs():
             "export_time": datetime.now().isoformat(),
             "version": "1.0",
             "system_configs": [],
-            "ad_keywords": [],
-            "channels": [],
-            "filter_rules": []
+            "channels": []
         }
         
         # 导出系统配置（排除session）
@@ -42,21 +40,6 @@ async def export_configs():
             })
         print(f"  导出了 {len(configs)} 个系统配置项")
         
-        # 导出广告关键词
-        print("正在导出广告关键词...")
-        query = select(AdKeyword).where(AdKeyword.is_active == True)
-        result = await session.execute(query)
-        keywords = result.scalars().all()
-        
-        for keyword in keywords:
-            export_data["ad_keywords"].append({
-                "keyword": keyword.keyword,
-                "keyword_type": keyword.keyword_type,
-                "description": keyword.description,
-                "is_active": keyword.is_active
-            })
-        print(f"  导出了 {len(keywords)} 个广告关键词")
-        
         # 导出频道配置
         print("正在导出频道配置...")
         query = select(Channel).where(Channel.is_active == True)
@@ -74,21 +57,6 @@ async def export_configs():
                 "description": channel.description
             })
         print(f"  导出了 {len(channels)} 个频道配置")
-        
-        # 导出过滤规则（如果有）
-        print("正在导出过滤规则...")
-        query = select(FilterRule).where(FilterRule.is_active == True)
-        result = await session.execute(query)
-        rules = result.scalars().all()
-        
-        for rule in rules:
-            export_data["filter_rules"].append({
-                "rule_type": rule.rule_type,
-                "pattern": rule.pattern,
-                "action": rule.action,
-                "is_active": rule.is_active
-            })
-        print(f"  导出了 {len(rules)} 个过滤规则")
         
         # 保存到文件
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

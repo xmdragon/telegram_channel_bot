@@ -192,9 +192,24 @@ class MessageForwarder:
             # 检查消息是否包含媒体
             has_media = (message.media_type and message.media_url) or (message.is_combined and message.media_group)
             
+            # 尝试直接编辑消息（适用于纯文本或带caption的媒体）
+            try:
+                # 尝试编辑消息
+                edited = await client.edit_message(
+                    entity=int(review_group_id),
+                    message=message.review_message_id,
+                    text=updated_content
+                )
+                
+                if edited:
+                    logger.info(f"成功编辑审核群消息 {message.review_message_id}")
+                    return
+            except Exception as edit_error:
+                logger.debug(f"无法直接编辑消息（可能是媒体组合消息）: {edit_error}")
+            
             if has_media:
-                # 对于带媒体的消息，需要删除旧消息并重新发送
-                logger.info(f"消息包含媒体，需要重新发送到审核群")
+                # 对于无法编辑的媒体消息，需要删除旧消息并重新发送
+                logger.info(f"消息包含媒体且无法编辑，需要重新发送到审核群")
                 
                 # 1. 删除旧的审核群消息
                 await self.delete_review_message(client, message.review_message_id)

@@ -140,23 +140,60 @@
                     <div class="message-content">
                         <!-- 媒体内容 -->
                         <div v-if="message.media_type" class="message-media">
-                            <!-- 图片 -->
-                            <img v-if="message.media_type === 'photo' && message.media_display_url" 
-                                 :src="message.media_display_url"
-                                 class="media-image"
-                                 @click="openMediaPreview(message.media_display_url)">
-                            
-                            <!-- 视频 -->
-                            <video v-else-if="message.media_type === 'video' && message.media_display_url"
-                                   :src="message.media_display_url"
-                                   class="media-video"
-                                   controls>
-                            </video>
-                            
-                            <!-- 其他媒体类型 -->
-                            <div v-else class="media-placeholder">
-                                {{ message.media_type }}
+                            <!-- 组合消息的媒体组 -->
+                            <div v-if="message.is_combined && message.media_group_display && message.media_group_display.length > 0" 
+                                 class="media-grid" 
+                                 :style="{
+                                     'display': 'grid',
+                                     'grid-template-columns': message.media_group_display.length === 1 ? '1fr' : 
+                                                               message.media_group_display.length === 2 ? 'repeat(2, 1fr)' : 
+                                                               'repeat(3, 1fr)',
+                                     'gap': '4px',
+                                     'max-width': '500px'
+                                 }">
+                                <div v-for="(media, index) in message.media_group_display" :key="index">
+                                    <!-- 组合消息中的图片 -->
+                                    <img v-if="media.media_type === 'photo' && media.display_url" 
+                                         :src="media.display_url"
+                                         class="media-image"
+                                         style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                                         @click="openMediaPreview(media.display_url)">
+                                    
+                                    <!-- 组合消息中的视频 -->
+                                    <video v-else-if="media.media_type === 'video' && media.display_url"
+                                           :src="media.display_url"
+                                           class="media-video"
+                                           style="width: 100%; height: 100%; object-fit: cover;"
+                                           controls>
+                                    </video>
+                                    
+                                    <!-- 其他媒体类型 -->
+                                    <div v-else class="media-placeholder" style="padding: 20px; background: #f5f5f5; text-align: center;">
+                                        {{ media.media_type }}
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <!-- 单个媒体（非组合消息） -->
+                            <template v-else>
+                                <!-- 图片 -->
+                                <img v-if="message.media_type === 'photo' && message.media_display_url" 
+                                     :src="message.media_display_url"
+                                     class="media-image"
+                                     @click="openMediaPreview(message.media_display_url)">
+                                
+                                <!-- 视频 -->
+                                <video v-else-if="message.media_type === 'video' && message.media_display_url"
+                                       :src="message.media_display_url"
+                                       class="media-video"
+                                       controls>
+                                </video>
+                                
+                                <!-- 其他媒体类型 -->
+                                <div v-else class="media-placeholder">
+                                    {{ message.media_type }}
+                                </div>
+                            </template>
                         </div>
                         
                         <!-- 文本内容 -->
@@ -187,6 +224,17 @@
                         <button @click="selectedMessages = [message.id]; rejectMessages()" 
                                 class="btn btn-sm btn-danger">
                             ❌ 拒绝
+                        </button>
+                        <!-- AI训练按钮 -->
+                        <button @click="markAsAd(message)" 
+                                class="btn btn-sm btn-warning"
+                                title="将此消息标记为广告并加入训练样本">
+                            🚫 广告
+                        </button>
+                        <button @click="trainTail(message)" 
+                                class="btn btn-sm btn-info"
+                                title="训练AI识别此消息的尾部内容">
+                            ✂️ 尾部
                         </button>
                     </div>
                 </div>
@@ -242,7 +290,13 @@
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
     <script src="assets/js/components/navbar.js"></script>
-    <script src="assets/js/components/index-modern.js"></script>
+    
+    <!-- 模块化文件 -->
+    <script src="assets/js/modules/utils.js"></script>
+    <script src="assets/js/modules/message-manager.js"></script>
+    
+    <!-- 主组件 -->
+    <script src="assets/js/components/index.js"></script>
     
     <style>
         /* 消息项特定样式 */

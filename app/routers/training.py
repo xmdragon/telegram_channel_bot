@@ -25,15 +25,70 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["training"])
 
+async def update_message_after_training(
+    db: AsyncSession,
+    message_id: int,
+    original_message: str,
+    tail_content: str
+):
+    """
+    训练后更新消息内容
+    1. 更新数据库中的filtered_content
+    2. 编辑审核群中的消息
+    """
+    try:
+        # 获取消息记录
+        result = await db.execute(
+            select(Message).where(Message.id == message_id)
+        )
+        message = result.scalar_one_or_none()
+        
+        if not message:
+            logger.warning(f"消息 {message_id} 不存在")
+            return
+        
+        # 计算过滤后的内容（去除尾部）
+        if tail_content and tail_content in original_message:
+            # 找到尾部内容的位置并截断
+            tail_index = original_message.find(tail_content)
+            filtered_content = original_message[:tail_index].rstrip()
+        else:
+            filtered_content = original_message
+        
+        # 更新数据库中的过滤内容
+        message.filtered_content = filtered_content
+        message.is_ad = False  # 训练后通常意味着不是广告
+        await db.commit()
+        
+        logger.info(f"消息 {message_id} 内容已更新: {len(original_message)} -> {len(filtered_content)} 字符")
+        
+        # 如果有审核群消息ID，尝试更新审核群中的消息
+        if message.review_message_id:
+            try:
+                from app.telegram.bot import telegram_bot
+                if telegram_bot and telegram_bot.client:
+                    # 调用更新审核群消息的方法
+                    await telegram_bot.update_review_message(message)
+                    logger.info(f"审核群消息 {message.review_message_id} 已更新")
+            except Exception as e:
+                logger.error(f"更新审核群消息失败: {e}")
+                # 不抛出异常，因为数据库已经更新成功
+        
+    except Exception as e:
+        logger.error(f"更新消息 {message_id} 失败: {e}")
+        raise
+
 # 训练数据文件路径（挂载到./data目录）
 TRAINING_DATA_FILE = Path("data/manual_training_data.json")
 TRAINING_HISTORY_FILE = Path("data/training_history.json")
+AD_TRAINING_FILE = Path("data/ad_training_data.json")  # 新增：广告训练数据文件
 
 class TrainingSubmission(BaseModel):
     """训练数据提交模型"""
     channel_id: str
     original_message: str
     tail_content: str
+    message_id: Optional[int] = None  # 消息ID，用于更新数据库记录
 
 class TrainingRecord:
     """训练记录 - 加强版数据保护机制"""
@@ -778,6 +833,111 @@ class TrainingRecord:
 # 创建全局训练记录实例
 training_record = TrainingRecord()
 
+
+class AdTrainingManager:
+    """广告训练数据管理器"""
+    def __init__(self):
+        self.data_file = AD_TRAINING_FILE
+        self._ensure_file()
+    
+    def _ensure_file(self):
+        """确保广告训练数据文件存在"""
+        os.makedirs(self.data_file.parent, exist_ok=True)
+        if not self.data_file.exists():
+            self._save_data({
+                "ad_samples": [],
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            })
+    
+    def _load_data(self) -> dict:
+        """加载广告训练数据"""
+        try:
+            if self.data_file.exists():
+                with open(self.data_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"加载广告训练数据失败: {e}")
+        
+        return {
+            "ad_samples": [],
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
+    
+    def _save_data(self, data: dict):
+        """保存广告训练数据"""
+        try:
+            data["updated_at"] = datetime.now().isoformat()
+            with open(self.data_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            logger.error(f"保存广告训练数据失败: {e}")
+            return False
+    
+    def add_ad_sample(self, message_id: int, channel_id: str, content: str, 
+                      channel_name: str = None) -> bool:
+        """添加广告样本"""
+        try:
+            data = self._load_data()
+            
+            # 检查是否已存在
+            for sample in data["ad_samples"]:
+                if sample.get("message_id") == message_id:
+                    logger.info(f"广告样本已存在: {message_id}")
+                    return True
+            
+            # 添加新样本
+            sample = {
+                "message_id": message_id,
+                "channel_id": channel_id,
+                "channel_name": channel_name,
+                "content": content,
+                "content_length": len(content),
+                "created_at": datetime.now().isoformat(),
+                "sample_hash": hashlib.sha256(content.encode()).hexdigest()[:16]
+            }
+            
+            data["ad_samples"].append(sample)
+            
+            # 只保留最近1000个样本
+            if len(data["ad_samples"]) > 1000:
+                data["ad_samples"] = data["ad_samples"][-1000:]
+            
+            return self._save_data(data)
+            
+        except Exception as e:
+            logger.error(f"添加广告样本失败: {e}")
+            return False
+    
+    def get_ad_samples(self) -> List[str]:
+        """获取所有广告样本内容"""
+        data = self._load_data()
+        return [s["content"] for s in data.get("ad_samples", [])]
+    
+    def get_stats(self) -> dict:
+        """获取统计信息"""
+        data = self._load_data()
+        samples = data.get("ad_samples", [])
+        
+        # 统计每个频道的广告数
+        channel_stats = {}
+        for sample in samples:
+            channel = sample.get("channel_name", sample.get("channel_id", "未知"))
+            channel_stats[channel] = channel_stats.get(channel, 0) + 1
+        
+        return {
+            "total_samples": len(samples),
+            "channels": len(set(s.get("channel_id") for s in samples if s.get("channel_id"))),
+            "channel_stats": channel_stats,
+            "last_updated": data.get("updated_at")
+        }
+
+
+# 创建全局广告训练管理器实例
+ad_training_manager = AdTrainingManager()
+
 # 新增的API端点
 @router.post("/emergency-backup")
 async def create_emergency_backup():
@@ -953,7 +1113,16 @@ async def submit_training(
             samples = [submission.original_message]
             await ai_filter.learn_channel_pattern(submission.channel_id, samples)
             
-            return {"success": True, "message": "训练样本已保存"}
+            # 如果提供了message_id，更新数据库中的消息内容
+            if submission.message_id:
+                await update_message_after_training(
+                    db,
+                    submission.message_id,
+                    submission.original_message,
+                    submission.tail_content
+                )
+            
+            return {"success": True, "message": "训练样本已保存，消息内容已更新"}
         else:
             raise HTTPException(status_code=500, detail="保存训练数据失败")
             
@@ -1075,4 +1244,105 @@ async def restore_from_backup(backup_filename: str):
         raise
     except Exception as e:
         logger.error(f"恢复备份失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mark-ad")
+async def mark_message_as_ad(
+    request: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """将消息标记为广告并加入训练样本"""
+    try:
+        message_id = request.get("message_id")
+        if not message_id:
+            raise HTTPException(status_code=400, detail="缺少消息ID")
+        
+        # 获取消息详情
+        result = await db.execute(
+            select(Message).where(Message.id == message_id)
+        )
+        message = result.scalar_one_or_none()
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 获取频道信息
+        channel_result = await db.execute(
+            select(Channel).where(Channel.channel_id == message.source_channel)
+        )
+        channel = channel_result.scalar_one_or_none()
+        channel_name = channel.channel_title or channel.channel_name if channel else "未知频道"
+        
+        # 添加到广告训练样本
+        content = message.filtered_content or message.content
+        if content:
+            success = ad_training_manager.add_ad_sample(
+                message_id=message.id,
+                channel_id=message.source_channel,
+                content=content,
+                channel_name=channel_name
+            )
+            
+            if not success:
+                logger.warning(f"添加广告样本失败，但继续处理消息: {message_id}")
+        
+        # 更新消息状态
+        message.is_ad = True
+        message.status = "rejected"
+        message.reviewed_by = "AI训练"
+        message.review_time = datetime.now()
+        
+        await db.commit()
+        
+        # 触发AI重新训练（异步）
+        try:
+            ad_samples = ad_training_manager.get_ad_samples()
+            if ad_samples:
+                # 这里可以调用AI过滤器的训练方法
+                await ai_filter.train_ad_classifier(ad_samples, [])
+                logger.info(f"已使用 {len(ad_samples)} 个广告样本更新AI模型")
+        except Exception as e:
+            logger.error(f"更新AI模型失败: {e}")
+        
+        return {
+            "success": True,
+            "message": "已标记为广告并加入训练样本"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"标记广告失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ad-stats")
+async def get_ad_training_stats():
+    """获取广告训练统计信息"""
+    try:
+        stats = ad_training_manager.get_stats()
+        return stats
+    except Exception as e:
+        logger.error(f"获取广告统计失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ad-samples")
+async def get_ad_samples(limit: int = 10):
+    """获取最近的广告样本"""
+    try:
+        data = ad_training_manager._load_data()
+        samples = data.get("ad_samples", [])
+        
+        # 返回最近的样本
+        recent_samples = samples[-limit:] if len(samples) > limit else samples
+        recent_samples.reverse()  # 最新的在前
+        
+        return {
+            "total": len(samples),
+            "samples": recent_samples
+        }
+    except Exception as e:
+        logger.error(f"获取广告样本失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
