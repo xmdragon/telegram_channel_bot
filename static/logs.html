@@ -6,17 +6,13 @@
     <title>📋 系统日志</title>
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
-    <script src="assets/js/vue.prod.js"></script>
-    <script src="assets/js/element-plus.js"></script>
-    <script src="assets/js/axios.js"></script>
-    <script src="assets/js/components/navbar.js"></script>
 </head>
 <body>
     <div id="app">
         <nav-bar page-title="📋 系统日志" page-subtitle="实时日志 · 系统监控 · 运行状态"></nav-bar>
         
-        <div class="main-content">
-                    <div class="logs-container">
+        <div class="container">
+            <div class="logs-container">
                         <!-- 控制栏 -->
                         <el-row :gutter="20" class="control-bar">
                             <el-col :span="24">
@@ -90,12 +86,17 @@
                             </div>
                         </el-card>
 
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
-    <script src="./assets/js/components/logs.js"></script>
+    <!-- Vue 和 ElementPlus -->
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
+    
+    <!-- 页面脚本 -->
+    <script src="assets/js/components/logs.js"></script>
 </body>
 </html>

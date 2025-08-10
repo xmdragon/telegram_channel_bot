@@ -1,5 +1,5 @@
 const { createApp } = Vue;
-const { ElMessage } = ElementPlus;
+const { ElMessage, ElMessageBox } = ElementPlus;
 
 const app = createApp({
     data() {
@@ -103,6 +103,54 @@ const app = createApp({
             if (this.refreshInterval) {
                 clearInterval(this.refreshInterval);
                 this.refreshInterval = null;
+            }
+        },
+        
+        async refreshStatus() {
+            this.loading = true;
+            this.loadingMessage = '正在刷新状态...';
+            try {
+                await this.loadSystemStatus();
+                ElMessage.success('状态已刷新');
+            } catch (error) {
+                ElMessage.error('刷新失败');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async restartServices() {
+            try {
+                await ElMessageBox.confirm(
+                    '确定要重启所有服务吗？这可能会暂时中断消息处理。',
+                    '重启确认',
+                    {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }
+                );
+                
+                this.loading = true;
+                this.loadingMessage = '正在重启服务...';
+                
+                const response = await axios.post('/api/system/restart');
+                if (response.data.success) {
+                    ElMessage.success('服务重启成功');
+                    // 等待几秒后刷新状态
+                    setTimeout(() => {
+                        this.loadSystemStatus();
+                    }, 3000);
+                } else {
+                    ElMessage.error(response.data.message || '重启失败');
+                }
+            } catch (error) {
+                if (error !== 'cancel') {
+                    console.error('重启服务失败:', error);
+                    ElMessage.error('重启服务失败');
+                }
+            } finally {
+                this.loading = false;
             }
         }
     }

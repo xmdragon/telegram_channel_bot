@@ -7,10 +7,6 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
-    <script src="assets/js/vue.prod.js"></script>
-    <script src="assets/js/element-plus.js"></script>
-    <script src="assets/js/axios.js"></script>
-    <script src="assets/js/components/navbar.js"></script>
 </head>
 <body>
     <div id="app">
@@ -19,7 +15,7 @@
 
         <div class="container">
             <!-- 系统状态网格 -->
-            <div class="stats-grid">
+            <div class="stats-grid" style="margin-bottom: 30px;">
                 <div class="stat-item" v-for="(stat, key) in systemStats" :key="key">
                     <div class="stat-number">{{ stat.value }}</div>
                     <div class="stat-label">{{ stat.label }}</div>
@@ -52,10 +48,22 @@
                     <h2>💻 系统信息</h2>
                 </div>
                 <div class="card-content">
-                    <div class="list-item" v-for="(info, key) in systemInfo" :key="key">
+                    <div class="list-item">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div class="list-item-title">{{ info.label }}</div>
-                            <div class="list-item-subtitle">{{ info.value }}</div>
+                            <div class="list-item-title">系统版本</div>
+                            <div class="list-item-subtitle">{{ systemInfo.version }}</div>
+                        </div>
+                    </div>
+                    <div class="list-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="list-item-title">运行时间</div>
+                            <div class="list-item-subtitle">{{ systemInfo.uptime }}</div>
+                        </div>
+                    </div>
+                    <div class="list-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="list-item-title">最后更新</div>
+                            <div class="list-item-subtitle">{{ systemInfo.lastUpdate }}</div>
                         </div>
                     </div>
                 </div>
@@ -63,19 +71,17 @@
 
             <!-- 操作按钮 -->
             <div style="text-align: center; margin-top: 30px;">
-                <el-button @click="refreshStatus" type="primary" icon="Refresh">
+                <el-button @click="refreshStatus" type="primary">
+                    <el-icon><Refresh /></el-icon>
                     刷新状态
                 </el-button>
-                <el-button @click="restartServices" type="warning" icon="Refresh">
+                <el-button @click="restartServices" type="warning">
+                    <el-icon><RefreshRight /></el-icon>
                     重启服务
                 </el-button>
             </div>
         </div>
         
-        <!-- 状态消息 -->
-        <div v-if="statusMessage" class="status-message" :class="statusType">
-            {{ statusMessage }}
-        </div>
         
         <!-- 加载遮罩 -->
         <div v-if="loading" class="loading-overlay">
@@ -86,6 +92,13 @@
         </div>
     </div>
 
-    <script src="./assets/js/components/status.js"></script>
+    <!-- Vue 和 ElementPlus -->
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
+    
+    <!-- 页面脚本 -->
+    <script src="assets/js/components/status.js"></script>
 </body>
 </html> 

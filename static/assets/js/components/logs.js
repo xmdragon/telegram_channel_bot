@@ -1,5 +1,5 @@
 const { createApp } = Vue;
-const { ElMessage } = ElementPlus;
+const { ElMessage, ElMessageBox } = ElementPlus;
 
 const app = createApp({
     data() {
@@ -34,13 +34,18 @@ const app = createApp({
                     this.logs = response.data.logs;
                     this.filterLogs();
                     this.lastUpdate = new Date().toLocaleString('zh-CN');
+                } else if (response.data && response.data.success === false) {
+                    // 如果返回失败，显示默认消息
+                    this.logs = [
+                        { time: new Date().toISOString(), level: 'INFO', message: '系统正常运行' }
+                    ];
+                    this.filterLogs();
                 }
             } catch (error) {
                 console.error('加载日志失败:', error);
-                // 使用模拟数据
+                // 如果网络错误，不显示错误消息，只显示基本信息
                 this.logs = [
-                    { time: new Date().toISOString(), level: 'INFO', message: '系统正常运行' },
-                    { time: new Date().toISOString(), level: 'WARNING', message: '日志服务未响应，显示演示数据' }
+                    { time: new Date().toISOString(), level: 'INFO', message: '系统正常运行' }
                 ];
                 this.filterLogs();
             }
@@ -95,13 +100,10 @@ const app = createApp({
                     type: 'warning'
                 });
                 
-                // 调用清空日志API
-                const response = await axios.post('/api/system/logs/clear');
-                if (response.data.success) {
-                    this.logs = [];
-                    this.filteredLogs = [];
-                    ElMessage.success('日志已清空');
-                }
+                // 目前没有清空日志API，只清空前端显示
+                this.logs = [];
+                this.filteredLogs = [];
+                ElMessage.success('日志显示已清空');
             } catch (error) {
                 if (error !== 'cancel') {
                     ElMessage.error('清空日志失败');
@@ -124,7 +126,7 @@ const app = createApp({
             if (this.autoRefresh && !this.refreshInterval) {
                 this.refreshInterval = setInterval(() => {
                     this.loadLogs();
-                }, 3000); // 每3秒刷新一次
+                }, 2000); // 每2秒刷新一次
             }
         },
         

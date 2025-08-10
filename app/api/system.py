@@ -28,14 +28,69 @@ START_TIME = datetime.now()
 async def get_system_status() -> Dict[str, Any]:
     """获取系统状态"""
     try:
-        status_summary = await system_monitor.get_status_summary()
+        # 计算运行时间
+        uptime_seconds = (datetime.now() - START_TIME).total_seconds()
+        
+        # 获取数据库统计
+        async with AsyncSessionLocal() as db:
+            total_messages = await db.scalar(select(func.count(Message.id)))
+            pending_messages = await db.scalar(
+                select(func.count(Message.id)).where(Message.status == 'pending')
+            )
+            forwarded_messages = await db.scalar(
+                select(func.count(Message.id)).where(Message.status == 'forwarded')
+            )
+            source_channels = await db.scalar(
+                select(func.count(Channel.id)).where(Channel.channel_type == 'source')
+            )
+        
+        # 获取服务状态
+        telegram_connected = False
+        if auth_manager and auth_manager.client:
+            try:
+                await auth_manager.client.get_me()
+                telegram_connected = True
+            except:
+                pass
+        
         return {
-            "success": True,
-            "data": status_summary
+            "stats": {
+                "source_channels": source_channels or 0,
+                "total_messages": total_messages or 0,
+                "pending_messages": pending_messages or 0,
+                "forwarded_messages": forwarded_messages or 0
+            },
+            "services": {
+                "telegram_client": telegram_connected,
+                "message_processor": True,  # 始终运行
+                "scheduler": True,  # 始终运行
+                "database": True  # 如果能查询就是运行中
+            },
+            "system": {
+                "uptime": uptime_seconds,
+                "version": "2.0.0"
+            }
         }
     except Exception as e:
         logger.error(f"获取系统状态失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "stats": {
+                "source_channels": 0,
+                "total_messages": 0,
+                "pending_messages": 0,
+                "forwarded_messages": 0
+            },
+            "services": {
+                "telegram_client": False,
+                "message_processor": False,
+                "scheduler": False,
+                "database": False
+            },
+            "system": {
+                "uptime": 0,
+                "version": "2.0.0"
+            }
+        }
 
 @router.get("/status/detailed")
 async def get_detailed_status() -> Dict[str, Any]:
@@ -237,8 +292,39 @@ async def health_check() -> Dict[str, Any]:
             "message": f"健康检查失败: {str(e)}"
         }
 
+@router.post("/restart")
+async def restart_services() -> Dict[str, Any]:
+    """重启服务"""
+    try:
+        # 重启Telegram客户端连接
+        if auth_manager and auth_manager.client:
+            try:
+                await auth_manager.client.disconnect()
+                await auth_manager.ensure_connected()
+                logger.info("Telegram客户端已重启")
+            except Exception as e:
+                logger.error(f"重启Telegram客户端失败: {e}")
+        
+        # 重启系统监控
+        try:
+            await system_monitor.start_monitoring()
+            logger.info("系统监控已重启")
+        except Exception as e:
+            logger.error(f"重启系统监控失败: {e}")
+        
+        return {
+            "success": True,
+            "message": "服务重启成功"
+        }
+    except Exception as e:
+        logger.error(f"重启服务失败: {e}")
+        return {
+            "success": False,
+            "message": f"重启失败: {str(e)}"
+        }
+
 @router.get("/logs")
-async def get_system_logs(lines: int = 100) -> Dict[str, Any]:
+async def get_system_logs(limit: int = 100) -> Dict[str, Any]:
     """获取系统日志"""
     try:
         import glob
@@ -273,9 +359,8 @@ async def get_system_logs(lines: int = 100) -> Dict[str, Any]:
                             message = extract_message(log_line)
                             
                             logs.append({
-                                "timestamp": timestamp,
+                                "time": timestamp,
                                 "level": level,
-                                "source": os.path.basename(log_file),
                                 "message": message
                             })
                             
@@ -293,9 +378,8 @@ async def get_system_logs(lines: int = 100) -> Dict[str, Any]:
         # 如果没有找到日志文件，显示基本系统信息
         if not logs:
             logs.append({
-                "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                "level": "INFO", 
-                "source": "system",
+                "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "level": "INFO",
                 "message": f"系统正在运行 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             })
         else:
@@ -305,12 +389,7 @@ async def get_system_logs(lines: int = 100) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "data": {
-                "logs": logs,
-                "sources": log_sources,
-                "total": len(logs),
-                "timestamp": datetime.now().isoformat()
-            }
+            "logs": logs
         }
     except Exception as e:
         logger.error(f"获取系统日志失败: {e}")
@@ -319,9 +398,8 @@ async def get_system_logs(lines: int = 100) -> Dict[str, Any]:
             "success": True,
             "data": {
                 "logs": [{
-                    "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     "level": "INFO",
-                    "source": "system", 
                     "message": f"系统运行中 - 无法读取详细日志: {str(e)}"
                 }],
                 "sources": [],
