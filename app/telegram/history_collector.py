@@ -114,11 +114,20 @@ class HistoryCollector:
             latest_message_id = channel.last_collected_message_id or 0
             
             # 使用min_id参数实现增量采集
-            async for message in client.iter_messages(entity, limit=need_collect, min_id=min_id):
+            # 对于增量采集，设置合理的批次限制
+            batch_limit = need_collect if need_collect else 500  # 增量采集每次最多500条
+            logger.info(f"开始采集，min_id={min_id}, limit={batch_limit}")
+            
+            message_count = 0
+            async for message in client.iter_messages(entity, limit=batch_limit, min_id=min_id):
                 try:
                     # 与实时监听保持一致，处理所有消息（包括纯媒体）
                     if not message or not message.id:
                         continue
+                    
+                    message_count += 1
+                    if message_count % 100 == 0:
+                        logger.info(f"已获取 {message_count} 条消息...")
                     
                     # 记录最新的消息ID
                     if message.id and message.id > latest_message_id:

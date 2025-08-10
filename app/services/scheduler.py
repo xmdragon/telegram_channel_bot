@@ -55,7 +55,19 @@ class MessageScheduler:
     async def check_auto_forward(self):
         """检查并处理自动转发"""
         try:
+            # 检查是否启用自动转发
+            from app.services.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            auto_forward_enabled = await config_manager.get_config("review.auto_forward_enabled", True)
+            
+            if not auto_forward_enabled:
+                # 自动转发已禁用
+                return
+            
             messages = await self.message_processor.get_auto_forward_messages()
+            if messages:
+                logger.info(f"发现 {len(messages)} 条消息需要自动转发")
+            
             for message in messages:
                 await self.message_processor.auto_forward_message(message)
                 

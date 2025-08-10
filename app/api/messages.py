@@ -7,11 +7,13 @@ from sqlalchemy import select, and_, or_
 from typing import List, Optional
 from datetime import datetime
 import os
+import logging
 
 from app.core.database import get_db, Message
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 message_processor = MessageProcessor()
 channel_manager = ChannelManager()
@@ -141,6 +143,25 @@ async def batch_approve_messages(
     
     await db.commit()
     
+    # 批量转发到目标频道
+    forwarded_count = 0
+    try:
+        from app.telegram.bot import telegram_bot
+        if telegram_bot and telegram_bot.client:
+            from app.telegram.message_forwarder import message_forwarder
+            for message in messages:
+                try:
+                    await message_forwarder.forward_to_target(telegram_bot.client, message)
+                    forwarded_count += 1
+                except Exception as e:
+                    logger.error(f"转发消息 {message.id} 失败: {e}")
+            await db.commit()  # 保存所有转发信息
+            logger.info(f"批量批准：{len(messages)} 条消息已批准，{forwarded_count} 条已转发")
+        else:
+            logger.warning(f"批量批准：{len(messages)} 条消息已批准但无法转发（Telegram客户端未连接）")
+    except Exception as e:
+        logger.error(f"批量转发消息失败: {e}")
+    
     # 广播批量状态更新到WebSocket客户端
     try:
         from app.api.websocket import websocket_manager
@@ -149,7 +170,7 @@ async def batch_approve_messages(
     except Exception as e:
         print(f"广播批量状态更新失败: {e}")
     
-    return {"success": True, "message": f"已批准 {len(messages)} 条消息"}
+    return {"success": True, "message": f"已批准 {len(messages)} 条消息，{forwarded_count} 条已转发"}
 
 @router.get("/{message_id}")
 async def get_message(
@@ -204,6 +225,23 @@ async def approve_message(
     message.review_time = datetime.now()
     
     await db.commit()
+    
+    # 转发到目标频道
+    try:
+        logger.info(f"准备转发消息 {message_id} 到目标频道")
+        from app.telegram.bot import telegram_bot
+        logger.debug(f"telegram_bot 对象: {telegram_bot}")
+        logger.debug(f"telegram_bot.client: {getattr(telegram_bot, 'client', None)}")
+        
+        if telegram_bot and telegram_bot.client:
+            from app.telegram.message_forwarder import message_forwarder
+            await message_forwarder.forward_to_target(telegram_bot.client, message)
+            await db.commit()  # 保存转发后的信息
+            logger.info(f"消息 {message_id} 已批准并转发到目标频道")
+        else:
+            logger.warning(f"消息 {message_id} 已批准但无法转发（Telegram客户端未连接）")
+    except Exception as e:
+        logger.error(f"转发消息 {message_id} 到目标频道失败: {e}", exc_info=True)
     
     # 广播状态更新到WebSocket客户端
     try:

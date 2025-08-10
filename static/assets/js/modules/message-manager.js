@@ -7,9 +7,12 @@ const MessageModule = {
     // 加载消息列表
     async loadMessages(filters = {}, append = false) {
         try {
+            // 计算页码
+            const currentPage = append ? Math.floor((filters.currentCount || 0) / 50) + 1 : 1;
+            
             const params = {
-                skip: append ? filters.currentCount || 0 : 0,
-                limit: 50
+                page: currentPage,
+                size: 50
             };
             
             if (filters.status) params.status = filters.status;
@@ -20,9 +23,10 @@ const MessageModule = {
             
             const response = await axios.get('/api/messages/', { params });
             
-            if (response.data.success) {
+            // API直接返回数据，不包装在success字段中
+            if (response.data && response.data.messages) {
                 const messages = response.data.messages || [];
-                const hasMore = messages.length === params.limit;
+                const hasMore = messages.length === params.size;
                 
                 return {
                     messages,
@@ -31,7 +35,7 @@ const MessageModule = {
                 };
             }
             
-            throw new Error(response.data.message || '加载消息失败');
+            throw new Error('加载消息失败');
         } catch (error) {
             console.error('加载消息失败:', error);
             MessageManager.error('加载消息失败: ' + (error.message || '未知错误'));
@@ -56,12 +60,13 @@ const MessageModule = {
                 message_ids: messageIds
             });
             
-            if (response.data.success) {
+            // API返回200就是成功
+            if (response.status === 200) {
                 MessageManager.success(`成功批准 ${messageIds.length} 条消息`);
                 return { success: true, data: response.data };
             }
             
-            throw new Error(response.data.message || '批准失败');
+            throw new Error('批准失败');
         } catch (error) {
             console.error('批准消息失败:', error);
             MessageManager.error('批准失败: ' + (error.response?.data?.detail || error.message));
@@ -81,12 +86,13 @@ const MessageModule = {
                 message_ids: messageIds
             });
             
-            if (response.data.success) {
+            // API返回200就是成功
+            if (response.status === 200) {
                 MessageManager.success(`成功拒绝 ${messageIds.length} 条消息`);
                 return { success: true, data: response.data };
             }
             
-            throw new Error(response.data.message || '拒绝失败');
+            throw new Error('拒绝失败');
         } catch (error) {
             console.error('拒绝消息失败:', error);
             MessageManager.error('拒绝失败: ' + (error.response?.data?.detail || error.message));
@@ -110,12 +116,13 @@ const MessageModule = {
                 message_ids: messageIds
             });
             
-            if (response.data.success) {
+            // API返回200就是成功
+            if (response.status === 200) {
                 MessageManager.success(`成功删除 ${messageIds.length} 条消息`);
                 return { success: true, data: response.data };
             }
             
-            throw new Error(response.data.message || '删除失败');
+            throw new Error('删除失败');
         } catch (error) {
             console.error('删除消息失败:', error);
             MessageManager.error('删除失败: ' + (error.response?.data?.detail || error.message));
@@ -130,12 +137,13 @@ const MessageModule = {
                 content: content
             });
             
-            if (response.data.success) {
+            // API返回200就是成功
+            if (response.status === 200) {
                 MessageManager.success('消息已更新');
                 return { success: true, data: response.data };
             }
             
-            throw new Error(response.data.message || '更新失败');
+            throw new Error('更新失败');
         } catch (error) {
             console.error('更新消息失败:', error);
             MessageManager.error('更新失败: ' + (error.response?.data?.detail || error.message));

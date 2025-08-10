@@ -10,7 +10,6 @@ from sqlalchemy import select
 from telethon import TelegramClient
 
 from app.core.database import Message, Channel, AsyncSessionLocal
-from app.core.config import db_settings
 from app.services.telegram_link_resolver import link_resolver
 from app.services.content_filter import ContentFilter
 from app.services.media_handler import media_handler
@@ -140,7 +139,9 @@ class MessageForwarder:
         """重新发布到目标频道"""
         try:
             # 获取目标频道配置
-            target_channel_id = await db_settings.get_target_channel_id()
+            from app.services.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            target_channel_id = await config_manager.get_config("channels.target_channel_id")
             
             if not target_channel_id:
                 logger.error("未配置目标频道ID")
@@ -157,9 +158,10 @@ class MessageForwarder:
                 sent_message = await self._send_single_media_message(client, target_channel_id, message)
             else:
                 # 发送纯文本消息
+                content_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
                 sent_message = await client.send_message(
                     entity=int(target_channel_id),
-                    message=message.filtered_content or message.content
+                    message=content_with_footer
                 )
             
             # 更新数据库
@@ -374,11 +376,36 @@ class MessageForwarder:
                 message=caption
             )
     
+    async def _add_channel_footer(self, content: str) -> str:
+        """
+        添加频道落款到消息内容
+        """
+        try:
+            # 使用ConfigManager从数据库获取配置
+            from app.services.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            footer = await config_manager.get_config("channels.signature", "")
+            
+            if footer:
+                # 使用配置的落款，处理换行符
+                footer = "\n\n" + footer.replace("\\n", "\n")
+                logger.info(f"添加频道落款到消息")
+                return (content or "") + footer
+            
+            # 如果没有配置落款，直接返回原内容
+            return content
+            
+        except Exception as e:
+            logger.error(f"添加频道落款失败: {e}")
+            return content
+    
     async def _send_combined_message(self, client: TelegramClient, target_channel_id: str, message: Message):
         """发送组合消息（媒体组）"""
         try:
             media_files = []
             caption_text = message.filtered_content or message.content
+            # 添加频道落款
+            caption_text = await self._add_channel_footer(caption_text)
             
             # 准备媒体文件列表
             for media_item in message.media_group:
@@ -409,24 +436,30 @@ class MessageForwarder:
                 
         except Exception as e:
             logger.error(f"发送组合消息失败: {e}")
+            # 发送失败时也要添加落款
+            content_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
             return await client.send_message(
                 entity=int(target_channel_id),
-                message=message.filtered_content or message.content
+                message=content_with_footer
             )
     
     async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message: Message):
         """发送单个媒体消息"""
         try:
+            # 添加频道落款到caption
+            caption_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
             return await client.send_file(
                 entity=int(target_channel_id),
                 file=message.media_url,
-                caption=message.filtered_content or message.content
+                caption=caption_with_footer
             )
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
+            # 发送失败时也要添加落款
+            content_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
             return await client.send_message(
                 entity=int(target_channel_id),
-                message=message.filtered_content or message.content
+                message=content_with_footer
             )
     
     async def _cleanup_message_files(self, message: Message):

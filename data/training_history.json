@@ -1,6 +1,76 @@
 {
   "history": [
     {
+      "id": 60,
+      "channel_id": "-1002062871756",
+      "channel_name": "@tx100",
+      "tail_length": 16,
+      "created_at": "2025-08-10T19:39:12.205452"
+    },
+    {
+      "id": 59,
+      "channel_id": "-1002557968812",
+      "channel_name": "@cn_zhm0",
+      "tail_length": 20,
+      "created_at": "2025-08-10T19:21:21.028808"
+    },
+    {
+      "id": 58,
+      "channel_id": "-1002062871756",
+      "channel_name": "@tx100",
+      "tail_length": 16,
+      "created_at": "2025-08-10T17:51:02.268707"
+    },
+    {
+      "id": 57,
+      "channel_id": "-1001242178638",
+      "channel_name": "@eeollse",
+      "tail_length": 72,
+      "created_at": "2025-08-10T17:49:27.185685"
+    },
+    {
+      "id": 56,
+      "channel_id": "-1001242178638",
+      "channel_name": "@eeollse",
+      "tail_length": 72,
+      "created_at": "2025-08-10T17:48:59.614849"
+    },
+    {
+      "id": 55,
+      "channel_id": "-1001242178638",
+      "channel_name": "@eeollse",
+      "tail_length": 72,
+      "created_at": "2025-08-10T17:48:05.546429"
+    },
+    {
+      "id": 54,
+      "channel_id": "-1001548749089",
+      "channel_name": "@kk90690",
+      "tail_length": 87,
+      "created_at": "2025-08-10T17:47:10.018178"
+    },
+    {
+      "id": 53,
+      "channel_id": "-1001242178638",
+      "channel_name": "@eeollse",
+      "tail_length": 72,
+      "created_at": "2025-08-10T17:46:47.694747"
+    },
+    {
+      "id": 52,
+      "channel_id": "-1001242178638",
+      "channel_name": "@eeollse",
+      "tail_length": 72,
+      "created_at": "2025-08-10T17:46:25.272109"
+    },
+    {
+      "id": 51,
+      "channel_id": "-1001956665373",
+      "channel_name": "@PG134",
+      "tail_length": 62,
+      "created_at": "2025-08-10T17:44:41.267295"
+    },
+    {
       "id": 50,
       "channel_id": "-1001153220419",
       "channel_name": "@dny185",
@@ -352,9 +422,9 @@
     }
   ],
   "stats": {
-    "total_samples": 50,
+    "total_samples": 60,
     "channels_trained": 0
   },
-  "updated_at": "2025-08-10T15:01:07.499494",
-  "integrity_hash": "e7b26e3188517385b61fdfcbcf1020de5c39914f32d8be40c11dd1d629d36ae7"
+  "updated_at": "2025-08-10T19:39:12.205481",
+  "integrity_hash": "3aac00cc673d2206a0298e55fa683665506aa66b22f32b3348f3ee6cb99c7731"
 }

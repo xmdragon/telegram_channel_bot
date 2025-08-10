@@ -854,7 +854,7 @@ class TelegramBot:
                 'media_group': message_data.get('media_group'),
                 'is_ad': is_ad,
                 'filtered_content': filtered_content,
-                'status': 'pending' if not is_history else 'auto_forwarded',
+                'status': 'pending',  # 所有消息都需要审核
                 'created_at': message_data.get('date').replace(tzinfo=None) if message_data.get('date') and hasattr(message_data.get('date'), 'tzinfo') else (message_data.get('date') or datetime.now())
             }
             

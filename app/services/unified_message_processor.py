@@ -190,35 +190,26 @@ class UnifiedMessageProcessor:
             else:
                 return None
             
-            # 下载媒体
-            file_path = await media_handler.download_media(
+            # 获取Telegram客户端
+            from app.telegram.bot import telegram_bot
+            if not telegram_bot or not telegram_bot.client:
+                logger.warning("Telegram客户端未连接，无法下载媒体")
+                return None
+            
+            # 下载媒体（需要传递client和message_id）
+            media_info = await media_handler.download_media(
+                telegram_bot.client,
                 message, 
-                channel_id, 
+                message.id,
                 timeout=timeout
             )
             
-            if not file_path:
+            if not media_info or not media_info.get('file_path'):
                 logger.warning(f"媒体下载失败或超时")
                 return None
             
-            # 计算媒体哈希和视觉哈希
-            media_hash = await media_handler.calculate_file_hash(file_path)
-            visual_hashes = None
-            
-            if media_type == "photo" or (media_type == "document" and "image" in (message.media.document.mime_type or "")):
-                try:
-                    from app.services.visual_similarity import visual_detector
-                    if visual_detector:
-                        visual_hashes = await visual_detector.calculate_visual_hash(file_path)
-                except:
-                    pass
-            
-            return {
-                'media_type': media_type,
-                'file_path': file_path,
-                'hash': media_hash,
-                'visual_hashes': visual_hashes
-            }
+            # 返回媒体信息（media_handler已经计算了哈希和视觉哈希）
+            return media_info
             
         except Exception as e:
             logger.error(f"媒体处理失败: {e}")
@@ -260,6 +251,12 @@ class UnifiedMessageProcessor:
                 if media_info.get('visual_hashes'):
                     visual_hash = str(media_info['visual_hashes'])
         
+        # 处理时间戳，确保是无时区的datetime
+        created_at = message_data.get('date', datetime.now())
+        if hasattr(created_at, 'tzinfo') and created_at.tzinfo is not None:
+            # 如果有时区信息，转换为无时区的UTC时间
+            created_at = created_at.replace(tzinfo=None)
+        
         return {
             'source_channel': channel_id,
             'message_id': message_data.get('message_id', message_data.get('id')),
@@ -275,8 +272,8 @@ class UnifiedMessageProcessor:
             'is_combined': message_data.get('is_combined', False),
             'combined_messages': message_data.get('combined_messages'),
             'media_group': message_data.get('media_group'),
-            'status': 'pending' if not is_history else 'auto_forwarded',
-            'created_at': message_data.get('date', datetime.now())
+            'status': 'pending',  # 所有消息都先设为pending状态，等待审核
+            'created_at': created_at
         }
     
     async def _is_duplicate(self, save_data: dict, channel_id: str) -> bool:

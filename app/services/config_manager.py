@@ -276,6 +276,11 @@ DEFAULT_CONFIGS = {
     },
     
     # 审核配置
+    "review.auto_forward_enabled": {
+        "value": False,
+        "description": "是否启用自动转发",
+        "config_type": "boolean"
+    },
     "review.auto_forward_delay": {
         "value": 1800,
         "description": "自动转发延迟(秒)",
