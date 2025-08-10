@@ -173,14 +173,19 @@ class AdaptiveLearningSystem:
         
         try:
             # 加载现有样本
-            samples = {"ad_samples": []}
+            samples = {"samples": []}
             if self.ad_samples_file.exists():
                 with open(self.ad_samples_file, 'r', encoding='utf-8') as f:
-                    samples = json.load(f)
+                    data = json.load(f)
+                    # 使用统一的samples字段
+                    if "samples" in data:
+                        samples = data
+                    else:
+                        samples = {"samples": []}
             
             # 检查是否已存在
             content_hash = hashlib.md5(content.encode()).hexdigest()
-            for sample in samples['ad_samples']:
+            for sample in samples['samples']:
                 if sample.get('hash') == content_hash:
                     logger.debug("样本已存在，跳过添加")
                     return
@@ -192,17 +197,18 @@ class AdaptiveLearningSystem:
                 'source': 'user_feedback',
                 'added_at': datetime.now().isoformat()
             }
-            samples['ad_samples'].append(new_sample)
+            samples['samples'].append(new_sample)
             
             # 限制样本数量
-            if len(samples['ad_samples']) > 1000:
-                samples['ad_samples'] = samples['ad_samples'][-1000:]
+            if len(samples['samples']) > 1000:
+                samples['samples'] = samples['samples'][-1000:]
             
-            # 保存
+            # 保存，保持原有的updated_at字段
+            samples['updated_at'] = datetime.now().isoformat()
             with open(self.ad_samples_file, 'w', encoding='utf-8') as f:
                 json.dump(samples, f, ensure_ascii=False, indent=2)
             
-            logger.info(f"添加新广告样本，当前总数: {len(samples['ad_samples'])}")
+            logger.info(f"添加新广告样本，当前总数: {len(samples['samples'])}")
         
         except Exception as e:
             logger.error(f"添加广告样本失败: {e}")
@@ -311,7 +317,7 @@ class AdaptiveLearningSystem:
             if self.ad_samples_file.exists():
                 with open(self.ad_samples_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    stats['ad_samples'] = len(data.get('ad_samples', []))
+                    stats['ad_samples'] = len(data.get('samples', []))
             
             # 统计正常样本
             if self.normal_samples_file.exists():

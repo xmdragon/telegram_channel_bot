@@ -67,6 +67,10 @@ fi
 # 使用uvicorn的reload功能启动（如果可用）
 echo "🌟 启动应用（开发模式，支持热重载）..."
 echo "📝 提示：修改代码后会自动重新加载"
+echo "📊 日志文件："
+echo "   - 完整日志: ./logs/app.log"
+echo "   - 错误日志: ./logs/error.log (仅WARNING和ERROR)"
+echo "   - 查看错误: ./view_errors.sh"
 echo
 
 # 检查是否安装了uvicorn

@@ -863,12 +863,32 @@ class AdTrainingManager:
         try:
             if self.data_file.exists():
                 with open(self.data_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    
+                    # 兼容处理：将ad_samples统一为samples
+                    if "ad_samples" in data and "samples" not in data:
+                        data["samples"] = data["ad_samples"]
+                        del data["ad_samples"]
+                        # 保存更新后的格式
+                        self._save_data(data)
+                        logger.info("已将'ad_samples'统一为'samples'")
+                    elif "ad_samples" in data and "samples" in data:
+                        # 如果两个字段都存在，合并它们
+                        data["samples"].extend(data["ad_samples"])
+                        del data["ad_samples"]
+                        self._save_data(data)
+                        logger.info("已合并ad_samples到samples")
+                    
+                    # 确保必要字段存在
+                    if "samples" not in data:
+                        data["samples"] = []
+                    
+                    return data
         except Exception as e:
             logger.error(f"加载广告训练数据失败: {e}")
         
         return {
-            "ad_samples": [],
+            "samples": [],
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat()
         }
@@ -890,8 +910,12 @@ class AdTrainingManager:
         try:
             data = self._load_data()
             
+            # 确保字段存在
+            if "samples" not in data:
+                data["samples"] = []
+            
             # 检查是否已存在
-            for sample in data["ad_samples"]:
+            for sample in data["samples"]:
                 if sample.get("message_id") == message_id:
                     logger.info(f"广告样本已存在: {message_id}")
                     return True
@@ -909,11 +933,11 @@ class AdTrainingManager:
                 "sample_hash": hashlib.sha256(content.encode()).hexdigest()[:16]
             }
             
-            data["ad_samples"].append(sample)
+            data["samples"].append(sample)
             
             # 只保留最近1000个样本
-            if len(data["ad_samples"]) > 1000:
-                data["ad_samples"] = data["ad_samples"][-1000:]
+            if len(data["samples"]) > 1000:
+                data["samples"] = data["samples"][-1000:]
             
             return self._save_data(data)
             
@@ -924,12 +948,12 @@ class AdTrainingManager:
     def get_ad_samples(self) -> List[str]:
         """获取所有广告样本内容"""
         data = self._load_data()
-        return [s["content"] for s in data.get("ad_samples", [])]
+        return [s["content"] for s in data.get("samples", [])]
     
     def get_stats(self) -> dict:
         """获取统计信息"""
         data = self._load_data()
-        samples = data.get("ad_samples", [])
+        samples = data.get("samples", [])
         
         # 统计每个频道的广告数
         channel_stats = {}
@@ -1331,7 +1355,11 @@ async def mark_message_as_ad(
             )
             
             if not success:
-                logger.warning(f"添加广告样本失败，但继续处理消息: {message_id}")
+                logger.error(f"添加广告样本失败: {message_id}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail="添加广告样本失败，请检查训练数据文件"
+                )
         
         # 更新消息状态
         message.is_ad = True

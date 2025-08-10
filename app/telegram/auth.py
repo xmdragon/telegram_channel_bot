@@ -214,6 +214,43 @@ class TelethonAuthManager:
         except Exception as e:
             logger.error(f"保存API配置失败: {e}")
     
+    async def _start_telegram_services(self):
+        """认证成功后启动Telegram相关服务"""
+        try:
+            from app.telegram import bot as bot_module
+            
+            # 检查是否已经有bot实例在运行
+            if bot_module.telegram_bot is not None:
+                logger.info("Telegram服务已在运行")
+                return
+                
+            logger.info("认证成功，启动Telegram相关服务...")
+            
+            # 启动Telegram客户端
+            from app.telegram.bot import TelegramBot
+            bot = TelegramBot()
+            await bot.start()
+            
+            # 设置全局bot实例
+            bot_module.telegram_bot = bot
+            
+            # 启动消息调度器
+            from app.services.scheduler import MessageScheduler
+            scheduler = MessageScheduler()
+            scheduler.start()
+            
+            # 保存scheduler实例以便后续访问
+            bot_module.message_scheduler = scheduler
+            
+            # 启动系统监控
+            from app.services.system_monitor import system_monitor
+            await system_monitor.start()
+            
+            logger.info("✅ Telegram服务启动成功")
+            
+        except Exception as e:
+            logger.error(f"启动Telegram服务失败: {e}")
+    
     async def send_code(self, phone: str) -> Dict[str, Any]:
         """发送验证码"""
         try:
@@ -260,6 +297,9 @@ class TelethonAuthManager:
                 self.auth_data["api_hash"]
             )
             
+            # 认证成功后启动Telegram相关服务
+            await self._start_telegram_services()
+            
             return {
                 "success": True,
                 "message": "登录成功",
@@ -305,6 +345,9 @@ class TelethonAuthManager:
                 self.auth_data["api_hash"]
             )
             
+            # 认证成功后启动Telegram相关服务
+            await self._start_telegram_services()
+            
             return {
                 "success": True,
                 "message": "两步验证成功",
@@ -335,6 +378,11 @@ class TelethonAuthManager:
     
     async def get_auth_status(self) -> Dict[str, Any]:
         """获取认证状态"""
+        # 如果状态是初始状态，尝试加载保存的认证信息
+        if self.auth_state == "idle" and not self.client:
+            logger.info("检查已保存的认证信息...")
+            await self.load_saved_auth()
+        
         return {
             "state": self.auth_state,
             "authorized": self.auth_state == "authorized",

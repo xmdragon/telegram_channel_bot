@@ -51,7 +51,8 @@ class AdDetector:
             with open(self.ad_samples_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            ad_samples = data.get("ad_samples", [])
+            # 使用统一的samples字段
+            ad_samples = data.get("samples", [])
             if ad_samples:
                 # 提取内容
                 contents = [s["content"] for s in ad_samples if s.get("content")]

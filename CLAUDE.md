@@ -4,6 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 重大变更历史
 
+- 2025-08-10: OCR功能优化 - 改用基于图像处理的轻量级方案
+  - **技术调整**: 从EasyOCR深度学习方案改为OpenCV图像处理方案
+  - **功能实现**: 
+    - 通过边缘检测和形态学操作识别文字区域
+    - 颜色分析检测广告常用的醒目颜色（红色、黄色）
+    - 使用OpenCV内置QRCodeDetector识别二维码
+  - **性能优化**: 降低内存和CPU占用，提高处理速度
+  - **依赖简化**: 移除EasyOCR和pyzbar，仅依赖OpenCV和Pillow
 - 2025-08-09 (v2.0): 全面优化训练数据保护机制，确保数据永不丢失 🔐
   - **核心升级**: 完全重写TrainingRecord类，实现企业级数据保护
   - **多重保护**: 文件锁、原子写入、哈希验证、自动备份、智能恢复

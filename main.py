@@ -49,13 +49,30 @@ file_handler = FilteredTimedRotatingFileHandler(
 )
 file_handler.suffix = "%Y%m%d_%H"  # 文件名后缀格式
 
+# 创建错误日志处理器（只记录WARNING及以上级别）
+error_handler = TimedRotatingFileHandler(
+    filename='./logs/error.log',
+    when='D',  # 按天轮转
+    interval=1,  # 每1天
+    backupCount=30,  # 保留30天的日志
+    encoding='utf-8'
+)
+error_handler.suffix = "%Y%m%d"
+error_handler.setLevel(logging.WARNING)  # 只记录WARNING及以上级别
+error_formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s\n'
+    '%(pathname)s:%(lineno)d\n'  # 添加文件路径和行号
+)
+error_handler.setFormatter(error_formatter)
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),  # 输出到控制台
-        file_handler  # 按时间轮转输出到文件
+        file_handler,  # 按时间轮转输出到文件
+        error_handler  # 错误日志单独记录
     ]
 )
 logger = logging.getLogger(__name__)
@@ -85,21 +102,40 @@ async def lifespan(app: FastAPI):
     from app.core.config import settings
     await settings.load_db_configs()
     
-    # 启动Telegram客户端和监控系统
-    bot = TelegramBot()
-    await bot.start()
+    # 检查Telegram认证状态
+    from app.telegram.auth import auth_manager
+    auth_status = await auth_manager.get_auth_status()
     
-    # 设置全局bot实例供其他模块使用
+    # 初始化全局变量
     from app.telegram import bot as bot_module
-    bot_module.telegram_bot = bot
+    bot_module.telegram_bot = None
+    bot_module.message_scheduler = None
     
-    # 启动消息调度器
-    scheduler = MessageScheduler()
-    scheduler.start()
-    
-    # 启动系统监控
-    from app.services.system_monitor import system_monitor
-    await system_monitor.start()
+    if not auth_status.get('authorized', False):
+        logger.error("❌ Telegram未认证，系统无法启动完整功能")
+        logger.error("请访问 http://localhost:8000/auth.html 完成Telegram登录")
+        logger.error("获取API凭据请访问: https://my.telegram.org")
+        # 不直接退出，允许用户通过Web界面进行认证
+        logger.warning("系统将在有限功能模式下运行，等待用户完成认证...")
+    else:
+        # Telegram已认证，正常启动
+        logger.info("✅ Telegram认证状态正常，启动消息监听...")
+        
+        # 启动Telegram客户端
+        bot = TelegramBot()
+        await bot.start()
+        
+        # 设置全局bot实例供其他模块使用
+        bot_module.telegram_bot = bot
+        
+        # 启动消息调度器
+        scheduler = MessageScheduler()
+        scheduler.start()
+        bot_module.message_scheduler = scheduler
+        
+        # 启动系统监控
+        from app.services.system_monitor import system_monitor
+        await system_monitor.start()
     
     logger.info("系统启动完成")
     
@@ -107,9 +143,18 @@ async def lifespan(app: FastAPI):
     
     # 关闭时清理
     logger.info("正在关闭系统...")
-    await bot.stop()
-    await system_monitor.stop()
-    scheduler.shutdown()
+    
+    # 只有在已认证并启动的情况下才清理
+    from app.telegram import bot as bot_module
+    if bot_module.telegram_bot:
+        await bot_module.telegram_bot.stop()
+        
+        # 停止系统监控
+        from app.services.system_monitor import system_monitor
+        await system_monitor.stop()
+        
+    if bot_module.message_scheduler:
+        bot_module.message_scheduler.shutdown()
 
 # 创建FastAPI应用
 app = FastAPI(

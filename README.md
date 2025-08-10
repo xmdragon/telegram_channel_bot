@@ -6,6 +6,7 @@
 
 - 🔄 **多频道采集**: 同时监控多个 Telegram 频道
 - 🛡️ **智能过滤**: 自动识别和过滤广告消息
+- 🖼️ **图像分析**: 基于图像处理的广告检测和二维码识别
 - 👥 **人工审核**: 转发到审核群进行人工确认
 - ⏰ **自动转发**: 30分钟无人审核自动转发
 - 🔄 **内容替换**: 自动替换频道相关信息
@@ -28,10 +29,11 @@
 ## 🛠️ 技术栈
 
 - **后端**: Python 3.11 + FastAPI + SQLAlchemy
-- **数据库**: PostgreSQL（生产环境）/ SQLite（开发环境）
+- **数据库**: PostgreSQL 15
 - **缓存**: Redis
 - **前端**: Vue.js 3 + Element Plus + Axios
 - **Telegram**: Telethon (支持真人账号)
+- **图像处理**: OpenCV + Pillow (广告检测和二维码识别)
 - **部署**: Docker Compose（生产环境）
 - **通信**: WebSocket (实时认证)
 
@@ -320,7 +322,7 @@ docker compose exec postgres pg_dump -U postgres telegram_system > backup.sql
    - 查看系统日志排查错误
 
 3. **数据库连接失败**:
-   - 本地开发使用 SQLite，无需配置
+   - 本地开发也需要 PostgreSQL
    - Docker环境检查 PostgreSQL 容器状态
 
 4. **WebSocket 连接失败**:

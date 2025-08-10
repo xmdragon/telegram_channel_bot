@@ -161,12 +161,38 @@ class StartupChecker:
                             result['warnings'].append(f"源频道 {channel.channel_name} ID解析失败")
                             logger.warning(f"    ❌ 解析失败")
                     else:
-                        # 已有ID，验证格式
+                        # 已有ID，检查是否需要解析
                         channel_id = channel.channel_id
-                        if not channel_id.startswith('-100'):
-                            result['warnings'].append(f"源频道 {channel.channel_name} 的ID格式可能不正确: {channel_id}")
-                        result['channels'].append(channel_id)
-                        logger.info(f"  - 频道 {channel.channel_name}: {channel_id} (已配置)")
+                        if channel_id.startswith('@'):
+                            # 是用户名，需要解析
+                            logger.info(f"  - 频道 {channel.channel_name} (@用户名) 需要解析ID...")
+                            resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
+                            
+                            if resolved_id:
+                                result['channels'].append(resolved_id)
+                                result['resolved'].append(f"源频道 {channel.channel_name} -> {resolved_id}")
+                                logger.info(f"    ✅ 解析成功: {resolved_id}")
+                            else:
+                                result['warnings'].append(f"源频道 {channel.channel_name} ID解析失败")
+                                logger.warning(f"    ❌ 解析失败")
+                        elif not channel_id.startswith('-100'):
+                            # ID格式可能不正确，尝试解析
+                            logger.info(f"  - 频道 {channel.channel_name} (ID格式异常) 需要解析...")
+                            resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
+                            
+                            if resolved_id:
+                                result['channels'].append(resolved_id)
+                                result['resolved'].append(f"源频道 {channel.channel_name} -> {resolved_id}")
+                                logger.info(f"    ✅ 解析成功: {resolved_id}")
+                            else:
+                                # 解析失败，仍然使用原ID但给出警告
+                                result['warnings'].append(f"源频道 {channel.channel_name} 的ID格式可能不正确: {channel_id}")
+                                result['channels'].append(channel_id)
+                                logger.warning(f"    ⚠️ ID格式异常但解析失败，继续使用: {channel_id}")
+                        else:
+                            # 格式正确的ID
+                            result['channels'].append(channel_id)
+                            logger.info(f"  - 频道 {channel.channel_name}: {channel_id} (已配置)")
                 
                 logger.info(f"  共找到 {len(result['channels'])} 个活跃源频道")
                 

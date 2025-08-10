@@ -38,6 +38,7 @@ class SystemMonitor:
         self.status_callbacks = []
         self.check_interval = 30  # 30秒检查一次
         self.channel_manager = ChannelManager()
+        self.last_auth_error_logged = False  # 记录是否已经记录过认证错误
         
     async def start(self):
         """启动监控"""
@@ -264,9 +265,28 @@ class SystemMonitor:
             
     async def _log_status_changes(self, status: SystemStatus):
         """记录重要的状态变化"""
-        # 这里可以添加状态变化的日志记录
+        # 对于Telegram未认证的情况，只记录一次
+        auth_error_msgs = ["Telegram未认证，请先完成登录", "Telegram认证已失效，请重新登录", "Telegram客户端未初始化"]
+        has_auth_error = any(msg in status.errors for msg in auth_error_msgs)
+        
         if status.errors:
-            logger.error(f"系统错误: {', '.join(status.errors)}")
+            # 过滤出非认证相关的错误
+            non_auth_errors = [e for e in status.errors if e not in auth_error_msgs]
+            
+            if has_auth_error:
+                if not self.last_auth_error_logged:
+                    # 第一次出现认证错误，记录为警告而非错误
+                    logger.warning(f"系统需要认证: {next(e for e in status.errors if e in auth_error_msgs)}")
+                    self.last_auth_error_logged = True
+                # 后续不再重复记录认证错误
+            else:
+                # 认证成功，重置标志
+                self.last_auth_error_logged = False
+                
+            # 记录其他非认证相关的错误
+            if non_auth_errors:
+                logger.error(f"系统错误: {', '.join(non_auth_errors)}")
+                
         if status.warnings:
             logger.warning(f"系统警告: {', '.join(status.warnings)}")
             

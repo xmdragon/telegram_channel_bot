@@ -21,6 +21,5 @@ jieba==0.42.1
 psutil>=7.0.0
 Pillow>=10.4.0
 imagehash>=4.3.1
-easyocr==1.7.0
+numpy==1.26.4
 opencv-python==4.8.1.78
-pyzbar==0.1.9

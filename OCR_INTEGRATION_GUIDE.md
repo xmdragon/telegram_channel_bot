@@ -2,24 +2,25 @@
 
 ## 功能概述
 
-本次集成为Telegram消息采集系统添加了完整的OCR（光学字符识别）功能，能够从图片中提取文字和识别二维码，并将其纳入广告检测流程中。
+本系统集成了基于图像处理的OCR功能，能够分析图片中的文字区域特征、识别二维码，并将其纳入广告检测流程中。
 
 ## 核心功能
 
-### 1. 图片文字提取 (OCR)
-- **支持多语言**: 中文简体和英文
-- **图像预处理**: 自适应阈值处理提高文字清晰度
+### 1. 图像文字区域检测
+- **特征分析**: 通过边缘检测和形态学操作识别文字区域
+- **颜色分析**: 检测广告常用的醒目颜色（红色、黄色）
 - **批量处理**: 支持同时处理多张图片
 - **缓存机制**: 基于图片哈希的缓存，避免重复处理
 
 ### 2. 二维码识别
-- **多种格式**: 支持QR Code等标准二维码格式
+- **OpenCV内置检测器**: 使用cv2.QRCodeDetector进行二维码识别
+- **无需外部依赖**: 完全基于OpenCV实现，无需pyzbar等库
 - **内容解析**: 自动解码二维码中的URL、文字等信息
-- **编码支持**: 支持UTF-8和GBK编码
+- **位置信息**: 返回二维码在图片中的位置和大小
 
 ### 3. 智能广告检测
 - **模式匹配**: 30+种广告特征模式，覆盖联系方式、商业信息、赌博内容等
-- **综合评分**: 基于文字和二维码内容的多维度评分系统
+- **综合评分**: 基于图像特征和二维码内容的多维度评分系统
 - **权重调整**: 根据内容组合动态调整广告置信度
 
 ## 技术架构
@@ -27,7 +28,7 @@
 ### 核心模块
 
 1. **OCRService** (`app/services/ocr_service.py`)
-   - 文字提取和二维码识别
+   - 图像特征分析和二维码识别
    - 广告内容分析
    - 性能优化和缓存管理
 
@@ -41,9 +42,24 @@
    - JSON格式存储提取的文字和二维码信息
 
 ### 依赖库
-- `easyocr==1.7.0`: 文字识别核心引擎
-- `opencv-python==4.8.1.78`: 图像处理和预处理
-- `pyzbar==0.1.9`: 二维码识别
+- `opencv-python`: 图像处理、文字区域检测和二维码识别
+- `Pillow`: 图像格式处理
+- `numpy`: 数组操作和图像处理
+
+## 实现原理
+
+### 文字区域检测流程
+1. **图像预处理**: 转换为灰度图
+2. **边缘检测**: 使用Canny算法检测边缘
+3. **形态学操作**: 连接文字区域形成连续轮廓
+4. **轮廓分析**: 根据面积和宽高比判断是否为文字区域
+5. **颜色分析**: 检测红色、黄色等广告常用醒目颜色
+
+### 二维码识别流程
+1. **图像加载**: 使用OpenCV读取图片
+2. **灰度转换**: 转换为灰度图提高识别率
+3. **二维码检测**: 使用cv2.QRCodeDetector检测和解码
+4. **位置计算**: 获取二维码边界框信息
 
 ## 使用方式
 
@@ -60,7 +76,7 @@ is_ad, filtered_content, filter_reason, ocr_result = await content_filter.filter
 )
 
 # OCR结果包含：
-# - texts: 提取的文字列表
+# - texts: 检测到的文字特征（如"检测到密集文字区域"）
 # - qr_codes: 二维码信息列表
 # - ad_score: 广告分数 (0-100)
 # - ad_indicators: 广告特征指标
@@ -80,9 +96,9 @@ is_ad, filtered_content, filter_reason = content_filter.filter_message_sync(
 ### 检测优先级（从高到低）
 
 1. **OCR图片广告检测** (30分+)
-   - 图片中的联系方式、外部链接
-   - 商业信息、赌博内容
-   - 二维码中的广告链接
+   - 图片中的文字区域密度
+   - 醒目颜色使用（红色、黄色）
+   - 二维码中的外部链接
 
 2. **智能尾部广告过滤**
    - AI语义分割检测频道推广尾部
@@ -98,7 +114,9 @@ is_ad, filtered_content, filter_reason = content_filter.filter_message_sync(
 
 ### 广告评分系统
 
-- **文字模式匹配**: 每个匹配加10分
+- **密集文字区域**: 检测到5个以上文字区域时触发
+- **醒目红色文字**: 红色像素超过10%时加分
+- **醒目黄色文字**: 黄色像素超过10%时加分
 - **外部链接二维码**: 加25分
 - **Telegram二维码**: 加5分
 - **联系信息二维码**: 加15分
@@ -108,7 +126,7 @@ is_ad, filtered_content, filter_reason = content_filter.filter_message_sync(
 ## 性能优化
 
 ### 异步处理
-- 使用线程池(ThreadPoolExecutor)处理CPU密集的OCR任务
+- 使用线程池(ThreadPoolExecutor)处理CPU密集的图像分析任务
 - 批量处理多张图片，最大并发数限制为2
 
 ### 缓存策略
@@ -125,7 +143,7 @@ is_ad, filtered_content, filter_reason = content_filter.filter_message_sync(
 
 ### Message表新字段
 ```sql
-ALTER TABLE messages ADD COLUMN ocr_text TEXT;          -- JSON格式的提取文字
+ALTER TABLE messages ADD COLUMN ocr_text TEXT;          -- JSON格式的检测特征
 ALTER TABLE messages ADD COLUMN qr_codes TEXT;          -- JSON格式的二维码信息  
 ALTER TABLE messages ADD COLUMN ocr_ad_score INTEGER DEFAULT 0;  -- 广告分数
 ALTER TABLE messages ADD COLUMN ocr_processed BOOLEAN DEFAULT FALSE;  -- 是否已处理
@@ -134,11 +152,11 @@ ALTER TABLE messages ADD COLUMN ocr_processed BOOLEAN DEFAULT FALSE;  -- 是否�
 ### 数据格式示例
 ```json
 {
-  "ocr_text": ["微信：abc123", "QQ：987654321"],
+  "ocr_text": ["检测到密集文字区域", "包含醒目红色文字"],
   "qr_codes": [
     {
       "type": "QRCODE",
-      "data": "https://t.me/example",
+      "data": "https://example.com",
       "position": {"x": 100, "y": 200, "width": 150, "height": 150}
     }
   ]
@@ -150,7 +168,7 @@ ALTER TABLE messages ADD COLUMN ocr_processed BOOLEAN DEFAULT FALSE;  -- 是否�
 ### 1. 安装依赖
 ```bash
 # 系统已包含在requirements.txt中
-pip install easyocr opencv-python pyzbar
+pip install opencv-python Pillow numpy
 ```
 
 ### 2. 数据库迁移
@@ -161,7 +179,7 @@ python3 init_db.py
 
 ### 3. 验证功能
 - OCR服务会在首次调用时自动初始化
-- 检查日志确认"OCR服务初始化成功"
+- 检查日志确认"OCR服务初始化成功 (使用图像处理方案)"
 - 发送带图片的测试消息验证功能
 
 ## 监控和维护
@@ -173,7 +191,7 @@ from app.services.ocr_service import ocr_service
 # 获取统计信息
 stats = ocr_service.get_stats()
 print(f"缓存使用: {stats['cache_size']}/{stats['cache_max_size']}")
-print(f"支持语言: {stats['supported_languages']}")
+print(f"初始化状态: {stats['initialized']}")
 ```
 
 ### 缓存管理
@@ -190,9 +208,14 @@ ocr_service.clear_cache()
 - 旧代码调用方式保持不变
 
 ### 资源使用
-- OCR处理会增加CPU和内存使用
-- 建议在生产环境监控资源消耗
+- 图像处理会增加CPU使用，但相比深度学习OCR方案更轻量
+- 内存占用较小，主要用于图像临时处理
 - 可通过配置控制并发处理数量
+
+### 功能限制
+- 当前方案主要检测文字区域特征，不提取实际文字内容
+- 通过图像特征（颜色、密度、布局）判断广告可能性
+- 二维码识别功能完整，可以解析二维码内容
 
 ### 错误处理
 - OCR失败时系统会自动降级到纯文字检测
@@ -201,4 +224,4 @@ ocr_service.clear_cache()
 
 ---
 
-**集成完成！** OCR功能现在已经完全集成到消息采集流程中，能够有效识别图片中的广告内容，大大提升了系统的广告检测能力。
+**集成完成！** 基于图像处理的OCR功能现在已经完全集成到消息采集流程中，通过分析图像特征和识别二维码，能够有效检测图片中的广告内容。
