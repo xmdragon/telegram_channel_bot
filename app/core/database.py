@@ -49,6 +49,7 @@ class Message(Base):
     # 过滤和处理
     is_ad = Column(Boolean, default=False)  # 是否为广告
     filtered_content = Column(Text)  # 过滤后内容
+    filter_reason = Column(String)  # 过滤/拒绝原因
     
     # 媒体哈希用于检测重复
     media_hash = Column(String, index=True)  # 媒体文件的哈希值

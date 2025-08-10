@@ -1364,6 +1364,7 @@ async def mark_message_as_ad(
         # 更新消息状态
         message.is_ad = True
         message.status = "rejected"
+        message.filter_reason = "手动标记为广告训练样本"
         message.reviewed_by = "AI训练"
         message.review_time = datetime.now()
         

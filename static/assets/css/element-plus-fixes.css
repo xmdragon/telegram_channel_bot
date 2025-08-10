@@ -1,0 +1,237 @@
+/* ===========================
+   Element Plus CSS Fixes
+   修复浏览器控制台警告问题
+   =========================== */
+
+/* 修复 -moz-focus-inner 伪元素警告 */
+/* 使用现代CSS方法替代过时的Firefox特定伪元素 */
+button:focus-visible,
+input[type="button"]:focus-visible,
+input[type="submit"]:focus-visible,
+input[type="reset"]:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 2px;
+}
+
+/* 移除Firefox按钮的内部边框和填充 */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+    border: none;
+    padding: 0;
+}
+
+/* 修复 cursor 属性值过时的警告 */
+/* 'hand' 已被弃用，使用 'pointer' */
+.el-button,
+.el-link,
+.el-dropdown-menu__item,
+.el-select-dropdown__item,
+.el-cascader-node,
+.el-tree-node__content,
+.el-tabs__item,
+.el-menu-item,
+.el-breadcrumb__inner a,
+.el-pagination button,
+.el-pagination li,
+.el-rate__item,
+.el-transfer-panel__item,
+.el-collapse-item__header {
+    cursor: pointer !important;
+}
+
+/* 禁用状态使用 not-allowed */
+.el-button.is-disabled,
+.el-input.is-disabled .el-input__inner,
+.el-textarea.is-disabled .el-textarea__inner,
+.el-select.is-disabled .el-input__inner,
+.el-cascader.is-disabled .el-input__inner,
+.el-date-editor.is-disabled,
+.el-switch.is-disabled,
+.el-checkbox.is-disabled,
+.el-radio.is-disabled {
+    cursor: not-allowed !important;
+}
+
+/* 修复 -ms-reveal 伪元素警告 */
+/* IE/Edge特定的密码显示按钮，使用现代方法处理 */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
+
+/* 使用现代CSS处理密码输入框 */
+input[type="password"] {
+    -webkit-text-security: disc;
+}
+
+/* 修复 alpha() 函数和 filter 属性过时的警告 */
+/* 使用现代 opacity 属性替代旧的 filter: alpha() */
+.el-loading-mask,
+.el-message-box__wrapper,
+.el-notification.fade-enter-from,
+.el-notification.fade-leave-to,
+.el-dialog__wrapper {
+    /* 移除旧的 filter: alpha() 语法 */
+    opacity: 1;
+}
+
+/* 半透明效果使用 opacity 而不是 filter */
+.el-loading-mask {
+    opacity: 0.9;
+}
+
+.el-message-box__wrapper.modal-fade-enter-from,
+.el-message-box__wrapper.modal-fade-leave-to {
+    opacity: 0;
+}
+
+/* 修复旧版 filter 属性 */
+/* 使用CSS3 filter 替代旧版IE filter */
+.el-image-viewer__mask {
+    background-color: rgba(0, 0, 0, 0.5);
+    /* 移除 filter: progid:DXImageTransform */
+}
+
+/* 禁用状态的图片使用CSS3 filter */
+.el-image.is-disabled img,
+.el-avatar.is-disabled img {
+    filter: grayscale(100%);
+    opacity: 0.6;
+}
+
+/* 修复其他可能的兼容性问题 */
+
+/* 使用标准的 appearance 属性 */
+.el-input__inner,
+.el-textarea__inner,
+.el-select__input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* 修复旧版 box-sizing */
+.el-input,
+.el-input__inner,
+.el-textarea,
+.el-textarea__inner,
+.el-select {
+    box-sizing: border-box;
+}
+
+/* 修复旧版 user-select */
+.el-button,
+.el-tabs__item,
+.el-menu-item {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* 修复旧版 transition */
+.el-button,
+.el-input__inner,
+.el-textarea__inner {
+    transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* 确保所有交互元素都有正确的 cursor */
+[role="button"],
+[role="link"],
+[role="menuitem"],
+[role="tab"],
+[role="option"] {
+    cursor: pointer;
+}
+
+[aria-disabled="true"],
+[disabled] {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+}
+
+/* 修复可能的 z-index 层级问题 */
+.el-dialog__wrapper {
+    z-index: 2000;
+}
+
+.el-message-box__wrapper {
+    z-index: 2010;
+}
+
+.el-notification {
+    z-index: 2020;
+}
+
+.el-loading-mask {
+    z-index: 1999;
+}
+
+/* 修复可能的滚动条样式问题 */
+.el-scrollbar__wrap {
+    overflow: auto;
+    height: 100%;
+}
+
+.el-scrollbar__view {
+    position: relative;
+}
+
+/* 修复IE11的flexbox兼容性 */
+.el-row {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+}
+
+.el-col {
+    -webkit-box-flex: 0;
+    -ms-flex: 0 0 auto;
+    flex: 0 0 auto;
+}
+
+/* 清除浮动的现代方法 */
+.clearfix::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* 确保所有需要pointer的元素都有正确的cursor */
+a:not([disabled]),
+button:not([disabled]),
+[onclick]:not([disabled]),
+label[for]:not([disabled]),
+input[type="submit"]:not([disabled]),
+input[type="button"]:not([disabled]),
+input[type="reset"]:not([disabled]),
+input[type="checkbox"]:not([disabled]),
+input[type="radio"]:not([disabled]),
+select:not([disabled]) {
+    cursor: pointer;
+}
+
+/* 文本输入框使用text cursor */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="tel"],
+input[type="search"],
+input[type="number"],
+textarea {
+    cursor: text;
+}
+
+/* 禁用状态统一处理 */
+*[disabled],
+*[aria-disabled="true"],
+.disabled,
+.is-disabled {
+    cursor: not-allowed !important;
+    pointer-events: none;
+    opacity: 0.6;
+}

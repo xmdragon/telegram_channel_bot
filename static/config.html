@@ -8,6 +8,7 @@
     
     <!-- 外部样式文件 -->
     <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
     
     <!-- 外部脚本文件 -->
@@ -184,18 +185,18 @@
                         </div>
                         
                         <div class="channel-list">
-                            <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item">
-                                <div class="channel-info">
+                            <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e4e7ed;">
+                                <div class="channel-info" style="flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap;">
                                     <span class="channel-title" style="font-weight: 500;">
                                         {{ channel.title || '未设置标题' }}
                                     </span>
                                     <span class="channel-name" style="color: #606266; margin-left: 8px;">
                                         ({{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }})
                                     </span>
-                                    <span v-if="!channel.channel_id" class="channel-id no-id" style="margin-left: 8px;">[无ID]</span>
+                                    <span v-if="!channel.channel_id" class="channel-id no-id" style="margin-left: 8px; color: #F56C6C; font-size: 12px;">[无ID]</span>
                                     <span v-else class="channel-id has-id" style="color: #909399; margin-left: 8px; font-size: 12px;">[{{ channel.channel_id }}]</span>
                                 </div>
-                                <div class="channel-actions">
+                                <div class="channel-actions" style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
                                     <el-tag 
                                         :type="channel.status === 'active' ? 'success' : 'danger'" 
                                         size="small"

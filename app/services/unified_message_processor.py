@@ -73,10 +73,22 @@ class UnifiedMessageProcessor:
             )
             
             # 步骤4: 去重检测
-            if await self._is_duplicate(save_data, channel_id):
-                logger.info(f"{'历史' if is_history else '实时'}消息被去重检测拒绝")
-                await self._cleanup_media_files(save_data)
-                return None
+            duplicate_info = await self._check_duplicate_with_details(save_data, channel_id)
+            if duplicate_info:
+                logger.info(f"{'历史' if is_history else '实时'}消息被去重检测拒绝: {duplicate_info['reason']}")
+                # 保存被去重拒绝的消息到数据库，状态为rejected
+                save_data['status'] = 'rejected'
+                save_data['reject_reason'] = f"去重检测: {duplicate_info['reason']} (原消息ID: {duplicate_info.get('original_id', 'N/A')})"
+                save_data['filter_reason'] = duplicate_info['reason']
+                
+                # 保存到数据库
+                db_message = await self.message_processor.process_new_message(save_data)
+                if db_message:
+                    logger.info(f"去重拒绝的消息已保存到数据库，ID: {db_message.id}")
+                
+                # 清理媒体文件（如果不想保留的话）
+                # await self._cleanup_media_files(save_data)
+                return db_message
             
             # 步骤5: 保存到数据库
             db_message = await self.message_processor.process_new_message(save_data)
@@ -314,6 +326,47 @@ class UnifiedMessageProcessor:
             'status': 'pending',  # 所有消息都先设为pending状态，等待审核
             'created_at': created_at
         }
+    
+    async def _check_duplicate_with_details(self, save_data: dict, channel_id: str) -> Optional[dict]:
+        """检查是否重复并返回详细信息"""
+        try:
+            # 提取视觉哈希（如果有）
+            visual_hashes = None
+            media_info = save_data.get('media_info')
+            if media_info and media_info.get('visual_hashes'):
+                visual_hashes = media_info['visual_hashes']
+            else:
+                # 兼容旧格式
+                try:
+                    import json
+                    if save_data.get('visual_hash'):
+                        visual_hashes = json.loads(save_data['visual_hash'])
+                except:
+                    pass
+            
+            is_duplicate, orig_id, dup_type = await self.duplicate_detector.is_duplicate_message(
+                source_channel=channel_id,
+                media_hash=save_data.get('media_hash'),
+                combined_media_hash=save_data.get('combined_media_hash'),
+                content=save_data.get('content'),
+                message_time=save_data.get('created_at'),
+                visual_hashes=visual_hashes
+            )
+            
+            if is_duplicate:
+                logger.info(f"检测到重复消息（{dup_type}），原始消息ID: {orig_id}")
+                return {
+                    'is_duplicate': True,
+                    'original_id': orig_id,
+                    'type': dup_type,
+                    'reason': f"{dup_type}重复"
+                }
+                
+            return None
+            
+        except Exception as e:
+            logger.error(f"重复检测失败: {e}")
+            return None
     
     async def _is_duplicate(self, save_data: dict, channel_id: str) -> bool:
         """检查是否为重复消息"""

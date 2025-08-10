@@ -257,20 +257,31 @@ const MainApp = {
         
         // 加载更多消息
         async loadMore() {
+            // 双重检查，防止重复加载
             if (this.isLoadingMore || !this.hasMore) {
                 console.log('跳过加载更多:', { isLoadingMore: this.isLoadingMore, hasMore: this.hasMore });
                 return;
             }
-            console.log('加载更多消息，当前页:', this.currentPage, '-> ', this.currentPage + 1);
-            this.currentPage++;
-            await this.loadMessages(true);
             
-            // 检查是否真的还有更多数据
-            // 如果当前消息总数小于已加载页数*每页数量，说明没有更多了
-            const expectedMessages = this.currentPage * this.pageSize;
-            if (this.messages.length < expectedMessages - this.pageSize) {
-                this.hasMore = false;
-                console.log('已加载所有消息，总数:', this.messages.length);
+            // 立即设置加载状态，防止重复触发
+            this.isLoadingMore = true;
+            
+            try {
+                console.log('容器滚动触发加载更多');
+                console.log(`加载更多消息，当前页: ${this.currentPage} -> ${this.currentPage + 1}`);
+                this.currentPage++;
+                await this.loadMessages(true);
+                
+                // 检查是否真的还有更多数据
+                // 如果当前消息总数小于已加载页数*每页数量，说明没有更多了
+                const expectedMessages = this.currentPage * this.pageSize;
+                if (this.messages.length < expectedMessages - this.pageSize) {
+                    this.hasMore = false;
+                    console.log('已加载所有消息，总数:', this.messages.length);
+                }
+            } finally {
+                // 确保加载状态被重置
+                this.isLoadingMore = false;
             }
         },
         
@@ -1037,52 +1048,82 @@ const MainApp = {
         
         // 设置滚动监听
         setupScrollListener() {
-            // 尝试两种滚动监听方式
+            // 移除之前的所有滚动监听
+            if (this.scrollHandler) {
+                window.removeEventListener('scroll', this.scrollHandler);
+                const oldContainer = document.querySelector('.message-list');
+                if (oldContainer) {
+                    oldContainer.removeEventListener('scroll', this.scrollHandler);
+                }
+            }
+            
             const messageContainer = document.querySelector('.message-list');
             
-            // 使用防抖处理滚动事件
-            let scrollTimeout;
+            // 记录上次触发加载的时间戳
+            let lastLoadTime = 0;
+            const minLoadInterval = 2000; // 最少间隔2秒才能再次加载
             
-            const handleScroll = () => {
-                clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(() => {
-                    let shouldLoadMore = false;
+            // 创建新的滚动处理函数
+            this.scrollHandler = () => {
+                // 如果正在加载或没有更多数据，直接返回
+                if (this.isLoadingMore || !this.hasMore) {
+                    return;
+                }
+                
+                // 检查距离上次加载的时间间隔
+                const now = Date.now();
+                if (now - lastLoadTime < minLoadInterval) {
+                    return;
+                }
+                
+                let scrollPercentage = 0;
+                let isNearBottom = false;
+                
+                // 优先检查消息容器
+                if (messageContainer) {
+                    const scrollTop = messageContainer.scrollTop;
+                    const scrollHeight = messageContainer.scrollHeight;
+                    const clientHeight = messageContainer.clientHeight;
                     
-                    // 检查消息容器的滚动
-                    if (messageContainer) {
-                        const containerScrollTop = messageContainer.scrollTop;
-                        const containerScrollHeight = messageContainer.scrollHeight;
-                        const containerClientHeight = messageContainer.clientHeight;
-                        
-                        if (containerScrollHeight - containerScrollTop - containerClientHeight < 100) {
-                            shouldLoadMore = true;
-                            console.log('容器滚动触发加载更多');
-                        }
+                    // 计算滚动百分比
+                    if (scrollHeight > clientHeight) {
+                        scrollPercentage = (scrollTop + clientHeight) / scrollHeight * 100;
                     }
                     
-                    // 同时检查窗口滚动
+                    // 只有滚动到95%以上才认为接近底部
+                    if (scrollPercentage > 95) {
+                        isNearBottom = true;
+                    }
+                } else {
+                    // 检查窗口滚动（备用方案）
                     const windowHeight = window.innerHeight;
                     const documentHeight = document.documentElement.scrollHeight;
                     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                     
-                    if (documentHeight - scrollTop - windowHeight < 100) {
-                        shouldLoadMore = true;
-                        console.log('窗口滚动触发加载更多');
+                    // 计算滚动百分比
+                    if (documentHeight > windowHeight) {
+                        scrollPercentage = (scrollTop + windowHeight) / documentHeight * 100;
                     }
                     
-                    if (shouldLoadMore && this.hasMore && !this.isLoadingMore) {
-                        this.loadMore();
+                    // 只有滚动到95%以上才认为接近底部
+                    if (scrollPercentage > 95) {
+                        isNearBottom = true;
                     }
-                }, 200);
+                }
+                
+                // 只在真正接近底部时加载
+                if (isNearBottom && !this.isLoadingMore && this.hasMore) {
+                    lastLoadTime = now;
+                    console.log(`滚动到底部(${scrollPercentage.toFixed(1)}%)，触发加载更多`);
+                    this.loadMore();
+                }
             };
             
-            // 监听容器滚动
+            // 添加滚动监听（不使用防抖，而是用时间间隔控制）
             if (messageContainer) {
-                messageContainer.addEventListener('scroll', handleScroll);
+                messageContainer.addEventListener('scroll', this.scrollHandler, { passive: true });
             }
-            
-            // 同时监听窗口滚动
-            window.addEventListener('scroll', handleScroll);
+            window.addEventListener('scroll', this.scrollHandler, { passive: true });
             
             // 如果没有找到容器，稍后重试
             if (!messageContainer) {

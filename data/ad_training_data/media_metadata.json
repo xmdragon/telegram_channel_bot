@@ -770,7 +770,19 @@
       "file_size": 126424,
       "saved_at": "2025-08-11T00:36:12.146767",
       "original_name": "11486_20250810_162157_photo.jpg"
+    },
+    "dd1683634963758eb2a68867648257c6e0bff2f4677dd842caffbcb7f316de3b": {
+      "path": "ad_training_data/videos/2025-08/4795_20250811_010809_dd168363.mp4",
+      "message_ids": [
+        4795
+      ],
+      "channel_id": "-1001548749089",
+      "media_type": "video",
+      "is_ad": true,
+      "file_size": 3073360,
+      "saved_at": "2025-08-11T01:08:09.007889",
+      "original_name": "11425_20250810_164138_video.mp4"
     }
   },
-  "updated_at": "2025-08-11T00:36:12.146776"
+  "updated_at": "2025-08-11T01:08:09.007894"
 }

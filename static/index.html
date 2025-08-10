@@ -8,6 +8,7 @@
     
     <!-- 外部样式文件 -->
     <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
 </head>
 <body>
@@ -133,6 +134,9 @@
                             <span v-if="message.is_ad" class="tag tag-danger">
                                 广告
                             </span>
+                            <span v-if="message.filter_reason && message.status === 'rejected'" class="tag tag-secondary" :title="message.filter_reason" style="background: #6c757d;">
+                                拒因: {{ message.filter_reason.length > 15 ? message.filter_reason.substring(0, 15) + '...' : message.filter_reason }}
+                            </span>
                         </div>
                     </div>
                     
@@ -197,7 +201,12 @@
                         </div>
                         
                         <!-- 文本内容 -->
-                        <div v-if="message.filtered_content" class="message-text">
+                        <!-- 自动拒绝的消息（有filter_reason）显示原始内容 -->
+                        <div v-if="message.status === 'rejected' && message.filter_reason && message.content" class="message-text">
+                            {{ message.content }}
+                        </div>
+                        <!-- 其他消息（包括手动拒绝的）显示过滤后内容 -->
+                        <div v-else-if="message.filtered_content" class="message-text">
                             {{ message.filtered_content }}
                         </div>
                         
