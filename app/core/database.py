@@ -55,6 +55,12 @@ class Message(Base):
     combined_media_hash = Column(String, index=True)  # 组合媒体的哈希值
     visual_hash = Column(Text)  # 视觉感知哈希（包含phash、dhash等多种哈希）
     
+    # OCR相关字段
+    ocr_text = Column(Text)  # OCR提取的文字内容（JSON格式存储文字列表）
+    qr_codes = Column(Text)  # 二维码信息（JSON格式存储二维码数据）
+    ocr_ad_score = Column(Integer, default=0)  # OCR检测的广告分数（0-100）
+    ocr_processed = Column(Boolean, default=False)  # 是否已进行OCR处理
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

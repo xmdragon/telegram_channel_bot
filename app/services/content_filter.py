@@ -5,9 +5,11 @@
 import re
 import logging
 import asyncio
+import json
 from typing import Tuple, List, Set, Any
 from app.services.ai_filter import ai_filter
 from app.services.config_manager import config_manager
+from app.services.message_structure_analyzer import message_structure_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -284,31 +286,100 @@ class ContentFilter:
         return commercial_indicators >= 4
     
     
-    def filter_message(self, content: str, channel_id: str = None, message_obj: Any = None) -> Tuple[bool, str, str]:
+    async def filter_message(self, content: str, channel_id: str = None, message_obj: Any = None, media_files: List[str] = None) -> Tuple[bool, str, str, dict]:
         """
-        过滤消息内容 - 增强版检测流程
+        过滤消息内容 - 增强版检测流程（支持OCR图片文字提取）
         
         Args:
             content: 消息内容
             channel_id: 频道ID（用于AI过滤）
             message_obj: Telegram消息对象（用于结构化检测）
+            media_files: 媒体文件路径列表（用于OCR处理）
         
         Returns:
-            (是否广告, 过滤后内容, 过滤原因)
+            (是否广告, 过滤后内容, 过滤原因, OCR结果)
         """
         if not content:
-            return False, content, ""
+            content = ""
         
         # 记录初始内容长度
         original_len = len(content)
         filtered_content = content
         is_ad = False
         reasons = []
+        ocr_result = {}
         
-        # 1. 智能尾部广告过滤（优先级最高）
+        # 1. OCR图片文字提取和广告检测（优先级最高）
+        if media_files:
+            try:
+                from app.services.ocr_service import ocr_service
+                
+                # 处理图片类型的媒体文件
+                image_files = []
+                for media_file in media_files:
+                    if media_file and any(media_file.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
+                        image_files.append(media_file)
+                
+                if image_files:
+                    logger.info(f"开始OCR处理 {len(image_files)} 个图片文件")
+                    
+                    # 批量处理图片
+                    ocr_results = await ocr_service.batch_extract_content(image_files)
+                    
+                    # 合并所有OCR提取的文字
+                    all_ocr_texts = []
+                    all_qr_codes = []
+                    total_ad_score = 0
+                    ocr_ad_indicators = []
+                    
+                    for file_path, result in ocr_results.items():
+                        if result.get('error'):
+                            logger.warning(f"OCR处理失败: {file_path} - {result['error']}")
+                            continue
+                            
+                        texts = result.get('texts', [])
+                        qr_codes = result.get('qr_codes', [])
+                        ad_score = result.get('ad_score', 0)
+                        ad_indicators = result.get('ad_indicators', [])
+                        
+                        all_ocr_texts.extend(texts)
+                        all_qr_codes.extend(qr_codes)
+                        total_ad_score = max(total_ad_score, ad_score)  # 取最高分数
+                        ocr_ad_indicators.extend(ad_indicators)
+                    
+                    # 将OCR文字合并到原始内容中进行综合检测
+                    if all_ocr_texts:
+                        ocr_text = ' '.join(all_ocr_texts)
+                        # 将OCR文字添加到原始内容后面，用换行符分隔
+                        if filtered_content.strip():
+                            filtered_content = f"{filtered_content}\n\n[图片文字内容]\n{ocr_text}"
+                        else:
+                            filtered_content = f"[图片文字内容]\n{ocr_text}"
+                        
+                        logger.info(f"OCR提取文字 {len(all_ocr_texts)} 条，合并到消息内容中")
+                    
+                    # OCR广告检测
+                    if total_ad_score >= 30:  # 30分以上认为是广告
+                        is_ad = True
+                        reasons.append(f"图片广告内容(分数:{total_ad_score:.0f})")
+                        logger.info(f"OCR检测到图片广告，分数: {total_ad_score}")
+                    
+                    # 保存OCR结果
+                    ocr_result = {
+                        'texts': all_ocr_texts,
+                        'qr_codes': all_qr_codes,
+                        'ad_score': total_ad_score,
+                        'ad_indicators': ocr_ad_indicators,
+                        'processed_files': len(image_files)
+                    }
+                    
+            except Exception as e:
+                logger.error(f"OCR处理失败: {e}")
+        
+        # 2. 智能尾部广告过滤
         try:
             from app.services.smart_tail_filter import smart_tail_filter
-            clean_content, has_tail_ad, ad_part = smart_tail_filter.filter_tail_ads(content)
+            clean_content, has_tail_ad, ad_part = smart_tail_filter.filter_tail_ads(filtered_content)
             if has_tail_ad:
                 filtered_content = clean_content
                 is_ad = True
@@ -317,11 +388,39 @@ class ContentFilter:
         except Exception as e:
             logger.error(f"尾部广告过滤失败: {e}")
         
-        # 2. 结构化广告检测（检测按钮和实体中的广告）
-        if message_obj:
+        # 3. 消息结构分析（格式化推广检测）- 新增功能
+        # 只对合并后的内容进行结构分析，避免重复检测
+        if filtered_content and not is_ad:  # 只有还不是广告时才检测
+            try:
+                is_structural_promo, structure_scores = message_structure_analyzer.analyze(filtered_content)
+                if is_structural_promo:
+                    is_ad = True
+                    # 详细的结构异常说明
+                    structure_details = []
+                    if structure_scores.get('emoji_density', 0) > 0.15:
+                        structure_details.append(f"表情密度{structure_scores['emoji_density']:.1%}")
+                    if structure_scores.get('link_density', 0) > 2.0:
+                        structure_details.append(f"链接密度{structure_scores['link_density']:.1f}/100字")
+                    if structure_scores.get('structure_abnormality', 0) > 0.6:
+                        structure_details.append(f"结构异常{structure_scores['structure_abnormality']:.1%}")
+                    
+                    detail_str = ",".join(structure_details) if structure_details else f"综合得分{structure_scores.get('total_score', 0):.2f}"
+                    reasons.append(f"格式化推广({detail_str})")
+                    logger.info(f"检测到格式化推广消息: {detail_str}")
+                    
+                    # 如果检测到格式化推广，可以选择清空内容或进行推广过滤
+                    if structure_scores.get('total_score', 0) > 0.8:  # 高置信度时清空
+                        filtered_content = ""
+                    else:  # 否则进行推广内容过滤
+                        filtered_content = self.filter_promotional_content(filtered_content, channel_id)
+            except Exception as e:
+                logger.error(f"消息结构分析失败: {e}")
+        
+        # 4. 结构化广告检测（检测按钮和实体中的广告）- 保留原有功能
+        if message_obj and not is_ad:  # 只有还不是广告时才检测
             try:
                 from app.services.structural_ad_detector import structural_detector
-                structural_result = asyncio.run(structural_detector.detect_structural_ads(message_obj))
+                structural_result = await structural_detector.detect_structural_ads(message_obj)
                 if structural_result['has_structural_ad']:
                     is_ad = True
                     reasons.append(f"结构化广告({structural_result['ad_type']})")
@@ -332,7 +431,7 @@ class ContentFilter:
             except Exception as e:
                 logger.error(f"结构化广告检测失败: {e}")
         
-        # 3. AI广告检测（对过滤后的内容进行检测）
+        # 5. AI广告检测（对合并后的内容进行检测）
         if self.ai_filter and self.ai_filter.initialized and filtered_content:
             is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(filtered_content)
             if is_ad_by_ai and ai_confidence > 0.85:  # 提高阈值从0.8到0.85
@@ -343,7 +442,7 @@ class ContentFilter:
                 if ai_confidence > 0.95:  # 提高阈值从0.9到0.95
                     filtered_content = ""
         
-        # 4. 商业广告检测
+        # 6. 商业广告检测
         if filtered_content:
             is_commercial = self.is_commercial_ad(filtered_content)
             if is_commercial:
@@ -352,7 +451,7 @@ class ContentFilter:
                 # 进行推广内容过滤
                 filtered_content = self.filter_promotional_content(filtered_content, channel_id)
         
-        # 5. 推广内容过滤（最后的保险）
+        # 7. 推广内容过滤（最后的保险）
         if filtered_content:
             final_filtered = self.filter_promotional_content(filtered_content, channel_id)
             if final_filtered != filtered_content:
@@ -360,6 +459,23 @@ class ContentFilter:
                 if not is_ad:
                     is_ad = True
                     reasons.append("推广内容")
+        
+        # 8. 清理OCR添加的标记（如果不是广告，移除OCR标记）
+        if not is_ad and "[图片文字内容]" in filtered_content:
+            # 如果不是广告，恢复原始内容（移除OCR文字）
+            filtered_content = content
+        elif is_ad and "[图片文字内容]" in filtered_content:
+            # 如果是广告，移除OCR标记但保留原始内容
+            lines = filtered_content.split('\n')
+            clean_lines = []
+            skip_ocr = False
+            for line in lines:
+                if "[图片文字内容]" in line:
+                    skip_ocr = True
+                    continue
+                if not skip_ocr:
+                    clean_lines.append(line)
+            filtered_content = '\n'.join(clean_lines)
         
         # 检查是否整条消息都被过滤了
         if not filtered_content.strip() and content.strip():
@@ -373,6 +489,59 @@ class ContentFilter:
         # 记录过滤效果
         if original_len != len(filtered_content):
             logger.info(f"内容过滤: {original_len} -> {len(filtered_content)} 字符 (减少 {original_len - len(filtered_content)})")
+        
+        return is_ad, filtered_content, filter_reason, ocr_result
+    
+    def filter_message_sync(self, content: str, channel_id: str = None, message_obj: Any = None) -> Tuple[bool, str, str]:
+        """
+        同步版本的消息过滤方法（向后兼容）
+        注意：这个方法不包含OCR功能，只做基本的文本过滤
+        
+        Args:
+            content: 消息内容
+            channel_id: 频道ID
+            message_obj: Telegram消息对象
+            
+        Returns:
+            (是否广告, 过滤后内容, 过滤原因)
+        """
+        if not content:
+            return False, content, ""
+        
+        # 记录初始内容长度
+        original_len = len(content)
+        filtered_content = content
+        is_ad = False
+        reasons = []
+        
+        # 1. 推广内容过滤
+        final_filtered = self.filter_promotional_content(filtered_content, channel_id)
+        if final_filtered != filtered_content:
+            filtered_content = final_filtered
+            is_ad = True
+            reasons.append("推广内容")
+        
+        # 2. 商业广告检测
+        if filtered_content:
+            is_commercial = self.is_commercial_ad(filtered_content)
+            if is_commercial:
+                is_ad = True
+                reasons.append("商业广告")
+                # 进行推广内容过滤
+                filtered_content = self.filter_promotional_content(filtered_content, channel_id)
+        
+        # 检查是否整条消息都被过滤了
+        if not filtered_content.strip() and content.strip():
+            is_ad = True
+            if "整条消息都是广告" not in reasons:
+                reasons.append("整条消息都是广告")
+        
+        # 生成过滤原因说明
+        filter_reason = " | ".join(reasons) if reasons else ""
+        
+        # 记录过滤效果
+        if original_len != len(filtered_content):
+            logger.info(f"同步内容过滤: {original_len} -> {len(filtered_content)} 字符 (减少 {original_len - len(filtered_content)})")
         
         return is_ad, filtered_content, filter_reason
     

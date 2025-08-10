@@ -142,11 +142,17 @@ class UnifiedMessageProcessor:
             if message.media:
                 media_info = await self._process_media(message, channel_id)
             
-            # 内容过滤（智能去尾部 + 结构化广告检测 + AI广告检测）
-            is_ad, filtered_content, filter_reason = self.content_filter.filter_message(
+            # 准备媒体文件列表用于OCR处理
+            media_files = []
+            if media_info and media_info.get('file_path'):
+                media_files.append(media_info['file_path'])
+            
+            # 内容过滤（智能去尾部 + 结构化广告检测 + AI广告检测 + OCR图片文字提取）
+            is_ad, filtered_content, filter_reason, ocr_result = await self.content_filter.filter_message(
                 content, 
                 channel_id=channel_id,
-                message_obj=message  # 传递消息对象用于结构化检测
+                message_obj=message,  # 传递消息对象用于结构化检测
+                media_files=media_files  # 传递媒体文件用于OCR处理
             )
             
             # 记录过滤效果
@@ -164,12 +170,19 @@ class UnifiedMessageProcessor:
                         await media_handler.cleanup_file(media_info['file_path'])
                     return None
             
+            # 检查消息是否有有效内容
+            # 如果既没有媒体，filtered_content又为空，则拒绝这条消息
+            if not media_info and not filtered_content:
+                logger.warning(f"❌ 消息既无媒体又无有效内容，拒绝处理 (原内容长度: {len(content)})")
+                return None
+            
             return {
                 'content': content,
                 'filtered_content': filtered_content,
                 'is_ad': is_ad,
                 'filter_reason': filter_reason,
-                'media_info': media_info
+                'media_info': media_info,
+                'ocr_result': ocr_result  # 包含OCR提取结果
             }
             
         except Exception as e:
@@ -258,6 +271,26 @@ class UnifiedMessageProcessor:
             # 如果有时区信息，转换为无时区的UTC时间
             created_at = created_at.replace(tzinfo=None)
         
+        # 处理OCR结果
+        ocr_result = processed_data.get('ocr_result', {})
+        ocr_text = None
+        qr_codes = None
+        ocr_ad_score = 0
+        ocr_processed = False
+        
+        if ocr_result:
+            # 将OCR文字转换为JSON字符串存储
+            if ocr_result.get('texts'):
+                import json
+                ocr_text = json.dumps(ocr_result['texts'], ensure_ascii=False)
+            
+            # 将二维码信息转换为JSON字符串存储
+            if ocr_result.get('qr_codes'):
+                qr_codes = json.dumps(ocr_result['qr_codes'], ensure_ascii=False)
+            
+            ocr_ad_score = int(ocr_result.get('ad_score', 0))
+            ocr_processed = bool(ocr_result.get('processed_files', 0) > 0)
+        
         return {
             'source_channel': channel_id,
             'message_id': message_data.get('message_id', message_data.get('id')),
@@ -267,6 +300,11 @@ class UnifiedMessageProcessor:
             'media_type': message_data.get('media_type'),
             'media_url': message_data.get('media_url'),
             'media_hash': media_hash,
+            # 新增OCR相关字段
+            'ocr_text': ocr_text,
+            'qr_codes': qr_codes,
+            'ocr_ad_score': ocr_ad_score,
+            'ocr_processed': ocr_processed,
             'combined_media_hash': combined_media_hash,
             'visual_hash': visual_hash,
             'grouped_id': str(message_data.get('grouped_id')) if message_data.get('grouped_id') else None,

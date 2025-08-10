@@ -271,7 +271,7 @@ class TelegramBot:
             
             # 内容过滤（包含智能去尾部）
             logger.info(f"📝 开始内容过滤，原始内容长度: {len(content)} 字符")
-            is_ad, filtered_content, filter_reason = self.content_filter.filter_message(content, channel_id=channel_id)
+            is_ad, filtered_content, filter_reason = self.content_filter.filter_message_sync(content, channel_id=channel_id)
             
             # 记录过滤结果和原因
             if filter_reason == "tail_only":
@@ -669,7 +669,7 @@ class TelegramBot:
                     logger.info(f"📝 内容预览: {message_data['content'][:100]}...")
                 
                 # 内容过滤
-                is_ad, filtered_content, filter_reason = self.content_filter.filter_message(message_data['content'], channel_id=channel_id)
+                is_ad, filtered_content, filter_reason = self.content_filter.filter_message_sync(message_data['content'], channel_id=channel_id)
                 
                 # 对于组合消息，如果文本被判定为广告，保留原始内容供审核
                 # 避免出现只有媒体没有文本的情况

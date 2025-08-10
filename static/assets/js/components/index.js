@@ -80,7 +80,8 @@ const MainApp = {
                 messageId: null,
                 content: '',
                 originalMessage: null
-            }
+            },
+            refetchingMedia: {} // 记录正在补抓的消息ID
         }
     },
     
@@ -974,6 +975,64 @@ const MainApp = {
                 mode: 'tail'
             });
             window.location.href = './train.html?' + params.toString();
+        },
+        
+        // 检查媒体文件是否存在
+        mediaExists(message) {
+            // 检查媒体URL是否存在且有效
+            if (!message.media_url) return false;
+            
+            // 对于组合消息，检查媒体组
+            if (message.is_combined && message.media_group_display) {
+                return message.media_group_display.some(media => media.display_url);
+            }
+            
+            // 对于单个媒体，检查display_url
+            return !!message.display_url;
+        },
+        
+        // 补抓媒体文件
+        async refetchMedia(message) {
+            try {
+                // 设置加载状态
+                Vue.set(this.refetchingMedia, message.id, true);
+                
+                // 确认操作
+                if (!confirm(`确定要重新下载消息 #${message.id} 的媒体文件吗？`)) {
+                    Vue.delete(this.refetchingMedia, message.id);
+                    return;
+                }
+                
+                const response = await axios.post(`/api/messages/${message.id}/refetch-media`);
+                
+                if (response.data.success) {
+                    if (response.data.skipped) {
+                        MessageManager.info('媒体文件已存在，无需重新下载');
+                    } else {
+                        MessageManager.success('媒体补抓成功');
+                        
+                        // 更新消息的媒体URL
+                        message.media_url = response.data.media_url;
+                        
+                        // 重新生成显示URL
+                        if (response.data.media_url) {
+                            const fileName = response.data.media_url.split('/').pop();
+                            message.display_url = `/media/${fileName}`;
+                        }
+                        
+                        // 触发视图更新
+                        this.messages = [...this.messages];
+                    }
+                } else {
+                    MessageManager.error(response.data.message || '补抓失败');
+                }
+            } catch (error) {
+                console.error('补抓媒体失败:', error);
+                MessageManager.error('补抓失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                // 清除加载状态
+                Vue.delete(this.refetchingMedia, message.id);
+            }
         },
         
         // 设置滚动监听

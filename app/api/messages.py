@@ -18,6 +18,10 @@ router = APIRouter()
 message_processor = MessageProcessor()
 channel_manager = ChannelManager()
 
+# 导入媒体处理器
+from app.services.media_handler import media_handler
+from app.telegram.bot import telegram_bot
+
 @router.get("/")
 async def get_messages(
     status: Optional[str] = Query(None, description="消息状态过滤"),
@@ -181,6 +185,80 @@ async def batch_approve_messages(
     
     return {"success": True, "message": f"已批准 {len(messages)} 条消息，{forwarded_count} 条已转发"}
 
+
+@router.post("/batch/reject")
+async def batch_reject_messages(
+    request: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """批量拒绝消息"""
+    message_ids = request.get("message_ids", [])
+    if not message_ids:
+        return {"success": False, "message": "未提供消息ID列表"}
+    
+    result = await db.execute(
+        select(Message).where(
+            and_(
+                Message.id.in_(message_ids),
+                Message.status == "pending"
+            )
+        )
+    )
+    messages = result.scalars().all()
+    
+    # 从审核群删除消息
+    deleted_count = 0
+    try:
+        from app.telegram.bot import telegram_bot
+        if telegram_bot and telegram_bot.client:
+            for message in messages:
+                if message.review_message_id:
+                    try:
+                        await telegram_bot.delete_review_message(message.review_message_id)
+                        deleted_count += 1
+                    except Exception as e:
+                        logger.debug(f"删除审核群消息失败: {e}")
+                
+                # 清理媒体文件
+                try:
+                    await telegram_bot._cleanup_message_files(message)
+                except Exception as e:
+                    logger.debug(f"清理媒体文件失败: {e}")
+    except Exception as e:
+        logger.error(f"批量删除审核群消息失败: {e}")
+    
+    # 更新消息状态
+    for message in messages:
+        message.status = "rejected"
+        message.reviewed_by = "Web用户"
+        message.review_time = datetime.now()
+    
+    await db.commit()
+    
+    # 记录用户反馈用于学习
+    try:
+        from app.services.adaptive_learning import adaptive_learning
+        for message in messages:
+            try:
+                await adaptive_learning.learn_from_user_action(message.id, 'rejected', 'Web用户')
+            except Exception as e:
+                logger.debug(f"记录学习反馈失败: {e}")
+    except Exception as e:
+        logger.debug(f"批量学习反馈失败: {e}")
+    
+    # 广播批量状态更新到WebSocket客户端
+    try:
+        from app.api.websocket import websocket_manager
+        for message in messages:
+            await websocket_manager.broadcast_message_status_update(message.id, "rejected")
+    except Exception as e:
+        print(f"广播批量状态更新失败: {e}")
+    
+    logger.info(f"批量拒绝：{len(messages)} 条消息已拒绝，{deleted_count} 条审核群消息已删除")
+    
+    return {"success": True, "message": f"已拒绝 {len(messages)} 条消息"}
+
+
 @router.get("/{message_id}")
 async def get_message(
     message_id: int,
@@ -272,8 +350,8 @@ async def approve_message(
 @router.post("/{message_id}/reject")
 async def reject_message(
     message_id: int,
-    reviewer: str,
-    reason: Optional[str] = None,
+    reviewer: str = Query(default="Web用户"),
+    reason: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db)
 ):
     """拒绝消息"""
@@ -527,3 +605,169 @@ async def delete_review_message(
             return {"success": False, "message": "Telegram客户端未连接"}
     except Exception as e:
         return {"success": False, "message": f"删除失败: {str(e)}"}
+
+
+@router.post("/{message_id}/refetch-media")
+async def refetch_media(
+    message_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    重新抓取消息的媒体文件
+    用于补抓缺失或损坏的媒体
+    """
+    try:
+        # 获取消息记录
+        result = await db.execute(
+            select(Message).where(Message.id == message_id)
+        )
+        message = result.scalar_one_or_none()
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 检查是否有媒体
+        if not message.media_type:
+            return {
+                "success": False,
+                "message": "该消息没有媒体文件"
+            }
+        
+        # 检查媒体文件是否已存在
+        if message.media_url and os.path.exists(message.media_url):
+            file_size = os.path.getsize(message.media_url)
+            if file_size > 0:
+                return {
+                    "success": True,
+                    "message": "媒体文件已存在",
+                    "media_url": message.media_url,
+                    "file_size": file_size,
+                    "skipped": True
+                }
+        
+        # 检查Telegram客户端
+        if not telegram_bot.client or not telegram_bot.client.is_connected():
+            return {
+                "success": False,
+                "message": "Telegram客户端未连接"
+            }
+        
+        # 获取原始消息
+        try:
+            # 尝试从源频道获取消息
+            source_entity = await telegram_bot.client.get_entity(message.source_channel)
+            original_msg = await telegram_bot.client.get_messages(
+                entity=source_entity,
+                ids=message.message_id
+            )
+            
+            if not original_msg or not original_msg.media:
+                return {
+                    "success": False,
+                    "message": "原始消息不存在或没有媒体"
+                }
+            
+            # 下载媒体文件
+            logger.info(f"开始补抓消息 #{message_id} 的媒体文件")
+            
+            media_info = await media_handler.download_media(
+                client=telegram_bot.client,
+                message=original_msg,
+                message_id=message.id,
+                timeout=120.0  # 给更长的超时时间
+            )
+            
+            if media_info and media_info.get("file_path"):
+                # 更新数据库记录
+                message.media_url = media_info["file_path"]
+                message.media_type = media_info.get("media_type", message.media_type)
+                message.media_hash = media_info.get("hash")
+                message.visual_hash = str(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else None
+                
+                await db.commit()
+                
+                logger.info(f"成功补抓媒体: {media_info['file_path']} ({media_info['file_size']} bytes)")
+                
+                # 如果是广告，自动保存到训练数据目录
+                if message.is_ad:
+                    try:
+                        from app.services.training_media_manager import training_media_manager
+                        saved_path = await training_media_manager.save_training_media(
+                            source_path=media_info["file_path"],
+                            message_id=message.id,
+                            media_type=media_info["media_type"],
+                            channel_id=message.source_channel,
+                            is_ad=True
+                        )
+                        if saved_path:
+                            logger.info(f"广告媒体已保存到训练目录: {saved_path}")
+                    except Exception as e:
+                        logger.error(f"保存到训练目录失败: {e}")
+                
+                return {
+                    "success": True,
+                    "message": "媒体补抓成功",
+                    "media_url": media_info["file_path"],
+                    "media_type": media_info["media_type"],
+                    "file_size": media_info["file_size"],
+                    "refetched": True
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "媒体下载失败"
+                }
+                
+        except Exception as e:
+            logger.error(f"补抓媒体失败: {e}")
+            return {
+                "success": False,
+                "message": f"补抓失败: {str(e)}"
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"补抓媒体出错: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch/refetch-media")
+async def batch_refetch_media(
+    message_ids: List[int],
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    批量补抓媒体文件
+    """
+    results = {
+        "success": 0,
+        "skipped": 0,
+        "failed": 0,
+        "details": []
+    }
+    
+    for msg_id in message_ids:
+        try:
+            result = await refetch_media(msg_id, db)
+            if result["success"]:
+                if result.get("skipped"):
+                    results["skipped"] += 1
+                else:
+                    results["success"] += 1
+            else:
+                results["failed"] += 1
+            
+            results["details"].append({
+                "message_id": msg_id,
+                **result
+            })
+        except Exception as e:
+            results["failed"] += 1
+            results["details"].append({
+                "message_id": msg_id,
+                "success": False,
+                "message": str(e)
+            })
+    
+    return results

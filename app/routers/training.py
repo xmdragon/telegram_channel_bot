@@ -885,7 +885,7 @@ class AdTrainingManager:
             return False
     
     def add_ad_sample(self, message_id: int, channel_id: str, content: str, 
-                      channel_name: str = None) -> bool:
+                      channel_name: str = None, media_paths: List[str] = None) -> bool:
         """添加广告样本"""
         try:
             data = self._load_data()
@@ -903,6 +903,8 @@ class AdTrainingManager:
                 "channel_name": channel_name,
                 "content": content,
                 "content_length": len(content),
+                "media_paths": media_paths or [],  # 新增媒体文件路径
+                "has_media": bool(media_paths),  # 标记是否有媒体
                 "created_at": datetime.now().isoformat(),
                 "sample_hash": hashlib.sha256(content.encode()).hexdigest()[:16]
             }
@@ -1282,14 +1284,50 @@ async def mark_message_as_ad(
         channel = channel_result.scalar_one_or_none()
         channel_name = channel.channel_title or channel.channel_name if channel else "未知频道"
         
+        # 保存媒体文件到训练目录（如果有）
+        saved_media_paths = []
+        if message.media_url or message.media_group:
+            from app.services.training_media_manager import training_media_manager
+            
+            # 处理单个媒体文件
+            if message.media_url and os.path.exists(message.media_url):
+                saved_path = await training_media_manager.save_training_media(
+                    source_path=message.media_url,
+                    message_id=message.id,
+                    media_type=message.media_type,
+                    channel_id=message.source_channel,
+                    is_ad=True
+                )
+                if saved_path:
+                    saved_media_paths.append(saved_path)
+                    logger.info(f"已保存广告媒体文件: {saved_path}")
+            
+            # 处理组合媒体
+            if message.media_group:
+                for media_item in message.media_group:
+                    file_path = media_item.get('file_path')
+                    if file_path and os.path.exists(file_path):
+                        saved_path = await training_media_manager.save_training_media(
+                            source_path=file_path,
+                            message_id=message.id,
+                            media_type=media_item.get('media_type', 'photo'),
+                            channel_id=message.source_channel,
+                            is_ad=True
+                        )
+                        if saved_path:
+                            saved_media_paths.append(saved_path)
+                            logger.info(f"已保存广告媒体文件（组合）: {saved_path}")
+        
         # 添加到广告训练样本
         content = message.filtered_content or message.content
         if content:
+            # 增强训练数据，包含媒体文件路径
             success = ad_training_manager.add_ad_sample(
                 message_id=message.id,
                 channel_id=message.source_channel,
                 content=content,
-                channel_name=channel_name
+                channel_name=channel_name,
+                media_paths=saved_media_paths  # 新增媒体文件路径
             )
             
             if not success:
@@ -1427,6 +1465,62 @@ async def get_tail_ad_samples():
     except Exception as e:
         logger.error(f"获取尾部广告样本失败: {e}")
         return {"samples": []}
+
+
+@router.post("/add-ad-sample")
+async def add_ad_sample(request: dict):
+    """添加广告训练样本"""
+    try:
+        # 提取参数
+        content = request.get("content", "")
+        is_ad = request.get("is_ad", True)
+        description = request.get("description", "")
+        
+        if not content:
+            return {"success": False, "message": "内容不能为空"}
+        
+        # 加载现有的广告训练数据
+        ad_training_file = Path("data/ad_training_data.json")
+        training_data = {"samples": [], "updated_at": None}
+        
+        if ad_training_file.exists():
+            try:
+                with open(ad_training_file, 'r', encoding='utf-8') as f:
+                    training_data = json.load(f)
+            except Exception as e:
+                logger.error(f"加载广告训练数据失败: {e}")
+        
+        # 生成新样本
+        new_sample = {
+            "id": len(training_data.get("samples", [])) + 1,
+            "content": content,
+            "is_ad": is_ad,
+            "description": description,
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # 添加到样本列表
+        if "samples" not in training_data:
+            training_data["samples"] = []
+        training_data["samples"].append(new_sample)
+        training_data["updated_at"] = datetime.now().isoformat()
+        
+        # 保存到文件
+        ad_training_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(ad_training_file, 'w', encoding='utf-8') as f:
+            json.dump(training_data, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"添加广告训练样本: is_ad={is_ad}, 长度={len(content)}")
+        
+        return {
+            "success": True,
+            "message": "广告样本已添加",
+            "sample_id": new_sample["id"]
+        }
+        
+    except Exception as e:
+        logger.error(f"添加广告样本失败: {e}")
+        return {"success": False, "message": str(e)}
 
 
 @router.post("/tail-ad-samples")

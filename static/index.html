@@ -236,6 +236,15 @@
                                 title="训练AI识别此消息的尾部内容">
                             ✂️ 尾部
                         </button>
+                        <!-- 补抓媒体按钮 -->
+                        <button v-if="message.media_type && (!message.media_url || !mediaExists(message))"
+                                @click="refetchMedia(message)" 
+                                class="btn btn-sm btn-primary"
+                                :disabled="refetchingMedia[message.id]"
+                                title="重新下载缺失的媒体文件">
+                            <span v-if="refetchingMedia[message.id]">⏳</span>
+                            <span v-else>🔄 补抓</span>
+                        </button>
                     </div>
                 </div>
                 
