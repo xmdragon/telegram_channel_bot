@@ -156,6 +156,15 @@ async def batch_approve_messages(
                 except Exception as e:
                     logger.error(f"转发消息 {message.id} 失败: {e}")
             await db.commit()  # 保存所有转发信息
+            
+            # 记录用户反馈用于学习
+            from app.services.adaptive_learning import adaptive_learning
+            for message in messages:
+                try:
+                    await adaptive_learning.learn_from_user_action(message.id, 'approved', 'Web用户')
+                except Exception as e:
+                    logger.debug(f"记录学习反馈失败: {e}")
+            
             logger.info(f"批量批准：{len(messages)} 条消息已批准，{forwarded_count} 条已转发")
         else:
             logger.warning(f"批量批准：{len(messages)} 条消息已批准但无法转发（Telegram客户端未连接）")
@@ -237,6 +246,14 @@ async def approve_message(
             from app.telegram.message_forwarder import message_forwarder
             await message_forwarder.forward_to_target(telegram_bot.client, message)
             await db.commit()  # 保存转发后的信息
+            
+            # 记录用户反馈用于学习
+            from app.services.adaptive_learning import adaptive_learning
+            try:
+                await adaptive_learning.learn_from_user_action(message_id, 'approved', reviewer)
+            except Exception as e:
+                logger.debug(f"记录学习反馈失败: {e}")
+            
             logger.info(f"消息 {message_id} 已批准并转发到目标频道")
         else:
             logger.warning(f"消息 {message_id} 已批准但无法转发（Telegram客户端未连接）")
@@ -285,6 +302,13 @@ async def reject_message(
     message.review_time = datetime.now()
     
     await db.commit()
+    
+    # 记录用户反馈用于学习
+    from app.services.adaptive_learning import adaptive_learning
+    try:
+        await adaptive_learning.learn_from_user_action(message_id, 'rejected', reviewer)
+    except Exception as e:
+        logger.debug(f"记录学习反馈失败: {e}")
     
     # 广播状态更新到WebSocket客户端
     try:
@@ -427,37 +451,49 @@ async def edit_and_publish_message(
     db: AsyncSession = Depends(get_db)
 ):
     """编辑消息内容"""
-    result = await db.execute(
-        select(Message).where(Message.id == message_id)
-    )
-    message = result.scalar_one_or_none()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    # 更新消息内容
-    new_content = request.get("content", "").strip()
-    if not new_content:
-        return {"success": False, "message": "消息内容不能为空"}
-    
-    # 自动添加频道落款（如果还没有的话）
-    from app.services.content_filter import ContentFilter
-    content_filter = ContentFilter()
-    new_content_with_signature = await content_filter.add_channel_signature(new_content)
-    
-    message.filtered_content = new_content_with_signature
-    
-    # 如果消息已经在审核群，更新审核群的消息
     try:
-        from app.telegram.bot import telegram_bot
-        if telegram_bot and hasattr(telegram_bot, 'client') and telegram_bot.client and \
-           hasattr(telegram_bot, 'update_review_message') and message.review_message_id:
-            await telegram_bot.update_review_message(message)
+        result = await db.execute(
+            select(Message).where(Message.id == message_id)
+        )
+        message = result.scalar_one_or_none()
         
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 更新消息内容
+        new_content = request.get("content", "").strip()
+        
+        # 检查是否有媒体文件
+        has_media = bool(message.media_type and message.media_url) or bool(message.is_combined and message.media_group)
+        
+        # 如果没有媒体文件且内容为空，返回错误
+        if not new_content and not has_media:
+            return {"success": False, "message": "纯文本消息内容不能为空"}
+        
+        # 更新filtered_content字段
+        message.filtered_content = new_content
+        
+        # 保存到数据库
         await db.commit()
-        return {"success": True, "message": "消息已编辑"}
+        logger.info(f"消息 {message_id} 内容已更新到数据库")
+        
+        # 尝试更新审核群消息（如果存在）
+        if message.review_message_id:
+            try:
+                from app.telegram.bot import telegram_bot
+                if telegram_bot and telegram_bot.client:
+                    # 使用异步任务更新审核群，避免阻塞
+                    import asyncio
+                    asyncio.create_task(telegram_bot.update_review_message(message))
+                    logger.info(f"已安排更新消息 {message_id} 到审核群")
+            except Exception as e:
+                logger.warning(f"更新审核群消息失败，但不影响编辑: {e}")
+        
+        return {"success": True, "message": "消息已编辑", "content": new_content}
+        
     except Exception as e:
         await db.rollback()
+        logger.error(f"编辑消息 {message_id} 失败: {e}", exc_info=True)
         return {"success": False, "message": f"编辑失败: {str(e)}"}
 
 

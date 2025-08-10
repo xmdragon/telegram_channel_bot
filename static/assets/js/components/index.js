@@ -784,7 +784,7 @@ const MainApp = {
         // 编辑消息
         editMessage(message) {
             this.editDialog.messageId = message.id;
-            this.editDialog.content = message.filtered_content || message.content;
+            this.editDialog.content = message.filtered_content || '';
             this.editDialog.originalMessage = message;
             this.editDialog.visible = true;
         },
@@ -796,12 +796,16 @@ const MainApp = {
                     content: this.editDialog.content
                 });
                 if (response.data.success) {
-                    MessageManager.success('消息已编辑');
+                    MessageManager.success('消息已编辑并保存');
                     this.editDialog.visible = false;
                     // 更新本地消息内容
                     const messageIndex = this.messages.findIndex(msg => msg.id === this.editDialog.messageId);
                     if (messageIndex !== -1) {
-                        this.messages[messageIndex].filtered_content = this.editDialog.content;
+                        // 只更新filtered_content字段
+                        this.messages[messageIndex].filtered_content = response.data.content || this.editDialog.content;
+                        // Vue 3中直接修改即可触发响应式更新
+                        // 如果需要强制刷新，可以重新赋值整个数组
+                        this.messages = [...this.messages];
                     }
                 } else {
                     MessageManager.error('编辑失败: ' + response.data.message);
@@ -915,7 +919,7 @@ const MainApp = {
         // 打开编辑对话框
         openEditDialog(message) {
             this.editDialog.messageId = message.id;
-            this.editDialog.content = message.filtered_content || message.content;
+            this.editDialog.content = message.filtered_content || '';
             this.editDialog.originalMessage = message;
             this.editDialog.visible = true;
         },
@@ -961,16 +965,15 @@ const MainApp = {
             }
         },
         
-        // 跳转到尾部训练页面
+        // 训练尾部
         trainTail(message) {
-            // 准备URL参数，不传递content
+            // 跳转到训练页面，并传递消息信息用于尾部训练
             const params = new URLSearchParams({
+                message_id: message.id,
                 channel_id: message.source_channel,
-                message_id: message.id
+                mode: 'tail'
             });
-            
-            // 跳转到训练页面
-            window.location.href = '/static/train.html?' + params.toString();
+            window.location.href = './train.html?' + params.toString();
         },
         
         // 设置滚动监听

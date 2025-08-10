@@ -5,7 +5,7 @@
 import re
 import logging
 import asyncio
-from typing import Tuple, List, Set
+from typing import Tuple, List, Set, Any
 from app.services.ai_filter import ai_filter
 from app.services.config_manager import config_manager
 
@@ -280,17 +280,18 @@ class ContentFilter:
                     commercial_indicators += 1
                     break
         
-        # 如果有3个或以上商业指标，判定为商业广告
-        return commercial_indicators >= 3
+        # 如果有4个或以上商业指标，判定为商业广告（从3提高到4，减少误判）
+        return commercial_indicators >= 4
     
     
-    def filter_message(self, content: str, channel_id: str = None) -> Tuple[bool, str, str]:
+    def filter_message(self, content: str, channel_id: str = None, message_obj: Any = None) -> Tuple[bool, str, str]:
         """
-        过滤消息内容
+        过滤消息内容 - 增强版检测流程
         
         Args:
             content: 消息内容
             channel_id: 频道ID（用于AI过滤）
+            message_obj: Telegram消息对象（用于结构化检测）
         
         Returns:
             (是否广告, 过滤后内容, 过滤原因)
@@ -298,31 +299,82 @@ class ContentFilter:
         if not content:
             return False, content, ""
         
-        # 1. 首先使用AI过滤器检测广告（如果可用）
-        if self.ai_filter and self.ai_filter.initialized:
-            is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(content)
-            if is_ad_by_ai and ai_confidence > 0.8:
+        # 记录初始内容长度
+        original_len = len(content)
+        filtered_content = content
+        is_ad = False
+        reasons = []
+        
+        # 1. 智能尾部广告过滤（优先级最高）
+        try:
+            from app.services.smart_tail_filter import smart_tail_filter
+            clean_content, has_tail_ad, ad_part = smart_tail_filter.filter_tail_ads(content)
+            if has_tail_ad:
+                filtered_content = clean_content
+                is_ad = True
+                reasons.append("尾部广告")
+                logger.info(f"检测到尾部广告，过滤了 {len(ad_part)} 字符")
+        except Exception as e:
+            logger.error(f"尾部广告过滤失败: {e}")
+        
+        # 2. 结构化广告检测（检测按钮和实体中的广告）
+        if message_obj:
+            try:
+                from app.services.structural_ad_detector import structural_detector
+                structural_result = asyncio.run(structural_detector.detect_structural_ads(message_obj))
+                if structural_result['has_structural_ad']:
+                    is_ad = True
+                    reasons.append(f"结构化广告({structural_result['ad_type']})")
+                    # 如果有需要清理的文本实体，更新内容
+                    if structural_result.get('clean_text'):
+                        filtered_content = structural_result['clean_text']
+                    logger.info(f"检测到结构化广告: {structural_result['ad_type']}")
+            except Exception as e:
+                logger.error(f"结构化广告检测失败: {e}")
+        
+        # 3. AI广告检测（对过滤后的内容进行检测）
+        if self.ai_filter and self.ai_filter.initialized and filtered_content:
+            is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(filtered_content)
+            if is_ad_by_ai and ai_confidence > 0.85:  # 提高阈值从0.8到0.85
+                is_ad = True
+                reasons.append(f"AI检测(置信度:{ai_confidence:.2f})")
                 logger.info(f"AI检测到广告内容，置信度: {ai_confidence:.2f}")
-                return True, "", f"AI检测为广告 (置信度: {ai_confidence:.2f})"
+                # 如果整条消息都是广告，清空内容
+                if ai_confidence > 0.95:  # 提高阈值从0.9到0.95
+                    filtered_content = ""
         
-        # 3. 检查是否为商业广告
-        is_commercial = self.is_commercial_ad(content)
+        # 4. 商业广告检测
+        if filtered_content:
+            is_commercial = self.is_commercial_ad(filtered_content)
+            if is_commercial:
+                is_ad = True
+                reasons.append("商业广告")
+                # 进行推广内容过滤
+                filtered_content = self.filter_promotional_content(filtered_content, channel_id)
         
-        if is_commercial:
-            # 如果检测到商业广告，进行内容过滤
-            filtered = self.filter_promotional_content(content, channel_id)
-            if not filtered.strip():
-                return True, "", "商业广告"
-            return True, filtered, "商业广告"
+        # 5. 推广内容过滤（最后的保险）
+        if filtered_content:
+            final_filtered = self.filter_promotional_content(filtered_content, channel_id)
+            if final_filtered != filtered_content:
+                filtered_content = final_filtered
+                if not is_ad:
+                    is_ad = True
+                    reasons.append("推广内容")
         
-        # 4. 进行推广内容过滤（包括AI尾部过滤）
-        filtered = self.filter_promotional_content(content, channel_id)
+        # 检查是否整条消息都被过滤了
+        if not filtered_content.strip() and content.strip():
+            is_ad = True
+            if "整条消息都是广告" not in reasons:
+                reasons.append("整条消息都是广告")
         
-        # 检查是否整条消息都是广告
-        if not filtered.strip():
-            return True, "", "整条消息都是推广内容"
+        # 生成过滤原因说明
+        filter_reason = " | ".join(reasons) if reasons else ""
         
-        return False, filtered, ""
+        # 记录过滤效果
+        if original_len != len(filtered_content):
+            logger.info(f"内容过滤: {original_len} -> {len(filtered_content)} 字符 (减少 {original_len - len(filtered_content)})")
+        
+        return is_ad, filtered_content, filter_reason
     
     def check_ad_keywords(self, content: str) -> Tuple[bool, str]:
         """

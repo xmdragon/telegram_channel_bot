@@ -119,6 +119,98 @@ class AdDetector:
             logger.error(f"AI广告检测失败: {e}")
             return False, 0.0
     
+    def check_semantic_coherence(self, main_text: str, button_texts: List[str]) -> float:
+        """
+        检查按钮文本与正文的语义相关性
+        
+        Args:
+            main_text: 消息正文
+            button_texts: 按钮文本列表
+            
+        Returns:
+            相关性分数 (0-1)，越低表示越可能是广告
+        """
+        if not self.initialized or not main_text or not button_texts:
+            return 1.0
+        
+        try:
+            # 计算正文的嵌入向量
+            main_embedding = self.model.encode([main_text])[0]
+            
+            # 计算所有按钮文本的组合嵌入向量
+            combined_button_text = ' '.join(button_texts)
+            button_embedding = self.model.encode([combined_button_text])[0]
+            
+            # 计算余弦相似度
+            from sklearn.metrics.pairwise import cosine_similarity
+            similarity = cosine_similarity(
+                main_embedding.reshape(1, -1),
+                button_embedding.reshape(1, -1)
+            )[0][0]
+            
+            logger.debug(f"按钮与正文语义相似度: {similarity:.3f}")
+            
+            # 如果相似度很低，可能是不相关的广告按钮
+            return float(similarity)
+            
+        except Exception as e:
+            logger.error(f"语义相关性检查失败: {e}")
+            return 1.0
+    
+    def analyze_structural_ad(self, text: str, buttons: List[dict], entities: List[dict]) -> dict:
+        """
+        分析结构化广告
+        
+        Args:
+            text: 消息文本
+            buttons: 按钮列表 [{'text': '按钮文字', 'url': '链接'}]
+            entities: 实体列表 [{'type': '类型', 'url': '链接', 'text': '文本'}]
+            
+        Returns:
+            分析结果字典
+        """
+        result = {
+            'has_ad': False,
+            'confidence': 0.0,
+            'ad_type': None,
+            'suspicious_buttons': [],
+            'suspicious_entities': []
+        }
+        
+        if not self.initialized:
+            return result
+        
+        # 1. 检查按钮的语义相关性
+        if buttons:
+            button_texts = [btn.get('text', '') for btn in buttons if btn.get('text')]
+            if button_texts and text:
+                coherence = self.check_semantic_coherence(text, button_texts)
+                
+                # 如果相关性很低，标记为可疑
+                if coherence < 0.3:
+                    result['has_ad'] = True
+                    result['confidence'] = 1.0 - coherence
+                    result['ad_type'] = 'unrelated_buttons'
+                    result['suspicious_buttons'] = buttons
+                    logger.info(f"检测到不相关的广告按钮，相关性: {coherence:.3f}")
+        
+        # 2. 检查实体链接的相关性
+        if entities and text:
+            for entity in entities:
+                if entity.get('url'):
+                    entity_text = entity.get('text', '')
+                    if entity_text:
+                        # 检查链接文本与正文的相关性
+                        coherence = self.check_semantic_coherence(text, [entity_text])
+                        if coherence < 0.4:
+                            result['suspicious_entities'].append(entity)
+                            if not result['has_ad']:
+                                result['has_ad'] = True
+                                result['confidence'] = max(result['confidence'], 1.0 - coherence)
+                                result['ad_type'] = 'hidden_ad_links'
+        
+        return result
+    
     async def update_ad_samples(self, new_samples: List[str]):
         """
         更新广告样本库

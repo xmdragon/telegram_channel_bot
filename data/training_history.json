@@ -1,6 +1,20 @@
 {
   "history": [
     {
+      "id": 62,
+      "channel_id": "-1001068253466",
+      "channel_name": "@TQxinwen",
+      "tail_length": 90,
+      "created_at": "2025-08-10T20:14:02.475313"
+    },
+    {
+      "id": 61,
+      "channel_id": "-1002104628852",
+      "channel_name": "@jinbiany",
+      "tail_length": 75,
+      "created_at": "2025-08-10T20:13:37.810853"
+    },
+    {
       "id": 60,
       "channel_id": "-1002062871756",
       "channel_name": "@tx100",
@@ -422,9 +436,9 @@
     }
   ],
   "stats": {
-    "total_samples": 60,
+    "total_samples": 62,
     "channels_trained": 0
   },
-  "updated_at": "2025-08-10T19:39:12.205481",
-  "integrity_hash": "3aac00cc673d2206a0298e55fa683665506aa66b22f32b3348f3ee6cb99c7731"
+  "updated_at": "2025-08-10T20:14:02.475323",
+  "integrity_hash": "247ba3e6c36002d320f884a714c74ad25a83c28bac902ad70982906d60a2cd3d"
 }

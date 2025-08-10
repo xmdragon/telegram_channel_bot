@@ -241,7 +241,7 @@ class MessageForwarder:
                         message=updated_content
                     )
                 
-                # 3. 更新数据库中的review_message_id
+                # 3. 更新数据库中的review_message_id和filtered_content
                 if sent_message:
                     async with AsyncSessionLocal() as db:
                         result = await db.execute(
@@ -253,8 +253,10 @@ class MessageForwarder:
                             db_message.review_message_id = sent_message[0].id
                         else:
                             db_message.review_message_id = sent_message.id
+                        # 确保filtered_content也被更新
+                        db_message.filtered_content = updated_content
                         await db.commit()
-                        logger.info(f"已更新审核群消息ID: {message.id} -> {db_message.review_message_id}")
+                        logger.info(f"已更新审核群消息ID和内容: {message.id} -> {db_message.review_message_id}")
             else:
                 # 纯文本消息，直接编辑
                 await client.edit_message(

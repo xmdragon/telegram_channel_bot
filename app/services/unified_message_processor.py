@@ -142,10 +142,11 @@ class UnifiedMessageProcessor:
             if message.media:
                 media_info = await self._process_media(message, channel_id)
             
-            # 内容过滤（智能去尾部 + 广告检测）
+            # 内容过滤（智能去尾部 + 结构化广告检测 + AI广告检测）
             is_ad, filtered_content, filter_reason = self.content_filter.filter_message(
                 content, 
-                channel_id=channel_id
+                channel_id=channel_id,
+                message_obj=message  # 传递消息对象用于结构化检测
             )
             
             # 记录过滤效果

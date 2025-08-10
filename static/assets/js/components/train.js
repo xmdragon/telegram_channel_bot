@@ -13,16 +13,29 @@ const TrainApp = {
             submitting: false,
             applying: false,
             
+            // 训练模式
+            trainingMode: 'tail',  // 'tail', 'ad', 'separator'
+            
             // 频道列表
             channels: [],
             
-            // 训练表单
+            // 训练表单（尾部过滤）
             trainingForm: {
                 channel_id: '',
                 original_message: '',
                 tail_content: '',
                 message_id: null  // 添加message_id字段
             },
+            
+            // 广告训练表单
+            adTrainingForm: {
+                content: '',
+                is_ad: true,
+                description: ''
+            },
+            
+            // 分隔符配置
+            separatorPatterns: [],
             
             // 预览
             filteredPreview: '',
@@ -52,6 +65,19 @@ const TrainApp = {
         async checkUrlParams() {
             const params = new URLSearchParams(window.location.search);
             
+            // 检查是否有mode参数
+            const mode = params.get('mode');
+            if (mode) {
+                // 设置训练模式
+                if (mode === 'ad') {
+                    this.trainingMode = 'ad';
+                } else if (mode === 'tail') {
+                    this.trainingMode = 'tail';
+                } else if (mode === 'separator') {
+                    this.trainingMode = 'separator';
+                }
+            }
+            
             // 只有当有message_id参数时才处理
             const messageId = params.get('message_id');
             const channelId = params.get('channel_id');
@@ -69,29 +95,45 @@ const TrainApp = {
                 try {
                     const response = await axios.get(`/api/messages/${messageId}`);
                     if (response.data && response.data.success && response.data.message) {
-                        // 自动填充表单，优先使用原始内容
                         const msg = response.data.message;
-                        this.trainingForm.channel_id = channelId || msg.source_channel;
-                        this.trainingForm.original_message = msg.content || msg.filtered_content || '';
                         
-                        // 显示提示信息
-                        ElMessage({
-                            message: '已自动填充消息内容，请标记出需要过滤的尾部内容',
-                            type: 'info',
-                            offset: 20,
-                            customClass: 'bottom-right-message'
-                        });
+                        // 根据模式填充不同的表单
+                        if (this.trainingMode === 'ad') {
+                            // 广告训练模式
+                            this.adTrainingForm.content = msg.content || msg.filtered_content || '';
+                            this.adTrainingForm.is_ad = true; // 默认标记为广告
+                            
+                            // 显示提示信息
+                            ElMessage({
+                                message: '已自动填充消息内容，请选择是否为广告',
+                                type: 'info',
+                                offset: 20,
+                                customClass: 'bottom-right-message'
+                            });
+                        } else {
+                            // 尾部训练模式
+                            this.trainingForm.channel_id = channelId || msg.source_channel;
+                            this.trainingForm.original_message = msg.content || msg.filtered_content || '';
+                            
+                            // 显示提示信息
+                            ElMessage({
+                                message: '已自动填充消息内容，请标记出需要过滤的尾部内容',
+                                type: 'info',
+                                offset: 20,
+                                customClass: 'bottom-right-message'
+                            });
+                            
+                            // 焦点设置到尾部内容输入框
+                            this.$nextTick(() => {
+                                const tailInput = document.querySelector('textarea[placeholder*="尾部内容"]');
+                                if (tailInput) {
+                                    tailInput.focus();
+                                }
+                            });
+                        }
                         
                         // 切换到训练标签页
                         this.activeTab = 'train';
-                        
-                        // 焦点设置到尾部内容输入框
-                        this.$nextTick(() => {
-                            const tailInput = document.querySelector('textarea[placeholder*="尾部内容"]');
-                            if (tailInput) {
-                                tailInput.focus();
-                            }
-                        });
                     }
                 } catch (error) {
                     console.error('获取消息详情失败:', error);
@@ -126,9 +168,111 @@ const TrainApp = {
         },
         
         async init() {
-            await this.loadChannels();
-            await this.loadStats();
-            await this.loadHistory();
+            // 根据训练模式加载不同的数据
+            if (this.trainingMode === 'separator') {
+                await this.loadSeparatorPatterns();
+            } else if (this.trainingMode === 'ad') {
+                await this.loadAdSamples();
+            } else {
+                // 尾部过滤训练
+                await this.loadChannels();
+                await this.loadStats();
+                await this.loadHistory();
+            }
+        },
+        
+        // 训练模式切换
+        async onTrainingModeChange(mode) {
+            this.trainingMode = mode;
+            await this.init();
+        },
+        
+        // 加载分隔符模式
+        async loadSeparatorPatterns() {
+            try {
+                const response = await axios.get('/api/training/separator-patterns');
+                this.separatorPatterns = response.data.patterns || [];
+            } catch (error) {
+                console.error('加载分隔符模式失败:', error);
+                this.separatorPatterns = [
+                    { regex: '━{10,}', description: '横线分隔符' },
+                    { regex: '═{10,}', description: '双线分隔符' },
+                    { regex: '─{10,}', description: '细线分隔符' }
+                ];
+            }
+        },
+        
+        // 保存分隔符模式
+        async saveSeparatorPatterns() {
+            try {
+                const response = await axios.post('/api/training/separator-patterns', {
+                    patterns: this.separatorPatterns
+                });
+                
+                if (response.data.success) {
+                    ElMessage.success('分隔符模式已保存');
+                } else {
+                    ElMessage.error('保存失败');
+                }
+            } catch (error) {
+                ElMessage.error('保存失败: ' + error.message);
+            }
+        },
+        
+        // 添加分隔符模式
+        addSeparatorPattern() {
+            this.separatorPatterns.push({ regex: '', description: '' });
+        },
+        
+        // 删除分隔符模式
+        removeSeparatorPattern(index) {
+            this.separatorPatterns.splice(index, 1);
+        },
+        
+        // 加载广告样本
+        async loadAdSamples() {
+            try {
+                const response = await axios.get('/api/training/ad-samples', {
+                    params: { limit: 20 }
+                });
+                // 处理广告样本数据
+                console.log('广告样本:', response.data);
+            } catch (error) {
+                console.error('加载广告样本失败:', error);
+            }
+        },
+        
+        // 提交广告训练
+        async submitAdTraining() {
+            if (!this.adTrainingForm.content) {
+                ElMessage.warning('请输入训练内容');
+                return;
+            }
+            
+            this.submitting = true;
+            try {
+                const response = await axios.post('/api/training/add-ad-sample', {
+                    content: this.adTrainingForm.content,
+                    is_ad: this.adTrainingForm.is_ad,
+                    description: this.adTrainingForm.description
+                });
+                
+                if (response.data.success) {
+                    ElMessage.success('广告样本已添加');
+                    this.adTrainingForm = {
+                        content: '',
+                        is_ad: true,
+                        description: ''
+                    };
+                    await this.loadStats();
+                } else {
+                    ElMessage.error(response.data.message || '添加失败');
+                }
+            } catch (error) {
+                ElMessage.error('提交失败: ' + error.message);
+            } finally {
+                this.submitting = false;
+            }
         },
         
         async loadChannels() {

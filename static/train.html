@@ -16,11 +16,26 @@
         <nav-bar page-title="🤖 AI训练中心" page-subtitle="手动训练 · 精准过滤 · 智能学习"></nav-bar>
 
         <div class="container">
+            <!-- 训练类型选择 -->
+            <div style="text-align: center; margin: 20px 0;">
+                <el-radio-group v-model="trainingMode" @change="onTrainingModeChange" size="large">
+                    <el-radio-button label="tail">
+                        <i class="el-icon-bottom"></i> 尾部过滤训练
+                    </el-radio-button>
+                    <el-radio-button label="ad">
+                        <i class="el-icon-warning"></i> 广告检测训练
+                    </el-radio-button>
+                    <el-radio-button label="separator">
+                        <i class="el-icon-setting"></i> 分隔符配置
+                    </el-radio-button>
+                </el-radio-group>
+            </div>
+            
             <!-- AI训练标签页 -->
             <el-tabs v-model="activeTab" type="border-card" class="config-tabs">
                 <!-- 手动训练 -->
                 <el-tab-pane label="✏️ 手动训练" name="train">
-                    <div class="config-section">
+                    <div class="config-section" v-if="trainingMode === 'tail'">
                         <!-- 统计卡片 -->
                         <el-row :gutter="20" class="stats-row">
                             <el-col :span="6">
@@ -122,10 +137,110 @@
                             </el-form>
                         </el-card>
                     </div>
+                    
+                    <!-- 广告检测训练表单 -->
+                    <div class="config-section" v-if="trainingMode === 'ad'">
+                        <el-card class="training-form-card">
+                            <template #header>
+                                <div class="card-header">
+                                    <span>🚫 广告检测训练</span>
+                                </div>
+                            </template>
+                            
+                            <el-form :model="adTrainingForm" label-width="120px" label-position="top">
+                                <el-form-item label="训练内容" required>
+                                    <el-input
+                                        v-model="adTrainingForm.content"
+                                        type="textarea"
+                                        :rows="8"
+                                        placeholder="粘贴需要训练的消息内容（广告或正常消息）...">
+                                    </el-input>
+                                </el-form-item>
+                                
+                                <el-form-item label="标记类型" required>
+                                    <el-radio-group v-model="adTrainingForm.is_ad">
+                                        <el-radio :label="true">🚫 这是广告</el-radio>
+                                        <el-radio :label="false">✅ 这是正常消息</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                                
+                                <el-form-item label="描述说明">
+                                    <el-input
+                                        v-model="adTrainingForm.description"
+                                        type="textarea"
+                                        :rows="3"
+                                        placeholder="可选：描述这条消息的特征，如'频道推广列表'、'隐藏按钮广告'等">
+                                    </el-input>
+                                </el-form-item>
+                                
+                                <el-form-item>
+                                    <el-button @click="adTrainingForm = {content: '', is_ad: true, description: ''}">清空</el-button>
+                                    <el-button type="primary" @click="submitAdTraining" :loading="submitting">
+                                        提交广告训练样本
+                                    </el-button>
+                                </el-form-item>
+                            </el-form>
+                        </el-card>
+                    </div>
+                    
+                    <!-- 分隔符配置表单 -->
+                    <div class="config-section" v-if="trainingMode === 'separator'">
+                        <el-card class="training-form-card">
+                            <template #header>
+                                <div class="card-header">
+                                    <span>⚙️ 分隔符模式配置</span>
+                                    <el-button type="primary" size="small" @click="saveSeparatorPatterns">
+                                        保存配置
+                                    </el-button>
+                                </div>
+                            </template>
+                            
+                            <div class="separator-patterns">
+                                <div v-for="(pattern, index) in separatorPatterns" :key="index" class="pattern-item">
+                                    <el-row :gutter="10">
+                                        <el-col :span="10">
+                                            <el-input
+                                                v-model="pattern.regex"
+                                                placeholder="正则表达式，如：━{10,}">
+                                            </el-input>
+                                        </el-col>
+                                        <el-col :span="10">
+                                            <el-input
+                                                v-model="pattern.description"
+                                                placeholder="描述，如：横线分隔符">
+                                            </el-input>
+                                        </el-col>
+                                        <el-col :span="4">
+                                            <el-button type="danger" @click="removeSeparatorPattern(index)">
+                                                删除
+                                            </el-button>
+                                        </el-col>
+                                    </el-row>
+                                </div>
+                                
+                                <el-button @click="addSeparatorPattern" style="margin-top: 10px;">
+                                    + 添加分隔符模式
+                                </el-button>
+                            </div>
+                            
+                            <el-divider></el-divider>
+                            
+                            <div class="help-text">
+                                <h4>📝 常用分隔符示例</h4>
+                                <ul>
+                                    <li><code>━{10,}</code> - 连续10个或以上的横线</li>
+                                    <li><code>═{10,}</code> - 连续10个或以上的双线</li>
+                                    <li><code>─{10,}</code> - 连续10个或以上的细线</li>
+                                    <li><code>\*{10,}</code> - 连续10个或以上的星号</li>
+                                    <li><code>-{10,}</code> - 连续10个或以上的短横线</li>
+                                </ul>
+                            </div>
+                        </el-card>
+                    </div>
                 </el-tab-pane>
                 
                 <!-- 训练历史 -->
-                <el-tab-pane label="📊 训练历史" name="history">
+                <el-tab-pane label="📊 训练历史" name="history" v-if="trainingMode === 'tail'">
                     <div class="config-section">
                         <el-table :data="trainingHistory" stripe border style="width: 100%">
                             <el-table-column prop="channel_name" label="频道名称" width="300"></el-table-column>
@@ -222,6 +337,41 @@
     <script src="assets/js/axios.js?v=3"></script>
     <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/components/train.js?v=1"></script>
+    
+    <style>
+        .pattern-item {
+            margin-bottom: 10px;
+        }
+        
+        .separator-patterns {
+            padding: 10px 0;
+        }
+        
+        .help-text {
+            background-color: #f5f7fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .help-text h4 {
+            margin-top: 0;
+            color: #409EFF;
+        }
+        
+        .help-text ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .help-text code {
+            background-color: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #e6a23c;
+        }
+    </style>
     
 </body>
 </html>
