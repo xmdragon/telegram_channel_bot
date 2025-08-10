@@ -29,10 +29,20 @@ class MessageGrouper:
         """
         try:
             # 提取消息基本信息
+            # 优先使用传入的filtered_content作为内容（已经包含caption）
+            original_content = filtered_content if filtered_content is not None else ""
+            
+            # 如果没有传入filtered_content，再从消息对象提取
+            if original_content == "" and hasattr(message, 'text'):
+                original_content = message.text or message.raw_text or ""
+                # 检查caption
+                if not original_content and hasattr(message, 'caption'):
+                    original_content = message.caption or ""
+            
             message_data = {
                 'message_id': message.id,
-                'content': message.text or message.raw_text or "",
-                'filtered_content': filtered_content,
+                'content': original_content,  # 使用提取或传入的内容
+                'filtered_content': filtered_content if filtered_content is not None else original_content,
                 'is_ad': is_ad,
                 'media_info': media_info,
                 'date': message.date or datetime.now(),
@@ -56,7 +66,9 @@ class MessageGrouper:
             # 出错时返回单独消息
             return await self._create_single_message(message_data if 'message_data' in locals() else {
                 'message_id': message.id,
-                'content': message.text or "",
+                'content': filtered_content if filtered_content is not None else (message.text or message.caption if hasattr(message, 'caption') else ""),
+                'filtered_content': filtered_content,
+                'is_ad': is_ad,
                 'media_info': media_info,
                 'date': message.date or datetime.now(),
                 'grouped_id': None
@@ -71,14 +83,16 @@ class MessageGrouper:
         
         return {
             'message_id': message_data['message_id'],
-            'content': message_data['content'],
+            'content': message_data.get('content', ''),
+            'filtered_content': message_data.get('filtered_content', message_data.get('content', '')),
+            'is_ad': message_data.get('is_ad', False),
             'media_type': message_data['media_info']['media_type'] if message_data.get('media_info') else None,
             'media_url': media_url,
             'grouped_id': str(message_data.get('grouped_id')) if message_data.get('grouped_id') else None,
             'is_combined': False,
             'combined_messages': None,
             'media_group': None,
-            'date': message_data['date']
+            'date': message_data.get('date', datetime.now())
         }
     
     async def _handle_grouped_message_batch(self, message_data: Dict, channel_id: str) -> Optional[Dict]:
@@ -252,7 +266,8 @@ class MessageGrouper:
                     'file_size': media_info.get('file_size'),
                     'mime_type': media_info.get('mime_type'),
                     'download_failed': media_info.get('download_failed', False),
-                    'error': media_info.get('error')
+                    'error': media_info.get('error'),
+                    'visual_hashes': media_info.get('visual_hashes')  # 保留视觉哈希
                 })
                 # 只有成功下载的媒体才计入类型统计
                 if not media_info.get('download_failed'):
@@ -342,6 +357,16 @@ class MessageGrouper:
             clean_combined_messages = serialize_for_json(combined_message.get('combined_messages'))
             clean_media_group = serialize_for_json(combined_message.get('media_group'))
             
+            # 提取组合消息的视觉哈希
+            combined_visual_hashes = []
+            if clean_media_group:
+                for media_item in clean_media_group:
+                    if media_item.get('visual_hashes'):
+                        combined_visual_hashes.append(media_item['visual_hashes'])
+            
+            # 如果有视觉哈希，存储为字符串
+            visual_hash = str(combined_visual_hashes) if combined_visual_hashes else None
+            
             # 保存到数据库
             async with AsyncSessionLocal() as db:
                 db_message = Message(
@@ -354,6 +379,7 @@ class MessageGrouper:
                     is_combined=combined_message['is_combined'],
                     combined_messages=clean_combined_messages,
                     media_group=clean_media_group,
+                    visual_hash=visual_hash,  # 添加视觉哈希
                     is_ad=is_ad,
                     filtered_content=filtered_content,
                     created_at=datetime.now()  # 使用当前时间，避免时区问题
@@ -381,6 +407,47 @@ class MessageGrouper:
                 
         except Exception as e:
             logger.error(f"触发组合消息事件时出错: {e}")
+    
+    async def force_complete_all_groups(self):
+        """强制完成所有待处理的消息组（用于历史采集结束时）"""
+        try:
+            logger.info(f"强制完成所有待处理的消息组，当前有 {len(self.pending_groups)} 个组")
+            
+            # 取消所有定时器
+            for timer in self.group_timers.values():
+                timer.cancel()
+            self.group_timers.clear()
+            
+            # 处理所有待处理的组
+            groups_to_process = list(self.pending_groups.keys())
+            for group_key in groups_to_process:
+                messages = self.pending_groups.get(group_key, [])
+                if messages:
+                    # 从group_key中提取channel_id
+                    # group_key格式: channel_id_grouped_id
+                    # channel_id可能是负数，如 -1001969693044
+                    last_underscore = group_key.rfind('_')
+                    if last_underscore > 0:
+                        channel_id = group_key[:last_underscore]
+                    else:
+                        # 如果找不到下划线，整个key就是channel_id
+                        channel_id = group_key
+                    
+                    logger.info(f"强制处理消息组 {group_key}，共 {len(messages)} 条消息")
+                    
+                    # 创建组合消息
+                    combined_message = await self._create_combined_message(messages, channel_id)
+                    
+                    # 保存组合消息到数据库
+                    await self._save_combined_message(combined_message, channel_id)
+            
+            # 清理所有待处理的组
+            self.pending_groups.clear()
+            
+            logger.info("所有待处理的消息组已完成")
+            
+        except Exception as e:
+            logger.error(f"强制完成消息组时出错: {e}")
     
     async def _get_existing_combined_message(self, channel_id: str, grouped_id: str) -> Optional[Message]:
         """检查是否已存在组合消息"""

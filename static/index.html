@@ -109,9 +109,14 @@
                                    :checked="isSelected(message.id)"
                                    @change="toggleMessage(message.id)">
                             
+                            <!-- 数据库编号 -->
+                            <span class="message-id" style="color: #999; margin-right: 10px;">
+                                #{{ message.id }}
+                            </span>
+                            
                             <!-- 频道信息 -->
                             <span class="message-channel">
-                                📢 {{ message.source_channel || '未知频道' }}
+                                📢 {{ message.source_channel_title || message.source_channel || '未知频道' }}
                             </span>
                             
                             <!-- 时间 -->
@@ -155,8 +160,18 @@
                         </div>
                         
                         <!-- 文本内容 -->
-                        <div v-if="message.content" class="message-text">
-                            {{ message.content }}
+                        <div v-if="message.filtered_content || message.content" class="message-text">
+                            {{ message.filtered_content || message.content }}
+                        </div>
+                        
+                        <!-- 原频道链接 -->
+                        <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666;">
+                            🔗 原消息链接: 
+                            <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
+                               target="_blank" 
+                               style="color: #3498db; text-decoration: none;">
+                                查看原消息
+                            </a>
                         </div>
                     </div>
                     
@@ -174,6 +189,16 @@
                             ❌ 拒绝
                         </button>
                     </div>
+                </div>
+                
+                <!-- 加载更多指示器 -->
+                <div v-if="isLoadingMore" class="loading-more">
+                    <div class="spinner-small"></div>
+                    <span>加载更多消息...</span>
+                </div>
+                
+                <div v-else-if="!hasMore && filteredMessages.length > 0" class="no-more">
+                    <span>没有更多消息了</span>
                 </div>
             </div>
         </div>
@@ -264,6 +289,36 @@
         /* 媒体预览 */
         .mediaPreview {
             cursor: pointer;
+        }
+        
+        /* 加载更多 */
+        .loading-more, .no-more {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-tertiary);
+            font-size: 14px;
+        }
+        
+        .loading-more {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .no-more {
+            border-top: 1px solid var(--border-color);
+            margin-top: 20px;
+            padding-top: 20px;
         }
     </style>
 </body>

@@ -135,7 +135,7 @@ class DatabaseSettings:
         """获取频道名称映射"""
         from app.services.channel_manager import channel_manager
         channels = await channel_manager.get_all_channels()
-        return {ch['channel_name']: ch['channel_title'] for ch in channels}
+        return {ch['channel_name']: ch.get('channel_title', ch.get('channel_name', '')) for ch in channels}
     
     async def get_channel_status(self) -> dict:
         """获取频道状态映射"""

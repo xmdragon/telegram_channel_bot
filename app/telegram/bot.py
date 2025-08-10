@@ -160,8 +160,22 @@ class TelegramBot:
             处理后的消息数据字典，如果消息被过滤则返回None
         """
         try:
-            # 提取消息内容
+            # 提取消息内容（包括带caption的媒体消息）
             content = message.text or message.raw_text or message.message or ""
+            
+            # 对于媒体消息，检查是否有caption
+            if not content and message.media:
+                # 尝试获取媒体的caption（适用于图片、视频等）
+                if hasattr(message, 'caption'):
+                    content = message.caption or ""
+                elif hasattr(message, 'raw_text'):
+                    content = message.raw_text or ""
+                    
+            # 记录内容提取结果
+            if content:
+                logger.debug(f"📝 提取到消息内容: {content[:100]}...")
+            else:
+                logger.debug(f"📝 消息无文本内容（纯媒体）")
             media_type = None
             media_url = None
             media_info = None
@@ -247,7 +261,7 @@ class TelegramBot:
             
             # 内容过滤（包含智能去尾部）
             logger.info(f"📝 开始内容过滤，原始内容长度: {len(content)} 字符")
-            is_ad, filtered_content, filter_reason = self.content_filter.filter_message(content)
+            is_ad, filtered_content, filter_reason = self.content_filter.filter_message(content, channel_id=channel_id)
             
             # 记录过滤结果和原因
             if filter_reason == "tail_only":
@@ -658,7 +672,7 @@ class TelegramBot:
                 return
             
             # 处理完整的消息（单独消息或组合消息）
-            await self._save_processed_message(combined_message, channel_id, is_history)
+            await self._save_processed_message(combined_message, channel_id, is_history, media_info)
                     
         except Exception as e:
             logger.error(f"处理并保存消息失败: {e}")
@@ -666,7 +680,7 @@ class TelegramBot:
             if media_info:
                 await media_handler.cleanup_file(media_info['file_path'])
     
-    async def _save_processed_message(self, message_data: dict, channel_id: str, is_history: bool = False):
+    async def _save_processed_message(self, message_data: dict, channel_id: str, is_history: bool = False, original_media_info: dict = None):
         """保存处理后的消息"""
         try:
             # 检查是否已经有过滤后的内容（从message_grouper传递过来的）
@@ -682,7 +696,7 @@ class TelegramBot:
                     logger.info(f"📝 内容预览: {message_data['content'][:100]}...")
                 
                 # 内容过滤
-                is_ad, filtered_content, filter_reason = self.content_filter.filter_message(message_data['content'])
+                is_ad, filtered_content, filter_reason = self.content_filter.filter_message(message_data['content'], channel_id=channel_id)
                 
                 # 对于组合消息，如果文本被判定为广告，保留原始内容供审核
                 # 避免出现只有媒体没有文本的情况
@@ -737,8 +751,12 @@ class TelegramBot:
                 media_hash = await media_handler._calculate_file_hash(message_data['media_url'])
                 logger.info(f"📊 单个媒体哈希计算完成: {media_hash}")
                 
-                # 计算视觉哈希（仅对图片）
-                if message_data.get('media_type') in ['photo', 'animation']:
+                # 优先使用已经计算好的视觉哈希
+                if original_media_info and original_media_info.get('visual_hashes'):
+                    visual_hash = str(original_media_info['visual_hashes'])
+                    logger.info(f"📊 使用已计算的视觉哈希")
+                # 如果没有，则重新计算视觉哈希（仅对图片）
+                elif message_data.get('media_type') in ['photo', 'animation']:
                     try:
                         from app.services.visual_similarity import visual_detector
                         if visual_detector and os.path.exists(message_data['media_url']):
@@ -746,7 +764,7 @@ class TelegramBot:
                                 image_data = f.read()
                             visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
                             visual_hash = str(visual_hashes)
-                            logger.info(f"📊 单个媒体视觉哈希计算完成")
+                            logger.info(f"📊 重新计算单个媒体视觉哈希完成")
                     except Exception as e:
                         logger.debug(f"计算视觉哈希失败: {e}")
             
@@ -768,8 +786,12 @@ class TelegramBot:
                                     'message_id': media_item.get('message_id', 0)
                                 })
                             
-                            # 计算视觉哈希（仅对图片）
-                            if media_item.get('media_type') in ['photo', 'animation']:
+                            # 优先使用已计算的视觉哈希
+                            if media_item.get('visual_hashes'):
+                                combined_visual_hashes.append(media_item['visual_hashes'])
+                                logger.info(f"📊 媒体{i+1}使用已计算的视觉哈希")
+                            # 如果没有，则重新计算视觉哈希（仅对图片）
+                            elif media_item.get('media_type') in ['photo', 'animation']:
                                 try:
                                     from app.services.visual_similarity import visual_detector
                                     if visual_detector and os.path.exists(media_item['file_path']):
@@ -777,7 +799,7 @@ class TelegramBot:
                                             image_data = f.read()
                                         item_visual_hash = visual_detector.calculate_perceptual_hashes(image_data)
                                         combined_visual_hashes.append(item_visual_hash)
-                                        logger.info(f"📊 媒体{i+1}视觉哈希计算完成")
+                                        logger.info(f"📊 媒体{i+1}重新计算视觉哈希完成")
                                 except Exception as e:
                                     logger.debug(f"计算媒体{i+1}视觉哈希失败: {e}")
                 # 兼容旧格式combined_messages

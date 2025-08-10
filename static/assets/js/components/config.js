@@ -43,14 +43,6 @@ const ConfigApp = {
                 searched: false
             },
             
-            // 过滤规则
-            filterRules: [],
-            newRule: {
-                name: '',
-                pattern: '',
-                action: 'block'
-            },
-            
             // 转发设置
             forwardingConfig: {
                 enabled: false,
@@ -92,7 +84,9 @@ const ConfigApp = {
             return this.channels.filter(channel => {
                 const name = (channel.name || '').toLowerCase();
                 const title = (channel.title || '').toLowerCase();
-                return name.includes(filter) || title.includes(filter);
+                const channelId = (channel.channel_id || '').toLowerCase();
+                // 搜索时同时匹配标题、名称和ID
+                return name.includes(filter) || title.includes(filter) || channelId.includes(filter);
             });
         }
     },
@@ -105,9 +99,6 @@ const ConfigApp = {
             try {
                 // 加载频道列表
                 await this.loadChannels();
-                
-                // 加载过滤规则
-                await this.loadFilterRules();
                 
                 // 加载转发配置
                 await this.loadForwardingConfig();
@@ -135,22 +126,6 @@ const ConfigApp = {
                 this.channels = [
                     { id: 1, name: '测试频道1', title: '测试频道标题1', status: 'active' },
                     { id: 2, name: '测试频道2', title: '测试频道标题2', status: 'inactive' }
-                ];
-            }
-        },
-        
-        async loadFilterRules() {
-            try {
-                const response = await axios.get('/api/admin/filter-rules');
-                if (response.data.success) {
-                    this.filterRules = response.data.rules;
-                }
-            } catch (error) {
-                console.error('加载过滤规则失败:', error);
-                // 使用模拟数据
-                this.filterRules = [
-                    { id: 1, name: '广告关键词', pattern: '.*(广告|推广|优惠).*', action: 'mark_ad' },
-                    { id: 2, name: '垃圾信息', pattern: '.*(垃圾|spam).*', action: 'block' }
                 ];
             }
         },
@@ -211,8 +186,8 @@ const ConfigApp = {
         },
         
         async addChannel() {
-            if (!this.newChannel.name || !this.newChannel.title) {
-                MessageManager.warning('请填写完整的频道信息');
+            if (!this.newChannel.name) {
+                MessageManager.warning('请输入频道名称');
                 return;
             }
             
@@ -223,24 +198,19 @@ const ConfigApp = {
                     channelName = '@' + channelName;
                 }
                 
-                // console.log('添加频道请求数据:', {
-                //     channel_id: channelName,
-                //     channel_name: channelName,
-                //     channel_title: this.newChannel.title,
-                //     channel_type: "source"
-                // });
+                this.loading = true;
+                this.loadingMessage = '正在解析频道信息...';
                 
                 const response = await axios.post('/api/admin/channels', {
-                    channel_id: "",  // 初始为空，后续通过Telethon获取真实ID
+                    channel_id: "",  // 自动解析
                     channel_name: channelName,
-                    channel_title: this.newChannel.title,
+                    channel_title: "",  // 自动解析
                     channel_type: "source"
                 });
                 
-//                 console.log('添加频道响应:', response.data);
-                
                 if (response.data.success) {
-                    MessageManager.success('频道添加成功');
+                    const channel = response.data.channel;
+                    MessageManager.success(`频道添加成功: ${channel.channel_title || channel.channel_name}`);
                     this.newChannel = { name: '', title: '' };
                     await this.loadChannels();
                 } else {
@@ -249,6 +219,8 @@ const ConfigApp = {
             } catch (error) {
                 console.error('添加频道错误:', error);
                 MessageManager.error('频道添加失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                this.loading = false;
             }
         },
         
@@ -376,44 +348,6 @@ const ConfigApp = {
             }
         },
         
-        async addRule() {
-            if (!this.newRule.name || !this.newRule.pattern) {
-                MessageManager.warning('请填写完整的规则信息');
-                return;
-            }
-            
-            try {
-                const response = await axios.post('/api/admin/filter-rules', {
-                    name: this.newRule.name,
-                    pattern: this.newRule.pattern,
-                    action: this.newRule.action
-                });
-                
-                if (response.data.success) {
-                    MessageManager.success('规则添加成功');
-                    this.newRule = { name: '', pattern: '', action: 'block' };
-                    await this.loadFilterRules();
-                } else {
-                    MessageManager.error('规则添加失败');
-                }
-            } catch (error) {
-                MessageManager.error('规则添加失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        async removeRule(ruleId) {
-            try {
-                const response = await axios.delete(`/api/admin/filter-rules/${ruleId}`);
-                if (response.data.success) {
-                    MessageManager.success('规则删除成功');
-                    await this.loadFilterRules();
-                } else {
-                    MessageManager.error('规则删除失败');
-                }
-            } catch (error) {
-                MessageManager.error('规则删除失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
         
         async saveForwardingConfig() {
             try {
@@ -646,7 +580,7 @@ const ConfigApp = {
             try {
                 // 准备频道数据
                 const channelData = {
-                    name: channel.username || channel.id.toString(),
+                    name: channel.id.toString(),
                     title: channel.title,
                     channel_id: channel.id.toString()
                 };

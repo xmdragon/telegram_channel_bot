@@ -299,10 +299,29 @@ class ChannelManager:
                 channel_info = {}
                 for channel in channels:
                     if channel.channel_id:
+                        # 处理username - 去掉@符号
+                        username = channel.channel_name.replace('@', '') if channel.channel_name else None
+                        
+                        # 生成Telegram链接
+                        # 公开频道使用username，私有频道使用channel_id
+                        if username and channel.channel_name.startswith('@'):
+                            # 公开频道
+                            link_prefix = f"https://t.me/{username}"
+                        else:
+                            # 私有频道 - 需要处理channel_id格式
+                            # 将 -100xxx 格式转换为 xxx
+                            channel_id_for_link = channel.channel_id
+                            if channel_id_for_link.startswith('-100'):
+                                channel_id_for_link = channel_id_for_link[4:]  # 去掉-100前缀
+                            elif channel_id_for_link.startswith('-'):
+                                channel_id_for_link = channel_id_for_link[1:]  # 去掉负号
+                            link_prefix = f"https://t.me/c/{channel_id_for_link}"
+                        
                         channel_info[channel.channel_id] = {
                             'name': channel.channel_name,
                             'title': channel.channel_title or channel.channel_name,
-                            'type': channel.channel_type
+                            'type': channel.channel_type,
+                            'link_prefix': link_prefix  # 添加链接前缀
                         }
                 
                 return channel_info

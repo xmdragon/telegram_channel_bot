@@ -4,6 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 重大变更历史
 
+- 2025-08-09 (v2.0): 全面优化训练数据保护机制，确保数据永不丢失 🔐
+  - **核心升级**: 完全重写TrainingRecord类，实现企业级数据保护
+  - **多重保护**: 文件锁、原子写入、哈希验证、自动备份、智能恢复
+  - **新增功能**:
+    - 启动时自动完整性检查和修复
+    - 每次写入前自动备份（防止操作失败）
+    - 多级备份策略（即时备份、定期备份、紧急备份）
+    - 数据完整性哈希验证（SHA256）
+    - 智能损坏检测和自动修复
+  - **新增API端点**:
+    - `/api/training/emergency-backup` - 创建紧急备份
+    - `/api/training/integrity-report` - 获取详细完整性报告
+    - `/api/training/verify-integrity` - 验证所有数据文件
+    - `/api/training/cleanup-backups` - 清理旧备份文件
+    - 增强现有API：备份列表包含完整性状态、恢复支持回滚等
+  - **新增工具**: recover_training_data.py - 强大的数据恢复工具
+    - 支持自动恢复、手动恢复、备份合并、紧急恢复等模式
+    - 完整的命令行界面，支持各种恢复场景
+  - **关键特性**: 数据永不丢失保证 - 任何写入操作失败都能完全回滚
 - 2025-08-08: 添加配置导入导出工具（export_config.py, import_config.py），支持环境间配置迁移
 - 2025-08-07: 添加开发模式脚本（dev.sh），支持热重载开发
 - 有大的改动，特别是涉及脚本及重大功能变化，要记录到CLAUDE.md和README.md
@@ -74,6 +93,19 @@ docker compose restart app              # 重启应用服务
 - **媒体处理** (`app/services/media_handler.py`): 媒体文件下载和处理
 - **历史采集** (`app/services/history_collector.py`): 频道历史消息采集
 - **系统监控** (`app/services/system_monitor.py`): 系统状态监控
+
+### 数据库配置
+- **数据库类型**: PostgreSQL 15（生产环境）
+- **连接方式**: 异步连接 (asyncpg + SQLAlchemy)
+- **数据库名**: telegram_system
+- **默认连接**: 
+  - 本地开发: `postgresql+asyncpg://postgres:telegram123@localhost:5432/telegram_system`
+  - Docker环境: `postgresql+asyncpg://postgres:telegram123@postgres:5432/telegram_system`
+- **数据存储位置**: `./data/postgres` (Docker挂载)
+- **缓存数据库**: Redis 7-alpine
+  - 连接地址: `redis://localhost:6379`
+  - 数据存储位置: `./data/redis` (Docker挂载)
+  - 用途: 进程锁、分布式锁机制
 
 ### 数据库模型
 - **Message**: 消息存储和状态跟踪（支持媒体组合消息）
@@ -231,3 +263,41 @@ UPDATE table_name SET column = value WHERE condition;
   - 自动跳过session信息，需要每个环境独立认证
 
 这些工具在部署新环境或备份配置时非常有用。详见README.md中的配置迁移章节。
+
+## 训练数据恢复工具 🔧
+
+**recover_training_data.py** - 企业级数据恢复工具，确保训练数据永不丢失
+
+### 主要功能
+- **完整性检查**: 自动检测损坏、丢失或无效的数据文件
+- **智能恢复**: 从最新有效备份自动恢复损坏文件
+- **备份合并**: 合并多个备份文件，创建最完整的数据集
+- **紧急恢复**: 一键执行所有可能的恢复操作
+- **详细报告**: 生成完整的恢复操作日志和状态报告
+
+### 使用方法
+```bash
+# 检查数据完整性（推荐定期执行）
+python3 recover_training_data.py --check
+
+# 自动恢复损坏的文件
+python3 recover_training_data.py --auto-recover
+
+# 从指定备份恢复
+python3 recover_training_data.py --restore backup_file.json --target both
+
+# 合并多个备份文件
+python3 recover_training_data.py --merge-backups
+
+# 紧急恢复模式（数据严重损坏时使用）
+python3 recover_training_data.py --emergency
+```
+
+### 使用场景
+- **日常维护**: 定期检查数据完整性
+- **故障恢复**: 系统异常后快速恢复数据
+- **数据迁移**: 环境迁移时合并和整理数据
+- **紧急情况**: 数据严重损坏时的最后防线
+- 有数据库结构变化要更新到相关文件中
+- html页面要做到html,css,js代码分离,html代码中不要有stle="xxx"这样的内联样式
+- 代码支持热加载，非必要不重启应用

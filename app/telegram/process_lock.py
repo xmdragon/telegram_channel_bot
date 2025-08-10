@@ -26,11 +26,33 @@ class TelegramProcessLock:
         self.process_id = str(uuid.uuid4())  # 进程唯一标识
         self._redis: Optional[redis.Redis] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
+        self._memory_lock = asyncio.Lock()  # 内存锁作为降级方案
+        self._memory_lock_owner = None  # 内存锁持有者
     
     async def _get_redis(self) -> redis.Redis:
-        """获取Redis连接"""
+        """获取Redis连接，包含重试机制"""
         if not self._redis:
-            self._redis = await redis.from_url(self.redis_url, decode_responses=True)
+            retry_count = 3
+            for attempt in range(retry_count):
+                try:
+                    self._redis = await redis.from_url(
+                        self.redis_url, 
+                        decode_responses=True,
+                        socket_connect_timeout=5,
+                        socket_timeout=5
+                    )
+                    # 测试连接
+                    await self._redis.ping()
+                    logger.info("Redis连接成功")
+                    break
+                except Exception as e:
+                    if attempt < retry_count - 1:
+                        logger.warning(f"Redis连接失败 (尝试 {attempt + 1}/{retry_count}): {e}")
+                        await asyncio.sleep(1)
+                    else:
+                        logger.error(f"Redis连接失败，已重试{retry_count}次: {e}")
+                        # 如果Redis不可用，返回None，使用内存锁作为降级方案
+                        return None
         return self._redis
     
     async def acquire(self, timeout: float = 10.0) -> bool:
@@ -44,6 +66,24 @@ class TelegramProcessLock:
             bool: 是否成功获取锁
         """
         redis_client = await self._get_redis()
+        
+        # 如果Redis不可用，使用内存锁
+        if redis_client is None:
+            logger.warning("Redis不可用，使用内存锁作为降级方案")
+            try:
+                acquired = await asyncio.wait_for(
+                    self._memory_lock.acquire(), 
+                    timeout=timeout
+                )
+                if acquired is not False:  # acquire()不返回值，只要没超时就是成功
+                    self._memory_lock_owner = self.process_id
+                    logger.info(f"进程 {self.process_id} 获取内存锁成功")
+                    return True
+            except asyncio.TimeoutError:
+                logger.warning(f"进程 {self.process_id} 获取内存锁超时")
+                return False
+        
+        # 使用Redis锁
         start_time = time.time()
         
         while time.time() - start_time < timeout:
@@ -101,6 +141,14 @@ class TelegramProcessLock:
         """释放锁"""
         try:
             redis_client = await self._get_redis()
+            
+            # 如果使用内存锁
+            if redis_client is None:
+                if self._memory_lock_owner == self.process_id:
+                    self._memory_lock.release()
+                    self._memory_lock_owner = None
+                    logger.info(f"进程 {self.process_id} 释放内存锁")
+                return
             
             # 停止心跳
             self._stop_heartbeat()

@@ -1,0 +1,115 @@
+{
+  "history": [
+    {
+      "id": 15,
+      "channel_id": "-1001300513859",
+      "channel_name": "@PG13400",
+      "tail_length": 57,
+      "created_at": "2025-08-10T08:40:49.501766"
+    },
+    {
+      "id": 14,
+      "channel_id": "-1001956665373",
+      "channel_name": "@PG134",
+      "tail_length": 38,
+      "created_at": "2025-08-10T08:40:01.485343"
+    },
+    {
+      "id": 13,
+      "channel_id": "-1001969693044",
+      "channel_name": "@xgsj9",
+      "tail_length": 37,
+      "created_at": "2025-08-10T08:39:15.864187"
+    },
+    {
+      "id": 12,
+      "channel_id": "-1002403532207",
+      "channel_name": "@haiwaidjs",
+      "tail_length": 59,
+      "created_at": "2025-08-10T08:38:27.369485"
+    },
+    {
+      "id": 11,
+      "channel_id": "-1001068253466",
+      "channel_name": "@TQxinwen",
+      "tail_length": 58,
+      "created_at": "2025-08-10T08:37:27.437215"
+    },
+    {
+      "id": 10,
+      "channel_id": "-1002610935821",
+      "channel_name": "@dny103",
+      "tail_length": 49,
+      "created_at": "2025-08-10T00:33:35.560159"
+    },
+    {
+      "id": 9,
+      "channel_id": "-1002557968812",
+      "channel_name": "@cn_zhm0",
+      "tail_length": 61,
+      "created_at": "2025-08-10T00:24:39.095383"
+    },
+    {
+      "id": 8,
+      "channel_id": "-1002062871756",
+      "channel_name": "@tx100",
+      "tail_length": 64,
+      "created_at": "2025-08-10T00:23:37.234135"
+    },
+    {
+      "id": 7,
+      "channel_id": "-1002167120993",
+      "channel_name": "@YTCSJ6",
+      "tail_length": 73,
+      "created_at": "2025-08-10T00:22:36.146729"
+    },
+    {
+      "id": 6,
+      "channel_id": "-1002829999238",
+      "channel_name": "@ksir_6688",
+      "tail_length": 51,
+      "created_at": "2025-08-10T00:21:50.524641"
+    },
+    {
+      "id": 5,
+      "channel_id": "2335000498",
+      "channel_name": "@yatai123123",
+      "tail_length": 104,
+      "created_at": "2025-08-10T00:21:09.731901"
+    },
+    {
+      "id": 4,
+      "channel_id": "-1001153220419",
+      "channel_name": "@dny185",
+      "tail_length": 103,
+      "created_at": "2025-08-10T00:20:26.019542"
+    },
+    {
+      "id": 3,
+      "channel_id": "-1001567533819",
+      "channel_name": "@dubai0",
+      "tail_length": 58,
+      "created_at": "2025-08-10T00:17:49.919539"
+    },
+    {
+      "id": 2,
+      "channel_id": "-1001153220419",
+      "channel_name": "@dny185",
+      "tail_length": 243,
+      "created_at": "2025-08-09T23:38:22.444634"
+    },
+    {
+      "id": 1,
+      "channel_id": "-1002062871756",
+      "channel_name": "@tx100",
+      "tail_length": 64,
+      "created_at": "2025-08-09T23:14:37.252383"
+    }
+  ],
+  "stats": {
+    "total_samples": 15,
+    "channels_trained": 0
+  },
+  "updated_at": "2025-08-10T08:40:49.501781",
+  "integrity_hash": "744dd6d1975f19b29bf383c0f31141a68d16461efa742757977349d3633b7ecf"
+}

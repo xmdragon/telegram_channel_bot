@@ -41,6 +41,20 @@ fi
 if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
     echo "📦 启动Redis缓存..."
     docker compose up -d redis
+    
+    # 等待Redis就绪
+    echo "⏳ 等待Redis就绪..."
+    for i in {1..10}; do
+        if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
+            echo "✅ Redis已就绪"
+            break
+        fi
+        if [ $i -eq 10 ]; then
+            echo "❌ Redis启动超时"
+            exit 1
+        fi
+        sleep 1
+    done
 fi
 
 # 检查数据库是否需要初始化

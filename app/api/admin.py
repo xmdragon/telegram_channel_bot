@@ -11,13 +11,16 @@ import os
 import shutil
 import tarfile
 import tempfile
+import asyncio
+import logging
 
-from app.core.database import get_db, Channel, FilterRule, AsyncSessionLocal
+from app.core.database import get_db, Channel, AsyncSessionLocal
 from app.core.config import settings
 from app.services.config_manager import config_manager
 from app.services.scheduler import MessageScheduler
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class ChannelCreateRequest(BaseModel):
     channel_id: str = ""
@@ -81,17 +84,52 @@ async def add_channel(
     request: ChannelCreateRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    """添加频道配置"""
+    """添加频道配置 - 自动解析频道ID和标题"""
     try:
         # 检查频道名称是否已存在
         existing = await db.execute(select(Channel).where(Channel.channel_name == request.channel_name))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="频道名称已存在")
         
+        # 自动解析频道信息
+        from app.services.channel_id_resolver import channel_id_resolver
+        from app.telegram.auth import auth_manager
+        
+        resolved_id = request.channel_id if request.channel_id else None
+        resolved_title = request.channel_title if request.channel_title else None
+        
+        # 如果没有提供ID或标题，尝试自动解析
+        if not resolved_id or not resolved_title:
+            # 确保Telegram客户端已连接
+            if not auth_manager.client:
+                await auth_manager.ensure_connected()
+            
+            if auth_manager.client:
+                try:
+                    # 获取频道详细信息
+                    channel_info = await channel_id_resolver.get_channel_info(request.channel_name)
+                    if channel_info:
+                        # 如果没有提供ID，使用解析的ID
+                        if not resolved_id:
+                            resolved_id = channel_info['id']
+                            # 确保ID格式正确（频道ID应该以-100开头）
+                            if not resolved_id.startswith('-100'):
+                                resolved_id = f"-100{resolved_id}" if not resolved_id.startswith('-') else resolved_id
+                        
+                        # 如果没有提供标题，使用解析的标题
+                        if not resolved_title:
+                            resolved_title = channel_info['title']
+                        
+                        logger.info(f"自动解析频道信息: {request.channel_name} -> ID: {resolved_id}, 标题: {resolved_title}")
+                except Exception as e:
+                    logger.warning(f"自动解析频道信息失败: {e}")
+                    # 继续执行，使用用户提供的或空值
+        
+        # 创建频道记录
         channel = Channel(
-            channel_id=request.channel_id if request.channel_id else None,
+            channel_id=resolved_id,
             channel_name=request.channel_name,
-            channel_title=request.channel_title,
+            channel_title=resolved_title or request.channel_name,  # 如果没有标题，使用频道名称
             channel_type=request.channel_type,
             config=request.config or {}
         )
@@ -100,7 +138,16 @@ async def add_channel(
         await db.commit()
         await db.refresh(channel)
         
-        return {"success": True, "message": "频道添加成功", "channel_id": channel.id}
+        return {
+            "success": True, 
+            "message": "频道添加成功",
+            "channel": {
+                "id": channel.id,
+                "channel_id": channel.channel_id,
+                "channel_name": channel.channel_name,
+                "channel_title": channel.channel_title
+            }
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -164,26 +211,6 @@ async def delete_channel(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"删除频道失败: {str(e)}")
-
-@router.get("/filter-rules")
-async def get_filter_rules(db: AsyncSession = Depends(get_db)):
-    """获取过滤规则"""
-    result = await db.execute(select(FilterRule))
-    rules = result.scalars().all()
-    
-    return {
-        "rules": [
-            {
-                "id": rule.id,
-                "rule_type": rule.rule_type,
-                "pattern": rule.pattern,
-                "action": rule.action,
-                "is_active": rule.is_active,
-                "created_at": rule.created_at
-            }
-            for rule in rules
-        ]
-    }
 
 @router.post("/cleanup/temp-media")
 async def cleanup_temp_media():
@@ -289,73 +316,6 @@ async def get_temp_media_status():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
-
-@router.post("/filter-rules")
-async def add_filter_rule(
-    rule_type: str,
-    pattern: str,
-    action: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """添加过滤规则"""
-    rule = FilterRule(
-        rule_type=rule_type,
-        pattern=pattern,
-        action=action
-    )
-    
-    db.add(rule)
-    await db.commit()
-    await db.refresh(rule)
-    
-    return {"message": "过滤规则添加成功", "rule_id": rule.id}
-
-@router.put("/filter-rules/{rule_id}")
-async def update_filter_rule(
-    rule_id: int,
-    rule_type: str = None,
-    pattern: str = None,
-    action: str = None,
-    is_active: bool = None,
-    db: AsyncSession = Depends(get_db)
-):
-    """更新过滤规则"""
-    result = await db.execute(select(FilterRule).where(FilterRule.id == rule_id))
-    rule = result.scalar_one_or_none()
-    
-    if not rule:
-        raise HTTPException(status_code=404, detail="过滤规则不存在")
-    
-    if rule_type is not None:
-        rule.rule_type = rule_type
-    if pattern is not None:
-        rule.pattern = pattern
-    if action is not None:
-        rule.action = action
-    if is_active is not None:
-        rule.is_active = is_active
-    
-    await db.commit()
-    await db.refresh(rule)
-    
-    return {"message": "过滤规则更新成功", "rule_id": rule.id}
-
-@router.delete("/filter-rules/{rule_id}")
-async def delete_filter_rule(
-    rule_id: int,
-    db: AsyncSession = Depends(get_db)
-):
-    """删除过滤规则"""
-    result = await db.execute(select(FilterRule).where(FilterRule.id == rule_id))
-    rule = result.scalar_one_or_none()
-    
-    if not rule:
-        raise HTTPException(status_code=404, detail="过滤规则不存在")
-    
-    await db.delete(rule)
-    await db.commit()
-    
-    return {"message": "过滤规则删除成功"}
 
 @router.get("/search-channels")
 async def search_channels(
@@ -730,6 +690,20 @@ async def resolve_channel_ids():
     """解析所有缺失的频道ID"""
     try:
         from app.services.channel_manager import channel_manager
+        from app.telegram.auth import auth_manager
+        
+        # 先检查Telegram客户端连接状态
+        if not auth_manager.client:
+            logger.info("Telegram客户端未连接，尝试重新连接...")
+            try:
+                await auth_manager.ensure_connected()
+            except Exception as e:
+                logger.error(f"重新连接Telegram失败: {e}")
+                return {
+                    "success": False,
+                    "resolved_count": 0,
+                    "message": "Telegram客户端未连接，请先完成Telegram认证"
+                }
         
         resolved_count = await channel_manager.resolve_missing_channel_ids()
         
@@ -740,6 +714,7 @@ async def resolve_channel_ids():
         }
         
     except Exception as e:
+        logger.error(f"批量解析频道ID时出错: {e}")
         raise HTTPException(status_code=500, detail=f"解析频道ID失败: {str(e)}")
 
 class ChannelResolveRequest(BaseModel):
@@ -750,8 +725,31 @@ async def resolve_single_channel_id(request: ChannelResolveRequest):
     """解析单个频道的ID"""
     try:
         from app.services.channel_id_resolver import channel_id_resolver
+        from app.telegram.auth import auth_manager
         
-        resolved_id = await channel_id_resolver.resolve_and_update_channel(request.channel_name)
+        # 先检查Telegram客户端连接状态
+        if not auth_manager.client:
+            # 尝试重新连接
+            logger.info("Telegram客户端未连接，尝试重新连接...")
+            try:
+                await auth_manager.ensure_connected()
+            except Exception as e:
+                logger.error(f"重新连接Telegram失败: {e}")
+                return {
+                    "success": False,
+                    "message": "Telegram客户端未连接，请先完成Telegram认证"
+                }
+        
+        # 尝试解析频道ID（最多重试3次）
+        resolved_id = None
+        for attempt in range(3):
+            resolved_id = await channel_id_resolver.resolve_and_update_channel(request.channel_name)
+            if resolved_id:
+                break
+            
+            if attempt < 2:
+                logger.info(f"第{attempt + 1}次解析失败，等待1秒后重试...")
+                await asyncio.sleep(1)
         
         if resolved_id:
             return {
@@ -763,8 +761,9 @@ async def resolve_single_channel_id(request: ChannelResolveRequest):
         else:
             return {
                 "success": False,
-                "message": f"无法解析频道 {request.channel_name} 的ID，请检查频道名称或机器人权限"
+                "message": f"无法解析频道 {request.channel_name} 的ID，请检查频道名称是否正确"
             }
             
     except Exception as e:
+        logger.error(f"解析频道ID时出错: {e}")
         raise HTTPException(status_code=500, detail=f"解析频道ID失败: {str(e)}")

@@ -2,6 +2,11 @@
 消息去重服务
 使用多种算法智能识别和去除相似的重复消息
 """
+import warnings
+# 抑制jieba的pkg_resources弃用警告
+warnings.filterwarnings("ignore", category=UserWarning, module="jieba._compat")
+warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+
 import hashlib
 import re
 import logging

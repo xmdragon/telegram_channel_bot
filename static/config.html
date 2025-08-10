@@ -35,13 +35,22 @@
                                 <el-tab-pane label="单个添加" name="single">
                                     <el-form :model="newChannel" label-width="100px">
                                         <el-form-item label="频道名称">
-                                            <el-input v-model="newChannel.name" placeholder="输入频道名称（如：@channelname）"></el-input>
-                                        </el-form-item>
-                                        <el-form-item label="频道标题">
-                                            <el-input v-model="newChannel.title" placeholder="输入频道标题（可选）"></el-input>
+                                            <el-input 
+                                                v-model="newChannel.name" 
+                                                placeholder="输入频道名称（如：@channelname 或 channelname）"
+                                                @keyup.enter="addChannel">
+                                                <template #append>
+                                                    <el-button @click="addChannel" icon="Plus" :loading="loading">
+                                                        添加
+                                                    </el-button>
+                                                </template>
+                                            </el-input>
                                         </el-form-item>
                                         <el-form-item>
-                                            <el-button type="primary" @click="addChannel" icon="Plus">添加频道</el-button>
+                                            <div style="color: #909399; font-size: 12px;">
+                                                <i class="el-icon-info"></i> 
+                                                频道ID和标题会自动解析，无需手动填写
+                                            </div>
                                         </el-form-item>
                                     </el-form>
                                 </el-tab-pane>
@@ -136,7 +145,7 @@
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <div>
                                             <strong>{{ result.title }}</strong>
-                                            <span style="color: #909399; margin-left: 10px;">@{{ result.username || 'N/A' }}</span>
+                                            <span style="color: #909399; margin-left: 10px;">ID: {{ result.id }}</span>
                                             <el-tag size="small" style="margin-left: 10px;">{{ result.participants_count || 'N/A' }} 成员</el-tag>
                                         </div>
                                         <el-button 
@@ -177,12 +186,14 @@
                         <div class="channel-list">
                             <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item">
                                 <div class="channel-info">
-                                    <span class="channel-name">
-                                        {{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }}
+                                    <span class="channel-title" style="font-weight: 500;">
+                                        {{ channel.title || '未设置标题' }}
                                     </span>
-                                    <span v-if="!channel.channel_id" class="channel-id no-id">(无ID)</span>
-                                    <span v-else class="channel-id has-id">(ID: {{ channel.channel_id }})</span>
-                                    <span class="channel-title">{{ channel.title || '未设置标题' }}</span>
+                                    <span class="channel-name" style="color: #606266; margin-left: 8px;">
+                                        ({{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }})
+                                    </span>
+                                    <span v-if="!channel.channel_id" class="channel-id no-id" style="margin-left: 8px;">[无ID]</span>
+                                    <span v-else class="channel-id has-id" style="color: #909399; margin-left: 8px; font-size: 12px;">[{{ channel.channel_id }}]</span>
                                 </div>
                                 <div class="channel-actions">
                                     <el-tag 
@@ -210,50 +221,6 @@
                             <el-button type="primary" @click="resolveChannelIds" icon="Refresh">
                                 批量解析频道ID
                             </el-button>
-                        </div>
-                    </div>
-                </el-tab-pane>
-
-                <!-- 过滤规则 -->
-                <el-tab-pane label="🛡️ 过滤规则" name="filters">
-                    <div class="config-section">
-                        <h3>内容过滤规则</h3>
-                        <div class="filter-rules">
-                            <div v-for="rule in filterRules" :key="rule.id" class="rule-item">
-                                <div class="rule-info">
-                                    <strong>{{ rule.name }}</strong>
-                                    <span class="rule-pattern">{{ rule.pattern }}</span>
-                                </div>
-                                <div class="rule-actions">
-                                    <el-tag :type="rule.action === 'block' ? 'danger' : 'warning'" size="small">
-                                        {{ rule.action === 'block' ? '阻止' : '标记' }}
-                                    </el-tag>
-                                    <el-button size="small" type="danger" @click="removeRule(rule.id)">
-                                        删除
-                                    </el-button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="add-rule-form">
-                            <h4>添加新规则</h4>
-                            <el-form :model="newRule" label-width="100px">
-                                <el-form-item label="规则名称">
-                                    <el-input v-model="newRule.name" placeholder="输入规则名称"></el-input>
-                                </el-form-item>
-                                <el-form-item label="匹配模式">
-                                    <el-input v-model="newRule.pattern" placeholder="输入正则表达式模式"></el-input>
-                                </el-form-item>
-                                <el-form-item label="执行动作">
-                                    <el-select v-model="newRule.action" placeholder="选择动作">
-                                        <el-option label="阻止消息" value="block"></el-option>
-                                        <el-option label="标记为广告" value="mark_ad"></el-option>
-                                    </el-select>
-                                </el-form-item>
-                                <el-form-item>
-                                    <el-button type="primary" @click="addRule">添加规则</el-button>
-                                </el-form-item>
-                            </el-form>
                         </div>
                     </div>
                 </el-tab-pane>

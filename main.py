@@ -2,6 +2,11 @@
 """
 Telegram消息采集审核系统主入口
 """
+import warnings
+# 抑制pkg_resources弃用警告
+warnings.filterwarnings("ignore", category=UserWarning, module="jieba._compat")
+warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+
 import asyncio
 import logging
 import os
@@ -181,6 +186,12 @@ async def keywords():
     """关键词管理界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/static/keywords.html")
+
+@app.get("/train")
+async def train():
+    """AI训练界面"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/train.html")
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,0 +1,150 @@
+/**
+ * AI训练页面样式
+ */
+
+/* 统计卡片 */
+.stats-row {
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    text-align: center;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+}
+
+.stat-card .el-card__body {
+    padding: 20px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #1e40af;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+}
+
+/* 训练表单 */
+.training-form-card {
+    margin-top: 20px;
+}
+
+.card-header {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+/* 字符计数 */
+.char-count {
+    position: absolute;
+    bottom: 5px;
+    right: 10px;
+    color: #909399;
+    font-size: 12px;
+}
+
+/* 频道选项样式 */
+.channel-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.channel-option span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.channel-option .el-tag {
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+/* 预览框 */
+.preview-box {
+    background: #f5f7fa;
+    border: 1px solid #e4e7ed;
+    border-radius: 4px;
+    padding: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.preview-box pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 14px;
+}
+
+/* 示例框 */
+.example-box {
+    background: #f5f7fa;
+    border: 1px solid #e4e7ed;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+}
+
+/* 空状态 */
+.empty-message {
+    text-align: center;
+    color: #909399;
+    padding: 40px;
+    font-size: 14px;
+}
+
+/* 加载提示 */
+.loading-overlay {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 表单项位置 */
+.el-form-item {
+    position: relative;
+}
+
+/* 训练历史表格 */
+.el-table th {
+    background-color: #f5f7fa;
+}
+
+/* 使用说明卡片 */
+.config-section h3 {
+    color: #303133;
+    margin-bottom: 15px;
+}
+
+.config-section h4 {
+    color: #606266;
+    margin: 15px 0 10px 0;
+}
+
+.config-section ol, .config-section ul {
+    color: #606266;
+    line-height: 1.8;
+}
+
+.config-section .el-divider {
+    margin: 20px 0;
+}

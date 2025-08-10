@@ -132,7 +132,10 @@ class HistoryCollector:
                                 Message.message_id == message.id
                             )
                         )
-                        if result.scalar_one_or_none():
+                        # 使用first()代替scalar_one_or_none()以避免重复记录报错
+                        existing_message = result.scalars().first()
+                        if existing_message:
+                            logger.debug(f"消息ID {message.id} 已存在，跳过")
                             continue  # 消息已存在，跳过
                     
                     collected_messages.append(message)
@@ -188,7 +191,12 @@ class HistoryCollector:
                     logger.error(f"处理历史消息失败: {e}")
                     continue
                     
-            # 等待一小段时间，确保所有媒体组都处理完成
+            # 强制完成所有待处理的组合消息
+            from app.services.message_grouper import message_grouper
+            logger.info(f"强制完成所有待处理的组合消息...")
+            await message_grouper.force_complete_all_groups()
+            
+            # 等待一小段时间确保数据库操作完成
             await asyncio.sleep(1)
             # 更新最后采集的消息ID
             if latest_message_id > 0:

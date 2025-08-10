@@ -2,6 +2,11 @@
 整合的消息重复检测服务
 优先媒体哈希跨频道检测，其次jieba文本相似度检测
 """
+import warnings
+# 抑制jieba的pkg_resources弃用警告
+warnings.filterwarnings("ignore", category=UserWarning, module="jieba._compat")
+warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+
 import hashlib
 import re
 import logging

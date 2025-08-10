@@ -50,6 +50,10 @@ const MainApp = {
                 status: 'pending',
                 is_ad: null
             },
+            currentPage: 1,
+            pageSize: 20,
+            hasMore: true,
+            isLoadingMore: false,
             previousMessageIds: new Set(),  // 存储之前加载的消息ID
             editDialog: {
                 visible: false,
@@ -114,6 +118,63 @@ const MainApp = {
             this.loadMessages();
             this.loadStats();
         });
+        
+        // 添加滚动监听
+        this.setupScrollListener();
+    },
+    
+    setupScrollListener() {
+        // 尝试两种滚动监听方式
+        const messageContainer = document.querySelector('.message-list');
+        
+        // 使用防抖处理滚动事件
+        let scrollTimeout;
+        
+        const handleScroll = () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                let shouldLoadMore = false;
+                
+                // 检查消息容器的滚动
+                if (messageContainer) {
+                    const containerScrollTop = messageContainer.scrollTop;
+                    const containerScrollHeight = messageContainer.scrollHeight;
+                    const containerClientHeight = messageContainer.clientHeight;
+                    
+                    if (containerScrollHeight - containerScrollTop - containerClientHeight < 100) {
+                        shouldLoadMore = true;
+                        console.log('容器滚动触发加载更多');
+                    }
+                }
+                
+                // 同时检查窗口滚动
+                const windowHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                
+                if (documentHeight - scrollTop - windowHeight < 100) {
+                    shouldLoadMore = true;
+                    console.log('窗口滚动触发加载更多');
+                }
+                
+                if (shouldLoadMore && this.hasMore && !this.isLoadingMore) {
+                    this.loadMore();
+                }
+            }, 200);
+        };
+        
+        // 监听容器滚动
+        if (messageContainer) {
+            messageContainer.addEventListener('scroll', handleScroll);
+        }
+        
+        // 同时监听窗口滚动
+        window.addEventListener('scroll', handleScroll);
+        
+        // 如果没有找到容器，稍后重试
+        if (!messageContainer) {
+            setTimeout(() => this.setupScrollListener(), 500);
+        }
     },
     
     beforeUnmount() {
@@ -140,15 +201,22 @@ const MainApp = {
             }
         },
         
-        async loadMessages() {
-            this.loading = true;
-            this.loadingMessage = '正在加载消息数据...';
+        async loadMessages(append = false) {
+            if (append) {
+                this.isLoadingMore = true;
+            } else {
+                this.loading = true;
+                this.loadingMessage = '正在加载消息数据...';
+                this.currentPage = 1;
+            }
             
             try {
                 // 确保status有默认值，避免清空筛选器时显示所有消息
                 const params = {
                     ...this.filters,
-                    status: this.filters.status || 'pending'  // 如果status为null或空，默认使用'pending'
+                    status: this.filters.status || 'pending',  // 如果status为null或空，默认使用'pending'
+                    page: this.currentPage,
+                    size: this.pageSize
                 };
                 
                 // 添加搜索关键词参数
@@ -165,12 +233,28 @@ const MainApp = {
                 if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
                     const newMessages = response.data.messages;
                     
+                    // 检查是否还有更多数据
+                    this.hasMore = newMessages.length === this.pageSize;
+                    
                     // 计算真正的新消息
                     const currentMessageIds = new Set(newMessages.map(msg => msg.id));
                     const reallyNewMessages = newMessages.filter(msg => !this.previousMessageIds.has(msg.id));
                     
                     // 更新消息列表
-                    this.messages = newMessages;
+                    if (append) {
+                        // 追加到现有列表，避免重复
+                        const existingIds = new Set(this.messages.map(m => m.id));
+                        const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.id));
+                        this.messages = [...this.messages, ...uniqueNewMessages];
+                        
+                        // 如果没有新的唯一消息，说明已经到底了
+                        if (uniqueNewMessages.length === 0) {
+                            this.hasMore = false;
+                        }
+                    } else {
+                        // 替换整个列表
+                        this.messages = newMessages;
+                    }
                     
                     // 只有当有真正的新消息时才显示提示
                     if (reallyNewMessages.length > 0) {
@@ -200,6 +284,26 @@ const MainApp = {
                 MessageManager.error('加载消息失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
+                this.isLoadingMore = false;
+            }
+        },
+        
+        // 加载更多消息
+        async loadMore() {
+            if (this.isLoadingMore || !this.hasMore) {
+                console.log('跳过加载更多:', { isLoadingMore: this.isLoadingMore, hasMore: this.hasMore });
+                return;
+            }
+            console.log('加载更多消息，当前页:', this.currentPage, '-> ', this.currentPage + 1);
+            this.currentPage++;
+            await this.loadMessages(true);
+            
+            // 检查是否真的还有更多数据
+            // 如果当前消息总数小于已加载页数*每页数量，说明没有更多了
+            const expectedMessages = this.currentPage * this.pageSize;
+            if (this.messages.length < expectedMessages - this.pageSize) {
+                this.hasMore = false;
+                console.log('已加载所有消息，总数:', this.messages.length);
             }
         },
         
@@ -276,28 +380,31 @@ const MainApp = {
         
         // 获取原消息链接
         getOriginalMessageLink(message) {
-            if (!message.source_channel || !message.message_id) {
+            if (!message.message_id) {
                 return '#';
             }
             
-            // 处理频道名称，确保格式正确
-            let channelName = message.source_channel;
+            // 优先使用后端提供的link_prefix
+            if (message.source_channel_link_prefix) {
+                return `${message.source_channel_link_prefix}/${message.message_id}`;
+            }
+            
+            // 兼容旧逻辑：如果没有link_prefix，尝试自己构建
+            if (!message.source_channel) {
+                return '#';
+            }
+            
+            let channelId = message.source_channel;
             
             // 如果是数字ID（如 -1001234567890），需要特殊处理
-            if (channelName.startsWith('-100')) {
+            if (channelId.startsWith('-100')) {
                 // 私有频道使用 c/ 格式
-                const channelId = channelName.substring(4);  // 移除 -100 前缀
-                return `https://t.me/c/${channelId}/${message.message_id}`;
-            } else if (channelName.startsWith('@')) {
-                // 公开频道使用频道名
-                channelName = channelName.substring(1);  // 移除 @ 符号
-                return `https://t.me/${channelName}/${message.message_id}`;
-            } else if (!isNaN(channelName)) {
-                // 纯数字ID
-                return `https://t.me/c/${channelName}/${message.message_id}`;
+                const id = channelId.substring(4);  // 移除 -100 前缀
+                return `https://t.me/c/${id}/${message.message_id}`;
             } else {
-                // 假设是频道用户名
-                return `https://t.me/${channelName}/${message.message_id}`;
+                // 其他情况尝试作为私有频道处理
+                const id = channelId.replace('-', '');
+                return `https://t.me/c/${id}/${message.message_id}`;
             }
         },
         
@@ -603,12 +710,37 @@ const MainApp = {
             const existingIndex = this.messages.findIndex(msg => msg.id === messageData.id);
             
             if (existingIndex === -1) {
-                // 新消息，添加到列表顶部
-                this.messages.unshift(messageData);
-//                 console.log('收到新消息:', messageData.content.substring(0, 50) + '...');
+                // 检查新消息是否符合当前筛选条件
+                let shouldAddMessage = true;
                 
-                // 显示通知
-                MessageManager.success(`收到新消息: ${messageData.content.substring(0, 30)}...`);
+                // 检查状态筛选
+                if (this.filters.status && messageData.status !== this.filters.status) {
+                    shouldAddMessage = false;
+                }
+                
+                // 检查广告筛选
+                if (this.filters.is_ad !== null && messageData.is_ad !== this.filters.is_ad) {
+                    shouldAddMessage = false;
+                }
+                
+                // 检查搜索关键词
+                if (this.searchKeyword && this.searchKeyword.trim()) {
+                    const keyword = this.searchKeyword.trim().toLowerCase();
+                    const content = (messageData.filtered_content || messageData.content || '').toLowerCase();
+                    if (!content.includes(keyword)) {
+                        shouldAddMessage = false;
+                    }
+                }
+                
+                if (shouldAddMessage) {
+                    // 新消息，添加到列表顶部
+                    this.messages.unshift(messageData);
+//                     console.log('收到新消息:', messageData.content ? messageData.content.substring(0, 50) + '...' : '无内容');
+                }
+                
+                // 显示通知（无论是否添加到列表）
+                const contentPreview = messageData.content ? messageData.content.substring(0, 30) + '...' : '新消息（无文本内容）';
+                MessageManager.success(`收到新消息: ${contentPreview}`);
                 
                 // 刷新统计信息
                 this.loadStats();

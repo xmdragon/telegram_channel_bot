@@ -1,7 +1,7 @@
 """
 数据库配置和模型
 """
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, JSON
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, JSON, Index, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -75,8 +75,10 @@ class Channel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+# FilterRule表已废弃，使用AdKeyword和AITrainingSample代替
+# 保留表定义以避免数据库迁移问题
 class FilterRule(Base):
-    """过滤规则模型"""
+    """过滤规则模型（已废弃）"""
     __tablename__ = "filter_rules"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -113,6 +115,20 @@ class AdKeyword(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AITrainingSample(Base):
+    """AI训练样本模型"""
+    __tablename__ = "ai_training_samples"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    channel_id = Column(String, nullable=False, index=True)  # 频道ID
+    channel_name = Column(String)  # 频道名称
+    original_message = Column(Text, nullable=False)  # 原始消息
+    tail_content = Column(Text, nullable=False)  # 尾部推广内容
+    is_applied = Column(Boolean, default=False)  # 是否已应用到模型
+    created_by = Column(String, default='manual')  # 创建者
+    created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 更新时间
 
 async def init_db():
     """初始化数据库"""

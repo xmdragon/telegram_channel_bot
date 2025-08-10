@@ -58,11 +58,16 @@ async def get_messages(
     result = await db.execute(query)
     messages = result.scalars().all()
     
+    # 获取频道信息映射
+    channel_info = await channel_manager.get_channel_info_for_display()
+    
     return {
         "messages": [
             {
                 "id": msg.id,
                 "source_channel": msg.source_channel,
+                "source_channel_title": channel_info.get(msg.source_channel, {}).get('title', '未知频道'),
+                "source_channel_link_prefix": channel_info.get(msg.source_channel, {}).get('link_prefix', ''),
                 "content": msg.content,
                 "filtered_content": msg.filtered_content,
                 "message_id": msg.message_id,

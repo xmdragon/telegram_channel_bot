@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI训练中心</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/train.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav-bar page-title="🤖 AI训练中心" page-subtitle="手动训练 · 精准过滤 · 智能学习"></nav-bar>
+
+        <div class="container">
+            <!-- AI训练标签页 -->
+            <el-tabs v-model="activeTab" type="border-card" class="config-tabs">
+                <!-- 手动训练 -->
+                <el-tab-pane label="✏️ 手动训练" name="train">
+                    <div class="config-section">
+                        <!-- 统计卡片 -->
+                        <el-row :gutter="20" class="stats-row">
+                            <el-col :span="6">
+                                <el-card class="stat-card" shadow="hover">
+                                    <div class="stat-value">{{ stats.totalChannels }}</div>
+                                    <div class="stat-label">总频道数</div>
+                                </el-card>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-card class="stat-card" shadow="hover">
+                                    <div class="stat-value">{{ stats.trainedChannels }}</div>
+                                    <div class="stat-label">有尾部模式</div>
+                                </el-card>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-card class="stat-card" shadow="hover">
+                                    <div class="stat-value">{{ stats.totalSamples }}</div>
+                                    <div class="stat-label">训练样本数</div>
+                                </el-card>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-card class="stat-card" shadow="hover">
+                                    <div class="stat-value">{{ stats.todayTraining }}</div>
+                                    <div class="stat-label">今日训练</div>
+                                </el-card>
+                            </el-col>
+                        </el-row>
+
+                        <!-- 训练表单 -->
+                        <el-card class="training-form-card">
+                            <template #header>
+                                <div class="card-header">
+                                    <span>📝 添加训练样本</span>
+                                </div>
+                            </template>
+                            
+                            <el-form :model="trainingForm" label-width="120px" label-position="top">
+                                <el-form-item label="选择频道" required>
+                                    <el-select 
+                                        v-model="trainingForm.channel_id" 
+                                        placeholder="请选择要训练的频道"
+                                        filterable
+                                        style="width: 100%">
+                                        <el-option
+                                            v-for="channel in channels"
+                                            :key="channel.id"
+                                            :label="`${channel.title || '未命名频道'} (${channel.name || channel.username || '未知频道'})`"
+                                            :value="channel.id">
+                                            <div class="channel-option">
+                                                <span>{{ channel.title || '未命名频道' }}</span>
+                                                <el-tag v-if="channel.has_pattern" type="success" size="small">已学习</el-tag>
+                                                <el-tag v-else type="info" size="small">未检测到尾部</el-tag>
+                                            </div>
+                                        </el-option>
+                                    </el-select>
+                                </el-form-item>
+                                
+                                <el-form-item label="原始消息内容" required>
+                                    <el-input
+                                        v-model="trainingForm.original_message"
+                                        type="textarea"
+                                        :rows="8"
+                                        placeholder="粘贴完整的原始消息内容，包括正文和尾部推广..."
+                                        @input="updatePreview">
+                                    </el-input>
+                                    <div class="char-count">{{ trainingForm.original_message.length }} 字符</div>
+                                </el-form-item>
+                                
+                                <el-form-item label="推广尾部内容" required>
+                                    <el-input
+                                        v-model="trainingForm.tail_content"
+                                        type="textarea"
+                                        :rows="6"
+                                        placeholder="粘贴需要过滤的尾部内容，如：
+👌订阅频道：@miandianDs
+👌投稿爆料：@QianQian106
+👌海外交友：@tmiandianKs"
+                                        @input="updatePreview">
+                                    </el-input>
+                                    <div class="char-count">{{ trainingForm.tail_content.length }} 字符</div>
+                                </el-form-item>
+                                
+                                <!-- 预览区域 -->
+                                <el-form-item label="过滤后预览" v-if="filteredPreview">
+                                    <div class="preview-box">
+                                        <pre>{{ filteredPreview }}</pre>
+                                    </div>
+                                </el-form-item>
+                                
+                                <el-form-item>
+                                    <el-button @click="clearForm">清空</el-button>
+                                    <el-button type="primary" @click="submitTraining" :loading="submitting">
+                                        提交训练样本
+                                    </el-button>
+                                    <el-button type="success" @click="applyTraining" :loading="applying">
+                                        应用所有训练
+                                    </el-button>
+                                </el-form-item>
+                            </el-form>
+                        </el-card>
+                    </div>
+                </el-tab-pane>
+                
+                <!-- 训练历史 -->
+                <el-tab-pane label="📊 训练历史" name="history">
+                    <div class="config-section">
+                        <el-table :data="trainingHistory" stripe border style="width: 100%">
+                            <el-table-column prop="channel_name" label="频道名称" width="300"></el-table-column>
+                            <el-table-column prop="tail_length" label="过滤字符数" width="150">
+                                <template #default="scope">
+                                    <el-tag type="info">{{ scope.row.tail_length }} 字符</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="created_at" label="训练时间">
+                                <template #default="scope">
+                                    {{ formatTime(scope.row.created_at) }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" width="100">
+                                <template #default="scope">
+                                    <el-button type="danger" size="small" @click="deleteTraining(scope.row.id)">
+                                        删除
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        
+                        <div v-if="trainingHistory.length === 0" class="empty-message">
+                            暂无训练记录
+                        </div>
+                    </div>
+                </el-tab-pane>
+                
+                <!-- 使用说明 -->
+                <el-tab-pane label="📖 使用说明" name="help">
+                    <div class="config-section">
+                        <el-card>
+                            <h3>🎯 AI训练使用指南</h3>
+                            
+                            <el-divider></el-divider>
+                            
+                            <h4>1. 手动训练步骤</h4>
+                            <ol>
+                                <li>选择要训练的频道</li>
+                                <li>复制包含推广内容的完整消息</li>
+                                <li>粘贴到"原始消息内容"框中</li>
+                                <li>将需要过滤的尾部内容（如订阅链接、投稿信息等）粘贴到"推广尾部内容"框中</li>
+                                <li>查看预览效果，确认过滤是否正确</li>
+                                <li>点击"提交训练样本"保存</li>
+                                <li>重复多次以增加训练效果（建议每个频道至少5-10个样本）</li>
+                            </ol>
+                            
+                            <el-divider></el-divider>
+                            
+                            <h4>2. 应用训练</h4>
+                            <ul>
+                                <li>点击"应用所有训练"按钮，AI会学习所有提交的样本</li>
+                                <li>训练后的模型会自动应用到新消息的过滤中</li>
+                                <li>结合规则过滤，提供双重保障</li>
+                            </ul>
+                            
+                            <el-divider></el-divider>
+                            
+                            <h4>3. 常见推广格式示例</h4>
+                            <pre class="example-box">
+👌订阅频道：@channel_name
+👌投稿爆料：@contact_user
+👌海外交友：@dating_channel
+
+📢 订阅新闻频道
+📣 商务合作 @business
+🔗 更多精彩 t.me/xxx
+                            </pre>
+                            
+                            <el-divider></el-divider>
+                            
+                            <h4>4. 注意事项</h4>
+                            <ul>
+                                <li>训练数据会永久保存在数据库中</li>
+                                <li>每个频道的推广格式可能不同，需要分别训练</li>
+                                <li>训练样本越多，AI识别越准确</li>
+                                <li>可以随时查看和删除训练历史</li>
+                            </ul>
+                        </el-card>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
+        </div>
+        
+        <!-- 底部加载指示器 -->
+        <div v-if="loading" class="loading-overlay">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>{{ loadingText }}</span>
+        </div>
+    </div>
+
+    <script src="assets/js/vue.prod.js?v=3"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js?v=3"></script>
+    <script src="assets/js/components/navbar.js"></script>
+    <script src="assets/js/components/train.js?v=1"></script>
+    
+    <script>
+        const app = Vue.createApp(window.TrainApp);
+        app.use(ElementPlus);
+        app.component('nav-bar', window.NavBar);
+        app.mount('#app');
+    </script>
+</body>
+</html>

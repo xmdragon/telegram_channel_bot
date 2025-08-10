@@ -26,6 +26,25 @@ class TelethonAuthManager:
         self.config_manager = ConfigManager()
         self.has_lock = False  # 标记是否持有锁
     
+    async def ensure_connected(self) -> bool:
+        """确保客户端已连接，如果未连接则尝试重新连接"""
+        try:
+            # 如果客户端已经连接，直接返回
+            if self.client and self.client.is_connected():
+                return True
+            
+            # 尝试加载保存的认证信息
+            if await self.load_saved_auth():
+                return True
+            
+            # 如果没有保存的认证信息，返回False
+            logger.warning("无法建立Telegram连接：需要重新认证")
+            return False
+            
+        except Exception as e:
+            logger.error(f"确保连接时出错: {e}")
+            return False
+    
     async def load_saved_auth(self) -> bool:
         """从数据库加载已保存的认证信息（仅支持StringSession）"""
         try:

@@ -9,6 +9,7 @@ from .auth import router as auth_router
 from .system import router as system_router
 from .keywords import router as keywords_router
 from .lock import router as lock_router
+from app.routers.training import router as training_router
 
 api_router = APIRouter()
 
@@ -19,3 +20,4 @@ api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(system_router, tags=["system"])
 api_router.include_router(keywords_router, prefix="/keywords", tags=["keywords"])
 api_router.include_router(lock_router, prefix="/lock", tags=["lock"])
+api_router.include_router(training_router, prefix="/training", tags=["training"])

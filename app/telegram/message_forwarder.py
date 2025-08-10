@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy import select
 from telethon import TelegramClient
 
-from app.core.database import Message, AsyncSessionLocal
+from app.core.database import Message, Channel, AsyncSessionLocal
 from app.core.config import db_settings
 from app.services.telegram_link_resolver import link_resolver
 from app.services.content_filter import ContentFilter
@@ -44,7 +44,20 @@ class MessageForwarder:
                 logger.info(f"📤 转发到审核群，智能去尾部已生效，减少 {removed_chars} 字符")
             
             # 在转发时添加频道落款
-            message_text = await self.content_filter.add_channel_signature(message_text)
+            # 获取频道名称
+            channel_name = "未知频道"
+            try:
+                async with AsyncSessionLocal() as db:
+                    result = await db.execute(
+                        select(Channel).where(Channel.channel_id == db_message.source_channel)
+                    )
+                    channel = result.scalar_one_or_none()
+                    if channel:
+                        channel_name = channel.channel_name or channel.channel_title or "未知频道"
+            except Exception as e:
+                logger.debug(f"获取频道名称失败: {e}")
+            
+            message_text = self.content_filter.add_channel_signature(message_text, channel_name)
             
             # 如果消息被判定为广告且文本被完全过滤，不发送媒体
             if db_message.is_ad and (not message_text or message_text.strip() == ""):
