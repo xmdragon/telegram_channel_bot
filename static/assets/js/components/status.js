@@ -1,6 +1,42 @@
 const { createApp } = Vue;
 const { ElMessage, ElMessageBox } = ElementPlus;
 
+// 消息管理器 - 右下角显示
+const MessageManager = {
+    success(message) {
+        ElMessage({
+            message: message,
+            type: 'success',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    error(message) {
+        ElMessage({
+            message: message,
+            type: 'error',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    warning(message) {
+        ElMessage({
+            message: message,
+            type: 'warning',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    info(message) {
+        ElMessage({
+            message: message,
+            type: 'info',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    }
+};
+
 const app = createApp({
     data() {
         return {
@@ -52,7 +88,7 @@ const app = createApp({
                 }
             } catch (error) {
                 console.error('加载系统状态失败:', error);
-                ElMessage.error('加载系统状态失败');
+                MessageManager.error('加载系统状态失败');
             }
         },
         
@@ -111,9 +147,9 @@ const app = createApp({
             this.loadingMessage = '正在刷新状态...';
             try {
                 await this.loadSystemStatus();
-                ElMessage.success('状态已刷新');
+                MessageManager.success('状态已刷新');
             } catch (error) {
-                ElMessage.error('刷新失败');
+                MessageManager.error('刷新失败');
             } finally {
                 this.loading = false;
             }
@@ -136,18 +172,18 @@ const app = createApp({
                 
                 const response = await axios.post('/api/system/restart');
                 if (response.data.success) {
-                    ElMessage.success('服务重启成功');
+                    MessageManager.success('服务重启成功');
                     // 等待几秒后刷新状态
                     setTimeout(() => {
                         this.loadSystemStatus();
                     }, 3000);
                 } else {
-                    ElMessage.error(response.data.message || '重启失败');
+                    MessageManager.error(response.data.message || '重启失败');
                 }
             } catch (error) {
                 if (error !== 'cancel') {
                     console.error('重启服务失败:', error);
-                    ElMessage.error('重启服务失败');
+                    MessageManager.error('重启服务失败');
                 }
             } finally {
                 this.loading = false;
@@ -157,4 +193,8 @@ const app = createApp({
 });
 
 app.use(ElementPlus);
+// 注册导航栏组件
+if (window.NavBar) {
+    app.component('nav-bar', window.NavBar);
+}
 app.mount('#app');

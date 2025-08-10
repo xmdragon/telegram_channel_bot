@@ -365,14 +365,14 @@ async def get_system_logs(limit: int = 100) -> Dict[str, Any]:
                             })
                             
                             # 如果已经收集够了，停止
-                            if len(logs) >= lines:
+                            if len(logs) >= limit:
                                 break
                                 
             except Exception as e:
                 logger.error(f"读取日志文件 {log_file} 失败: {e}")
                 continue
             
-            if len(logs) >= lines:
+            if len(logs) >= limit:
                 break
         
         # 如果没有找到日志文件，显示基本系统信息
@@ -385,7 +385,7 @@ async def get_system_logs(limit: int = 100) -> Dict[str, Any]:
         else:
             # 日志已经是倒序读取的，不需要再排序
             # 只需要限制返回的行数
-            logs = logs[:lines]
+            logs = logs[:limit]
         
         return {
             "success": True,

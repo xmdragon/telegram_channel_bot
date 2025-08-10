@@ -297,3 +297,4 @@ python3 recover_training_data.py --emergency
 - 有数据库结构变化要更新到相关文件中
 - html页面要做到html,css,js代码分离,html代码中不要有stle="xxx"这样的内联样式
 - 代码支持热加载，非必要不重启应用
+- 测试功能要在虚拟环境下

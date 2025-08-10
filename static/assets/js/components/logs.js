@@ -1,6 +1,42 @@
 const { createApp } = Vue;
 const { ElMessage, ElMessageBox } = ElementPlus;
 
+// 消息管理器 - 右下角显示
+const MessageManager = {
+    success(message) {
+        ElMessage({
+            message: message,
+            type: 'success',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    error(message) {
+        ElMessage({
+            message: message,
+            type: 'error',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    warning(message) {
+        ElMessage({
+            message: message,
+            type: 'warning',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    info(message) {
+        ElMessage({
+            message: message,
+            type: 'info',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    }
+};
+
 const app = createApp({
     data() {
         return {
@@ -103,10 +139,10 @@ const app = createApp({
                 // 目前没有清空日志API，只清空前端显示
                 this.logs = [];
                 this.filteredLogs = [];
-                ElMessage.success('日志显示已清空');
+                MessageManager.success('日志显示已清空');
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage.error('清空日志失败');
+                    MessageManager.error('清空日志失败');
                 }
             }
         },
@@ -115,10 +151,10 @@ const app = createApp({
             this.autoRefresh = !this.autoRefresh;
             if (this.autoRefresh) {
                 this.startAutoRefresh();
-                ElMessage.success('已开启自动刷新');
+                MessageManager.success('已开启自动刷新');
             } else {
                 this.stopAutoRefresh();
-                ElMessage.info('已停止自动刷新');
+                MessageManager.info('已停止自动刷新');
             }
         },
         
@@ -140,4 +176,8 @@ const app = createApp({
 });
 
 app.use(ElementPlus);
+// 注册导航栏组件
+if (window.NavBar) {
+    app.component('nav-bar', window.NavBar);
+}
 app.mount('#app');

@@ -8,6 +8,43 @@
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
 
+// 消息管理器 - 右下角显示
+const MessageManager = {
+    success(message) {
+        ElMessage({
+            message: message,
+            type: 'success',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    error(message) {
+        ElMessage({
+            message: message,
+            type: 'error',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    warning(message) {
+        ElMessage({
+            message: message,
+            type: 'warning',
+            offset: 20,
+            customClass: 'bottom-right-message'
+        });
+    },
+    info(message, options = {}) {
+        ElMessage({
+            message: message,
+            type: 'info',
+            offset: 20,
+            customClass: 'bottom-right-message',
+            ...options
+        });
+    }
+};
+
 // 配置应用组件
 const ConfigApp = {
     data() {
@@ -485,8 +522,7 @@ const ConfigApp = {
             }
             
             this.helpMessageShowing = true;
-            const messageInstance = ElMessage({
-                message: `
+            MessageManager.info(`
                 <div style="text-align: left; line-height: 1.6;">
                     <strong>审核群设置帮助：</strong><br>
                     1. <strong>群链接：</strong> https://t.me/+Z_jrvX6YLLwxOTE1 (推荐)<br>
@@ -499,9 +535,8 @@ const ConfigApp = {
                     5. <strong>智能解析：</strong> 输入群链接后系统会自动解析并缓存真实ID<br>
                     6. <strong>注意：</strong> 机器人必须是群管理员才能发送消息
                 </div>
-                `,
+                `, {
                 dangerouslyUseHTMLString: true,
-                type: 'info',
                 duration: 12000,
                 showClose: true,
                 onClose: () => {

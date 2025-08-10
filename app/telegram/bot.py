@@ -89,9 +89,6 @@ class TelegramBot:
             # 保持向后兼容
             self.client = client
             
-            # 加载广告关键词到内存
-            await self.content_filter.load_keywords_from_db()
-            
             # 启动媒体处理器
             await media_handler.start()
             
