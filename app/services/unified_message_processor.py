@@ -44,12 +44,18 @@ class UnifiedMessageProcessor:
             处理后的数据库消息对象，如果消息被过滤则返回None
         """
         try:
-            # 步骤1: 通用处理（提取内容、下载媒体、过滤广告）
+            # 步骤1: 首先提取原始内容并保存
+            original_content = await self._extract_original_content(message)
+            
+            # 步骤2: 通用处理（提取内容、下载媒体、过滤广告）
             processed_data = await self._common_message_processing(message, channel_id, is_history)
             if not processed_data:
                 return None  # 消息被过滤
             
-            # 步骤2: 组合消息检测
+            # 确保原始内容被保留
+            processed_data['original_content'] = original_content
+            
+            # 步骤3: 组合消息检测
             combined_message = await message_grouper.process_message(
                 message, 
                 channel_id, 
@@ -64,7 +70,7 @@ class UnifiedMessageProcessor:
                 logger.debug(f"消息 {message.id} 正在等待组合")
                 return None
             
-            # 步骤3: 准备保存数据
+            # 步骤4: 准备保存数据
             save_data = await self._prepare_save_data(
                 combined_message, 
                 channel_id, 
@@ -72,7 +78,7 @@ class UnifiedMessageProcessor:
                 is_history
             )
             
-            # 步骤4: 去重检测
+            # 步骤5: 去重检测
             duplicate_info = await self._check_duplicate_with_details(save_data, channel_id)
             if duplicate_info:
                 logger.info(f"{'历史' if is_history else '实时'}消息被去重检测拒绝: {duplicate_info['reason']}")
@@ -90,7 +96,7 @@ class UnifiedMessageProcessor:
                 # await self._cleanup_media_files(save_data)
                 return db_message
             
-            # 步骤5: 保存到数据库
+            # 步骤6: 保存到数据库
             db_message = await self.message_processor.process_new_message(save_data)
             
             if not db_message:
@@ -98,11 +104,11 @@ class UnifiedMessageProcessor:
                 await self._cleanup_media_files(save_data)
                 return None
             
-            # 步骤6: 转发到审核群（仅实时消息或配置了历史消息转发）
+            # 步骤7: 转发到审核群（仅实时消息或配置了历史消息转发）
             if not is_history or await self._should_forward_history():
                 await self._forward_to_review(db_message)
             
-            # 步骤7: 广播到WebSocket（仅实时消息）
+            # 步骤8: 广播到WebSocket（仅实时消息）
             if not is_history:
                 await self._broadcast_new_message(db_message)
             
@@ -116,6 +122,42 @@ class UnifiedMessageProcessor:
                 if media_info and media_info.get('file_path'):
                     await media_handler.cleanup_file(media_info['file_path'])
             return None
+    
+    async def _extract_original_content(self, message: TLMessage) -> str:
+        """
+        提取消息的原始内容，确保不丢失任何文本
+        
+        Args:
+            message: Telegram消息对象
+            
+        Returns:
+            原始内容字符串
+        """
+        # 尝试多种方式提取内容
+        content = ""
+        
+        # 1. 优先使用text属性
+        if hasattr(message, 'text') and message.text:
+            content = message.text
+        # 2. 尝试raw_text
+        elif hasattr(message, 'raw_text') and message.raw_text:
+            content = message.raw_text
+        # 3. 尝试message属性
+        elif hasattr(message, 'message') and message.message:
+            content = message.message
+        # 4. 对于媒体消息，尝试caption
+        elif hasattr(message, 'media') and message.media:
+            if hasattr(message, 'caption') and message.caption:
+                content = message.caption
+        
+        # 记录原始内容提取情况
+        if content:
+            logger.info(f"📝 提取到原始内容: {len(content)} 字符")
+            logger.debug(f"原始内容前100字符: {content[:100]}...")
+        else:
+            logger.debug(f"📝 消息无文本内容（纯媒体）")
+        
+        return content
     
     async def _common_message_processing(
         self, 
@@ -319,7 +361,7 @@ class UnifiedMessageProcessor:
         return {
             'source_channel': channel_id,
             'message_id': message_data.get('message_id', message_data.get('id')),
-            'content': message_data.get('content', processed_data['content']),
+            'content': processed_data.get('original_content', message_data.get('content', processed_data['content'])),  # 优先使用原始内容
             'filtered_content': message_data.get('filtered_content', processed_data['filtered_content']),
             'is_ad': message_data.get('is_ad', processed_data['is_ad']),
             'media_type': message_data.get('media_type'),

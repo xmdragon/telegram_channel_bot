@@ -131,9 +131,6 @@
                                     <el-button type="primary" @click="submitTraining" :loading="submitting">
                                         提交训练样本
                                     </el-button>
-                                    <el-button type="success" @click="applyTraining" :loading="applying">
-                                        应用所有训练
-                                    </el-button>
                                 </el-form-item>
                             </el-form>
                         </el-card>
@@ -291,9 +288,9 @@
                             
                             <el-divider></el-divider>
                             
-                            <h4>2. 应用训练</h4>
+                            <h4>2. 自动应用</h4>
                             <ul>
-                                <li>点击"应用所有训练"按钮，AI会学习所有提交的样本</li>
+                                <li>提交训练样本后，AI会立即学习并应用</li>
                                 <li>训练后的模型会自动应用到新消息的过滤中</li>
                                 <li>结合规则过滤，提供双重保障</li>
                             </ul>

@@ -1121,7 +1121,7 @@ async def submit_training(
     submission: TrainingSubmission,
     db: AsyncSession = Depends(get_db)
 ):
-    """提交训练数据"""
+    """提交训练数据并自动应用"""
     try:
         # 获取频道信息
         result = await db.execute(
@@ -1147,6 +1147,19 @@ async def submit_training(
             samples = [submission.original_message]
             await ai_filter.learn_channel_pattern(submission.channel_id, samples)
             
+            # 自动应用所有该频道的训练数据
+            training_data = training_record.load_data()
+            channel_data = training_data.get("channels", {}).get(submission.channel_id, {})
+            if channel_data and channel_data.get("samples"):
+                # 提取所有原始消息
+                all_messages = [s["original"] for s in channel_data["samples"]]
+                # 学习该频道的所有模式
+                await ai_filter.learn_channel_pattern(submission.channel_id, all_messages)
+                logger.info(f"自动应用了频道 {submission.channel_id} 的 {len(all_messages)} 个训练样本")
+            
+            # 保存AI模式
+            ai_filter.save_patterns("data/ai_filter_patterns.json")
+            
             # 如果提供了message_id，更新数据库中的消息内容
             if submission.message_id:
                 await update_message_after_training(
@@ -1156,7 +1169,7 @@ async def submit_training(
                     submission.tail_content
                 )
             
-            return {"success": True, "message": "训练样本已保存，消息内容已更新"}
+            return {"success": True, "message": "训练样本已保存并自动应用"}
         else:
             raise HTTPException(status_code=500, detail="保存训练数据失败")
             

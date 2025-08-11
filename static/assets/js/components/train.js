@@ -11,7 +11,6 @@ const TrainApp = {
             loading: false,
             loadingText: '加载中...',
             submitting: false,
-            applying: false,
             
             // 训练模式
             trainingMode: 'tail',  // 'tail', 'ad', 'separator'
@@ -364,7 +363,7 @@ const TrainApp = {
                 
                 if (response.data.success) {
                     ElMessage({
-                        message: '训练样本已提交，消息已更新',
+                        message: '训练样本已提交并自动应用',
                         type: 'success',
                         offset: 20,
                         customClass: 'bottom-right-message'
@@ -398,48 +397,6 @@ const TrainApp = {
             }
         },
         
-        async applyTraining() {
-            try {
-                await ElMessageBox.confirm(
-                    '确定要应用所有训练数据吗？这将重新训练AI模型。',
-                    '确认操作',
-                    {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消',
-                        type: 'warning'
-                    }
-                );
-                
-                this.applying = true;
-                const response = await axios.post('/api/training/apply');
-                if (response.data.success) {
-                    ElMessage({
-                        message: response.data.message || '训练已应用，AI模型已更新',
-                        type: 'success',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
-                } else {
-                    ElMessage({
-                        message: response.data.message || '应用失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
-                }
-            } catch (error) {
-                if (error !== 'cancel') {
-                    ElMessage({
-                        message: '应用失败: ' + (error.response?.data?.detail || error.message),
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
-                }
-            } finally {
-                this.applying = false;
-            }
-        },
         
         async deleteTraining(id) {
             try {
