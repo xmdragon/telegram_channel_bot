@@ -1,9 +1,9 @@
 """
 数据库配置和模型
 """
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, JSON, Index, func
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, JSON, Index, func, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from datetime import datetime
 import asyncio
@@ -118,6 +118,81 @@ class AITrainingSample(Base):
     created_by = Column(String, default='manual')  # 创建者
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 更新时间
+
+
+class Admin(Base):
+    """管理员模型"""
+    __tablename__ = "admins"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    is_super_admin = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    last_login = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 关系 - 明确指定foreign_keys避免歧义
+    permissions = relationship("AdminPermission", 
+                             foreign_keys="[AdminPermission.admin_id]",
+                             back_populates="admin", 
+                             cascade="all, delete-orphan")
+    sessions = relationship("AdminSession", back_populates="admin", cascade="all, delete-orphan")
+
+
+class Permission(Base):
+    """权限模型"""
+    __tablename__ = "permissions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)  # 如: messages.view
+    module = Column(String, nullable=False)  # 模块名: messages, config, etc
+    action = Column(String, nullable=False)  # 操作: view, edit, delete, etc
+    description = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # 关系
+    admin_permissions = relationship("AdminPermission", back_populates="permission", cascade="all, delete-orphan")
+
+
+class AdminPermission(Base):
+    """管理员权限关联表"""
+    __tablename__ = "admin_permissions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("admins.id", ondelete="CASCADE"), nullable=False)
+    permission_id = Column(Integer, ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
+    granted_by = Column(Integer, ForeignKey("admins.id"))  # 授权人
+    granted_at = Column(DateTime, default=datetime.utcnow)
+    
+    # 关系 - 明确指定foreign_keys
+    admin = relationship("Admin", foreign_keys=[admin_id], back_populates="permissions", overlaps="granter")
+    permission = relationship("Permission", back_populates="admin_permissions")
+    granter = relationship("Admin", foreign_keys=[granted_by])  # 授权人关系，单独定义
+    
+    # 唯一约束
+    __table_args__ = (
+        Index('idx_unique_admin_permission', 'admin_id', 'permission_id', unique=True),
+    )
+
+
+class AdminSession(Base):
+    """管理员会话模型"""
+    __tablename__ = "admin_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("admins.id", ondelete="CASCADE"), nullable=False)
+    token = Column(String, unique=True, nullable=False, index=True)
+    ip_address = Column(String)
+    user_agent = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    last_activity = Column(DateTime, default=datetime.utcnow)
+    
+    # 关系
+    admin = relationship("Admin", back_populates="sessions")
 
 async def init_db():
     """初始化数据库"""

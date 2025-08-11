@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员登录 - Telegram 消息审核系统</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        
+        .login-title {
+            font-size: 24px;
+            color: #333;
+            margin: 0 0 10px;
+            font-weight: 600;
+        }
+        
+        .login-subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .login-form {
+            margin-top: 30px;
+        }
+        
+        .form-item {
+            margin-bottom: 25px;
+        }
+        
+        .login-button {
+            width: 100%;
+            height: 45px;
+            font-size: 16px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .login-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            color: #f56c6c;
+            font-size: 12px;
+            margin-top: 5px;
+            min-height: 20px;
+        }
+        
+        .footer-text {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .input-icon {
+            color: #909399;
+        }
+        
+        /* Element Plus 样式覆盖 */
+        .el-input__wrapper {
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+        
+        .el-input__inner {
+            font-size: 15px;
+        }
+        
+        /* 加载动画 */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="logo">T</div>
+                    <h1 class="login-title">管理员登录</h1>
+                    <p class="login-subtitle">Telegram 消息审核系统</p>
+                </div>
+                
+                <el-form ref="loginForm" :model="loginData" :rules="rules" class="login-form">
+                    <el-form-item prop="username" class="form-item">
+                        <el-input 
+                            v-model="loginData.username" 
+                            placeholder="请输入用户名"
+                            size="large"
+                            clearable
+                            @keyup.enter="handleLogin">
+                            <template #prefix>
+                                <el-icon class="input-icon"><User /></el-icon>
+                            </template>
+                        </el-input>
+                    </el-form-item>
+                    
+                    <el-form-item prop="password" class="form-item">
+                        <el-input 
+                            v-model="loginData.password" 
+                            type="password" 
+                            placeholder="请输入密码"
+                            size="large"
+                            show-password
+                            @keyup.enter="handleLogin">
+                            <template #prefix>
+                                <el-icon class="input-icon"><Lock /></el-icon>
+                            </template>
+                        </el-input>
+                    </el-form-item>
+                    
+                    <div class="error-message">{{ errorMessage }}</div>
+                    
+                    <el-form-item class="form-item">
+                        <button 
+                            type="button"
+                            class="login-button" 
+                            @click="handleLogin"
+                            :disabled="loading">
+                            <span v-if="!loading">登 录</span>
+                            <span v-else>
+                                <span class="loading-spinner"></span>
+                                登录中...
+                            </span>
+                        </button>
+                    </el-form-item>
+                </el-form>
+                
+                <div class="footer-text">
+                    © 2024 Telegram Message Review System
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/element-plus-icons.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+        const { User, Lock } = ElementPlusIconsVue;
+        
+        const LoginApp = {
+            data() {
+                return {
+                    loginData: {
+                        username: '',
+                        password: ''
+                    },
+                    rules: {
+                        username: [
+                            { required: true, message: '请输入用户名', trigger: 'blur' },
+                            { min: 2, max: 20, message: '用户名长度在 2 到 20 个字符', trigger: 'blur' }
+                        ],
+                        password: [
+                            { required: true, message: '请输入密码', trigger: 'blur' },
+                            { min: 6, message: '密码长度至少 6 个字符', trigger: 'blur' }
+                        ]
+                    },
+                    loading: false,
+                    errorMessage: ''
+                };
+            },
+            
+            mounted() {
+                // 检查是否已登录
+                this.checkAuth();
+            },
+            
+            methods: {
+                async checkAuth() {
+                    const token = localStorage.getItem('admin_token');
+                    if (token) {
+                        try {
+                            const response = await axios.get('/api/auth/check-auth', {
+                                headers: {
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            });
+                            
+                            if (response.data.authenticated) {
+                                // 已登录，跳转到首页
+                                this.redirectToHome();
+                            }
+                        } catch (error) {
+                            // Token无效，清除
+                            localStorage.removeItem('admin_token');
+                        }
+                    }
+                },
+                
+                async handleLogin() {
+                    this.$refs.loginForm.validate(async (valid) => {
+                        if (!valid) return;
+                        
+                        this.loading = true;
+                        this.errorMessage = '';
+                        
+                        try {
+                            const response = await axios.post('/api/auth/login', this.loginData);
+                            
+                            if (response.data.success) {
+                                // 保存token和用户信息
+                                localStorage.setItem('admin_token', response.data.token);
+                                localStorage.setItem('admin_info', JSON.stringify(response.data.admin));
+                                
+                                ElMessage({
+                                    message: '登录成功',
+                                    type: 'success',
+                                    duration: 1500
+                                });
+                                
+                                // 跳转到首页
+                                setTimeout(() => {
+                                    this.redirectToHome();
+                                }, 500);
+                            }
+                        } catch (error) {
+                            if (error.response && error.response.status === 401) {
+                                this.errorMessage = '用户名或密码错误';
+                            } else {
+                                this.errorMessage = error.response?.data?.detail || '登录失败，请稍后重试';
+                            }
+                            
+                            // 清空密码
+                            this.loginData.password = '';
+                        } finally {
+                            this.loading = false;
+                        }
+                    });
+                },
+                
+                redirectToHome() {
+                    // 检查是否有返回URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const returnUrl = urlParams.get('return') || '/static/index.html';
+                    window.location.href = returnUrl;
+                }
+            }
+        };
+        
+        const app = createApp(LoginApp);
+        app.use(ElementPlus);
+        // 注册图标组件
+        if (typeof ElementPlusIconsVue !== 'undefined') {
+            for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+                app.component(key, component);
+            }
+        }
+        app.mount('#app');
+    </script>
+</body>
+</html>

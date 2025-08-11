@@ -25,7 +25,8 @@ const NavBar = {
                     <a href="./train.html" :class="['nav-link', isActive('/train.html') ? 'active' : '']">🤖 AI训练</a>
                     <a href="./status.html" :class="['nav-link', isActive('/status.html') ? 'active' : '']">📊 系统状态</a>
                     <a href="./logs.html" :class="['nav-link', isActive('/logs.html') ? 'active' : '']">📋 系统日志</a>
-                    <a href="./auth.html" :class="['nav-link', isActive('/auth.html') ? 'active' : '']">🔐 登录</a>
+                    <a href="./admin_manage.html" :class="['nav-link', isActive('/admin_manage.html') ? 'active' : '']">👥 管理员</a>
+                    <a href="#" @click.prevent="handleLogout" class="nav-link">🚪 登出</a>
                 </div>
             </div>
         </nav>
@@ -44,6 +45,20 @@ const NavBar = {
             const currentPath = window.location.pathname;
             return currentPath.includes(path) || 
                    (path === '/index.html' && (currentPath === '/' || currentPath === ''));
+        },
+        async handleLogout() {
+            try {
+                await axios.post('/api/auth/logout');
+                // 清除本地存储的token
+                localStorage.removeItem('admin_token');
+                // 跳转到登录页
+                window.location.href = '/static/login.html';
+            } catch (error) {
+                console.error('登出失败:', error);
+                // 即使失败也清除token并跳转
+                localStorage.removeItem('admin_token');
+                window.location.href = '/static/login.html';
+            }
         }
     }
 };

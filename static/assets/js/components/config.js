@@ -106,7 +106,13 @@ const ConfigApp = {
         }
     },
     
-    mounted() {
+    async mounted() {
+        // 初始化权限检查
+        const isAuthorized = await authManager.initPageAuth('config.view');
+        if (!isAuthorized) {
+            return;
+        }
+        
         this.loadConfigData();
     },
     

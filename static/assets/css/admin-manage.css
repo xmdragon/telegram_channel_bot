@@ -1,0 +1,177 @@
+/* 管理员管理页面样式 */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 卡片通用样式 */
+.current-admin-card,
+.admin-list-card,
+.permissions-info-card {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 20px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* 当前管理员信息 */
+.current-admin-card .info-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.current-admin-card .label {
+    color: var(--text-secondary);
+    width: 100px;
+}
+
+.current-admin-card .value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.current-admin-card .action-buttons {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 权限说明 */
+.permission-module {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.permission-module h4 {
+    margin: 0 0 10px 0;
+    color: var(--primary);
+    font-size: 16px;
+}
+
+.permission-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+}
+
+.permission-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.permission-name {
+    font-family: 'Courier New', monospace;
+    color: var(--primary);
+    font-size: 12px;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+
+.permission-desc {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+/* Element Plus 样式覆盖 */
+.el-table {
+    font-size: 14px;
+}
+
+.el-table th {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    font-weight: 500;
+}
+
+.el-table tr {
+    background: var(--bg-primary);
+}
+
+.el-table tr:hover {
+    background: var(--bg-secondary) !important;
+}
+
+.el-table td {
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.el-tag {
+    margin: 2px;
+}
+
+.el-dialog {
+    border-radius: 12px !important;
+}
+
+.el-dialog__header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 15px 20px;
+}
+
+.el-dialog__title {
+    color: white !important;
+    font-size: 16px;
+}
+
+.el-dialog__headerbtn .el-dialog__close {
+    color: white !important;
+}
+
+.el-form-item__label {
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.el-checkbox-group {
+    display: block;
+}
+
+.el-checkbox {
+    display: block;
+    margin: 5px 0 !important;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .permission-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .el-table {
+        font-size: 12px;
+    }
+}

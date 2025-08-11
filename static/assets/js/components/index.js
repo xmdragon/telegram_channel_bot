@@ -121,7 +121,13 @@ const MainApp = {
         }
     },
     
-    mounted() {
+    async mounted() {
+        // 初始化权限检查
+        const isAuthorized = await authManager.initPageAuth('messages.view');
+        if (!isAuthorized) {
+            return;
+        }
+        
         this.loadMessages();
         this.loadStats();
         this.loadChannelInfo();

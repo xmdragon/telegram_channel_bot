@@ -52,7 +52,13 @@ const TrainApp = {
         };
     },
     
-    mounted() {
+    async mounted() {
+        // 初始化权限检查
+        const isAuthorized = await authManager.initPageAuth('training.view');
+        if (!isAuthorized) {
+            return;
+        }
+        
         // 先检查URL参数
         this.checkUrlParams();
         // 然后初始化

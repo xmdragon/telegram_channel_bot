@@ -9,9 +9,10 @@ from datetime import datetime
 import os
 import logging
 
-from app.core.database import get_db, Message
+from app.core.database import get_db, Message, Admin
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
+from app.api.admin_auth import require_admin, check_permission
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,7 +31,8 @@ async def get_messages(
     search: Optional[str] = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.view"))
 ):
     """获取消息列表"""
     
@@ -123,7 +125,8 @@ async def get_channel_info():
 @router.post("/batch/approve")
 async def batch_approve_messages(
     request: dict,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.approve"))
 ):
     """批量批准消息"""
     message_ids = request.get("message_ids", [])
@@ -189,7 +192,8 @@ async def batch_approve_messages(
 @router.post("/batch/reject")
 async def batch_reject_messages(
     request: dict,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.reject"))
 ):
     """批量拒绝消息"""
     message_ids = request.get("message_ids", [])
@@ -295,7 +299,8 @@ async def get_message(
 async def approve_message(
     message_id: int,
     reviewer: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.approve"))
 ):
     """批准消息"""
     result = await db.execute(select(Message).where(Message.id == message_id))
@@ -352,7 +357,8 @@ async def reject_message(
     message_id: int,
     reviewer: str = Query(default="Web用户"),
     reason: Optional[str] = Query(default=None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.reject"))
 ):
     """拒绝消息"""
     result = await db.execute(select(Message).where(Message.id == message_id))
