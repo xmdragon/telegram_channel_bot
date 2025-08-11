@@ -20,6 +20,7 @@ const AdminApp = {
             
             // 频道列表
             channels: [],
+            channelSearchKeyword: '',
             
             // 过滤规则
             filterRules: [],
@@ -30,6 +31,15 @@ const AdminApp = {
                 rule_type: 'keyword',
                 description: '',
                 is_active: true
+            },
+            
+            // 添加频道对话框
+            showAddChannelDialog: false,
+            
+            // 训练数据统计
+            trainingStats: {
+                totalSamples: 0,
+                storageSize: 0
             }
         };
     },
@@ -44,6 +54,7 @@ const AdminApp = {
         this.checkHealth();
         this.loadChannels();
         this.loadFilterRules();
+        this.loadTrainingStats();
     },
     
     methods: {
@@ -75,6 +86,18 @@ const AdminApp = {
                 this.filterRules = response.data || [];
             } catch (error) {
                 this.showMessage('加载过滤规则失败', 'error');
+            }
+        },
+        
+        // 加载训练数据统计
+        async loadTrainingStats() {
+            try {
+                const response = await axios.get('/api/training/stats');
+                if (response.data) {
+                    this.trainingStats = response.data;
+                }
+            } catch (error) {
+                console.error('加载训练数据统计失败:', error);
             }
         },
         
@@ -236,6 +259,51 @@ const AdminApp = {
             }
         },
         
+        // 获取频道类型文本
+        getChannelTypeText(type) {
+            const typeMap = {
+                'source': '源频道',
+                'target': '目标频道',
+                'review': '审核群'
+            };
+            return typeMap[type] || type;
+        },
+        
+        // 获取频道类型颜色
+        getChannelTypeColor(type) {
+            const colorMap = {
+                'source': 'primary',
+                'target': 'success',
+                'review': 'warning'
+            };
+            return colorMap[type] || 'info';
+        },
+        
+        // 编辑频道
+        editChannel(channel) {
+            this.showMessage('编辑功能开发中', 'info');
+        },
+        
+        // 搜索频道
+        searchChannels() {
+            // 实现频道搜索逻辑
+            this.loadChannels();
+        },
+        
+        // 打开训练数据管理界面
+        openTrainingManager() {
+            window.open('/static/training_manager.html', '_blank');
+        },
+        
+        // 格式化文件大小
+        formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        },
+
         // 显示消息
         showMessage(message, type = 'info') {
             this.statusMessage = message;
@@ -258,5 +326,7 @@ const AdminApp = {
 // 创建并挂载应用
 const app = createApp(AdminApp);
 app.use(ElementPlus);
-app.component('navbar', NavbarComponent);
+if (window.NavBar) {
+    app.component('nav-bar', window.NavBar);
+}
 app.mount('#app');

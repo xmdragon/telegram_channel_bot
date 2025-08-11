@@ -236,7 +236,7 @@ class MediaHandler:
                 
             # 生成相对于temp_media目录的路径
             rel_path = os.path.relpath(file_path, self.temp_dir)
-            return f"/media/{rel_path}"
+            return f"/temp_media/{rel_path}"
             
         except Exception as e:
             logger.error(f"生成媒体URL失败: {e}")

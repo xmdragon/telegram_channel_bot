@@ -133,6 +133,27 @@
                 </div>
             </div>
 
+            <!-- 训练数据管理 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🎯 训练数据管理</h2>
+                </div>
+                <div class="card-content">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                        <div style="flex: 1;">
+                            <p style="margin: 0 0 10px 0; color: #666;">管理广告检测训练数据，包括查看、删除误判数据、去重和优化存储。</p>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <el-tag type="info">样本数: {{ trainingStats.totalSamples || 0 }}</el-tag>
+                                <el-tag type="warning">存储: {{ formatSize(trainingStats.storageSize || 0) }}</el-tag>
+                            </div>
+                        </div>
+                        <el-button @click="openTrainingManager" type="primary" icon="Setting">
+                            打开管理界面
+                        </el-button>
+                    </div>
+                </div>
+            </div>
+
             <!-- 系统操作 -->
             <div class="card">
                 <div class="card-header">

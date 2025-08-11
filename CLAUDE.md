@@ -35,6 +35,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 2025-08-07: 添加开发模式脚本（dev.sh），支持热重载开发
 - 有大的改动，特别是涉及脚本及重大功能变化，要记录到CLAUDE.md和README.md
 
+## 重要提醒和常见错误
+
+### tail命令使用（macOS）
+- **正确用法**: `tail -n 20 file.log` 或单独使用 `tail -20 file.log`
+- **错误用法**: `tail -20 file.log | grep pattern` (在macOS上会报错)
+- **解决方案**: 始终使用 `-n` 参数：`tail -n 20 file.log | grep pattern`
+
+### 静态文件访问路径
+- **所有HTML文件都通过 `/static/` 路径访问**
+- 正确: `http://localhost:8000/static/training_manager.html`
+- 错误: `http://localhost:8000/training_manager.html`
+- JavaScript中打开页面使用: `window.open('/static/xxx.html', '_blank')`
+
+### 数据库操作
+- **禁止直接使用sqlite3命令行工具访问数据库**
+- 应该通过API接口或Python脚本访问数据库
+- 使用SQLAlchemy ORM进行数据库操作
+
 ## 常用命令
 
 ### 本地开发

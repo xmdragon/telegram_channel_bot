@@ -81,7 +81,7 @@ async def get_messages(
                 "message_id": msg.message_id,
                 "media_type": msg.media_type,
                 "media_url": msg.media_url,
-                "media_display_url": f"/media/{os.path.basename(msg.media_url)}" if msg.media_url else None,
+                "media_display_url": f"/temp_media/{os.path.basename(msg.media_url)}" if msg.media_url else None,
                 "grouped_id": msg.grouped_id,
                 "is_combined": msg.is_combined,
                 "combined_messages": msg.combined_messages,
@@ -89,7 +89,7 @@ async def get_messages(
                 "media_group_display": [
                     {
                         **media_item,
-                        "display_url": f"/media/{os.path.basename(media_item['file_path'])}" if media_item.get('file_path') else None
+                        "display_url": f"/temp_media/{os.path.basename(media_item['file_path'])}" if media_item.get('file_path') else None
                     }
                     for media_item in (msg.media_group or [])
                 ] if msg.media_group else None,

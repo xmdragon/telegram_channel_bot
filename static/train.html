@@ -266,6 +266,71 @@
                         </div>
                     </div>
                 </el-tab-pane>
+
+                <!-- 数据管理 -->
+                <el-tab-pane label="🗂️ 数据管理" name="manage">
+                    <div class="config-section">
+                        <el-card>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <div>
+                                    <h3 style="margin: 0;">广告训练数据管理</h3>
+                                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
+                                        查看和管理所有广告检测训练样本，包括去重、删除误判数据等操作
+                                    </p>
+                                </div>
+                                <el-button type="primary" @click="openTrainingManager" icon="Setting">
+                                    打开管理界面
+                                </el-button>
+                            </div>
+
+                            <el-divider></el-divider>
+
+                            <div class="stats-grid" style="margin: 20px 0;">
+                                <div class="stat-item">
+                                    <div class="stat-number">{{ trainingDataStats.totalSamples || 0 }}</div>
+                                    <div class="stat-label">训练样本总数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">{{ trainingDataStats.uniqueSamples || 0 }}</div>
+                                    <div class="stat-label">独特样本数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">{{ trainingDataStats.mediaFiles || 0 }}</div>
+                                    <div class="stat-label">媒体文件数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">{{ formatSize(trainingDataStats.storageSize || 0) }}</div>
+                                    <div class="stat-label">存储空间</div>
+                                </div>
+                            </div>
+
+                            <el-divider></el-divider>
+
+                            <h4>🛠️ 管理功能</h4>
+                            <ul style="line-height: 2;">
+                                <li><strong>查看样本</strong> - 浏览所有训练数据，支持搜索和筛选</li>
+                                <li><strong>删除误判</strong> - 移除被错误标记为广告的样本</li>
+                                <li><strong>批量操作</strong> - 选择多个样本进行批量删除</li>
+                                <li><strong>重复检测</strong> - 自动检测相似或重复的样本（85%相似度阈值）</li>
+                                <li><strong>智能去重</strong> - 合并重复样本，保持数据质量</li>
+                                <li><strong>存储优化</strong> - 将视频转换为快照，节省95%存储空间</li>
+                                <li><strong>模型重载</strong> - 更新后立即重新加载训练模型</li>
+                            </ul>
+
+                            <el-alert type="warning" :closable="false" style="margin-top: 20px;">
+                                <template #title>
+                                    <strong>注意事项</strong>
+                                </template>
+                                <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                                    <li>删除操作不可恢复，请谨慎操作</li>
+                                    <li>去重前建议先查看重复检测结果</li>
+                                    <li>存储优化会将视频文件转换为图片快照</li>
+                                    <li>模型重载会短暂影响检测服务</li>
+                                </ul>
+                            </el-alert>
+                        </el-card>
+                    </div>
+                </el-tab-pane>
                 
                 <!-- 使用说明 -->
                 <el-tab-pane label="📖 使用说明" name="help">

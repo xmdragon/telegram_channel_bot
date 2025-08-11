@@ -125,10 +125,13 @@ class AdaptiveLearningSystem:
                 # 用户批准了被标记为广告的内容，可能是误判
                 logger.info(f"检测到可能的误判: 消息 {message.id} 被标记为广告但用户批准了")
                 
-                # 将此内容添加到正常样本库
-                await self._add_normal_sample(message.content)
+                # 不再收集正常样本，因为：
+                # 1. 正常内容太多样化，没有统一特征
+                # 2. 收集大量正常样本会稀释模型判断能力
+                # 3. 重点应该是学习广告特征，而不是正常内容
                 
-                # TODO: 降低相似内容的广告检测阈值
+                # 可以考虑记录误判情况用于后续分析
+                # TODO: 记录误判统计
         
         except Exception as e:
             logger.error(f"从批准操作学习失败: {e}")
@@ -283,10 +286,11 @@ class AdaptiveLearningSystem:
                 # 更新广告检测器
                 await ad_detector.update_ad_samples(ad_samples)
             
-            if normal_samples:
-                logger.info(f"批量添加 {len(normal_samples)} 个正常样本")
-                for sample in normal_samples:
-                    await self._add_normal_sample(sample)
+            # 不再收集正常样本
+            # if normal_samples:
+            #     logger.info(f"批量添加 {len(normal_samples)} 个正常样本")
+            #     for sample in normal_samples:
+            #         await self._add_normal_sample(sample)
             
             # 清空缓冲区（保留最近的20条）
             self.feedback_buffer = self.feedback_buffer[-20:]

@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 import asyncio
 import logging
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -193,7 +194,12 @@ import os
 temp_media_dir = "./temp_media"
 if not os.path.exists(temp_media_dir):
     os.makedirs(temp_media_dir)
-app.mount("/media", StaticFiles(directory=temp_media_dir), name="media")
+app.mount("/temp_media", StaticFiles(directory=temp_media_dir), name="temp_media")
+
+# 挂载训练数据媒体文件
+training_media_dir = Path("data/ad_training_data")
+training_media_dir.mkdir(exist_ok=True)
+app.mount("/media/ad_training_data", StaticFiles(directory=str(training_media_dir)), name="training_media")
 
 # 添加根路径重定向
 @app.get("/")

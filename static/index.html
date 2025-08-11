@@ -111,7 +111,7 @@
                                    @change="toggleMessage(message.id)">
                             
                             <!-- 数据库编号 -->
-                            <span class="message-id" style="color: #999; margin-right: 10px;">
+                            <span class="message-id">
                                 #{{ message.id }}
                             </span>
                             
@@ -301,6 +301,64 @@
              @click="mediaPreview.show = false">
             <img :src="mediaPreview.url" style="max-width: 90%; max-height: 90%;">
         </div>
+        
+        <!-- 文件详情对话框 -->
+        <div v-if="fileDetailsDialog && fileDetailsDialog.visible" 
+             class="modal-overlay" 
+             @click.self="fileDetailsDialog.visible = false">
+            <div class="file-details-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">文件详情</h3>
+                    <button class="close-btn" @click="fileDetailsDialog.visible = false">×</button>
+                </div>
+                <div class="modal-body file-details-body">
+                    <table class="file-details-table">
+                        <tr>
+                            <td class="detail-label">文件名</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.fileName }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.originalFileName !== fileDetailsDialog.details.fileName">
+                            <td class="detail-label">原始文件名</td>
+                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.originalFileName }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">路径</td>
+                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.path }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">类型</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.type }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">大小</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.size }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.hash">
+                            <td class="detail-label">哈希</td>
+                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.hash }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.createTime">
+                            <td class="detail-label">创建时间</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.createTime }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.tags && fileDetailsDialog.details.tags.length > 0">
+                            <td class="detail-label">引用样本</td>
+                            <td class="detail-value">
+                                <span v-for="tag in fileDetailsDialog.details.tags" :key="tag" class="file-tag">{{ tag }}</span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button @click="fileDetailsDialog.visible = false" class="btn btn-secondary">
+                        关闭
+                    </button>
+                    <a :href="fileDetailsDialog.details.path" download class="btn btn-primary">
+                        下载文件
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 外部脚本文件 -->
@@ -318,6 +376,26 @@
     <script src="assets/js/components/index.js"></script>
     
     <style>
+        /* 消息ID样式 - 固定宽度实现对齐 */
+        .message-id {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            min-width: 75px;
+            width: 75px;
+            color: #999;
+            margin-right: 12px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        
+        /* 复选框样式优化 */
+        .message-info input[type="checkbox"] {
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
         /* 消息项特定样式 */
         .message-media {
             margin: 1rem 0;
@@ -325,7 +403,9 @@
         
         .media-image {
             max-width: 100%;
-            max-height: 400px;
+            max-height: 200px;
+            height: 200px;
+            object-fit: cover;
             border-radius: 8px;
             cursor: pointer;
             transition: transform 0.3s;
@@ -337,7 +417,8 @@
         
         .media-video {
             max-width: 100%;
-            max-height: 400px;
+            max-height: 200px;
+            height: 200px;
             border-radius: 8px;
         }
         
@@ -392,6 +473,137 @@
             border-top: 1px solid var(--border-color);
             margin-top: 20px;
             padding-top: 20px;
+        }
+        
+        /* 文件详情对话框样式 */
+        .file-details-modal {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            width: 700px !important;
+            min-width: 600px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow: auto;
+            position: relative;
+        }
+        
+        .file-details-modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .file-details-modal .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .file-details-modal .close-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .file-details-body {
+            padding: 20px;
+        }
+        
+        .file-details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .file-details-table tr {
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .file-details-table tr:last-child {
+            border-bottom: none;
+        }
+        
+        .file-details-table td {
+            padding: 12px 0;
+            vertical-align: top;
+        }
+        
+        .detail-label {
+            width: 100px;
+            min-width: 100px;
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .detail-value {
+            color: #333;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        
+        .detail-value-small {
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #666;
+        }
+        
+        .file-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+        
+        .file-details-modal .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .file-details-modal .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .file-details-modal .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .file-details-modal .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .file-details-modal .btn-primary {
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .file-details-modal .btn-primary:hover {
+            background: #45a049;
         }
     </style>
 </body>

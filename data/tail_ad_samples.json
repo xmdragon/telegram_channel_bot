@@ -1,0 +1,15 @@
+{
+  "samples": [
+    {
+      "id": 1,
+      "description": "测试尾部广告",
+      "content": "正常内容\n————————\n广告内容",
+      "separator": "————————",
+      "normal_part": "正常内容",
+      "ad_part": "广告内容",
+      "content_hash": "9ace4ba55fc7addd7670021d33066bb7",
+      "created_at": "2025-08-11T20:05:16.358549"
+    }
+  ],
+  "updated_at": "2025-08-11T20:05:16.358552"
+}

@@ -47,6 +47,14 @@ const TrainApp = {
                 todayTraining: 0
             },
             
+            // 训练数据统计
+            trainingDataStats: {
+                totalSamples: 0,
+                uniqueSamples: 0,
+                mediaFiles: 0,
+                storageSize: 0
+            },
+            
             // 训练历史
             trainingHistory: []
         };
@@ -63,6 +71,8 @@ const TrainApp = {
         this.checkUrlParams();
         // 然后初始化
         this.init();
+        // 加载训练数据统计
+        this.loadTrainingDataStats();
     },
     
     methods: {
@@ -457,6 +467,30 @@ const TrainApp = {
                 hour: '2-digit',
                 minute: '2-digit'
             });
+        },
+
+        // 加载训练数据统计
+        async loadTrainingDataStats() {
+            try {
+                const response = await axios.get('/api/training/statistics');
+                this.trainingDataStats = response.data;
+            } catch (error) {
+                console.error('加载训练数据统计失败:', error);
+            }
+        },
+
+        // 打开训练数据管理界面
+        openTrainingManager() {
+            window.open('/static/training_manager.html', '_blank');
+        },
+
+        // 格式化文件大小
+        formatSize(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
     }
 };

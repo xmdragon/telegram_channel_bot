@@ -19,6 +19,8 @@ import threading
 from app.core.database import get_db, Channel, Message
 from app.services.ai_filter import ai_filter
 from app.services.adaptive_learning import adaptive_learning
+from app.api.admin_auth import check_permission, require_admin
+from app.utils.safe_file_ops import SafeFileOperation
 from pydantic import BaseModel
 import logging
 
@@ -1416,24 +1418,7 @@ async def get_ad_training_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/ad-samples")
-async def get_ad_samples(limit: int = 10):
-    """获取最近的广告样本"""
-    try:
-        data = ad_training_manager._load_data()
-        samples = data.get("ad_samples", [])
-        
-        # 返回最近的样本
-        recent_samples = samples[-limit:] if len(samples) > limit else samples
-        recent_samples.reverse()  # 最新的在前
-        
-        return {
-            "total": len(samples),
-            "samples": recent_samples
-        }
-    except Exception as e:
-        logger.error(f"获取广告样本失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# 这个路由已经被下面更完整的实现替代，删除以避免冲突
 
 
 # ===== 新增的分隔符训练端点 =====
@@ -1443,9 +1428,8 @@ async def get_separator_patterns():
     """获取分隔符模式列表"""
     try:
         if SEPARATOR_PATTERNS_FILE.exists():
-            with open(SEPARATOR_PATTERNS_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return {"patterns": data.get("patterns", [])}
+            data = SafeFileOperation.read_json_safe(SEPARATOR_PATTERNS_FILE)
+            return {"patterns": data.get("patterns", [])} if data else {"patterns": []}
         else:
             # 返回默认模式
             default_patterns = [
@@ -1470,11 +1454,11 @@ async def save_separator_patterns(request: dict):
         patterns = request.get("patterns", [])
         
         # 保存到文件
-        with open(SEPARATOR_PATTERNS_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                "patterns": patterns,
-                "updated_at": datetime.now().isoformat()
-            }, f, ensure_ascii=False, indent=2)
+        if not SafeFileOperation.write_json_safe(SEPARATOR_PATTERNS_FILE, {
+            "patterns": patterns,
+            "updated_at": datetime.now().isoformat()
+        }):
+            return {"success": False, "error": "保存数据失败"}
         
         # 更新smart_tail_filter的模式
         from app.services.smart_tail_filter import smart_tail_filter
@@ -1492,16 +1476,15 @@ async def get_tail_ad_samples():
     """获取尾部广告训练样本"""
     try:
         if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                samples = data.get("samples", [])
-                
-                # 添加ID如果没有
-                for i, sample in enumerate(samples):
-                    if 'id' not in sample:
-                        sample['id'] = i + 1
-                
-                return {"samples": samples}
+            data = SafeFileOperation.read_json_safe(TAIL_AD_SAMPLES_FILE)
+            samples = data.get("samples", []) if data else []
+            
+            # 添加ID如果没有
+            for i, sample in enumerate(samples):
+                if 'id' not in sample:
+                    sample['id'] = i + 1
+            
+            return {"samples": samples}
         else:
             return {"samples": []}
     except Exception as e:
@@ -1510,13 +1493,17 @@ async def get_tail_ad_samples():
 
 
 @router.post("/add-ad-sample")
-async def add_ad_sample(request: dict):
-    """添加广告训练样本"""
+async def add_ad_sample(
+    request: dict,
+    _admin = Depends(check_permission("training.submit"))
+):
+    """添加广告训练样本（带相似度检查）"""
     try:
         # 提取参数
         content = request.get("content", "")
         is_ad = request.get("is_ad", True)
         description = request.get("description", "")
+        force_add = request.get("force_add", False)  # 强制添加标志
         
         if not content:
             return {"success": False, "message": "内容不能为空"}
@@ -1526,11 +1513,56 @@ async def add_ad_sample(request: dict):
         training_data = {"samples": [], "updated_at": None}
         
         if ad_training_file.exists():
+            training_data = SafeFileOperation.read_json_safe(ad_training_file)
+            if not training_data:
+                training_data = {"samples": [], "updated_at": None}
+        
+        # 检查相似度（如果不是强制添加）
+        if not force_add and training_data.get("samples"):
             try:
-                with open(ad_training_file, 'r', encoding='utf-8') as f:
-                    training_data = json.load(f)
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                from sklearn.metrics.pairwise import cosine_similarity
+                
+                # 获取现有样本内容
+                existing_contents = [s.get("content", "") for s in training_data["samples"]]
+                
+                # 计算相似度
+                vectorizer = TfidfVectorizer()
+                all_contents = existing_contents + [content]
+                tfidf_matrix = vectorizer.fit_transform(all_contents)
+                
+                # 计算新内容与现有内容的相似度
+                new_content_vector = tfidf_matrix[-1]
+                existing_vectors = tfidf_matrix[:-1]
+                similarities = cosine_similarity(new_content_vector, existing_vectors)[0]
+                
+                # 检查最高相似度
+                max_similarity = similarities.max() if len(similarities) > 0 else 0
+                
+                if max_similarity >= 0.95:
+                    # 完全相同或几乎相同，拒绝添加
+                    similar_idx = similarities.argmax()
+                    return {
+                        "success": False,
+                        "message": f"样本已存在（相似度: {int(max_similarity * 100)}%）",
+                        "similarity": int(max_similarity * 100),
+                        "similar_sample_id": training_data["samples"][similar_idx].get("id")
+                    }
+                elif max_similarity >= 0.85:
+                    # 高度相似，需要确认
+                    similar_idx = similarities.argmax()
+                    return {
+                        "success": False,
+                        "message": f"发现相似样本（相似度: {int(max_similarity * 100)}%），确定要添加吗？",
+                        "similarity": int(max_similarity * 100),
+                        "similar_sample_id": training_data["samples"][similar_idx].get("id"),
+                        "need_confirm": True
+                    }
+                
+            except ImportError:
+                logger.warning("scikit-learn未安装，跳过相似度检查")
             except Exception as e:
-                logger.error(f"加载广告训练数据失败: {e}")
+                logger.error(f"相似度检查失败: {e}")
         
         # 生成新样本
         new_sample = {
@@ -1549,10 +1581,14 @@ async def add_ad_sample(request: dict):
         
         # 保存到文件
         ad_training_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(ad_training_file, 'w', encoding='utf-8') as f:
-            json.dump(training_data, f, ensure_ascii=False, indent=2)
+        if not SafeFileOperation.write_json_safe(ad_training_file, training_data):
+            return {"success": False, "message": "保存数据失败"}
         
         logger.info(f"添加广告训练样本: is_ad={is_ad}, 长度={len(content)}")
+        
+        # 触发模型重新加载
+        from app.services.ad_detector import ad_detector
+        ad_detector._samples_loaded = False
         
         return {
             "success": True,
@@ -1566,7 +1602,10 @@ async def add_ad_sample(request: dict):
 
 
 @router.post("/tail-ad-samples")
-async def add_tail_ad_sample(request: dict):
+async def add_tail_ad_sample(
+    request: dict,
+    _admin = Depends(check_permission("training.submit"))
+):
     """添加尾部广告训练样本"""
     try:
         # 提取参数
@@ -1582,9 +1621,8 @@ async def add_tail_ad_sample(request: dict):
         # 加载现有样本
         samples = []
         if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                samples = data.get("samples", [])
+            data = SafeFileOperation.read_json_safe(TAIL_AD_SAMPLES_FILE)
+            samples = data.get("samples", []) if data else []
         
         # 生成ID
         new_id = max([s.get('id', 0) for s in samples], default=0) + 1
@@ -1610,14 +1648,17 @@ async def add_tail_ad_sample(request: dict):
         samples.append(new_sample)
         
         # 保存到文件
-        with open(TAIL_AD_SAMPLES_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                "samples": samples,
-                "updated_at": datetime.now().isoformat()
-            }, f, ensure_ascii=False, indent=2)
+        if not SafeFileOperation.write_json_safe(TAIL_AD_SAMPLES_FILE, {
+            "samples": samples,
+            "updated_at": datetime.now().isoformat()
+        }):
+            return {"success": False, "error": "保存数据失败"}
         
         # 同时添加到广告样本库用于AI学习
-        await adaptive_learning._add_ad_sample(ad_part)
+        try:
+            await adaptive_learning._add_ad_sample(ad_part)
+        except Exception as e:
+            logger.warning(f"添加到广告样本库失败（不影响尾部样本保存）: {e}")
         
         logger.info(f"添加新的尾部广告样本: {new_id}")
         return {"success": True, "message": "样本已添加", "id": new_id}
@@ -1647,11 +1688,11 @@ async def delete_tail_ad_sample(sample_id: int):
             return {"success": False, "error": "样本不存在"}
         
         # 保存
-        with open(TAIL_AD_SAMPLES_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                "samples": samples,
-                "updated_at": datetime.now().isoformat()
-            }, f, ensure_ascii=False, indent=2)
+        if not SafeFileOperation.write_json_safe(TAIL_AD_SAMPLES_FILE, {
+            "samples": samples,
+            "updated_at": datetime.now().isoformat()
+        }):
+            return {"success": False, "error": "保存数据失败"}
         
         logger.info(f"删除尾部广告样本: {sample_id}")
         return {"success": True, "message": "样本已删除"}
@@ -1691,3 +1732,736 @@ async def record_feedback(request: dict):
     except Exception as e:
         logger.error(f"记录反馈失败: {e}")
         return {"success": False, "error": str(e)}
+
+
+# ==================== 训练数据管理API ====================
+
+@router.get("/ad-samples")
+async def get_ad_samples(
+    page: int = 1,
+    size: int = 20,
+    search: str = None,
+    filter: str = "all",
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取广告训练样本列表"""
+    try:
+        # 加载训练数据
+        ad_training_file = Path("data/ad_training_data.json")
+        
+        if not ad_training_file.exists():
+            logger.warning(f"训练数据文件不存在: {ad_training_file}")
+            return {"samples": [], "total": 0}
+        
+        data = SafeFileOperation.read_json_safe(ad_training_file)
+        
+        if not data:
+            logger.error("无法读取训练数据文件")
+            return {"samples": [], "total": 0}
+        
+        samples = data.get("samples", [])
+        
+        # 搜索过滤
+        if search:
+            samples = [s for s in samples if search.lower() in s.get("content", "").lower()]
+        
+        # 类型过滤
+        if filter == "with_media":
+            # TODO: 加载媒体元数据并过滤
+            pass
+        elif filter == "text_only":
+            # TODO: 过滤纯文本样本
+            pass
+        elif filter == "duplicate":
+            # TODO: 标记疑似重复的样本
+            pass
+        
+        # 分页
+        total = len(samples)
+        start = (page - 1) * size
+        end = start + size
+        page_samples = samples[start:end]
+        
+        # 加载媒体文件信息
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_files_map = {}
+        if media_metadata_file.exists():
+            media_data = SafeFileOperation.read_json_safe(media_metadata_file)
+            if media_data:
+                for file_hash, info in media_data.get("media_files", {}).items():
+                    for msg_id in info.get("message_ids", []):
+                        if msg_id not in media_files_map:
+                            media_files_map[msg_id] = []
+                        media_files_map[msg_id].append(info["path"])
+        
+        # 添加媒体文件信息到样本
+        for sample in page_samples:
+            sample_id = sample.get("id")
+            if sample_id in media_files_map:
+                sample["media_files"] = media_files_map[sample_id]
+        
+        return {
+            "samples": page_samples,
+            "total": total
+        }
+        
+    except Exception as e:
+        logger.error(f"获取广告样本失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ad-samples/{sample_id}")
+async def get_ad_sample_detail(
+    sample_id: int,
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取单个广告样本详情"""
+    try:
+        ad_training_file = Path("data/ad_training_data.json")
+        if not ad_training_file.exists():
+            raise HTTPException(status_code=404, detail="训练数据文件不存在")
+        
+        data = SafeFileOperation.read_json_safe(ad_training_file)
+        if not data:
+            raise HTTPException(status_code=404, detail="无法读取训练数据文件")
+        
+        samples = data.get("samples", [])
+        for sample in samples:
+            if sample.get("id") == sample_id:
+                # 加载媒体文件信息
+                media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+                if media_metadata_file.exists():
+                    with open(media_metadata_file, 'r', encoding='utf-8') as f:
+                        media_data = json.load(f)
+                        media_files = []
+                        for file_hash, info in media_data.get("media_files", {}).items():
+                            if sample_id in info.get("message_ids", []):
+                                media_files.append(info["path"])
+                        if media_files:
+                            sample["media_files"] = media_files
+                
+                return sample
+        
+        raise HTTPException(status_code=404, detail="样本不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取样本详情失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/ad-samples/{sample_id}")
+async def delete_ad_sample(
+    sample_id: int,
+    _admin = Depends(check_permission("training.manage"))
+):
+    """删除单个广告样本"""
+    try:
+        # 加载训练数据
+        ad_training_file = Path("data/ad_training_data.json")
+        if not ad_training_file.exists():
+            raise HTTPException(status_code=404, detail="训练数据文件不存在")
+        
+        data = SafeFileOperation.read_json_safe(ad_training_file)
+        if not data:
+            raise HTTPException(status_code=404, detail="无法读取训练数据文件")
+        
+        samples = data.get("samples", [])
+        
+        # 查找并删除样本
+        deleted = False
+        for i, sample in enumerate(samples):
+            if sample.get("id") == sample_id:
+                # 删除媒体文件
+                await _delete_sample_media_files(sample_id)
+                
+                # 删除样本
+                samples.pop(i)
+                deleted = True
+                break
+        
+        if not deleted:
+            raise HTTPException(status_code=404, detail="样本不存在")
+        
+        # 保存更新后的数据
+        data["samples"] = samples
+        data["updated_at"] = datetime.now().isoformat()
+        
+        if not SafeFileOperation.write_json_safe(ad_training_file, data):
+            raise HTTPException(status_code=500, detail="保存数据失败")
+        
+        logger.info(f"删除广告样本 ID={sample_id}")
+        return {"success": True, "message": "样本已删除"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除样本失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/ad-samples/batch")
+async def delete_ad_samples_batch(
+    request: dict,
+    _admin = Depends(check_permission("training.manage"))
+):
+    """批量删除广告样本"""
+    try:
+        ids = request.get("ids", [])
+        if not ids:
+            raise HTTPException(status_code=400, detail="未提供要删除的ID")
+        
+        # 加载训练数据
+        ad_training_file = Path("data/ad_training_data.json")
+        if not ad_training_file.exists():
+            raise HTTPException(status_code=404, detail="训练数据文件不存在")
+        
+        data = SafeFileOperation.read_json_safe(ad_training_file)
+        if not data:
+            raise HTTPException(status_code=404, detail="无法读取训练数据文件")
+        
+        samples = data.get("samples", [])
+        original_count = len(samples)
+        
+        # 删除指定的样本
+        for sample_id in ids:
+            # 删除媒体文件
+            await _delete_sample_media_files(sample_id)
+        
+        # 过滤掉要删除的样本
+        samples = [s for s in samples if s.get("id") not in ids]
+        deleted_count = original_count - len(samples)
+        
+        # 保存更新后的数据
+        data["samples"] = samples
+        data["updated_at"] = datetime.now().isoformat()
+        
+        if not SafeFileOperation.write_json_safe(ad_training_file, data):
+            raise HTTPException(status_code=500, detail="保存数据失败")
+        
+        logger.info(f"批量删除 {deleted_count} 个广告样本")
+        return {"success": True, "message": f"成功删除 {deleted_count} 个样本"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量删除失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/statistics")
+async def get_training_statistics(
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取训练数据统计信息"""
+    try:
+        stats = {
+            "totalSamples": 0,
+            "uniqueSamples": 0,
+            "mediaFiles": 0,
+            "storageSize": 0
+        }
+        
+        # 统计文本样本
+        ad_training_file = Path("data/ad_training_data.json")
+        if ad_training_file.exists():
+            with open(ad_training_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                samples = data.get("samples", [])
+                stats["totalSamples"] = len(samples)
+                
+                # 统计唯一内容
+                unique_contents = set()
+                for sample in samples:
+                    content_hash = hashlib.md5(sample.get("content", "").encode()).hexdigest()
+                    unique_contents.add(content_hash)
+                stats["uniqueSamples"] = len(unique_contents)
+        
+        # 统计媒体文件
+        media_dir = Path("data/ad_training_data")
+        if media_dir.exists():
+            total_size = 0
+            file_count = 0
+            
+            # 统计图片
+            images_dir = media_dir / "images"
+            if images_dir.exists():
+                for img_file in images_dir.rglob("*"):
+                    if img_file.is_file():
+                        file_count += 1
+                        total_size += img_file.stat().st_size
+            
+            # 统计视频
+            videos_dir = media_dir / "videos"
+            if videos_dir.exists():
+                for vid_file in videos_dir.rglob("*"):
+                    if vid_file.is_file():
+                        file_count += 1
+                        total_size += vid_file.stat().st_size
+            
+            stats["mediaFiles"] = file_count
+            stats["storageSize"] = total_size
+        
+        return stats
+        
+    except Exception as e:
+        logger.error(f"获取统计信息失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/ad-samples/reload")
+async def reload_ad_samples(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """重新加载广告训练数据到模型"""
+    try:
+        from app.services.ad_detector import ad_detector
+        
+        # 清除缓存并重新加载
+        ad_detector._samples_loaded = False
+        ad_detector.ad_embeddings = []
+        
+        # 触发重新加载
+        ad_detector._load_ad_samples_sync()
+        
+        logger.info("广告训练数据已重新加载")
+        return {"success": True, "message": "模型已重新加载训练数据"}
+        
+    except Exception as e:
+        logger.error(f"重载模型失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _delete_sample_media_files(sample_id: int):
+    """删除样本关联的媒体文件"""
+    try:
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        if not media_metadata_file.exists():
+            return
+        
+        with open(media_metadata_file, 'r', encoding='utf-8') as f:
+            media_data = json.load(f)
+        
+        media_files = media_data.get("media_files", {})
+        files_to_delete = []
+        hashes_to_remove = []
+        
+        # 查找要删除的文件
+        for file_hash, info in media_files.items():
+            if sample_id in info.get("message_ids", []):
+                info["message_ids"].remove(sample_id)
+                
+                # 如果没有其他消息引用此文件，标记删除
+                if not info["message_ids"]:
+                    file_path = Path("data") / info["path"]
+                    if file_path.exists():
+                        files_to_delete.append(file_path)
+                    hashes_to_remove.append(file_hash)
+        
+        # 删除文件
+        for file_path in files_to_delete:
+            try:
+                file_path.unlink()
+                logger.debug(f"删除媒体文件: {file_path}")
+            except Exception as e:
+                logger.error(f"删除文件失败 {file_path}: {e}")
+        
+        # 更新元数据
+        for hash_key in hashes_to_remove:
+            del media_files[hash_key]
+        
+        media_data["media_files"] = media_files
+        media_data["updated_at"] = datetime.now().isoformat()
+        
+        SafeFileOperation.write_json_safe(media_metadata_file, media_data)
+            
+    except Exception as e:
+        logger.error(f"删除媒体文件失败: {e}")
+
+
+@router.post("/ad-samples/detect-duplicates")
+async def detect_duplicate_samples(
+    _admin = Depends(check_permission("training.view"))
+):
+    """检测重复或相似的样本"""
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        
+        # 加载训练数据
+        ad_training_file = Path("data/ad_training_data.json")
+        if not ad_training_file.exists():
+            return {"groups": [], "total_duplicates": 0}
+        
+        data = SafeFileOperation.read_json_safe(ad_training_file)
+        if not data:
+            raise HTTPException(status_code=404, detail="无法读取训练数据文件")
+        
+        samples = data.get("samples", [])
+        if len(samples) < 2:
+            return {"groups": [], "total_duplicates": 0}
+        
+        # 提取内容
+        contents = [s.get("content", "") for s in samples]
+        
+        # 使用TF-IDF计算相似度
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(contents)
+        similarity_matrix = cosine_similarity(tfidf_matrix, tfidf_matrix)
+        
+        # 查找相似样本组
+        duplicate_groups = []
+        processed = set()
+        threshold = 0.85  # 相似度阈值
+        
+        for i in range(len(samples)):
+            if i in processed:
+                continue
+            
+            # 找出与当前样本相似的所有样本
+            similar_indices = np.where(similarity_matrix[i] > threshold)[0]
+            if len(similar_indices) > 1:  # 至少有一个相似的（除了自己）
+                group = {
+                    "similarity": int(similarity_matrix[i][similar_indices].max() * 100),
+                    "samples": []
+                }
+                
+                for idx in similar_indices:
+                    if idx not in processed:
+                        sample_copy = samples[idx].copy()
+                        # 确保keep是Python原生bool类型，而不是numpy.bool_
+                        sample_copy["keep"] = bool(idx == similar_indices[0])  # 默认保留第一个
+                        # 限制内容长度，避免返回数据过大
+                        if len(sample_copy.get("content", "")) > 200:
+                            sample_copy["content"] = sample_copy["content"][:200] + "..."
+                        group["samples"].append(sample_copy)
+                        processed.add(idx)
+                
+                if len(group["samples"]) > 1:
+                    duplicate_groups.append(group)
+        
+        total_duplicates = sum(len(g["samples"]) for g in duplicate_groups)
+        
+        return {
+            "groups": duplicate_groups,
+            "total_duplicates": total_duplicates
+        }
+        
+    except ImportError as e:
+        logger.error(f"scikit-learn未安装，无法进行相似度检测: {e}")
+        return {"error": "相似度检测功能不可用，请安装scikit-learn"}
+    except Exception as e:
+        import traceback
+        logger.error(f"检测重复样本失败: {e}")
+        logger.error(f"详细错误: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"检测重复失败: {str(e)}")
+
+
+@router.post("/ad-samples/deduplicate")
+async def deduplicate_samples(
+    request: dict,
+    _admin = Depends(check_permission("training.manage"))
+):
+    """执行去重操作"""
+    try:
+        to_delete = request.get("to_delete", [])
+        
+        if not to_delete:
+            return {"success": False, "message": "没有要删除的样本"}
+        
+        # 加载训练数据
+        ad_training_file = Path("data/ad_training_data.json")
+        if not ad_training_file.exists():
+            raise HTTPException(status_code=404, detail="训练数据文件不存在")
+        
+        # 备份原文件
+        backup_file = ad_training_file.parent / f"ad_training_data_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        shutil.copy2(ad_training_file, backup_file)
+        logger.info(f"创建备份: {backup_file}")
+        
+        data = SafeFileOperation.read_json_safe(ad_training_file)
+        if not data:
+            raise HTTPException(status_code=404, detail="无法读取训练数据文件")
+        
+        samples = data.get("samples", [])
+        original_count = len(samples)
+        
+        # 删除媒体文件
+        for sample_id in to_delete:
+            await _delete_sample_media_files(sample_id)
+        
+        # 过滤掉重复的样本
+        samples = [s for s in samples if s.get("id") not in to_delete]
+        deleted_count = original_count - len(samples)
+        
+        # 保存更新后的数据
+        data["samples"] = samples
+        data["updated_at"] = datetime.now().isoformat()
+        
+        if not SafeFileOperation.write_json_safe(ad_training_file, data):
+            raise HTTPException(status_code=500, detail="保存数据失败")
+        
+        logger.info(f"去重完成: 删除 {deleted_count} 个重复样本")
+        
+        # 重新加载模型
+        from app.services.ad_detector import ad_detector
+        ad_detector._samples_loaded = False
+        ad_detector._load_ad_samples_sync()
+        
+        return {
+            "success": True,
+            "message": f"去重完成，删除了 {deleted_count} 个重复样本",
+            "deleted": deleted_count,
+            "remaining": len(samples)
+        }
+        
+    except Exception as e:
+        logger.error(f"去重操作失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/reload-model")
+async def reload_training_model(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """重新加载训练模型"""
+    try:
+        from app.services.ad_detector import ad_detector
+        
+        # 重新加载广告检测模型
+        ad_detector._samples_loaded = False
+        ad_detector._load_ad_samples_sync()
+        
+        # 获取当前样本数量
+        ad_training_file = Path("data/ad_training_data.json")
+        sample_count = 0
+        if ad_training_file.exists():
+            data = SafeFileOperation.read_json_safe(ad_training_file)
+            if data:
+                sample_count = len(data.get("samples", []))
+        
+        logger.info(f"模型重载成功，当前样本数: {sample_count}")
+        return {
+            "success": True,
+            "message": f"模型重载成功，已加载 {sample_count} 个训练样本"
+        }
+        
+    except Exception as e:
+        logger.error(f"模型重载失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/media-files")
+async def get_media_files(
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取所有媒体文件列表"""
+    try:
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_dir = Path("data/ad_training_data")
+        
+        files = []
+        stats = {
+            "totalFiles": 0,
+            "imageCount": 0,
+            "videoCount": 0,
+            "totalSize": 0,
+            "referencedCount": 0,
+            "orphanedCount": 0
+        }
+        
+        if media_metadata_file.exists():
+            data = SafeFileOperation.read_json_safe(media_metadata_file)
+            if data:
+                for file_hash, info in data.get("media_files", {}).items():
+                    file_path = media_dir / info["path"]
+                    file_type = "video" if info["path"].startswith("videos/") else "image"
+                    
+                    # 获取文件大小
+                    file_size = 0
+                    if file_path.exists():
+                        try:
+                            file_size = file_path.stat().st_size
+                        except:
+                            file_size = 0
+                    
+                    file_info = {
+                        "hash": file_hash,
+                        "name": Path(info["path"]).name,
+                        "path": info['path'],  # 直接使用原始路径，不添加前缀
+                        "type": file_type,
+                        "size": file_size,
+                        "messageIds": info.get("message_ids", []),
+                        "createdAt": info.get("created_at", "")
+                    }
+                    
+                    files.append(file_info)
+                    
+                    # 更新统计
+                    stats["totalFiles"] += 1
+                    if file_type == "image":
+                        stats["imageCount"] += 1
+                    else:
+                        stats["videoCount"] += 1
+                    stats["totalSize"] += file_info["size"]
+                    
+                    if file_info["messageIds"]:
+                        stats["referencedCount"] += 1
+                    else:
+                        stats["orphanedCount"] += 1
+        
+        return {
+            "files": files,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"获取媒体文件列表失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/media-files/{file_hash}")
+async def delete_media_file(
+    file_hash: str,
+    _admin = Depends(check_permission("training.manage"))
+):
+    """删除指定的媒体文件"""
+    try:
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            raise HTTPException(status_code=404, detail="媒体元数据文件不存在")
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or file_hash not in data.get("media_files", {}):
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 获取文件信息
+        file_info = data["media_files"][file_hash]
+        file_path = media_dir / file_info["path"]
+        
+        # 删除实际文件
+        if file_path.exists():
+            file_path.unlink()
+            logger.info(f"删除媒体文件: {file_path}")
+        
+        # 更新元数据
+        del data["media_files"][file_hash]
+        data["updated_at"] = datetime.now().isoformat()
+        
+        SafeFileOperation.write_json_safe(media_metadata_file, data)
+        
+        return {"success": True, "message": "文件已删除"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除媒体文件失败: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/media-files/clean-orphaned")
+async def clean_orphaned_media(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """清理未引用的媒体文件"""
+    try:
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            return {"success": True, "deleted": 0}
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data:
+            return {"success": True, "deleted": 0}
+        
+        deleted_count = 0
+        hashes_to_remove = []
+        
+        for file_hash, info in data.get("media_files", {}).items():
+            if not info.get("message_ids", []):
+                # 未引用的文件
+                file_path = media_dir / info["path"]
+                if file_path.exists():
+                    file_path.unlink()
+                    deleted_count += 1
+                    logger.info(f"清理未引用文件: {file_path}")
+                hashes_to_remove.append(file_hash)
+        
+        # 更新元数据
+        for hash_key in hashes_to_remove:
+            del data["media_files"][hash_key]
+        
+        data["updated_at"] = datetime.now().isoformat()
+        SafeFileOperation.write_json_safe(media_metadata_file, data)
+        
+        return {"success": True, "deleted": deleted_count}
+        
+    except Exception as e:
+        logger.error(f"清理未引用媒体文件失败: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/optimize-storage")
+async def optimize_storage(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """优化存储空间（视频转快照等）"""
+    try:
+        import cv2
+        from app.services.training_media_manager import training_media_manager
+        
+        saved_space = 0
+        processed_videos = 0
+        
+        # 处理视频文件
+        videos_dir = Path("data/ad_training_data/videos")
+        if videos_dir.exists():
+            for video_file in videos_dir.rglob("*.mp4"):
+                try:
+                    # 读取视频第一帧
+                    cap = cv2.VideoCapture(str(video_file))
+                    ret, frame = cap.read()
+                    cap.release()
+                    
+                    if ret:
+                        # 保存为图片
+                        image_name = video_file.stem + "_snapshot.jpg"
+                        image_path = videos_dir.parent / "images" / video_file.parent.name / image_name
+                        image_path.parent.mkdir(parents=True, exist_ok=True)
+                        
+                        cv2.imwrite(str(image_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                        
+                        # 更新元数据
+                        # TODO: 更新media_metadata.json中的路径
+                        
+                        # 计算节省的空间
+                        original_size = video_file.stat().st_size
+                        new_size = image_path.stat().st_size
+                        saved_space += original_size - new_size
+                        
+                        # 删除原视频
+                        video_file.unlink()
+                        processed_videos += 1
+                        
+                        logger.debug(f"转换视频为快照: {video_file.name} -> {image_name}")
+                    
+                except Exception as e:
+                    logger.error(f"处理视频失败 {video_file}: {e}")
+        
+        return {
+            "success": True,
+            "message": f"优化完成，处理了 {processed_videos} 个视频",
+            "saved_space": saved_space,
+            "processed_videos": processed_videos
+        }
+        
+    except ImportError:
+        return {"error": "OpenCV未正确安装，无法进行视频处理"}
+    except Exception as e:
+        logger.error(f"优化存储失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -579,7 +579,7 @@ class TelegramBot:
                 # 转换本地文件路径为web访问路径
                 file_path = media_item.get('file_path', '')
                 if file_path.startswith('./temp_media/'):
-                    web_path = file_path.replace('./temp_media/', '/media/')
+                    web_path = file_path.replace('./temp_media/', '/temp_media/')
                 else:
                     web_path = file_path
                     

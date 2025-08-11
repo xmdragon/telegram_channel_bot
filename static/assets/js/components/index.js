@@ -58,6 +58,10 @@ const MainApp = {
                 show: false,
                 url: null
             },
+            fileDetailsDialog: {
+                visible: false,
+                details: null
+            },
             stats: {
                 total: { value: 0, label: '总消息' },
                 pending: { value: 0, label: '待审核' },
@@ -578,8 +582,152 @@ const MainApp = {
 
         // 媒体预览（支持组合消息）
         openMediaPreview(url) {
-            this.mediaPreview.url = url;
-            this.mediaPreview.show = true;
+            // 如果是视频文件，显示文件详情而不是直接预览
+            if (url && (url.includes('.mp4') || url.includes('.MP4') || url.includes('.avi') || url.includes('.mov'))) {
+                this.showFileDetails(url);
+            } else {
+                this.mediaPreview.url = url;
+                this.mediaPreview.show = true;
+            }
+        },
+        
+        // 显示文件详情
+        showFileDetails(url) {
+            if (!url) return;
+            
+            // 从URL中提取文件信息
+            const fileName = url.split('/').pop();
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            // 简化文件名显示
+            const simplifiedName = this.simplifyFileName(fileName);
+            
+            // 创建文件详情对话框
+            const fileDetails = {
+                fileName: simplifiedName,
+                originalFileName: fileName, 
+                path: url,
+                type: this.getFileType(fileExt),
+                size: '计算中...',
+                hash: fileName.includes('_') ? fileName.split('_').slice(-1)[0].split('.')[0] : '',
+                createTime: this.extractCreateTime(fileName),
+                tags: this.extractTags(fileName)
+            };
+            
+            // 显示文件详情对话框
+            this.showFileDetailsDialog(fileDetails);
+        },
+        
+        // 简化文件名
+        simplifyFileName(fileName) {
+            if (!fileName) return '';
+            
+            // 匹配格式: XXXX_YYYYMMDD_HHMMSS_hash.ext
+            const pattern = /^(\d+)_(\d{8})_(\d{6})_([a-f0-9]+)\.(\w+)$/i;
+            const match = fileName.match(pattern);
+            
+            if (match) {
+                const [, id, date, time, , ext] = match;
+                // 返回简化的格式: ID_日期_时间.扩展名
+                return `${id}_${date}_${time}.${ext.toUpperCase()}`;
+            }
+            
+            // 如果文件名过长，截断显示
+            if (fileName.length > 30) {
+                const ext = fileName.split('.').pop();
+                return fileName.substring(0, 20) + '...' + '.' + ext;
+            }
+            
+            return fileName;
+        },
+        
+        // 提取创建时间
+        extractCreateTime(fileName) {
+            const pattern = /_(\d{8})_(\d{6})_/;
+            const match = fileName.match(pattern);
+            if (match) {
+                const [, date, time] = match;
+                const year = date.substring(0, 4);
+                const month = date.substring(4, 6);
+                const day = date.substring(6, 8);
+                const hour = time.substring(0, 2);
+                const minute = time.substring(2, 4);
+                const second = time.substring(4, 6);
+                return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+            }
+            return '';
+        },
+        
+        // 提取标签
+        extractTags(fileName) {
+            const tags = [];
+            // 从文件名中提取频道ID等信息
+            const idMatch = fileName.match(/^(\d+)_/);
+            if (idMatch) {
+                tags.push('#' + idMatch[1]);
+            }
+            return tags;
+        },
+        
+        // 获取文件类型
+        getFileType(ext) {
+            const typeMap = {
+                'mp4': 'video',
+                'avi': 'video',
+                'mov': 'video',
+                'mkv': 'video',
+                'jpg': 'photo',
+                'jpeg': 'photo',
+                'png': 'photo',
+                'gif': 'photo',
+                'pdf': 'document',
+                'doc': 'document',
+                'docx': 'document'
+            };
+            return typeMap[ext.toLowerCase()] || 'file';
+        },
+        
+        // 显示文件详情对话框
+        showFileDetailsDialog(details) {
+            // 创建或更新文件详情对话框数据
+            if (!this.fileDetailsDialog) {
+                this.fileDetailsDialog = {
+                    visible: false,
+                    details: null
+                };
+            }
+            
+            this.fileDetailsDialog.details = details;
+            this.fileDetailsDialog.visible = true;
+            
+            // 异步获取文件大小
+            this.getFileSize(details.path);
+        },
+        
+        // 获取文件大小
+        async getFileSize(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                const size = response.headers.get('content-length');
+                if (size && this.fileDetailsDialog && this.fileDetailsDialog.details) {
+                    const sizeInBytes = parseInt(size);
+                    this.fileDetailsDialog.details.size = this.formatFileSize(sizeInBytes);
+                }
+            } catch (error) {
+                console.error('获取文件大小失败:', error);
+                if (this.fileDetailsDialog && this.fileDetailsDialog.details) {
+                    this.fileDetailsDialog.details.size = '未知';
+                }
+            }
+        },
+        
+        // 格式化文件大小
+        formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         },
 
         // 处理媒体加载错误

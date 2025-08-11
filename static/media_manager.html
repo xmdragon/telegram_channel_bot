@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>媒体文件管理</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/media-manager.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav-bar page-title="🖼️ 媒体文件管理" page-subtitle="训练数据的图片和视频管理"></nav-bar>
+
+        <div class="container">
+            <!-- 统计信息 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📊 媒体统计</h2>
+                </div>
+                <div class="card-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">{{ stats.totalFiles }}</div>
+                            <div class="stat-label">文件总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">{{ stats.imageCount }}</div>
+                            <div class="stat-label">图片</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">{{ stats.videoCount }}</div>
+                            <div class="stat-label">视频</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">{{ formatSize(stats.totalSize) }}</div>
+                            <div class="stat-label">总大小</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">{{ stats.referencedCount }}</div>
+                            <div class="stat-label">已引用</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">{{ stats.orphanedCount }}</div>
+                            <div class="stat-label">未引用</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔧 批量操作</h2>
+                </div>
+                <div class="card-content">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <el-button @click="loadMediaFiles" icon="Refresh">刷新列表</el-button>
+                        <el-button @click="cleanOrphaned" type="warning" icon="Delete">清理未引用文件</el-button>
+                        <el-button @click="optimizeVideos" type="primary" icon="VideoCamera">优化视频（转快照）</el-button>
+                        <el-button @click="downloadAll" type="success" icon="Download">导出所有媒体</el-button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 媒体文件列表 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📁 媒体文件</h2>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <el-input v-model="searchKeyword" placeholder="搜索文件名" clearable style="width: 200px;">
+                            <template #prefix>
+                                <el-icon><Search /></el-icon>
+                            </template>
+                        </el-input>
+                        <el-select v-model="filterType" placeholder="类型" style="width: 120px;">
+                            <el-option label="全部" value="all"></el-option>
+                            <el-option label="图片" value="image"></el-option>
+                            <el-option label="视频" value="video"></el-option>
+                            <el-option label="已引用" value="referenced"></el-option>
+                            <el-option label="未引用" value="orphaned"></el-option>
+                        </el-select>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div v-if="loading" style="text-align: center; padding: 50px;">
+                        <el-icon class="is-loading" size="40">
+                            <Loading />
+                        </el-icon>
+                        <p style="margin-top: 10px; color: #999;">加载中...</p>
+                    </div>
+                    
+                    <div v-else-if="!filteredFiles.length" style="text-align: center; padding: 50px; color: #999;">
+                        暂无媒体文件
+                    </div>
+                    
+                    <div v-else class="media-grid">
+                        <div v-for="file in paginatedFiles" :key="file.hash" class="media-card">
+                            <el-image
+                                v-if="file.type === 'image'"
+                                :src="'/media/ad_training_data/' + file.path"
+                                :preview-src-list="['/media/ad_training_data/' + file.path]"
+                                fit="cover"
+                                class="media-preview"
+                                lazy
+                            >
+                                <template #error>
+                                    <div style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000;">
+                                        <el-icon size="30" color="#666"><Picture /></el-icon>
+                                    </div>
+                                </template>
+                            </el-image>
+                            
+                            <video v-else :src="'/media/ad_training_data/' + file.path" class="media-preview" preload="metadata" style="width: 100%; height: 200px; object-fit: cover;"></video>
+                            
+                            <div class="media-info">
+                                <div class="media-name" :title="file.name">{{ file.name }}</div>
+                                <div class="media-size">{{ formatSize(file.size) }}</div>
+                                <div style="color: #666; margin-top: 5px;">
+                                    引用: {{ file.messageIds.length }} 个样本
+                                </div>
+                            </div>
+                            
+                            <div class="media-actions">
+                                <el-button size="small" @click="viewDetails(file)">详情</el-button>
+                                <el-button size="small" type="danger" @click="deleteFile(file)">删除</el-button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <div v-if="filteredFiles.length > pageSize" style="margin-top: 20px; text-align: center;">
+                        <el-pagination
+                            v-model:current-page="currentPage"
+                            :page-size="pageSize"
+                            :total="filteredFiles.length"
+                            layout="prev, pager, next, total"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 文件详情对话框 -->
+        <el-dialog v-model="detailDialog" title="文件详情" width="800px" class="file-details-dialog">
+            <div v-if="currentFile">
+                <el-descriptions :column="1" border>
+                    <el-descriptions-item label="文件名">{{ currentFile.name }}</el-descriptions-item>
+                    <el-descriptions-item label="路径">{{ currentFile.path }}</el-descriptions-item>
+                    <el-descriptions-item label="类型">{{ currentFile.type }}</el-descriptions-item>
+                    <el-descriptions-item label="大小">{{ formatSize(currentFile.size) }}</el-descriptions-item>
+                    <el-descriptions-item label="哈希">{{ currentFile.hash }}</el-descriptions-item>
+                    <el-descriptions-item label="创建时间">{{ currentFile.createdAt }}</el-descriptions-item>
+                    <el-descriptions-item label="引用样本">
+                        <el-tag v-for="id in currentFile.messageIds" :key="id" style="margin-right: 5px;">
+                            #{{ id }}
+                        </el-tag>
+                    </el-descriptions-item>
+                </el-descriptions>
+                
+                <div class="dialog-footer">
+                    <el-image
+                        v-if="currentFile.type === 'image'"
+                        :src="'/media/ad_training_data/' + currentFile.path"
+                        class="dialog-image"
+                        fit="contain"
+                    />
+                </div>
+            </div>
+        </el-dialog>
+    </div>
+
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
+    <script src="assets/js/components/media-manager.js"></script>
+</body>
+</html>
