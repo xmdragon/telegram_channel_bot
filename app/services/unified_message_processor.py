@@ -4,7 +4,7 @@
 """
 import logging
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
 from telethon.tl.types import Message as TLMessage
 
@@ -175,6 +175,19 @@ class UnifiedMessageProcessor:
             
             if is_ad:
                 logger.info(f"🚫 检测到广告: {filter_reason}")
+                
+                # 检查是否应该完全拒绝纯广告消息
+                should_reject, reject_reason = self._should_reject_pure_ad(
+                    is_ad, filter_reason, filtered_content, content, media_info, ocr_result
+                )
+                
+                if should_reject:
+                    logger.warning(f"🚨 拒绝纯广告消息: {reject_reason}")
+                    # 清理媒体文件
+                    if media_info and media_info.get('file_path'):
+                        await media_handler.cleanup_file(media_info['file_path'])
+                    return None
+                
                 # 如果配置了自动过滤广告，直接返回None
                 if await db_settings.get_auto_filter_ads():
                     logger.info(f"自动过滤广告消息")
@@ -436,6 +449,97 @@ class UnifiedMessageProcessor:
                 
         except Exception as e:
             logger.error(f"转发到审核群失败: {e}")
+    
+    def _should_reject_pure_ad(self, is_ad: bool, filter_reason: str, filtered_content: str, 
+                              content: str, media_info: dict, ocr_result: dict) -> Tuple[bool, str]:
+        """
+        判断是否应该完全拒绝纯广告消息
+        
+        Args:
+            is_ad: 是否被判定为广告
+            filter_reason: 过滤原因
+            filtered_content: 过滤后的内容
+            content: 原始内容
+            media_info: 媒体信息
+            ocr_result: OCR识别结果
+            
+        Returns:
+            (是否拒绝, 拒绝原因)
+        """
+        import re
+        
+        # 高危广告关键词
+        HIGH_RISK_AD_KEYWORDS = [
+            # 赌博相关
+            r'[Yy]3.*(?:娱乐|娛樂|国际|國際)',
+            r'(?:USDT|泰达币|虚拟币).*(?:娱乐城|娛樂城|平台)',
+            r'(?:博彩|赌场|賭場|棋牌|体育|體育).*(?:平台|官网|官網)',
+            r'(?:首充|首存).*(?:返水|优惠|優惠)',
+            r'(?:日出|日入).*[0-9]+.*[uU]',
+            r'(?:实力|實力).*(?:U盘|U盤|USDT)',
+            r'(?:千万|千萬|巨款).*(?:无忧|無憂)',
+            
+            # 色情相关
+            r'(?:上线|上線).*(?:福利|八大)',
+            r'(?:永久|免费|免費).*(?:送|领取|領取)',
+            r'(?:幸运|幸運).*(?:单|單).*(?:奖|獎)',
+            
+            # 诈骗相关
+            r'(?:一个月|一個月).*(?:奔驰|奔馳|宝马|寶馬)',
+            r'(?:三个月|三個月).*(?:套房|房子)',
+            r'(?:汽车|汽車).*(?:违停|違停).*(?:拍照|一张|一張).*[0-9]+',
+            r'(?:想功成名就|胆子大|膽子大).*(?:灰色|看我)',
+        ]
+        
+        # 情况1：整条消息都是广告文本
+        if "整条消息都是广告" in filter_reason:
+            # 检查是否包含高危关键词
+            for pattern in HIGH_RISK_AD_KEYWORDS:
+                if re.search(pattern, content, re.IGNORECASE):
+                    return True, "高风险纯广告（赌博/色情/诈骗）"
+            
+            # 如果有媒体文件
+            if media_info:
+                # 如果OCR结果显示媒体也包含广告内容
+                if ocr_result and ocr_result.get('ad_score', 0) > 0.5:
+                    return True, "纯广告消息（文本+媒体都是广告）"
+                
+                # 如果OCR提取到了类似的广告文字
+                if ocr_result and ocr_result.get('ocr_text'):
+                    ocr_text = ocr_result.get('ocr_text', '')
+                    # 检查OCR文字是否包含高危关键词
+                    for pattern in HIGH_RISK_AD_KEYWORDS:
+                        if re.search(pattern, ocr_text, re.IGNORECASE):
+                            return True, "纯广告消息（媒体含高危广告内容）"
+            else:
+                # 没有媒体，纯广告文本，直接拒绝
+                return True, "纯广告文本（无媒体）"
+        
+        # 情况2：文本被完全过滤且有媒体
+        if not filtered_content.strip() and media_info:
+            # 检查原文本是否包含高危关键词
+            for pattern in HIGH_RISK_AD_KEYWORDS:
+                if re.search(pattern, content, re.IGNORECASE):
+                    return True, "高风险广告媒体（文本含高危内容）"
+            
+            # 检查OCR结果
+            if ocr_result:
+                # 高广告分数
+                if ocr_result.get('ad_score', 0) > 0.7:
+                    return True, "纯广告媒体（OCR检测高分）"
+                
+                # OCR文字包含高危关键词
+                ocr_text = ocr_result.get('ocr_text', '')
+                if ocr_text:
+                    for pattern in HIGH_RISK_AD_KEYWORDS:
+                        if re.search(pattern, ocr_text, re.IGNORECASE):
+                            return True, "纯广告媒体（OCR含高危内容）"
+            
+            # 如果文本过滤掉了超过90%的内容，也视为纯广告
+            if len(content) > 0 and len(filtered_content) < len(content) * 0.1:
+                return True, "疑似纯广告（文本过滤超90%）"
+        
+        return False, ""
     
     async def _broadcast_new_message(self, db_message: Message):
         """广播新消息到WebSocket客户端"""

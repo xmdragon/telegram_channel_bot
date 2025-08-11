@@ -163,10 +163,73 @@ class ContentFilter:
                 
         return max_score >= 8, max_score  # 提高阈值从7到8，减少误判
     
+    def _smart_rule_filter(self, content: str) -> str:
+        """
+        智能规则过滤，寻找明确的推广边界
+        
+        Args:
+            content: 原始内容
+            
+        Returns:
+            过滤后的内容
+        """
+        lines = content.split('\n')
+        if len(lines) < 3:
+            return content
+        
+        # 明确的分隔标志
+        strong_separators = [
+            r'^[-=_—➖]{10,}$',  # 长分隔线
+            r'^[📢📣🔔💬❤️🔗]{2,}.*$',  # 多个推广表情
+            r'^[-=\*]{3,}\s*$',  # 短分隔线
+        ]
+        
+        # 推广内容的强特征
+        strong_promo = [
+            r'\[.*\]\(https?://.*\)',  # Markdown链接格式
+            r'(?:订阅|關注|投稿|商务|联系).*(?:@|t\.me/)',  # 推广词+链接
+            r'https?://(?!(?:t\.me|telegram\.me))',  # 非Telegram链接
+            r'^\s*(?:频道|頻道|channel).*(?:@|t\.me/)',  # 频道推广
+        ]
+        
+        # 从后向前查找最明确的分隔点
+        best_separator_index = -1
+        
+        for i in range(len(lines) - 1, max(0, len(lines) - 20), -1):
+            line = lines[i].strip()
+            
+            # 检查是否是强分隔符
+            is_strong_separator = any(re.match(p, line) for p in strong_separators)
+            
+            if is_strong_separator:
+                # 验证分隔符后面确实有推广内容
+                has_strong_promo = False
+                promo_lines = 0
+                
+                for j in range(i + 1, min(i + 10, len(lines))):
+                    if any(re.search(p, lines[j], re.IGNORECASE) for p in strong_promo):
+                        has_strong_promo = True
+                        promo_lines += 1
+                
+                # 如果后面有至少2行推广内容，这是一个有效的分隔点
+                if has_strong_promo and promo_lines >= 2:
+                    best_separator_index = i
+                    break
+        
+        # 如果找到了明确的分隔点，过滤掉分隔符及之后的内容
+        if best_separator_index != -1:
+            result = '\n'.join(lines[:best_separator_index])
+            # 清理尾部空行
+            while result.endswith('\n\n'):
+                result = result[:-1]
+            return result.strip()
+        
+        return content
+    
     def filter_promotional_content(self, content: str, channel_id: str = None) -> str:
         """
-        精准过滤推广内容 - 简化版
-        重点过滤尾部推广内容
+        智能过滤推广内容 - 优化版本
+        优先使用规则，保护正文内容
         
         Args:
             content: 消息内容
@@ -175,12 +238,29 @@ class ContentFilter:
         if not content:
             return content
         
-        # 1. 首先尝试使用AI过滤频道尾部（如果可用）
-        if channel_id and self.ai_filter and self.ai_filter.initialized:
+        # 保存原始内容
+        original_content = content
+        
+        # 1. 首先使用智能规则过滤
+        rule_filtered = self._smart_rule_filter(content)
+        if rule_filtered != content:
+            logger.info(f"规则过滤了尾部内容: {len(content)} -> {len(rule_filtered)}")
+            content = rule_filtered
+        
+        # 2. 如果规则没有找到明确的尾部，才使用AI过滤（如果可用）
+        if content == original_content and channel_id and self.ai_filter and self.ai_filter.initialized:
             ai_filtered = self.ai_filter.filter_channel_tail(channel_id, content)
             if ai_filtered != content:
-                logger.info(f"AI过滤了频道 {channel_id} 的尾部内容")
-                content = ai_filtered
+                # 保护机制：验证AI过滤的合理性
+                if not ai_filtered or len(ai_filtered) < 50:
+                    logger.warning(f"AI过滤后内容过短（{len(ai_filtered) if ai_filtered else 0}字符），跳过AI过滤")
+                    content = original_content
+                elif len(ai_filtered) < len(content) * 0.3:
+                    logger.warning(f"AI过滤删除了超过70%的内容，可能误判，跳过AI过滤")
+                    content = original_content
+                else:
+                    logger.info(f"AI过滤了频道 {channel_id} 的尾部内容: {len(content)} -> {len(ai_filtered)}")
+                    content = ai_filtered
             
         lines = content.split('\n')
         total_lines = len(lines)
@@ -284,6 +364,60 @@ class ContentFilter:
         
         # 如果有4个或以上商业指标，判定为商业广告（从3提高到4，减少误判）
         return commercial_indicators >= 4
+    
+    def is_high_risk_ad(self, content: str) -> bool:
+        """
+        检测是否为高风险广告（赌博、色情、诈骗等）
+        
+        Args:
+            content: 消息内容
+            
+        Returns:
+            是否为高风险广告
+        """
+        if not content:
+            return False
+        
+        # 高风险广告关键词模式
+        HIGH_RISK_PATTERNS = [
+            # 赌博相关
+            r'[Yy]3.*(?:娱乐|娛樂|国际|國際|YLC|ylc)',
+            r'(?:USDT|泰达币|泰達幣|虚拟币|虛擬幣).*(?:娱乐城|娛樂城|平台)',
+            r'(?:博彩|赌场|賭場|棋牌|体育|體育).*(?:平台|官网|官網)',
+            r'(?:首充|首存|首冲).*(?:返水|优惠|優惠)',
+            r'(?:日出|日入|日赚|日賺).*[0-9]+.*[uU万萬千]',
+            r'(?:实力|實力).*(?:U盘|U盤|USDT)',
+            r'(?:千万|千萬|巨款).*(?:无忧|無憂)',
+            r'(?:PG|pg).*(?:幸运|幸運|注单|注單)',
+            r'(?:百家乐|百家樂|轮盘|輪盤|转运金|轉運金)',
+            r'全网福利.*业界龙头',
+            r'电子.*(?:专损金|專損金|亏损|虧損).*最高',
+            
+            # 色情相关
+            r'(?:上线|上線).*(?:福利|八大)',
+            r'(?:永久|免费|免費).*(?:送|领取|領取)',
+            r'(?:幸运|幸運).*(?:单|單).*(?:奖|獎)',
+            r'(?:上门|上門).*(?:服务|服務).*(?:颜值|顏值|身材)',
+            
+            # 诈骗相关
+            r'(?:一个月|一個月).*(?:奔驰|奔馳|宝马|寶馬|提奔驰|提寶馬)',
+            r'(?:三个月|三個月).*(?:套房|房子|一套房)',
+            r'(?:汽车|汽車).*(?:违停|違停).*(?:拍照|一张|一張).*[0-9]+',
+            r'(?:想功成名就|胆子大|膽子大).*(?:灰色|看我|煮叶|煮葉)',
+            r'(?:空闲|空閒).*(?:哥们|哥們).*(?:干点事|幹點事).*(?:宝马|寶馬)',
+            
+            # 其他高风险词汇
+            r'匿名秒登|日出亿U|官方直营|官方直營',
+            r'Y3YLC|y3ylc',  # 特定赌博网站
+        ]
+        
+        # 检查是否包含高风险模式
+        for pattern in HIGH_RISK_PATTERNS:
+            if re.search(pattern, content, re.IGNORECASE):
+                logger.info(f"检测到高风险广告关键词: {pattern[:30]}...")
+                return True
+                
+        return False
     
     
     async def filter_message(self, content: str, channel_id: str = None, message_obj: Any = None, media_files: List[str] = None) -> Tuple[bool, str, str, dict]:
@@ -451,7 +585,18 @@ class ContentFilter:
                 # 进行推广内容过滤
                 filtered_content = self.filter_promotional_content(filtered_content, channel_id)
         
-        # 7. 推广内容过滤（最后的保险）
+        # 7. 高风险广告检测（赌博、色情、诈骗等）
+        if content:  # 检查原始内容而不是过滤后的内容
+            is_high_risk = self.is_high_risk_ad(content)
+            if is_high_risk:
+                is_ad = True
+                if "高风险广告" not in reasons:
+                    reasons.append("高风险广告")
+                # 高风险广告应该清空内容
+                filtered_content = ""
+                logger.warning(f"检测到高风险广告，内容已清空")
+        
+        # 8. 推广内容过滤（最后的保险）
         if filtered_content:
             final_filtered = self.filter_promotional_content(filtered_content, channel_id)
             if final_filtered != filtered_content:
@@ -460,7 +605,7 @@ class ContentFilter:
                     is_ad = True
                     reasons.append("推广内容")
         
-        # 8. 清理OCR添加的标记（如果不是广告，移除OCR标记）
+        # 9. 清理OCR添加的标记（如果不是广告，移除OCR标记）
         if not is_ad and "[图片文字内容]" in filtered_content:
             # 如果不是广告，恢复原始内容（移除OCR文字）
             filtered_content = content
@@ -529,6 +674,17 @@ class ContentFilter:
                 reasons.append("商业广告")
                 # 进行推广内容过滤
                 filtered_content = self.filter_promotional_content(filtered_content, channel_id)
+        
+        # 3. 高风险广告检测（赌博、色情、诈骗等）
+        if content:  # 检查原始内容
+            is_high_risk = self.is_high_risk_ad(content)
+            if is_high_risk:
+                is_ad = True
+                if "高风险广告" not in reasons:
+                    reasons.append("高风险广告")
+                # 高风险广告应该清空内容
+                filtered_content = ""
+                logger.warning(f"同步检测到高风险广告，内容已清空")
         
         # 检查是否整条消息都被过滤了
         if not filtered_content.strip() and content.strip():

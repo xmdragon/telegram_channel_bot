@@ -66,12 +66,11 @@ class IntelligentFilter:
             return False
         
         try:
-            # 提取每条消息的尾部（最后5行）
+            # 更智能地提取尾部内容
             tails = []
             for msg in messages:
-                lines = msg.split('\n')
-                if len(lines) > 3:
-                    tail = '\n'.join(lines[-5:])
+                tail = self._extract_real_tail(msg)
+                if tail and len(tail) > 20:  # 只收集有效的尾部
                     tails.append(tail)
             
             # 动态判断样本数量 - 不再固定要求10个
@@ -152,9 +151,86 @@ class IntelligentFilter:
             logger.error(f"检查尾部内容失败: {e}")
             return False, 0.0
     
+    def _extract_real_tail(self, content: str) -> str:
+        """
+        智能提取消息的真正尾部（推广内容）
+        
+        Args:
+            content: 消息内容
+            
+        Returns:
+            真正的尾部内容，如果没有则返回空字符串
+        """
+        import re
+        lines = content.split('\n')
+        if len(lines) < 3:
+            return ""
+        
+        # 寻找明确的分隔标志
+        separator_patterns = [
+            r'^[-=_—➖▪▫◆◇■□●○•～~]{5,}$',  # 符号分隔线
+            r'^[📢📣🔔💬❤️🔗🔍✉️📮😍]*\s*$',  # 表情分隔
+            r'^\s*[-=]{3,}\s*$',  # 简单分隔线
+        ]
+        
+        # 推广内容的特征
+        promo_indicators = [
+            r'https?://',  # 链接
+            r'@[a-zA-Z][a-zA-Z0-9_]{4,}',  # Telegram用户名
+            r't\.me/',  # Telegram链接
+            r'(?:订阅|關注|投稿|商务|联系|失联|导航)',  # 推广关键词
+            r'\[.*\]\(.*\)',  # Markdown链接
+        ]
+        
+        # 从后向前查找分隔符
+        separator_index = -1
+        for i in range(len(lines) - 1, max(0, len(lines) - 15), -1):
+            line = lines[i].strip()
+            # 检查是否是分隔符
+            for pattern in separator_patterns:
+                if re.match(pattern, line):
+                    # 验证分隔符后面是否有推广内容
+                    has_promo = False
+                    for j in range(i + 1, min(i + 5, len(lines))):
+                        for promo in promo_indicators:
+                            if re.search(promo, lines[j], re.IGNORECASE):
+                                has_promo = True
+                                break
+                        if has_promo:
+                            break
+                    
+                    if has_promo:
+                        separator_index = i
+                        break
+            
+            if separator_index != -1:
+                break
+        
+        # 如果找到分隔符，返回分隔符之后的内容
+        if separator_index != -1:
+            tail = '\n'.join(lines[separator_index + 1:])
+            return tail.strip()
+        
+        # 如果没有分隔符，寻找推广内容的起始位置
+        promo_start = -1
+        for i in range(len(lines) - 1, max(0, len(lines) - 10), -1):
+            line = lines[i]
+            # 检查是否包含多个推广特征
+            promo_count = sum(1 for p in promo_indicators if re.search(p, line, re.IGNORECASE))
+            if promo_count >= 2:  # 至少2个推广特征
+                promo_start = i
+        
+        # 如果找到推广内容，返回从那里开始的内容
+        if promo_start != -1 and promo_start < len(lines) - 1:
+            tail = '\n'.join(lines[promo_start:])
+            return tail.strip()
+        
+        # 如果既没有分隔符也没有明显的推广内容，返回空
+        return ""
+    
     def filter_channel_tail(self, channel_id: str, content: str) -> str:
         """
-        过滤掉频道特定的尾部内容
+        过滤掉频道特定的尾部内容 - 智能版本
         
         Args:
             channel_id: 频道ID
@@ -163,6 +239,13 @@ class IntelligentFilter:
         Returns:
             过滤后的内容
         """
+        # 优先使用规则检测，找到明确的尾部边界
+        rule_based_result = self._filter_by_rules(content)
+        if rule_based_result != content:
+            logger.info(f"规则检测过滤了尾部: {len(content)} -> {len(rule_based_result)} 字符")
+            return rule_based_result
+        
+        # 如果规则无法判断，才使用AI模型
         if not self.initialized or channel_id not in self.channel_patterns:
             return content
         
@@ -170,23 +253,190 @@ class IntelligentFilter:
         if len(lines) <= 3:
             return content
         
-        # 从后往前检查，找到尾部开始的位置
-        tail_start = len(lines)
-        for i in range(len(lines) - 1, max(0, len(lines) - 10), -1):
-            # 检查从第i行到结尾的内容是否为尾部
-            test_tail = '\n'.join(lines[i:])
-            is_tail, score = self.is_channel_tail(channel_id, test_tail)
-            
-            if is_tail and score > 0.8:
-                tail_start = min(tail_start, i)  # 记录最早的尾部开始位置
-                # 继续向前检查，不要break
+        # 使用更智能的边界检测
+        tail_boundary = self._find_tail_boundary(content, channel_id)
         
-        if tail_start < len(lines):
-            filtered = '\n'.join(lines[:tail_start])
-            logger.info(f"过滤频道 {channel_id} 尾部: {len(content)} -> {len(filtered)} 字符")
+        if tail_boundary != -1 and tail_boundary < len(lines):
+            filtered = '\n'.join(lines[:tail_boundary])
+            keep_ratio = tail_boundary / len(lines)
+            logger.info(f"AI检测过滤频道 {channel_id} 尾部: {len(content)} -> {len(filtered)} 字符 (保留{keep_ratio*100:.0f}%)")
             return filtered.strip()
         
         return content
+    
+    def _filter_by_rules(self, content: str) -> str:
+        """
+        使用规则优先过滤尾部推广内容
+        
+        Args:
+            content: 原始内容
+            
+        Returns:
+            过滤后的内容
+        """
+        import re
+        lines = content.split('\n')
+        
+        # 分隔符模式
+        separator_patterns = [
+            r'^[-=_—➖▪▫◆◇■□●○•～~]{5,}$',
+            r'^[📢📣🔔💬❤️🔗🔍✉️📮😍]{2,}.*$',
+            r'^\s*[-=]{3,}\s*$',
+        ]
+        
+        # 推广内容特征
+        promo_indicators = [
+            r'\[.*\]\(https?://.*\)',  # Markdown链接
+            r't\.me/[a-zA-Z][a-zA-Z0-9_]{4,}',  # Telegram链接
+            r'@[a-zA-Z][a-zA-Z0-9_]{4,}',  # Telegram用户名
+            r'(?:订阅|關注|投稿|商务|联系|失联|导航).*(?:@|t\.me/)',  # 推广词+链接
+        ]
+        
+        # 从后向前查找分隔符
+        for i in range(len(lines) - 1, max(0, len(lines) - 15), -1):
+            line = lines[i].strip()
+            
+            # 检查是否是分隔符
+            is_separator = any(re.match(p, line) for p in separator_patterns)
+            
+            if is_separator:
+                # 验证分隔符后面是否有推广内容
+                has_promo_after = False
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    if any(re.search(p, lines[j], re.IGNORECASE) for p in promo_indicators):
+                        has_promo_after = True
+                        break
+                
+                if has_promo_after:
+                    # 找到了真正的尾部边界
+                    return '\n'.join(lines[:i]).strip()
+        
+        return content
+    
+    def _find_tail_boundary(self, content: str, channel_id: str) -> int:
+        """
+        使用AI模型智能查找尾部边界
+        
+        Args:
+            content: 消息内容
+            channel_id: 频道ID
+            
+        Returns:
+            尾部开始的行号，如果没找到返回-1
+        """
+        lines = content.split('\n')
+        
+        # 只在最后30%的内容中查找尾部
+        search_start = max(0, int(len(lines) * 0.7))
+        
+        # 从后向前检查，但限制范围
+        for i in range(len(lines) - 1, search_start, -1):
+            # 检查从第i行到结尾的内容
+            test_tail = '\n'.join(lines[i:])
+            is_tail, score = self.is_channel_tail(channel_id, test_tail)
+            
+            # 提高阈值，避免误判
+            if is_tail and score > 0.85:
+                # 双向验证
+                # 1. 检查是否包含推广内容
+                if not self._contains_promo_content(test_tail):
+                    continue  # 不包含推广内容，跳过
+                
+                # 2. 检查前面的内容是否是正文
+                if i > 0:
+                    test_main = '\n'.join(lines[:i])
+                    if self._is_main_content(test_main):
+                        # 前面确实是正文，这里是合理的边界
+                        return i
+                    else:
+                        # 前面不像正文，可能整个都是推广，继续向前查找
+                        continue
+                else:
+                    # 如果i=0，意味着要删除整个内容，需要特别谨慎
+                    if self._is_main_content(test_tail):
+                        # 内容包含正文特征，不应该全部删除
+                        return -1
+                    else:
+                        # 确实都是推广内容
+                        return i
+        
+        return -1
+    
+    def _contains_promo_content(self, text: str) -> bool:
+        """
+        检查文本是否包含推广内容特征
+        
+        Args:
+            text: 要检查的文本
+            
+        Returns:
+            是否包含推广内容
+        """
+        import re
+        promo_patterns = [
+            r'https?://',
+            r't\.me/',
+            r'@[a-zA-Z][a-zA-Z0-9_]{4,}',
+            r'(?:订阅|關注|投稿|商务|联系)',
+            r'\[.*\]\(.*\)',
+        ]
+        
+        # 至少包含2个推广特征才认为是推广内容
+        promo_count = sum(1 for p in promo_patterns if re.search(p, text, re.IGNORECASE))
+        return promo_count >= 2
+    
+    def _is_main_content(self, text: str) -> bool:
+        """
+        判断文本是否是正文内容（双向验证）
+        
+        Args:
+            text: 要检查的文本
+            
+        Returns:
+            是否是正文内容
+        """
+        import re
+        
+        # 正文内容的特征
+        content_indicators = [
+            # 叙事性内容
+            r'(?:我|你|他|她|它|们|咱|俺|您)',  # 人称代词
+            r'(?:了|着|过|的|地|得)',  # 助词
+            r'(?:是|有|在|到|去|来|说|做|看|想|要)',  # 常用动词
+            r'(?:今天|昨天|明天|现在|当时|后来|然后)',  # 时间词
+            r'(?:因为|所以|但是|可是|如果|虽然)',  # 连词
+            
+            # 情感表达
+            r'(?:喜欢|讨厌|高兴|难过|生气|害怕|希望)',
+            r'(?:😊|😂|😭|😍|😤|😱|🤔|💔)',  # 情感表情
+            
+            # 故事性内容
+            r'(?:故事|经历|发生|遇到|发现|记得|曾经)',
+            r'(?:第一|第二|首先|其次|最后|终于)',
+            
+            # 观点表达
+            r'(?:认为|觉得|感觉|建议|应该|可能|也许)',
+        ]
+        
+        # 计算正文特征数量
+        content_score = 0
+        for pattern in content_indicators:
+            if re.search(pattern, text, re.IGNORECASE):
+                content_score += 1
+        
+        # 如果包含多个正文特征，认为是正文
+        if content_score >= 3:
+            return True
+        
+        # 检查文本长度和句子结构
+        sentences = re.split(r'[。！？\n]', text)
+        long_sentences = [s for s in sentences if len(s) > 20]
+        
+        # 如果有多个长句子，可能是正文
+        if len(long_sentences) >= 2:
+            return True
+        
+        return False
     
     async def train_ad_classifier(self, ad_samples: List[str], normal_samples: List[str]):
         """
