@@ -9,7 +9,6 @@ const AdminApp = {
             loadingMessage: '',
             statusMessage: '',
             statusType: 'success',
-            showAddRuleDialog: false,
             
             // 系统健康状态
             health: {
@@ -21,17 +20,6 @@ const AdminApp = {
             // 频道列表
             channels: [],
             channelSearchKeyword: '',
-            
-            // 过滤规则
-            filterRules: [],
-            
-            // 新增规则表单
-            newRule: {
-                pattern: '',
-                rule_type: 'keyword',
-                description: '',
-                is_active: true
-            },
             
             // 添加频道对话框
             showAddChannelDialog: false,
@@ -53,7 +41,6 @@ const AdminApp = {
         
         this.checkHealth();
         this.loadChannels();
-        this.loadFilterRules();
         this.loadTrainingStats();
     },
     
@@ -76,16 +63,6 @@ const AdminApp = {
                 this.channels = response.data.channels || [];
             } catch (error) {
                 this.showMessage('加载频道失败', 'error');
-            }
-        },
-        
-        // 加载过滤规则
-        async loadFilterRules() {
-            try {
-                const response = await axios.get('/api/admin/filter-rules');
-                this.filterRules = response.data || [];
-            } catch (error) {
-                this.showMessage('加载过滤规则失败', 'error');
             }
         },
         
@@ -122,37 +99,6 @@ const AdminApp = {
             } catch (error) {
                 if (error !== 'cancel') {
                     this.showMessage('删除频道失败', 'error');
-                }
-            }
-        },
-        
-        // 编辑规则
-        editRule(rule) {
-            // TODO: 实现编辑规则功能
-            this.showMessage('编辑功能开发中', 'info');
-        },
-        
-        // 删除规则
-        async deleteRule(ruleId) {
-            try {
-                await ElMessageBox.confirm('确定要删除这个规则吗？', '确认删除', {
-                    confirmButtonText: '确定',
-                    cancelButtonText: '取消',
-                    type: 'warning'
-                });
-                
-                // 检查权限
-                if (!authManager.hasPermission('config.edit')) {
-                    this.showMessage('您没有删除规则的权限', 'error');
-                    return;
-                }
-                
-                await axios.delete(`/api/admin/filter-rules/${ruleId}`);
-                this.showMessage('规则已删除', 'success');
-                this.loadFilterRules();
-            } catch (error) {
-                if (error !== 'cancel') {
-                    this.showMessage('删除规则失败', 'error');
                 }
             }
         },

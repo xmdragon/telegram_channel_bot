@@ -8,96 +8,107 @@
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/training-common.css">
     <link rel="stylesheet" href="assets/css/training-manager.css">
+    <link rel="stylesheet" href="assets/css/training-nav.css">
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
         <nav-bar page-title="🤖 AI训练中心"></nav-bar>
         
-        <!-- 子导航 -->
-        <training-nav active-tab="ad"></training-nav>
-
         <div class="container">
+            <!-- 子导航 -->
+            <training-nav active-tab="ad"></training-nav>
             <!-- 统计信息栏 -->
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <span class="stat-label">总样本数：</span>
-                    <span class="stat-value">{{ stats.totalSamples }}</span>
-                </div>
-                <el-divider direction="vertical"></el-divider>
-                <div class="stat-item">
-                    <span class="stat-label">去重后数量：</span>
-                    <span class="stat-value">{{ stats.uniqueSamples }}</span>
-                </div>
-                <el-divider direction="vertical"></el-divider>
-                <div class="stat-item">
-                    <span class="stat-label">媒体文件：</span>
-                    <span class="stat-value">{{ stats.mediaFiles }}</span>
-                </div>
-                <el-divider direction="vertical"></el-divider>
-                <div class="stat-item">
-                    <span class="stat-label">存储占用：</span>
-                    <span class="stat-value">{{ formatSize(stats.storageSize) }}</span>
+            <div class="stats-section compact">
+                <div class="stats-inline">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">总样本数:</span>
+                        <span class="stat-value">{{ stats.totalSamples }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">去重后数量:</span>
+                        <span class="stat-value">{{ stats.uniqueSamples }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">媒体文件:</span>
+                        <span class="stat-value">{{ stats.mediaFiles }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">存储占用:</span>
+                        <span class="stat-value">{{ formatSize(stats.storageSize) }}</span>
+                    </div>
                 </div>
             </div>
 
             <!-- 操作工具栏 -->
-            <el-card class="toolbar-card">
-                <div class="toolbar">
-                    <div class="toolbar-left">
-                        <el-input 
-                            v-model="searchText" 
-                            placeholder="搜索广告训练样本..." 
-                            style="width: 300px"
-                            @keyup.enter="loadSamples"
-                            clearable>
-                            <template #prefix>
-                                <el-icon><Search /></el-icon>
-                            </template>
-                        </el-input>
-                        <el-select v-model="filterType" placeholder="筛选类型" style="width: 150px" @change="loadSamples">
-                            <el-option label="全部" value="all"></el-option>
-                            <el-option label="有媒体" value="with_media"></el-option>
-                            <el-option label="纯文本" value="text_only"></el-option>
-                            <el-option label="疑似重复" value="duplicate"></el-option>
-                        </el-select>
-                    </div>
-                    <div class="toolbar-right">
-                        <el-button @click="showDuplicates" type="warning">
-                            <el-icon><CopyDocument /></el-icon>
-                            检测重复
-                        </el-button>
-                        <el-button @click="optimizeStorage" type="info">
-                            <el-icon><FolderOpened /></el-icon>
-                            优化存储
-                        </el-button>
-                        <el-button @click="reloadModel" type="success">
-                            <el-icon><Refresh /></el-icon>
-                            重载模型
-                        </el-button>
-                        <el-button @click="openMediaManager" type="primary">
-                            <el-icon><Picture /></el-icon>
-                            媒体文件管理
-                        </el-button>
-                        <el-button @click="deleteSelected" type="danger" :disabled="!selectedSamples.length">
-                            <el-icon><Delete /></el-icon>
-                            批量删除 ({{ selectedSamples.length }})
-                        </el-button>
+            <div class="toolbar-section">
+                <div class="toolbar-card">
+                    <div class="toolbar-content">
+                        <div class="toolbar">
+                            <div class="toolbar-left">
+                                <el-input 
+                                    v-model="searchText" 
+                                    placeholder="搜索广告训练样本..." 
+                                    class="search-input"
+                                    @keyup.enter="loadSamples"
+                                    clearable>
+                                    <template #prefix>
+                                        <el-icon><Search /></el-icon>
+                                    </template>
+                                </el-input>
+                                <el-select v-model="filterType" placeholder="筛选类型" class="filter-select" @change="loadSamples">
+                                    <el-option label="全部" value="all"></el-option>
+                                    <el-option label="有媒体" value="with_media"></el-option>
+                                    <el-option label="纯文本" value="text_only"></el-option>
+                                    <el-option label="疑似重复" value="duplicate"></el-option>
+                                </el-select>
+                            </div>
+                            <div class="toolbar-right">
+                                <div class="btn-group">
+                                    <el-button @click="showDuplicates" type="warning" class="btn-warning">
+                                        <el-icon><CopyDocument /></el-icon>
+                                        检测重复
+                                    </el-button>
+                                    <el-button @click="optimizeStorage" type="info">
+                                        <el-icon><FolderOpened /></el-icon>
+                                        优化存储
+                                    </el-button>
+                                    <el-button @click="reloadModel" type="success" class="btn-success">
+                                        <el-icon><Refresh /></el-icon>
+                                        重载模型
+                                    </el-button>
+                                    <el-button @click="openMediaManager" type="primary" class="btn-primary">
+                                        <el-icon><Picture /></el-icon>
+                                        媒体管理
+                                    </el-button>
+                                    <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
+                                        <el-icon><Delete /></el-icon>
+                                        批量删除 ({{ selectedSamples.length }})
+                                    </el-button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </el-card>
+            </div>
 
             <!-- 数据表格 -->
-            <el-card class="table-card">
-                <el-table 
-                    :data="samples" 
-                    stripe 
-                    border
-                    v-loading="loading"
-                    @selection-change="handleSelectionChange"
-                    row-key="id"
-                    style="width: 100%">
+            <div class="table-section">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3 class="table-title">🎯 广告检测样本数据</h3>
+                    </div>
+                    <div class="table-content">
+                        <el-table 
+                            :data="samples" 
+                            stripe 
+                            border
+                            v-loading="loading"
+                            @selection-change="handleSelectionChange"
+                            row-key="id"
+                            class="data-table">
                     
                     <el-table-column type="selection" width="55"></el-table-column>
                     
@@ -125,7 +136,7 @@
                                     :src="'/media/' + media"
                                     :preview-src-list="scope.row.media_files.map(m => '/media/' + m)"
                                     fit="cover"
-                                    style="width: 40px; height: 40px; margin-right: 5px">
+                                    class="media-preview-thumb">
                                 </el-image>
                                 <span v-if="scope.row.media_files.length > 2" class="media-count">
                                     +{{ scope.row.media_files.length - 2 }}
@@ -151,24 +162,27 @@
                     
                     <el-table-column label="操作" width="150" fixed="right">
                         <template #default="scope">
-                            <el-button type="danger" size="small" @click="deleteSample(scope.row)">
+                            <el-button type="danger" size="small" class="btn-danger" @click="deleteSample(scope.row)">
                                 删除
                             </el-button>
                         </template>
                     </el-table-column>
-                </el-table>
-                
-                <!-- 分页 -->
-                <el-pagination
-                    v-if="totalCount > pageSize"
-                    @current-change="handlePageChange"
-                    :current-page="currentPage"
-                    :page-size="pageSize"
-                    :total="totalCount"
-                    layout="total, prev, pager, next"
-                    style="margin-top: 20px; text-align: center;">
-                </el-pagination>
-            </el-card>
+                        </el-table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <div class="pagination-section" v-if="totalCount > pageSize">
+                        <el-pagination
+                            @current-change="handlePageChange"
+                            :current-page="currentPage"
+                            :page-size="pageSize"
+                            :total="totalCount"
+                            layout="total, prev, pager, next"
+                            class="pagination">
+                        </el-pagination>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- 详情对话框 -->
@@ -200,7 +214,7 @@
                             :src="'/media/' + media"
                             :preview-src-list="currentSample.media_files.map(m => '/media/' + m)"
                             fit="cover"
-                            style="width: 150px; height: 150px; margin: 5px">
+                            class="media-preview-large">
                         </el-image>
                     </div>
                 </div>
@@ -210,7 +224,7 @@
         <!-- 重复检测对话框 -->
         <el-dialog v-model="duplicateDialog" title="重复样本检测" width="80%">
             <div v-loading="duplicateLoading">
-                <el-alert v-if="duplicateGroups.length" type="warning" :closable="false" style="margin-bottom: 20px">
+                <el-alert v-if="duplicateGroups.length" type="warning" :closable="false" class="mb-4">
                     发现 {{ duplicateGroups.length }} 组重复/相似样本，共 {{ duplicateSamplesCount }} 个样本
                 </el-alert>
                 
@@ -230,7 +244,7 @@
                     </div>
                 </div>
 
-                <div v-if="duplicateGroups.length" style="text-align: center; margin-top: 20px">
+                <div v-if="duplicateGroups.length" class="text-center mt-4">
                     <el-button type="primary" @click="applyDeduplicate">应用去重</el-button>
                 </div>
             </div>

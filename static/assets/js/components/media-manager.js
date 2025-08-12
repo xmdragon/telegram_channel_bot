@@ -770,4 +770,9 @@ if (window.NavBar) {
     app.component('nav-bar', window.NavBar);
 }
 
+// 注册training-nav组件
+if (window.TrainingNav) {
+    app.component('training-nav', window.TrainingNav);
+}
+
 app.mount('#app');

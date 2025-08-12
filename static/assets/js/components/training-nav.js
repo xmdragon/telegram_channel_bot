@@ -30,7 +30,12 @@ const TrainingNav = {
                 h('div', {
                     class: ['nav-tab', { active: this.activeTab === 'data' }],
                     onClick: () => this.handleSelect('data')
-                }, '数据管理')
+                }, '数据管理'),
+                
+                h('div', {
+                    class: ['nav-tab', { active: this.activeTab === 'media' }],
+                    onClick: () => this.handleSelect('media')
+                }, '媒体文件管理')
             ])
         ]);
     },
@@ -42,7 +47,8 @@ const TrainingNav = {
                 'tail': '/static/tail_filter_manager.html',
                 'ad': '/static/ad_training_manager.html',
                 'separator': '/static/train.html?mode=separator',
-                'data': '/static/train.html?mode=data'
+                'data': '/static/train.html?mode=data',
+                'media': '/static/media_manager.html'
             };
             
             const targetUrl = routes[key];

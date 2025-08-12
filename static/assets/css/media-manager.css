@@ -2,6 +2,8 @@
    媒体管理器样式
    =========================== */
 
+/* 紧凑的统计信息栏样式已在 training-common.css 中定义 */
+
 /* 媒体网格布局 */
 .media-grid {
     display: grid;
@@ -132,33 +134,7 @@
     margin-right: 5px;
 }
 
-/* 统计卡片 */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.stat-card {
-    background: #1a1a1a;
-    border: 1px solid #2d2d2d;
-    border-radius: 8px;
-    padding: 15px;
-    text-align: center;
-}
-
-.stat-value {
-    font-size: 24px;
-    color: #00ff41;
-    font-weight: bold;
-}
-
-.stat-label {
-    color: #999;
-    font-size: 12px;
-    margin-top: 5px;
-}
+/* 统计卡片样式已在 training-common.css 中统一定义 */
 
 /* 媒体操作按钮 */
 .media-actions {
@@ -242,4 +218,43 @@
 .el-progress-bar__inner {
     background: linear-gradient(90deg, #00ff41 0%, #00cc33 100%);
 }
+
+/* ===========================
+   新增样式类 - 替代内联样式
+   =========================== */
+
+/* 操作按钮容器 */
+.batch-operations-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* 卡片头部搜索区域 */
+.card-header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* 媒体预览图片样式 */
+.media-preview-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    cursor: pointer;
+    display: block;
+}
+
+/* 媒体预览视频样式 */
+.media-preview-video {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+/* 错误列表项样式 */
+.error-list-items {
+    margin: 5px 0;
+    padding-left: 20px;
 }

@@ -1,49 +1,8 @@
 /* 训练数据管理页面样式 */
 
-/* AI训练子导航样式 */
-.training-nav-container {
-    max-width: 1400px;
-    margin: 0 auto 30px;
-    padding: 0 20px;
-}
+/* AI训练子导航样式已移至 training-nav.css */
 
-.training-nav-tabs {
-    display: flex;
-    gap: 0;
-    background: #f5f5f5;
-    border-radius: 8px;
-    padding: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.nav-tab {
-    flex: 1;
-    padding: 10px 20px;
-    text-align: center;
-    cursor: pointer;
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: #666;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.nav-tab:hover {
-    color: #409EFF;
-}
-
-.nav-tab.active {
-    background: #409EFF;
-    color: white;
-    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
-}
-
-.nav-tab.active:hover {
-    color: white;
-}
+/* nav-tab 样式已移至 training-nav.css 统一管理 */
 
 /* 统计信息栏样式 */
 .stats-bar {

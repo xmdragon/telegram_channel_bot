@@ -8,135 +8,89 @@
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/training-common.css">
     <link rel="stylesheet" href="assets/css/training-manager.css">
-    <style>
-        .container {
-            padding: 20px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .stats-bar {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f5f7fa;
-            border-radius: 8px;
-        }
-        .stat-item {
-            text-align: center;
-        }
-        .stat-label {
-            color: #909399;
-            font-size: 14px;
-        }
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #303133;
-        }
-        .toolbar-card {
-            margin-bottom: 20px;
-        }
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .content-preview {
-            cursor: pointer;
-            color: #409EFF;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-        .content-preview:hover {
-            color: #66b1ff;
-        }
-        .detail-content {
-            white-space: pre-wrap;
-            word-break: break-all;
-            background: #f5f7fa;
-            padding: 15px;
-            border-radius: 5px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .separator-display {
-            font-family: monospace;
-            background: #f0f0f0;
-            padding: 2px 8px;
-            border-radius: 3px;
-        }
-    </style>
+    <link rel="stylesheet" href="assets/css/training-nav.css">
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
         <nav-bar page-title="🤖 AI训练中心"></nav-bar>
         
-        <!-- 子导航 -->
-        <training-nav active-tab="tail"></training-nav>
-
         <div class="container">
+            <!-- 子导航 -->
+            <training-nav active-tab="tail"></training-nav>
             <!-- 统计信息栏 -->
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <span class="stat-label">总样本数：</span>
-                    <span class="stat-value">{{ totalSamples }}</span>
-                </div>
-                <el-divider direction="vertical"></el-divider>
-                <div class="stat-item">
-                    <span class="stat-label">有效样本：</span>
-                    <span class="stat-value">{{ validSamples }}</span>
-                </div>
-                <el-divider direction="vertical"></el-divider>
-                <div class="stat-item">
-                    <span class="stat-label">包含分隔符：</span>
-                    <span class="stat-value">{{ samplesWithSeparator }}</span>
+            <div class="stats-section compact">
+                <div class="stats-inline">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">总样本数:</span>
+                        <span class="stat-value">{{ totalSamples }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">有效样本:</span>
+                        <span class="stat-value">{{ validSamples }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">包含分隔符:</span>
+                        <span class="stat-value">{{ samplesWithSeparator }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">今日新增:</span>
+                        <span class="stat-value">{{ todayAdded || 0 }}</span>
+                    </div>
                 </div>
             </div>
 
             <!-- 操作工具栏 -->
-            <el-card class="toolbar-card">
-                <div class="toolbar">
-                    <div class="toolbar-left">
-                        <el-input 
-                            v-model="searchText" 
-                            placeholder="搜索尾部过滤样本..." 
-                            style="width: 300px"
-                            @keyup.enter="loadSamples"
-                            clearable>
-                            <template #prefix>
-                                <el-icon><Search /></el-icon>
-                            </template>
-                        </el-input>
-                    </div>
-                    <div class="toolbar-right">
-                        <el-button @click="addSample" type="primary">
-                            <el-icon><Plus /></el-icon>
-                            添加样本
-                        </el-button>
-                        <el-button @click="deleteSelected" type="danger" :disabled="!selectedSamples.length">
-                            <el-icon><Delete /></el-icon>
-                            批量删除 ({{ selectedSamples.length }})
-                        </el-button>
+            <div class="toolbar-section">
+                <div class="toolbar-card">
+                    <div class="toolbar-content">
+                        <div class="toolbar">
+                            <div class="toolbar-left">
+                                <el-input 
+                                    v-model="searchText" 
+                                    placeholder="搜索尾部过滤样本..." 
+                                    class="search-input"
+                                    @keyup.enter="loadSamples"
+                                    clearable>
+                                    <template #prefix>
+                                        <el-icon><Search /></el-icon>
+                                    </template>
+                                </el-input>
+                            </div>
+                            <div class="toolbar-right">
+                                <div class="btn-group">
+                                    <el-button @click="addSample" type="primary" class="btn-primary">
+                                        <el-icon><Plus /></el-icon>
+                                        添加样本
+                                    </el-button>
+                                    <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
+                                        <el-icon><Delete /></el-icon>
+                                        批量删除 ({{ selectedSamples.length }})
+                                    </el-button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </el-card>
+            </div>
 
             <!-- 数据表格 -->
-            <el-card>
-                <el-table 
-                    :data="samples" 
-                    stripe 
-                    border
-                    v-loading="loading"
-                    @selection-change="handleSelectionChange"
-                    row-key="id"
-                    style="width: 100%">
+            <div class="table-section">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3 class="table-title">📝 尾部过滤样本数据</h3>
+                    </div>
+                    <div class="table-content">
+                        <el-table 
+                            :data="samples" 
+                            stripe 
+                            border
+                            v-loading="loading"
+                            @selection-change="handleSelectionChange"
+                            row-key="id"
+                            class="data-table">
                     
                     <el-table-column type="selection" width="55"></el-table-column>
                     
@@ -161,7 +115,7 @@
                             <span v-if="scope.row.separator" class="separator-display">
                                 {{ scope.row.separator }}
                             </span>
-                            <span v-else>-</span>
+                            <span v-else class="no-media">-</span>
                         </template>
                     </el-table-column>
                     
@@ -182,24 +136,27 @@
                     
                     <el-table-column label="操作" width="100" fixed="right">
                         <template #default="scope">
-                            <el-button type="danger" size="small" @click="deleteSample(scope.row)">
+                            <el-button type="danger" size="small" class="btn-danger" @click="deleteSample(scope.row)">
                                 删除
                             </el-button>
                         </template>
                     </el-table-column>
-                </el-table>
-                
-                <!-- 分页 -->
-                <el-pagination
-                    v-if="totalCount > 0"
-                    @current-change="handlePageChange"
-                    v-model:current-page="currentPage"
-                    :page-size="pageSize"
-                    :total="totalCount"
-                    layout="total, prev, pager, next, jumper"
-                    style="margin-top: 20px; text-align: center;">
-                </el-pagination>
-            </el-card>
+                        </el-table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <div class="pagination-section" v-if="totalCount > 0">
+                        <el-pagination
+                            @current-change="handlePageChange"
+                            v-model:current-page="currentPage"
+                            :page-size="pageSize"
+                            :total="totalCount"
+                            layout="total, prev, pager, next, jumper"
+                            class="pagination">
+                        </el-pagination>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- 详情对话框 -->

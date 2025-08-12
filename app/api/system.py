@@ -256,11 +256,25 @@ async def health_check() -> Dict[str, Any]:
     try:
         current_status = await system_monitor.get_current_status()
         
+        # 检查数据库连接
+        database_status = "unknown"
+        try:
+            from app.core.database import AsyncSessionLocal
+            from sqlalchemy import text
+            async with AsyncSessionLocal() as db:
+                await db.execute(text("SELECT 1"))
+            database_status = "connected"
+        except Exception as e:
+            logger.error(f"数据库连接检查失败: {e}")
+            database_status = "disconnected"
+        
         if not current_status:
             return {
                 "success": True,
                 "status": "starting",
-                "message": "系统正在启动"
+                "message": "系统正在启动",
+                "database": database_status,
+                "version": "2.0.0"
             }
         
         # 判断系统健康状态
@@ -281,6 +295,8 @@ async def health_check() -> Dict[str, Any]:
             "success": True,
             "status": status,
             "message": message,
+            "database": database_status,
+            "version": "2.0.0",
             "timestamp": current_status.timestamp.isoformat(),
             "uptime": (current_status.timestamp - current_status.timestamp).total_seconds()  # 简化计算
         }
@@ -289,7 +305,9 @@ async def health_check() -> Dict[str, Any]:
         return {
             "success": False,
             "status": "error",
-            "message": f"健康检查失败: {str(e)}"
+            "message": f"健康检查失败: {str(e)}",
+            "database": "unknown",
+            "version": "2.0.0"
         }
 
 @router.post("/restart")

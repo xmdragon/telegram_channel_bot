@@ -1,0 +1,58 @@
+/* AI训练页面子导航样式 */
+.training-nav-container {
+    max-width: 1400px !important;
+    margin: 0 auto 20px auto !important;
+    padding: 0 20px !important;
+    box-sizing: border-box !important;
+}
+
+.training-nav-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 5px;
+    background: #f4f4f5;
+    border-radius: 10px;
+    position: relative;
+}
+
+.training-nav-container .nav-tab {
+    padding: 8px 20px;
+    color: #606266 !important;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    position: relative;
+    background: transparent;
+    text-align: center;
+    white-space: nowrap;
+    border-radius: 8px;
+    border: none;
+}
+
+.training-nav-container .nav-tab:last-child {
+    border-right: none;
+}
+
+.training-nav-container .nav-tab:hover {
+    color: #409eff !important;
+    background: rgba(64, 158, 255, 0.08);
+}
+
+.training-nav-container .nav-tab.active {
+    color: #409eff !important;
+    background: #ffffff !important;
+    font-weight: 600;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border: none;
+}
+
+/* 移除底部边框动画，因为现在使用背景色高亮 */
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+    .nav-tab {
+        padding: 12px 16px;
+        font-size: 13px;
+    }
+}

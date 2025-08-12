@@ -9,51 +9,46 @@
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/training-common.css">
     <link rel="stylesheet" href="assets/css/training-manager.css">
     <link rel="stylesheet" href="assets/css/train.css">
+    <link rel="stylesheet" href="assets/css/training-nav.css">
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
         <nav-bar page-title="🤖 AI训练中心"></nav-bar>
         
-        <!-- 子导航 -->
-        <training-nav :active-tab="trainingMode"></training-nav>
-
         <div class="container">
+            <!-- 子导航 -->
+            <training-nav :active-tab="trainingMode"></training-nav>
             
             <!-- AI训练标签页 -->
             <el-tabs v-model="activeTab" type="border-card" class="config-tabs" v-if="trainingMode !== 'data'">
                 <!-- 手动训练 -->
                 <el-tab-pane label="✏️ 手动训练" name="train">
                     <div class="config-section" v-if="trainingMode === 'tail'">
-                        <!-- 统计卡片 -->
-                        <el-row :gutter="20" class="stats-row">
-                            <el-col :span="6">
-                                <el-card class="stat-card" shadow="hover">
-                                    <div class="stat-value">{{ stats.totalChannels }}</div>
-                                    <div class="stat-label">总频道数</div>
-                                </el-card>
-                            </el-col>
-                            <el-col :span="6">
-                                <el-card class="stat-card" shadow="hover">
-                                    <div class="stat-value">{{ stats.trainedChannels }}</div>
-                                    <div class="stat-label">有尾部模式</div>
-                                </el-card>
-                            </el-col>
-                            <el-col :span="6">
-                                <el-card class="stat-card" shadow="hover">
-                                    <div class="stat-value">{{ stats.totalSamples }}</div>
-                                    <div class="stat-label">训练样本数</div>
-                                </el-card>
-                            </el-col>
-                            <el-col :span="6">
-                                <el-card class="stat-card" shadow="hover">
-                                    <div class="stat-value">{{ stats.todayTraining }}</div>
-                                    <div class="stat-label">今日训练</div>
-                                </el-card>
-                            </el-col>
-                        </el-row>
+                        <!-- 统计信息栏 -->
+                        <div class="stats-section compact">
+                            <div class="stats-inline">
+                                <div class="stat-item-inline">
+                                    <span class="stat-label">总频道数:</span>
+                                    <span class="stat-value">{{ stats.totalChannels }}</span>
+                                </div>
+                                <div class="stat-item-inline">
+                                    <span class="stat-label">有尾部模式:</span>
+                                    <span class="stat-value">{{ stats.trainedChannels }}</span>
+                                </div>
+                                <div class="stat-item-inline">
+                                    <span class="stat-label">训练样本数:</span>
+                                    <span class="stat-value">{{ stats.totalSamples }}</span>
+                                </div>
+                                <div class="stat-item-inline">
+                                    <span class="stat-label">今日训练:</span>
+                                    <span class="stat-value">{{ stats.todayTraining }}</span>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- 训练表单 -->
                         <el-card class="training-form-card">
@@ -186,7 +181,7 @@
                                     </el-row>
                                 </div>
                                 
-                                <el-button @click="addSeparatorPattern" style="margin-top: 10px;">
+                                <el-button @click="addSeparatorPattern" class="mt-2">
                                     + 添加分隔符模式
                                 </el-button>
                             </div>
@@ -210,7 +205,7 @@
                 <!-- 训练历史 -->
                 <el-tab-pane label="📊 训练历史" name="history" v-if="trainingMode === 'tail'">
                     <div class="config-section">
-                        <el-table :data="trainingHistory" stripe border style="width: 100%">
+                        <el-table :data="trainingHistory" stripe border class="data-table">
                             <el-table-column prop="channel_name" label="频道名称" width="300"></el-table-column>
                             <el-table-column prop="tail_length" label="过滤字符数" width="150">
                                 <template #default="scope">
@@ -293,88 +288,135 @@
             
             <!-- 数据管理界面 (独立于标签页) -->
             <div v-if="trainingMode === 'data'" class="config-section">
-                <el-card>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <div>
-                            <h3 style="margin: 0;">训练数据管理中心</h3>
-                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
-                                统一管理所有类型的训练数据，包括尾部过滤、广告检测等
-                            </p>
-                        </div>
-                        <el-button type="primary" @click="openTrainingManager" icon="Setting">
-                            打开管理界面
-                        </el-button>
-                    </div>
-
-                    <el-divider></el-divider>
-
-                    <div class="stats-grid" style="margin: 20px 0;">
-                        <div class="stat-item">
-                            <div class="stat-number">{{ trainingDataStats.totalSamples || 0 }}</div>
-                            <div class="stat-label">训练样本总数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">{{ trainingDataStats.uniqueSamples || 0 }}</div>
-                            <div class="stat-label">独特样本数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">{{ trainingDataStats.mediaFiles || 0 }}</div>
-                            <div class="stat-label">媒体文件数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">{{ formatSize(trainingDataStats.storageSize || 0) }}</div>
-                            <div class="stat-label">存储空间</div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="flex-between">
+                            <div>
+                                <h3 class="table-title">📁 训练数据管理中心</h3>
+                                <p class="text-secondary">
+                                    统一管理所有类型的训练数据，包括尾部过滤、广告检测等
+                                </p>
+                            </div>
+                            <el-button type="primary" class="btn-primary" @click="openTrainingManager">
+                                <el-icon><Setting /></el-icon>
+                                打开管理界面
+                            </el-button>
                         </div>
                     </div>
 
                     <el-divider></el-divider>
 
-                    <h4>🛠️ 数据类型</h4>
-                    <el-row :gutter="20" style="margin: 20px 0;">
-                        <el-col :span="12">
-                            <el-card shadow="hover">
-                                <h5>📏 尾部过滤数据</h5>
-                                <p style="color: #909399; font-size: 14px;">管理频道尾部推广内容的训练样本</p>
-                                <el-button size="small" @click="openTrainingManager('tail')">管理尾部数据</el-button>
-                            </el-card>
-                        </el-col>
-                        <el-col :span="12">
-                            <el-card shadow="hover">
-                                <h5>🚫 广告检测数据</h5>
-                                <p style="color: #909399; font-size: 14px;">管理广告内容识别的训练样本</p>
-                                <el-button size="small" @click="openTrainingManager('ad')">管理广告数据</el-button>
-                            </el-card>
-                        </el-col>
-                    </el-row>
+                    <!-- 统计信息栏 -->
+                    <div class="stats-section compact">
+                        <div class="stats-inline">
+                            <div class="stat-item-inline">
+                                <span class="stat-label">训练样本总数:</span>
+                                <span class="stat-value">{{ trainingDataStats.totalSamples || 0 }}</span>
+                            </div>
+                            <div class="stat-item-inline">
+                                <span class="stat-label">独特样本数:</span>
+                                <span class="stat-value">{{ trainingDataStats.uniqueSamples || 0 }}</span>
+                            </div>
+                            <div class="stat-item-inline">
+                                <span class="stat-label">媒体文件数:</span>
+                                <span class="stat-value">{{ trainingDataStats.mediaFiles || 0 }}</span>
+                            </div>
+                            <div class="stat-item-inline">
+                                <span class="stat-label">存储空间:</span>
+                                <span class="stat-value">{{ formatSize(trainingDataStats.storageSize || 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <el-divider></el-divider>
 
-                    <h4>🔧 管理功能</h4>
-                    <ul style="line-height: 2;">
-                        <li><strong>查看样本</strong> - 浏览所有训练数据，支持搜索和筛选</li>
-                        <li><strong>删除误判</strong> - 移除被错误标记的样本</li>
-                        <li><strong>批量操作</strong> - 选择多个样本进行批量删除</li>
-                        <li><strong>重复检测</strong> - 自动检测相似或重复的样本（85%相似度阈值）</li>
-                        <li><strong>智能去重</strong> - 合并重复样本，保持数据质量</li>
-                        <li><strong>存储优化</strong> - 将视频转换为快照，节省95%存储空间</li>
-                        <li><strong>模型重载</strong> - 更新后立即重新加载训练模型</li>
-                        <li><strong>数据导出</strong> - 导出训练数据用于备份或分析</li>
-                        <li><strong>数据导入</strong> - 从备份文件恢复训练数据</li>
-                    </ul>
+                    <h4 class="section-title">🛠️ 数据类型</h4>
+                    <div class="data-type-section">
+                        <div class="data-type-grid">
+                            <div class="data-type-card">
+                                <div class="data-type-header">
+                                    <div class="data-type-icon">📏</div>
+                                    <h5>尾部过滤数据</h5>
+                                </div>
+                                <p class="data-type-desc">管理频道尾部推广内容的训练样本</p>
+                                <el-button size="small" type="primary" class="btn-primary" @click="openTrainingManager('tail')">
+                                    管理尾部数据
+                                </el-button>
+                            </div>
+                            <div class="data-type-card">
+                                <div class="data-type-header">
+                                    <div class="data-type-icon">🚫</div>
+                                    <h5>广告检测数据</h5>
+                                </div>
+                                <p class="data-type-desc">管理广告内容识别的训练样本</p>
+                                <el-button size="small" type="primary" class="btn-primary" @click="openTrainingManager('ad')">
+                                    管理广告数据
+                                </el-button>
+                            </div>
+                        </div>
+                    </div>
 
-                    <el-alert type="warning" :closable="false" style="margin-top: 20px;">
+                    <el-divider></el-divider>
+
+                    <h4 class="section-title">🔧 管理功能</h4>
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <div class="feature-icon">🔍</div>
+                            <div class="feature-content">
+                                <h5>查看样本</h5>
+                                <p>浏览所有训练数据，支持搜索和筛选</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">❌</div>
+                            <div class="feature-content">
+                                <h5>删除误判</h5>
+                                <p>移除被错误标记的样本</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">✅</div>
+                            <div class="feature-content">
+                                <h5>批量操作</h5>
+                                <p>选择多个样本进行批量删除</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🔄</div>
+                            <div class="feature-content">
+                                <h5>重复检测</h5>
+                                <p>自动检测相似或重复的样本（85%相似度阈值）</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">♾️</div>
+                            <div class="feature-content">
+                                <h5>存储优化</h5>
+                                <p>将视频转换为快照，节省95%存储空间</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🔁</div>
+                            <div class="feature-content">
+                                <h5>模型重载</h5>
+                                <p>更新后立即重新加载训练模型</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <el-alert type="warning" class="warning-alert" :closable="false">
                         <template #title>
-                            <strong>注意事项</strong>
+                            <strong>⚠️ 注意事项</strong>
                         </template>
-                        <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-                            <li>删除操作不可恢复，请谨慎操作</li>
-                            <li>去重前建议先查看重复检测结果</li>
-                            <li>存储优化会将视频文件转换为图片快照</li>
-                            <li>模型重载会短暂影响检测服务</li>
-                            <li>定期备份重要训练数据</li>
-                        </ul>
+                        <div class="alert-content">
+                            <div class="alert-item">⚠️ 删除操作不可恢复，请谨慎操作</div>
+                            <div class="alert-item">🔍 去重前建议先查看重复检测结果</div>
+                            <div class="alert-item">📹 存储优化会将视频文件转换为图片快照</div>
+                            <div class="alert-item">⚙️ 模型重载会短暂影响检测服务</div>
+                            <div class="alert-item">💾 定期备份重要训练数据</div>
+                        </div>
                     </el-alert>
-                </el-card>
+                </div>
             </div>
         </div>
         

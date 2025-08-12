@@ -96,43 +96,6 @@
                 </div>
             </div>
 
-            <!-- 过滤规则管理 -->
-            <div class="card">
-                <div class="card-header">
-                    <h2>🔍 过滤规则</h2>
-                </div>
-                <div class="card-content">
-                    <div style="margin-bottom: 20px;">
-                        <el-button @click="showAddRuleDialog = true" type="primary" icon="Plus">
-                            添加规则
-                        </el-button>
-                    </div>
-                    
-                    <div class="list-item" v-for="rule in filterRules" :key="rule.id">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div class="list-item-title">{{ rule.pattern }}</div>
-                                <div class="list-item-subtitle">{{ rule.description }}</div>
-                            </div>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <el-tag :type="rule.rule_type === 'keyword' ? 'primary' : 'warning'">
-                                    {{ rule.rule_type }}
-                                </el-tag>
-                                <el-tag :type="rule.is_active ? 'success' : 'danger'">
-                                    {{ rule.is_active ? '启用' : '禁用' }}
-                                </el-tag>
-                                <el-button @click="editRule(rule)" type="info" size="small">
-                                    编辑
-                                </el-button>
-                                <el-button @click="deleteRule(rule.id)" type="danger" size="small">
-                                    删除
-                                </el-button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- 训练数据管理 -->
             <div class="card">
                 <div class="card-header">

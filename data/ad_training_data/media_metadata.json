@@ -956,7 +956,28 @@
         "colorhash": "19600018000",
         "sha256": "9f6ebc7b79b9af92480c5e76464fb221958886e6c9b19bfe9ba7407e9afae54c"
       }
+    },
+    "90897ec9cd0af27df435f52663893c587ad83313965ce9ed7f8671f809a16c22": {
+      "path": "ad_training_data/images/2025-08/7614_20250812_153447_90897ec9.jpg",
+      "message_ids": [
+        7614
+      ],
+      "channel_id": "-1001313162502",
+      "media_type": "photo",
+      "is_ad": true,
+      "file_size": 108904,
+      "saved_at": "2025-08-12T15:34:47.233017",
+      "original_name": "39376_20250812_152842_photo.jpg",
+      "file_hash": "90897ec9cd0af27df435f52663893c587ad83313965ce9ed7f8671f809a16c22",
+      "visual_hashes": {
+        "phash": "e9e1969e9304d897",
+        "dhash": "030b8b9b9b33176b",
+        "ahash": "ffc1c1c1c9d18000",
+        "whash": "ffc3c1c1cdd98181",
+        "colorhash": "0a003000040",
+        "sha256": "90897ec9cd0af27df435f52663893c587ad83313965ce9ed7f8671f809a16c22"
+      }
     }
   },
-  "updated_at": "2025-08-12T11:19:58.331407"
+  "updated_at": "2025-08-12T15:34:47.233021"
 }
