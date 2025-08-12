@@ -177,7 +177,7 @@ const ConfigApp = {
                     this.channels = response.data.channels;
                 }
             } catch (error) {
-                console.error('加载频道列表失败:', error);
+                // console.error('加载频道列表失败:', error);
                 // 使用模拟数据
                 this.channels = [
                     { id: 1, name: '测试频道1', title: '测试频道标题1', status: 'active' },
@@ -281,7 +281,7 @@ const ConfigApp = {
                     MessageManager.error('频道添加失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                console.error('添加频道错误:', error);
+                // console.error('添加频道错误:', error);
                 MessageManager.error('频道添加失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -303,7 +303,7 @@ const ConfigApp = {
                     MessageManager.error('频道删除失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                console.error('删除频道错误:', error);
+                // console.error('删除频道错误:', error);
                 MessageManager.error('频道删除失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -362,7 +362,7 @@ const ConfigApp = {
                     }
                 }
             } catch (error) {
-                console.error('批量添加频道错误:', error);
+                // console.error('批量添加频道错误:', error);
                 MessageManager.error('批量添加频道失败: ' + (error.response?.data?.detail || error.message));
                 this.batchChannel.results = null;
             } finally {
@@ -407,7 +407,7 @@ const ConfigApp = {
                     MessageManager.error('状态切换失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                console.error('状态切换错误:', error);
+                // console.error('状态切换错误:', error);
                 MessageManager.error('状态切换失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -482,7 +482,7 @@ const ConfigApp = {
                             MessageManager.warning('转发配置保存成功，但审核群链接解析失败，请检查链接或机器人权限');
                         }
                     } catch (error) {
-                        console.warn('解析审核群链接失败:', error);
+                        // console.warn('解析审核群链接失败:', error);
                         MessageManager.warning('转发配置保存成功，但审核群链接解析失败');
                     }
                 } else {
@@ -494,7 +494,7 @@ const ConfigApp = {
                 this.forwardingConfig.review_group = reviewGroup;
                 
             } catch (error) {
-                console.error('保存转发配置失败:', error);
+                // console.error('保存转发配置失败:', error);
                 MessageManager.error('转发配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -516,7 +516,7 @@ const ConfigApp = {
                     throw new Error(response.data.message || '保存配置失败');
                 }
             } catch (error) {
-                console.error('保存系统配置失败:', error);
+                // console.error('保存系统配置失败:', error);
                 MessageManager.error('系统配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -549,7 +549,7 @@ const ConfigApp = {
                 }
             } catch (error) {
                 // 静默处理错误，使用默认配置
-                console.log('使用默认过滤配置');
+                // console.log('使用默认过滤配置');
             }
         },
         
@@ -574,7 +574,7 @@ const ConfigApp = {
                     throw new Error(response.data.message || '保存配置失败');
                 }
             } catch (error) {
-                console.error('保存过滤配置失败:', error);
+                // console.error('保存过滤配置失败:', error);
                 MessageManager.error('过滤配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -638,7 +638,7 @@ const ConfigApp = {
                         this.forwardingConfig.resolved_group_id = response.data.group_id;
                     }
                 } catch (error) {
-                    console.error('解析群ID失败:', error);
+                    // console.error('解析群ID失败:', error);
                 }
             }
         },
@@ -664,7 +664,7 @@ const ConfigApp = {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
             } catch (error) {
-                console.error('手动解析目标频道失败:', error);
+                // console.error('手动解析目标频道失败:', error);
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -692,7 +692,7 @@ const ConfigApp = {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
             } catch (error) {
-                console.error('手动解析审核群失败:', error);
+                // console.error('手动解析审核群失败:', error);
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -731,7 +731,7 @@ const ConfigApp = {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
             } catch (error) {
-                console.error('批量解析频道失败:', error);
+                // console.error('批量解析频道失败:', error);
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -750,7 +750,7 @@ const ConfigApp = {
                         MessageManager.success(`目标频道ID已解析: ${response.data.resolved_id}`);
                     }
                 } catch (error) {
-                    console.error('解析目标频道ID失败:', error);
+                    // console.error('解析目标频道ID失败:', error);
                 }
             }
         },
@@ -783,7 +783,7 @@ const ConfigApp = {
                     MessageManager.error(response.data.message || '搜索失败');
                 }
             } catch (error) {
-                console.error('搜索频道失败:', error);
+                // console.error('搜索频道失败:', error);
                 MessageManager.error('搜索频道失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.searchForm.loading = false;
@@ -814,7 +814,7 @@ const ConfigApp = {
                     MessageManager.error(response.data.message || '添加失败');
                 }
             } catch (error) {
-                console.error('添加频道失败:', error);
+                // console.error('添加频道失败:', error);
                 MessageManager.error('添加频道失败: ' + (error.response?.data?.detail || error.message));
             }
         }
@@ -840,14 +840,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 添加错误处理
         app.config.errorHandler = (err, vm, info) => {
-            console.error('Vue Error:', err);
-            console.error('Error Info:', info);
+            // console.error('Vue Error:', err);
+            // console.error('Error Info:', info);
         };
 
         // 检查目标元素是否存在
         const targetElement = document.getElementById('app');
         if (!targetElement) {
-            console.error('Target element #app not found!');
+            // console.error('Target element #app not found!');
             return;
         }
 
@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
         app.mount('#app');
 //         console.log('Vue app mounted successfully');
     } catch (error) {
-        console.error('Failed to mount Vue app:', error);
+        // console.error('Failed to mount Vue app:', error);
         document.body.innerHTML = '<div style="color: red; padding: 20px;">Vue 应用挂载失败: ' + error.message + '</div>';
     }
 }); 

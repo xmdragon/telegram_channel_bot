@@ -22,6 +22,10 @@ class ContentFilter:
         self.ai_filter = ai_filter
         self._compiled_patterns = {}  # 缓存编译后的正则表达式
         self._compiled_protectors = []  # 缓存保护器正则
+        self._trained_tail_patterns = []  # 训练的尾部过滤模式
+        
+        # 加载训练数据
+        self._load_trained_patterns()
         
         # 推广内容特征模式
         self.promo_patterns = [
@@ -143,6 +147,46 @@ class ContentFilter:
         
         # 初始化并编译所有正则表达式
         self._compile_patterns()
+    
+    def _load_trained_patterns(self):
+        """加载训练的尾部过滤模式"""
+        try:
+            from app.core.training_config import TrainingDataConfig
+            import json
+            from pathlib import Path
+            
+            tail_file = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
+            if tail_file.exists():
+                with open(tail_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # 从样本中提取尾部模式
+                for sample in data.get('samples', []):
+                    tail_part = sample.get('tail_part', '')
+                    if tail_part and tail_part.strip():
+                        # 将尾部内容转换为精确匹配模式
+                        # 移除可能的换行符差异并转义特殊字符
+                        pattern_text = re.escape(tail_part.strip())
+                        # 允许前后有可选的空白字符
+                        pattern = f"\\s*{pattern_text}\\s*$"
+                        self._trained_tail_patterns.append({
+                            'pattern': pattern,
+                            'original_text': tail_part,
+                            'description': sample.get('description', ''),
+                            'source': sample.get('source', '')
+                        })
+                
+                logger.info(f"加载了 {len(self._trained_tail_patterns)} 个训练的尾部过滤模式")
+            else:
+                logger.warning(f"尾部过滤训练文件不存在: {tail_file}")
+                
+        except Exception as e:
+            logger.error(f"加载训练的尾部过滤模式失败: {e}")
+    
+    def reload_trained_patterns(self):
+        """重新加载训练模式（当新增训练数据时调用）"""
+        self._trained_tail_patterns = []
+        self._load_trained_patterns()
     
     def _compile_patterns(self):
         """编译所有正则表达式以提高性能"""
@@ -270,10 +314,62 @@ class ContentFilter:
         
         return content
     
+    def _apply_trained_tail_filters(self, content: str) -> str:
+        """
+        应用训练的尾部过滤模式
+        
+        Args:
+            content: 消息内容
+            
+        Returns:
+            过滤后的内容
+        """
+        if not content or not self._trained_tail_patterns:
+            return content
+        
+        original_content = content
+        best_match = None
+        longest_match_length = 0
+        
+        # 遍历所有训练的尾部模式，找到最长的匹配
+        for pattern_info in self._trained_tail_patterns:
+            original_text = pattern_info['original_text'].strip()
+            
+            # 尝试直接字符串匹配（更准确）
+            if original_text in content:
+                # 找到匹配的位置
+                match_start = content.rfind(original_text)  # 使用rfind找最后一次出现
+                if match_start != -1:
+                    # 检查这是否是尾部匹配（允许后面有少量空白字符）
+                    after_match = content[match_start + len(original_text):].strip()
+                    if len(after_match) <= 50:  # 允许后面有少量内容（如"测试尾部内容"）
+                        # 这是一个有效的尾部匹配
+                        match_length = len(original_text)
+                        if match_length > longest_match_length:
+                            longest_match_length = match_length
+                            best_match = {
+                                'start': match_start,
+                                'text': original_text,
+                                'description': pattern_info.get('description', ''),
+                                'after_content': after_match
+                            }
+        
+        # 应用最佳匹配
+        if best_match:
+            # 移除匹配的尾部内容及其后的所有内容
+            filtered = content[:best_match['start']].rstrip()
+            removed_content = content[best_match['start']:]
+            
+            logger.info(f"应用训练模式移除尾部: '{best_match['text'][:30]}...' + 后续内容")
+            logger.info(f"移除内容: '{removed_content[:50]}...' - 从 {len(content)} -> {len(filtered)} 字符")
+            return filtered
+        
+        return content
+    
     def filter_promotional_content(self, content: str, channel_id: str = None) -> str:
         """
         智能过滤推广内容 - 优化版本
-        优先使用规则，保护正文内容
+        优先使用训练数据，然后使用规则，保护正文内容
         
         Args:
             content: 消息内容
@@ -285,7 +381,12 @@ class ContentFilter:
         # 保存原始内容
         original_content = content
         
-        # 1. 首先使用智能规则过滤
+        # 1. 首先应用训练的尾部过滤模式（最高优先级）
+        content = self._apply_trained_tail_filters(content)
+        if content != original_content:
+            logger.info(f"训练模式过滤了尾部内容: {len(original_content)} -> {len(content)}")
+        
+        # 2. 然后使用智能规则过滤
         rule_filtered = self._smart_rule_filter(content)
         if rule_filtered != content:
             logger.info(f"规则过滤了尾部内容: {len(content)} -> {len(rule_filtered)}")

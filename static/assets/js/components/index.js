@@ -174,7 +174,7 @@ const MainApp = {
                     this.channelInfo = response.data.data;
                 }
             } catch (error) {
-                console.error('加载频道信息失败:', error);
+                // console.error('加载频道信息失败:', error);
             }
         },
         
@@ -250,13 +250,13 @@ const MainApp = {
                     });
                 } else {
                     this.messages = [];
-                    console.warn('API返回格式异常:', response.data);
+                    // console.warn('API返回格式异常:', response.data);
                     if (this.previousMessageIds.size === 0) {
                         MessageManager.warning('暂无消息数据');
                     }
                 }
             } catch (error) {
-                console.error('加载消息失败:', error);
+                // console.error('加载消息失败:', error);
                 this.messages = [];
                 MessageManager.error('加载消息失败: ' + (error.response?.data?.detail || error.message));
             } finally {
@@ -269,7 +269,7 @@ const MainApp = {
         async loadMore() {
             // 双重检查，防止重复加载
             if (this.isLoadingMore || !this.hasMore) {
-                console.log('跳过加载更多:', { isLoadingMore: this.isLoadingMore, hasMore: this.hasMore });
+                // console.log('跳过加载更多:', { isLoadingMore: this.isLoadingMore, hasMore: this.hasMore });
                 return;
             }
             
@@ -277,8 +277,8 @@ const MainApp = {
             this.isLoadingMore = true;
             
             try {
-                console.log('容器滚动触发加载更多');
-                console.log(`加载更多消息，当前页: ${this.currentPage} -> ${this.currentPage + 1}`);
+                // console.log('容器滚动触发加载更多');
+                // console.log(`加载更多消息，当前页: ${this.currentPage} -> ${this.currentPage + 1}`);
                 this.currentPage++;
                 await this.loadMessages(true);
                 
@@ -287,7 +287,7 @@ const MainApp = {
                 const expectedMessages = this.currentPage * this.pageSize;
                 if (this.messages.length < expectedMessages - this.pageSize) {
                     this.hasMore = false;
-                    console.log('已加载所有消息，总数:', this.messages.length);
+                    // console.log('已加载所有消息，总数:', this.messages.length);
                 }
             } finally {
                 // 确保加载状态被重置
@@ -308,7 +308,7 @@ const MainApp = {
                     this.stats.channels.value = stats.channels || 0;
                 }
             } catch (error) {
-                console.error('加载统计信息失败:', error);
+                // console.error('加载统计信息失败:', error);
             }
         },
 
@@ -474,7 +474,7 @@ const MainApp = {
                             // 调用删除审核群消息的API
                             await axios.delete(`/api/messages/${messageId}/review-message`);
                         } catch (error) {
-                            console.error('删除审核群消息失败:', error);
+                            // console.error('删除审核群消息失败:', error);
                         }
                     }
                 } else {
@@ -714,7 +714,7 @@ const MainApp = {
                     this.fileDetailsDialog.details.size = this.formatFileSize(sizeInBytes);
                 }
             } catch (error) {
-                console.error('获取文件大小失败:', error);
+                // console.error('获取文件大小失败:', error);
                 if (this.fileDetailsDialog && this.fileDetailsDialog.details) {
                     this.fileDetailsDialog.details.size = '未知';
                 }
@@ -732,7 +732,7 @@ const MainApp = {
 
         // 处理媒体加载错误
         handleMediaError(event, message) {
-            console.error('媒体加载失败:', message.id, event.target.src);
+            // console.error('媒体加载失败:', message.id, event.target.src);
             
             // 创建错误占位符
             const placeholder = document.createElement('div');
@@ -763,11 +763,11 @@ const MainApp = {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${protocol}//${window.location.host}/api/ws/messages`;
                 
-                console.log('🔌 正在连接WebSocket:', wsUrl);
+                // console.log('🔌 正在连接WebSocket:', wsUrl);
                 this.websocket = new WebSocket(wsUrl);
                 
                 this.websocket.onopen = () => {
-                    console.log('✅ WebSocket连接已建立');
+                    // console.log('✅ WebSocket连接已建立');
                     this.websocketConnected = true;
                     this.systemStatus = '在线';
                     
@@ -780,27 +780,27 @@ const MainApp = {
                 };
                 
                 this.websocket.onclose = () => {
-                    console.log('❌ WebSocket连接已关闭');
+                    // console.log('❌ WebSocket连接已关闭');
                     this.websocketConnected = false;
                     this.systemStatus = '离线';
                     
                     // 尝试重连
                     setTimeout(() => {
                         if (!this.websocketConnected) {
-                            console.log('🔄 尝试重新连接WebSocket...');
+                            // console.log('🔄 尝试重新连接WebSocket...');
                             this.connectWebSocket();
                         }
                     }, 5000);
                 };
                 
                 this.websocket.onerror = (error) => {
-                    console.error('❌ WebSocket错误:', error);
+                    // console.error('❌ WebSocket错误:', error);
                     this.websocketConnected = false;
                     this.systemStatus = '连接错误';
                 };
                 
             } catch (error) {
-                console.error('建立WebSocket连接失败:', error);
+                // console.error('建立WebSocket连接失败:', error);
                 this.websocketConnected = false;
                 this.systemStatus = '连接失败';
             }
@@ -813,7 +813,7 @@ const MainApp = {
                 try {
                     data = JSON.parse(event.data);
                 } catch (parseError) {
-                    console.warn('收到非JSON格式的WebSocket消息:', event.data);
+                    // console.warn('收到非JSON格式的WebSocket消息:', event.data);
                     return;
                 }
                 
@@ -834,13 +834,13 @@ const MainApp = {
 //                         console.log('未知WebSocket消息类型:', data.type);
                 }
             } catch (error) {
-                console.error('处理WebSocket消息失败:', error);
+                // console.error('处理WebSocket消息失败:', error);
             }
         },
 
         // 处理新消息
         handleNewMessage(messageData) {
-            console.log('📨 收到WebSocket新消息:', {
+            // console.log('📨 收到WebSocket新消息:', {
                 id: messageData.id,
                 status: messageData.status,
                 is_ad: messageData.is_ad,
@@ -880,9 +880,9 @@ const MainApp = {
                 if (shouldAddMessage) {
                     // 新消息，添加到列表顶部
                     this.messages.unshift(messageData);
-                    console.log('✅ 新消息已添加到列表, 当前列表长度:', this.messages.length);
+                    // console.log('✅ 新消息已添加到列表, 当前列表长度:', this.messages.length);
                 } else {
-                    console.log('⚠️ 新消息未添加到列表, 原因:', filterReason);
+                    // console.log('⚠️ 新消息未添加到列表, 原因:', filterReason);
                 }
                 
                 // 显示通知（无论是否添加到列表）
@@ -896,11 +896,11 @@ const MainApp = {
                 this.$nextTick(() => {
                     // 确保媒体URL被正确加载
                     if (messageData.media_display_url || messageData.media_group_display) {
-                        console.log('🎨 新消息包含媒体，触发重新渲染');
+                        // console.log('🎨 新消息包含媒体，触发重新渲染');
                     }
                 });
             } else {
-                console.log('⚠️ 消息已存在，跳过添加');
+                // console.log('⚠️ 消息已存在，跳过添加');
             }
         },
 
@@ -1143,7 +1143,7 @@ const MainApp = {
                     MessageManager.error(response.data.message || '标记失败');
                 }
             } catch (error) {
-                console.error('标记广告失败:', error);
+                // console.error('标记广告失败:', error);
                 MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -1210,7 +1210,7 @@ const MainApp = {
                     MessageManager.error(response.data.message || '补抓失败');
                 }
             } catch (error) {
-                console.error('补抓媒体失败:', error);
+                // console.error('补抓媒体失败:', error);
                 MessageManager.error('补抓失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 // 清除加载状态
@@ -1286,7 +1286,7 @@ const MainApp = {
                 // 只在真正接近底部时加载
                 if (isNearBottom && !this.isLoadingMore && this.hasMore) {
                     lastLoadTime = now;
-                    console.log(`滚动到底部(${scrollPercentage.toFixed(1)}%)，触发加载更多`);
+                    // console.log(`滚动到底部(${scrollPercentage.toFixed(1)}%)，触发加载更多`);
                     this.loadMore();
                 }
             };
@@ -1321,6 +1321,6 @@ document.addEventListener('DOMContentLoaded', function() {
         app.mount('#app');
 //         console.log('Vue app mounted successfully');
     } catch (error) {
-        console.error('Failed to mount Vue app:', error);
+        // console.error('Failed to mount Vue app:', error);
     }
 });

@@ -1,0 +1,77 @@
+{
+  "timestamp": "2025-08-12T21:43:38.078679",
+  "total_time": 41.36229491233826,
+  "stats": {
+    "total_processed": 2472,
+    "tail_filtered": 882,
+    "ad_detected": 284,
+    "both_filtered": 145,
+    "unchanged": 1451,
+    "errors": 0,
+    "total_chars_removed": 117841,
+    "processing_time": 40.907917499542236
+  },
+  "errors": [],
+  "examples": [
+    {
+      "id": 4624,
+      "channel_id": "-1001548749089",
+      "original_length": 606,
+      "filtered_length": 212,
+      "tail_filtered": true,
+      "chars_removed": 394,
+      "is_ad": true,
+      "ad_confidence": 0.851617693901062,
+      "error": null,
+      "processing_time": 0.07596302032470703
+    },
+    {
+      "id": 4627,
+      "channel_id": "-1001548749089",
+      "original_length": 259,
+      "filtered_length": 259,
+      "tail_filtered": false,
+      "chars_removed": 0,
+      "is_ad": true,
+      "ad_confidence": 0.8071955442428589,
+      "error": null,
+      "processing_time": 0.11942124366760254
+    },
+    {
+      "id": 4629,
+      "channel_id": "-1001548749089",
+      "original_length": 310,
+      "filtered_length": 310,
+      "tail_filtered": false,
+      "chars_removed": 0,
+      "is_ad": true,
+      "ad_confidence": 0.7825676202774048,
+      "error": null,
+      "processing_time": 0.07137012481689453
+    },
+    {
+      "id": 4630,
+      "channel_id": "-1001548749089",
+      "original_length": 494,
+      "filtered_length": 494,
+      "tail_filtered": false,
+      "chars_removed": 0,
+      "is_ad": true,
+      "ad_confidence": 0.8128781318664551,
+      "error": null,
+      "processing_time": 0.10744786262512207
+    },
+    {
+      "id": 4631,
+      "channel_id": "-1001548749089",
+      "original_length": 518,
+      "filtered_length": 10,
+      "tail_filtered": true,
+      "chars_removed": 508,
+      "is_ad": true,
+      "ad_confidence": 0.8376640677452087,
+      "error": null,
+      "processing_time": 0.05626320838928223
+    }
+  ]
+}

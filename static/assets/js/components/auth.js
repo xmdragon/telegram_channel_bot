@@ -56,7 +56,7 @@ const AuthApp = {
                 try {
                     // 检查是否支持 WebSocket
                     if (!window.WebSocket) {
-                        console.warn('浏览器不支持 WebSocket，将使用 REST API');
+                        // console.warn('浏览器不支持 WebSocket，将使用 REST API');
                         this.connected = false;
                         return;
                     }
@@ -78,7 +78,7 @@ const AuthApp = {
                             const data = JSON.parse(event.data);
                             this.handleWebSocketMessage(data);
                         } catch (error) {
-                            console.error('解析 WebSocket 消息失败:', error);
+                            // console.error('解析 WebSocket 消息失败:', error);
                         }
                     };
                     
@@ -88,14 +88,14 @@ const AuthApp = {
                     };
                     
                     this.websocket.onerror = (error) => {
-                        console.warn('WebSocket 连接失败，将使用 REST API 模式:', error);
+                        // console.warn('WebSocket 连接失败，将使用 REST API 模式:', error);
                         this.connected = false;
                         // 不显示错误，静默降级到 REST API
                         // 立即尝试使用 REST API 检查状态
                         this.checkAuthStatus();
                     };
                 } catch (error) {
-                    console.warn('WebSocket 初始化失败，将使用 REST API 模式');
+                    // console.warn('WebSocket 初始化失败，将使用 REST API 模式');
                     this.connected = false;
                 }
             },
@@ -115,7 +115,7 @@ const AuthApp = {
                     };
                     this.websocket.send(JSON.stringify(message));
                 } else {
-                    console.warn('WebSocket 未连接，使用 REST API');
+                    // console.warn('WebSocket 未连接，使用 REST API');
                     this.sendRestApiRequest(action, data);
                 }
             },
@@ -151,7 +151,7 @@ const AuthApp = {
                             method = 'POST';
                             break;
                         default:
-                            console.error('未知的 API 操作:', action);
+                            // console.error('未知的 API 操作:', action);
                             return;
                     }
                     
@@ -175,7 +175,7 @@ const AuthApp = {
                         this.handleError(result.detail || '操作失败');
                     }
                 } catch (error) {
-                    console.error('REST API 请求失败:', error);
+                    // console.error('REST API 请求失败:', error);
                     this.handleError('网络请求失败');
                 }
             },
@@ -401,7 +401,7 @@ const AuthApp = {
                         this.handleError(response.data.error);
                     }
                 } catch (error) {
-                    console.error('清除认证数据失败:', error);
+                    // console.error('清除认证数据失败:', error);
                     this.handleError('清除认证数据失败');
                 } finally {
                     this.loading = false;

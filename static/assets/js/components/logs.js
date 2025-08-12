@@ -78,7 +78,7 @@ const app = createApp({
                     this.filterLogs();
                 }
             } catch (error) {
-                console.error('加载日志失败:', error);
+                // console.error('加载日志失败:', error);
                 // 如果网络错误，不显示错误消息，只显示基本信息
                 this.logs = [
                     { time: new Date().toISOString(), level: 'INFO', message: '系统正常运行' }

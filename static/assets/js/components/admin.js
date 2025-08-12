@@ -74,7 +74,7 @@ const AdminApp = {
                     this.trainingStats = response.data;
                 }
             } catch (error) {
-                console.error('加载训练数据统计失败:', error);
+                // console.error('加载训练数据统计失败:', error);
             }
         },
         

@@ -41,13 +41,13 @@ TrainingDataConfig.ensure_directories()
 async def update_message_after_training(
     db: AsyncSession,
     message_id: int,
-    original_message: str,
+    original_message: str,  # 这个参数保留但不使用
     tail_content: str
 ):
     """
     训练后更新消息内容
-    1. 更新数据库中的filtered_content
-    2. 编辑审核群中的消息
+    1. 使用ContentFilter应用所有已训练的尾部过滤规则
+    2. 更新数据库中的filtered_content
     """
     try:
         # 获取消息记录
@@ -60,18 +60,28 @@ async def update_message_after_training(
             logger.warning(f"消息 {message_id} 不存在")
             return
         
-        # 计算过滤后的内容（去除尾部）
-        if tail_content and tail_content in original_message:
-            # 找到尾部内容的位置并截断
-            tail_index = original_message.find(tail_content)
-            filtered_content = original_message[:tail_index].rstrip()
-        else:
-            filtered_content = original_message
+        # 使用数据库中的实际内容
+        actual_content = message.content
+        
+        if not actual_content:
+            logger.warning(f"消息 {message_id} 内容为空")
+            return
+        
+        # 使用全局的content_filter实例（已重新加载最新训练模式）
+        from app.services.content_filter import content_filter
+        
+        # 应用尾部过滤（使用已重新加载的训练样本）
+        filtered_content = content_filter.filter_promotional_content(
+            actual_content,
+            channel_id=str(message.source_channel) if message.source_channel else None
+        )
         
         # 更新数据库中的过滤内容
         message.filtered_content = filtered_content
         message.is_ad = False  # 训练后通常意味着不是广告
         await db.commit()
+        
+        logger.info(f"消息 {message_id} 过滤完成: {len(actual_content)} -> {len(filtered_content)} 字符")
         
         logger.info(f"消息 {message_id} 内容已更新: {len(original_message)} -> {len(filtered_content)} 字符")
         
@@ -1596,6 +1606,7 @@ async def add_ad_sample(
 @router.post("/tail-filter-samples")
 async def add_tail_filter_sample(
     request: dict,
+    db: AsyncSession = Depends(get_db),
     _admin = Depends(check_permission("training.submit"))
 ):
     """添加尾部过滤训练样本（用于移除频道标识，不是广告）"""
@@ -1606,9 +1617,10 @@ async def add_tail_filter_sample(
         separator = request.get("separator", "")
         normal_part = request.get("normalPart", "")
         tail_part = request.get("tailPart", request.get("adPart", ""))  # 兼容旧字段名
+        message_id = request.get("message_id")  # 获取消息ID
         
         # 记录接收到的数据
-        logger.info(f"收到尾部过滤训练请求: content长度={len(content)}, tail_part长度={len(tail_part)}, separator={separator[:20] if separator else 'None'}")
+        logger.info(f"收到尾部过滤训练请求: content长度={len(content)}, tail_part长度={len(tail_part)}, separator={separator[:20] if separator else 'None'}, message_id={message_id}")
         
         if not content:
             logger.warning("内容为空")
@@ -1641,26 +1653,69 @@ async def add_tail_filter_sample(
         }
         
         # 检查重复
+        is_duplicate = False
         for sample in samples:
             if sample.get("content_hash") == new_sample["content_hash"]:
+                is_duplicate = True
+                logger.info("样本已存在，跳过添加")
+                break
+        
+        # 如果不是重复，才添加样本并保存
+        if not is_duplicate:
+            samples.append(new_sample)
+            
+            # 保存到文件
+            if not SafeFileOperation.write_json_safe(TAIL_FILTER_SAMPLES_FILE, {
+                "samples": samples,
+                "updated_at": datetime.now().isoformat(),
+                "description": "尾部过滤训练样本 - 用于识别和移除频道标识（不是广告）"
+            }):
+                return {"success": False, "message": "保存数据失败"}
+            
+            logger.info(f"添加新的尾部过滤样本: {new_id}")
+        
+        # 重新加载ContentFilter的训练模式（关键步骤！）
+        try:
+            from app.services.content_filter import content_filter
+            content_filter.reload_trained_patterns()
+            logger.info("已重新加载ContentFilter的训练模式")
+        except Exception as e:
+            logger.error(f"重新加载训练模式失败: {e}")
+        
+        # 无论是否重复，都更新消息（如果有message_id）
+        if message_id:
+            try:
+                message_id = int(message_id)
+                logger.info(f"更新消息 {message_id} 的过滤内容")
+                
+                # 调用已有的更新函数
+                await update_message_after_training(
+                    db,
+                    message_id,
+                    content,  # 这个参数会被忽略
+                    tail_part  # 尾部内容
+                )
+                
+                logger.info(f"消息 {message_id} 已更新过滤内容")
+            except Exception as e:
+                logger.error(f"更新消息 {message_id} 失败: {e}")
+                # 如果更新消息失败，返回部分成功的消息
+                if is_duplicate:
+                    return {"success": True, "message": f"样本已存在，但更新消息失败: {str(e)}"}
+                else:
+                    return {"success": True, "message": f"样本已添加，但更新消息失败: {str(e)}"}
+        
+        # 返回成功消息
+        if is_duplicate:
+            if message_id:
+                return {"success": True, "message": "样本已存在，消息内容已更新", "id": new_id}
+            else:
                 return {"success": True, "message": "提交成功，样本已经存在"}
-        
-        # 添加样本
-        samples.append(new_sample)
-        
-        # 保存到文件
-        if not SafeFileOperation.write_json_safe(TAIL_FILTER_SAMPLES_FILE, {
-            "samples": samples,
-            "updated_at": datetime.now().isoformat(),
-            "description": "尾部过滤训练样本 - 用于识别和移除频道标识（不是广告）"
-        }):
-            return {"success": False, "message": "保存数据失败"}
-        
-        # 注意：尾部过滤样本不应该添加到广告样本库
-        # 因为尾部过滤是移除频道标识，不是识别广告
-        
-        logger.info(f"添加新的尾部过滤样本: {new_id}")
-        return {"success": True, "message": "样本已添加", "id": new_id}
+        else:
+            if message_id:
+                return {"success": True, "message": "样本已添加，消息内容已更新", "id": new_id}
+            else:
+                return {"success": True, "message": "样本已添加", "id": new_id}
         
     except Exception as e:
         logger.error(f"添加尾部过滤样本失败: {e}")
@@ -2276,7 +2331,7 @@ async def get_media_files(
             if data:
                 for file_hash, info in data.get("media_files", {}).items():
                     file_path = media_dir / info["path"]
-                    file_type = "video" if info["path"].startswith("videos/") else "image"
+                    file_type = "video" if info["path"].startswith("videos/") or info.get("media_type") == "video" else "image"
                     
                     # 获取文件大小
                     file_size = 0
@@ -2286,14 +2341,19 @@ async def get_media_files(
                         except:
                             file_size = 0
                     
+                    # 使用display_path（缩略图）或原始path
+                    display_path = info.get('display_path', info['path'])
+                    
                     file_info = {
                         "hash": file_hash,
                         "name": Path(info["path"]).name,
-                        "path": info['path'],  # 直接使用原始路径，不添加前缀
+                        "path": display_path,  # 使用display_path以显示缩略图
+                        "originalPath": info['path'],  # 保留原始路径
                         "type": file_type,
                         "size": file_size,
                         "messageIds": info.get("message_ids", []),
-                        "createdAt": info.get("created_at", "")
+                        "createdAt": info.get("created_at", ""),
+                        "hasThumbnail": "thumbnail_path" in info or "display_path" in info
                     }
                     
                     files.append(file_info)

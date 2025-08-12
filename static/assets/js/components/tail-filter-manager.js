@@ -44,7 +44,7 @@ const app = createApp({
                 // 更新当前页数据
                 this.updatePageData();
             } catch (error) {
-                console.error('加载尾部过滤样本失败:', error);
+                // console.error('加载尾部过滤样本失败:', error);
                 ElMessage.error('加载数据失败');
             } finally {
                 this.loading = false;
@@ -147,7 +147,7 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('删除失败:', error);
+                    // console.error('删除失败:', error);
                     ElMessage.error('删除失败');
                 }
             }
@@ -177,7 +177,7 @@ const app = createApp({
                         await axios.delete(`/api/training/tail-filter-samples/${id}`);
                         successCount++;
                     } catch (e) {
-                        console.error(`删除样本 ${id} 失败:`, e);
+                        // console.error(`删除样本 ${id} 失败:`, e);
                     }
                 }
                 
@@ -186,7 +186,7 @@ const app = createApp({
                 
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('批量删除失败:', error);
+                    // console.error('批量删除失败:', error);
                     ElMessage.error('批量删除失败');
                 }
             }

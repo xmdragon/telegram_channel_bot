@@ -1,0 +1,115 @@
+{
+  "timestamp": "2025-08-12T21:36:27.610199",
+  "stats": {
+    "total_processed": 10,
+    "tail_filtered": 0,
+    "ad_detected": 0,
+    "both_filtered": 0,
+    "unchanged": 0,
+    "errors": 10,
+    "avg_tail_removed": 0,
+    "avg_processing_time": 0.004041600227355957
+  },
+  "details": [
+    {
+      "id": 4616,
+      "original_length": 115,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 1.8835067749023438e-05
+    },
+    {
+      "id": 4617,
+      "original_length": 292,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 1.1205673217773438e-05
+    },
+    {
+      "id": 4619,
+      "original_length": 266,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 8.821487426757812e-06
+    },
+    {
+      "id": 4620,
+      "original_length": 140,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 7.152557373046875e-06
+    },
+    {
+      "id": 4622,
+      "original_length": 361,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 1.0013580322265625e-05
+    },
+    {
+      "id": 4623,
+      "original_length": 511,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 1.0013580322265625e-05
+    },
+    {
+      "id": 4624,
+      "original_length": 606,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 1.3113021850585938e-05
+    },
+    {
+      "id": 4626,
+      "original_length": 95,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 5.7220458984375e-06
+    },
+    {
+      "id": 4627,
+      "original_length": 259,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 7.867813110351562e-06
+    },
+    {
+      "id": 4628,
+      "original_length": 775,
+      "filtered_length": 0,
+      "tail_filtered": false,
+      "tail_removed": 0,
+      "is_ad": false,
+      "error": "'AdDetector' object has no attribute 'detect'",
+      "processing_time": 1.9311904907226562e-05
+    }
+  ]
+}

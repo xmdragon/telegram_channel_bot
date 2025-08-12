@@ -37,7 +37,7 @@ const MessageModule = {
             
             throw new Error('加载消息失败');
         } catch (error) {
-            console.error('加载消息失败:', error);
+            // console.error('加载消息失败:', error);
             MessageManager.error('加载消息失败: ' + (error.message || '未知错误'));
             return {
                 messages: [],
@@ -68,7 +68,7 @@ const MessageModule = {
             
             throw new Error('批准失败');
         } catch (error) {
-            console.error('批准消息失败:', error);
+            // console.error('批准消息失败:', error);
             MessageManager.error('批准失败: ' + (error.response?.data?.detail || error.message));
             return { success: false, error: error.message };
         }
@@ -94,7 +94,7 @@ const MessageModule = {
             
             throw new Error('拒绝失败');
         } catch (error) {
-            console.error('拒绝消息失败:', error);
+            // console.error('拒绝消息失败:', error);
             MessageManager.error('拒绝失败: ' + (error.response?.data?.detail || error.message));
             return { success: false, error: error.message };
         }
@@ -124,7 +124,7 @@ const MessageModule = {
             
             throw new Error('删除失败');
         } catch (error) {
-            console.error('删除消息失败:', error);
+            // console.error('删除消息失败:', error);
             MessageManager.error('删除失败: ' + (error.response?.data?.detail || error.message));
             return { success: false, error: error.message };
         }
@@ -145,7 +145,7 @@ const MessageModule = {
             
             throw new Error('更新失败');
         } catch (error) {
-            console.error('更新消息失败:', error);
+            // console.error('更新消息失败:', error);
             MessageManager.error('更新失败: ' + (error.response?.data?.detail || error.message));
             return { success: false, error: error.message };
         }
@@ -165,7 +165,7 @@ const MessageModule = {
             
             throw new Error(response.data.message || '标记失败');
         } catch (error) {
-            console.error('标记广告失败:', error);
+            // console.error('标记广告失败:', error);
             MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
             return { success: false, error: error.message };
         }

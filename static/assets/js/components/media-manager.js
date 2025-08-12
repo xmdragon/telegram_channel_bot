@@ -95,7 +95,7 @@ const app = createApp({
                 // 不再显示加载成功提示，避免频繁打扰用户
                 // ElMessage.success(`加载了 ${this.mediaFiles.length} 个媒体文件`);
             } catch (error) {
-                console.error('加载媒体文件失败:', error);
+                // console.error('加载媒体文件失败:', error);
                 ElMessage({
                     message: '加载媒体文件失败',
                     type: 'error',
@@ -142,7 +142,7 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('删除文件失败:', error);
+                    // console.error('删除文件失败:', error);
                     ElMessage({
                         message: '删除文件失败',
                         type: 'error',
@@ -313,7 +313,7 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('清理未引用文件失败:', error);
+                    // console.error('清理未引用文件失败:', error);
                     ElMessage({
                         message: '清理失败',
                         type: 'error',
@@ -450,7 +450,7 @@ const app = createApp({
                                     return true; // 标记完成
                             }
                         } catch (e) {
-                            console.error('解析SSE消息失败:', e, dataStr);
+                            // console.error('解析SSE消息失败:', e, dataStr);
                         }
                     }
                     return false; // 未完成
@@ -463,7 +463,7 @@ const app = createApp({
                         const { done, value } = await reader.read();
                         
                         if (done) {
-                            console.log('SSE流正常结束');
+                            // console.log('SSE流正常结束');
                             break;
                         }
                         
@@ -478,7 +478,7 @@ const app = createApp({
                             if (line.trim()) {
                                 const shouldStop = processSSEMessage(line);
                                 if (shouldStop) {
-                                    console.log('收到完成信号，停止读取');
+                                    // console.log('收到完成信号，停止读取');
                                     isCompleted = true;
                                     try {
                                         await reader.cancel();
@@ -493,7 +493,7 @@ const app = createApp({
                     
                     // 如果没有收到complete消息就结束了，可能是异常中断
                     if (!isCompleted) {
-                        console.warn('SSE流意外结束，未收到complete消息');
+                        // console.warn('SSE流意外结束，未收到complete消息');
                         this.optimizing = false;
                         this.optimizeProgress.visible = false;
                         // 重新加载文件列表以查看实际处理结果
@@ -508,11 +508,11 @@ const app = createApp({
                 } catch (error) {
                     // 如果是取消操作，不报错
                     if (error.name === 'AbortError' || isCompleted) {
-                        console.log('SSE流正常取消');
+                        // console.log('SSE流正常取消');
                         return;
                     }
                     
-                    console.error('读取SSE流错误:', error);
+                    // console.error('读取SSE流错误:', error);
                     this.optimizing = false;
                     this.optimizeProgress.visible = false;
                     
@@ -528,7 +528,7 @@ const app = createApp({
                 
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('优化视频失败:', error);
+                    // console.error('优化视频失败:', error);
                     ElMessage({
                         message: '优化失败',
                         type: 'error',
@@ -571,7 +571,7 @@ const app = createApp({
                     customClass: 'bottom-right-message'
                 });
             } catch (error) {
-                console.error('导出媒体文件失败:', error);
+                // console.error('导出媒体文件失败:', error);
                 ElMessage({
                     message: '导出失败',
                     type: 'error',
@@ -620,7 +620,7 @@ const app = createApp({
                     throw new Error(response.data.error || '检测失败');
                 }
             } catch (error) {
-                console.error('检测重复失败:', error);
+                // console.error('检测重复失败:', error);
                 ElMessage({
                     message: error.message || '检测重复失败',
                     type: 'error',
@@ -686,7 +686,7 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('去重失败:', error);
+                    // console.error('去重失败:', error);
                     ElMessage({
                         message: error.message || '去重失败',
                         type: 'error',
@@ -728,7 +728,7 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('重建视觉哈希失败:', error);
+                    // console.error('重建视觉哈希失败:', error);
                     ElMessage({
                         message: error.message || '重建视觉哈希失败',
                         type: 'error',

@@ -60,8 +60,9 @@ class TrainingMediaManager:
         """保存媒体元数据"""
         try:
             self.metadata["updated_at"] = datetime.now().isoformat()
-            with open(self.metadata_file, 'w', encoding='utf-8') as f:
-                json.dump(self.metadata, f, ensure_ascii=False, indent=2)
+            # 使用安全的文件操作
+            from app.utils.safe_file_ops import SafeFileOperation
+            SafeFileOperation.write_json_safe(self.metadata_file, self.metadata)
         except Exception as e:
             logger.error(f"保存媒体元数据失败: {e}")
     
@@ -85,10 +86,10 @@ class TrainingMediaManager:
     
     def extract_video_frame(self, video_path: Path) -> Optional[bytes]:
         """从视频提取第一帧"""
+        cap = None
         try:
             cap = cv2.VideoCapture(str(video_path))
             ret, frame = cap.read()
-            cap.release()
             
             if ret:
                 # 将帧转换为JPEG格式的字节数据
@@ -98,6 +99,9 @@ class TrainingMediaManager:
         except Exception as e:
             logger.error(f"提取视频帧失败: {e}")
             return None
+        finally:
+            if cap is not None:
+                cap.release()
     
     async def check_visual_duplicate(self, media_data: bytes, media_type: str) -> Optional[Dict]:
         """检查视觉重复
@@ -245,6 +249,41 @@ class TrainingMediaManager:
             shutil.copy2(source, target_path)
             logger.info(f"已保存训练媒体: {target_path}")
             
+            # 对于视频，生成缩略图
+            thumbnail_path = None
+            if media_type in ["video", "animation"]:
+                try:
+                    # 生成缩略图文件名和路径
+                    thumbnail_dir = self.images_dir / current_month
+                    thumbnail_dir.mkdir(parents=True, exist_ok=True)
+                    thumbnail_filename = f"{message_id}_{timestamp}_{file_hash[:8]}_thumb.jpg"
+                    thumbnail_full_path = thumbnail_dir / thumbnail_filename
+                    
+                    # 使用已经提取的视频帧数据或重新提取
+                    if media_data:
+                        # 使用已经提取的帧数据
+                        with open(thumbnail_full_path, 'wb') as f:
+                            f.write(media_data)
+                        logger.info(f"已生成视频缩略图: {thumbnail_full_path}")
+                    else:
+                        # 重新提取第一帧
+                        cap = None
+                        try:
+                            cap = cv2.VideoCapture(str(target_path))
+                            ret, frame = cap.read()
+                            if ret:
+                                cv2.imwrite(str(thumbnail_full_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                                logger.info(f"已生成视频缩略图: {thumbnail_full_path}")
+                        finally:
+                            if cap is not None:
+                                cap.release()
+                    
+                    if thumbnail_full_path.exists():
+                        # 保持与原文件路径格式一致
+                        thumbnail_path = str(thumbnail_full_path.relative_to(Path("data")))
+                except Exception as e:
+                    logger.warning(f"生成视频缩略图失败: {e}")
+            
             # 更新元数据
             relative_path = str(target_path.relative_to(Path("data")))
             metadata_entry = {
@@ -258,6 +297,13 @@ class TrainingMediaManager:
                 "original_name": source.name,
                 "file_hash": file_hash  # 保存文件哈希
             }
+            
+            # 如果是视频且有缩略图，添加缩略图路径
+            if thumbnail_path:
+                metadata_entry["thumbnail_path"] = thumbnail_path
+                metadata_entry["display_path"] = thumbnail_path  # 用于前端显示
+            else:
+                metadata_entry["display_path"] = relative_path  # 图片直接显示原文件
             
             # 如果有视觉哈希，也保存
             if visual_hashes:

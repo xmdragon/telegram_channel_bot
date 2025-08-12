@@ -66,7 +66,7 @@ const app = createApp({
                 // 加载统计信息
                 await this.loadStatistics();
             } catch (error) {
-                console.error('加载广告样本数据失败:', error);
+                // console.error('加载广告样本数据失败:', error);
                 ElMessage.error('加载样本数据失败');
             } finally {
                 this.loading = false;
@@ -79,7 +79,7 @@ const app = createApp({
                 const response = await axios.get('/api/training/statistics');
                 this.stats = response.data;
             } catch (error) {
-                console.error('加载统计信息失败:', error);
+                // console.error('加载统计信息失败:', error);
             }
         },
         
@@ -119,7 +119,7 @@ const app = createApp({
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('删除失败:', error);
+                    // console.error('删除失败:', error);
                     ElMessage.error('删除失败');
                 }
             }
@@ -147,7 +147,7 @@ const app = createApp({
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('批量删除失败:', error);
+                    // console.error('批量删除失败:', error);
                     ElMessage.error('批量删除失败');
                 }
             }
@@ -168,7 +168,7 @@ const app = createApp({
                     this.duplicateDialog = false;
                 }
             } catch (error) {
-                console.error('检测重复失败:', error);
+                // console.error('检测重复失败:', error);
                 ElMessage.error('检测重复失败');
                 this.duplicateDialog = false;
             } finally {
@@ -221,7 +221,7 @@ const app = createApp({
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('去重失败:', error);
+                    // console.error('去重失败:', error);
                     ElMessage.error('去重失败');
                 }
             }
@@ -248,7 +248,7 @@ const app = createApp({
                 await this.loadStatistics();
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('优化存储失败:', error);
+                    // console.error('优化存储失败:', error);
                     ElMessage.error('优化存储失败');
                 }
             }
@@ -278,7 +278,7 @@ const app = createApp({
                 ElMessage.success(response.data.message || '模型重载成功');
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('重载模型失败:', error);
+                    // console.error('重载模型失败:', error);
                     ElMessage.error('重载模型失败');
                 }
             }

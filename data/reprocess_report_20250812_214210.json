@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-08-12T21:42:10.320991",
+  "total_time": 0.7959551811218262,
+  "stats": {
+    "total_processed": 10,
+    "tail_filtered": 1,
+    "ad_detected": 2,
+    "both_filtered": 1,
+    "unchanged": 8,
+    "errors": 0,
+    "total_chars_removed": 394,
+    "processing_time": 0.7475783824920654
+  },
+  "errors": [],
+  "examples": [
+    {
+      "id": 4624,
+      "channel_id": "-1001548749089",
+      "original_length": 606,
+      "filtered_length": 212,
+      "tail_filtered": true,
+      "chars_removed": 394,
+      "is_ad": true,
+      "ad_confidence": 0.851617693901062,
+      "error": null,
+      "processing_time": 0.09120607376098633
+    },
+    {
+      "id": 4627,
+      "channel_id": "-1001548749089",
+      "original_length": 259,
+      "filtered_length": 259,
+      "tail_filtered": false,
+      "chars_removed": 0,
+      "is_ad": true,
+      "ad_confidence": 0.8071955442428589,
+      "error": null,
+      "processing_time": 0.06920719146728516
+    }
+  ]
+}

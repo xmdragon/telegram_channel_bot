@@ -67,7 +67,7 @@ const NavBar = {
                 // 跳转到登录页
                 window.location.href = '/static/login.html';
             } catch (error) {
-                console.error('登出失败:', error);
+                // console.error('登出失败:', error);
                 // 即使失败也清除token并跳转
                 localStorage.removeItem('admin_token');
                 window.location.href = '/static/login.html';

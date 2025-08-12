@@ -152,7 +152,7 @@ const TrainApp = {
                         this.activeTab = 'train';
                     }
                 } catch (error) {
-                    console.error('获取消息详情失败:', error);
+                    // console.error('获取消息详情失败:', error);
                     // 如果是404错误，消息不存在
                     if (error.response && error.response.status === 404) {
                         ElMessage({
@@ -220,7 +220,7 @@ const TrainApp = {
                 const response = await axios.get('/api/training/separator-patterns');
                 this.separatorPatterns = response.data.patterns || [];
             } catch (error) {
-                console.error('加载分隔符模式失败:', error);
+                // console.error('加载分隔符模式失败:', error);
                 this.separatorPatterns = [
                     { regex: '━{10,}', description: '横线分隔符' },
                     { regex: '═{10,}', description: '双线分隔符' },
@@ -263,9 +263,9 @@ const TrainApp = {
                     params: { limit: 20 }
                 });
                 // 处理广告样本数据
-                console.log('广告样本:', response.data);
+                // console.log('广告样本:', response.data);
             } catch (error) {
-                console.error('加载广告样本失败:', error);
+                // console.error('加载广告样本失败:', error);
             }
         },
         
@@ -307,7 +307,7 @@ const TrainApp = {
                 const response = await axios.get('/api/training/channels');
                 this.channels = response.data.channels || [];
             } catch (error) {
-                console.error('加载频道失败:', error);
+                // console.error('加载频道失败:', error);
                 ElMessage({
                     message: '加载频道列表失败',
                     type: 'error',
@@ -346,7 +346,7 @@ const TrainApp = {
                     todayTraining: todayAdded  // 显示为"今日新增"
                 };
             } catch (error) {
-                console.error('加载统计失败:', error);
+                // console.error('加载统计失败:', error);
             }
         },
         
@@ -369,7 +369,7 @@ const TrainApp = {
                         created_at: sample.created_at
                     }));
             } catch (error) {
-                console.error('加载历史失败:', error);
+                // console.error('加载历史失败:', error);
                 this.trainingHistory = [];
             }
         },
@@ -422,7 +422,7 @@ const TrainApp = {
                     : this.trainingForm.original_message;
                 
                 // 打印调试信息
-                console.log('提交数据:', {
+                // console.log('提交数据:', {
                     content: this.trainingForm.original_message,
                     separator: separator,
                     normalPart: normalPart,
@@ -431,8 +431,8 @@ const TrainApp = {
                 
                 // 检查token
                 const token = localStorage.getItem('admin_token');
-                console.log('当前Token:', token ? '存在 (' + token.substring(0, 20) + '...)' : '不存在');
-                console.log('Authorization header:', axios.defaults.headers.common['Authorization']);
+                // console.log('当前Token:', token ? '存在 (' + token.substring(0, 20) + '...)' : '不存在');
+                // console.log('Authorization header:', axios.defaults.headers.common['Authorization']);
                 
                 // 统一提交到tail-filter-samples
                 const response = await axios.post('/api/training/tail-filter-samples', {
@@ -510,7 +510,7 @@ const TrainApp = {
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    console.error('删除失败:', error);
+                    // console.error('删除失败:', error);
                 }
             }
         },
@@ -539,13 +539,13 @@ const TrainApp = {
                 const response = await axios.get('/api/training/statistics');
                 this.trainingDataStats = response.data;
             } catch (error) {
-                console.error('加载训练数据统计失败:', error);
+                // console.error('加载训练数据统计失败:', error);
             }
         },
 
         // 打开训练数据管理界面
         openTrainingManager(type = null) {
-            console.log('openTrainingManager called with type:', type);
+            // console.log('openTrainingManager called with type:', type);
             // 根据类型跳转到不同的独立页面
             let url;
             if (type === 'tail') {
@@ -556,7 +556,7 @@ const TrainApp = {
                 // 默认跳转到广告管理页面
                 url = '/static/ad_training_manager.html';
             }
-            console.log('Navigating to:', url);
+            // console.log('Navigating to:', url);
             // 在当前页面打开，而不是新窗口
             window.location.href = url;
         },
@@ -587,8 +587,8 @@ document.addEventListener('DOMContentLoaded', function() {
             app.component('training-nav', window.TrainingNav);
         }
         app.mount('#app');
-        console.log('训练页面初始化成功');
+        // console.log('训练页面初始化成功');
     } catch (error) {
-        console.error('训练页面初始化失败:', error);
+        // console.error('训练页面初始化失败:', error);
     }
 });
