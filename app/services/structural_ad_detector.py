@@ -306,11 +306,66 @@ class StructuralAdDetector:
                         if 0 <= start < len(message.text) and end <= len(message.text):
                             entity_data['text'] = message.text[start:end]
                     
+                    # 标记隐藏链接
+                    if entity_data['type'] == 'MessageEntityTextUrl' and entity_data['url']:
+                        entity_data['is_hidden_link'] = True
+                    else:
+                        entity_data['is_hidden_link'] = False
+                    
                     entities.append(entity_data)
         except Exception as e:
             logger.error(f"提取实体数据失败: {e}")
         
         return entities
+    
+    def remove_hidden_links(self, message: Any) -> tuple:
+        """
+        移除消息中的隐藏链接（MessageEntityTextUrl）
+        
+        Args:
+            message: Telegram消息对象
+            
+        Returns:
+            tuple: (处理后的实体列表, 被移除的隐藏链接列表)
+        """
+        clean_entities = []
+        removed_links = []
+        
+        try:
+            if hasattr(message, 'entities') and message.entities:
+                for entity in message.entities:
+                    # 检查是否为隐藏链接
+                    if entity.__class__.__name__ == 'MessageEntityTextUrl':
+                        # 记录被移除的链接
+                        removed_link_info = {
+                            'text': '',
+                            'url': getattr(entity, 'url', ''),
+                            'offset': getattr(entity, 'offset', 0),
+                            'length': getattr(entity, 'length', 0)
+                        }
+                        
+                        # 提取链接文本
+                        if message.text and removed_link_info['offset'] is not None and removed_link_info['length']:
+                            start = removed_link_info['offset']
+                            end = start + removed_link_info['length']
+                            if 0 <= start < len(message.text) and end <= len(message.text):
+                                removed_link_info['text'] = message.text[start:end]
+                        
+                        removed_links.append(removed_link_info)
+                        logger.info(f"移除隐藏链接: {removed_link_info['text']} -> {removed_link_info['url']}")
+                    else:
+                        # 保留其他类型的实体（如粗体、斜体等）
+                        clean_entities.append(entity)
+            
+            if removed_links:
+                logger.info(f"共移除 {len(removed_links)} 个隐藏链接")
+        
+        except Exception as e:
+            logger.error(f"移除隐藏链接失败: {e}")
+            # 出错时返回原始实体
+            return (message.entities if hasattr(message, 'entities') else [], [])
+        
+        return clean_entities, removed_links
 
 
 # 全局实例

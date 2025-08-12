@@ -102,6 +102,16 @@ const ConfigApp = {
                 log_level: 'info',
                 history_message_limit: 50,
                 channel_signature: ''
+            },
+            
+            // 过滤设置
+            filterConfig: {
+                auto_filter_ads: false,
+                hidden_link_action: 'remove',  // remove, keep, expose
+                smart_tail_removal: true,
+                structural_ad_detection: true,
+                ocr_detection: true,
+                duplicate_detection: true
             }
         }
     },
@@ -148,6 +158,9 @@ const ConfigApp = {
                 
                 // 加载系统配置
                 await this.loadSystemConfig();
+                
+                // 加载过滤配置
+                await this.loadFilterConfig();
                 
                 MessageManager.success('配置数据加载完成');
             } catch (error) {
@@ -518,6 +531,64 @@ const ConfigApp = {
                 channel_signature: ''
             };
             MessageManager.success('系统配置已重置为默认值');
+        },
+        
+        async loadFilterConfig() {
+            try {
+                const response = await axios.get('/api/admin/config');
+                if (response.data) {
+                    // 从系统配置中提取过滤设置
+                    this.filterConfig = {
+                        auto_filter_ads: response.data['filter.auto_filter_ads'] || false,
+                        hidden_link_action: response.data['filter.hidden_link_action'] || 'remove',
+                        smart_tail_removal: response.data['filter.smart_tail_removal'] !== false,  // 默认true
+                        structural_ad_detection: response.data['filter.structural_ad_detection'] !== false,  // 默认true
+                        ocr_detection: response.data['filter.ocr_detection'] !== false,  // 默认true
+                        duplicate_detection: response.data['filter.duplicate_detection'] !== false  // 默认true
+                    };
+                }
+            } catch (error) {
+                // 静默处理错误，使用默认配置
+                console.log('使用默认过滤配置');
+            }
+        },
+        
+        async saveFilterConfig() {
+            try {
+                // 准备保存的配置数据
+                const configData = {
+                    'filter.auto_filter_ads': this.filterConfig.auto_filter_ads,
+                    'filter.hidden_link_action': this.filterConfig.hidden_link_action,
+                    'filter.smart_tail_removal': this.filterConfig.smart_tail_removal,
+                    'filter.structural_ad_detection': this.filterConfig.structural_ad_detection,
+                    'filter.ocr_detection': this.filterConfig.ocr_detection,
+                    'filter.duplicate_detection': this.filterConfig.duplicate_detection
+                };
+                
+                // 批量保存配置
+                const response = await axios.post('/api/admin/config/batch', configData);
+                
+                if (response.data.success) {
+                    MessageManager.success('过滤配置保存成功');
+                } else {
+                    throw new Error(response.data.message || '保存配置失败');
+                }
+            } catch (error) {
+                console.error('保存过滤配置失败:', error);
+                MessageManager.error('过滤配置保存失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        async resetFilterConfig() {
+            this.filterConfig = {
+                auto_filter_ads: false,
+                hidden_link_action: 'remove',
+                smart_tail_removal: true,
+                structural_ad_detection: true,
+                ocr_detection: true,
+                duplicate_detection: true
+            };
+            MessageManager.success('过滤配置已重置为默认值');
         },
         
         

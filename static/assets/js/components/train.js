@@ -319,8 +319,32 @@ const TrainApp = {
         
         async loadStats() {
             try {
-                const response = await axios.get('/api/training/stats');
-                this.stats = response.data;
+                // 从tail-filter-samples获取统计数据
+                const response = await axios.get('/api/training/tail-filter-samples');
+                const samples = response.data.samples || [];
+                
+                // 计算统计信息
+                const totalSamples = samples.length;
+                const validSamples = samples.filter(s => s.content && s.tail_part).length;
+                const samplesWithSeparator = samples.filter(s => s.separator).length;
+                
+                // 计算今日新增
+                const today = new Date().toISOString().split('T')[0];
+                const todayAdded = samples.filter(s => {
+                    if (s.created_at) {
+                        const sampleDate = new Date(s.created_at).toISOString().split('T')[0];
+                        return sampleDate === today;
+                    }
+                    return false;
+                }).length;
+                
+                // 更新统计数据（映射到原有的字段名）
+                this.stats = {
+                    totalChannels: totalSamples,  // 显示为"总样本数"
+                    trainedChannels: validSamples,  // 显示为"有效样本"
+                    totalSamples: samplesWithSeparator,  // 显示为"包含分隔符"
+                    todayTraining: todayAdded  // 显示为"今日新增"
+                };
             } catch (error) {
                 console.error('加载统计失败:', error);
             }
@@ -328,10 +352,25 @@ const TrainApp = {
         
         async loadHistory() {
             try {
-                const response = await axios.get('/api/training/history');
-                this.trainingHistory = response.data.history || [];
+                // 从tail-filter-samples获取最近的样本作为历史记录
+                const response = await axios.get('/api/training/tail-filter-samples');
+                const samples = response.data.samples || [];
+                
+                // 转换为历史记录格式并排序
+                this.trainingHistory = samples
+                    .filter(s => s.created_at)  // 只保留有创建时间的
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))  // 按时间倒序
+                    .slice(0, 20)  // 只取最近20条
+                    .map(sample => ({
+                        id: sample.id,
+                        channel_name: '尾部过滤',
+                        message_preview: sample.content ? sample.content.substring(0, 50) + '...' : '',
+                        tail_preview: sample.tail_part ? sample.tail_part.substring(0, 30) + '...' : '',
+                        created_at: sample.created_at
+                    }));
             } catch (error) {
                 console.error('加载历史失败:', error);
+                this.trainingHistory = [];
             }
         },
         
@@ -372,11 +411,36 @@ const TrainApp = {
             
             this.submitting = true;
             try {
-                // 提交训练数据，包括message_id
-                const response = await axios.post('/api/training/submit', {
-                    // 不再需要channel_id，系统是频道无关的
-                    original_message: this.trainingForm.original_message,
-                    tail_content: this.trainingForm.tail_content,
+                // 提取分隔符（尾部内容的第一行作为分隔符）
+                const tailLines = this.trainingForm.tail_content.split('\n');
+                const separator = tailLines[0] || '';
+                
+                // 计算正常部分
+                const tailIndex = this.trainingForm.original_message.indexOf(this.trainingForm.tail_content);
+                const normalPart = tailIndex > -1 
+                    ? this.trainingForm.original_message.substring(0, tailIndex).trim()
+                    : this.trainingForm.original_message;
+                
+                // 打印调试信息
+                console.log('提交数据:', {
+                    content: this.trainingForm.original_message,
+                    separator: separator,
+                    normalPart: normalPart,
+                    tailPart: this.trainingForm.tail_content
+                });
+                
+                // 检查token
+                const token = localStorage.getItem('admin_token');
+                console.log('当前Token:', token ? '存在 (' + token.substring(0, 20) + '...)' : '不存在');
+                console.log('Authorization header:', axios.defaults.headers.common['Authorization']);
+                
+                // 统一提交到tail-filter-samples
+                const response = await axios.post('/api/training/tail-filter-samples', {
+                    description: '尾部过滤训练样本',
+                    content: this.trainingForm.original_message,
+                    separator: separator,
+                    normalPart: normalPart,
+                    tailPart: this.trainingForm.tail_content,
                     message_id: this.trainingForm.message_id  // 传递message_id
                 });
                 
@@ -402,7 +466,7 @@ const TrainApp = {
                 }
             } catch (error) {
                 ElMessage({
-                    message: '提交失败: ' + (error.response?.data?.detail || error.message),
+                    message: '提交失败: ' + (error.response?.data?.message || error.response?.data?.detail || error.message),
                     type: 'error',
                     offset: 20,
                     customClass: 'bottom-right-message'
@@ -425,7 +489,8 @@ const TrainApp = {
                     }
                 );
                 
-                const response = await axios.delete(`/api/training/${id}`);
+                // 统一删除tail-filter-samples中的记录
+                const response = await axios.delete(`/api/training/tail-filter-samples/${id}`);
                 if (response.data.success) {
                     ElMessage({
                         message: '删除成功',

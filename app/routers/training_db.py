@@ -11,6 +11,7 @@ import logging
 
 from app.core.database import get_db, Channel, Message, AITrainingSample
 from app.services.ai_filter import ai_filter
+from app.core.training_config import TrainingDataConfig
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +249,7 @@ async def apply_training(db: AsyncSession = Depends(get_db)):
         await db.commit()
         
         # 保存AI模式到文件（作为备份）
-        ai_filter.save_patterns("data/ai_filter_patterns.json")
+        ai_filter.save_patterns(str(TrainingDataConfig.AI_FILTER_PATTERNS_FILE))
         
         return {
             "success": True,

@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List
 import cv2
+from app.core.training_config import TrainingDataConfig
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +20,10 @@ class TrainingMediaManager:
     """训练媒体文件管理器"""
     
     def __init__(self):
-        self.base_dir = Path("data/ad_training_data")
+        self.base_dir = TrainingDataConfig.AD_MEDIA_DIR
         self.images_dir = self.base_dir / "images"
         self.videos_dir = self.base_dir / "videos"
-        self.metadata_file = self.base_dir / "media_metadata.json"
+        self.metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         
         # 确保目录存在
         self.ensure_directories()

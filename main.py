@@ -99,6 +99,11 @@ async def lifespan(app: FastAPI):
     from app.services.config_manager import init_default_configs
     await init_default_configs()
     
+    # 初始化训练数据目录和配置
+    from app.core.training_config import TrainingDataConfig
+    TrainingDataConfig.initialize()
+    logger.info("训练数据目录已初始化")
+    
     # 加载数据库配置
     from app.core.config import settings
     await settings.load_db_configs()

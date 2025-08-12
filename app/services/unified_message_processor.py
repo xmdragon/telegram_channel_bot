@@ -202,6 +202,19 @@ class UnifiedMessageProcessor:
             if media_info and media_info.get('file_path'):
                 media_files.append(media_info['file_path'])
             
+            # 提取消息实体（包括隐藏链接）
+            from app.services.structural_ad_detector import structural_detector
+            entities = structural_detector.extract_entity_data(message)
+            
+            # 移除隐藏链接（根据配置）
+            removed_hidden_links = []
+            from app.services.config_manager import config_manager
+            hidden_link_action = await config_manager.get_config('filter.hidden_link_action')
+            if hidden_link_action == 'remove' or hidden_link_action is None:  # 默认移除
+                clean_entities, removed_hidden_links = structural_detector.remove_hidden_links(message)
+                if removed_hidden_links:
+                    logger.info(f"🔗 移除了 {len(removed_hidden_links)} 个隐藏链接")
+            
             # 内容过滤（智能去尾部 + 结构化广告检测 + AI广告检测 + OCR图片文字提取）
             is_ad, filtered_content, filter_reason, ocr_result = await self.content_filter.filter_message(
                 content, 
@@ -250,7 +263,9 @@ class UnifiedMessageProcessor:
                 'is_ad': is_ad,
                 'filter_reason': filter_reason,
                 'media_info': media_info,
-                'ocr_result': ocr_result  # 包含OCR提取结果
+                'ocr_result': ocr_result,  # 包含OCR提取结果
+                'entities': entities,  # 所有实体信息
+                'removed_hidden_links': removed_hidden_links  # 被移除的隐藏链接
             }
             
         except Exception as e:
@@ -370,6 +385,9 @@ class UnifiedMessageProcessor:
             'qr_codes': qr_codes,
             'ocr_ad_score': ocr_ad_score,
             'ocr_processed': ocr_processed,
+            # 新增实体相关字段
+            'entities': processed_data.get('entities'),
+            'removed_hidden_links': processed_data.get('removed_hidden_links'),
             'combined_media_hash': combined_media_hash,
             'visual_hash': visual_hash,
             'grouped_id': str(message_data.get('grouped_id')) if message_data.get('grouped_id') else None,

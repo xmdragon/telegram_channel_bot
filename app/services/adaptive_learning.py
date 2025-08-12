@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import select
 from app.core.database import AsyncSessionLocal, Message
 from app.services.ad_detector import ad_detector
+from app.core.training_config import TrainingDataConfig
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,9 @@ class AdaptiveLearningSystem:
     """自适应学习系统"""
     
     def __init__(self):
-        self.feedback_file = Path("data/feedback_learning.json")
-        self.ad_samples_file = Path("data/ad_training_data.json")
-        self.normal_samples_file = Path("data/normal_training_data.json")
+        self.feedback_file = TrainingDataConfig.FEEDBACK_LEARNING_FILE
+        self.ad_samples_file = TrainingDataConfig.AD_TRAINING_FILE
+        self.normal_samples_file = TrainingDataConfig.NORMAL_TRAINING_FILE
         self.learning_threshold = 50  # 累积多少反馈后触发学习
         self.feedback_buffer = []
         

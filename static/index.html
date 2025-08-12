@@ -210,6 +210,18 @@
                             {{ message.filtered_content }}
                         </div>
                         
+                        <!-- 显示被移除的隐藏链接信息 -->
+                        <div v-if="message.removed_hidden_links && message.removed_hidden_links.length > 0" 
+                             class="hidden-links-info" 
+                             style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 12px;">
+                            <div style="font-weight: bold; color: #856404; margin-bottom: 5px;">
+                                ⚠️ 检测到 {{ message.removed_hidden_links.length }} 个隐藏链接（已移除）：
+                            </div>
+                            <div v-for="(link, index) in message.removed_hidden_links" :key="index" style="margin-left: 10px; color: #721c24;">
+                                • "{{ link.text }}" → <span style="text-decoration: underline;">{{ link.url }}</span>
+                            </div>
+                        </div>
+                        
                         <!-- 原频道链接 -->
                         <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666;">
                             🔗 原消息链接: 

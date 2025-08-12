@@ -59,7 +59,7 @@ const AdminApp = {
         // 加载频道列表
         async loadChannels() {
             try {
-                const response = await axios.get('/api/channels');
+                const response = await axios.get('/api/admin/channels');
                 this.channels = response.data.channels || [];
             } catch (error) {
                 this.showMessage('加载频道失败', 'error');
@@ -93,7 +93,7 @@ const AdminApp = {
                     return;
                 }
                 
-                await axios.delete(`/api/channels/${channelId}`);
+                await axios.delete(`/api/admin/channels/${channelId}`);
                 this.showMessage('频道已删除', 'success');
                 this.loadChannels();
             } catch (error) {

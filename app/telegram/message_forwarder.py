@@ -147,6 +147,19 @@ class MessageForwarder:
                 logger.error("未配置目标频道ID")
                 return
             
+            # 检查是否需要移除隐藏链接
+            hidden_link_action = await config_manager.get_config('filter.hidden_link_action')
+            clean_entities = None
+            
+            if hidden_link_action == 'remove' or hidden_link_action is None:  # 默认移除
+                # 记录被移除的隐藏链接
+                if message.removed_hidden_links:
+                    logger.info(f"转发时移除 {len(message.removed_hidden_links)} 个隐藏链接")
+                    for link in message.removed_hidden_links:
+                        logger.debug(f"  移除: {link.get('text', '')} -> {link.get('url', '')}")
+                # 转发时不包含任何MessageEntityTextUrl类型的实体
+                clean_entities = []  # 空实体列表，确保不包含隐藏链接
+            
             sent_message = None
             
             # 检查是否为组合消息
@@ -157,11 +170,12 @@ class MessageForwarder:
                 # 发送单个媒体消息
                 sent_message = await self._send_single_media_message(client, target_channel_id, message)
             else:
-                # 发送纯文本消息
+                # 发送纯文本消息（不包含隐藏链接实体）
                 content_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
                 sent_message = await client.send_message(
                     entity=int(target_channel_id),
-                    message=content_with_footer
+                    message=content_with_footer,
+                    formatting_entities=clean_entities  # 传递空实体列表，移除隐藏链接
                 )
             
             # 更新数据库

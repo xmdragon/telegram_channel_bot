@@ -63,6 +63,10 @@ class Message(Base):
     ocr_ad_score = Column(Integer, default=0)  # OCR检测的广告分数（0-100）
     ocr_processed = Column(Boolean, default=False)  # 是否已进行OCR处理
     
+    # 消息实体相关
+    entities = Column(JSON)  # 存储消息的所有实体信息（链接、格式等）
+    removed_hidden_links = Column(JSON)  # 存储被移除的隐藏链接信息
+    
     created_at = Column(DateTime, default=get_current_time)
     updated_at = Column(DateTime, default=get_current_time, onupdate=get_current_time)
     

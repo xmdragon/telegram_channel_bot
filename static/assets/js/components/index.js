@@ -1156,7 +1156,8 @@ const MainApp = {
                 channel_id: message.source_channel,
                 mode: 'tail'
             });
-            window.location.href = './train.html?' + params.toString();
+            // 使用绝对路径确保正确跳转
+            window.location.href = '/static/train.html?' + params.toString();
         },
         
         // 检查媒体文件是否存在

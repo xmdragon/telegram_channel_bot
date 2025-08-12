@@ -300,6 +300,59 @@
                     </div>
                 </el-tab-pane>
 
+                <!-- 过滤设置 -->
+                <el-tab-pane label="🛡️ 过滤设置" name="filter">
+                    <div class="config-section">
+                        <h3>内容过滤配置</h3>
+                        <el-form :model="filterConfig" label-width="180px">
+                            <el-form-item label="自动过滤广告">
+                                <el-switch v-model="filterConfig.auto_filter_ads"></el-switch>
+                                <div class="form-hint">
+                                    <small>自动拒绝被检测为广告的消息</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="隐藏链接处理策略">
+                                <el-radio-group v-model="filterConfig.hidden_link_action">
+                                    <el-radio label="remove">移除链接（保留文本）</el-radio>
+                                    <el-radio label="keep">保留原样</el-radio>
+                                    <el-radio label="expose">显式化链接</el-radio>
+                                </el-radio-group>
+                                <div class="form-hint">
+                                    <small>处理消息中隐藏的URL链接（MessageEntityTextUrl）</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="智能去尾部">
+                                <el-switch v-model="filterConfig.smart_tail_removal"></el-switch>
+                                <div class="form-hint">
+                                    <small>自动移除消息末尾的推广内容</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="结构化广告检测">
+                                <el-switch v-model="filterConfig.structural_ad_detection"></el-switch>
+                                <div class="form-hint">
+                                    <small>检测按钮、隐藏链接等结构化广告</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="OCR文字识别">
+                                <el-switch v-model="filterConfig.ocr_detection"></el-switch>
+                                <div class="form-hint">
+                                    <small>从图片中提取文字进行广告检测</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="重复消息检测">
+                                <el-switch v-model="filterConfig.duplicate_detection"></el-switch>
+                                <div class="form-hint">
+                                    <small>检测并过滤重复的消息</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="primary" @click="saveFilterConfig">保存配置</el-button>
+                                <el-button @click="resetFilterConfig">重置默认</el-button>
+                            </el-form-item>
+                        </el-form>
+                    </div>
+                </el-tab-pane>
+
                 <!-- 系统设置 -->
                 <el-tab-pane label="🔧 系统设置" name="system">
                     <div class="config-section">

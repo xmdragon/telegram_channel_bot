@@ -1,6 +1,62 @@
 {
   "history": [
     {
+      "id": 83,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 82,
+      "created_at": "2025-08-12T19:48:16.429053"
+    },
+    {
+      "id": 82,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 95,
+      "created_at": "2025-08-12T19:47:15.356430"
+    },
+    {
+      "id": 81,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 246,
+      "created_at": "2025-08-12T19:45:11.734843"
+    },
+    {
+      "id": 80,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 246,
+      "created_at": "2025-08-12T19:42:53.962694"
+    },
+    {
+      "id": 79,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 246,
+      "created_at": "2025-08-12T19:42:29.492581"
+    },
+    {
+      "id": 78,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 73,
+      "created_at": "2025-08-12T19:41:55.311834"
+    },
+    {
+      "id": 77,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 93,
+      "created_at": "2025-08-12T19:38:33.940690"
+    },
+    {
+      "id": 76,
+      "channel_id": "global",
+      "channel_name": "全局训练样本",
+      "tail_length": 138,
+      "created_at": "2025-08-12T19:29:43.383500"
+    },
+    {
       "id": 75,
       "channel_id": "-1001068253466",
       "channel_name": "@TQxinwen",
@@ -527,9 +583,9 @@
     }
   ],
   "stats": {
-    "total_samples": 75,
+    "total_samples": 83,
     "channels_trained": 0
   },
-  "updated_at": "2025-08-12T14:07:50.257194",
-  "integrity_hash": "e203dda062297cbfb12bfb3fab6882b32dafeee78a69182c602c22ccacd2b57e"
+  "updated_at": "2025-08-12T19:48:16.429069",
+  "integrity_hash": "fbd56874e72c8182551ea9c9197c6545ac1fe5c14dac8fec7bff8e5ca54312fd"
 }

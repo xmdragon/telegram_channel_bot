@@ -21,17 +21,11 @@ const app = createApp({
             totalSamples: 0,
             validSamples: 0,
             samplesWithSeparator: 0,
+            todayAdded: 0,
             
             // 对话框
             detailDialog: false,
-            currentSample: null,
-            addDialog: false,
-            newSample: {
-                description: '',
-                content: '',
-                separator: '',
-                tailPart: ''
-            }
+            currentSample: null
         }
     },
     
@@ -59,9 +53,27 @@ const app = createApp({
         
         // 更新当前页显示的数据
         updatePageData() {
+            // 先进行搜索过滤
+            let filteredSamples = this.allSamples;
+            
+            if (this.searchText && this.searchText.trim()) {
+                const searchLower = this.searchText.toLowerCase().trim();
+                filteredSamples = this.allSamples.filter(sample => {
+                    // 搜索内容、描述和尾部内容
+                    return (sample.content && sample.content.toLowerCase().includes(searchLower)) ||
+                           (sample.description && sample.description.toLowerCase().includes(searchLower)) ||
+                           (sample.tail_part && sample.tail_part.toLowerCase().includes(searchLower)) ||
+                           (sample.separator && sample.separator.toLowerCase().includes(searchLower));
+                });
+            }
+            
+            // 更新总数
+            this.totalCount = filteredSamples.length;
+            
+            // 分页
             const start = (this.currentPage - 1) * this.pageSize;
             const end = start + this.pageSize;
-            this.samples = this.allSamples.slice(start, end);
+            this.samples = filteredSamples.slice(start, end);
         },
         
         // 计算统计信息
@@ -69,6 +81,16 @@ const app = createApp({
             this.totalSamples = this.allSamples.length;
             this.validSamples = this.allSamples.filter(s => s.content && s.tail_part).length;
             this.samplesWithSeparator = this.allSamples.filter(s => s.separator).length;
+            
+            // 计算今日新增
+            const today = new Date().toISOString().split('T')[0];
+            this.todayAdded = this.allSamples.filter(s => {
+                if (s.created_at) {
+                    const sampleDate = new Date(s.created_at).toISOString().split('T')[0];
+                    return sampleDate === today;
+                }
+                return false;
+            }).length;
         },
         
         // 处理选择变化
@@ -88,51 +110,19 @@ const app = createApp({
             this.detailDialog = true;
         },
         
-        // 添加样本
-        addSample() {
-            this.newSample = {
-                description: '',
-                content: '',
-                separator: '',
-                tailPart: ''
-            };
-            this.addDialog = true;
+        // 跳转到训练页面
+        goToTrainingPage() {
+            window.location.href = '/static/train.html';
         },
         
-        // 提交新样本
-        async submitSample() {
-            if (!this.newSample.content || !this.newSample.separator || !this.newSample.tailPart) {
-                ElMessage.warning('请填写完整信息');
-                return;
-            }
-            
-            try {
-                // 自动提取正常部分
-                const separatorIndex = this.newSample.content.indexOf(this.newSample.separator);
-                const normalPart = separatorIndex > -1 
-                    ? this.newSample.content.substring(0, separatorIndex).trim()
-                    : '';
-                
-                const response = await axios.post('/api/training/tail-filter-samples', {
-                    description: this.newSample.description,
-                    content: this.newSample.content,
-                    separator: this.newSample.separator,
-                    normalPart: normalPart,
-                    tailPart: this.newSample.tailPart
-                });
-                
-                if (response.data.success) {
-                    ElMessage.success('样本添加成功');
-                    this.addDialog = false;
-                    await this.loadSamples();
-                } else {
-                    ElMessage.error(response.data.error || '添加失败');
-                }
-            } catch (error) {
-                console.error('添加样本失败:', error);
-                ElMessage.error('添加失败');
-            }
+        // 处理搜索
+        handleSearch() {
+            // 重置到第一页
+            this.currentPage = 1;
+            // 更新显示数据
+            this.updatePageData();
         },
+        
         
         // 删除单个样本
         async deleteSample(sample) {

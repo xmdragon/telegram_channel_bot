@@ -23,6 +23,7 @@ from app.services.ai_filter import ai_filter
 from app.services.adaptive_learning import adaptive_learning
 from app.api.admin_auth import check_permission, require_admin
 from app.utils.safe_file_ops import SafeFileOperation
+from app.core.training_config import TrainingDataConfig
 from pydantic import BaseModel
 import logging
 
@@ -30,12 +31,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["training"])
 
-# 数据文件路径
-SEPARATOR_PATTERNS_FILE = Path("data/separator_patterns.json")
-TAIL_FILTER_SAMPLES_FILE = Path("data/tail_filter_samples.json")
+# 使用集中配置的文件路径
+SEPARATOR_PATTERNS_FILE = TrainingDataConfig.SEPARATOR_PATTERNS_FILE
+TAIL_FILTER_SAMPLES_FILE = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
 
-# 确保数据目录存在
-SEPARATOR_PATTERNS_FILE.parent.mkdir(exist_ok=True)
+# 确保数据目录存在（现在由配置类处理）
+TrainingDataConfig.ensure_directories()
 
 async def update_message_after_training(
     db: AsyncSession,
@@ -90,10 +91,10 @@ async def update_message_after_training(
         logger.error(f"更新消息 {message_id} 失败: {e}")
         raise
 
-# 训练数据文件路径（挂载到./data目录）
-TRAINING_DATA_FILE = Path("data/manual_training_data.json")
-TRAINING_HISTORY_FILE = Path("data/training_history.json")
-AD_TRAINING_FILE = Path("data/ad_training_data.json")  # 新增：广告训练数据文件
+# 训练数据文件路径（使用集中配置）
+TRAINING_DATA_FILE = TrainingDataConfig.MANUAL_TRAINING_FILE
+TRAINING_HISTORY_FILE = TrainingDataConfig.TRAINING_HISTORY_FILE
+AD_TRAINING_FILE = TrainingDataConfig.AD_TRAINING_FILE
 
 class TrainingSubmission(BaseModel):
     """训练数据提交模型"""
@@ -1500,7 +1501,7 @@ async def add_ad_sample(
             return {"success": False, "message": "内容不能为空"}
         
         # 加载现有的广告训练数据
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         training_data = {"samples": [], "updated_at": None}
         
         if ad_training_file.exists():
@@ -1606,8 +1607,17 @@ async def add_tail_filter_sample(
         normal_part = request.get("normalPart", "")
         tail_part = request.get("tailPart", request.get("adPart", ""))  # 兼容旧字段名
         
-        if not content or not separator:
-            return {"success": False, "error": "内容和分隔符不能为空"}
+        # 记录接收到的数据
+        logger.info(f"收到尾部过滤训练请求: content长度={len(content)}, tail_part长度={len(tail_part)}, separator={separator[:20] if separator else 'None'}")
+        
+        if not content:
+            logger.warning("内容为空")
+            return {"success": False, "message": "内容不能为空"}
+        
+        # 分隔符可以为空（允许没有明确分隔符的情况）
+        if not tail_part:
+            logger.warning("尾部内容为空")
+            return {"success": False, "message": "尾部内容不能为空"}
         
         # 加载现有样本
         samples = []
@@ -1633,7 +1643,7 @@ async def add_tail_filter_sample(
         # 检查重复
         for sample in samples:
             if sample.get("content_hash") == new_sample["content_hash"]:
-                return {"success": False, "error": "样本已存在"}
+                return {"success": True, "message": "提交成功，样本已经存在"}
         
         # 添加样本
         samples.append(new_sample)
@@ -1644,7 +1654,7 @@ async def add_tail_filter_sample(
             "updated_at": datetime.now().isoformat(),
             "description": "尾部过滤训练样本 - 用于识别和移除频道标识（不是广告）"
         }):
-            return {"success": False, "error": "保存数据失败"}
+            return {"success": False, "message": "保存数据失败"}
         
         # 注意：尾部过滤样本不应该添加到广告样本库
         # 因为尾部过滤是移除频道标识，不是识别广告
@@ -1654,7 +1664,7 @@ async def add_tail_filter_sample(
         
     except Exception as e:
         logger.error(f"添加尾部过滤样本失败: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "message": str(e)}
 
 
 @router.delete("/tail-filter-samples/{sample_id}")
@@ -1736,7 +1746,7 @@ async def get_ad_samples(
     """获取广告训练样本列表"""
     try:
         # 加载训练数据
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         
         if not ad_training_file.exists():
             logger.warning(f"训练数据文件不存在: {ad_training_file}")
@@ -1772,7 +1782,7 @@ async def get_ad_samples(
         page_samples = samples[start:end]
         
         # 加载媒体文件信息
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_files_map = {}
         if media_metadata_file.exists():
             media_data = SafeFileOperation.read_json_safe(media_metadata_file)
@@ -1806,7 +1816,7 @@ async def get_ad_sample_detail(
 ):
     """获取单个广告样本详情"""
     try:
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         if not ad_training_file.exists():
             raise HTTPException(status_code=404, detail="训练数据文件不存在")
         
@@ -1818,7 +1828,7 @@ async def get_ad_sample_detail(
         for sample in samples:
             if sample.get("id") == sample_id:
                 # 加载媒体文件信息
-                media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+                media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
                 if media_metadata_file.exists():
                     with open(media_metadata_file, 'r', encoding='utf-8') as f:
                         media_data = json.load(f)
@@ -1848,7 +1858,7 @@ async def delete_ad_sample(
     """删除单个广告样本"""
     try:
         # 加载训练数据
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         if not ad_training_file.exists():
             raise HTTPException(status_code=404, detail="训练数据文件不存在")
         
@@ -1902,7 +1912,7 @@ async def delete_ad_samples_batch(
             raise HTTPException(status_code=400, detail="未提供要删除的ID")
         
         # 加载训练数据
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         if not ad_training_file.exists():
             raise HTTPException(status_code=404, detail="训练数据文件不存在")
         
@@ -1953,7 +1963,7 @@ async def get_training_statistics(
         }
         
         # 统计文本样本
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         if ad_training_file.exists():
             with open(ad_training_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -2025,7 +2035,7 @@ async def reload_ad_samples(
 async def _delete_sample_media_files(sample_id: int):
     """删除样本关联的媒体文件"""
     try:
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         if not media_metadata_file.exists():
             return
         
@@ -2080,7 +2090,7 @@ async def detect_duplicate_samples(
         import numpy as np
         
         # 加载训练数据
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         if not ad_training_file.exists():
             return {"groups": [], "total_duplicates": 0}
         
@@ -2161,7 +2171,7 @@ async def deduplicate_samples(
             return {"success": False, "message": "没有要删除的样本"}
         
         # 加载训练数据
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         if not ad_training_file.exists():
             raise HTTPException(status_code=404, detail="训练数据文件不存在")
         
@@ -2224,7 +2234,7 @@ async def reload_training_model(
         ad_detector._load_ad_samples_sync()
         
         # 获取当前样本数量
-        ad_training_file = Path("data/ad_training_data.json")
+        ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
         sample_count = 0
         if ad_training_file.exists():
             data = SafeFileOperation.read_json_safe(ad_training_file)
@@ -2248,7 +2258,7 @@ async def get_media_files(
 ):
     """获取所有媒体文件列表"""
     try:
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         files = []
@@ -2318,7 +2328,7 @@ async def delete_media_file(
 ):
     """删除指定的媒体文件"""
     try:
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         if not media_metadata_file.exists():
@@ -2358,7 +2368,7 @@ async def clean_orphaned_media(
 ):
     """清理未引用的媒体文件"""
     try:
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         if not media_metadata_file.exists():
@@ -2404,7 +2414,7 @@ async def find_duplicate_media(
         from app.services.visual_similarity import VisualSimilarityDetector
         from app.services.training_media_manager import training_media_manager
         
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         if not media_metadata_file.exists():
@@ -2492,7 +2502,7 @@ async def deduplicate_media(
         from app.services.visual_similarity import VisualSimilarityDetector
         import shutil
         
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         if not media_metadata_file.exists():
@@ -2615,7 +2625,7 @@ async def rebuild_visual_hashes(
         from app.services.visual_similarity import VisualSimilarityDetector
         import cv2
         
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         if not media_metadata_file.exists():
@@ -2711,7 +2721,7 @@ async def optimize_storage(
         
         # 处理视频文件
         videos_dir = Path("data/ad_training_data/videos")
-        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         
         if videos_dir.exists():
             # 支持 .mp4 和 .MP4 扩展名
@@ -2822,7 +2832,7 @@ async def optimize_storage_sse(
             
             # 处理视频文件
             videos_dir = Path("data/ad_training_data/videos")
-            media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+            media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
             
             if not videos_dir.exists():
                 yield f"data: {json.dumps({'type': 'error', 'message': '视频目录不存在'})}\n\n"

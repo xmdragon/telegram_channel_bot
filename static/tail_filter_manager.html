@@ -37,7 +37,7 @@
                     </div>
                     <div class="stat-item-inline">
                         <span class="stat-label">今日新增:</span>
-                        <span class="stat-value">{{ todayAdded || 0 }}</span>
+                        <span class="stat-value">{{ todayAdded }}</span>
                     </div>
                 </div>
             </div>
@@ -52,7 +52,7 @@
                                     v-model="searchText" 
                                     placeholder="搜索尾部过滤样本..." 
                                     class="search-input"
-                                    @keyup.enter="loadSamples"
+                                    @input="handleSearch"
                                     clearable>
                                     <template #prefix>
                                         <el-icon><Search /></el-icon>
@@ -61,9 +61,9 @@
                             </div>
                             <div class="toolbar-right">
                                 <div class="btn-group">
-                                    <el-button @click="addSample" type="primary" class="btn-primary">
+                                    <el-button @click="goToTrainingPage" type="primary" class="btn-primary">
                                         <el-icon><Plus /></el-icon>
-                                        添加样本
+                                        前往添加样本
                                     </el-button>
                                     <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
                                         <el-icon><Delete /></el-icon>
@@ -190,44 +190,6 @@
             </div>
         </el-dialog>
 
-        <!-- 添加样本对话框 -->
-        <el-dialog v-model="addDialog" title="添加尾部过滤样本" width="60%">
-            <el-form :model="newSample" label-width="100px">
-                <el-form-item label="描述">
-                    <el-input v-model="newSample.description" placeholder="样本描述（可选）"></el-input>
-                </el-form-item>
-                
-                <el-form-item label="完整内容" required>
-                    <el-input 
-                        v-model="newSample.content" 
-                        type="textarea" 
-                        :rows="8"
-                        placeholder="粘贴包含尾部的完整消息内容">
-                    </el-input>
-                </el-form-item>
-                
-                <el-form-item label="分隔符" required>
-                    <el-input 
-                        v-model="newSample.separator" 
-                        placeholder="输入分隔符，如：━━━━━━━━━━">
-                    </el-input>
-                </el-form-item>
-                
-                <el-form-item label="尾部内容" required>
-                    <el-input 
-                        v-model="newSample.tailPart" 
-                        type="textarea" 
-                        :rows="4"
-                        placeholder="粘贴需要过滤的尾部内容">
-                    </el-input>
-                </el-form-item>
-            </el-form>
-            
-            <template #footer>
-                <el-button @click="addDialog = false">取消</el-button>
-                <el-button type="primary" @click="submitSample">确定添加</el-button>
-            </template>
-        </el-dialog>
     </div>
 
     <script src="assets/js/vue.prod.js"></script>

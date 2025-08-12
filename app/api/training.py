@@ -12,16 +12,17 @@ import logging
 
 from app.core.database import get_db
 from app.services.adaptive_learning import adaptive_learning
+from app.core.training_config import TrainingDataConfig
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# 数据文件路径
-SEPARATOR_PATTERNS_FILE = Path("data/separator_patterns.json")
-TAIL_AD_SAMPLES_FILE = Path("data/tail_ad_samples.json")
+# 数据文件路径（使用集中配置）
+SEPARATOR_PATTERNS_FILE = TrainingDataConfig.SEPARATOR_PATTERNS_FILE
+TAIL_AD_SAMPLES_FILE = TrainingDataConfig.TAIL_AD_SAMPLES_FILE
 
 # 确保数据目录存在
-SEPARATOR_PATTERNS_FILE.parent.mkdir(exist_ok=True)
+TrainingDataConfig.ensure_directories()
 
 
 @router.get("/separator-patterns")
