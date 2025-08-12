@@ -6,6 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from datetime import datetime
+from app.utils.timezone import get_current_time
 import asyncio
 
 from .config import settings
@@ -62,8 +63,8 @@ class Message(Base):
     ocr_ad_score = Column(Integer, default=0)  # OCR检测的广告分数（0-100）
     ocr_processed = Column(Boolean, default=False)  # 是否已进行OCR处理
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_current_time)
+    updated_at = Column(DateTime, default=get_current_time, onupdate=get_current_time)
     
     # 添加唯一约束防止重复消息
     __table_args__ = (
@@ -86,8 +87,8 @@ class Channel(Base):
     description = Column(String)  # 频道描述
     last_collected_message_id = Column(Integer, nullable=True)  # 最后采集的消息ID
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_current_time)
+    updated_at = Column(DateTime, default=get_current_time, onupdate=get_current_time)
 
 
 class SystemConfig(Base):
@@ -101,8 +102,8 @@ class SystemConfig(Base):
     config_type = Column(String)  # string/integer/boolean/json/list
     is_active = Column(Boolean, default=True)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_current_time)
+    updated_at = Column(DateTime, default=get_current_time, onupdate=get_current_time)
 
 
 class AITrainingSample(Base):
@@ -130,8 +131,8 @@ class Admin(Base):
     is_super_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_current_time)
+    updated_at = Column(DateTime, default=get_current_time, onupdate=get_current_time)
     
     # 关系 - 明确指定foreign_keys避免歧义
     permissions = relationship("AdminPermission", 

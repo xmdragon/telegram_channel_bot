@@ -59,7 +59,9 @@ class WebSocketManager:
             "data": message_data,
             "timestamp": datetime.utcnow().isoformat()
         }
-        await self.broadcast(json.dumps(payload, ensure_ascii=False))
+        message_json = json.dumps(payload, ensure_ascii=False)
+        logger.info(f"📡 广播新消息，ID:{message_data.get('id')}, 状态:{message_data.get('status')}, 连接数:{len(self.active_connections)}")
+        await self.broadcast(message_json)
         
     async def broadcast_stats_update(self, stats: Dict):
         """广播统计更新"""

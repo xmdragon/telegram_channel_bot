@@ -20,7 +20,6 @@ const TrainApp = {
             
             // 训练表单（尾部过滤）
             trainingForm: {
-                channel_id: '',
                 original_message: '',
                 tail_content: '',
                 message_id: null  // 添加message_id字段
@@ -129,7 +128,7 @@ const TrainApp = {
                             });
                         } else {
                             // 尾部训练模式
-                            this.trainingForm.channel_id = channelId || msg.source_channel;
+                            // 不再需要设置channel_id，系统是频道无关的
                             this.trainingForm.original_message = msg.content || msg.filtered_content || '';
                             
                             // 显示提示信息
@@ -170,15 +169,14 @@ const TrainApp = {
                             customClass: 'bottom-right-message'
                         });
                     }
-                    // 仅设置频道ID
-                    if (channelId) this.trainingForm.channel_id = channelId;
+                    // 不再需要设置频道ID
                 }
                 
                 // 清除URL参数，避免刷新页面时重复处理
                 window.history.replaceState({}, document.title, window.location.pathname);
             } else if (channelId) {
                 // 只有频道ID，没有消息ID
-                this.trainingForm.channel_id = channelId;
+                // 不再需要设置频道ID
                 // 清除URL参数
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -352,7 +350,6 @@ const TrainApp = {
         
         clearForm() {
             this.trainingForm = {
-                channel_id: '',
                 original_message: '',
                 tail_content: '',
                 message_id: null
@@ -361,15 +358,7 @@ const TrainApp = {
         },
         
         async submitTraining() {
-            if (!this.trainingForm.channel_id) {
-                ElMessage({
-                    message: '请选择频道',
-                    type: 'warning',
-                    offset: 20,
-                    customClass: 'bottom-right-message'
-                });
-                return;
-            }
+            // 移除频道选择验证，系统现在是频道无关的
             
             if (!this.trainingForm.original_message || !this.trainingForm.tail_content) {
                 ElMessage({
@@ -385,7 +374,7 @@ const TrainApp = {
             try {
                 // 提交训练数据，包括message_id
                 const response = await axios.post('/api/training/submit', {
-                    channel_id: this.trainingForm.channel_id,
+                    // 不再需要channel_id，系统是频道无关的
                     original_message: this.trainingForm.original_message,
                     tail_content: this.trainingForm.tail_content,
                     message_id: this.trainingForm.message_id  // 传递message_id
@@ -402,11 +391,7 @@ const TrainApp = {
                     await this.loadHistory();
                     await this.loadStats();
                     
-                    // 更新频道的训练计数
-                    const channel = this.channels.find(c => c.id === this.trainingForm.channel_id);
-                    if (channel) {
-                        channel.trained_count = (channel.trained_count || 0) + 1;
-                    }
+                    // 不再需要更新频道训练计数
                 } else {
                     ElMessage({
                         message: response.data.message || '提交失败',
@@ -495,10 +480,18 @@ const TrainApp = {
 
         // 打开训练数据管理界面
         openTrainingManager(type = null) {
-            let url = '/static/training_manager.html';
-            if (type) {
-                url += '?type=' + type;
+            console.log('openTrainingManager called with type:', type);
+            // 根据类型跳转到不同的独立页面
+            let url;
+            if (type === 'tail') {
+                url = '/static/tail_filter_manager.html';
+            } else if (type === 'ad') {
+                url = '/static/ad_training_manager.html';
+            } else {
+                // 默认跳转到广告管理页面
+                url = '/static/ad_training_manager.html';
             }
+            console.log('Navigating to:', url);
             // 在当前页面打开，而不是新窗口
             window.location.href = url;
         },
@@ -524,6 +517,9 @@ document.addEventListener('DOMContentLoaded', function() {
         app.use(ElementPlus);
         if (window.NavBar) {
             app.component('nav-bar', window.NavBar);
+        }
+        if (window.TrainingNav) {
+            app.component('training-nav', window.TrainingNav);
         }
         app.mount('#app');
         console.log('训练页面初始化成功');

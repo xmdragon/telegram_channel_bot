@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from typing import List, Optional
 from datetime import datetime
+from app.utils.timezone import get_current_time, format_for_api
 import os
 import logging
 
@@ -95,8 +96,8 @@ async def get_messages(
                 ] if msg.media_group else None,
                 "status": msg.status,
                 "is_ad": msg.is_ad,
-                "created_at": msg.created_at,
-                "review_time": msg.review_time,
+                "created_at": format_for_api(msg.created_at),
+                "review_time": format_for_api(msg.review_time),
                 "reviewed_by": msg.reviewed_by
             }
             for msg in messages
@@ -146,7 +147,7 @@ async def batch_approve_messages(
     for message in messages:
         message.status = "approved"
         message.reviewed_by = "Web用户"
-        message.review_time = datetime.now()
+        message.review_time = get_current_time()
     
     await db.commit()
     
@@ -235,7 +236,7 @@ async def batch_reject_messages(
     for message in messages:
         message.status = "rejected"
         message.reviewed_by = "Web用户"
-        message.review_time = datetime.now()
+        message.review_time = get_current_time()
     
     await db.commit()
     
@@ -440,7 +441,7 @@ async def publish_message(
             # 更新状态
             message.status = "approved"
             message.reviewed_by = "Web用户"
-            message.review_time = datetime.now()
+            message.review_time = get_current_time()
             
             # 获取目标频道配置
             target_channel_config = await config_manager.get_config('channels.target_channel_id')
@@ -486,7 +487,7 @@ async def publish_message(
             
             if sent_message:
                 message.target_message_id = sent_message.id
-                message.forwarded_time = datetime.now()
+                message.forwarded_time = get_current_time()
             
             await db.commit()
             
@@ -777,3 +778,27 @@ async def batch_refetch_media(
             })
     
     return results
+
+@router.post("/test-broadcast")
+async def test_broadcast(message_data: dict):
+    """测试WebSocket广播功能"""
+    from app.api.websocket import websocket_manager
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # 添加必要的字段
+    message_data["id"] = message_data.get("id", 99999)
+    message_data["message_id"] = message_data.get("message_id", 99999)
+    
+    # 广播消息
+    await websocket_manager.broadcast_new_message(message_data)
+    
+    num_connections = len(websocket_manager.active_connections)
+    logger.info(f"测试广播已发送到 {num_connections} 个连接")
+    
+    return {
+        "success": True,
+        "message": f"消息已广播到 {num_connections} 个WebSocket连接",
+        "connections": num_connections
+    }

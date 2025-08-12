@@ -148,7 +148,7 @@ createApp({
         // 加载训练样本
         async loadSamples() {
             try {
-                const response = await axios.get('/api/training/tail-ad-samples');
+                const response = await axios.get('/api/training/tail-filter-samples');
                 this.trainingSamples = response.data.samples || [];
             } catch (error) {
                 console.error('加载样本失败:', error);
@@ -173,12 +173,13 @@ createApp({
                 const normalPart = this.newSample.fullContent.substring(0, separatorIndex).trim();
                 const adPart = this.newSample.fullContent.substring(separatorIndex).trim();
                 
-                const response = await axios.post('/api/training/tail-ad-samples', {
+                const response = await axios.post('/api/training/tail-filter-samples', {
                     description: this.newSample.description,
                     content: this.newSample.fullContent,
                     separator: this.newSample.separator,
                     normalPart: normalPart,
-                    adPart: adPart
+                    tailPart: adPart,  // 改为tailPart
+                    adPart: adPart  // 兼容旧字段
                 });
                 
                 if (response.data.success) {
@@ -222,7 +223,7 @@ createApp({
                     type: 'warning'
                 });
                 
-                const response = await axios.delete(`/api/training/tail-ad-samples/${id}`);
+                const response = await axios.delete(`/api/training/tail-filter-samples/${id}`);
                 
                 if (response.data.success) {
                     ElMessage.success('样本已删除');

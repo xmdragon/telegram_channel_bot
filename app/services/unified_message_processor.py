@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
+from app.utils.timezone import get_current_time, parse_telegram_time, format_for_api
 from telethon.tl.types import Message as TLMessage
 
 from app.core.database import AsyncSessionLocal, Message
@@ -104,13 +105,13 @@ class UnifiedMessageProcessor:
                 await self._cleanup_media_files(save_data)
                 return None
             
-            # 步骤7: 转发到审核群（仅实时消息或配置了历史消息转发）
-            if not is_history or await self._should_forward_history():
+            # 步骤7: 转发到审核群（根据配置决定）
+            if await self._should_forward_to_review(is_history):
                 await self._forward_to_review(db_message)
             
-            # 步骤8: 广播到WebSocket（仅实时消息）
-            if not is_history:
-                await self._broadcast_new_message(db_message)
+            # 步骤8: 广播到WebSocket（所有新消息都广播，让web端能看到）
+            # 不再区分是否历史消息，所有成功保存的消息都广播到web端
+            await self._broadcast_new_message(db_message)
             
             return db_message
             
@@ -332,11 +333,8 @@ class UnifiedMessageProcessor:
                 if media_info.get('visual_hashes'):
                     visual_hash = str(media_info['visual_hashes'])
         
-        # 处理时间戳，确保是无时区的datetime
-        created_at = message_data.get('date', datetime.now())
-        if hasattr(created_at, 'tzinfo') and created_at.tzinfo is not None:
-            # 如果有时区信息，转换为无时区的UTC时间
-            created_at = created_at.replace(tzinfo=None)
+        # 处理时间戳，确保是无时区的UTC datetime
+        created_at = parse_telegram_time(message_data.get('date'))
         
         # 处理OCR结果
         ocr_result = processed_data.get('ocr_result', {})
@@ -472,10 +470,40 @@ class UnifiedMessageProcessor:
         except Exception as e:
             logger.error(f"清理媒体文件失败: {e}")
     
+    async def _should_forward_to_review(self, is_history: bool) -> bool:
+        """
+        检查是否应该转发消息到审核群
+        
+        Args:
+            is_history: 是否为历史消息
+            
+        Returns:
+            是否应该转发到审核群
+        """
+        try:
+            from app.services.config_manager import config_manager
+            
+            # 获取配置：是否启用审核群转发
+            enable_review = await config_manager.get_config('review.enable_forward_to_group')
+            if enable_review is False:
+                return False
+            
+            # 对于实时消息，默认转发
+            if not is_history:
+                return True
+            
+            # 对于历史消息，检查专门的配置
+            forward_history = await config_manager.get_config('review.forward_history_messages')
+            return forward_history if forward_history is not None else False
+            
+        except Exception as e:
+            logger.error(f"检查转发配置失败: {e}")
+            # 出错时的默认行为：实时消息转发，历史消息不转发
+            return not is_history
+    
     async def _should_forward_history(self) -> bool:
-        """检查是否应该转发历史消息到审核群"""
-        # 可以添加配置项控制历史消息是否需要审核
-        return False  # 默认历史消息不转发到审核群
+        """检查是否应该转发历史消息到审核群（保留兼容性）"""
+        return await self._should_forward_to_review(is_history=True)
     
     async def _forward_to_review(self, db_message: Message):
         """转发消息到审核群"""
@@ -586,14 +614,32 @@ class UnifiedMessageProcessor:
     async def _broadcast_new_message(self, db_message: Message):
         """广播新消息到WebSocket客户端"""
         try:
-            # 延迟导入避免循环引用
-            from app.telegram.bot import telegram_bot
+            # 直接使用websocket_manager，避免依赖telegram_bot
+            from app.api.websocket import websocket_manager
             
-            if telegram_bot and hasattr(telegram_bot, '_broadcast_new_message'):
-                await telegram_bot._broadcast_new_message(db_message)
-            else:
-                logger.debug("无法广播到WebSocket")
-                
+            # 准备消息数据（确保包含所有必要字段）
+            message_data = {
+                "id": db_message.id,
+                "message_id": db_message.message_id,  # 添加message_id字段
+                "source_channel": db_message.source_channel,
+                "content": db_message.content,
+                "filtered_content": db_message.filtered_content,
+                "media_type": db_message.media_type,
+                "media_url": db_message.media_url,
+                "is_ad": db_message.is_ad,
+                "status": db_message.status,
+                "created_at": format_for_api(db_message.created_at),
+                "is_combined": db_message.is_combined,
+                "media_group": db_message.media_group if db_message.is_combined else None,
+                "combined_messages": db_message.combined_messages if db_message.is_combined else None
+            }
+            
+            # 广播消息
+            await websocket_manager.broadcast_new_message(message_data)
+            logger.info(f"✅ 成功广播新消息 ID:{db_message.id} 到 {len(websocket_manager.active_connections)} 个WebSocket连接")
+            
+        except ImportError as e:
+            logger.error(f"导入WebSocket管理器失败: {e}")
         except Exception as e:
             logger.error(f"广播消息失败: {e}")
 

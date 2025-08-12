@@ -8,6 +8,8 @@ const Utils = {
         if (!dateString) return '';
         
         try {
+            // 后端现在会返回带时区信息的ISO字符串
+            // 直接解析即可，Date会正确处理时区
             const date = new Date(dateString);
             const now = new Date();
             const diff = now - date;

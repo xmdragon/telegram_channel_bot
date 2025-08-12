@@ -9,31 +9,18 @@
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/training-manager.css">
     <link rel="stylesheet" href="assets/css/train.css">
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
         <nav-bar page-title="🤖 AI训练中心"></nav-bar>
+        
+        <!-- 子导航 -->
+        <training-nav :active-tab="trainingMode"></training-nav>
 
         <div class="container">
-            <!-- 训练类型选择 -->
-            <div style="text-align: center; margin: 20px 0;">
-                <el-radio-group v-model="trainingMode" @change="onTrainingModeChange" size="large">
-                    <el-radio-button label="tail">
-                        <i class="el-icon-bottom"></i> 尾部过滤训练
-                    </el-radio-button>
-                    <el-radio-button label="ad">
-                        <i class="el-icon-warning"></i> 广告检测训练
-                    </el-radio-button>
-                    <el-radio-button label="separator">
-                        <i class="el-icon-setting"></i> 分隔符配置
-                    </el-radio-button>
-                    <el-radio-button label="data">
-                        <i class="el-icon-folder"></i> 数据管理
-                    </el-radio-button>
-                </el-radio-group>
-            </div>
             
             <!-- AI训练标签页 -->
             <el-tabs v-model="activeTab" type="border-card" class="config-tabs" v-if="trainingMode !== 'data'">
@@ -77,26 +64,6 @@
                             </template>
                             
                             <el-form :model="trainingForm" label-width="120px" label-position="top">
-                                <el-form-item label="选择频道" required>
-                                    <el-select 
-                                        v-model="trainingForm.channel_id" 
-                                        placeholder="请选择要训练的频道"
-                                        filterable
-                                        style="width: 100%">
-                                        <el-option
-                                            v-for="channel in channels"
-                                            :key="channel.id"
-                                            :label="`${channel.title || '未命名频道'} (${channel.name || channel.username || '未知频道'})`"
-                                            :value="channel.id">
-                                            <div class="channel-option">
-                                                <span>{{ channel.title || '未命名频道' }}</span>
-                                                <el-tag v-if="channel.has_pattern" type="success" size="small">已学习</el-tag>
-                                                <el-tag v-else type="info" size="small">未检测到尾部</el-tag>
-                                            </div>
-                                        </el-option>
-                                    </el-select>
-                                </el-form-item>
-                                
                                 <el-form-item label="原始消息内容" required>
                                     <el-input
                                         v-model="trainingForm.original_message"
@@ -280,13 +247,12 @@
                             
                             <h4>1. 手动训练步骤</h4>
                             <ol>
-                                <li>选择要训练的频道</li>
                                 <li>复制包含推广内容的完整消息</li>
                                 <li>粘贴到"原始消息内容"框中</li>
                                 <li>将需要过滤的尾部内容（如订阅链接、投稿信息等）粘贴到"推广尾部内容"框中</li>
                                 <li>查看预览效果，确认过滤是否正确</li>
                                 <li>点击"提交训练样本"保存</li>
-                                <li>重复多次以增加训练效果（建议每个频道至少5-10个样本）</li>
+                                <li>重复多次以增加训练效果（建议至少5-10个样本）</li>
                             </ol>
                             
                             <el-divider></el-divider>
@@ -424,6 +390,7 @@
     <script src="assets/js/axios.js?v=3"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components/navbar.js"></script>
+    <script src="assets/js/components/training-nav.js"></script>
     <script src="assets/js/components/train.js?v=1"></script>
     
     <style>

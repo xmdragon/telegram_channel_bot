@@ -763,10 +763,11 @@ const MainApp = {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${protocol}//${window.location.host}/api/ws/messages`;
                 
+                console.log('🔌 正在连接WebSocket:', wsUrl);
                 this.websocket = new WebSocket(wsUrl);
                 
                 this.websocket.onopen = () => {
-//                     console.log('WebSocket连接已建立');
+                    console.log('✅ WebSocket连接已建立');
                     this.websocketConnected = true;
                     this.systemStatus = '在线';
                     
@@ -779,20 +780,21 @@ const MainApp = {
                 };
                 
                 this.websocket.onclose = () => {
-//                     console.log('WebSocket连接已关闭');
+                    console.log('❌ WebSocket连接已关闭');
                     this.websocketConnected = false;
                     this.systemStatus = '离线';
                     
                     // 尝试重连
                     setTimeout(() => {
                         if (!this.websocketConnected) {
+                            console.log('🔄 尝试重新连接WebSocket...');
                             this.connectWebSocket();
                         }
                     }, 5000);
                 };
                 
                 this.websocket.onerror = (error) => {
-                    console.error('WebSocket错误:', error);
+                    console.error('❌ WebSocket错误:', error);
                     this.websocketConnected = false;
                     this.systemStatus = '连接错误';
                 };
@@ -838,21 +840,31 @@ const MainApp = {
 
         // 处理新消息
         handleNewMessage(messageData) {
+            console.log('📨 收到WebSocket新消息:', {
+                id: messageData.id,
+                status: messageData.status,
+                is_ad: messageData.is_ad,
+                content_preview: messageData.content ? messageData.content.substring(0, 50) + '...' : '无内容'
+            });
+            
             // 检查消息是否已存在
             const existingIndex = this.messages.findIndex(msg => msg.id === messageData.id);
             
             if (existingIndex === -1) {
                 // 检查新消息是否符合当前筛选条件
                 let shouldAddMessage = true;
+                let filterReason = null;
                 
                 // 检查状态筛选
                 if (this.filters.status && messageData.status !== this.filters.status) {
                     shouldAddMessage = false;
+                    filterReason = `状态不匹配: 期望${this.filters.status}, 实际${messageData.status}`;
                 }
                 
                 // 检查广告筛选
                 if (this.filters.is_ad !== null && messageData.is_ad !== this.filters.is_ad) {
                     shouldAddMessage = false;
+                    filterReason = `广告状态不匹配: 期望${this.filters.is_ad}, 实际${messageData.is_ad}`;
                 }
                 
                 // 检查搜索关键词
@@ -861,13 +873,16 @@ const MainApp = {
                     const content = (messageData.filtered_content || messageData.content || '').toLowerCase();
                     if (!content.includes(keyword)) {
                         shouldAddMessage = false;
+                        filterReason = `内容不包含关键词: ${keyword}`;
                     }
                 }
                 
                 if (shouldAddMessage) {
                     // 新消息，添加到列表顶部
                     this.messages.unshift(messageData);
-//                     console.log('收到新消息:', messageData.content ? messageData.content.substring(0, 50) + '...' : '无内容');
+                    console.log('✅ 新消息已添加到列表, 当前列表长度:', this.messages.length);
+                } else {
+                    console.log('⚠️ 新消息未添加到列表, 原因:', filterReason);
                 }
                 
                 // 显示通知（无论是否添加到列表）
@@ -881,9 +896,11 @@ const MainApp = {
                 this.$nextTick(() => {
                     // 确保媒体URL被正确加载
                     if (messageData.media_display_url || messageData.media_group_display) {
-//                         console.log('新消息包含媒体，触发重新渲染');
+                        console.log('🎨 新消息包含媒体，触发重新渲染');
                     }
                 });
+            } else {
+                console.log('⚠️ 消息已存在，跳过添加');
             }
         },
 

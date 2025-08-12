@@ -5,6 +5,7 @@ import logging
 import asyncio
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
+from app.utils.timezone import get_current_time
 from sqlalchemy import select
 from app.core.database import AsyncSessionLocal, Message
 
@@ -46,7 +47,7 @@ class MessageGrouper:
                 'filtered_content': filtered_content if filtered_content is not None else original_content,
                 'is_ad': is_ad,
                 'media_info': media_info,
-                'date': message.date or datetime.now(),
+                'date': message.date or get_current_time(),
                 'grouped_id': str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None
             }
             
@@ -71,7 +72,7 @@ class MessageGrouper:
                 'filtered_content': filtered_content,
                 'is_ad': is_ad,
                 'media_info': media_info,
-                'date': message.date or datetime.now(),
+                'date': message.date or get_current_time(),
                 'grouped_id': None
             }, channel_id)
     
@@ -93,7 +94,7 @@ class MessageGrouper:
             'is_combined': False,
             'combined_messages': None,
             'media_group': None,
-            'date': message_data.get('date', datetime.now())
+            'date': message_data.get('date', get_current_time())
         }
     
     async def _handle_grouped_message_batch(self, message_data: Dict, channel_id: str) -> Optional[Dict]:
@@ -392,7 +393,7 @@ class MessageGrouper:
                 'media_group': clean_media_group,
                 'visual_hash': visual_hash,
                 'combined_media_hash': combined_media_hash,
-                'date': combined_message.get('date', datetime.now())
+                'date': combined_message.get('date', get_current_time())
             }
                 
         except Exception as e:
@@ -507,7 +508,7 @@ class MessageGrouper:
         """清理过期的消息组"""
         try:
             expired_keys = []
-            current_time = datetime.now()
+            current_time = get_current_time()
             
             for group_key, messages in self.pending_groups.items():
                 if not messages:

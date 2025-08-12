@@ -32,7 +32,7 @@ router = APIRouter(tags=["training"])
 
 # 数据文件路径
 SEPARATOR_PATTERNS_FILE = Path("data/separator_patterns.json")
-TAIL_AD_SAMPLES_FILE = Path("data/tail_ad_samples.json")
+TAIL_FILTER_SAMPLES_FILE = Path("data/tail_filter_samples.json")
 
 # 确保数据目录存在
 SEPARATOR_PATTERNS_FILE.parent.mkdir(exist_ok=True)
@@ -97,7 +97,6 @@ AD_TRAINING_FILE = Path("data/ad_training_data.json")  # 新增：广告训练�
 
 class TrainingSubmission(BaseModel):
     """训练数据提交模型"""
-    channel_id: str
     original_message: str
     tail_content: str
     message_id: Optional[int] = None  # 消息ID，用于更新数据库记录
@@ -796,12 +795,12 @@ class TrainingRecord:
             except Exception as e:
                 logger.error(f"计算今日训练数失败: {e}")
             
-            # 计算统计信息
-            channels = data.get("channels", {})
-            total_channels = len(channels)
-            trained_channels = sum(1 for c in channels.values() 
-                                 if c.get("samples") and len(c.get("samples", [])) > 0)
-            total_samples = sum(len(c.get("samples", [])) for c in channels.values())
+            # 计算统计信息 - 现在只统计全局训练样本
+            global_data = data.get("channels", {}).get("global", {})
+            total_samples = len(global_data.get("samples", []))
+            # 不再需要频道相关的统计
+            total_channels = 0
+            trained_channels = 0
             
             # 数据完整性检查
             integrity_status = {
@@ -1127,39 +1126,28 @@ async def submit_training(
 ):
     """提交训练数据并自动应用"""
     try:
-        # 获取频道信息
-        result = await db.execute(
-            select(Channel).where(Channel.channel_id == submission.channel_id)
-        )
-        channel = result.scalar_one_or_none()
-        
-        if not channel:
-            raise HTTPException(status_code=404, detail="频道不存在")
-        
-        channel_name = channel.channel_name or "未命名频道"
-        
-        # 保存训练数据
+        # 保存训练数据 - 不再需要频道信息，系统是频道无关的
         success = training_record.add_training_sample(
-            submission.channel_id,
-            channel_name,
+            "global",  # 使用全局标识符代替频道ID
+            "全局训练样本",  # 统一名称
             submission.original_message,
             submission.tail_content
         )
         
         if success:
-            # 立即应用到当前运行的AI过滤器
+            # 立即应用到当前运行的AI过滤器 - 使用全局模式
             samples = [submission.original_message]
-            await ai_filter.learn_channel_pattern(submission.channel_id, samples)
+            await ai_filter.learn_channel_pattern("global", samples)
             
-            # 自动应用所有该频道的训练数据
+            # 自动应用所有全局训练数据
             training_data = training_record.load_data()
-            channel_data = training_data.get("channels", {}).get(submission.channel_id, {})
-            if channel_data and channel_data.get("samples"):
+            global_data = training_data.get("channels", {}).get("global", {})
+            if global_data and global_data.get("samples"):
                 # 提取所有原始消息
-                all_messages = [s["original"] for s in channel_data["samples"]]
-                # 学习该频道的所有模式
-                await ai_filter.learn_channel_pattern(submission.channel_id, all_messages)
-                logger.info(f"自动应用了频道 {submission.channel_id} 的 {len(all_messages)} 个训练样本")
+                all_messages = [s["original"] for s in global_data["samples"]]
+                # 学习所有全局模式
+                await ai_filter.learn_channel_pattern("global", all_messages)
+                logger.info(f"自动应用了 {len(all_messages)} 个全局训练样本")
             
             # 保存AI模式
             ai_filter.save_patterns("data/ai_filter_patterns.json")
@@ -1189,42 +1177,43 @@ async def apply_training():
     try:
         training_data = training_record.load_data()
         
-        success_count = 0
-        for channel_id, channel_data in training_data["channels"].items():
-            samples = channel_data.get("samples", [])
-            if samples:
-                # 提取所有原始消息
-                messages = [s["original"] for s in samples]
-                # 学习该频道的模式
-                success = await ai_filter.learn_channel_pattern(channel_id, messages)
-                if success:
-                    success_count += 1
-                    logger.info(f"频道 {channel_id} 训练成功，{len(samples)} 个样本")
+        # 只处理全局训练数据
+        global_data = training_data.get("channels", {}).get("global", {})
+        samples = global_data.get("samples", [])
+        
+        if samples:
+            # 提取所有原始消息
+            messages = [s["original"] for s in samples]
+            # 学习全局模式
+            success = await ai_filter.learn_channel_pattern("global", messages)
+            if success:
+                logger.info(f"全局训练成功，{len(samples)} 个样本")
         
         # 保存AI模式
         ai_filter.save_patterns("data/ai_filter_patterns.json")
         
         return {
             "success": True,
-            "message": f"成功训练 {success_count} 个频道",
-            "trained_channels": success_count
+            "message": f"成功应用 {len(samples) if samples else 0} 个全局训练样本",
+            "trained_samples": len(samples) if samples else 0
         }
     except Exception as e:
         logger.error(f"应用训练失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/clear/{channel_id}")
-async def clear_channel_training(channel_id: str):
-    """清除某个频道的训练数据"""
+@router.delete("/clear")
+async def clear_training():
+    """清除全局训练数据"""
     try:
         data = training_record.load_data()
         
-        if channel_id in data["channels"]:
-            del data["channels"][channel_id]
+        # 清除全局训练数据
+        if "global" in data.get("channels", {}):
+            del data["channels"]["global"]
             training_record.save_data(data)
-            return {"success": True, "message": "频道训练数据已清除"}
+            return {"success": True, "message": "全局训练数据已清除"}
         else:
-            return {"success": False, "message": "频道没有训练数据"}
+            return {"success": False, "message": "没有全局训练数据"}
             
     except Exception as e:
         logger.error(f"清除训练数据失败: {e}")
@@ -1473,12 +1462,12 @@ async def save_separator_patterns(request: dict):
         return {"success": False, "error": str(e)}
 
 
-@router.get("/tail-ad-samples")
-async def get_tail_ad_samples():
-    """获取尾部广告训练样本"""
+@router.get("/tail-filter-samples")
+async def get_tail_filter_samples():
+    """获取尾部过滤训练样本（用于移除频道标识，不是广告）"""
     try:
-        if TAIL_AD_SAMPLES_FILE.exists():
-            data = SafeFileOperation.read_json_safe(TAIL_AD_SAMPLES_FILE)
+        if TAIL_FILTER_SAMPLES_FILE.exists():
+            data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
             samples = data.get("samples", []) if data else []
             
             # 添加ID如果没有
@@ -1490,7 +1479,7 @@ async def get_tail_ad_samples():
         else:
             return {"samples": []}
     except Exception as e:
-        logger.error(f"获取尾部广告样本失败: {e}")
+        logger.error(f"获取尾部过滤样本失败: {e}")
         return {"samples": []}
 
 
@@ -1603,27 +1592,27 @@ async def add_ad_sample(
         return {"success": False, "message": str(e)}
 
 
-@router.post("/tail-ad-samples")
-async def add_tail_ad_sample(
+@router.post("/tail-filter-samples")
+async def add_tail_filter_sample(
     request: dict,
     _admin = Depends(check_permission("training.submit"))
 ):
-    """添加尾部广告训练样本"""
+    """添加尾部过滤训练样本（用于移除频道标识，不是广告）"""
     try:
         # 提取参数
         description = request.get("description", "")
         content = request.get("content", "")
         separator = request.get("separator", "")
         normal_part = request.get("normalPart", "")
-        ad_part = request.get("adPart", "")
+        tail_part = request.get("tailPart", request.get("adPart", ""))  # 兼容旧字段名
         
         if not content or not separator:
             return {"success": False, "error": "内容和分隔符不能为空"}
         
         # 加载现有样本
         samples = []
-        if TAIL_AD_SAMPLES_FILE.exists():
-            data = SafeFileOperation.read_json_safe(TAIL_AD_SAMPLES_FILE)
+        if TAIL_FILTER_SAMPLES_FILE.exists():
+            data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
             samples = data.get("samples", []) if data else []
         
         # 生成ID
@@ -1636,7 +1625,7 @@ async def add_tail_ad_sample(
             "content": content,
             "separator": separator,
             "normal_part": normal_part,
-            "ad_part": ad_part,
+            "tail_part": tail_part,  # 改为tail_part
             "content_hash": hashlib.md5(content.encode()).hexdigest(),
             "created_at": datetime.now().isoformat()
         }
@@ -1650,35 +1639,33 @@ async def add_tail_ad_sample(
         samples.append(new_sample)
         
         # 保存到文件
-        if not SafeFileOperation.write_json_safe(TAIL_AD_SAMPLES_FILE, {
+        if not SafeFileOperation.write_json_safe(TAIL_FILTER_SAMPLES_FILE, {
             "samples": samples,
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now().isoformat(),
+            "description": "尾部过滤训练样本 - 用于识别和移除频道标识（不是广告）"
         }):
             return {"success": False, "error": "保存数据失败"}
         
-        # 同时添加到广告样本库用于AI学习
-        try:
-            await adaptive_learning._add_ad_sample(ad_part)
-        except Exception as e:
-            logger.warning(f"添加到广告样本库失败（不影响尾部样本保存）: {e}")
+        # 注意：尾部过滤样本不应该添加到广告样本库
+        # 因为尾部过滤是移除频道标识，不是识别广告
         
-        logger.info(f"添加新的尾部广告样本: {new_id}")
+        logger.info(f"添加新的尾部过滤样本: {new_id}")
         return {"success": True, "message": "样本已添加", "id": new_id}
         
     except Exception as e:
-        logger.error(f"添加尾部广告样本失败: {e}")
+        logger.error(f"添加尾部过滤样本失败: {e}")
         return {"success": False, "error": str(e)}
 
 
-@router.delete("/tail-ad-samples/{sample_id}")
-async def delete_tail_ad_sample(sample_id: int):
-    """删除尾部广告训练样本"""
+@router.delete("/tail-filter-samples/{sample_id}")
+async def delete_tail_filter_sample(sample_id: int):
+    """删除尾部过滤训练样本"""
     try:
         # 加载样本
-        if not TAIL_AD_SAMPLES_FILE.exists():
+        if not TAIL_FILTER_SAMPLES_FILE.exists():
             return {"success": False, "error": "样本文件不存在"}
         
-        with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
+        with open(TAIL_FILTER_SAMPLES_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
             samples = data.get("samples", [])
         
@@ -1690,17 +1677,17 @@ async def delete_tail_ad_sample(sample_id: int):
             return {"success": False, "error": "样本不存在"}
         
         # 保存
-        if not SafeFileOperation.write_json_safe(TAIL_AD_SAMPLES_FILE, {
+        if not SafeFileOperation.write_json_safe(TAIL_FILTER_SAMPLES_FILE, {
             "samples": samples,
             "updated_at": datetime.now().isoformat()
         }):
             return {"success": False, "error": "保存数据失败"}
         
-        logger.info(f"删除尾部广告样本: {sample_id}")
+        logger.info(f"删除尾部过滤样本: {sample_id}")
         return {"success": True, "message": "样本已删除"}
         
     except Exception as e:
-        logger.error(f"删除尾部广告样本失败: {e}")
+        logger.error(f"删除尾部过滤样本失败: {e}")
         return {"success": False, "error": str(e)}
 
 

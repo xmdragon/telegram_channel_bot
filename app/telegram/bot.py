@@ -6,7 +6,8 @@ import logging
 import asyncio
 import os
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime
+from app.utils.timezone import format_for_api
 from telethon.tl.types import Message as TLMessage
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
@@ -547,9 +548,10 @@ class TelegramBot:
         try:
             from app.api.websocket import websocket_manager
             
-            # 准备消息数据
+            # 准备消息数据（确保包含所有必要字段）
             message_data = {
                 "id": db_message.id,
+                "message_id": db_message.message_id,  # 添加message_id字段（前端需要）
                 "source_channel": db_message.source_channel,
                 "content": db_message.content,
                 "filtered_content": db_message.filtered_content,
@@ -557,14 +559,19 @@ class TelegramBot:
                 "media_url": db_message.media_url,
                 "is_ad": db_message.is_ad,
                 "status": db_message.status,
-                "created_at": db_message.created_at.isoformat() if db_message.created_at else None,
+                "created_at": format_for_api(db_message.created_at),
                 "is_combined": db_message.is_combined,
-                "media_group_display": self._prepare_media_group_display(db_message)
+                "media_group_display": self._prepare_media_group_display(db_message),
+                "media_group": db_message.media_group if db_message.is_combined else None,
+                "combined_messages": db_message.combined_messages if db_message.is_combined else None
             }
             
             # 广播到所有WebSocket客户端
             await websocket_manager.broadcast_new_message(message_data)
+            logger.info(f"✅ 成功广播新消息 ID:{db_message.id} 到 {len(websocket_manager.active_connections)} 个WebSocket连接")
             
+        except ImportError as e:
+            logger.error(f"导入WebSocket管理器失败: {e}")
         except Exception as e:
             logger.error(f"广播新消息到WebSocket时出错: {e}")
     
