@@ -27,6 +27,7 @@ const NavBar = {
                     <a href="./logs.html" :class="['nav-link', isActive('/logs.html') ? 'active' : '']">📋 系统日志</a>
                     <a href="./admin_manage.html" :class="['nav-link', isActive('/admin_manage.html') ? 'active' : '']">👥 管理员</a>
                     <a v-if="isSuperAdmin" href="./admin.html" :class="['nav-link', isActive('/admin.html') ? 'active' : '']">⚙️ 系统管理</a>
+                    <a href="./auth.html" :class="['nav-link', isActive('/auth.html') ? 'active' : '']">📱 Telegram认证</a>
                     <a href="#" @click.prevent="handleLogout" class="nav-link">🚪 登出</a>
                 </div>
             </div>
@@ -60,7 +61,7 @@ const NavBar = {
         },
         async handleLogout() {
             try {
-                await axios.post('/api/auth/logout');
+                await axios.post('/api/admin/auth/logout');
                 // 清除本地存储的token
                 localStorage.removeItem('admin_token');
                 // 跳转到登录页

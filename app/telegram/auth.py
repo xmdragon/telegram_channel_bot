@@ -62,9 +62,9 @@ class TelethonAuthManager:
                     logger.info(f"StringSession连接成功: auth_state={self.auth_state}")
                     return result
                 else:
-                    logger.warning("StringSession无效或已过期，需要重新认证")
-                    # 清除无效的session
-                    await self.config_manager.set_config("telegram.session", "", "Telegram Session (StringSession格式)", "string")
+                    # 不要立即清空session，可能只是临时的连接问题
+                    logger.warning("StringSession连接失败，可能是临时问题或锁竞争")
+                    # 只有在明确知道session无效时才清空（比如收到SessionRevokedError等明确的错误）
             
             logger.info(f"需要进行认证: api_id={bool(api_id)}, api_hash={bool(api_hash)}, has_session={bool(session_string)}")
             return False
@@ -88,7 +88,12 @@ class TelethonAuthManager:
             self.client = TelegramClient(
                 StringSession(),  # 使用空的StringSession
                 api_id,
-                api_hash
+                api_hash,
+                connection_retries=5,
+                retry_delay=3,
+                timeout=60,
+                request_retries=5,
+                auto_reconnect=True
             )
             
             # 保存认证信息供后续使用
@@ -120,6 +125,9 @@ class TelethonAuthManager:
                     
             except Exception as e:
                 logger.error(f"启动客户端失败: {e}")
+                # 连接失败，但客户端对象已创建，可以后续重试连接
+                self.auth_state = "idle"
+                # 返回False表示需要继续认证流程
                 return False
                 
         except Exception as e:
@@ -147,7 +155,12 @@ class TelethonAuthManager:
             self.client = TelegramClient(
                 StringSession(session_string),
                 api_id,
-                api_hash
+                api_hash,
+                connection_retries=5,
+                retry_delay=3,
+                timeout=60,
+                request_retries=5,
+                auto_reconnect=True
             )
             
             # 使用start方法完全启动客户端
@@ -181,6 +194,14 @@ class TelethonAuthManager:
                 
         except Exception as e:
             logger.error(f"StringSession创建失败: {e}")
+            
+            # 检查是否是session真的无效
+            from telethon.errors import SessionRevokedError, AuthKeyUnregisteredError
+            if isinstance(e, (SessionRevokedError, AuthKeyUnregisteredError)):
+                logger.error("Session确实无效，需要重新认证")
+                # 只有在这种情况下才清空session
+                await self.config_manager.set_config("telegram.session", "", "Telegram Session (StringSession格式)", "string")
+            
             if self.client:
                 await self.client.disconnect()
                 self.client = None
@@ -256,6 +277,27 @@ class TelethonAuthManager:
         try:
             if not self.client:
                 return {"success": False, "error": "客户端未初始化"}
+            
+            # 检查auth_data是否包含必要信息
+            if not self.auth_data.get("api_id") or not self.auth_data.get("api_hash"):
+                logger.error("auth_data缺少API凭据")
+                return {"success": False, "error": "客户端配置不完整，请重新初始化"}
+            
+            # 检查客户端是否已连接
+            if not self.client.is_connected():
+                logger.info("客户端未连接，尝试重新连接...")
+                logger.info(f"使用API凭据: api_id={self.auth_data.get('api_id')}, api_hash={self.auth_data.get('api_hash')[:10] if self.auth_data.get('api_hash') else None}...")
+                try:
+                    await self.client.connect()
+                    logger.info("客户端重新连接成功")
+                except Exception as e:
+                    logger.error(f"重新连接失败: {e}")
+                    logger.error(f"连接错误类型: {type(e).__name__}")
+                    # 连接失败，提供更详细的错误信息
+                    if "0 bytes read" in str(e):
+                        return {"success": False, "error": "无法连接到Telegram服务器，请检查网络连接或稍后重试"}
+                    else:
+                        return {"success": False, "error": f"客户端连接失败: {str(e)}"}
             
             self.auth_data["phone"] = phone
             await self.client.send_code_request(phone)

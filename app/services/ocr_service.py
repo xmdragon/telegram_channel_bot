@@ -24,6 +24,8 @@ class OCRService:
         self.thread_pool = ThreadPoolExecutor(max_workers=2)  # 限制并发数量
         self.cache = {}  # 简单的缓存机制
         self.cache_max_size = 100
+        self.cache_memory_limit = 50 * 1024 * 1024  # 50MB内存限制
+        self._cache_lock = asyncio.Lock()  # 缓存操作锁
         
         # 广告相关的模式匹配
         self.ad_patterns = [
@@ -257,9 +259,12 @@ class OCRService:
                 image_data = f.read()
             
             image_hash = self._calculate_image_hash(image_data)
-            if image_hash in self.cache:
-                logger.debug(f"使用缓存的OCR结果: {image_path}")
-                return self.cache[image_hash]
+            
+            # 异步检查缓存
+            async with self._cache_lock:
+                if image_hash in self.cache:
+                    logger.debug(f"使用缓存的OCR结果: {image_path}")
+                    return self.cache[image_hash]
             
             # 并行执行文字提取和二维码检测
             text_task = asyncio.get_event_loop().run_in_executor(
@@ -295,12 +300,18 @@ class OCRService:
             }
             
             # 更新缓存
-            if len(self.cache) >= self.cache_max_size:
-                # 简单的LRU：清除一半缓存
-                items = list(self.cache.items())
-                self.cache = dict(items[self.cache_max_size//2:])
-            
-            self.cache[image_hash] = result
+            async with self._cache_lock:
+                # 检查缓存大小和内存使用
+                if len(self.cache) >= self.cache_max_size or self._estimate_cache_memory() > self.cache_memory_limit:
+                    # LRU：删除最老的1/3项
+                    items = list(self.cache.items())
+                    keep_count = int(len(items) * 2/3)
+                    self.cache = dict(items[-keep_count:])
+                    logger.debug(f"缓存清理：保留 {keep_count} 项")
+                
+                # 限制单个结果大小，避免大对象占用过多内存
+                if self._estimate_object_size(result) < 1024 * 1024:  # 1MB限制
+                    self.cache[image_hash] = result
             
             logger.info(f"图片内容提取完成: 文字{len(texts)}条, 二维码{len(qr_codes)}个, 广告分数{ad_score:.2f}")
             
@@ -448,10 +459,35 @@ class OCRService:
             'ad_patterns_count': len(self.ad_patterns)
         }
     
-    def clear_cache(self):
+    async def clear_cache(self):
         """清除缓存"""
-        self.cache.clear()
+        async with self._cache_lock:
+            self.cache.clear()
+            import gc
+            gc.collect()  # 强制垃圾回收
         logger.info("OCR缓存已清除")
+    
+    def _estimate_cache_memory(self) -> int:
+        """估算缓存占用的内存（字节）"""
+        import sys
+        total_size = 0
+        for key, value in self.cache.items():
+            total_size += sys.getsizeof(key)
+            total_size += self._estimate_object_size(value)
+        return total_size
+    
+    def _estimate_object_size(self, obj) -> int:
+        """递归估算对象大小"""
+        import sys
+        size = sys.getsizeof(obj)
+        
+        if isinstance(obj, dict):
+            size += sum(self._estimate_object_size(k) + self._estimate_object_size(v) 
+                       for k, v in obj.items())
+        elif isinstance(obj, (list, tuple)):
+            size += sum(self._estimate_object_size(item) for item in obj)
+        
+        return size
     
     def __del__(self):
         """析构函数，清理资源"""

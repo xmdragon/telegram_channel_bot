@@ -183,3 +183,63 @@
 .el-dialog__wrapper .file-details-dialog {
     width: 800px !important;
 }
+
+/* ===========================
+   优化进度对话框样式
+   =========================== */
+.optimize-progress-content {
+    padding: 20px 0;
+}
+
+.progress-details {
+    margin-top: 20px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid #2d2d2d;
+}
+
+.progress-details p {
+    margin: 10px 0;
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.progress-details strong {
+    color: #00ff41;
+    margin-right: 10px;
+    display: inline-block;
+    min-width: 100px;
+}
+
+.current-file {
+    color: #ffc107;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.error-list {
+    margin-top: 20px;
+}
+
+.error-list ul {
+    font-size: 13px;
+    color: #ff9800;
+}
+
+.error-list li {
+    margin: 5px 0;
+    word-break: break-word;
+}
+
+/* 进度条样式优化 */
+.el-progress__text {
+    font-size: 14px !important;
+    font-weight: bold;
+}
+
+.el-progress-bar__inner {
+    background: linear-gradient(90deg, #00ff41 0%, #00cc33 100%);
+}
+}

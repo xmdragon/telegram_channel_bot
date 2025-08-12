@@ -90,7 +90,7 @@ class AuthManager {
         }
         
         try {
-            const response = await axios.get('/api/auth/current');
+            const response = await axios.get('/api/admin/auth/current');
             // 更新本地存储的管理员信息
             localStorage.setItem('admin_info', JSON.stringify(response.data));
             this.adminInfo = response.data;
@@ -113,7 +113,7 @@ class AuthManager {
     async logout() {
         if (this.token) {
             try {
-                await axios.post('/api/auth/logout');
+                await axios.post('/api/admin/auth/logout');
             } catch (e) {
                 // 忽略错误
             }

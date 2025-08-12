@@ -11,6 +11,7 @@ from sklearn.cluster import DBSCAN
 from collections import defaultdict
 import asyncio
 from datetime import datetime, timedelta
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class IntelligentFilter:
         self.ad_embeddings = []  # 广告样本的嵌入向量
         self.normal_embeddings = []  # 正常内容的嵌入向量
         self.initialized = False
+        self._lock = threading.RLock()  # 保护共享数据的锁
         
         # 尝试加载模型
         self._initialize()
@@ -105,13 +107,14 @@ class IntelligentFilter:
             cluster_embeddings = tail_embeddings[cluster_indices]
             
             # 存储该频道的尾部模式（使用聚类中心）
-            self.channel_patterns[channel_id] = {
-                'centroid': np.mean(cluster_embeddings, axis=0),
-                'samples': cluster_embeddings[:5],  # 保存几个样本用于验证
-                'threshold': 0.75,  # 相似度阈值
-                'learned_at': datetime.now().isoformat(),
-                'sample_count': len(cluster_indices)
-            }
+            with self._lock:
+                self.channel_patterns[channel_id] = {
+                    'centroid': np.mean(cluster_embeddings, axis=0),
+                    'samples': cluster_embeddings[:5],  # 保存几个样本用于验证
+                    'threshold': 0.75,  # 相似度阈值
+                    'learned_at': datetime.now().isoformat(),
+                    'sample_count': len(cluster_indices)
+                }
             
             logger.info(f"✅ 频道 {channel_id} 尾部模式学习完成，发现 {len(cluster_indices)} 个相似样本")
             return True
@@ -131,11 +134,15 @@ class IntelligentFilter:
         Returns:
             (是否为尾部, 相似度分数)
         """
-        if not self.initialized or channel_id not in self.channel_patterns:
+        if not self.initialized:
             return False, 0.0
         
+        with self._lock:
+            if channel_id not in self.channel_patterns:
+                return False, 0.0
+            pattern = self.channel_patterns[channel_id].copy()
+        
         try:
-            pattern = self.channel_patterns[channel_id]
             text_embedding = self.model.encode([text])[0]
             
             # 计算与频道尾部模式的相似度
@@ -246,7 +253,13 @@ class IntelligentFilter:
             return rule_based_result
         
         # 如果规则无法判断，才使用AI模型
-        if not self.initialized or channel_id not in self.channel_patterns:
+        if not self.initialized:
+            return content
+        
+        with self._lock:
+            has_pattern = channel_id in self.channel_patterns
+        
+        if not has_pattern:
             return content
         
         lines = content.split('\n')
@@ -454,10 +467,14 @@ class IntelligentFilter:
             logger.info(f"开始训练广告分类器: {len(ad_samples)} 个广告样本, {len(normal_samples)} 个正常样本")
             
             # 计算嵌入向量
-            if ad_samples:
-                self.ad_embeddings = self.model.encode(ad_samples)
-            if normal_samples:
-                self.normal_embeddings = self.model.encode(normal_samples)
+            ad_emb = self.model.encode(ad_samples) if ad_samples else []
+            normal_emb = self.model.encode(normal_samples) if normal_samples else []
+            
+            with self._lock:
+                if len(ad_emb) > 0:
+                    self.ad_embeddings = ad_emb
+                if len(normal_emb) > 0:
+                    self.normal_embeddings = normal_emb
             
             logger.info("✅ 广告分类器训练完成")
             
@@ -474,7 +491,14 @@ class IntelligentFilter:
         Returns:
             (是否为广告, 置信度)
         """
-        if not self.initialized or (len(self.ad_embeddings) == 0 and len(self.normal_embeddings) == 0):
+        if not self.initialized:
+            return False, 0.0
+        
+        with self._lock:
+            ad_emb_copy = self.ad_embeddings.copy() if len(self.ad_embeddings) > 0 else []
+            normal_emb_copy = self.normal_embeddings.copy() if len(self.normal_embeddings) > 0 else []
+        
+        if len(ad_emb_copy) == 0 and len(normal_emb_copy) == 0:
             return False, 0.0
         
         try:
@@ -482,14 +506,14 @@ class IntelligentFilter:
             
             # 计算与广告样本的相似度
             ad_similarity = 0.0
-            if len(self.ad_embeddings) > 0:
-                ad_similarities = cosine_similarity(text_embedding, self.ad_embeddings)
+            if len(ad_emb_copy) > 0:
+                ad_similarities = cosine_similarity(text_embedding, ad_emb_copy)
                 ad_similarity = np.max(ad_similarities)
             
             # 计算与正常内容的相似度
             normal_similarity = 0.0
-            if len(self.normal_embeddings) > 0:
-                normal_similarities = cosine_similarity(text_embedding, self.normal_embeddings)
+            if len(normal_emb_copy) > 0:
+                normal_similarities = cosine_similarity(text_embedding, normal_emb_copy)
                 normal_similarity = np.max(normal_similarities)
             
             # 如果更像广告，则判定为广告
@@ -513,13 +537,14 @@ class IntelligentFilter:
             }
             
             # 转换numpy数组为列表以便JSON序列化
-            for channel_id, pattern in self.channel_patterns.items():
-                data['channel_patterns'][channel_id] = {
-                    'centroid': pattern['centroid'].tolist(),
-                    'threshold': pattern['threshold'],
-                    'learned_at': pattern['learned_at'],
-                    'sample_count': pattern['sample_count']
-                }
+            with self._lock:
+                for channel_id, pattern in self.channel_patterns.items():
+                    data['channel_patterns'][channel_id] = {
+                        'centroid': pattern['centroid'].tolist(),
+                        'threshold': pattern['threshold'],
+                        'learned_at': pattern['learned_at'],
+                        'sample_count': pattern['sample_count']
+                    }
             
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -536,14 +561,15 @@ class IntelligentFilter:
                 data = json.load(f)
             
             # 恢复numpy数组
-            for channel_id, pattern_data in data['channel_patterns'].items():
-                self.channel_patterns[channel_id] = {
-                    'centroid': np.array(pattern_data['centroid']),
-                    'threshold': pattern_data['threshold'],
-                    'learned_at': pattern_data['learned_at'],
-                    'sample_count': pattern_data['sample_count'],
-                    'samples': []  # 加载时不恢复样本
-                }
+            with self._lock:
+                for channel_id, pattern_data in data['channel_patterns'].items():
+                    self.channel_patterns[channel_id] = {
+                        'centroid': np.array(pattern_data['centroid']),
+                        'threshold': pattern_data['threshold'],
+                        'learned_at': pattern_data['learned_at'],
+                        'sample_count': pattern_data['sample_count'],
+                        'samples': []  # 加载时不恢复样本
+                    }
             
             logger.info(f"从 {filepath} 加载了 {len(self.channel_patterns)} 个频道模式")
             

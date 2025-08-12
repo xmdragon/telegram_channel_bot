@@ -1,6 +1,7 @@
 """
-智能尾部广告过滤器
-识别并切割消息尾部的广告内容，保留正常内容
+智能尾部过滤器
+识别并移除消息尾部的频道标识，保留正常内容
+注意：尾部过滤是移除原频道标识，不算广告
 """
 import logging
 import re
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class SmartTailFilter:
-    """智能尾部广告过滤器"""
+    """智能尾部过滤器 - 移除频道标识，不是广告"""
     
     def __init__(self):
         self.ad_detector = ad_detector
@@ -28,7 +29,7 @@ class SmartTailFilter:
     
     def filter_tail_ads(self, content: str) -> Tuple[str, bool, Optional[str]]:
         """
-        过滤尾部广告
+        过滤尾部频道标识（不算广告）
         
         Args:
             content: 原始消息内容
@@ -42,25 +43,25 @@ class SmartTailFilter:
         # 1. 尝试结构化广告检测（有明显分隔符）
         result = self._filter_by_separator(content)
         if result[1]:  # 找到广告
-            logger.info(f"通过分隔符检测到尾部广告，原长度: {len(content)}, 过滤后: {len(result[0])}")
+            logger.info(f"通过分隔符检测到尾部标识，原长度: {len(content)}, 过滤后: {len(result[0])}")
             return result
         
         # 2. 尝试语义分割检测
         result = self._filter_by_semantic_split(content)
         if result[1]:  # 找到广告
-            logger.info(f"通过语义分割检测到尾部广告，原长度: {len(content)}, 过滤后: {len(result[0])}")
+            logger.info(f"通过语义分割检测到尾部标识，原长度: {len(content)}, 过滤后: {len(result[0])}")
             return result
         
         # 3. 尝试链接密度检测
         result = self._filter_by_link_density(content)
         if result[1]:  # 找到广告
-            logger.info(f"通过链接密度检测到尾部广告，原长度: {len(content)}, 过滤后: {len(result[0])}")
+            logger.info(f"通过链接密度检测到尾部标识，原长度: {len(content)}, 过滤后: {len(result[0])}")
             return result
         
         return content, False, None
     
     def _filter_by_separator(self, content: str) -> Tuple[str, bool, Optional[str]]:
-        """通过分隔符检测并过滤尾部广告"""
+        """通过分隔符检测并过滤尾部标识"""
         # 查找所有分隔符位置
         separator_positions = []
         
@@ -96,7 +97,7 @@ class SmartTailFilter:
         return content, False, None
     
     def _filter_by_semantic_split(self, content: str) -> Tuple[str, bool, Optional[str]]:
-        """通过语义分割检测尾部广告"""
+        """通过语义分割检测尾部标识"""
         if not self.ad_detector.initialized:
             return content, False, None
         
@@ -123,7 +124,7 @@ class SmartTailFilter:
                     
                     # 如果相似度很低，且包含广告特征
                     if coherence < 0.3 and self._has_ad_features(potential_ad):  # 降低阈值从0.4到0.3
-                        logger.debug(f"语义分割检测到广告，相似度: {coherence:.3f}")
+                        logger.debug(f"语义分割检测到尾部标识，相似度: {coherence:.3f}")
                         return main_content, True, potential_ad
                 
                 except Exception as e:
@@ -132,7 +133,7 @@ class SmartTailFilter:
         return content, False, None
     
     def _filter_by_link_density(self, content: str) -> Tuple[str, bool, Optional[str]]:
-        """通过链接密度检测尾部广告"""
+        """通过链接密度检测尾部标识"""
         lines = content.split('\n')
         
         if len(lines) < 3:

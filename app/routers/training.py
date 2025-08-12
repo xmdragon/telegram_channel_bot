@@ -2,10 +2,12 @@
 手动训练API路由
 """
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
+import asyncio
 import json
 import os
 import fcntl
@@ -2406,6 +2408,307 @@ async def clean_orphaned_media(
         return {"success": False, "error": str(e)}
 
 
+@router.get("/media-files/duplicates")
+async def find_duplicate_media(
+    _admin = Depends(check_permission("training.view"))
+):
+    """检测视觉重复的媒体文件"""
+    try:
+        from app.services.visual_similarity import VisualSimilarityDetector
+        from app.services.training_media_manager import training_media_manager
+        
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            return {"success": True, "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or "media_files" not in data:
+            return {"success": True, "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
+        
+        visual_detector = VisualSimilarityDetector()
+        duplicate_groups = []
+        processed = set()
+        
+        # 遍历所有媒体文件，查找视觉相似的组
+        for file_hash1, file_info1 in data["media_files"].items():
+            if file_hash1 in processed:
+                continue
+            
+            # 如果没有视觉哈希，跳过
+            if "visual_hashes" not in file_info1:
+                continue
+            
+            current_group = [file_info1]
+            processed.add(file_hash1)
+            
+            # 查找与当前文件相似的其他文件
+            for file_hash2, file_info2 in data["media_files"].items():
+                if file_hash2 == file_hash1 or file_hash2 in processed:
+                    continue
+                
+                if "visual_hashes" not in file_info2:
+                    continue
+                
+                # 比较视觉哈希
+                similarities = visual_detector.compare_hashes(
+                    file_info1["visual_hashes"],
+                    file_info2["visual_hashes"]
+                )
+                
+                # 检查是否有足够高的相似度
+                for hash_type, similarity, distance in similarities:
+                    if similarity >= 0.85:  # 85%相似度阈值
+                        current_group.append(file_info2)
+                        processed.add(file_hash2)
+                        break
+            
+            # 如果组内有多个文件，添加到重复组列表
+            if len(current_group) > 1:
+                # 计算可节省的空间
+                sizes = [f.get("file_size", 0) for f in current_group]
+                saved_space = sum(sizes) - min(sizes)  # 保留最小的文件
+                
+                duplicate_groups.append({
+                    "files": current_group,
+                    "count": len(current_group),
+                    "total_size": sum(sizes),
+                    "saved_space": saved_space,
+                    "message_ids": list(set(sum([f.get("message_ids", []) for f in current_group], [])))
+                })
+        
+        # 统计信息
+        stats = {
+            "groups": len(duplicate_groups),
+            "total_duplicates": sum(g["count"] - 1 for g in duplicate_groups),  # 每组减1（保留一个）
+            "total_saved_space": sum(g["saved_space"] for g in duplicate_groups)
+        }
+        
+        return {
+            "success": True,
+            "duplicates": duplicate_groups,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"检测重复媒体文件失败: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/media-files/deduplicate")
+async def deduplicate_media(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """执行视觉去重"""
+    try:
+        from app.services.visual_similarity import VisualSimilarityDetector
+        import shutil
+        
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            return {"success": True, "deleted": 0, "merged": 0}
+        
+        # 备份元数据
+        backup_file = media_metadata_file.parent / f"media_metadata_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        shutil.copy2(media_metadata_file, backup_file)
+        logger.info(f"已备份元数据到: {backup_file}")
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or "media_files" not in data:
+            return {"success": True, "deleted": 0, "merged": 0}
+        
+        visual_detector = VisualSimilarityDetector()
+        deleted_count = 0
+        merged_count = 0
+        processed = set()
+        
+        # 创建新的媒体文件字典（去重后的）
+        new_media_files = {}
+        
+        # 遍历所有媒体文件，查找视觉相似的组
+        for file_hash, file_info in data["media_files"].items():
+            if file_hash in processed:
+                continue
+            
+            # 如果没有视觉哈希，直接保留
+            if "visual_hashes" not in file_info:
+                new_media_files[file_hash] = file_info
+                processed.add(file_hash)
+                continue
+            
+            # 收集与当前文件相似的所有文件
+            similar_files = [(file_hash, file_info)]
+            processed.add(file_hash)
+            
+            for other_hash, other_info in data["media_files"].items():
+                if other_hash == file_hash or other_hash in processed:
+                    continue
+                
+                if "visual_hashes" not in other_info:
+                    continue
+                
+                # 比较视觉哈希
+                similarities = visual_detector.compare_hashes(
+                    file_info["visual_hashes"],
+                    other_info["visual_hashes"]
+                )
+                
+                # 检查是否有足够高的相似度
+                for hash_type, similarity, distance in similarities:
+                    if similarity >= 0.85:  # 85%相似度阈值
+                        similar_files.append((other_hash, other_info))
+                        processed.add(other_hash)
+                        break
+            
+            # 如果有多个相似文件，合并它们
+            if len(similar_files) > 1:
+                # 选择要保留的文件（优先保留引用最多的，其次是最小的）
+                best_file = max(similar_files, key=lambda x: (
+                    len(x[1].get("message_ids", [])),  # 引用数量
+                    -x[1].get("file_size", float('inf'))  # 文件大小（越小越好）
+                ))
+                
+                # 合并所有message_ids到保留的文件
+                all_message_ids = list(set(sum([f[1].get("message_ids", []) for f in similar_files], [])))
+                best_file[1]["message_ids"] = all_message_ids
+                
+                # 保留最佳文件
+                new_media_files[best_file[0]] = best_file[1]
+                
+                # 删除其他文件
+                for other_hash, other_info in similar_files:
+                    if other_hash != best_file[0]:
+                        file_path = media_dir / other_info["path"]
+                        if file_path.exists():
+                            try:
+                                file_path.unlink()
+                                deleted_count += 1
+                                logger.info(f"删除重复文件: {file_path}")
+                            except Exception as e:
+                                logger.error(f"删除文件失败 {file_path}: {e}")
+                
+                merged_count += len(similar_files) - 1
+            else:
+                # 没有重复，直接保留
+                new_media_files[file_hash] = file_info
+        
+        # 更新元数据
+        data["media_files"] = new_media_files
+        data["updated_at"] = datetime.now().isoformat()
+        data["deduplication_log"] = {
+            "timestamp": datetime.now().isoformat(),
+            "deleted": deleted_count,
+            "merged": merged_count,
+            "backup_file": str(backup_file.name)
+        }
+        
+        SafeFileOperation.write_json_safe(media_metadata_file, data)
+        
+        return {
+            "success": True,
+            "deleted": deleted_count,
+            "merged": merged_count,
+            "backup_file": str(backup_file.name)
+        }
+        
+    except Exception as e:
+        logger.error(f"执行视觉去重失败: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/media-files/rebuild-visual-hashes")
+async def rebuild_visual_hashes(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """为所有现有媒体文件重建视觉哈希"""
+    try:
+        from app.services.visual_similarity import VisualSimilarityDetector
+        import cv2
+        
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            return {"success": True, "processed": 0, "skipped": 0}
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or "media_files" not in data:
+            return {"success": True, "processed": 0, "skipped": 0}
+        
+        visual_detector = VisualSimilarityDetector()
+        processed_count = 0
+        skipped_count = 0
+        error_count = 0
+        
+        # 遍历所有媒体文件
+        for file_hash, file_info in data["media_files"].items():
+            # 如果已有视觉哈希，跳过（除非强制重建）
+            if "visual_hashes" in file_info:
+                skipped_count += 1
+                continue
+            
+            file_path = media_dir / file_info["path"]
+            if not file_path.exists():
+                logger.warning(f"文件不存在，跳过: {file_path}")
+                error_count += 1
+                continue
+            
+            try:
+                media_data = None
+                media_type = file_info.get("media_type", "")
+                
+                if media_type in ["photo", "image"] or file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+                    # 读取图片数据
+                    with open(file_path, 'rb') as f:
+                        media_data = f.read()
+                elif media_type in ["video", "animation"] or file_path.suffix.lower() in ['.mp4', '.avi', '.mov', '.webm']:
+                    # 提取视频第一帧
+                    cap = cv2.VideoCapture(str(file_path))
+                    ret, frame = cap.read()
+                    cap.release()
+                    
+                    if ret:
+                        _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                        media_data = buffer.tobytes()
+                
+                if media_data:
+                    # 计算视觉哈希
+                    visual_hashes = visual_detector.calculate_perceptual_hashes(media_data)
+                    file_info["visual_hashes"] = visual_hashes
+                    processed_count += 1
+                    logger.info(f"已为文件生成视觉哈希: {file_path}")
+                else:
+                    skipped_count += 1
+                    
+            except Exception as e:
+                logger.error(f"处理文件失败 {file_path}: {e}")
+                error_count += 1
+        
+        # 保存更新后的元数据
+        data["updated_at"] = datetime.now().isoformat()
+        data["visual_hash_rebuild"] = {
+            "timestamp": datetime.now().isoformat(),
+            "processed": processed_count,
+            "skipped": skipped_count,
+            "errors": error_count
+        }
+        SafeFileOperation.write_json_safe(media_metadata_file, data)
+        
+        return {
+            "success": True,
+            "processed": processed_count,
+            "skipped": skipped_count,
+            "errors": error_count
+        }
+        
+    except Exception as e:
+        logger.error(f"重建视觉哈希失败: {e}")
+        return {"success": False, "error": str(e)}
+
+
 @router.post("/optimize-storage")
 async def optimize_storage(
     _admin = Depends(check_permission("training.manage"))
@@ -2417,11 +2720,22 @@ async def optimize_storage(
         
         saved_space = 0
         processed_videos = 0
+        errors = []
         
         # 处理视频文件
         videos_dir = Path("data/ad_training_data/videos")
+        media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+        
         if videos_dir.exists():
-            for video_file in videos_dir.rglob("*.mp4"):
+            # 支持 .mp4 和 .MP4 扩展名
+            video_files = list(videos_dir.rglob("*.mp4")) + list(videos_dir.rglob("*.MP4"))
+            
+            # 读取元数据
+            metadata = {}
+            if media_metadata_file.exists():
+                metadata = SafeFileOperation.read_json_safe(media_metadata_file) or {}
+            
+            for video_file in video_files:
                 try:
                     # 读取视频第一帧
                     cap = cv2.VideoCapture(str(video_file))
@@ -2429,39 +2743,224 @@ async def optimize_storage(
                     cap.release()
                     
                     if ret:
-                        # 保存为图片
-                        image_name = video_file.stem + "_snapshot.jpg"
+                        # 保存为图片，使用原文件名格式（不加_snapshot后缀）
+                        image_name = video_file.stem + ".jpg"
+                        # 保存到相同的年月目录结构中
                         image_path = videos_dir.parent / "images" / video_file.parent.name / image_name
                         image_path.parent.mkdir(parents=True, exist_ok=True)
                         
-                        cv2.imwrite(str(image_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                        
-                        # 更新元数据
-                        # TODO: 更新media_metadata.json中的路径
+                        # 使用质量70（减少文件大小，保持可接受的质量）
+                        cv2.imwrite(str(image_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
                         
                         # 计算节省的空间
                         original_size = video_file.stat().st_size
                         new_size = image_path.stat().st_size
                         saved_space += original_size - new_size
                         
+                        # 更新元数据
+                        if "media_files" in metadata:
+                            # 查找并更新该视频的元数据
+                            relative_video_path = str(video_file.relative_to(Path("data/ad_training_data")))
+                            relative_image_path = str(image_path.relative_to(Path("data/ad_training_data")))
+                            
+                            for file_hash, info in metadata["media_files"].items():
+                                if info.get("path") == relative_video_path:
+                                    # 更新路径和类型
+                                    info["path"] = relative_image_path
+                                    info["type"] = "image"
+                                    info["optimized"] = True
+                                    info["original_size"] = original_size
+                                    info["optimized_size"] = new_size
+                                    logger.debug(f"更新元数据: {relative_video_path} -> {relative_image_path}")
+                                    break
+                        
                         # 删除原视频
                         video_file.unlink()
                         processed_videos += 1
                         
-                        logger.debug(f"转换视频为快照: {video_file.name} -> {image_name}")
+                        logger.info(f"转换视频为快照: {video_file.name} -> {image_name}, 节省 {(original_size - new_size) / 1024:.1f}KB")
+                    else:
+                        errors.append(f"无法读取视频: {video_file.name}")
+                        logger.warning(f"无法读取视频第一帧: {video_file}")
                     
                 except Exception as e:
+                    errors.append(f"{video_file.name}: {str(e)}")
                     logger.error(f"处理视频失败 {video_file}: {e}")
+            
+            # 保存更新后的元数据
+            if metadata and "media_files" in metadata:
+                metadata["updated_at"] = datetime.now().isoformat()
+                SafeFileOperation.write_json_safe(media_metadata_file, metadata)
+                logger.info("元数据已更新")
         
-        return {
+        result = {
             "success": True,
             "message": f"优化完成，处理了 {processed_videos} 个视频",
             "saved_space": saved_space,
-            "processed_videos": processed_videos
+            "processed_videos": processed_videos,
+            "saved_mb": round(saved_space / 1024 / 1024, 2)
         }
         
+        if errors:
+            result["errors"] = errors
+            result["message"] += f"，{len(errors)} 个失败"
+        
+        return result
+        
     except ImportError:
-        return {"error": "OpenCV未正确安装，无法进行视频处理"}
+        return {"success": False, "error": "OpenCV未正确安装，无法进行视频处理"}
     except Exception as e:
         logger.error(f"优化存储失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/optimize-storage-sse")
+async def optimize_storage_sse(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """优化存储空间（支持进度推送的SSE版本）"""
+    
+    async def generate():
+        try:
+            import cv2
+            from app.services.training_media_manager import training_media_manager
+            
+            saved_space = 0
+            processed_videos = 0
+            errors = []
+            
+            # 发送初始化消息
+            yield f"data: {json.dumps({'type': 'init', 'message': '开始优化视频存储...'})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            # 处理视频文件
+            videos_dir = Path("data/ad_training_data/videos")
+            media_metadata_file = Path("data/ad_training_data/media_metadata.json")
+            
+            if not videos_dir.exists():
+                yield f"data: {json.dumps({'type': 'error', 'message': '视频目录不存在'})}\n\n"
+                return
+            
+            # 支持 .mp4 和 .MP4 扩展名
+            video_files = list(videos_dir.rglob("*.mp4")) + list(videos_dir.rglob("*.MP4"))
+            total_videos = len(video_files)
+            
+            if total_videos == 0:
+                yield f"data: {json.dumps({'type': 'complete', 'message': '没有找到视频文件', 'processed': 0, 'total': 0, 'saved_mb': 0, 'errors': 0})}\n\n"
+                return
+            
+            # 发送统计信息
+            total_size = sum(f.stat().st_size for f in video_files)
+            yield f"data: {json.dumps({'type': 'stats', 'total': total_videos, 'total_size_mb': round(total_size/1024/1024, 2)})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            # 读取元数据
+            metadata = {}
+            if media_metadata_file.exists():
+                metadata = SafeFileOperation.read_json_safe(media_metadata_file) or {}
+            
+            # 处理每个视频
+            for index, video_file in enumerate(video_files):
+                try:
+                    # 发送当前处理进度
+                    progress = (index / total_videos) * 100
+                    yield f"data: {json.dumps({'type': 'progress', 'current': index + 1, 'total': total_videos, 'percent': round(progress, 1), 'file': video_file.name})}\n\n"
+                    await asyncio.sleep(0.01)  # 让出控制权
+                    
+                    # 读取视频第一帧
+                    cap = cv2.VideoCapture(str(video_file))
+                    ret, frame = cap.read()
+                    cap.release()
+                    
+                    if ret:
+                        # 保存为图片
+                        image_name = video_file.stem + ".jpg"
+                        image_path = videos_dir.parent / "images" / video_file.parent.name / image_name
+                        image_path.parent.mkdir(parents=True, exist_ok=True)
+                        
+                        # 使用质量70
+                        cv2.imwrite(str(image_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                        
+                        # 计算节省的空间
+                        original_size = video_file.stat().st_size
+                        new_size = image_path.stat().st_size
+                        saved_space += original_size - new_size
+                        
+                        # 更新元数据
+                        if "media_files" in metadata:
+                            relative_video_path = str(video_file.relative_to(Path("data/ad_training_data")))
+                            relative_image_path = str(image_path.relative_to(Path("data/ad_training_data")))
+                            
+                            for file_hash, info in metadata["media_files"].items():
+                                if info.get("path") == relative_video_path:
+                                    info["path"] = relative_image_path
+                                    info["type"] = "image"
+                                    info["optimized"] = True
+                                    info["original_size"] = original_size
+                                    info["optimized_size"] = new_size
+                                    break
+                        
+                        # 删除原视频
+                        video_file.unlink()
+                        processed_videos += 1
+                        
+                        # 发送成功消息
+                        saved_kb = (original_size - new_size) / 1024
+                        yield f"data: {json.dumps({'type': 'file_done', 'file': video_file.name, 'saved_kb': round(saved_kb, 1)})}\n\n"
+                        
+                    else:
+                        error_msg = f"无法读取视频: {video_file.name}"
+                        errors.append(error_msg)
+                        yield f"data: {json.dumps({'type': 'file_error', 'file': video_file.name, 'error': '无法读取视频第一帧'})}\n\n"
+                        logger.warning(f"无法读取视频第一帧: {video_file}")
+                    
+                except Exception as e:
+                    error_msg = f"{video_file.name}: {str(e)}"
+                    errors.append(error_msg)
+                    yield f"data: {json.dumps({'type': 'file_error', 'file': video_file.name, 'error': str(e)})}\n\n"
+                    logger.error(f"处理视频失败 {video_file}: {e}")
+                
+                await asyncio.sleep(0.01)  # 让出控制权
+            
+            # 保存更新后的元数据
+            if metadata and "media_files" in metadata:
+                metadata["updated_at"] = datetime.now().isoformat()
+                SafeFileOperation.write_json_safe(media_metadata_file, metadata)
+                logger.info("元数据已更新")
+            
+            # 发送完成消息
+            result = {
+                'type': 'complete',
+                'processed': processed_videos,
+                'total': total_videos,
+                'saved_mb': round(saved_space / 1024 / 1024, 2),
+                'errors': len(errors)
+            }
+            
+            if errors:
+                result['error_list'] = errors[:5]  # 只显示前5个错误
+            
+            yield f"data: {json.dumps(result)}\n\n"
+            await asyncio.sleep(0.1)  # 确保完成消息被发送
+            
+        except ImportError:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'OpenCV未正确安装，无法进行视频处理'})}\n\n"
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logger.error(f"优化存储失败: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            await asyncio.sleep(0.1)
+        finally:
+            # 记录SSE流结束
+            logger.info("SSE流处理完成")
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 禁用nginx缓冲
+            "Access-Control-Allow-Origin": "*",
+        }
+    )

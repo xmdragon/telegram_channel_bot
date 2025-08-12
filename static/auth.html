@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔐 登录</title>
+    <title>📱 Telegram认证</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/components/auth.css">
     
     <!-- JavaScript 库 -->
     <script src="assets/js/vue.prod.js"></script>
@@ -20,7 +21,7 @@
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="🔐 登录" page-subtitle="安全登录 · 身份验证 · 系统接入"></nav-bar>
+        <nav-bar page-title="📱 Telegram认证"></nav-bar>
 
         <div class="container">
             <div class="form-container">
@@ -92,7 +93,7 @@
                         <el-input 
                             v-model="config.api_hash" 
                             placeholder="请输入 Telegram API Hash"
-                            type="password">
+                            type="text">
                         </el-input>
                     </div>
                     

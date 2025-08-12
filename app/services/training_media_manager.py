@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List
+import cv2
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,10 @@ class TrainingMediaManager:
         
         # 加载元数据
         self.metadata = self.load_metadata()
+        
+        # 初始化视觉相似度检测器
+        self.visual_detector = None
+        self._init_visual_detector()
     
     def ensure_directories(self):
         """确保必要的目录存在"""
@@ -59,6 +64,16 @@ class TrainingMediaManager:
         except Exception as e:
             logger.error(f"保存媒体元数据失败: {e}")
     
+    def _init_visual_detector(self):
+        """初始化视觉相似度检测器"""
+        try:
+            from app.services.visual_similarity import VisualSimilarityDetector
+            self.visual_detector = VisualSimilarityDetector()
+            logger.info("视觉相似度检测器初始化成功")
+        except Exception as e:
+            logger.warning(f"无法初始化视觉相似度检测器: {e}")
+            self.visual_detector = None
+    
     def calculate_file_hash(self, file_path: Path) -> str:
         """计算文件哈希值"""
         sha256_hash = hashlib.sha256()
@@ -66,6 +81,66 @@ class TrainingMediaManager:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
+    
+    def extract_video_frame(self, video_path: Path) -> Optional[bytes]:
+        """从视频提取第一帧"""
+        try:
+            cap = cv2.VideoCapture(str(video_path))
+            ret, frame = cap.read()
+            cap.release()
+            
+            if ret:
+                # 将帧转换为JPEG格式的字节数据
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                return buffer.tobytes()
+            return None
+        except Exception as e:
+            logger.error(f"提取视频帧失败: {e}")
+            return None
+    
+    async def check_visual_duplicate(self, media_data: bytes, media_type: str) -> Optional[Dict]:
+        """检查视觉重复
+        
+        Returns:
+            如果找到相似文件，返回现有文件信息，否则返回None
+        """
+        if not self.visual_detector:
+            return None
+        
+        try:
+            # 计算当前媒体的视觉哈希
+            current_hashes = self.visual_detector.calculate_perceptual_hashes(media_data)
+            
+            # 遍历现有媒体文件，查找视觉相似的
+            for file_hash, file_info in self.metadata.get("media_files", {}).items():
+                if "visual_hashes" not in file_info:
+                    continue
+                
+                # 比较视觉哈希
+                similarities = self.visual_detector.compare_hashes(
+                    current_hashes, 
+                    file_info["visual_hashes"]
+                )
+                
+                # 如果有任何一种哈希相似度超过阈值，认为是重复
+                for hash_type, similarity, distance in similarities:
+                    if similarity >= 0.85:  # 85%相似度阈值
+                        logger.info(
+                            f"发现视觉相似文件 ({hash_type} 相似度: {similarity*100:.1f}%): "
+                            f"{file_info['path']}"
+                        )
+                        return {
+                            "file_hash": file_hash,
+                            "file_info": file_info,
+                            "similarity": similarity,
+                            "hash_type": hash_type
+                        }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"检查视觉重复失败: {e}")
+            return None
     
     async def save_training_media(
         self, 
@@ -97,7 +172,7 @@ class TrainingMediaManager:
             # 计算文件哈希
             file_hash = self.calculate_file_hash(source)
             
-            # 检查是否已存在相同文件
+            # 检查是否已存在完全相同的文件（文件级别去重）
             if file_hash in self.metadata.get("media_files", {}):
                 existing = self.metadata["media_files"][file_hash]
                 logger.info(f"文件已存在（哈希匹配）: {existing['path']}")
@@ -108,6 +183,45 @@ class TrainingMediaManager:
                     self.save_metadata()
                 
                 return existing["path"]
+            
+            # 准备媒体数据用于视觉哈希计算
+            media_data = None
+            visual_hashes = None
+            
+            if self.visual_detector:
+                if media_type in ["photo", "image"]:
+                    # 读取图片数据
+                    with open(source, 'rb') as f:
+                        media_data = f.read()
+                elif media_type in ["video", "animation"]:
+                    # 提取视频第一帧
+                    media_data = self.extract_video_frame(source)
+                
+                # 检查视觉重复（视觉级别去重）
+                if media_data:
+                    duplicate = await self.check_visual_duplicate(media_data, media_type)
+                    if duplicate:
+                        existing_info = duplicate["file_info"]
+                        logger.info(
+                            f"发现视觉相似文件（{duplicate['hash_type']} 相似度: "
+                            f"{duplicate['similarity']*100:.1f}%），合并引用: {existing_info['path']}"
+                        )
+                        
+                        # 添加新的关联到视觉相似的文件
+                        if message_id not in existing_info.get("message_ids", []):
+                            existing_info["message_ids"].append(message_id)
+                            # 更新视觉相似文件的元数据
+                            self.metadata["media_files"][duplicate["file_hash"]] = existing_info
+                            self.save_metadata()
+                        
+                        return existing_info["path"]
+                    
+                    # 计算并保存视觉哈希供后续使用
+                    try:
+                        visual_hashes = self.visual_detector.calculate_perceptual_hashes(media_data)
+                    except Exception as e:
+                        logger.warning(f"计算视觉哈希失败: {e}")
+                        visual_hashes = None
             
             # 确定目标目录
             current_month = datetime.now().strftime("%Y-%m")
@@ -132,7 +246,7 @@ class TrainingMediaManager:
             
             # 更新元数据
             relative_path = str(target_path.relative_to(Path("data")))
-            self.metadata["media_files"][file_hash] = {
+            metadata_entry = {
                 "path": relative_path,
                 "message_ids": [message_id],
                 "channel_id": channel_id,
@@ -140,8 +254,15 @@ class TrainingMediaManager:
                 "is_ad": is_ad,
                 "file_size": target_path.stat().st_size,
                 "saved_at": datetime.now().isoformat(),
-                "original_name": source.name
+                "original_name": source.name,
+                "file_hash": file_hash  # 保存文件哈希
             }
+            
+            # 如果有视觉哈希，也保存
+            if visual_hashes:
+                metadata_entry["visual_hashes"] = visual_hashes
+            
+            self.metadata["media_files"][file_hash] = metadata_entry
             self.save_metadata()
             
             return relative_path

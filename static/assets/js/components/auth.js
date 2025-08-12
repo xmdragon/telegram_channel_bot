@@ -167,6 +167,10 @@ const AuthApp = {
                     
                     if (response.ok) {
                         this.handleAuthStatus(result.state || 'success', result.message || '操作成功');
+                        // 对于send_code成功后，清除loading状态
+                        if (action === 'send_phone' && result.state === 'code_sent') {
+                            this.loading = false;
+                        }
                     } else {
                         this.handleError(result.detail || '操作失败');
                     }
@@ -201,6 +205,11 @@ const AuthApp = {
                     case 'authorized':
                         this.authStatus = '已认证';
                         this.currentStep = 5;
+                        break;
+                    case 'idle':
+                        // 初始化成功，需要输入手机号
+                        this.currentStep = 2;
+                        this.authStatus = '需要输入手机号';
                         break;
                     case 'phone_needed':
                         this.currentStep = 2;
@@ -239,7 +248,7 @@ const AuthApp = {
                 }
             },
             
-            submitConfig() {
+            async submitConfig() {
                 if (this.canProceed) {
                     this.loading = true;
                     this.loadingMessage = '正在初始化认证...';
@@ -249,6 +258,11 @@ const AuthApp = {
                         api_id: parseInt(this.config.api_id),
                         api_hash: this.config.api_hash
                     });
+                    
+                    // 等待一小段时间让WebSocket消息处理
+                    setTimeout(() => {
+                        this.loading = false;
+                    }, 1000);
                 }
             },
             
@@ -330,14 +344,23 @@ const AuthApp = {
                     has_session: data.has_session
                 };
                 
-                if (data.has_saved_auth) {
-                    this.showSavedInfo = true;
-                    this.authStatus = '已保存认证信息';
-                    // 检查是否有有效的session
-                    this.hasSavedSession = data.has_session || false;
+                // 默认不显示已保存信息，让用户按步骤操作
+                this.showSavedInfo = false;
+                this.hasSavedSession = data.has_session || false;
+                
+                if (data.has_saved_auth && data.has_session) {
+                    this.authStatus = '已认证';
+                } else if (data.has_saved_auth) {
+                    this.authStatus = '需要重新认证';
+                    // 如果有保存的API凭据，自动填充到表单
+                    if (data.api_id && data.api_hash) {
+                        this.config.api_id = data.api_id;
+                        this.config.api_hash = data.api_hash;
+                        // 保持在第一步，让用户手动提交
+                        this.currentStep = 1;
+                    }
                 } else {
-                    this.showSavedInfo = false;
-                    this.hasSavedSession = false;
+                    this.authStatus = '未认证';
                 }
             },
             
@@ -425,11 +448,11 @@ const AuthApp = {
             },
             
             showError(message) {
-                // 避免显示错误，改为静默处理
-//                 console.log('操作失败:', message);
+                // 显示错误消息
+                this.errorMessage = message;
                 this.loading = false;
                 this.verifying = false;
-                // 不显示错误消息，避免用户看到错误按钮
+                ElMessage.error(message);
             }
         }
 };

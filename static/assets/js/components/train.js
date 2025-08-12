@@ -13,7 +13,7 @@ const TrainApp = {
             submitting: false,
             
             // 训练模式
-            trainingMode: 'tail',  // 'tail', 'ad', 'separator'
+            trainingMode: 'tail',  // 'tail', 'ad', 'separator', 'data'
             
             // 频道列表
             channels: [],
@@ -90,6 +90,8 @@ const TrainApp = {
                     this.trainingMode = 'tail';
                 } else if (mode === 'separator') {
                     this.trainingMode = 'separator';
+                } else if (mode === 'data') {
+                    this.trainingMode = 'data';
                 }
             }
             
@@ -188,6 +190,9 @@ const TrainApp = {
                 await this.loadSeparatorPatterns();
             } else if (this.trainingMode === 'ad') {
                 await this.loadAdSamples();
+            } else if (this.trainingMode === 'data') {
+                // 数据管理模式，加载统计信息
+                await this.loadTrainingDataStats();
             } else {
                 // 尾部过滤训练
                 await this.loadChannels();
@@ -199,6 +204,15 @@ const TrainApp = {
         // 训练模式切换
         async onTrainingModeChange(mode) {
             this.trainingMode = mode;
+            
+            // 如果切换到数据管理模式，自动切换到管理标签页
+            if (mode === 'data') {
+                this.activeTab = 'manage';
+            } else {
+                // 其他模式默认显示训练标签页
+                this.activeTab = 'train';
+            }
+            
             await this.init();
         },
         
@@ -480,8 +494,13 @@ const TrainApp = {
         },
 
         // 打开训练数据管理界面
-        openTrainingManager() {
-            window.open('/static/training_manager.html', '_blank');
+        openTrainingManager(type = null) {
+            let url = '/static/training_manager.html';
+            if (type) {
+                url += '?type=' + type;
+            }
+            // 在当前页面打开，而不是新窗口
+            window.location.href = url;
         },
 
         // 格式化文件大小

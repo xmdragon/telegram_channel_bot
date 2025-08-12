@@ -1,28 +1,48 @@
 /* 训练数据管理页面样式 */
 
-.stats-row {
-    margin-bottom: 20px;
-}
-
-.stat-card {
-    text-align: center;
+/* 统计信息栏样式 */
+.stats-bar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+    flex-wrap: nowrap !important;
+    min-height: 50px;
+    max-height: 60px;
 }
 
-.stat-card .el-card__body {
-    padding: 20px;
+.stats-bar .stat-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 20px;
+    white-space: nowrap;
 }
 
-.stat-value {
-    font-size: 32px;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-
-.stat-label {
+.stats-bar .stat-label {
+    color: rgba(255, 255, 255, 0.9);
     font-size: 14px;
-    opacity: 0.9;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+.stats-bar .stat-value {
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.stats-bar .el-divider--vertical {
+    height: 30px;
+    margin: 0 10px;
+    background-color: rgba(255, 255, 255, 0.3);
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .toolbar-card {

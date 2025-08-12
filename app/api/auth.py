@@ -74,13 +74,23 @@ async def websocket_auth(websocket: WebSocket):
                         )
                     
                     if success:
-                        await manager.send_personal_message(
-                            json.dumps({
-                                "type": "auth_status",
-                                "state": "authorized",
-                                "message": "客户端已授权"
-                            }), websocket
-                        )
+                        # 根据实际的认证状态判断
+                        if auth_manager.auth_state == "authorized":
+                            await manager.send_personal_message(
+                                json.dumps({
+                                    "type": "auth_status",
+                                    "state": "authorized",
+                                    "message": "客户端已授权"
+                                }), websocket
+                            )
+                        else:
+                            await manager.send_personal_message(
+                                json.dumps({
+                                    "type": "auth_status",
+                                    "state": "phone_needed",
+                                    "message": "请输入手机号码"
+                                }), websocket
+                            )
                     else:
                         await manager.send_personal_message(
                             json.dumps({
@@ -280,15 +290,17 @@ async def init_auth(request: AuthRequest):
         )
         
         if success:
+            # 已授权（虽然新StringSession不太可能出现这种情况）
             return {
                 "success": True,
                 "message": "客户端已授权",
                 "state": "authorized"
             }
         else:
+            # 需要继续认证流程
             return {
                 "success": True,
-                "message": "需要发送验证码",
+                "message": "请输入手机号码",
                 "state": "idle"
             }
             

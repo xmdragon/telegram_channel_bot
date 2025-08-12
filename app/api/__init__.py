@@ -17,8 +17,8 @@ api_router = APIRouter()
 api_router.include_router(messages_router, prefix="/messages", tags=["messages"])
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 api_router.include_router(config_router, prefix="/config", tags=["config"])
-api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
-api_router.include_router(admin_auth_router, prefix="/auth", tags=["admin-auth"])  # 修改为/auth前缀
+api_router.include_router(auth_router, prefix="/auth", tags=["telegram-auth"])  # Telegram认证
+api_router.include_router(admin_auth_router, prefix="/admin/auth", tags=["admin-auth"])  # 管理员认证，使用不同路径
 api_router.include_router(system_router, tags=["system"])
 api_router.include_router(lock_router, prefix="/lock", tags=["lock"])
 api_router.include_router(training_router, prefix="/training", tags=["training"])

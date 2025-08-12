@@ -20,6 +20,8 @@ class ContentFilter:
         """初始化过滤器"""
         # AI过滤器实例
         self.ai_filter = ai_filter
+        self._compiled_patterns = {}  # 缓存编译后的正则表达式
+        self._compiled_protectors = []  # 缓存保护器正则
         
         # 推广内容特征模式
         self.promo_patterns = [
@@ -138,6 +140,25 @@ class ContentFilter:
             r'^#网友投稿|^#群友投稿|^#读者投稿|^#粉丝投稿',
             r'^#用户分享|^#真实经历|^#亲身经历',
         ]
+        
+        # 初始化并编译所有正则表达式
+        self._compile_patterns()
+    
+    def _compile_patterns(self):
+        """编译所有正则表达式以提高性能"""
+        # 编译推广模式
+        for pattern, score in self.promo_patterns:
+            try:
+                self._compiled_patterns[pattern] = (re.compile(pattern, re.MULTILINE | re.IGNORECASE), score)
+            except Exception as e:
+                logger.error(f"编译正则表达式失败: {pattern[:50]}... - {e}")
+        
+        # 编译保护器模式
+        for pattern in self.content_protectors:
+            try:
+                self._compiled_protectors.append(re.compile(pattern, re.MULTILINE | re.IGNORECASE))
+            except Exception as e:
+                logger.error(f"编译保护器正则失败: {pattern[:50]}... - {e}")
     
     def is_promo_line(self, line: str) -> Tuple[bool, int]:
         """
@@ -159,15 +180,15 @@ class ContentFilter:
         if re.match(r'^#(真实经历|亲身经历|用户分享)', line, re.IGNORECASE):
             return False, 0
             
-        # 检查推广特征
-        for pattern, score in self.promo_patterns:
-            if re.search(pattern, line, re.IGNORECASE):
+        # 使用编译后的正则表达式检查推广特征
+        for pattern_str, (compiled_pattern, score) in self._compiled_patterns.items():
+            if compiled_pattern.search(line):
                 max_score = max(max_score, score)
         
-        # 检查保护内容（对所有内容都检查，包括高分内容）
+        # 使用编译后的保护器检查保护内容
         has_protected_content = False
-        for protector in self.content_protectors:
-            if re.search(protector, line, re.IGNORECASE):
+        for protector_pattern in self._compiled_protectors:
+            if protector_pattern.search(line):
                 has_protected_content = True
                 # 如果包含保护内容，大幅降低推广分数
                 if max_score >= 9:
@@ -541,17 +562,18 @@ class ContentFilter:
             except Exception as e:
                 logger.error(f"OCR处理失败: {e}")
         
-        # 2. 智能尾部广告过滤
+        # 2. 智能尾部过滤（移除频道标识，不算广告）
         try:
             from app.services.smart_tail_filter import smart_tail_filter
             clean_content, has_tail_ad, ad_part = smart_tail_filter.filter_tail_ads(filtered_content)
             if has_tail_ad:
                 filtered_content = clean_content
-                is_ad = True
-                reasons.append("尾部广告")
-                logger.info(f"检测到尾部广告，过滤了 {len(ad_part)} 字符")
+                # 注意：尾部过滤是移除原频道标识，不算广告，所以不设置 is_ad = True
+                # is_ad = True  # 移除这行
+                reasons.append("尾部过滤")  # 改为"尾部过滤"而不是"尾部广告"
+                logger.info(f"过滤了尾部频道标识，移除 {len(ad_part)} 字符")
         except Exception as e:
-            logger.error(f"尾部广告过滤失败: {e}")
+            logger.error(f"尾部过滤失败: {e}")
         
         # 3. 消息结构分析（格式化推广检测）- 新增功能
         # 只对合并后的内容进行结构分析，避免重复检测

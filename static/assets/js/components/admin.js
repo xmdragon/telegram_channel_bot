@@ -61,7 +61,7 @@ const AdminApp = {
         // 检查系统健康状态
         async checkHealth() {
             try {
-                const response = await axios.get('/api/health');
+                const response = await axios.get('/api/system/health');
                 this.health = response.data;
                 this.showMessage('系统状态已更新', 'success');
             } catch (error) {
@@ -72,7 +72,7 @@ const AdminApp = {
         // 加载频道列表
         async loadChannels() {
             try {
-                const response = await axios.get('/api/config/channels');
+                const response = await axios.get('/api/channels');
                 this.channels = response.data.channels || [];
             } catch (error) {
                 this.showMessage('加载频道失败', 'error');
@@ -82,7 +82,7 @@ const AdminApp = {
         // 加载过滤规则
         async loadFilterRules() {
             try {
-                const response = await axios.get('/api/config/filter_rules');
+                const response = await axios.get('/api/admin/filter-rules');
                 this.filterRules = response.data || [];
             } catch (error) {
                 this.showMessage('加载过滤规则失败', 'error');
@@ -116,7 +116,7 @@ const AdminApp = {
                     return;
                 }
                 
-                await axios.delete(`/api/config/channels/${channelId}`);
+                await axios.delete(`/api/channels/${channelId}`);
                 this.showMessage('频道已删除', 'success');
                 this.loadChannels();
             } catch (error) {
@@ -147,7 +147,7 @@ const AdminApp = {
                     return;
                 }
                 
-                await axios.delete(`/api/config/filter_rules/${ruleId}`);
+                await axios.delete(`/api/admin/filter-rules/${ruleId}`);
                 this.showMessage('规则已删除', 'success');
                 this.loadFilterRules();
             } catch (error) {

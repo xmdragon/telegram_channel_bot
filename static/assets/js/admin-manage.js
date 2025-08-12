@@ -70,7 +70,7 @@ createApp({
         // 加载当前管理员信息
         async loadCurrentAdmin() {
             try {
-                const response = await axios.get('/api/auth/current');
+                const response = await axios.get('/api/admin/auth/current');
                 this.currentAdmin = response.data;
             } catch (error) {
                 ElMessage.error('加载管理员信息失败');
@@ -81,7 +81,7 @@ createApp({
         // 加载管理员列表
         async loadAdmins() {
             try {
-                const response = await axios.get('/api/auth/admins');
+                const response = await axios.get('/api/admin/auth/admins');
                 this.admins = response.data.admins;
                 console.log('加载的管理员列表:', this.admins);
             } catch (error) {
@@ -93,7 +93,7 @@ createApp({
         // 加载可用权限
         async loadPermissions() {
             try {
-                const response = await axios.get('/api/auth/permissions');
+                const response = await axios.get('/api/admin/auth/permissions');
                 this.availablePermissions = response.data.permissions;
             } catch (error) {
                 ElMessage.error('加载权限列表失败');
@@ -133,7 +133,7 @@ createApp({
             
             this.changePasswordDialog.loading = true;
             try {
-                await axios.post('/api/auth/change-password', {
+                await axios.post('/api/admin/auth/change-password', {
                     old_password: form.old_password,
                     new_password: form.new_password
                 });
@@ -189,7 +189,7 @@ createApp({
             
             this.createAdminDialog.loading = true;
             try {
-                await axios.post('/api/auth/admins', form);
+                await axios.post('/api/admin/auth/admins', form);
                 ElMessage.success('管理员创建成功');
                 this.createAdminDialog.visible = false;
                 await this.loadAdmins();
@@ -245,7 +245,7 @@ createApp({
             
             this.editAdminDialog.loading = true;
             try {
-                await axios.put(`/api/auth/admins/${adminId}`, updateData);
+                await axios.put(`/api/admin/auth/admins/${adminId}`, updateData);
                 ElMessage.success('管理员信息更新成功');
                 this.editAdminDialog.visible = false;
                 await this.loadAdmins();
@@ -273,7 +273,7 @@ createApp({
                     }
                 );
                 
-                await axios.delete(`/api/auth/admins/${admin.id}`);
+                await axios.delete(`/api/admin/auth/admins/${admin.id}`);
                 ElMessage.success('管理员删除成功');
                 await this.loadAdmins();
             } catch (error) {

@@ -13,7 +13,7 @@
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="🖼️ 媒体文件管理" page-subtitle="训练数据的图片和视频管理"></nav-bar>
+        <nav-bar page-title="🖼️ 媒体文件管理"></nav-bar>
 
         <div class="container">
             <!-- 统计信息 -->
@@ -60,6 +60,9 @@
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <el-button @click="loadMediaFiles" icon="Refresh">刷新列表</el-button>
                         <el-button @click="cleanOrphaned" type="warning" icon="Delete">清理未引用文件</el-button>
+                        <el-button @click="checkDuplicates" type="info" icon="Search">检测重复</el-button>
+                        <el-button @click="deduplicateMedia" type="danger" icon="FolderDelete">执行去重</el-button>
+                        <el-button @click="rebuildVisualHashes" type="primary" icon="Refresh">重建视觉哈希</el-button>
                         <el-button @click="optimizeVideos" type="primary" icon="VideoCamera">优化视频（转快照）</el-button>
                         <el-button @click="downloadAll" type="success" icon="Download">导出所有媒体</el-button>
                     </div>
@@ -99,20 +102,15 @@
                     
                     <div v-else class="media-grid">
                         <div v-for="file in paginatedFiles" :key="file.hash" class="media-card">
-                            <el-image
+                            <img
                                 v-if="file.type === 'image'"
                                 :src="'/media/ad_training_data/' + file.path"
-                                :preview-src-list="['/media/ad_training_data/' + file.path]"
-                                fit="cover"
                                 class="media-preview"
-                                lazy
-                            >
-                                <template #error>
-                                    <div style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000;">
-                                        <el-icon size="30" color="#666"><Picture /></el-icon>
-                                    </div>
-                                </template>
-                            </el-image>
+                                @click.stop="previewImage(file, $event)"
+                                @error="handleImageError"
+                                style="width: 100%; height: 200px; object-fit: cover; cursor: pointer; display: block;"
+                                loading="lazy"
+                            />
                             
                             <video v-else :src="'/media/ad_training_data/' + file.path" class="media-preview" preload="metadata" style="width: 100%; height: 200px; object-fit: cover;"></video>
                             
@@ -170,6 +168,64 @@
                     />
                 </div>
             </div>
+        </el-dialog>
+        
+        <!-- 优化进度对话框 -->
+        <el-dialog
+            v-model="optimizeProgress.visible"
+            title="视频优化进度"
+            width="600px"
+            :close-on-click-modal="false"
+            :close-on-press-escape="false"
+            :show-close="!optimizing"
+        >
+            <div class="optimize-progress-content">
+                <div class="progress-info">
+                    <el-progress 
+                        :percentage="optimizeProgress.percent" 
+                        :stroke-width="20"
+                        :text-inside="true"
+                        status="success"
+                    />
+                    
+                    <div class="progress-details">
+                        <p>
+                            <strong>处理进度：</strong>
+                            {{ optimizeProgress.current }} / {{ optimizeProgress.total }} 个文件
+                        </p>
+                        <p>
+                            <strong>当前文件：</strong>
+                            <span class="current-file">{{ optimizeProgress.currentFile }}</span>
+                        </p>
+                        <p v-if="optimizeProgress.savedMb > 0">
+                            <strong>已节省空间：</strong>
+                            <el-tag type="success">{{ optimizeProgress.savedMb.toFixed(2) }} MB</el-tag>
+                        </p>
+                    </div>
+                    
+                    <div v-if="optimizeProgress.errors.length > 0" class="error-list">
+                        <el-alert
+                            title="处理错误"
+                            type="warning"
+                            :closable="false"
+                            show-icon
+                        >
+                            <ul style="margin: 5px 0; padding-left: 20px;">
+                                <li v-for="(error, index) in optimizeProgress.errors.slice(0, 5)" :key="index">
+                                    {{ error }}
+                                </li>
+                                <li v-if="optimizeProgress.errors.length > 5">
+                                    还有 {{ optimizeProgress.errors.length - 5 }} 个错误...
+                                </li>
+                            </ul>
+                        </el-alert>
+                    </div>
+                </div>
+            </div>
+            
+            <template #footer v-if="!optimizing">
+                <el-button @click="optimizeProgress.visible = false">关闭</el-button>
+            </template>
         </el-dialog>
     </div>
 

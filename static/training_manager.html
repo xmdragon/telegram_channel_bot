@@ -13,36 +13,31 @@
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="🎯 训练数据管理" page-subtitle="查看 · 删除 · 优化 · 重载"></nav-bar>
+        <nav-bar page-title="🎯 训练数据管理"></nav-bar>
 
         <div class="container">
-            <!-- 统计卡片 -->
-            <el-row :gutter="20" class="stats-row">
-                <el-col :span="6">
-                    <el-card class="stat-card" shadow="hover">
-                        <div class="stat-value">{{ stats.totalSamples }}</div>
-                        <div class="stat-label">总样本数</div>
-                    </el-card>
-                </el-col>
-                <el-col :span="6">
-                    <el-card class="stat-card" shadow="hover">
-                        <div class="stat-value">{{ stats.uniqueSamples }}</div>
-                        <div class="stat-label">去重后数量</div>
-                    </el-card>
-                </el-col>
-                <el-col :span="6">
-                    <el-card class="stat-card" shadow="hover">
-                        <div class="stat-value">{{ stats.mediaFiles }}</div>
-                        <div class="stat-label">媒体文件</div>
-                    </el-card>
-                </el-col>
-                <el-col :span="6">
-                    <el-card class="stat-card" shadow="hover">
-                        <div class="stat-value">{{ formatSize(stats.storageSize) }}</div>
-                        <div class="stat-label">存储占用</div>
-                    </el-card>
-                </el-col>
-            </el-row>
+            <!-- 统计信息栏 -->
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-label">总样本数：</span>
+                    <span class="stat-value">{{ stats.totalSamples }}</span>
+                </div>
+                <el-divider direction="vertical"></el-divider>
+                <div class="stat-item">
+                    <span class="stat-label">去重后数量：</span>
+                    <span class="stat-value">{{ stats.uniqueSamples }}</span>
+                </div>
+                <el-divider direction="vertical"></el-divider>
+                <div class="stat-item">
+                    <span class="stat-label">媒体文件：</span>
+                    <span class="stat-value">{{ stats.mediaFiles }}</span>
+                </div>
+                <el-divider direction="vertical"></el-divider>
+                <div class="stat-item">
+                    <span class="stat-label">存储占用：</span>
+                    <span class="stat-value">{{ formatSize(stats.storageSize) }}</span>
+                </div>
+            </div>
 
             <!-- 操作工具栏 -->
             <el-card class="toolbar-card">
