@@ -362,9 +362,28 @@ div.container,
    ============================================= */
 
 .btn-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+    display: flex !important;
+    gap: 8px !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+}
+
+.btn-group .el-button {
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    position: relative !important;
+    z-index: 1 !important;
+    min-width: fit-content !important;
+}
+
+/* Firefox特殊处理 */
+@-moz-document url-prefix() {
+    .btn-group .el-button {
+        display: inline-block !important;
+        min-width: auto !important;
+        width: auto !important;
+    }
 }
 
 .btn-primary {

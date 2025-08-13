@@ -152,7 +152,8 @@
         5243,
         6763,
         7581,
-        7605
+        7605,
+        7737
       ],
       "channel_id": "-1002495270592",
       "media_type": "photo",
@@ -945,7 +946,7 @@
       "optimized_size": 107298
     },
     "9f6ebc7b79b9af92480c5e76464fb221958886e6c9b19bfe9ba7407e9afae54c": {
-      "path": "ad_training_data/images/2025-08/7568_20250812_111925_9f6ebc7b.jpg",
+      "path": "images/2025-08/7568_20250812_111925_9f6ebc7b.jpg",
       "message_ids": [
         7568,
         7648
@@ -967,7 +968,7 @@
       }
     },
     "90897ec9cd0af27df435f52663893c587ad83313965ce9ed7f8671f809a16c22": {
-      "path": "ad_training_data/images/2025-08/7614_20250812_153447_90897ec9.jpg",
+      "path": "images/2025-08/7614_20250812_153447_90897ec9.jpg",
       "message_ids": [
         7614
       ],
@@ -988,7 +989,7 @@
       }
     },
     "1e11992eb21e51d221ede72ee0676430a2a814757f7c02a70fb989226782f3fd": {
-      "path": "ad_training_data/videos/2025-08/7646_20250812_192900_1e11992e.MP4",
+      "path": "videos/2025-08/7646_20250812_192900_1e11992e.MP4",
       "message_ids": [
         7646
       ],
@@ -1007,11 +1008,11 @@
         "colorhash": "31200200018",
         "sha256": "55fdd9e59d7b05111a82c24c64592d33a57d8640e8ff62ffe0370f7ec94ac1cf"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7646_20250813_002914_1e11992e_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7646_20250813_002914_1e11992e_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7646_20250813_002914_1e11992e_thumb.jpg",
+      "display_path": "images/2025-08/7646_20250813_002914_1e11992e_thumb.jpg"
     },
     "db9b28cc97091bc77f6f895a5635000fa4313815e5d4131f459b3943c55e82d5": {
-      "path": "ad_training_data/images/2025-08/7645_20250812_192919_db9b28cc.jpg",
+      "path": "images/2025-08/7645_20250812_192919_db9b28cc.jpg",
       "message_ids": [
         7645
       ],
@@ -1032,7 +1033,7 @@
       }
     },
     "002526aaa0ab47f55dbd447a6792b00c2a8b3820c4f12175f3d098e003a373f8": {
-      "path": "ad_training_data/videos/2025-08/7643_20250812_192923_002526aa.MP4",
+      "path": "videos/2025-08/7643_20250812_192923_002526aa.MP4",
       "message_ids": [
         7643
       ],
@@ -1051,11 +1052,11 @@
         "colorhash": "06400010001",
         "sha256": "64e8b2c952abcd2c4f78eb7ad1e76aec57840ab42672f8c29c4ed13f0578b52c"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7643_20250813_002914_002526aa_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7643_20250813_002914_002526aa_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7643_20250813_002914_002526aa_thumb.jpg",
+      "display_path": "images/2025-08/7643_20250813_002914_002526aa_thumb.jpg"
     },
     "ffab8aef68c50fb92b3d9819f9ef2dd0a69e14714a6ef84cc200dca24e7ca356": {
-      "path": "ad_training_data/videos/2025-08/7638_20250812_193945_ffab8aef.MP4",
+      "path": "videos/2025-08/7638_20250812_193945_ffab8aef.MP4",
       "message_ids": [
         7638
       ],
@@ -1074,11 +1075,11 @@
         "colorhash": "06400010001",
         "sha256": "1ac5ab9568e1b0d7b0ec5fbe3814e0c3d5c154f4ab1d12d9157cc0224c2ec701"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7638_20250813_002914_ffab8aef_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7638_20250813_002914_ffab8aef_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7638_20250813_002914_ffab8aef_thumb.jpg",
+      "display_path": "images/2025-08/7638_20250813_002914_ffab8aef_thumb.jpg"
     },
     "e9dd5542d056b4795e33cdda03121654cc00323479cedc44b94da36bc78e56dd": {
-      "path": "ad_training_data/images/2025-08/7634_20250812_194132_e9dd5542.jpg",
+      "path": "images/2025-08/7634_20250812_194132_e9dd5542.jpg",
       "message_ids": [
         7634
       ],
@@ -1099,10 +1100,11 @@
       }
     },
     "b745cc3b66fa0454a765b57c07d9a2e3f7d0e5ccca61f865fb42d915420cd911": {
-      "path": "ad_training_data/videos/2025-08/7654_20250812_194412_b745cc3b.mp4",
+      "path": "videos/2025-08/7654_20250812_194412_b745cc3b.mp4",
       "message_ids": [
         7654,
-        7718
+        7718,
+        7738
       ],
       "channel_id": "-1002495270592",
       "media_type": "video",
@@ -1119,11 +1121,11 @@
         "colorhash": "06400010001",
         "sha256": "64e8b2c952abcd2c4f78eb7ad1e76aec57840ab42672f8c29c4ed13f0578b52c"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7654_20250813_002914_b745cc3b_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7654_20250813_002914_b745cc3b_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7654_20250813_002914_b745cc3b_thumb.jpg",
+      "display_path": "images/2025-08/7654_20250813_002914_b745cc3b_thumb.jpg"
     },
     "d801164d2b3ddd48b1a1399049acf0f2fb4bc3fda7eeb83df278b3e86c3d696c": {
-      "path": "ad_training_data/videos/2025-08/7663_20250812_201304_d801164d.mp4",
+      "path": "videos/2025-08/7663_20250812_201304_d801164d.mp4",
       "message_ids": [
         7663
       ],
@@ -1142,11 +1144,11 @@
         "colorhash": "12c00018000",
         "sha256": "9dfef939eadcbfb146cc8c278ad540a42f1ae354580a15a45d1c67fd132031ae"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7663_20250813_002914_d801164d_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7663_20250813_002914_d801164d_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7663_20250813_002914_d801164d_thumb.jpg",
+      "display_path": "images/2025-08/7663_20250813_002914_d801164d_thumb.jpg"
     },
     "1b7c93ba2d87f8be7ded8b904b4caa1e6ed0d72d99857dddd9a54e8de98143a0": {
-      "path": "ad_training_data/videos/2025-08/7677_20250812_215015_1b7c93ba.mp4",
+      "path": "videos/2025-08/7677_20250812_215015_1b7c93ba.mp4",
       "message_ids": [
         7677
       ],
@@ -1165,11 +1167,11 @@
         "colorhash": "0a201200080",
         "sha256": "a7e4ad59d312983412aa7b4f5621b38daea79ecd2ed667f335cc79ad250d0625"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7677_20250813_002914_1b7c93ba_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7677_20250813_002914_1b7c93ba_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7677_20250813_002914_1b7c93ba_thumb.jpg",
+      "display_path": "images/2025-08/7677_20250813_002914_1b7c93ba_thumb.jpg"
     },
     "6a56052ed7748a1bc1d308938281071be62a06e5b8228a1cfbcbbea56965b127": {
-      "path": "ad_training_data/images/2025-08/7687_20250812_230538_6a56052e.jpg",
+      "path": "images/2025-08/7687_20250812_230538_6a56052e.jpg",
       "message_ids": [
         7687
       ],
@@ -1190,7 +1192,7 @@
       }
     },
     "a790fe53841a7c7cbd98b64d1b4e05d05cdba583435d521f19ff9d803cd0c687": {
-      "path": "ad_training_data/images/2025-08/7702_20250812_231206_a790fe53.jpg",
+      "path": "images/2025-08/7702_20250812_231206_a790fe53.jpg",
       "message_ids": [
         7702
       ],
@@ -1211,7 +1213,7 @@
       }
     },
     "f0376a4f72af3ccddd11b60f071b2a5b45250f20b83e923fc3e1c1a7cf045a88": {
-      "path": "ad_training_data/videos/2025-08/7674_20250812_231223_f0376a4f.MP4",
+      "path": "videos/2025-08/7674_20250812_231223_f0376a4f.MP4",
       "message_ids": [
         7674
       ],
@@ -1230,11 +1232,11 @@
         "colorhash": "06400010001",
         "sha256": "64e8b2c952abcd2c4f78eb7ad1e76aec57840ab42672f8c29c4ed13f0578b52c"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7674_20250813_002914_f0376a4f_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7674_20250813_002914_f0376a4f_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7674_20250813_002914_f0376a4f_thumb.jpg",
+      "display_path": "images/2025-08/7674_20250813_002914_f0376a4f_thumb.jpg"
     },
     "87a4ed9144de6aaa476d9a15e153f3dc3713d99243b08be3b0c8433a1bef8f17": {
-      "path": "ad_training_data/videos/2025-08/7704_20250813_000233_87a4ed91.MP4",
+      "path": "videos/2025-08/7704_20250813_000233_87a4ed91.MP4",
       "message_ids": [
         7704
       ],
@@ -1253,11 +1255,11 @@
         "colorhash": "06400010001",
         "sha256": "64e8b2c952abcd2c4f78eb7ad1e76aec57840ab42672f8c29c4ed13f0578b52c"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7704_20250813_002914_87a4ed91_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7704_20250813_002914_87a4ed91_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7704_20250813_002914_87a4ed91_thumb.jpg",
+      "display_path": "images/2025-08/7704_20250813_002914_87a4ed91_thumb.jpg"
     },
     "a673485b6d1ec4beafe42b6b697e9620196bc3415bdfb1727806336153238bf9": {
-      "path": "ad_training_data/videos/2025-08/7607_20250813_001029_a673485b.MP4",
+      "path": "videos/2025-08/7607_20250813_001029_a673485b.MP4",
       "message_ids": [
         7607
       ],
@@ -1276,9 +1278,9 @@
         "colorhash": "0a200240008",
         "sha256": "fd5c2157900fa8b2fa09b337a1d30a20e271f7726970a6a721d2bced4e49ab74"
       },
-      "thumbnail_path": "ad_training_data/images/2025-08/7607_20250813_002914_a673485b_thumb.jpg",
-      "display_path": "ad_training_data/images/2025-08/7607_20250813_002914_a673485b_thumb.jpg"
+      "thumbnail_path": "images/2025-08/7607_20250813_002914_a673485b_thumb.jpg",
+      "display_path": "images/2025-08/7607_20250813_002914_a673485b_thumb.jpg"
     }
   },
-  "updated_at": "2025-08-13T00:29:14.974961"
+  "updated_at": "2025-08-13T10:35:26.201312"
 }

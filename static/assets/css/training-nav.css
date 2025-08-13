@@ -8,26 +8,74 @@
 
 .training-nav-tabs {
     display: flex;
-    gap: 8px;
-    padding: 5px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 8px;
     background: #f4f4f5;
     border-radius: 10px;
     position: relative;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* Firefox滚动条优化 */
+    scrollbar-width: thin;
+    scrollbar-color: #c0c4cc #f4f4f5;
 }
 
+/* Webkit浏览器滚动条样式 */
+.training-nav-tabs::-webkit-scrollbar {
+    height: 6px;
+}
+
+.training-nav-tabs::-webkit-scrollbar-track {
+    background: #f4f4f5;
+    border-radius: 3px;
+}
+
+.training-nav-tabs::-webkit-scrollbar-thumb {
+    background: #c0c4cc;
+    border-radius: 3px;
+}
+
+.training-nav-tabs::-webkit-scrollbar-thumb:hover {
+    background: #909399;
+}
+
+/* 导航按钮基础样式 */
 .training-nav-container .nav-tab {
-    padding: 8px 20px;
+    /* 布局属性 */
+    flex: 0 0 auto;
+    display: inline-block;
+    box-sizing: border-box;
+    padding: 10px 20px;
+    
+    /* 尺寸控制 */
+    min-width: 120px; /* fallback值 */
+    min-width: fit-content; /* 现代浏览器使用 */
+    width: auto;
+    
+    /* 文本样式 */
     color: #606266 !important;
-    cursor: pointer;
-    transition: all 0.3s ease;
     font-size: 14px;
     font-weight: 500;
-    position: relative;
-    background: transparent;
     text-align: center;
     white-space: nowrap;
-    border-radius: 8px;
+    line-height: 1.4;
+    vertical-align: middle;
+    
+    /* 外观样式 */
+    background: transparent;
     border: none;
+    border-radius: 8px;
+    
+    /* 交互效果 */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: visible;
 }
 
 .training-nav-container .nav-tab:last-child {
@@ -47,12 +95,86 @@
     border: none;
 }
 
-/* 移除底部边框动画，因为现在使用背景色高亮 */
+/* Firefox特殊处理 */
+@-moz-document url-prefix() {
+    .training-nav-container .nav-tab {
+        /* Firefox中使用更保守的min-width值 */
+        min-width: 100px !important;
+        max-width: none;
+    }
+    
+    .training-nav-tabs {
+        /* Firefox中确保间距更稳定 */
+        gap: 8px !important;
+    }
+}
 
 /* 响应式布局 */
-@media (max-width: 768px) {
-    .nav-tab {
-        padding: 12px 16px;
-        font-size: 13px;
+@media (max-width: 1200px) {
+    .training-nav-tabs {
+        gap: 8px;
+        padding: 6px;
     }
+    
+    .training-nav-container .nav-tab {
+        padding: 8px 16px;
+        font-size: 13px;
+        min-width: 100px !important; /* 中等屏幕减小最小宽度 */
+    }
+}
+
+@media (max-width: 768px) {
+    .training-nav-tabs {
+        gap: 6px;
+        padding: 5px;
+        /* 小屏幕上允许更自由的滚动 */
+        justify-content: flex-start;
+    }
+    
+    .training-nav-container .nav-tab {
+        padding: 6px 12px;
+        font-size: 12px;
+        min-width: 80px !important; /* 小屏幕进一步减小 */
+        flex-shrink: 0; /* 防止按钮被压缩 */
+    }
+}
+
+@media (max-width: 480px) {
+    .training-nav-container {
+        padding: 0 10px !important;
+    }
+    
+    .training-nav-tabs {
+        gap: 4px;
+        padding: 4px;
+    }
+    
+    .training-nav-container .nav-tab {
+        padding: 6px 10px;
+        font-size: 11px;
+        min-width: 70px !important;
+    }
+}
+
+/* 确保在所有浏览器中都有稳定的布局 */
+@supports not (min-width: fit-content) {
+    .training-nav-container .nav-tab {
+        min-width: 120px !important;
+    }
+}
+
+/* 旧版Chrome和Safari的额外支持 */
+@supports (min-width: -webkit-fit-content) {
+    .training-nav-container .nav-tab {
+        min-width: -webkit-fit-content;
+    }
+}
+
+/* 确保文本不会换行造成高度不一致 */
+.training-nav-container .nav-tab {
+    height: auto;
+    min-height: 40px; /* 确保最小高度一致 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }

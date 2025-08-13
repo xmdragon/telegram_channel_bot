@@ -2331,7 +2331,6 @@ async def get_media_files(
             if data:
                 for file_hash, info in data.get("media_files", {}).items():
                     file_path = media_dir / info["path"]
-                    file_type = "video" if info["path"].startswith("videos/") or info.get("media_type") == "video" else "image"
                     
                     # 获取文件大小
                     file_size = 0
@@ -2343,6 +2342,9 @@ async def get_media_files(
                     
                     # 使用display_path（缩略图）或原始path
                     display_path = info.get('display_path', info['path'])
+                    
+                    # 根据实际返回的路径判断文件类型，而不是原始媒体类型
+                    file_type = "video" if display_path.startswith("videos/") else "image"
                     
                     file_info = {
                         "hash": file_hash,
@@ -2817,8 +2819,15 @@ async def optimize_storage(
                         # 更新元数据
                         if "media_files" in metadata:
                             # 查找并更新该视频的元数据
+                            # 确保路径不包含ad_training_data前缀
                             relative_video_path = str(video_file.relative_to(Path("data/ad_training_data")))
                             relative_image_path = str(image_path.relative_to(Path("data/ad_training_data")))
+                            
+                            # 移除可能的ad_training_data前缀
+                            if relative_video_path.startswith("ad_training_data/"):
+                                relative_video_path = relative_video_path.replace("ad_training_data/", "", 1)
+                            if relative_image_path.startswith("ad_training_data/"):
+                                relative_image_path = relative_image_path.replace("ad_training_data/", "", 1)
                             
                             for file_hash, info in metadata["media_files"].items():
                                 if info.get("path") == relative_video_path:
@@ -2945,8 +2954,15 @@ async def optimize_storage_sse(
                         
                         # 更新元数据
                         if "media_files" in metadata:
+                            # 确保路径不包含ad_training_data前缀
                             relative_video_path = str(video_file.relative_to(Path("data/ad_training_data")))
                             relative_image_path = str(image_path.relative_to(Path("data/ad_training_data")))
+                            
+                            # 移除可能的ad_training_data前缀
+                            if relative_video_path.startswith("ad_training_data/"):
+                                relative_video_path = relative_video_path.replace("ad_training_data/", "", 1)
+                            if relative_image_path.startswith("ad_training_data/"):
+                                relative_image_path = relative_image_path.replace("ad_training_data/", "", 1)
                             
                             for file_hash, info in metadata["media_files"].items():
                                 if info.get("path") == relative_video_path:

@@ -73,8 +73,8 @@ def generate_thumbnails():
                     # 保存缩略图
                     cv2.imwrite(str(thumbnail_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
                     
-                    # 更新元数据
-                    relative_thumbnail_path = str(thumbnail_path.relative_to(Path("data")))
+                    # 更新元数据 - 确保路径不包含ad_training_data前缀
+                    relative_thumbnail_path = str(thumbnail_path.relative_to(Path("data/ad_training_data")))
                     info["thumbnail_path"] = relative_thumbnail_path
                     info["display_path"] = relative_thumbnail_path
                     

@@ -279,13 +279,14 @@ class TrainingMediaManager:
                                 cap.release()
                     
                     if thumbnail_full_path.exists():
-                        # 保持与原文件路径格式一致
-                        thumbnail_path = str(thumbnail_full_path.relative_to(Path("data")))
+                        # 保持与原文件路径格式一致，但要移除ad_training_data前缀
+                        thumbnail_path = str(thumbnail_full_path.relative_to(Path("data/ad_training_data")))
                 except Exception as e:
                     logger.warning(f"生成视频缩略图失败: {e}")
             
             # 更新元数据
-            relative_path = str(target_path.relative_to(Path("data")))
+            # 确保路径不包含ad_training_data前缀
+            relative_path = str(target_path.relative_to(Path("data/ad_training_data")))
             metadata_entry = {
                 "path": relative_path,
                 "message_ids": [message_id],

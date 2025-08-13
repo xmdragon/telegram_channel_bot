@@ -53,37 +53,27 @@
             <!-- 操作按钮 -->
             <div class="toolbar-section">
                 <div class="toolbar-card">
-                    <div class="table-header">
-                        <h3 class="table-title">🔧 批量操作</h3>
-                    </div>
                     <div class="toolbar-content">
                         <div class="btn-group">
-                            <el-button @click="loadMediaFiles" class="btn-secondary">
-                                <el-icon><Refresh /></el-icon>
+                            <el-button @click="loadMediaFiles" type="default">
                                 刷新列表
                             </el-button>
-                            <el-button @click="cleanOrphaned" type="warning" class="btn-warning">
-                                <el-icon><Delete /></el-icon>
+                            <el-button @click="cleanOrphaned" type="warning">
                                 清理未引用
                             </el-button>
                             <el-button @click="checkDuplicates" type="info">
-                                <el-icon><Search /></el-icon>
                                 检测重复
                             </el-button>
-                            <el-button @click="deduplicateMedia" type="danger" class="btn-danger">
-                                <el-icon><FolderDelete /></el-icon>
+                            <el-button @click="deduplicateMedia" type="danger">
                                 执行去重
                             </el-button>
-                            <el-button @click="rebuildVisualHashes" type="primary" class="btn-primary">
-                                <el-icon><Refresh /></el-icon>
+                            <el-button @click="rebuildVisualHashes" type="primary">
                                 重建哈希
                             </el-button>
-                            <el-button @click="optimizeVideos" type="primary" class="btn-primary">
-                                <el-icon><VideoCamera /></el-icon>
+                            <el-button @click="optimizeVideos" type="primary">
                                 优化视频
                             </el-button>
-                            <el-button @click="downloadAll" type="success" class="btn-success">
-                                <el-icon><Download /></el-icon>
+                            <el-button @click="downloadAll" type="success">
                                 导出所有
                             </el-button>
                         </div>
