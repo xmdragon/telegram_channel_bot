@@ -38,7 +38,7 @@ window.MessageManager = {
             });
         } else {
             // 降级处理，如果Element Plus不可用则使用console
-//             console.log(`[${type.toUpperCase()}] ${message}`);
+            // console.log(`[${type.toUpperCase()}] ${message}`);
         }
     },
     

@@ -238,7 +238,7 @@ const AdminApp = {
         
         // 打开训练数据管理界面
         openTrainingManager() {
-            window.open('/static/training_manager.html', '_blank');
+            window.open('/static/ad_training_manager.html', '_blank');
         },
         
         // 格式化文件大小

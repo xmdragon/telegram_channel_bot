@@ -225,7 +225,7 @@ const ConfigApp = {
                 }
             } catch (error) {
                 // 静默处理错误，使用默认配置
-//                 console.log('使用默认转发配置');
+                // console.log('使用默认转发配置');
             }
         },
         
@@ -245,7 +245,7 @@ const ConfigApp = {
                 }
             } catch (error) {
                 // 静默处理错误，使用默认配置
-//                 console.log('使用默认系统配置');
+                // console.log('使用默认系统配置');
             }
         },
         
@@ -290,11 +290,11 @@ const ConfigApp = {
         
         async removeChannel(channelId) {
             try {
-//                 console.log('删除频道ID:', channelId);
+                // console.log('删除频道ID:', channelId);
                 
                 const response = await axios.delete(`/api/admin/channels/${encodeURIComponent(channelId)}`);
                 
-//                 console.log('删除频道响应:', response.data);
+                // console.log('删除频道响应:', response.data);
                 
                 if (response.data.success) {
                     MessageManager.success('频道删除成功');
@@ -392,13 +392,13 @@ const ConfigApp = {
                 const newStatus = channel.status === 'active' ? 'inactive' : 'active';
                 const isActive = newStatus === 'active';
                 
-//                 console.log('切换频道状态:', channel.channel_id || channel.name, '从', channel.status, '到', newStatus);
+                // console.log('切换频道状态:', channel.channel_id || channel.name, '从', channel.status, '到', newStatus);
                 
                 const response = await axios.put(`/api/admin/channels/${encodeURIComponent(channel.name)}`, {
                     is_active: isActive
                 });
                 
-//                 console.log('状态切换响应:', response.data);
+                // console.log('状态切换响应:', response.data);
                 
                 if (response.data.success) {
                     MessageManager.success(`频道状态已切换为${newStatus === 'active' ? '活跃' : '停用'}`);
@@ -476,7 +476,7 @@ const ConfigApp = {
                         });
                         
                         if (resolveResponse.data.success) {
-//                             console.log('审核群链接解析成功:', resolveResponse.data);
+                            // console.log('审核群链接解析成功:', resolveResponse.data);
                             MessageManager.success(`转发配置保存成功，审核群ID已解析为: ${resolveResponse.data.resolved_id}`);
                         } else {
                             MessageManager.warning('转发配置保存成功，但审核群链接解析失败，请检查链接或机器人权限');
@@ -823,11 +823,11 @@ const ConfigApp = {
 
 // 等待 DOM 加载完成
 document.addEventListener('DOMContentLoaded', function() {
-//     console.log('DOM loaded, mounting Vue app...');
+    // console.log('DOM loaded, mounting Vue app...');
     
     // 创建应用实例
-//     console.log('Vue version:', Vue.version);
-//     console.log('ElementPlus version:', ElementPlus.version);
+    // console.log('Vue version:', Vue.version);
+    // console.log('ElementPlus version:', ElementPlus.version);
 
     try {
         const app = createApp(ConfigApp);
@@ -853,7 +853,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 挂载应用
         app.mount('#app');
-//         console.log('Vue app mounted successfully');
+        // console.log('Vue app mounted successfully');
     } catch (error) {
         // console.error('Failed to mount Vue app:', error);
         document.body.innerHTML = '<div style="color: red; padding: 20px;">Vue 应用挂载失败: ' + error.message + '</div>';

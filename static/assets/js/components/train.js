@@ -423,11 +423,11 @@ const TrainApp = {
                 
                 // 打印调试信息
                 // console.log('提交数据:', {
-                    content: this.trainingForm.original_message,
-                    separator: separator,
-                    normalPart: normalPart,
-                    tailPart: this.trainingForm.tail_content
-                });
+                //     content: this.trainingForm.original_message,
+                //     separator: separator,
+                //     normalPart: normalPart,
+                //     tailPart: this.trainingForm.tail_content
+                // });
                 
                 // 检查token
                 const token = localStorage.getItem('admin_token');
