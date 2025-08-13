@@ -1160,6 +1160,31 @@ const MainApp = {
             window.location.href = '/static/train.html?' + params.toString();
         },
         
+        // 手动执行尾部过滤
+        async filterTail(message) {
+            try {
+                const response = await axios.post(`/api/messages/${message.id}/filter-tail`);
+                
+                if (response.data.success) {
+                    if (response.data.removed_length && response.data.removed_length > 0) {
+                        MessageManager.success(`尾部过滤成功，移除了 ${response.data.removed_length} 个字符`);
+                        // 更新消息的过滤后内容
+                        const index = this.messages.findIndex(m => m.id === message.id);
+                        if (index !== -1) {
+                            this.messages[index].filtered_content = response.data.filtered_content;
+                        }
+                    } else {
+                        MessageManager.info('未检测到需要过滤的尾部内容');
+                    }
+                } else {
+                    MessageManager.warning(response.data.message || '过滤失败');
+                }
+            } catch (error) {
+                console.error('尾部过滤失败:', error);
+                MessageManager.error('尾部过滤失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
         // 检查媒体文件是否存在
         mediaExists(message) {
             // 检查媒体URL是否存在且有效

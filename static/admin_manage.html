@@ -160,7 +160,7 @@
         </el-dialog>
 
         <!-- 创建管理员对话框 -->
-        <el-dialog v-model="createAdminDialog.visible" title="添加管理员" width="500px">
+        <el-dialog v-model="createAdminDialog.visible" title="添加管理员" width="80%">
             <el-form :model="createAdminDialog.form" label-width="100px">
                 <el-form-item label="用户名" required>
                     <el-input v-model="createAdminDialog.form.username" 
@@ -178,12 +178,14 @@
                              inactive-text="普通管理员" />
                 </el-form-item>
                 <el-form-item v-if="!createAdminDialog.form.is_super_admin" label="权限">
-                    <el-checkbox-group v-model="createAdminDialog.form.permissions">
-                        <div v-for="(perms, module) in availablePermissions" :key="module" style="margin-bottom: 10px;">
-                            <div style="font-weight: bold; margin-bottom: 5px;">{{ getModuleLabel(module) }}</div>
-                            <el-checkbox v-for="perm in perms" :key="perm.name" :label="perm.name">
-                                {{ perm.description }}
-                            </el-checkbox>
+                    <el-checkbox-group v-model="createAdminDialog.form.permissions" class="permission-checkbox-group">
+                        <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
+                            <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
+                            <div class="permission-checkbox-grid">
+                                <el-checkbox v-for="perm in perms" :key="perm.name" :label="perm.name" class="permission-checkbox-item">
+                                    {{ perm.description }}
+                                </el-checkbox>
+                            </div>
                         </div>
                     </el-checkbox-group>
                 </el-form-item>
@@ -197,7 +199,7 @@
         </el-dialog>
 
         <!-- 编辑管理员对话框 -->
-        <el-dialog v-model="editAdminDialog.visible" title="编辑管理员" width="500px">
+        <el-dialog v-model="editAdminDialog.visible" title="编辑管理员" width="80%">
             <el-form :model="editAdminDialog.form" label-width="100px">
                 <el-form-item label="用户名">
                     <el-input :value="editAdminDialog.admin?.username" disabled />
@@ -219,12 +221,14 @@
                              inactive-text="普通管理员" />
                 </el-form-item>
                 <el-form-item v-if="!editAdminDialog.form.is_super_admin" label="权限">
-                    <el-checkbox-group v-model="editAdminDialog.form.permissions">
-                        <div v-for="(perms, module) in availablePermissions" :key="module" style="margin-bottom: 10px;">
-                            <div style="font-weight: bold; margin-bottom: 5px;">{{ getModuleLabel(module) }}</div>
-                            <el-checkbox v-for="perm in perms" :key="perm.name" :label="perm.name">
-                                {{ perm.description }}
-                            </el-checkbox>
+                    <el-checkbox-group v-model="editAdminDialog.form.permissions" class="permission-checkbox-group">
+                        <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
+                            <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
+                            <div class="permission-checkbox-grid">
+                                <el-checkbox v-for="perm in perms" :key="perm.name" :label="perm.name" class="permission-checkbox-item">
+                                    {{ perm.description }}
+                                </el-checkbox>
+                            </div>
                         </div>
                     </el-checkbox-group>
                 </el-form-item>

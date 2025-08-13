@@ -97,10 +97,12 @@ class ContentFilter:
             
             # === Markdown链接格式 ===
             # 注意：新闻/曝光类链接会被content_protectors保护，不会被过滤
-            (r'\[[^\]]+\]\(https?://[^\)]+\)', 7),  # [文字](链接) - 降低分数，防止误判新闻链接
+            (r'\[[^\]]+\]\(https?://t\.me/[^\)]+\)', 9),  # [文字](t.me链接) - 提高分数，频道链接
+            (r'\[[^\]]+\]\(https?://telegram\.me/[^\)]+\)', 9),  # [文字](telegram.me链接)
+            (r'\[[^\]]+\]\(https?://[^\)]+\)', 7),  # [文字](其他链接) - 保持较低分数
             (r'\[[订阅訂閱加入关注關注&][^\]]*\]\([^\)]*t\.me[^\)]+\)', 10),  # [订阅xxx](t.me/xxx) - 明确的推广
-            (r'[🔍🔔🔗📢]\[[^\]]*\]\(.*t\.me.*\)', 9),  # 推广表情[文字](t.me链接) - 降低分数
-            # 新闻类链接特征（不算推广）
+            (r'[🔍🔔🔗📢]\[[^\]]*\]\(.*t\.me.*\)', 9),  # 推广表情[文字](t.me链接)
+            # 新闻类链接特征（不算推广）- 但自引用除外
             (r'\[[🎥📰📸🎬]\s*(?:曝光|爆料|新闻|头条|热点|视频|图片)[^\]]*\]\(', -5),  # 新闻链接，负分保护
             
             # === 赌博/娱乐推广关键词（带数字或链接更可信） ===
@@ -251,6 +253,211 @@ class ContentFilter:
                 
         return max_score >= 8, max_score  # 提高阈值从7到8，减少误判
     
+    def is_meaningless_content(self, content: str) -> bool:
+        """
+        检测内容是否无意义（纯符号、装饰符等）
+        
+        Args:
+            content: 要检测的内容
+            
+        Returns:
+            是否为无意义内容
+        """
+        if not content or not content.strip():
+            return True
+            
+        # 移除所有空白字符
+        clean_content = ''.join(content.split())
+        
+        # 如果内容太短，可能无意义
+        if len(clean_content) < 5:
+            # 检查是否全是符号或表情
+            import unicodedata
+            meaningful_chars = 0
+            for char in clean_content:
+                cat = unicodedata.category(char)
+                # 字母(L)、数字(N)、中文等被认为有意义
+                if cat[0] in ('L', 'N'):
+                    meaningful_chars += 1
+            
+            # 如果有意义字符少于20%，认为是无意义内容
+            if meaningful_chars < len(clean_content) * 0.2:
+                return True
+        
+        # 检测常见的无意义模式
+        meaningless_patterns = [
+            r'^[^\w\u4e00-\u9fa5]+$',  # 全是非字母数字和非中文
+            r'^[\s\-\=\*\~\.\,\!\?\@\#\$\%\^\&\(\)\[\]\{\}\<\>\|\/\\\_\+]+$',  # 全是符号
+            r'^[\u2500-\u257F\u2580-\u259F\u25A0-\u25FF]+$',  # 制表符和方块
+            r'^[\u2600-\u26FF\u2700-\u27BF]+$',  # 各种符号和装饰
+            r'^(?:[\u0020-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E])+$',  # ASCII符号
+        ]
+        
+        for pattern in meaningless_patterns:
+            if re.match(pattern, clean_content):
+                logger.debug(f"检测到无意义内容（匹配模式 {pattern[:30]}...）")
+                return True
+        
+        # 检查是否是重复字符
+        if len(set(clean_content)) <= 2 and len(clean_content) > 5:
+            # 只有1-2种字符且长度超过5，可能是装饰线
+            return True
+        
+        # 计算有意义词汇的比例
+        import jieba
+        words = list(jieba.cut(content))
+        meaningful_words = [w for w in words if len(w.strip()) > 0 and not re.match(r'^[^\w\u4e00-\u9fa5]+$', w)]
+        
+        # 如果有意义词汇太少，可能是无意义内容
+        if len(meaningful_words) < 2 and len(content) > 10:
+            return True
+            
+        return False
+    
+    def remove_all_markdown_links(self, content: str, channel_id: str = None) -> str:
+        """
+        移除所有Markdown格式的链接，智能处理标签
+        
+        Args:
+            content: 消息内容
+            channel_id: 频道ID（用于判断标签是否与频道相关）
+            
+        Returns:
+            过滤后的内容
+        """
+        if not content:
+            return content
+        
+        import re
+        
+        # 获取频道名称（用于判断标签相关性）
+        channel_name = None
+        if channel_id:
+            # 提取频道关键词
+            if isinstance(channel_id, str):
+                if channel_id.startswith('@'):
+                    channel_name = channel_id[1:].lower()
+                elif channel_id.startswith('-100'):
+                    # 使用已知映射
+                    known_channels = {
+                        '-1001153220419': 'dny185',
+                        '-1001875033283': 'dubai0',
+                    }
+                    channel_name = known_channels.get(channel_id, '').lower()
+                else:
+                    channel_name = channel_id.lower()
+        
+        # Markdown链接正则
+        markdown_pattern = r'\[([^\]]*)\]\(([^\)]+)\)'
+        
+        lines = content.split('\n')
+        filtered_lines = []
+        
+        for line in lines:
+            if not re.search(markdown_pattern, line):
+                # 没有Markdown链接，直接保留
+                filtered_lines.append(line)
+                continue
+            
+            original_line = line
+            
+            # 处理每个Markdown链接
+            def replace_link(match):
+                link_text = match.group(1)  # [文字]部分
+                link_url = match.group(2)   # (链接)部分
+                
+                # 判断是否应该完全移除
+                should_remove_completely = False
+                
+                # 1. 检查是否包含频道相关标签
+                if channel_name and link_text:
+                    # 检查链接文字中是否包含频道名
+                    if channel_name in link_text.lower():
+                        should_remove_completely = True
+                        logger.debug(f"检测到频道相关标签: {link_text}")
+                
+                # 2. 检查是否包含推广关键词
+                promo_keywords = ['订阅', '订閱', '关注', '關注', '加入', 
+                                 '投稿', '商务', '商務', '联系', '聯繫',
+                                 '频道', '頻道', 'channel', 'group', '失联', 
+                                 '导航', '備用', '官方']
+                if link_text:
+                    for keyword in promo_keywords:
+                        if keyword in link_text.lower():
+                            should_remove_completely = True
+                            logger.debug(f"检测到推广关键词 '{keyword}': {link_text}")
+                            break
+                
+                # 3. 检查是否是纯emoji或符号
+                if link_text and re.match(r'^[^\w\u4e00-\u9fa5]+$', link_text):
+                    should_remove_completely = True
+                    logger.debug(f"检测到纯符号链接: {link_text}")
+                
+                # 4. 检查链接是否指向t.me（高概率推广）
+                if 't.me' in link_url.lower() or 'telegram' in link_url.lower():
+                    # Telegram链接几乎都是推广，直接移除
+                    should_remove_completely = True
+                    logger.debug(f"检测到Telegram链接: {link_url[:30]}")
+                
+                # 返回处理结果
+                if should_remove_completely:
+                    return ''  # 完全移除
+                else:
+                    # 对于非Telegram链接，可以保留文字部分
+                    return link_text.strip() if link_text else ''
+            
+            # 替换所有Markdown链接
+            processed_line = re.sub(markdown_pattern, replace_link, line)
+            
+            # 清理多余空格、标点和分隔符
+            processed_line = re.sub(r'\s+', ' ', processed_line).strip()
+            processed_line = re.sub(r'^[:：]\s*', '', processed_line)  # 移除行首的冒号
+            processed_line = re.sub(r'^\|\s*|\s*\|$', '', processed_line)  # 移除行首行尾的 |
+            processed_line = re.sub(r'\|\s*\|', '|', processed_line)  # 合并多个 |
+            
+            # 如果行首是emoji+文字+冒号但后面没有实质内容，删除整行
+            # 例如: "🎥柬埔寨事件：" (链接被移除后)
+            if re.match(r'^[^a-zA-Z]*[^:：]*[:：]\s*$', processed_line) and len(processed_line) < 30:
+                logger.info(f"删除只含标题的行: '{original_line[:50]}...'")
+                continue
+            
+            # 如果是引导性文字+冒号但后面没有内容，删除整行
+            # 例如: "查看详情：" "订阅频道：" (链接被移除后)
+            guide_words = ['查看详情', '订阅频道', '订阅我们', '关注我们', '更多信息', 
+                          '查看更多', '点击查看', '了解更多', '商务合作', '投稿爆料']
+            for word in guide_words:
+                if processed_line.startswith(word) and re.match(f'^{re.escape(word)}[:：]?\\s*$', processed_line):
+                    logger.info(f"删除只含引导词的行: '{original_line[:50]}...'")
+                    processed_line = ''
+                    break
+            
+            if not processed_line:
+                continue
+            
+            # 如果只剩下分隔符或很少的内容，跳过该行
+            if processed_line in ['|', '||', ''] or len(processed_line.strip('| ')) < 3:
+                logger.info(f"删除只含分隔符的行: '{original_line[:50]}...'")
+                continue
+            
+            # 记录处理效果
+            if processed_line != original_line.strip():
+                logger.info(f"处理Markdown链接: '{original_line[:50]}...' -> '{processed_line[:50] if processed_line else '(已删除)'}'")
+            
+            # 如果处理后还有内容，保留该行
+            if processed_line:
+                filtered_lines.append(processed_line)
+        
+        # 组合结果
+        result = '\n'.join(filtered_lines)
+        
+        # 清理多余空行
+        result = re.sub(r'\n{3,}', '\n\n', result).strip()
+        
+        if len(result) < len(content):
+            logger.info(f"移除Markdown链接: {len(content)} -> {len(result)} 字符")
+        
+        return result
+    
     def _smart_rule_filter(self, content: str) -> str:
         """
         智能规则过滤，寻找明确的推广边界
@@ -373,7 +580,7 @@ class ContentFilter:
         
         Args:
             content: 消息内容
-            channel_id: 频道ID（用于AI尾部过滤）
+            channel_id: 频道ID（用于AI尾部过滤和自引用检测）
         """
         if not content:
             return content
@@ -381,7 +588,12 @@ class ContentFilter:
         # 保存原始内容
         original_content = content
         
-        # 1. 首先应用训练的尾部过滤模式（最高优先级）
+        # 0. 首先移除所有Markdown链接（最高优先级）
+        content = self.remove_all_markdown_links(content, channel_id)
+        if content != original_content:
+            logger.info(f"移除Markdown链接: {len(original_content)} -> {len(content)}")
+        
+        # 1. 然后应用训练的尾部过滤模式
         content = self._apply_trained_tail_filters(content)
         if content != original_content:
             logger.info(f"训练模式过滤了尾部内容: {len(original_content)} -> {len(content)}")
@@ -666,7 +878,10 @@ class ContentFilter:
         # 2. 智能尾部过滤（移除频道标识，不算广告）
         try:
             from app.services.smart_tail_filter import smart_tail_filter
-            clean_content, has_tail_ad, ad_part = smart_tail_filter.filter_tail_ads(filtered_content)
+            clean_content, has_tail_ad, ad_part = smart_tail_filter.filter_tail_ads(
+                filtered_content,
+                channel_id=channel_id  # 传递频道ID用于AI模式匹配
+            )
             if has_tail_ad:
                 filtered_content = clean_content
                 # 注意：尾部过滤是移除原频道标识，不算广告，所以不设置 is_ad = True

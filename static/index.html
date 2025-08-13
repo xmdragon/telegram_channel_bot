@@ -257,6 +257,12 @@
                                 title="训练AI识别此消息的尾部内容">
                             ✂️ 尾部
                         </button>
+                        <!-- 尾部过滤按钮 -->
+                        <button @click="filterTail(message)" 
+                                class="btn btn-sm btn-primary"
+                                title="手动执行尾部过滤">
+                            🎯 过滤
+                        </button>
                         <!-- 补抓媒体按钮 -->
                         <button v-if="message.media_type && (!message.media_url || !mediaExists(message))"
                                 @click="refetchMedia(message)" 

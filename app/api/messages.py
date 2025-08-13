@@ -695,10 +695,12 @@ async def refetch_media(
                 
                 logger.info(f"成功补抓媒体: {media_info['file_path']} ({media_info['file_size']} bytes)")
                 
-                # 如果是广告，自动保存到训练数据目录
+                # 如果是广告，自动保存到训练数据目录并更新图片索引
                 if message.is_ad:
                     try:
                         from app.services.training_media_manager import training_media_manager
+                        from app.services.ad_image_detector import ad_image_detector
+                        
                         saved_path = await training_media_manager.save_training_media(
                             source_path=media_info["file_path"],
                             message_id=message.id,
@@ -708,6 +710,17 @@ async def refetch_media(
                         )
                         if saved_path:
                             logger.info(f"广告媒体已保存到训练目录: {saved_path}")
+                            
+                            # 如果是图片，添加到广告图片索引
+                            if media_info["media_type"].startswith("image"):
+                                await ad_image_detector.add_ad_image(
+                                    saved_path,
+                                    metadata={
+                                        'message_id': message.id,
+                                        'channel_id': message.source_channel
+                                    }
+                                )
+                                logger.info(f"广告图片已添加到检测索引")
                     except Exception as e:
                         logger.error(f"保存到训练目录失败: {e}")
                 
@@ -778,6 +791,75 @@ async def batch_refetch_media(
             })
     
     return results
+
+@router.post("/{message_id}/filter-tail")
+async def filter_message_tail(
+    message_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.edit"))
+):
+    """
+    对单条消息执行尾部过滤
+    """
+    try:
+        # 获取消息
+        result = await db.execute(select(Message).where(Message.id == message_id))
+        message = result.scalar_one_or_none()
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 获取原始内容（如果没有原始内容，使用当前内容）
+        original_content = message.content or message.filtered_content
+        
+        if not original_content:
+            return {
+                "success": False,
+                "message": "消息没有内容可以过滤"
+            }
+        
+        # 执行尾部过滤（传递channel_id用于AI模式匹配）
+        from app.services.smart_tail_filter import smart_tail_filter
+        filtered_content, has_tail, removed_tail = smart_tail_filter.filter_tail_ads(
+            original_content, 
+            channel_id=message.source_channel
+        )
+        
+        # 更新过滤后的内容
+        if has_tail:
+            message.filtered_content = filtered_content
+            await db.commit()
+            
+            # 让AI学习用户的过滤操作
+            await smart_tail_filter.learn_from_user_filter(
+                message.source_channel,
+                original_content,
+                filtered_content
+            )
+            
+            logger.info(f"消息 {message_id} 尾部过滤成功，移除了 {len(removed_tail)} 个字符")
+            
+            return {
+                "success": True,
+                "message": "尾部过滤成功",
+                "original_length": len(original_content),
+                "filtered_length": len(filtered_content),
+                "removed_length": len(removed_tail) if removed_tail else 0,
+                "filtered_content": filtered_content,
+                "removed_tail": removed_tail
+            }
+        else:
+            return {
+                "success": True,
+                "message": "未检测到需要过滤的尾部内容",
+                "filtered_content": original_content
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"尾部过滤失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/test-broadcast")
 async def test_broadcast(message_data: dict):

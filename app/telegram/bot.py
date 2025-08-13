@@ -284,6 +284,67 @@ class TelegramBot:
             else:
                 logger.info(f"📝 内容过滤完成，长度无变化: {len(filtered_content)} 字符")
             
+            # 检测高风险广告内容（色情、赌博等）
+            high_risk_keywords = [
+                # 色情相关
+                '约炮', '一夜情', '包夜', '上门服务', '外围', '兼职模特',
+                '性服务', '色情', '成人视频', '激情视频', '裸聊',
+                # 赌博相关
+                '网赌', '赌场', '百家乐', '德州扑克', '体育投注',
+                '彩票代理', '博彩', '棋牌游戏', '时时彩',
+                # 诈骗相关
+                '刷单', '兼职刷单', '日赚千元', '躺赚', '零投资高回报'
+            ]
+            
+            # 检查是否包含高风险关键词
+            is_high_risk = False
+            content_lower = content.lower() if content else ""
+            for keyword in high_risk_keywords:
+                if keyword in content_lower:
+                    is_high_risk = True
+                    logger.warning(f"🚨 检测到高风险广告关键词: {keyword}")
+                    break
+            
+            # 如果是高风险广告，直接拒绝
+            if is_high_risk:
+                logger.warning(f"🚫 拒绝高风险广告消息: {content[:50]}...")
+                if media_info and media_info.get('file_path'):
+                    await media_handler.cleanup_file(media_info['file_path'])
+                return None
+            
+            # 检查图片是否为已知广告（新增）
+            if media_info and media_info.get('visual_hashes') and media_type and media_type.startswith('image'):
+                try:
+                    from app.services.ad_image_detector import ad_image_detector
+                    is_ad_image, similarity, match_id = await ad_image_detector.is_known_ad(
+                        media_info['visual_hashes']
+                    )
+                    if is_ad_image:
+                        logger.warning(f"🚫 检测到广告图片（相似度{similarity:.1f}%），自动拒绝")
+                        if media_info.get('file_path'):
+                            await media_handler.cleanup_file(media_info['file_path'])
+                        return None
+                except Exception as e:
+                    logger.error(f"广告图片检测失败: {e}")
+            
+            # 检查无意义内容+广告图片的组合
+            if filtered_content and media_info and media_info.get('visual_hashes'):
+                # 检查过滤后的内容是否无意义
+                if self.content_filter.is_meaningless_content(filtered_content):
+                    # 如果有图片且可能是广告图片
+                    try:
+                        from app.services.ad_image_detector import ad_image_detector
+                        is_ad_image, similarity, match_id = await ad_image_detector.is_known_ad(
+                            media_info['visual_hashes']
+                        )
+                        if is_ad_image or similarity > 50:  # 相似度超过50%也认为可疑
+                            logger.warning(f"🚫 检测到无意义文本+广告图片组合，自动拒绝")
+                            if media_info.get('file_path'):
+                                await media_handler.cleanup_file(media_info['file_path'])
+                            return None
+                    except:
+                        pass
+            
             # 检查是否为纯广告（优先使用AI检测）
             try:
                 # 获取是否启用AI广告检测

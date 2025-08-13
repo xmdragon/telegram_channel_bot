@@ -130,6 +130,7 @@
 
 .el-dialog {
     border-radius: 12px !important;
+    max-width: 1200px;
 }
 
 .el-dialog__header {
@@ -152,13 +153,62 @@
     color: var(--text-primary);
 }
 
-.el-checkbox-group {
-    display: block;
+/* 权限复选框网格布局 */
+.permission-checkbox-group {
+    width: 100%;
 }
 
-.el-checkbox {
-    display: block;
-    margin: 5px 0 !important;
+.permission-module-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.permission-module-title {
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 12px;
+    font-size: 15px;
+}
+
+.permission-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.permission-checkbox-item {
+    margin: 0 !important;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s;
+}
+
+.permission-checkbox-item:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+}
+
+.permission-checkbox-item .el-checkbox__label {
+    font-size: 13px;
+    white-space: normal;
+    line-height: 1.4;
+}
+
+/* 针对小屏幕的权限布局调整 */
+@media (max-width: 1200px) {
+    .permission-checkbox-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .permission-checkbox-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* 响应式布局 */
