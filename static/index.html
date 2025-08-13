@@ -181,10 +181,11 @@
                             <!-- 单个媒体（非组合消息） -->
                             <template v-else>
                                 <!-- 图片 -->
-                                <img v-if="message.media_type === 'photo' && message.media_display_url" 
+                                <img v-if="message.media_type === 'photo' && message.media_display_url && !message._mediaLoadFailed" 
                                      :src="message.media_display_url"
                                      class="media-image"
-                                     @click="openMediaPreview(message.media_display_url)">
+                                     @click="openMediaPreview(message.media_display_url)"
+                                     @error="handleImageError(message, $event)">
                                 
                                 <!-- 视频 -->
                                 <video v-else-if="message.media_type === 'video' && message.media_display_url"
@@ -193,9 +194,15 @@
                                        controls>
                                 </video>
                                 
-                                <!-- 其他媒体类型 -->
-                                <div v-else class="media-placeholder">
-                                    {{ message.media_type }}
+                                <!-- 媒体加载失败或其他媒体类型 -->
+                                <div v-else-if="message.media_type" class="media-placeholder">
+                                    <div v-if="message._mediaLoadFailed || !message.media_display_url">
+                                        📷 {{ message.media_type === 'photo' ? '图片' : message.media_type === 'video' ? '视频' : message.media_type }}
+                                        <div style="font-size: 12px; color: #999; margin-top: 5px;">媒体文件缺失</div>
+                                    </div>
+                                    <div v-else>
+                                        {{ message.media_type }}
+                                    </div>
                                 </div>
                             </template>
                         </div>
@@ -235,36 +242,43 @@
                     
                     <!-- 操作按钮 -->
                     <div v-if="message.status === 'pending'" class="message-actions">
-                        <button @click="openEditDialog(message)" class="btn btn-sm btn-secondary">
+                        <button v-if="buttonVisibility.edit" 
+                                @click="openEditDialog(message)" 
+                                class="btn btn-sm btn-secondary">
                             ✏️ 编辑
                         </button>
-                        <button @click="selectedMessages = [message.id]; approveMessages()" 
+                        <button v-if="buttonVisibility.approve" 
+                                @click="selectedMessages = [message.id]; approveMessages()" 
                                 class="btn btn-sm btn-success">
                             ✅ 批准
                         </button>
-                        <button @click="selectedMessages = [message.id]; rejectMessages()" 
+                        <button v-if="buttonVisibility.reject" 
+                                @click="selectedMessages = [message.id]; rejectMessages()" 
                                 class="btn btn-sm btn-danger">
                             ❌ 拒绝
                         </button>
                         <!-- AI训练按钮 -->
-                        <button @click="markAsAd(message)" 
+                        <button v-if="buttonVisibility.markAsAd" 
+                                @click="markAsAd(message)" 
                                 class="btn btn-sm btn-warning"
                                 title="将此消息标记为广告并加入训练样本">
                             🚫 广告
                         </button>
-                        <button @click="trainTail(message)" 
+                        <button v-if="buttonVisibility.markAsTail" 
+                                @click="trainTail(message)" 
                                 class="btn btn-sm btn-info"
                                 title="训练AI识别此消息的尾部内容">
                             ✂️ 尾部
                         </button>
                         <!-- 尾部过滤按钮 -->
-                        <button @click="filterTail(message)" 
+                        <button v-if="buttonVisibility.executeFilter" 
+                                @click="filterTail(message)" 
                                 class="btn btn-sm btn-primary"
                                 title="手动执行尾部过滤">
                             🎯 过滤
                         </button>
                         <!-- 补抓媒体按钮 -->
-                        <button v-if="message.media_type && (!message.media_url || !mediaExists(message))"
+                        <button v-if="buttonVisibility.refetchMedia && message.media_type && (!message.media_display_url || message._mediaLoadFailed)"
                                 @click="refetchMedia(message)" 
                                 class="btn btn-sm btn-primary"
                                 :disabled="refetchingMedia[message.id]"
@@ -385,6 +399,9 @@
     <script src="assets/js/axios.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components/navbar.js"></script>
+    
+    <!-- 工具类 -->
+    <script src="assets/js/utils/permission-checker.js"></script>
     
     <!-- 模块化文件 -->
     <script src="assets/js/modules/utils.js"></script>

@@ -63,6 +63,13 @@ const app = createApp({
                 this.samples = response.data.samples || [];
                 this.totalCount = response.data.total || this.samples.length;
                 
+                // 按创建时间倒序排序（最新的在前）
+                this.samples.sort((a, b) => {
+                    const timeA = new Date(a.created_at || a.timestamp || 0).getTime();
+                    const timeB = new Date(b.created_at || b.timestamp || 0).getTime();
+                    return timeB - timeA;
+                });
+                
                 // 加载统计信息
                 await this.loadStatistics();
             } catch (error) {

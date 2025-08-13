@@ -38,8 +38,12 @@ class IntelligentFilter:
                 if os.path.exists(patterns_file):
                     self.load_patterns(patterns_file)
                     logger.info(f"✅ 从 {patterns_file} 加载了AI过滤模式")
+                
+                # 加载广告训练数据
+                self._load_ad_training_data()
+                
             except Exception as e:
-                logger.error(f"加载AI过滤模式失败: {e}")
+                logger.error(f"加载AI数据失败: {e}")
     
     def _initialize(self):
         """初始化模型"""
@@ -53,6 +57,41 @@ class IntelligentFilter:
             logger.warning("⚠️ sentence-transformers 未安装，AI过滤功能暂不可用")
         except Exception as e:
             logger.error(f"AI过滤器初始化失败: {e}")
+    
+    def _load_ad_training_data(self):
+        """加载广告训练数据"""
+        try:
+            import json
+            from pathlib import Path
+            
+            # 加载广告训练数据
+            ad_file = Path("data/ad_training_data.json")
+            if ad_file.exists():
+                with open(ad_file, 'r', encoding='utf-8') as f:
+                    ad_data = json.load(f)
+                
+                # 提取广告文本
+                ad_texts = []
+                for item in ad_data:
+                    if isinstance(item, dict) and item.get('content'):
+                        ad_texts.append(item['content'])
+                    elif isinstance(item, str):
+                        ad_texts.append(item)
+                
+                if ad_texts and self.model:
+                    # 计算广告样本的嵌入向量
+                    logger.info(f"正在加载 {len(ad_texts)} 个广告训练样本...")
+                    # 分批处理避免内存过大
+                    batch_size = 50
+                    for i in range(0, min(len(ad_texts), 200), batch_size):  # 限制最多200个样本
+                        batch = ad_texts[i:i+batch_size]
+                        embeddings = self.model.encode(batch)
+                        self.ad_embeddings.extend(embeddings)
+                    
+                    logger.info(f"✅ AI模型已加载 {len(self.ad_embeddings)} 个广告样本嵌入向量")
+                    
+        except Exception as e:
+            logger.error(f"加载广告训练数据失败: {e}")
     
     async def learn_channel_pattern(self, channel_id: str, messages: List[str]) -> bool:
         """

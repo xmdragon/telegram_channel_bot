@@ -38,6 +38,13 @@ const app = createApp({
                 this.allSamples = response.data.samples || [];
                 this.totalCount = this.allSamples.length;
                 
+                // 按创建时间倒序排序（最新的在前）
+                this.allSamples.sort((a, b) => {
+                    const timeA = new Date(a.created_at || 0).getTime();
+                    const timeB = new Date(b.created_at || 0).getTime();
+                    return timeB - timeA;
+                });
+                
                 // 计算统计信息
                 this.calculateStats();
                 

@@ -18,7 +18,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
-from app.core.database import get_db, Channel, Message
+from app.core.database import get_db, Channel, Message, Admin
 from app.services.ai_filter import ai_filter
 from app.services.adaptive_learning import adaptive_learning
 from app.api.admin_auth import check_permission, require_admin
@@ -1301,7 +1301,8 @@ async def restore_from_backup(backup_filename: str):
 @router.post("/mark-ad")
 async def mark_message_as_ad(
     request: dict,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("training.mark_ad"))
 ):
     """将消息标记为广告并加入训练样本"""
     try:
@@ -1607,7 +1608,7 @@ async def add_ad_sample(
 async def add_tail_filter_sample(
     request: dict,
     db: AsyncSession = Depends(get_db),
-    _admin = Depends(check_permission("training.submit"))
+    _admin = Depends(check_permission("training.mark_tail"))
 ):
     """添加尾部过滤训练样本（用于移除频道标识，不是广告）"""
     try:
@@ -2354,7 +2355,7 @@ async def get_media_files(
                         "type": file_type,
                         "size": file_size,
                         "messageIds": info.get("message_ids", []),
-                        "createdAt": info.get("created_at", ""),
+                        "createdAt": info.get("saved_at", info.get("created_at", "")),
                         "hasThumbnail": "thumbnail_path" in info or "display_path" in info
                     }
                     

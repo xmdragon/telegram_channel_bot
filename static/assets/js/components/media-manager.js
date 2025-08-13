@@ -92,6 +92,14 @@ const app = createApp({
                 this.mediaFiles = response.data.files || [];
                 this.stats = response.data.stats || this.stats;
                 
+                // 按加入训练样本的时间倒序排序（最新的在前）
+                this.mediaFiles.sort((a, b) => {
+                    // 优先使用 saved_at (加入训练的时间)，然后是 createdAt
+                    const timeA = new Date(a.createdAt || 0).getTime();
+                    const timeB = new Date(b.createdAt || 0).getTime();
+                    return timeB - timeA;
+                });
+                
                 // 不再显示加载成功提示，避免频繁打扰用户
                 // ElMessage.success(`加载了 ${this.mediaFiles.length} 个媒体文件`);
             } catch (error) {

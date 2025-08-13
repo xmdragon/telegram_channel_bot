@@ -70,38 +70,61 @@ async def get_messages(
     # 获取频道信息映射
     channel_info = await channel_manager.get_channel_info_for_display()
     
+    # 处理消息列表，检查媒体文件存在性
+    processed_messages = []
+    for msg in messages:
+        # 检查主媒体文件是否存在
+        media_display_url = None
+        if msg.media_url:
+            media_path = msg.media_url
+            if os.path.exists(media_path):
+                media_display_url = f"/temp_media/{os.path.basename(media_path)}"
+            else:
+                # 文件不存在，返回None让前端显示补抓按钮
+                media_display_url = None
+        
+        # 处理组合消息的媒体组
+        media_group_display = None
+        if msg.media_group:
+            media_group_display = []
+            for media_item in msg.media_group:
+                item_copy = dict(media_item)
+                if media_item.get('file_path'):
+                    if os.path.exists(media_item['file_path']):
+                        item_copy['display_url'] = f"/temp_media/{os.path.basename(media_item['file_path'])}"
+                    else:
+                        item_copy['display_url'] = None
+                else:
+                    item_copy['display_url'] = None
+                media_group_display.append(item_copy)
+        
+        processed_messages.append({
+            "id": msg.id,
+            "source_channel": msg.source_channel,
+            "source_channel_title": channel_info.get(msg.source_channel, {}).get('title', '未知频道'),
+            "source_channel_link_prefix": channel_info.get(msg.source_channel, {}).get('link_prefix', ''),
+            "content": msg.content,
+            "filtered_content": msg.filtered_content,
+            "message_id": msg.message_id,
+            "media_type": msg.media_type,
+            "media_url": msg.media_url,
+            "media_display_url": media_display_url,
+            "grouped_id": msg.grouped_id,
+            "is_combined": msg.is_combined,
+            "combined_messages": msg.combined_messages,
+            "media_group": msg.media_group,
+            "media_group_display": media_group_display,
+            "status": msg.status,
+            "is_ad": msg.is_ad,
+            "created_at": format_for_api(msg.created_at),
+            "review_time": format_for_api(msg.review_time),
+            "reviewed_by": msg.reviewed_by,
+            "filter_reason": getattr(msg, 'filter_reason', None),
+            "removed_hidden_links": getattr(msg, 'removed_hidden_links', None)
+        })
+    
     return {
-        "messages": [
-            {
-                "id": msg.id,
-                "source_channel": msg.source_channel,
-                "source_channel_title": channel_info.get(msg.source_channel, {}).get('title', '未知频道'),
-                "source_channel_link_prefix": channel_info.get(msg.source_channel, {}).get('link_prefix', ''),
-                "content": msg.content,
-                "filtered_content": msg.filtered_content,
-                "message_id": msg.message_id,
-                "media_type": msg.media_type,
-                "media_url": msg.media_url,
-                "media_display_url": f"/temp_media/{os.path.basename(msg.media_url)}" if msg.media_url else None,
-                "grouped_id": msg.grouped_id,
-                "is_combined": msg.is_combined,
-                "combined_messages": msg.combined_messages,
-                "media_group": msg.media_group,
-                "media_group_display": [
-                    {
-                        **media_item,
-                        "display_url": f"/temp_media/{os.path.basename(media_item['file_path'])}" if media_item.get('file_path') else None
-                    }
-                    for media_item in (msg.media_group or [])
-                ] if msg.media_group else None,
-                "status": msg.status,
-                "is_ad": msg.is_ad,
-                "created_at": format_for_api(msg.created_at),
-                "review_time": format_for_api(msg.review_time),
-                "reviewed_by": msg.reviewed_by
-            }
-            for msg in messages
-        ],
+        "messages": processed_messages,
         "page": page,
         "size": size
     }
@@ -533,7 +556,8 @@ async def publish_message(
 async def edit_and_publish_message(
     message_id: int,
     request: dict,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.edit"))
 ):
     """编辑消息内容"""
     try:
@@ -617,7 +641,8 @@ async def delete_review_message(
 @router.post("/{message_id}/refetch-media")
 async def refetch_media(
     message_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("channels.refetch"))
 ):
     """
     重新抓取消息的媒体文件
@@ -755,7 +780,8 @@ async def refetch_media(
 @router.post("/batch/refetch-media")
 async def batch_refetch_media(
     message_ids: List[int],
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("channels.refetch"))
 ):
     """
     批量补抓媒体文件
@@ -796,7 +822,7 @@ async def batch_refetch_media(
 async def filter_message_tail(
     message_id: int,
     db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.edit"))
+    admin: Admin = Depends(check_permission("filter.execute"))
 ):
     """
     对单条消息执行尾部过滤

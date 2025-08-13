@@ -85,7 +85,17 @@ const MainApp = {
                 content: '',
                 originalMessage: null
             },
-            refetchingMedia: {} // 记录正在补抓的消息ID
+            refetchingMedia: {}, // 记录正在补抓的消息ID
+            // 权限控制
+            buttonVisibility: {
+                edit: true,
+                approve: true,
+                reject: true,
+                markAsAd: true,
+                markAsTail: true,
+                executeFilter: true,
+                refetchMedia: true
+            }
         }
     },
     
@@ -132,6 +142,9 @@ const MainApp = {
             return;
         }
         
+        // 初始化权限按钮可见性
+        await this.initializePermissions();
+        
         this.loadMessages();
         this.loadStats();
         this.loadChannelInfo();
@@ -167,6 +180,61 @@ const MainApp = {
     },
     
     methods: {
+        // 初始化权限
+        async initializePermissions() {
+            try {
+                // 获取当前用户信息
+                const response = await axios.get('/api/admin/auth/current');
+                const adminInfo = response.data;
+                
+                // 初始化权限检查器
+                if (window.permissionChecker) {
+                    try {
+                        const initialized = await window.permissionChecker.initialize(adminInfo);
+                        if (initialized) {
+                            // 更新按钮可见性
+                            this.buttonVisibility = window.permissionChecker.getButtonVisibility();
+                        } else {
+                            // 设置最小权限
+                            this.buttonVisibility = {
+                                edit: false,
+                                approve: false,
+                                reject: false,
+                                markAsAd: false,
+                                markAsTail: false,
+                                executeFilter: false,
+                                refetchMedia: false,
+                                delete: false
+                            };
+                        }
+                    } catch (error) {
+                        // 权限初始化异常 - 设置最小权限
+                        this.buttonVisibility = {
+                            edit: false,
+                            approve: false,
+                            reject: false,
+                            markAsAd: false,
+                            markAsTail: false,
+                            executeFilter: false,
+                            refetchMedia: false,
+                            delete: false
+                        };
+                    }
+                }
+            } catch (error) {
+                // 初始化权限失败 - 默认隐藏所有按钮
+                this.buttonVisibility = {
+                    edit: false,
+                    approve: false,
+                    reject: false,
+                    markAsAd: false,
+                    markAsTail: false,
+                    executeFilter: false,
+                    refetchMedia: false
+                };
+            }
+        },
+        
         async loadChannelInfo() {
             try {
                 const response = await axios.get('/api/messages/channel-info');
@@ -1187,27 +1255,55 @@ const MainApp = {
         
         // 检查媒体文件是否存在
         mediaExists(message) {
-            // 检查媒体URL是否存在且有效
-            if (!message.media_url) return false;
-            
             // 对于组合消息，检查媒体组
             if (message.is_combined && message.media_group_display) {
-                return message.media_group_display.some(media => media.display_url);
+                // 检查是否有任何媒体实际显示（通过检查img/video元素是否加载成功）
+                return message.media_group_display.some(media => 
+                    media.display_url && media.display_url.trim() !== ''
+                );
             }
             
-            // 对于单个媒体，检查display_url
-            return !!message.display_url;
+            // 对于单个媒体，不能仅凭URL判断，需要结合实际显示情况
+            // 如果有display_url但图片没有实际显示，说明文件不存在
+            if (!message.media_display_url || message.media_display_url.trim() === '') {
+                return false;
+            }
+            
+            // 特殊处理：对于图片类型，如果页面上没有显示图片（显示的是占位符），则认为不存在
+            if (message.media_type === 'photo') {
+                // 通过Vue的nextTick来检查图片是否真的加载了
+                // 但这里我们简化处理：如果有URL就暂时认为存在，让浏览器通过onerror来处理
+                return true; // 这会被图片加载失败事件覆盖
+            }
+            
+            return true;
+        },
+        
+        // 处理图片加载错误
+        handleImageError(message, event) {
+            // 静默处理，不输出日志避免控制台噪音
+            // console.log(`图片加载失败: 消息 #${message.id}`);
+            
+            // 标记媒体为不存在，触发补抓按钮显示
+            if (!message._mediaLoadFailed) {
+                message._mediaLoadFailed = true;
+            }
+            
+            // 阻止错误冒泡到控制台
+            if (event) {
+                event.preventDefault();
+            }
         },
         
         // 补抓媒体文件
         async refetchMedia(message) {
             try {
                 // 设置加载状态
-                Vue.set(this.refetchingMedia, message.id, true);
+                this.refetchingMedia[message.id] = true;
                 
                 // 确认操作
                 if (!confirm(`确定要重新下载消息 #${message.id} 的媒体文件吗？`)) {
-                    Vue.delete(this.refetchingMedia, message.id);
+                    delete this.refetchingMedia[message.id];
                     return;
                 }
                 
@@ -1239,7 +1335,7 @@ const MainApp = {
                 MessageManager.error('补抓失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 // 清除加载状态
-                Vue.delete(this.refetchingMedia, message.id);
+                delete this.refetchingMedia[message.id];
             }
         },
         

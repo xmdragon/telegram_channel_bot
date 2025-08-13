@@ -27,11 +27,20 @@ async def init_permissions():
         {"name": "channels.add", "module": "channels", "action": "add", "description": "添加频道"},
         {"name": "channels.edit", "module": "channels", "action": "edit", "description": "编辑频道"},
         {"name": "channels.delete", "module": "channels", "action": "delete", "description": "删除频道"},
+        {"name": "channels.refetch", "module": "channels", "action": "refetch", "description": "补抓消息"},
         
-        # 训练管理
+        # 训练管理（细化）
         {"name": "training.view", "module": "training", "action": "view", "description": "查看训练数据"},
-        {"name": "training.submit", "module": "training", "action": "submit", "description": "提交训练数据"},
+        {"name": "training.submit", "module": "training", "action": "submit", "description": "提交训练数据"},  # 保留兼容性
+        {"name": "training.mark_ad", "module": "training", "action": "mark_ad", "description": "标记为广告"},
+        {"name": "training.mark_tail", "module": "training", "action": "mark_tail", "description": "标记尾部内容"},
         {"name": "training.manage", "module": "training", "action": "manage", "description": "管理训练数据"},
+        
+        # 过滤管理（新增）
+        {"name": "filter.view", "module": "filter", "action": "view", "description": "查看过滤规则"},
+        {"name": "filter.add_keyword", "module": "filter", "action": "add_keyword", "description": "添加过滤关键词"},
+        {"name": "filter.execute", "module": "filter", "action": "execute", "description": "执行过滤操作"},
+        {"name": "filter.manage", "module": "filter", "action": "manage", "description": "管理过滤规则"},
         
         # 系统管理
         {"name": "system.view_status", "module": "system", "action": "view_status", "description": "查看系统状态"},

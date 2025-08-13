@@ -1,0 +1,346 @@
+{
+  "timestamp": "2025-08-13T14:34:55.949027",
+  "permissions": [
+    {
+      "id": 1,
+      "name": "messages.view",
+      "module": "messages",
+      "action": "view",
+      "description": "查看消息"
+    },
+    {
+      "id": 2,
+      "name": "messages.approve",
+      "module": "messages",
+      "action": "approve",
+      "description": "批准消息"
+    },
+    {
+      "id": 3,
+      "name": "messages.reject",
+      "module": "messages",
+      "action": "reject",
+      "description": "拒绝消息"
+    },
+    {
+      "id": 4,
+      "name": "messages.edit",
+      "module": "messages",
+      "action": "edit",
+      "description": "编辑消息"
+    },
+    {
+      "id": 5,
+      "name": "messages.delete",
+      "module": "messages",
+      "action": "delete",
+      "description": "删除消息"
+    },
+    {
+      "id": 6,
+      "name": "config.view",
+      "module": "config",
+      "action": "view",
+      "description": "查看配置"
+    },
+    {
+      "id": 7,
+      "name": "config.edit",
+      "module": "config",
+      "action": "edit",
+      "description": "修改配置"
+    },
+    {
+      "id": 8,
+      "name": "channels.view",
+      "module": "channels",
+      "action": "view",
+      "description": "查看频道"
+    },
+    {
+      "id": 9,
+      "name": "channels.add",
+      "module": "channels",
+      "action": "add",
+      "description": "添加频道"
+    },
+    {
+      "id": 10,
+      "name": "channels.edit",
+      "module": "channels",
+      "action": "edit",
+      "description": "编辑频道"
+    },
+    {
+      "id": 11,
+      "name": "channels.delete",
+      "module": "channels",
+      "action": "delete",
+      "description": "删除频道"
+    },
+    {
+      "id": 12,
+      "name": "training.view",
+      "module": "training",
+      "action": "view",
+      "description": "查看训练数据"
+    },
+    {
+      "id": 13,
+      "name": "training.submit",
+      "module": "training",
+      "action": "submit",
+      "description": "提交训练数据"
+    },
+    {
+      "id": 14,
+      "name": "training.manage",
+      "module": "training",
+      "action": "manage",
+      "description": "管理训练数据"
+    },
+    {
+      "id": 15,
+      "name": "system.view_status",
+      "module": "system",
+      "action": "view_status",
+      "description": "查看系统状态"
+    },
+    {
+      "id": 16,
+      "name": "system.view_logs",
+      "module": "system",
+      "action": "view_logs",
+      "description": "查看系统日志"
+    },
+    {
+      "id": 17,
+      "name": "system.restart",
+      "module": "system",
+      "action": "restart",
+      "description": "重启系统"
+    },
+    {
+      "id": 18,
+      "name": "admin.manage_users",
+      "module": "admin",
+      "action": "manage_users",
+      "description": "管理用户"
+    },
+    {
+      "id": 19,
+      "name": "admin.manage_permissions",
+      "module": "admin",
+      "action": "manage_permissions",
+      "description": "管理权限"
+    }
+  ],
+  "admin_permissions": [
+    {
+      "admin_id": 1,
+      "permission_id": 1,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923759"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 2,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923795"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 3,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923808"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 4,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923816"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 5,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923825"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 6,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923832"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 7,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923839"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 8,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923845"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 9,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923852"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 10,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923858"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 11,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923865"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 12,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923872"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 13,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923879"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 14,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923885"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 15,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923892"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 16,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923898"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 17,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923904"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 18,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923910"
+    },
+    {
+      "admin_id": 1,
+      "permission_id": 19,
+      "granted_by": null,
+      "granted_at": "2025-08-11T04:13:31.923917"
+    },
+    {
+      "admin_id": 14,
+      "permission_id": 1,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.553524"
+    },
+    {
+      "admin_id": 14,
+      "permission_id": 2,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.553548"
+    },
+    {
+      "admin_id": 14,
+      "permission_id": 3,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.553561"
+    },
+    {
+      "admin_id": 14,
+      "permission_id": 6,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.553570"
+    },
+    {
+      "admin_id": 14,
+      "permission_id": 7,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.553583"
+    },
+    {
+      "admin_id": 15,
+      "permission_id": 1,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.745980"
+    },
+    {
+      "admin_id": 15,
+      "permission_id": 2,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.746005"
+    },
+    {
+      "admin_id": 15,
+      "permission_id": 3,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.746016"
+    },
+    {
+      "admin_id": 16,
+      "permission_id": 1,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.929302"
+    },
+    {
+      "admin_id": 16,
+      "permission_id": 12,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.929326"
+    },
+    {
+      "admin_id": 16,
+      "permission_id": 15,
+      "granted_by": 1,
+      "granted_at": "2025-08-11T06:42:33.929338"
+    }
+  ],
+  "admins": [
+    {
+      "id": 1,
+      "username": "admin",
+      "is_super_admin": true,
+      "is_active": true
+    },
+    {
+      "id": 14,
+      "username": "运营经理",
+      "is_super_admin": false,
+      "is_active": true
+    },
+    {
+      "id": 15,
+      "username": "内容审核员",
+      "is_super_admin": false,
+      "is_active": true
+    },
+    {
+      "id": 16,
+      "username": "数据分析师",
+      "is_super_admin": false,
+      "is_active": true
+    }
+  ]
+}
