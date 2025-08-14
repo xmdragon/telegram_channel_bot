@@ -791,8 +791,20 @@
       "hash": "fe8536a2d93c487408e70b1ea5fd2dbf",
       "source": "user_feedback",
       "added_at": "2025-08-14T20:59:52.969734"
+    },
+    {
+      "content": "这是一个测试广告样本",
+      "hash": "f98b6e98365e032b89a901e302270aec",
+      "source": "user_feedback",
+      "added_at": "2025-08-14T20:59:52.971673"
+    },
+    {
+      "content": "测试广告内容",
+      "hash": "8c7b8367dcf84db48932f50bb7e22eee",
+      "source": "user_feedback",
+      "added_at": "2025-08-15T01:14:43.937204"
     }
   ],
-  "updated_at": "2025-08-15T01:52:47.199259",
+  "updated_at": "2025-08-15T01:51:57.842656",
   "normalized": true
 }

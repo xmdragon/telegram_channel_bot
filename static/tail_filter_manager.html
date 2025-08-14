@@ -143,8 +143,8 @@
                     
                     <el-table-column label="尾部内容" min-width="400">
                         <template #default="scope">
-                            <div v-if="scope.row.tail_part" class="content-preview" @click="showDetail(scope.row)" style="cursor: pointer; color: #409EFF;">
-                                {{ truncateText(scope.row.tail_part, 100) }}
+                            <div v-if="scope.row.tail_content" class="content-preview" @click="showDetail(scope.row)" style="cursor: pointer; color: #409EFF;">
+                                {{ truncateText(scope.row.tail_content, 100) }}
                             </div>
                             <span v-else>-</span>
                         </template>
@@ -189,10 +189,10 @@
                     <el-descriptions-item label="创建时间">{{ formatTime(currentSample.created_at) }}</el-descriptions-item>
                 </el-descriptions>
                 
-                <div v-if="currentSample.tail_part">
+                <div v-if="currentSample.tail_content">
                     <el-divider></el-divider>
                     <h4>完整尾部内容：</h4>
-                    <div class="detail-content" style="white-space: pre-line; background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #409EFF; font-family: 'Consolas', 'Monaco', monospace;">{{ currentSample.tail_part }}</div>
+                    <div class="detail-content" style="white-space: pre-line; background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #409EFF; font-family: 'Consolas', 'Monaco', monospace;">{{ currentSample.tail_content }}</div>
                 </div>
             </div>
         </el-dialog>

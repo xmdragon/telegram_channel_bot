@@ -209,10 +209,8 @@ const TrainApp = {
                 // 数据管理模式，加载统计信息
                 await this.loadTrainingDataStats();
             } else {
-                // 尾部过滤训练 - 不再加载统计和历史数据
-                // 只加载频道列表（如果需要）
-                // await this.loadChannels();
-                // 不需要加载统计和历史
+                // 尾部过滤训练模式
+                await this.loadStats();  // 加载统计信息
             }
         },
         
@@ -276,9 +274,7 @@ const TrainApp = {
         // 加载广告样本
         async loadAdSamples() {
             try {
-                const response = await axios.get('/api/training/ad-samples', {
-                    params: { limit: 20 }
-                });
+                const response = await axios.get('/api/training/tail-ad-samples');
                 // 处理广告样本数据
                 // console.log('广告样本:', response.data);
             } catch (error) {
@@ -295,10 +291,12 @@ const TrainApp = {
             
             this.submitting = true;
             try {
-                const response = await axios.post('/api/training/add-ad-sample', {
+                const response = await axios.post('/api/training/tail-ad-samples', {
                     content: this.adTrainingForm.content,
-                    is_ad: this.adTrainingForm.is_ad,
-                    description: this.adTrainingForm.description
+                    description: this.adTrainingForm.description,
+                    separator: '',  // 广告样本暂时不需要分隔符
+                    normalPart: this.adTrainingForm.is_ad ? '' : this.adTrainingForm.content,
+                    adPart: this.adTrainingForm.is_ad ? this.adTrainingForm.content : ''
                 });
                 
                 if (response.data.success) {
@@ -594,10 +592,22 @@ const TrainApp = {
         // 加载训练数据统计
         async loadTrainingDataStats() {
             try {
-                const response = await axios.get('/api/training/statistics');
-                this.trainingDataStats = response.data;
+                const response = await axios.get('/api/training/stats');
+                // 适配API返回的数据结构
+                this.trainingDataStats = {
+                    totalSamples: response.data.totalSamples || 0,
+                    uniqueSamples: response.data.totalChannels || 0,
+                    mediaFiles: 0,  // 暂时不统计媒体文件
+                    storageSize: 0  // 暂时不统计存储空间
+                };
             } catch (error) {
                 // console.error('加载训练数据统计失败:', error);
+                this.trainingDataStats = {
+                    totalSamples: 0,
+                    uniqueSamples: 0,
+                    mediaFiles: 0,
+                    storageSize: 0
+                };
             }
         },
 

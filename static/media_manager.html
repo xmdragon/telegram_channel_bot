@@ -132,7 +132,7 @@
                                 <div class="media-name" :title="file.name">{{ file.name }}</div>
                                 <div class="media-size">{{ formatSize(file.size) }}</div>
                                 <div class="reference-info">
-                                    引用: {{ file.messageIds.length }} 个样本
+                                    引用: {{ (file.messageIds && file.messageIds.length) || 0 }} 个样本
                                 </div>
                             </div>
                             
@@ -179,7 +179,7 @@
                             <span>正在识别图片内容...</span>
                         </div>
                         <div v-else-if="currentFile.ocrResult" class="ocr-result">
-                            <div v-if="currentFile.ocrResult.texts && currentFile.ocrResult.texts.length > 0" class="ocr-section">
+                            <div v-if="currentFile.ocrResult && currentFile.ocrResult.texts && currentFile.ocrResult.texts.length > 0" class="ocr-section">
                                 <strong>识别文字 ({{ currentFile.ocrResult.texts.length }}条):</strong>
                                 <div class="ocr-text-list">
                                     <el-tag v-for="(text, index) in currentFile.ocrResult.texts" :key="index" 
@@ -188,7 +188,7 @@
                                     </el-tag>
                                 </div>
                             </div>
-                            <div v-if="currentFile.ocrResult.qr_codes && currentFile.ocrResult.qr_codes.length > 0" class="ocr-section">
+                            <div v-if="currentFile.ocrResult && currentFile.ocrResult.qr_codes && currentFile.ocrResult.qr_codes.length > 0" class="ocr-section">
                                 <strong>二维码内容 ({{ currentFile.ocrResult.qr_codes.length }}个):</strong>
                                 <div class="ocr-text-list">
                                     <el-tag v-for="(qr, index) in currentFile.ocrResult.qr_codes" :key="index" 
@@ -206,7 +206,7 @@
                                     <el-icon color="red"><Warning /></el-icon> 疑似广告
                                 </span>
                             </div>
-                            <div v-if="currentFile.ocrResult.ad_indicators && currentFile.ocrResult.ad_indicators.length > 0" class="ocr-section">
+                            <div v-if="currentFile.ocrResult && currentFile.ocrResult.ad_indicators && currentFile.ocrResult.ad_indicators.length > 0" class="ocr-section">
                                 <strong>广告特征:</strong>
                                 <div class="ocr-text-list">
                                     <el-tag v-for="(indicator, index) in currentFile.ocrResult.ad_indicators" :key="index" 
@@ -215,7 +215,8 @@
                                     </el-tag>
                                 </div>
                             </div>
-                            <div v-if="(!currentFile.ocrResult.texts || currentFile.ocrResult.texts.length === 0) && 
+                            <div v-if="currentFile.ocrResult && 
+                                     (!currentFile.ocrResult.texts || currentFile.ocrResult.texts.length === 0) && 
                                      (!currentFile.ocrResult.qr_codes || currentFile.ocrResult.qr_codes.length === 0)" class="ocr-empty">
                                 <el-icon><InfoFilled /></el-icon>
                                 <span>未识别到文字或二维码内容</span>
@@ -272,7 +273,7 @@
                         </p>
                     </div>
                     
-                    <div v-if="optimizeProgress.errors.length > 0" class="error-list">
+                    <div v-if="optimizeProgress.errors && optimizeProgress.errors.length > 0" class="error-list">
                         <el-alert
                             title="处理错误"
                             type="warning"

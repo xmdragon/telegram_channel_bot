@@ -83,8 +83,16 @@ const app = createApp({
         // 加载统计信息
         async loadStatistics() {
             try {
-                const response = await axios.get('/api/training/statistics');
-                this.stats = response.data;
+                const response = await axios.get('/api/training/ad-statistics');
+                if (response.data.success) {
+                    this.stats = {
+                        totalSamples: response.data.total_samples,
+                        adSamples: response.data.ad_samples,
+                        normalSamples: response.data.normal_samples,
+                        todayAdded: response.data.today_added,
+                        accuracy: response.data.accuracy
+                    };
+                }
             } catch (error) {
                 // console.error('加载统计信息失败:', error);
             }
@@ -110,6 +118,13 @@ const app = createApp({
         // 删除单个样本
         async deleteSample(sample) {
             try {
+                // 现在所有样本都有统一的样本ID
+                const sampleId = sample.id;
+                if (!sampleId) {
+                    ElMessage.error('样本ID缺失，无法删除');
+                    return;
+                }
+                
                 await ElMessageBox.confirm(
                     '确定要删除这个广告训练样本吗？',
                     '确认删除',
@@ -120,14 +135,18 @@ const app = createApp({
                     }
                 );
                 
-                await axios.delete(`/api/training/ad-samples/${sample.id}`);
+                const response = await axios.delete(`/api/training/ad-samples/${sampleId}`);
                 
-                ElMessage.success('删除成功');
+                if (response.data.success) {
+                    ElMessage.success('删除成功');
+                } else {
+                    ElMessage.warning(response.data.message || '删除可能失败');
+                }
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('删除失败:', error);
-                    ElMessage.error('删除失败');
+                    console.error('删除失败:', error);
+                    ElMessage.error('删除失败: ' + (error.response?.data?.message || error.message));
                 }
             }
         },
@@ -147,7 +166,11 @@ const app = createApp({
                     }
                 );
                 
-                const ids = this.selectedSamples.map(s => s.id);
+                const ids = this.selectedSamples.map(s => s.id).filter(id => id);
+                if (ids.length === 0) {
+                    ElMessage.error('所选样本ID缺失，无法删除');
+                    return;
+                }
                 await axios.delete('/api/training/ad-samples/batch', { data: { ids } });
                 
                 ElMessage.success('批量删除成功');
@@ -167,16 +190,23 @@ const app = createApp({
             
             try {
                 const response = await axios.post('/api/training/ad-samples/detect-duplicates');
-                this.duplicateGroups = response.data.groups;
-                this.duplicateSamplesCount = response.data.total_duplicates;
                 
-                if (!this.duplicateGroups.length) {
-                    ElMessage.info('没有发现重复的样本');
+                // 检查API响应是否成功
+                if (response.data.success) {
+                    this.duplicateGroups = response.data.groups || [];
+                    this.duplicateSamplesCount = response.data.total_duplicates || 0;
+                    
+                    if (!this.duplicateGroups.length) {
+                        ElMessage.info('没有发现重复的样本');
+                        this.duplicateDialog = false;
+                    }
+                } else {
+                    ElMessage.error('检测重复失败: ' + (response.data.error || '未知错误'));
                     this.duplicateDialog = false;
                 }
             } catch (error) {
-                // console.error('检测重复失败:', error);
-                ElMessage.error('检测重复失败');
+                console.error('检测重复失败:', error);
+                ElMessage.error('检测重复失败: ' + (error.response?.data?.message || error.message));
                 this.duplicateDialog = false;
             } finally {
                 this.duplicateLoading = false;
@@ -199,7 +229,10 @@ const app = createApp({
                 this.duplicateGroups.forEach(group => {
                     group.samples.forEach(sample => {
                         if (!sample.keep) {
-                            toDelete.push(sample.id);
+                            const sampleId = sample.id;
+                            if (sampleId) {
+                                toDelete.push(sampleId);
+                            }
                         }
                     });
                 });
@@ -220,7 +253,7 @@ const app = createApp({
                 );
                 
                 const response = await axios.post('/api/training/ad-samples/deduplicate', {
-                    to_delete: toDelete
+                    remove_ids: toDelete
                 });
                 
                 ElMessage.success(response.data.message);
@@ -257,36 +290,6 @@ const app = createApp({
                 if (error !== 'cancel') {
                     // console.error('优化存储失败:', error);
                     ElMessage.error('优化存储失败');
-                }
-            }
-        },
-        
-        // 打开媒体文件管理
-        openMediaManager() {
-            window.open('/static/media_manager.html', '_blank');
-        },
-        
-        // 重载模型
-        async reloadModel() {
-            try {
-                await ElMessageBox.confirm(
-                    '重新加载训练数据到AI模型，这将刷新所有缓存的训练数据。是否继续？',
-                    '重载模型',
-                    {
-                        confirmButtonText: '确定重载',
-                        cancelButtonText: '取消',
-                        type: 'info',
-                    }
-                );
-                
-                ElMessage.info('正在重载模型...');
-                const response = await axios.post('/api/training/reload-model');
-                
-                ElMessage.success(response.data.message || '模型重载成功');
-            } catch (error) {
-                if (error !== 'cancel') {
-                    // console.error('重载模型失败:', error);
-                    ElMessage.error('重载模型失败');
                 }
             }
         },

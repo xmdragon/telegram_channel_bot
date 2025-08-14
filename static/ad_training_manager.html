@@ -75,14 +75,6 @@
                                 <el-icon><FolderOpened /></el-icon>
                                 优化存储
                             </el-button>
-                            <el-button @click="reloadModel" type="success" class="btn-success">
-                                <el-icon><Refresh /></el-icon>
-                                重载模型
-                            </el-button>
-                            <el-button @click="openMediaManager" type="primary" class="btn-primary">
-                                <el-icon><Picture /></el-icon>
-                                媒体管理
-                            </el-button>
                             <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
                                 <el-icon><Delete /></el-icon>
                                 批量删除 ({{ selectedSamples.length }})

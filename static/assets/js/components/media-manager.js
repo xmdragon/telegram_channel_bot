@@ -65,10 +65,10 @@ const app = createApp({
                     files = files.filter(f => f.type === 'video');
                     break;
                 case 'referenced':
-                    files = files.filter(f => f.messageIds.length > 0);
+                    files = files.filter(f => f.messageIds && f.messageIds.length > 0);
                     break;
                 case 'orphaned':
-                    files = files.filter(f => f.messageIds.length === 0);
+                    files = files.filter(f => !f.messageIds || f.messageIds.length === 0);
                     break;
             }
             
@@ -459,6 +459,9 @@ const app = createApp({
                                     break;
                                     
                                 case 'file_error':
+                                    if (!this.optimizeProgress.errors) {
+                                        this.optimizeProgress.errors = [];
+                                    }
                                     this.optimizeProgress.errors.push(`${data.file}: ${data.error}`);
                                     break;
                                     

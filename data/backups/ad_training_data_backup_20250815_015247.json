@@ -791,8 +791,14 @@
       "hash": "fe8536a2d93c487408e70b1ea5fd2dbf",
       "source": "user_feedback",
       "added_at": "2025-08-14T20:59:52.969734"
+    },
+    {
+      "content": "测试广告内容",
+      "hash": "8c7b8367dcf84db48932f50bb7e22eee",
+      "source": "user_feedback",
+      "added_at": "2025-08-15T01:14:43.937204"
     }
   ],
-  "updated_at": "2025-08-15T01:52:47.199259",
+  "updated_at": "2025-08-15T01:52:44.139361",
   "normalized": true
 }

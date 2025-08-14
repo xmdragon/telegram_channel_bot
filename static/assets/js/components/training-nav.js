@@ -13,7 +13,6 @@ const TrainingNav = {
                 { key: 'tail', label: '尾部过滤训练', url: '/static/tail_filter_manager.html' },
                 { key: 'ad', label: '广告检测训练', url: '/static/ad_training_manager.html' },
                 { key: 'separator', label: '分隔符配置', url: '/static/train.html?mode=separator' },
-                { key: 'data', label: '数据管理', url: '/static/train.html?mode=data' },
                 { key: 'media', label: '媒体文件管理', url: '/static/media_manager.html' }
             ]
         };

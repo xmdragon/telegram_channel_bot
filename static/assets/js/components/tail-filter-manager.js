@@ -146,6 +146,7 @@ const app = createApp({
         
         // 显示详情
         showDetail(sample) {
+            console.log('🔍 显示详情:', sample);
             this.currentSample = sample;
             this.detailDialog = true;
         },
