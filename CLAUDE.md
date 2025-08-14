@@ -86,14 +86,21 @@ git log --oneline -1
 - **必须包含**: 详细的变更列表
 - **必须添加**: Claude Code标识和Co-Authored-By
 
-#### ⚠️ 新Session自动检查系统：
-```bash
-# 每次新session开始时运行
-./.claude_session_init.sh
+#### 🤖 Claude自动执行规则：
+**重要：Claude在每个新session开始时必须自动运行初始化检查！**
 
-# 完成重要修改后检查
-python3 .claude_commit_reminder.py
-```
+1. **Session开始时自动执行**：
+   ```bash
+   ./.claude_session_init.sh  # 必须第一时间运行
+   ```
+
+2. **完成任何代码修改后自动执行**：
+   ```bash
+   python3 .claude_commit_reminder.py  # 检查是否需要提交
+   python3 auto_commit.py              # 如有修改则自动提交
+   ```
+
+3. **无需用户提醒**：Claude应主动检查和提交，不等待用户指示
 
 #### 🎮 一键智能提交命令：
 ```bash
