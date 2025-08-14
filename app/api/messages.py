@@ -93,22 +93,26 @@ async def get_messages(
     try:
         redis_store = get_redis_message_store()
         
-        # 获取所有消息（简化版，完整版需要在Redis中实现复杂过滤）
+        # 实现完整的消息查询功能
         if source_channel:
             # 从指定频道获取消息
             all_messages = redis_store.get_messages_by_channel(
                 source_channel, 
-                limit=size * 10,  # 获取更多数据用于过滤
-                offset=0
+                limit=size * 20  # 获取更多数据用于过滤和分页
             )
         else:
-            # 获取待审核消息（主要场景）
-            if status == "pending" or status is None:
-                all_messages = redis_store.get_pending_messages(limit=size * 10)
+            # 根据状态获取消息
+            if status == "pending":
+                all_messages = redis_store.get_pending_messages(limit=size * 20)
+            elif status == "approved":
+                all_messages = redis_store.get_messages_by_status("approved", limit=size * 20)
+            elif status == "rejected":
+                all_messages = redis_store.get_messages_by_status("rejected", limit=size * 20)
+            elif status == "forwarded":
+                all_messages = redis_store.get_messages_by_status("forwarded", limit=size * 20)
             else:
-                # 对于其他状态，需要实现更复杂的查询逻辑
-                # 暂时返回待审核消息
-                all_messages = redis_store.get_pending_messages(limit=size * 10)
+                # 无状态过滤或其他状态，获取所有消息
+                all_messages = redis_store.get_all_messages(limit=size * 20)
         
         # 应用过滤条件
         filtered_messages = []
@@ -612,179 +616,91 @@ async def reject_message(
 
 @router.post("/{message_id}/publish")
 async def publish_message(
-    message_id: int,
-    db: AsyncSession = Depends(get_db)
+    message_id: str,
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """发布消息到目标频道"""
-    result = await db.execute(
-        select(Message).where(Message.id == message_id)
-    )
-    message = result.scalar_one_or_none()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    # 转发到目标频道
     try:
-        # 使用独立的客户端连接
-        from telethon import TelegramClient
-        from telethon.sessions import StringSession
-        from app.services.config_manager import config_manager
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        # 获取认证信息
-        api_id = await config_manager.get_config('telegram.api_id')
-        api_hash = await config_manager.get_config('telegram.api_hash')
-        string_session = await config_manager.get_config('telegram.session', '')
+        # 获取消息
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
         
-        if not all([api_id, api_hash, string_session]):
-            return {"success": False, "message": "Telegram认证信息不完整"}
+        # 直接使用批准接口的功能，该接口已经包含了转发功能
+        return await approve_message(message_id, None, {"username": "Web用户"}, message_processor)
         
-        # 创建临时客户端
-        client = TelegramClient(StringSession(string_session), int(api_id), api_hash)
-        await client.connect()
-        
-        try:
-            # 更新状态
-            message.status = "approved"
-            message.reviewed_by = "Web用户"
-            message.review_time = get_current_time()
-            
-            # 获取目标频道配置
-            target_channel_config = await config_manager.get_config('channels.target_channel_id')
-            if not target_channel_config:
-                return {"success": False, "message": "未配置目标频道"}
-            
-            # 获取缓存的ID或解析频道
-            target_channel_id_cached = await config_manager.get_config('channels.target_channel_id_cached', '')
-            
-            # 如果有缓存的ID，直接使用
-            if target_channel_id_cached and target_channel_id_cached.lstrip('-').isdigit():
-                target_entity = int(target_channel_id_cached)
-            else:
-                # 解析频道用户名或ID
-                try:
-                    if target_channel_config.lstrip('-').isdigit():
-                        # 如果是数字ID
-                        target_entity = int(target_channel_config)
-                    else:
-                        # 如果是用户名，获取实体
-                        target_entity = await client.get_entity(target_channel_config)
-                        # 缓存解析的ID
-                        if hasattr(target_entity, 'id'):
-                            resolved_id = f"-100{target_entity.id}" if hasattr(target_entity, 'broadcast') and target_entity.broadcast else str(target_entity.id)
-                            await config_manager.set_config('channels.target_channel_id_cached', resolved_id, '目标频道解析后的ID', 'string')
-                except Exception as e:
-                    return {"success": False, "message": f"解析目标频道失败: {str(e)}"}
-            
-            # 发送消息
-            if message.media_type and message.media_url and os.path.exists(message.media_url):
-                # 发送带媒体的消息
-                sent_message = await client.send_file(
-                    entity=target_entity,
-                    file=message.media_url,
-                    caption=message.filtered_content or message.content
-                )
-            else:
-                # 发送纯文本消息
-                sent_message = await client.send_message(
-                    entity=target_entity,
-                    message=message.filtered_content or message.content
-                )
-            
-            if sent_message:
-                message.target_message_id = sent_message.id
-                message.forwarded_time = get_current_time()
-            
-            await db.commit()
-            
-            # 更新审核群中的消息状态（标记为已发布）
-            if message.review_message_id:
-                try:
-                    # 获取审核群ID
-                    review_group_id = await config_manager.get_config('channels.review_group_id_cached', '')
-                    if not review_group_id:
-                        review_group_id = await config_manager.get_config('channels.review_group_id', '')
-                    
-                    if review_group_id:
-                        # 编辑审核群消息，添加已发布标记
-                        original_text = message.filtered_content or message.content
-                        updated_text = f"✅ [已发布]\n\n{original_text}"
-                        
-                        await client.edit_message(
-                            entity=int(review_group_id) if review_group_id.lstrip('-').isdigit() else review_group_id,
-                            message=message.review_message_id,
-                            text=updated_text
-                        )
-                except Exception as e:
-                    # 更新审核群消息失败不影响主流程
-                    print(f"更新审核群消息失败: {e}")
-            
-            # 清理媒体文件
-            if message.media_url and os.path.exists(message.media_url):
-                try:
-                    os.remove(message.media_url)
-                except:
-                    pass
-            
-            return {"success": True, "message": "消息已发布到目标频道"}
-            
-        finally:
-            await client.disconnect()
-            
+    except HTTPException:
+        raise
     except Exception as e:
-        await db.rollback()
-        return {"success": False, "message": f"发布失败: {str(e)}"}
+        logger.error(f"发布消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"发布失败: {str(e)}")
 
 @router.post("/{message_id}/edit-publish")
 async def edit_and_publish_message(
-    message_id: int,
+    message_id: str,
     request: dict,
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.edit"))
+    user: Dict[str, Any] = Depends(check_permission("messages.edit")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """编辑消息内容"""
     try:
-        result = await db.execute(
-            select(Message).where(Message.id == message_id)
-        )
-        message = result.scalar_one_or_none()
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        if not message:
+        # 获取消息
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 更新消息内容
         new_content = request.get("content", "").strip()
         
         # 检查是否有媒体文件
-        has_media = bool(message.media_type and message.media_url) or bool(message.is_combined and message.media_group)
+        has_media = bool(msg_data.get('media_type') and msg_data.get('media_url')) or bool(msg_data.get('is_combined') and msg_data.get('media_group'))
         
         # 如果没有媒体文件且内容为空，返回错误
         if not new_content and not has_media:
             return {"success": False, "message": "纯文本消息内容不能为空"}
         
-        # 更新filtered_content字段
-        message.filtered_content = new_content
+        # 更新Redis中的数据
+        redis_store = get_redis_message_store()
+        msg_key = f"msg:{channel_id}:{msg_id}"
+        update_data = {
+            'filtered_content': new_content,
+            'updated_at': get_current_time().isoformat()
+        }
+        redis_store.redis.hset(msg_key, mapping=update_data)
         
-        # 保存到数据库
-        await db.commit()
-        logger.info(f"消息 {message_id} 内容已更新到数据库")
+        logger.info(f"消息 {message_id} 内容已更新")
         
         # 尝试更新审核群消息（如果存在）
-        if message.review_message_id:
+        review_message_id = msg_data.get('review_message_id')
+        if review_message_id:
             try:
                 from app.telegram.bot import telegram_bot
                 if telegram_bot and telegram_bot.client:
-                    # 使用异步任务更新审核群，避免阻塞
-                    import asyncio
-                    asyncio.create_task(telegram_bot.update_review_message(message))
-                    logger.info(f"已安排更新消息 {message_id} 到审核群")
+                    # 更新消息数据后传给update_review_message
+                    updated_msg_data = dict(msg_data)
+                    updated_msg_data['filtered_content'] = new_content
+                    await telegram_bot.update_review_message(updated_msg_data)
+                    logger.info(f"已更新消息 {message_id} 到审核群")
             except Exception as e:
                 logger.warning(f"更新审核群消息失败，但不影响编辑: {e}")
         
         return {"success": True, "message": "消息已编辑", "content": new_content}
         
+    except HTTPException:
+        raise
     except Exception as e:
-        await db.rollback()
         logger.error(f"编辑消息 {message_id} 失败: {e}", exc_info=True)
         return {"success": False, "message": f"编辑失败: {str(e)}"}
 
@@ -872,20 +788,21 @@ async def refetch_media(
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 检查是否有媒体
-        if not message.media_type:
+        if not msg_data.get('media_type'):
             return {
                 "success": False,
                 "message": "该消息没有媒体文件"
             }
         
         # 检查媒体文件是否已存在
-        if message.media_url and os.path.exists(message.media_url):
-            file_size = os.path.getsize(message.media_url)
+        media_url = msg_data.get('media_url')
+        if media_url and os.path.exists(media_url):
+            file_size = os.path.getsize(media_url)
             if file_size > 0:
                 return {
                     "success": True,
                     "message": "媒体文件已存在",
-                    "media_url": message.media_url,
+                    "media_url": media_url,
                     "file_size": file_size,
                     "skipped": True
                 }
@@ -903,10 +820,10 @@ async def refetch_media(
         # 获取原始消息
         try:
             # 尝试从源频道获取消息
-            source_entity = await client.get_entity(int(message.source_channel))
+            source_entity = await client.get_entity(int(msg_data['source_channel']))
             original_msg = await client.get_messages(
                 entity=source_entity,
-                ids=message.message_id
+                ids=int(msg_data['message_id'])
             )
             
             if not original_msg or not original_msg.media:
@@ -927,27 +844,31 @@ async def refetch_media(
             )
             
             if media_info and media_info.get("file_path"):
-                # 更新数据库记录
-                message.media_url = media_info["file_path"]
-                message.media_type = media_info.get("media_type", message.media_type)
-                message.media_hash = media_info.get("hash")
-                message.visual_hash = str(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else None
-                
-                await db.commit()
+                # 更新Redis记录
+                redis_store = get_redis_message_store()
+                msg_key = f"msg:{channel_id}:{msg_id}"
+                update_data = {
+                    'media_url': media_info["file_path"],
+                    'media_type': media_info.get("media_type", msg_data.get('media_type')),
+                    'media_hash': media_info.get("hash", ''),
+                    'visual_hash': str(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else '',
+                    'updated_at': get_current_time().isoformat()
+                }
+                redis_store.redis.hset(msg_key, mapping=update_data)
                 
                 logger.info(f"成功补抓媒体: {media_info['file_path']} ({media_info['file_size']} bytes)")
                 
                 # 如果是广告，自动保存到训练数据目录并更新图片索引
-                if message.is_ad:
+                if msg_data.get('is_ad'):
                     try:
                         from app.services.training_media_manager import training_media_manager
                         from app.services.ad_image_detector import ad_image_detector
                         
                         saved_path = await training_media_manager.save_training_media(
                             source_path=media_info["file_path"],
-                            message_id=message.id,
+                            message_id=f"{channel_id}:{msg_id}",
                             media_type=media_info["media_type"],
-                            channel_id=message.source_channel,
+                            channel_id=channel_id,
                             is_ad=True
                         )
                         if saved_path:
@@ -958,8 +879,8 @@ async def refetch_media(
                                 await ad_image_detector.add_ad_image(
                                     saved_path,
                                     metadata={
-                                        'message_id': message.id,
-                                        'channel_id': message.source_channel
+                                        'message_id': f"{channel_id}:{msg_id}",
+                                        'channel_id': channel_id
                                     }
                                 )
                                 logger.info(f"广告图片已添加到检测索引")

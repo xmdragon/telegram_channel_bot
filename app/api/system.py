@@ -10,12 +10,10 @@ import platform
 import json
 import subprocess
 from datetime import datetime, timedelta
-from sqlalchemy import select, func
-from typing import List
-
 from app.services.system_monitor import system_monitor
 from app.services.history_collector import history_collector
-from app.core.database import AsyncSessionLocal, Message, Channel
+from app.storage.redis_store import get_redis_message_store
+from app.storage.json_store import get_json_channel_store
 from app.telegram.auth import auth_manager
 
 logger = logging.getLogger(__name__)
@@ -31,18 +29,28 @@ async def get_system_status() -> Dict[str, Any]:
         # 计算运行时间
         uptime_seconds = (datetime.now() - START_TIME).total_seconds()
         
-        # 获取数据库统计
-        async with AsyncSessionLocal() as db:
-            total_messages = await db.scalar(select(func.count(Message.id)))
-            pending_messages = await db.scalar(
-                select(func.count(Message.id)).where(Message.status == 'pending')
-            )
-            forwarded_messages = await db.scalar(
-                select(func.count(Message.id)).where(Message.status == 'forwarded')
-            )
-            source_channels = await db.scalar(
-                select(func.count(Channel.id)).where(Channel.channel_type == 'source')
-            )
+        # 从 Redis 获取统计数据
+        redis_store = get_redis_message_store()
+        channel_store = get_json_channel_store()
+        
+        # 获取消息统计
+        pending_messages = len(redis_store.get_pending_messages(limit=10000))
+        all_messages_keys = redis_store.redis.keys("msg:*")
+        total_messages = len(all_messages_keys)
+        
+        # 简单统计转发消息数
+        forwarded_count = 0
+        for key in all_messages_keys[:1000]:  # 限制检查数量以提高性能
+            try:
+                msg_data = redis_store.redis.hgetall(key)
+                if msg_data.get(b'status') == b'forwarded':
+                    forwarded_count += 1
+            except:
+                continue
+        
+        # 获取源频道数量
+        all_channels = channel_store.get_all_channels()
+        source_channels = len([ch for ch in all_channels if ch.get('channel_type') == 'source'])
         
         # 获取服务状态
         telegram_connected = False
@@ -55,16 +63,16 @@ async def get_system_status() -> Dict[str, Any]:
         
         return {
             "stats": {
-                "source_channels": source_channels or 0,
-                "total_messages": total_messages or 0,
-                "pending_messages": pending_messages or 0,
-                "forwarded_messages": forwarded_messages or 0
+                "source_channels": source_channels,
+                "total_messages": total_messages,
+                "pending_messages": pending_messages,
+                "forwarded_messages": forwarded_count
             },
             "services": {
                 "telegram_client": telegram_connected,
                 "message_processor": True,  # 始终运行
                 "scheduler": True,  # 始终运行
-                "database": True  # 如果能查询就是运行中
+                "storage": True  # Redis 和 JSON 存储
             },
             "system": {
                 "uptime": uptime_seconds,
@@ -84,7 +92,7 @@ async def get_system_status() -> Dict[str, Any]:
                 "telegram_client": False,
                 "message_processor": False,
                 "scheduler": False,
-                "database": False
+                "storage": False
             },
             "system": {
                 "uptime": 0,
@@ -105,23 +113,33 @@ async def get_detailed_status() -> Dict[str, Any]:
         uptime = datetime.now() - START_TIME
         uptime_str = f"{uptime.days}天 {uptime.seconds // 3600}小时 {(uptime.seconds % 3600) // 60}分钟"
         
-        # 获取数据库统计
-        async with AsyncSessionLocal() as db:
-            # 消息总数
-            total_messages = await db.scalar(select(func.count(Message.id)))
-            # 今日消息数
-            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            today_messages = await db.scalar(
-                select(func.count(Message.id)).where(Message.created_at >= today_start)
-            )
-            # 频道数量
-            total_channels = await db.scalar(select(func.count(Channel.id)))
-            source_channels = await db.scalar(
-                select(func.count(Channel.id)).where(Channel.channel_type == 'source')
-            )
-            target_channels = await db.scalar(
-                select(func.count(Channel.id)).where(Channel.channel_type == 'target')
-            )
+        # 从 Redis 和 JSON 获取统计数据
+        redis_store = get_redis_message_store()
+        channel_store = get_json_channel_store()
+        
+        # 消息统计
+        all_message_keys = redis_store.redis.keys("msg:*")
+        total_messages = len(all_message_keys)
+        
+        # 今日消息数（简化版，从最新消息中算出）
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_messages = 0
+        for key in all_message_keys[:500]:  # 限制检查数量
+            try:
+                msg_data = redis_store.redis.hgetall(key)
+                created_at_str = msg_data.get(b'created_at', b'').decode('utf-8')
+                if created_at_str:
+                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    if created_at >= today_start:
+                        today_messages += 1
+            except:
+                continue
+        
+        # 频道数量
+        all_channels = channel_store.get_all_channels()
+        total_channels = len(all_channels)
+        source_channels = len([ch for ch in all_channels if ch.get('channel_type') == 'source'])
+        target_channels = len([ch for ch in all_channels if ch.get('channel_type') == 'target'])
         
         # 获取Telegram状态
         telegram_status = "未连接"
@@ -151,11 +169,11 @@ async def get_detailed_status() -> Dict[str, Any]:
                     "python_version": platform.python_version()
                 },
                 "statistics": {
-                    "total_messages": total_messages or 0,
-                    "today_messages": today_messages or 0,
-                    "total_channels": total_channels or 0,
-                    "source_channels": source_channels or 0,
-                    "target_channels": target_channels or 0
+                    "total_messages": total_messages,
+                    "today_messages": today_messages,
+                    "total_channels": total_channels,
+                    "source_channels": source_channels,
+                    "target_channels": target_channels
                 },
                 "telegram": {
                     "status": telegram_status,
@@ -166,7 +184,7 @@ async def get_detailed_status() -> Dict[str, Any]:
                 "services": {
                     "web_server": "running",
                     "telegram_bot": "running" if telegram_status == "已连接" else "stopped",
-                    "database": "running",
+                    "storage": "running",
                     "message_processor": "running",
                     "system_monitor": "running" if current_status else "stopped"
                 },
@@ -256,24 +274,26 @@ async def health_check() -> Dict[str, Any]:
     try:
         current_status = await system_monitor.get_current_status()
         
-        # 检查数据库连接
-        database_status = "unknown"
+        # 检查存储连接
+        storage_status = "unknown"
         try:
-            from app.core.database import AsyncSessionLocal
-            from sqlalchemy import text
-            async with AsyncSessionLocal() as db:
-                await db.execute(text("SELECT 1"))
-            database_status = "connected"
+            redis_store = get_redis_message_store()
+            redis_store.redis.ping()  # 测试Redis连接
+            
+            channel_store = get_json_channel_store()
+            channel_store.get_all_channels()  # 测试JSON文件访问
+            
+            storage_status = "connected"
         except Exception as e:
-            logger.error(f"数据库连接检查失败: {e}")
-            database_status = "disconnected"
+            logger.error(f"存储连接检查失败: {e}")
+            storage_status = "disconnected"
         
         if not current_status:
             return {
                 "success": True,
                 "status": "starting",
                 "message": "系统正在启动",
-                "database": database_status,
+                "storage": storage_status,
                 "version": "2.0.0"
             }
         
@@ -295,10 +315,10 @@ async def health_check() -> Dict[str, Any]:
             "success": True,
             "status": status,
             "message": message,
-            "database": database_status,
+            "storage": storage_status,
             "version": "2.0.0",
             "timestamp": current_status.timestamp.isoformat(),
-            "uptime": (current_status.timestamp - current_status.timestamp).total_seconds()  # 简化计算
+            "uptime": (datetime.now() - START_TIME).total_seconds()
         }
     except Exception as e:
         logger.error(f"健康检查失败: {e}")
@@ -306,7 +326,7 @@ async def health_check() -> Dict[str, Any]:
             "success": False,
             "status": "error",
             "message": f"健康检查失败: {str(e)}",
-            "database": "unknown",
+            "storage": "unknown",
             "version": "2.0.0"
         }
 
@@ -451,23 +471,33 @@ async def get_realtime_logs(since: str = None) -> Dict[str, Any]:
             "message": f"系统心跳检测 - 当前时间: {current_time.strftime('%H:%M:%S')}"
         })
         
-        # 检查是否有新的Telegram消息处理
+        # 检查是否有新的消息处理（从 Redis 检查）
         try:
-            async with AsyncSessionLocal() as db:
-                recent_messages = await db.scalar(
-                    select(func.count(Message.id)).where(
-                        Message.created_at >= since_time
-                    )
-                )
-                if recent_messages and recent_messages > 0:
-                    logs.append({
-                        "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
-                        "level": "INFO", 
-                        "source": "message",
-                        "message": f"处理了 {recent_messages} 条新消息"
-                    })
-        except:
-            pass
+            redis_store = get_redis_message_store()
+            # 简单统计最近的消息数量
+            recent_keys = redis_store.redis.keys("msg:*")
+            recent_count = 0
+            
+            for key in recent_keys[:50]:  # 限制检查数量
+                try:
+                    msg_data = redis_store.redis.hgetall(key)
+                    created_at_str = msg_data.get(b'created_at', b'').decode('utf-8')
+                    if created_at_str:
+                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                        if created_at >= since_time:
+                            recent_count += 1
+                except:
+                    continue
+            
+            if recent_count > 0:
+                logs.append({
+                    "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    "level": "INFO", 
+                    "source": "message",
+                    "message": f"处理了 {recent_count} 条新消息"
+                })
+        except Exception as e:
+            logger.debug(f"检查最近消息失败: {e}")
             
         return {
             "success": True,

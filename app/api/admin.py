@@ -159,59 +159,74 @@ async def add_channel(
 @router.put("/channels/{channel_name}")
 async def update_channel(
     channel_name: str,
-    request: ChannelUpdateRequest,
-    db: AsyncSession = Depends(get_db)
+    request: ChannelUpdateRequest
 ):
     """更新频道配置"""
     try:
-        result = await db.execute(select(Channel).where(Channel.channel_name == channel_name))
-        channel = result.scalar_one_or_none()
+        channel_store = get_json_channel_store()
+        
+        # 查找频道
+        all_channels = channel_store.get_all_channels()
+        channel = None
+        for ch in all_channels:
+            if ch.get('channel_name') == channel_name:
+                channel = ch
+                break
         
         if not channel:
             raise HTTPException(status_code=404, detail="频道不存在")
         
+        # 更新频道信息
         if request.channel_id is not None:
-            channel.channel_id = request.channel_id
+            channel['channel_id'] = request.channel_id
         if request.channel_title is not None:
-            channel.channel_title = request.channel_title
+            channel['channel_title'] = request.channel_title
         if request.channel_type is not None:
-            channel.channel_type = request.channel_type
+            channel['channel_type'] = request.channel_type
         if request.is_active is not None:
-            channel.is_active = request.is_active
+            channel['is_active'] = request.is_active
         if request.config is not None:
-            channel.config = request.config
+            channel['config'] = request.config
         
-        await db.commit()
-        await db.refresh(channel)
-        
-        return {"success": True, "message": "频道更新成功", "channel_id": channel.id}
+        # 保存更新
+        if channel_store.update_channel(channel):
+            return {"success": True, "message": "频道更新成功", "channel_id": channel.get('id')}
+        else:
+            raise HTTPException(status_code=500, detail="频道更新失败")
+            
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
         raise HTTPException(status_code=500, detail=f"更新频道失败: {str(e)}")
 
 @router.delete("/channels/{channel_name}")
 async def delete_channel(
-    channel_name: str,
-    db: AsyncSession = Depends(get_db)
+    channel_name: str
 ):
     """删除频道配置"""
     try:
-        result = await db.execute(select(Channel).where(Channel.channel_name == channel_name))
-        channel = result.scalar_one_or_none()
+        channel_store = get_json_channel_store()
         
-        if not channel:
+        # 查找频道
+        all_channels = channel_store.get_all_channels()
+        channel_id = None
+        for ch in all_channels:
+            if ch.get('channel_name') == channel_name:
+                channel_id = ch.get('id')
+                break
+        
+        if channel_id is None:
             raise HTTPException(status_code=404, detail="频道不存在")
         
-        await db.delete(channel)
-        await db.commit()
-        
-        return {"success": True, "message": "频道删除成功"}
+        # 删除频道
+        if channel_store.delete_channel(channel_id):
+            return {"success": True, "message": "频道删除成功"}
+        else:
+            raise HTTPException(status_code=500, detail="频道删除失败")
+            
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
         raise HTTPException(status_code=500, detail=f"删除频道失败: {str(e)}")
 
 @router.post("/cleanup/temp-media")
@@ -321,36 +336,36 @@ async def get_temp_media_status():
 
 @router.get("/search-channels")
 async def search_channels(
-    query: str = Query(..., description="搜索关键词"),
-    db: AsyncSession = Depends(get_db)
+    query: str = Query(..., description="搜索关键词")
 ):
-    """从数据库搜索已存在的频道"""
+    """从JSON存储搜索已存在的频道"""
     try:
-        from sqlalchemy import or_
-        from app.core.database import Channel
+        channel_store = get_json_channel_store()
+        all_channels = channel_store.get_all_channels()
         
         # 搜索频道名称或标题包含关键词的频道
-        search_pattern = f"%{query}%"
-        result = await db.execute(
-            select(Channel).where(
-                or_(
-                    Channel.channel_name.ilike(search_pattern),
-                    Channel.channel_title.ilike(search_pattern)
-                )
-            )
-        )
-        channels = result.scalars().all()
+        query_lower = query.lower()
+        matching_channels = []
+        
+        for channel in all_channels:
+            channel_name = channel.get('channel_name', '')
+            channel_title = channel.get('channel_title', '')
+            
+            if (query_lower in channel_name.lower() or 
+                query_lower in channel_title.lower()):
+                matching_channels.append(channel)
         
         # 转换为返回格式
         channel_list = []
-        for channel in channels:
+        for channel in matching_channels:
+            channel_name = channel.get('channel_name', '')
             channel_list.append({
-                'id': channel.channel_id,
-                'title': channel.channel_title or channel.channel_name,
-                'username': channel.channel_name.replace('@', '') if channel.channel_name and channel.channel_name.startswith('@') else channel.channel_name,
-                'channel_type': channel.channel_type,
-                'is_active': channel.is_active,
-                'description': channel.description
+                'id': channel.get('channel_id', ''),
+                'title': channel.get('channel_title') or channel_name,
+                'username': channel_name.replace('@', '') if channel_name.startswith('@') else channel_name,
+                'channel_type': channel.get('channel_type', ''),
+                'is_active': channel.get('is_active', True),
+                'description': channel.get('description', '')
             })
         
         return {
@@ -561,20 +576,25 @@ async def export_logs():
 async def health_check():
     """系统健康检查"""
     try:
-        # 检查数据库连接
-        async with AsyncSessionLocal() as db:
-            await db.execute("SELECT 1")
+        # 检查Redis连接
+        from app.storage.redis_store import get_redis_store
+        redis_store = get_redis_store()
+        redis_store.redis.ping()  # 测试Redis连接
+        
+        # 检查JSON存储
+        channel_store = get_json_channel_store()
+        channel_store.get_all_channels()  # 测试文件访问
         
         return {
             "status": "healthy",
-            "database": "connected",
+            "storage": "connected",
             "timestamp": datetime.utcnow().isoformat(),
-            "version": "1.0.0"
+            "version": "2.0.0"
         }
     except Exception as e:
         return {
             "status": "unhealthy",
-            "database": "disconnected",
+            "storage": "disconnected",
             "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }

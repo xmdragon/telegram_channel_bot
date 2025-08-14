@@ -183,6 +183,71 @@ class RedisMessageStore(RedisStore):
             logger.error(f"获取待审核消息失败: {e}")
             return []
     
+    def get_messages_by_status(self, status: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """按状态获取消息列表"""
+        try:
+            # 从状态索引获取消息
+            status_keys = self.redis.zrevrange(f"msg:idx:{status}", 0, limit - 1)
+            
+            messages = []
+            for key in status_keys:
+                if ':' in key:
+                    channel_id, message_id = key.split(':', 1)
+                    msg_data = self.get_message(channel_id, int(message_id))
+                    if msg_data:
+                        messages.append(msg_data)
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"按状态获取消息失败 {status}: {e}")
+            return []
+    
+    def get_all_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """获取所有消息列表"""
+        try:
+            # 获取所有消息key
+            all_msg_keys = self.redis.keys("msg:*:*")
+            # 过滤出索引和计数器key，只保留消息数据key
+            msg_keys = [key for key in all_msg_keys 
+                       if not key.startswith('msg:idx:') 
+                       and not key.startswith('msg:count:') 
+                       and not key.startswith('msg:hash:') 
+                       and not key.startswith('msg:group:')]
+            
+            # 按时间排序（获取创建时间并排序）
+            msg_with_time = []
+            for key in msg_keys:
+                created_at = self.redis.hget(key, 'created_at')
+                if created_at:
+                    try:
+                        timestamp = datetime.fromisoformat(created_at.replace('Z', '+00:00')).timestamp()
+                        msg_with_time.append((key, timestamp))
+                    except:
+                        msg_with_time.append((key, 0))  # 默认时间
+            
+            # 按时间倒序排列
+            msg_with_time.sort(key=lambda x: x[1], reverse=True)
+            
+            # 只取需要的数量
+            selected_keys = [item[0] for item in msg_with_time[:limit]]
+            
+            messages = []
+            for key in selected_keys:
+                # 从 key 中提取 channel_id 和 message_id
+                parts = key.split(':')
+                if len(parts) == 3:  # msg:channel_id:message_id
+                    channel_id, message_id = parts[1], parts[2]
+                    msg_data = self.get_message(channel_id, int(message_id))
+                    if msg_data:
+                        messages.append(msg_data)
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"获取所有消息失败: {e}")
+            return []
+    
     def update_message_status(self, channel_id: str, message_id: int, new_status: str, 
                             reviewed_by: str = None) -> bool:
         """更新消息状态"""
@@ -522,3 +587,9 @@ def get_redis_channel_store() -> RedisChannelStore:
     if redis_channel_store is None:
         raise RuntimeError("Redis存储层未初始化")
     return redis_channel_store
+
+def get_redis_store() -> RedisStore:
+    """获取基础Redis存储实例"""
+    if redis_message_store is None:
+        raise RuntimeError("Redis存储层未初始化")
+    return redis_message_store

@@ -241,17 +241,69 @@ class JSONChannelStore(JSONStore):
             logger.error(f"获取频道类型失败 {channel_type}: {e}")
             return []
     
-    def delete_channel(self, channel_id: str) -> bool:
-        """删除频道配置"""
+    def update_channel(self, channel_data: Dict[str, Any]) -> bool:
+        """更新频道配置"""
         try:
             channels = self._load_json(self.CHANNEL_FILE)
-            if channel_id in channels:
-                del channels[channel_id]
-                return self._save_json(self.CHANNEL_FILE, channels)
+            
+            # 使用channel_name或id作为键
+            channel_key = None
+            if 'channel_name' in channel_data:
+                channel_key = channel_data['channel_name']
+            elif 'id' in channel_data:
+                # 查找对应的channel_name
+                for name, data in channels.items():
+                    if data.get('id') == channel_data['id']:
+                        channel_key = name
+                        break
+            
+            if not channel_key:
+                logger.error("未找到频道键")
+                return False
+            
+            if channel_key not in channels:
+                logger.error(f"频道不存在: {channel_key}")
+                return False
+            
+            # 更新频道数据
+            updated_data = channels[channel_key].copy()
+            updated_data.update(channel_data)
+            updated_data['updated_at'] = get_current_time().isoformat()
+            
+            channels[channel_key] = updated_data
+            return self._save_json(self.CHANNEL_FILE, channels)
+            
+        except Exception as e:
+            logger.error(f"更新频道配置失败: {e}")
+            return False
+    
+    def delete_channel(self, channel_identifier) -> bool:
+        """删除频道配置（支持名称或ID）"""
+        try:
+            channels = self._load_json(self.CHANNEL_FILE)
+            
+            # 如果是数字ID，查找对应的channel_name
+            if isinstance(channel_identifier, (int, str)) and str(channel_identifier).isdigit():
+                target_id = int(channel_identifier)
+                channel_key = None
+                for name, data in channels.items():
+                    if data.get('id') == target_id:
+                        channel_key = name
+                        break
+                
+                if channel_key and channel_key in channels:
+                    del channels[channel_key]
+                    return self._save_json(self.CHANNEL_FILE, channels)
+            else:
+                # 直接使用名称删除
+                if channel_identifier in channels:
+                    del channels[channel_identifier]
+                    return self._save_json(self.CHANNEL_FILE, channels)
+            
             return False
             
         except Exception as e:
-            logger.error(f"删除频道配置失败 {channel_id}: {e}")
+            logger.error(f"删除频道配置失败 {channel_identifier}: {e}")
             return False
 
 class JSONAdminStore(JSONStore):
