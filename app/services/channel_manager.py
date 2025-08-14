@@ -147,6 +147,10 @@ class ChannelManager:
         except Exception as e:
             logger.error(f"获取频道失败: {e}")
             return None
+    
+    async def get_active_source_channels(self) -> List[Dict]:
+        """获取活跃的源频道列表 - config.py需要的方法"""
+        return await self.get_source_channels()
 
 # 创建全局实例
 channel_manager = ChannelManager()

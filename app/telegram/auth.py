@@ -26,6 +26,22 @@ class TelethonAuthManager:
         self.config_manager = ConfigManager()
         self.has_lock = False  # 标记是否持有锁
     
+    async def initialize(self) -> bool:
+        """初始化认证管理器"""
+        try:
+            # 尝试加载现有会话
+            session_string = await self.config_manager.get_config("telegram.session_string")
+            if session_string:
+                self.auth_state = "authorized"
+                logger.info("已加载Telegram会话")
+            else:
+                self.auth_state = "idle"
+                logger.info("未找到Telegram会话，需要重新认证")
+            return True
+        except Exception as e:
+            logger.error(f"认证管理器初始化失败: {e}")
+            return False
+    
     async def ensure_connected(self) -> bool:
         """确保客户端已连接，如果未连接则尝试重新连接"""
         try:

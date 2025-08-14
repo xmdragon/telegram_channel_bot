@@ -92,8 +92,10 @@ async def lifespan(app: FastAPI):
     logger.info("正在启动Telegram消息采集审核系统...")
     
     # 初始化Redis连接
-    from app.storage.redis_client import init_redis_client
-    await init_redis_client()
+    from app.storage.redis_store import init_redis_stores
+    if not init_redis_stores():
+        logger.error("Redis存储层初始化失败")
+        raise RuntimeError("初始化失败")
     logger.info("Redis连接已初始化")
     
     # 初始化JSON存储层
