@@ -3,10 +3,8 @@
 """
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
-from sqlalchemy import select, and_
-from app.core.database import AsyncSessionLocal, Message
-from app.core.config import db_settings
+from typing import List, Optional, Dict, Any
+from app.storage.redis_store import get_redis_message_store, RedisMessageStore
 from .duplicate_detector import DuplicateDetector
 
 logger = logging.getLogger(__name__)
@@ -16,33 +14,56 @@ class MessageProcessor:
     
     def __init__(self):
         self.duplicate_detector = DuplicateDetector()
+        self.redis_store = get_redis_message_store()
     
-    async def get_pending_messages(self) -> List[Message]:
+    async def get_pending_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
         """获取待审核的消息"""
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(Message).where(Message.status == "pending")
-            )
-            return result.scalars().all()
+        try:
+            return self.redis_store.get_pending_messages(limit=limit)
+        except Exception as e:
+            logger.error(f"获取待审核消息失败: {e}")
+            return []
     
-    async def get_auto_forward_messages(self) -> List[Message]:
+    async def get_auto_forward_messages(self) -> List[Dict[str, Any]]:
         """获取需要自动转发的消息"""
-        auto_forward_delay = await db_settings.get_auto_forward_delay()
-        cutoff_time = datetime.utcnow() - timedelta(seconds=auto_forward_delay)
-        
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(Message).where(
-                    and_(
-                        Message.status == "pending",
-                        Message.created_at <= cutoff_time,
-                        Message.is_ad == False  # 非广告消息才自动转发
-                    )
-                )
-            )
-            return result.scalars().all()
+        try:
+            # 获取自动转发延迟配置
+            from app.services.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            auto_forward_delay = await config_manager.get_config('review.auto_forward_delay', 1800)  # 默认30分钟
+            
+            cutoff_time = datetime.utcnow() - timedelta(seconds=auto_forward_delay)
+            
+            # 获取所有待审核消息
+            pending_messages = self.redis_store.get_pending_messages(limit=500)
+            
+            # 过滤出需要自动转发的消息
+            auto_forward_messages = []
+            for msg in pending_messages:
+                try:
+                    # 检查创建时间
+                    created_at_str = msg.get('created_at')
+                    if created_at_str:
+                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                        if created_at.replace(tzinfo=None) <= cutoff_time:
+                            # 检查是否为非广告消息
+                            is_ad = msg.get('is_ad', False)
+                            if isinstance(is_ad, str):
+                                is_ad = is_ad.lower() == 'true'
+                            
+                            if not is_ad:
+                                auto_forward_messages.append(msg)
+                except Exception as e:
+                    logger.error(f"解析消息时间失败: {e}")
+                    continue
+                    
+            return auto_forward_messages
+            
+        except Exception as e:
+            logger.error(f"获取自动转发消息失败: {e}")
+            return []
     
-    async def auto_forward_message(self, message: Message):
+    async def auto_forward_message(self, message: Dict[str, Any]):
         """自动转发消息"""
         try:
             # 首先检查审核群是否已配置
@@ -53,38 +74,44 @@ class MessageProcessor:
             if not review_group:
                 logger.error("❌ 审核群未配置，阻止自动转发！所有消息必须经过审核群。")
                 # 更新消息状态为错误状态
-                async with AsyncSessionLocal() as db:
-                    result = await db.execute(
-                        select(Message).where(Message.id == message.id)
+                channel_id = message.get('source_channel')
+                message_id = message.get('message_id')
+                
+                if channel_id and message_id:
+                    success = self.redis_store.update_message_status(
+                        channel_id, int(message_id), "error"
                     )
-                    db_message = result.scalar_one()
-                    db_message.status = "error"
-                    db_message.reject_reason = "审核群未配置，自动转发被阻止"
-                    await db.commit()
+                    if success:
+                        # 更新拒绝原因
+                        msg_key = f"msg:{channel_id}:{message_id}"
+                        self.redis_store.redis.hset(msg_key, "reject_reason", "审核群未配置，自动转发被阻止")
                 return
             
             # 这里应该调用Telegram API转发消息
             # 为了简化，这里只更新状态
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(Message.id == message.id)
+            channel_id = message.get('source_channel')
+            message_id = message.get('message_id')
+            
+            if channel_id and message_id:
+                success = self.redis_store.update_message_status(
+                    channel_id, int(message_id), "auto_forwarded"
                 )
-                db_message = result.scalar_one()
-                db_message.status = "auto_forwarded"
-                db_message.forwarded_time = datetime.utcnow()
-                await db.commit()
-                
-            logger.info(f"自动转发消息 ID: {message.id}")
+                if success:
+                    # 更新转发时间
+                    msg_key = f"msg:{channel_id}:{message_id}"
+                    self.redis_store.redis.hset(msg_key, "forwarded_time", datetime.utcnow().isoformat())
+                    
+                logger.info(f"自动转发消息 ID: {channel_id}:{message_id}")
             
         except Exception as e:
             logger.error(f"自动转发消息失败: {e}")
     
-    async def check_and_filter_duplicates(self, message: Message) -> bool:
+    async def check_and_filter_duplicates(self, message: Dict[str, Any]) -> bool:
         """
         检查并过滤重复消息
         
         Args:
-            message: 要检查的消息
+            message: 要检查的消息字典
             
         Returns:
             True如果是重复消息，False如果不重复
@@ -92,30 +119,44 @@ class MessageProcessor:
         try:
             # 准备视觉哈希（如果有）
             visual_hashes = None
-            if hasattr(message, 'visual_hash') and message.visual_hash:
+            if 'visual_hash' in message and message['visual_hash']:
                 try:
-                    visual_hashes = eval(message.visual_hash)
+                    if isinstance(message['visual_hash'], str):
+                        visual_hashes = eval(message['visual_hash'])
+                    else:
+                        visual_hashes = message['visual_hash']
+                except Exception as e:
+                    logger.debug(f"解析视觉哈希失败: {e}")
+            
+            # 解析创建时间
+            message_time = datetime.utcnow()
+            if 'created_at' in message and message['created_at']:
+                try:
+                    message_time = datetime.fromisoformat(message['created_at'].replace('Z', '+00:00')).replace(tzinfo=None)
                 except:
                     pass
             
+            # 构造消息ID（由于新系统中没有自增主ID，使用channel:message_id组合）
+            msg_id = f"{message.get('source_channel')}:{message.get('message_id')}"
+            
             is_duplicate, orig_id, dup_type = await self.duplicate_detector.is_duplicate_message(
-                source_channel=message.source_channel,
-                media_hash=message.media_hash,
-                combined_media_hash=message.combined_media_hash,
-                content=message.content,
-                message_time=message.created_at,
-                message_id=message.id,
+                source_channel=message.get('source_channel'),
+                media_hash=message.get('media_hash'),
+                combined_media_hash=message.get('combined_media_hash'),
+                content=message.get('content'),
+                message_time=message_time,
+                message_id=msg_id,
                 visual_hashes=visual_hashes
             )
             
             if is_duplicate and orig_id:
                 # 直接标记为重复并指向原始消息
                 await self.duplicate_detector.mark_as_duplicate(
-                    message_id=message.id,
+                    message_id=msg_id,
                     original_message_id=orig_id
                 )
                 
-                logger.info(f"消息 {message.id} 被检测为{dup_type}重复消息（原消息ID: {orig_id}），已自动过滤")
+                logger.info(f"消息 {msg_id} 被检测为{dup_type}重复消息（原消息ID: {orig_id}），已自动过滤")
                 return True
             
             return False
@@ -124,7 +165,7 @@ class MessageProcessor:
             logger.error(f"检查重复消息时出错: {e}")
             return False
     
-    async def process_new_message(self, message_data: dict) -> Optional[Message]:
+    async def process_new_message(self, message_data: dict) -> Optional[Dict[str, Any]]:
         """
         处理新消息，包括重复检测
         
@@ -132,16 +173,30 @@ class MessageProcessor:
             message_data: 消息数据字典
             
         Returns:
-            处理后的消息对象，如果重复则返回None
+            处理后的消息字典，如果重复则返回None
         """
         try:
-            # 先进行重复检测（在插入数据库之前）
+            channel_id = str(message_data.get('source_channel', ''))
+            message_id = message_data.get('message_id')
+            
+            if not channel_id or not message_id:
+                logger.error("消息数据缺少必要字段: source_channel 或 message_id")
+                return None
+            
+            # 先进行重复检测（在保存之前）
+            message_time = datetime.utcnow()
+            if message_data.get('created_at'):
+                try:
+                    message_time = datetime.fromisoformat(message_data['created_at'].replace('Z', '+00:00')).replace(tzinfo=None)
+                except:
+                    pass
+                    
             is_duplicate, original_msg_id, duplicate_type = await self.duplicate_detector.is_duplicate_message(
-                source_channel=message_data.get('source_channel'),
+                source_channel=channel_id,
                 media_hash=message_data.get('media_hash'),
                 combined_media_hash=message_data.get('combined_media_hash'),
                 content=message_data.get('content'),
-                message_time=message_data.get('created_at') or datetime.utcnow(),
+                message_time=message_time,
                 visual_hashes=message_data.get('visual_hash')
             )
             
@@ -149,29 +204,28 @@ class MessageProcessor:
                 logger.info(f"🔄 message_processor: 检测到重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，拒绝处理")
                 return None
             
-            # 非重复消息，检查数据库中是否已存在相同的source_channel+message_id
-            async with AsyncSessionLocal() as db:
-                from sqlalchemy import and_
-                existing_result = await db.execute(
-                    select(Message).where(and_(
-                        Message.source_channel == message_data.get('source_channel'),
-                        Message.message_id == message_data.get('message_id')
-                    ))
-                )
-                existing_message = existing_result.scalar_one_or_none()
+            # 非重复消息，检查Redis中是否已存在
+            existing_message = self.redis_store.get_message(channel_id, int(message_id))
+            
+            if existing_message:
+                logger.info(f"📋 message_processor: 消息已存在于Redis中：频道 {channel_id}，消息ID {message_id}")
+                return existing_message
+            
+            # 保存新消息到Redis
+            success = self.redis_store.save_message(channel_id, int(message_id), message_data)
+            
+            if success:
+                # 获取保存后的消息
+                saved_message = self.redis_store.get_message(channel_id, int(message_id))
+                if saved_message:
+                    logger.info(f"💾 message_processor: 新消息 {channel_id}:{message_id} 成功保存到Redis [状态: {saved_message.get('status', 'unknown')}]")
+                    return saved_message
+                else:
+                    logger.error(f"保存成功但无法获取消息: {channel_id}:{message_id}")
+            else:
+                logger.error(f"保存消息失败: {channel_id}:{message_id}")
                 
-                if existing_message:
-                    logger.info(f"📋 message_processor: 消息已存在于数据库中：频道 {message_data.get('source_channel')}，消息ID {message_data.get('message_id')}")
-                    return existing_message
-                
-                # 插入新消息
-                message = Message(**message_data)
-                db.add(message)
-                await db.commit()
-                await db.refresh(message)
-                
-                logger.info(f"💾 message_processor: 新消息 {message.id} 成功保存到数据库 [状态: {message.status}]")
-                return message
+            return None
                 
         except Exception as e:
             logger.error(f"处理新消息时出错: {e}")
@@ -179,57 +233,183 @@ class MessageProcessor:
     
     async def get_message_stats(self) -> dict:
         """获取消息统计信息"""
-        async with AsyncSessionLocal() as db:
-            # 导入Channel模型
-            from app.core.database import Channel
-            
-            # 总消息数
-            total_result = await db.execute(select(Message))
-            total_count = len(total_result.scalars().all())
-            
-            # 待审核消息数
-            pending_result = await db.execute(
-                select(Message).where(Message.status == "pending")
-            )
-            pending_count = len(pending_result.scalars().all())
-            
-            # 已批准消息数
-            approved_result = await db.execute(
-                select(Message).where(Message.status == "approved")
-            )
-            approved_count = len(approved_result.scalars().all())
-            
-            # 被拒绝消息数
-            rejected_result = await db.execute(
-                select(Message).where(Message.status == "rejected")
-            )
-            rejected_count = len(rejected_result.scalars().all())
-            
-            # 广告消息数
-            ad_result = await db.execute(
-                select(Message).where(Message.is_ad == True)
-            )
-            ad_count = len(ad_result.scalars().all())
-            
-            # 重复消息数（通过filtered_content判断）
-            duplicate_result = await db.execute(
-                select(Message).where(Message.filtered_content.like("%重复消息%"))
-            )
-            duplicate_count = len(duplicate_result.scalars().all())
-            
-            # 源频道数量
-            channel_result = await db.execute(
-                select(Channel).where(Channel.channel_type == "source")
-            )
-            channel_count = len(channel_result.scalars().all())
-            
-            return {
-                "total": total_count,
-                "pending": pending_count,
-                "approved": approved_count,
-                "rejected": rejected_count,
-                "ads": ad_count,
-                "duplicates": duplicate_count,
-                "channels": channel_count,
-                "auto_forwarded": total_count - pending_count - approved_count - rejected_count
+        try:
+            # 使用Redis计数器获取统计数据
+            stats = {
+                "total": 0,
+                "pending": self.redis_store.get_message_count(status="pending"),
+                "approved": self.redis_store.get_message_count(status="approved"),
+                "rejected": self.redis_store.get_message_count(status="rejected"),
+                "auto_forwarded": self.redis_store.get_message_count(status="auto_forwarded"),
+                "ads": 0,
+                "duplicates": 0,
+                "channels": 0
             }
+            
+            # 计算总数
+            stats["total"] = stats["pending"] + stats["approved"] + stats["rejected"] + stats["auto_forwarded"]
+            
+            # 获取所有频道的计数器键
+            pattern = "msg:count:*:total"
+            total_keys = self.redis_store.redis.keys(pattern)
+            
+            # 计算广告数量和重复数量（需要遍历所有消息）
+            ad_count = 0
+            duplicate_count = 0
+            channel_set = set()
+            
+            # 从所有频道计数器中提取频道ID
+            for key in total_keys:
+                # key格式: msg:count:channel_id:total
+                parts = key.split(':')
+                if len(parts) >= 3:
+                    channel_id = parts[2]
+                    channel_set.add(channel_id)
+            
+            stats["channels"] = len(channel_set)
+            
+            # 通过采样方式估算广告和重复数量（避免遍历所有消息）
+            sample_size = min(100, stats["total"])  # 最多采样100条
+            if sample_size > 0:
+                sample_messages = self.redis_store.get_pending_messages(limit=sample_size)
+                
+                for msg in sample_messages:
+                    # 检查广告标记
+                    is_ad = msg.get('is_ad', False)
+                    if isinstance(is_ad, str):
+                        is_ad = is_ad.lower() == 'true'
+                    if is_ad:
+                        ad_count += 1
+                    
+                    # 检查重复标记（通过filtered_content判断）
+                    filtered_content = msg.get('filtered_content', '')
+                    if '重复消息' in filtered_content:
+                        duplicate_count += 1
+                
+                # 按比例推算全局数量
+                if sample_size > 0:
+                    ratio = stats["total"] / sample_size
+                    stats["ads"] = int(ad_count * ratio)
+                    stats["duplicates"] = int(duplicate_count * ratio)
+            
+            logger.debug(f"消息统计: {stats}")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"获取消息统计失败: {e}")
+            # 返回默认统计
+            return {
+                "total": 0,
+                "pending": 0,
+                "approved": 0,
+                "rejected": 0,
+                "ads": 0,
+                "duplicates": 0,
+                "channels": 0,
+                "auto_forwarded": 0
+            }
+    
+    async def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:
+        """获取单条消息"""
+        try:
+            return self.redis_store.get_message(channel_id, message_id)
+        except Exception as e:
+            logger.error(f"获取消息失败 {channel_id}:{message_id}: {e}")
+            return None
+    
+    async def update_message_status(self, channel_id: str, message_id: int, 
+                                  new_status: str, reviewed_by: str = None) -> bool:
+        """更新消息状态"""
+        try:
+            return self.redis_store.update_message_status(
+                channel_id, message_id, new_status, reviewed_by
+            )
+        except Exception as e:
+            logger.error(f"更新消息状态失败 {channel_id}:{message_id}: {e}")
+            return False
+    
+    async def delete_message(self, channel_id: str, message_id: int) -> bool:
+        """删除消息"""
+        try:
+            return self.redis_store.delete_message(channel_id, message_id)
+        except Exception as e:
+            logger.error(f"删除消息失败 {channel_id}:{message_id}: {e}")
+            return False
+    
+    async def get_messages_by_channel(self, channel_id: str, 
+                                    limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取频道消息列表"""
+        try:
+            return self.redis_store.get_messages_by_channel(channel_id, limit, offset)
+        except Exception as e:
+            logger.error(f"获取频道消息失败 {channel_id}: {e}")
+            return []
+    
+    async def batch_update_status(self, message_ids: List[tuple], 
+                                new_status: str, reviewed_by: str = None) -> Dict[str, bool]:
+        """批量更新消息状态
+        
+        Args:
+            message_ids: [(channel_id, message_id), ...] 消息ID元组列表
+            new_status: 新状态
+            reviewed_by: 审核人
+            
+        Returns:
+            {f"{channel_id}:{message_id}": success_status, ...}
+        """
+        results = {}
+        
+        try:
+            for channel_id, message_id in message_ids:
+                key = f"{channel_id}:{message_id}"
+                try:
+                    success = await self.update_message_status(
+                        str(channel_id), int(message_id), new_status, reviewed_by
+                    )
+                    results[key] = success
+                    
+                    if success:
+                        logger.debug(f"批量更新成功: {key} -> {new_status}")
+                    else:
+                        logger.warning(f"批量更新失败: {key}")
+                        
+                except Exception as e:
+                    logger.error(f"批量更新单个消息失败 {key}: {e}")
+                    results[key] = False
+                    
+            success_count = sum(1 for v in results.values() if v)
+            logger.info(f"批量状态更新完成: {success_count}/{len(message_ids)} 成功")
+            
+        except Exception as e:
+            logger.error(f"批量更新消息状态失败: {e}")
+            
+        return results
+    
+    async def find_duplicate_messages(self, media_hash: str) -> List[Dict[str, Any]]:
+        """根据媒体哈希查找重复消息"""
+        try:
+            duplicate_keys = self.redis_store.find_duplicate_by_hash(media_hash)
+            messages = []
+            
+            for key in duplicate_keys:
+                try:
+                    channel_id, message_id = key.split(':', 1)
+                    msg = self.redis_store.get_message(channel_id, int(message_id))
+                    if msg:
+                        messages.append(msg)
+                except Exception as e:
+                    logger.debug(f"解析重复消息键失败 {key}: {e}")
+                    
+            return messages
+            
+        except Exception as e:
+            logger.error(f"查找重复消息失败: {e}")
+            return []
+    
+    async def cleanup_expired_data(self):
+        """清理过期数据"""
+        try:
+            self.redis_store.cleanup_expired_indexes()
+            logger.info("过期数据清理完成")
+        except Exception as e:
+            logger.error(f"清理过期数据失败: {e}")
