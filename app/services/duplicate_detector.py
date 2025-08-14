@@ -30,12 +30,12 @@ class DuplicateDetector:
     """整合的消息重复检测器：媒体哈希 + jieba文本相似度"""
     
     def __init__(self):
-        # 媒体检测参数
-        self.media_cache_hours = 24  # 媒体检测24小时窗口
+        # 媒体检测参数（增加检测窗口）
+        self.media_cache_hours = 72  # 媒体检测72小时窗口
         
-        # 文本检测参数
-        self.text_similarity_threshold = 0.65  # 65%相似度阈值
-        self.text_time_window_minutes = 1440  # 24小时时间窗口 (1440分钟)
+        # 文本检测参数（调整相似度阈值和时间窗口）
+        self.text_similarity_threshold = 0.75  # 75%相似度阈值（更严格避免误判）
+        self.text_time_window_minutes = 2880  # 48小时时间窗口 (2880分钟)
         
         # 文本清理正则表达式
         self.common_tags = [
@@ -103,29 +103,41 @@ class DuplicateDetector:
         
         # 最优先进行视觉相似度检测（如果有图片数据）
         if visual_detector and (media_data or visual_hashes):
+            logger.debug(f"开始视觉相似度检测，检测窗口: 96小时")
             is_visual_dup, orig_id, similarity = await self._check_visual_duplicate(
                 media_data, visual_hashes, message_time, message_id, db
             )
             if is_visual_dup:
-                logger.info(f"检测到视觉相似图片，相似度: {similarity:.1f}%")
+                logger.info(f"✅ 检测到视觉相似图片，相似度: {similarity:.1f}%，原消息ID: {orig_id}")
                 return True, orig_id, "visual"
+            else:
+                logger.debug(f"视觉相似度检测未发现重复")
             
         # 其次进行媒体哈希检测（跨频道）
         if media_hash or combined_media_hash:
+            logger.debug(f"开始媒体哈希检测，检测窗口: {self.media_cache_hours}小时")
             is_media_dup, orig_id = await self._check_media_duplicate(
                 media_hash, combined_media_hash, message_time, message_id, db
             )
             if is_media_dup:
+                logger.info(f"✅ 检测到媒体哈希重复，原消息ID: {orig_id}")
                 return True, orig_id, "media"
+            else:
+                logger.debug(f"媒体哈希检测未发现重复")
         
         # 其次进行文本相似度检测（跨频道）
         if content and content.strip():
+            logger.debug(f"开始文本相似度检测，阈值: {self.text_similarity_threshold:.0%}，检测窗口: {self.text_time_window_minutes//60}小时")
             is_text_dup, orig_id = await self._check_text_duplicate(
                 content, source_channel, message_time, message_id, db
             )
             if is_text_dup:
+                logger.info(f"✅ 检测到文本相似重复，原消息ID: {orig_id}")
                 return True, orig_id, "text"
+            else:
+                logger.debug(f"文本相似度检测未发现重复（检查了{len(content.strip())}字符的内容）")
         
+        logger.debug(f"✅ 去重检测完成，未发现重复")
         return False, None, "none"
         
         # 如果没有传入db会话，创建一个
@@ -182,8 +194,8 @@ class DuplicateDetector:
             if hasattr(message_time, 'tzinfo') and message_time.tzinfo is not None:
                 message_time = message_time.replace(tzinfo=None)
             
-            # 查询时间范围内的消息
-            time_threshold = message_time - timedelta(hours=48)  # 48小时窗口
+            # 查询时间范围内的消息（扩大视觉相似度检测窗口）
+            time_threshold = message_time - timedelta(hours=96)  # 96小时窗口
             
             conditions = [
                 Message.created_at >= time_threshold,
@@ -523,7 +535,7 @@ class DuplicateDetector:
                 
                 if message:
                     message.status = "rejected"
-                    message.is_ad = True  # 将重复消息也标记为广告
+                    # 重要：去重不意味着是广告，不要改变is_ad状态
                     message.filtered_content = f"[重复消息，原消息ID: {original_message_id}]"
                     message.review_time = datetime.utcnow()
                     message.reviewed_by = "DuplicateDetector"

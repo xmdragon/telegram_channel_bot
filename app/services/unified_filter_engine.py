@@ -144,10 +144,8 @@ class UnifiedFilterEngine:
             r'零风险|零風險|包赢|包贏',
             r'内幕|內幕|必中|必赢|必贏',
             
-            # 客服账号模式（通用）
-            r'@[a-zA-Z0-9_]*(?:kf|kefu|service|admin|客服)',
-            r'客服.*@[a-zA-Z0-9_]+',
-            r'联系.*@[a-zA-Z0-9_]+',
+            # 客服账号模式（只在有赌博背景时才算高风险）
+            # 注释掉这些通用客服模式，避免误判
             
             # 多个赌博相关词汇组合
             r'(?:博彩|棋牌|体育|娱乐|平台).*(?:博彩|棋牌|体育|娱乐|平台)',
@@ -177,12 +175,12 @@ class UnifiedFilterEngine:
         if len(unique_domains) >= 3:
             matched_patterns.append("多个不同域名链接")
             
-        # 特殊关键词组合检测（担保+娱乐+客服）
+        # 特殊关键词组合检测（赌博相关组合）
         special_keywords = {
             '担保': ['担保', '联名担保', '保证'],
-            '娱乐': ['娱乐', '游戏', '体验', '派发'],
-            '客服': ['客服', '验资', '联系', '申请'],
-            '充值': ['首存', '二存', '三存', '存款', '充值', '赠送', '优惠']
+            '娱乐': ['娱乐城', '博彩', '体验金', '派发'],
+            '赌博': ['首存', '二存', '三存', '存款', '充值', '赠送', '返水'],
+            '平台': ['平台', '官网', '注册', '登录']
         }
         
         keyword_hits = 0
@@ -195,12 +193,14 @@ class UnifiedFilterEngine:
         if keyword_hits >= 3:
             matched_patterns.append("多个赌博关键词组合")
             
-        # 判定逻辑：
-        # 1. 匹配2个或以上模式 -> 高风险
-        # 2. 匹配"首存"相关模式 + 其他任何赌博特征 -> 高风险  
+        # 判定逻辑：更严格的高风险判定
+        # 1. 匹配3个或以上模式 -> 高风险
+        # 2. 匹配"首存"相关模式 + 其他2个以上赌博特征 -> 高风险
+        # 3. 多个赌博关键词组合达到3个以上 -> 高风险  
         is_high_risk = (
-            len(matched_patterns) >= 2 or
-            (any('首[存充]' in p for p in matched_patterns) and keyword_hits >= 2)
+            len(matched_patterns) >= 3 or
+            (any('首[存充]' in p for p in matched_patterns) and keyword_hits >= 3) or
+            keyword_hits >= 4
         )
         
         if is_high_risk:
@@ -253,17 +253,43 @@ class UnifiedFilterEngine:
             except Exception as e:
                 logger.debug(f"实体结构检测失败: {e}")
         
-        # 1. 高风险广告检测
-        is_high_risk, risk_patterns = self.is_high_risk_ad(content)
-        if is_high_risk:
-            is_ad = True
-            reasons.append(f"高风险广告({len(risk_patterns)}个特征)")
-            # 高风险广告直接清空内容
-            filtered_content = ""
-            logger.warning(f"检测到高风险广告，内容已清空")
-            return True, "", " | ".join(reasons)
+        # 1. 智能尾部过滤 - 优先移除推广尾部
+        # 使用ContentFilter的逻辑进行尾部过滤
+        try:
+            from app.services.content_filter import ContentFilter
+            temp_filter = ContentFilter()
             
-        # 2. AI广告检测（使用训练数据）- 只有在实体检测未识别时才运行
+            # 使用ContentFilter的推广内容过滤来处理尾部
+            temp_filtered = temp_filter.filter_promotional_content(filtered_content, channel_id)
+            if temp_filtered != filtered_content:
+                original_len = len(filtered_content)
+                filtered_len = len(temp_filtered)
+                filtered_content = temp_filtered
+                
+                # 如果过滤后完全没有内容，且原始内容不为空
+                if not filtered_content.strip() and original_len > 0:
+                    is_ad = True
+                    reasons.append("完全是尾部推广")
+                else:
+                    # 仅移除了尾部，不标记为广告
+                    reasons.append("移除尾部内容（非广告）")
+                    
+                logger.info(f"移除了尾部推广: {original_len - filtered_len} 字符")
+        except Exception as e:
+            logger.debug(f"尾部过滤失败: {e}")
+                
+        # 2. 高风险广告检测（在尾部过滤后的内容上检测）
+        if not is_ad:  # 只有在尾部过滤没有标记为广告时才检测
+            is_high_risk, risk_patterns = self.is_high_risk_ad(filtered_content)
+            if is_high_risk:
+                is_ad = True
+                reasons.append(f"高风险广告({len(risk_patterns)}个特征)")
+                # 高风险广告直接清空内容
+                filtered_content = ""
+                logger.warning(f"检测到高风险广告，内容已清空")
+                return True, "", " | ".join(reasons)
+                
+        # 3. AI广告检测（使用训练数据）- 只有在前面检测都未识别时才运行
         if not is_ad and self.ai_filter and self.ai_filter.initialized:
             try:
                 is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(filtered_content)
@@ -274,35 +300,14 @@ class UnifiedFilterEngine:
             except Exception as e:
                 logger.debug(f"AI检测失败: {e}")
                 
-        # 3. 智能尾部过滤 - 只有在前面检测都未识别时才运行
-        if not is_ad and self.intelligent_tail_filter and filtered_content:
-            try:
-                # 不再每次都重新加载，intelligent_tail_filter在初始化时已加载
-                # 使用intelligent_tail_filter进行过滤
-                clean_content, has_tail, removed_tail = self.intelligent_tail_filter.filter_message(
-                    filtered_content
-                )
-                if has_tail:
-                    filtered_content = clean_content
-                    if not filtered_content.strip():
-                        is_ad = True
-                        reasons.append("完全是尾部推广")
-                    else:
-                        reasons.append("包含尾部推广")
-                    logger.info(f"移除了尾部推广: {len(removed_tail) if removed_tail else 0} 字符")
-            except Exception as e:
-                logger.debug(f"尾部过滤失败: {e}")
-                
         # 4. OCR检测（如果有媒体文件）
         if media_files and not is_ad:
             # TODO: 实现OCR检测
             pass
             
-        # 5. 检查是否整条消息都被过滤了
-        if not filtered_content.strip() and content.strip():
-            is_ad = True
-            if "整条消息都是广告" not in reasons:
-                reasons.append("整条消息都是广告")
+        # 5. 最终判定：只有明确被识别为广告的才标记为广告
+        # 不再因为内容被过滤就标记为广告
+        # 已经在上面的各个检测步骤中设置了is_ad标志
                 
         filter_reason = " | ".join(reasons) if reasons else ""
         
