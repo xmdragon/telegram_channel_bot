@@ -1,24 +1,77 @@
 """
 消息管理API
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from app.utils.timezone import get_current_time, format_for_api
 import os
 import logging
 
-from app.core.database import get_db, Message, Admin
+from app.storage.redis_store import get_redis_message_store
+from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
-from app.api.admin_auth import require_admin, check_permission
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-message_processor = MessageProcessor()
-channel_manager = ChannelManager()
+security = HTTPBearer(auto_error=False)
+
+# 依赖注入辅助函数
+def get_message_processor() -> MessageProcessor:
+    return MessageProcessor()
+
+def get_channel_manager() -> ChannelManager:
+    return ChannelManager()
+
+# 认证中间件
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> Optional[Dict[str, Any]]:
+    """获取当前用户"""
+    if not credentials:
+        return None
+    
+    try:
+        auth_service = get_auth_service()
+        return await auth_service.get_current_user(credentials.credentials)
+    except Exception as e:
+        logger.error(f"获取当前用户失败: {e}")
+        return None
+
+async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
+    """要求用户认证"""
+    if not user:
+        raise HTTPException(status_code=401, detail="未授权访问")
+    return user
+
+def check_permission(permission_name: str):
+    """检查权限装饰器"""
+    async def permission_checker(
+        credentials: HTTPAuthorizationCredentials = Depends(security)
+    ) -> Dict[str, Any]:
+        if not credentials:
+            raise HTTPException(status_code=401, detail="未授权访问")
+        
+        try:
+            auth_service = get_auth_service()
+            user = await auth_service.get_current_user(credentials.credentials)
+            if not user:
+                raise HTTPException(status_code=401, detail="未授权访问")
+            
+            has_permission = await auth_service.check_permission(credentials.credentials, permission_name)
+            if not has_permission:
+                raise HTTPException(status_code=403, detail=f"缺少权限: {permission_name}")
+            
+            return user
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"权限检查失败: {e}")
+            raise HTTPException(status_code=500, detail="权限检查失败")
+    
+    return permission_checker
 
 # 导入媒体处理器
 from app.services.media_handler import media_handler
@@ -32,105 +85,135 @@ async def get_messages(
     search: Optional[str] = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.view"))
+    user: Dict[str, Any] = Depends(check_permission("messages.view")),
+    message_processor: MessageProcessor = Depends(get_message_processor),
+    channel_manager: ChannelManager = Depends(get_channel_manager)
 ):
     """获取消息列表"""
-    
-    # 构建查询条件
-    conditions = []
-    if status:
-        conditions.append(Message.status == status)
-    if source_channel:
-        conditions.append(Message.source_channel == source_channel)
-    if is_ad is not None:
-        conditions.append(Message.is_ad == is_ad)
-    
-    # 添加搜索条件
-    if search:
-        from sqlalchemy import or_
-        search_term = f"%{search}%"
-        conditions.append(
-            or_(
-                Message.content.ilike(search_term),
-                Message.filtered_content.ilike(search_term)
-            )
-        )
-    
-    # 执行查询
-    query = select(Message)
-    if conditions:
-        query = query.where(and_(*conditions))
-    
-    query = query.offset((page - 1) * size).limit(size).order_by(Message.created_at.desc())
-    
-    result = await db.execute(query)
-    messages = result.scalars().all()
-    
-    # 获取频道信息映射
-    channel_info = await channel_manager.get_channel_info_for_display()
-    
-    # 处理消息列表，检查媒体文件存在性
-    processed_messages = []
-    for msg in messages:
-        # 检查主媒体文件是否存在
-        media_display_url = None
-        if msg.media_url:
-            media_path = msg.media_url
-            if os.path.exists(media_path):
-                media_display_url = f"/temp_media/{os.path.basename(media_path)}"
-            else:
-                # 文件不存在，返回None让前端显示补抓按钮
-                media_display_url = None
+    try:
+        redis_store = get_redis_message_store()
         
-        # 处理组合消息的媒体组
-        media_group_display = None
-        if msg.media_group:
-            media_group_display = []
-            for media_item in msg.media_group:
-                item_copy = dict(media_item)
-                if media_item.get('file_path'):
-                    if os.path.exists(media_item['file_path']):
-                        item_copy['display_url'] = f"/temp_media/{os.path.basename(media_item['file_path'])}"
+        # 获取所有消息（简化版，完整版需要在Redis中实现复杂过滤）
+        if source_channel:
+            # 从指定频道获取消息
+            all_messages = redis_store.get_messages_by_channel(
+                source_channel, 
+                limit=size * 10,  # 获取更多数据用于过滤
+                offset=0
+            )
+        else:
+            # 获取待审核消息（主要场景）
+            if status == "pending" or status is None:
+                all_messages = redis_store.get_pending_messages(limit=size * 10)
+            else:
+                # 对于其他状态，需要实现更复杂的查询逻辑
+                # 暂时返回待审核消息
+                all_messages = redis_store.get_pending_messages(limit=size * 10)
+        
+        # 应用过滤条件
+        filtered_messages = []
+        for msg in all_messages:
+            # 状态过滤
+            if status and msg.get('status') != status:
+                continue
+            
+            # 广告过滤
+            if is_ad is not None:
+                msg_is_ad = msg.get('is_ad', False)
+                if isinstance(msg_is_ad, str):
+                    msg_is_ad = msg_is_ad.lower() == 'true'
+                if msg_is_ad != is_ad:
+                    continue
+            
+            # 搜索过滤
+            if search:
+                content = msg.get('content', '')
+                filtered_content = msg.get('filtered_content', '')
+                if (search.lower() not in content.lower() and 
+                    search.lower() not in filtered_content.lower()):
+                    continue
+            
+            filtered_messages.append(msg)
+        
+        # 分页处理
+        start_idx = (page - 1) * size
+        end_idx = start_idx + size
+        page_messages = filtered_messages[start_idx:end_idx]
+        
+        # 获取频道信息映射
+        channel_info = await channel_manager.get_channel_info_for_display()
+        
+        # 处理消息列表，检查媒体文件存在性
+        processed_messages = []
+        for msg in page_messages:
+            # 为了保持兼容性，生成假的id（使用channel_id:message_id）
+            msg_id = f"{msg.get('source_channel', '')}:{msg.get('message_id', '')}"
+            
+            # 检查主媒体文件是否存在
+            media_display_url = None
+            if msg.get('media_url'):
+                media_path = msg['media_url']
+                if os.path.exists(media_path):
+                    media_display_url = f"/temp_media/{os.path.basename(media_path)}"
+                else:
+                    media_display_url = None
+            
+            # 处理组合消息的媒体组
+            media_group_display = None
+            if msg.get('media_group'):
+                media_group_display = []
+                for media_item in msg['media_group']:
+                    item_copy = dict(media_item)
+                    if media_item.get('file_path'):
+                        if os.path.exists(media_item['file_path']):
+                            item_copy['display_url'] = f"/temp_media/{os.path.basename(media_item['file_path'])}"
+                        else:
+                            item_copy['display_url'] = None
                     else:
                         item_copy['display_url'] = None
-                else:
-                    item_copy['display_url'] = None
-                media_group_display.append(item_copy)
+                    media_group_display.append(item_copy)
+            
+            source_channel_key = msg.get('source_channel', '')
+            processed_messages.append({
+                "id": msg_id,  # 使用复合ID
+                "source_channel": source_channel_key,
+                "source_channel_title": channel_info.get(source_channel_key, {}).get('title', '未知频道'),
+                "source_channel_link_prefix": channel_info.get(source_channel_key, {}).get('link_prefix', ''),
+                "content": msg.get('content', ''),
+                "filtered_content": msg.get('filtered_content', ''),
+                "message_id": msg.get('message_id'),
+                "media_type": msg.get('media_type'),
+                "media_url": msg.get('media_url'),
+                "media_display_url": media_display_url,
+                "grouped_id": msg.get('grouped_id'),
+                "is_combined": msg.get('is_combined', False),
+                "combined_messages": msg.get('combined_messages'),
+                "media_group": msg.get('media_group'),
+                "media_group_display": media_group_display,
+                "status": msg.get('status', 'pending'),
+                "is_ad": msg.get('is_ad', False),
+                "created_at": msg.get('created_at'),
+                "review_time": msg.get('review_time'),
+                "reviewed_by": msg.get('reviewed_by'),
+                "filter_reason": msg.get('filter_reason'),
+                "removed_hidden_links": msg.get('removed_hidden_links')
+            })
         
-        processed_messages.append({
-            "id": msg.id,
-            "source_channel": msg.source_channel,
-            "source_channel_title": channel_info.get(msg.source_channel, {}).get('title', '未知频道'),
-            "source_channel_link_prefix": channel_info.get(msg.source_channel, {}).get('link_prefix', ''),
-            "content": msg.content,
-            "filtered_content": msg.filtered_content,
-            "message_id": msg.message_id,
-            "media_type": msg.media_type,
-            "media_url": msg.media_url,
-            "media_display_url": media_display_url,
-            "grouped_id": msg.grouped_id,
-            "is_combined": msg.is_combined,
-            "combined_messages": msg.combined_messages,
-            "media_group": msg.media_group,
-            "media_group_display": media_group_display,
-            "status": msg.status,
-            "is_ad": msg.is_ad,
-            "created_at": format_for_api(msg.created_at),
-            "review_time": format_for_api(msg.review_time),
-            "reviewed_by": msg.reviewed_by,
-            "filter_reason": getattr(msg, 'filter_reason', None),
-            "removed_hidden_links": getattr(msg, 'removed_hidden_links', None)
-        })
-    
-    return {
-        "messages": processed_messages,
-        "page": page,
-        "size": size
-    }
+        return {
+            "messages": processed_messages,
+            "page": page,
+            "size": size,
+            "total": len(filtered_messages)
+        }
+        
+    except Exception as e:
+        logger.error(f"获取消息列表失败: {e}")
+        raise HTTPException(status_code=500, detail="获取消息列表失败")
 
 @router.get("/channel-info")
-async def get_channel_info():
+async def get_channel_info(
+    channel_manager: ChannelManager = Depends(get_channel_manager)
+):
     """获取频道信息映射"""
     try:
         # 使用新的频道信息获取方法
@@ -141,6 +224,7 @@ async def get_channel_info():
             "data": channel_info
         }
     except Exception as e:
+        logger.error(f"获取频道信息失败: {e}")
         return {
             "success": False,
             "error": str(e)
@@ -149,283 +233,382 @@ async def get_channel_info():
 @router.post("/batch/approve")
 async def batch_approve_messages(
     request: dict,
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.approve"))
+    user: Dict[str, Any] = Depends(check_permission("messages.approve")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """批量批准消息"""
     message_ids = request.get("message_ids", [])
     if not message_ids:
         return {"success": False, "message": "未提供消息ID列表"}
     
-    result = await db.execute(
-        select(Message).where(
-            and_(
-                Message.id.in_(message_ids),
-                Message.status == "pending"
-            )
+    try:
+        redis_store = get_redis_message_store()
+        reviewer_name = user.get('username', 'Web用户')
+        
+        # 解析消息ID（从复合ID中提取channel_id和message_id）
+        message_tuples = []
+        valid_messages = []
+        
+        for msg_id in message_ids:
+            try:
+                if ':' in str(msg_id):
+                    # 新格式: "channel_id:message_id"
+                    channel_id, message_id = str(msg_id).split(':', 1)
+                    message_tuples.append((channel_id, int(message_id)))
+                else:
+                    # 老格式: 纯数字ID（需要从其他地方获取channel_id）
+                    # 这里暂时跳过，实际使用中需要处理
+                    logger.warning(f"无法解析消息ID格式: {msg_id}")
+                    continue
+                    
+                # 检查消息是否存在且为待审核状态
+                msg_data = redis_store.get_message(channel_id, int(message_id))
+                if msg_data and msg_data.get('status') == 'pending':
+                    valid_messages.append(msg_data)
+                
+            except (ValueError, IndexError) as e:
+                logger.error(f"解析消息ID {msg_id} 失败: {e}")
+                continue
+        
+        if not valid_messages:
+            return {"success": False, "message": "没有找到可批准的消息"}
+        
+        # 批量更新状态
+        update_results = await message_processor.batch_update_status(
+            message_tuples, "approved", reviewer_name
         )
-    )
-    messages = result.scalars().all()
-    
-    for message in messages:
-        message.status = "approved"
-        message.reviewed_by = "Web用户"
-        message.review_time = get_current_time()
-    
-    await db.commit()
-    
-    # 批量转发到目标频道
-    forwarded_count = 0
-    try:
-        from app.telegram.bot import telegram_bot
-        if telegram_bot and telegram_bot.client:
-            from app.telegram.message_forwarder import message_forwarder
-            for message in messages:
+        
+        approved_count = sum(1 for success in update_results.values() if success)
+        
+        # 批量转发到目标频道
+        forwarded_count = 0
+        try:
+            from app.telegram.bot import telegram_bot
+            if telegram_bot and telegram_bot.client:
+                from app.telegram.message_forwarder import message_forwarder
+                for msg_data in valid_messages:
+                    try:
+                        # 这里需要将Redis数据转换为适合message_forwarder的格式
+                        await message_forwarder.forward_to_target(telegram_bot.client, msg_data)
+                        forwarded_count += 1
+                    except Exception as e:
+                        msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                        logger.error(f"转发消息 {msg_key} 失败: {e}")
+                
+                # 记录用户反馈用于学习
                 try:
-                    await message_forwarder.forward_to_target(telegram_bot.client, message)
-                    forwarded_count += 1
-                except Exception as e:
-                    logger.error(f"转发消息 {message.id} 失败: {e}")
-            await db.commit()  # 保存所有转发信息
-            
-            # 记录用户反馈用于学习
-            from app.services.adaptive_learning import adaptive_learning
-            for message in messages:
-                try:
-                    await adaptive_learning.learn_from_user_action(message.id, 'approved', 'Web用户')
-                except Exception as e:
-                    logger.debug(f"记录学习反馈失败: {e}")
-            
-            logger.info(f"批量批准：{len(messages)} 条消息已批准，{forwarded_count} 条已转发")
-        else:
-            logger.warning(f"批量批准：{len(messages)} 条消息已批准但无法转发（Telegram客户端未连接）")
+                    from app.services.adaptive_learning import adaptive_learning
+                    for msg_data in valid_messages:
+                        msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                        try:
+                            await adaptive_learning.learn_from_user_action(msg_key, 'approved', reviewer_name)
+                        except Exception as e:
+                            logger.debug(f"记录学习反馈失败: {e}")
+                except ImportError:
+                    logger.debug("自适应学习模块未找到")
+                
+                logger.info(f"批量批准：{approved_count} 条消息已批准，{forwarded_count} 条已转发")
+            else:
+                logger.warning(f"批量批准：{approved_count} 条消息已批准但无法转发（Telegram客户端未连接）")
+        except Exception as e:
+            logger.error(f"批量转发消息失败: {e}")
+        
+        # 广播批量状态更新到WebSocket客户端
+        try:
+            from app.api.websocket import websocket_manager
+            for msg_data in valid_messages:
+                msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                await websocket_manager.broadcast_message_status_update(msg_key, "approved")
+        except Exception as e:
+            logger.debug(f"广播批量状态更新失败: {e}")
+        
+        return {"success": True, "message": f"已批准 {approved_count} 条消息，{forwarded_count} 条已转发"}
+        
     except Exception as e:
-        logger.error(f"批量转发消息失败: {e}")
-    
-    # 广播批量状态更新到WebSocket客户端
-    try:
-        from app.api.websocket import websocket_manager
-        for message in messages:
-            await websocket_manager.broadcast_message_status_update(message.id, "approved")
-    except Exception as e:
-        print(f"广播批量状态更新失败: {e}")
-    
-    return {"success": True, "message": f"已批准 {len(messages)} 条消息，{forwarded_count} 条已转发"}
+        logger.error(f"批量批准消息失败: {e}")
+        raise HTTPException(status_code=500, detail="批量批准失败")
 
 
 @router.post("/batch/reject")
 async def batch_reject_messages(
     request: dict,
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.reject"))
+    user: Dict[str, Any] = Depends(check_permission("messages.reject")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """批量拒绝消息"""
     message_ids = request.get("message_ids", [])
     if not message_ids:
         return {"success": False, "message": "未提供消息ID列表"}
     
-    result = await db.execute(
-        select(Message).where(
-            and_(
-                Message.id.in_(message_ids),
-                Message.status == "pending"
-            )
-        )
-    )
-    messages = result.scalars().all()
-    
-    # 从审核群删除消息
-    deleted_count = 0
     try:
-        from app.telegram.bot import telegram_bot
-        if telegram_bot and telegram_bot.client:
-            for message in messages:
-                if message.review_message_id:
-                    try:
-                        await telegram_bot.delete_review_message(message.review_message_id)
-                        deleted_count += 1
-                    except Exception as e:
-                        logger.debug(f"删除审核群消息失败: {e}")
-                
-                # 清理媒体文件
-                try:
-                    await telegram_bot._cleanup_message_files(message)
-                except Exception as e:
-                    logger.debug(f"清理媒体文件失败: {e}")
-    except Exception as e:
-        logger.error(f"批量删除审核群消息失败: {e}")
-    
-    # 更新消息状态
-    for message in messages:
-        message.status = "rejected"
-        message.reviewed_by = "Web用户"
-        message.review_time = get_current_time()
-    
-    await db.commit()
-    
-    # 记录用户反馈用于学习
-    try:
-        from app.services.adaptive_learning import adaptive_learning
-        for message in messages:
+        redis_store = get_redis_message_store()
+        reviewer_name = user.get('username', 'Web用户')
+        
+        # 解析消息ID（从复合ID中提取channel_id和message_id）
+        message_tuples = []
+        valid_messages = []
+        
+        for msg_id in message_ids:
             try:
-                await adaptive_learning.learn_from_user_action(message.id, 'rejected', 'Web用户')
-            except Exception as e:
-                logger.debug(f"记录学习反馈失败: {e}")
+                if ':' in str(msg_id):
+                    channel_id, message_id = str(msg_id).split(':', 1)
+                    message_tuples.append((channel_id, int(message_id)))
+                else:
+                    logger.warning(f"无法解析消息ID格式: {msg_id}")
+                    continue
+                    
+                # 检查消息是否存在且为待审核状态
+                msg_data = redis_store.get_message(channel_id, int(message_id))
+                if msg_data and msg_data.get('status') == 'pending':
+                    valid_messages.append(msg_data)
+                
+            except (ValueError, IndexError) as e:
+                logger.error(f"解析消息ID {msg_id} 失败: {e}")
+                continue
+        
+        if not valid_messages:
+            return {"success": False, "message": "没有找到可拒绝的消息"}
+        
+        # 从审核群删除消息和清理媒体文件
+        deleted_count = 0
+        try:
+            from app.telegram.bot import telegram_bot
+            if telegram_bot and telegram_bot.client:
+                for msg_data in valid_messages:
+                    review_message_id = msg_data.get('review_message_id')
+                    if review_message_id:
+                        try:
+                            await telegram_bot.delete_review_message(review_message_id)
+                            deleted_count += 1
+                        except Exception as e:
+                            logger.debug(f"删除审核群消息失败: {e}")
+                    
+                    # 清理媒体文件
+                    try:
+                        await telegram_bot._cleanup_message_files(msg_data)
+                    except Exception as e:
+                        logger.debug(f"清理媒体文件失败: {e}")
+        except Exception as e:
+            logger.error(f"批量删除审核群消息失败: {e}")
+        
+        # 批量更新状态
+        update_results = await message_processor.batch_update_status(
+            message_tuples, "rejected", reviewer_name
+        )
+        
+        rejected_count = sum(1 for success in update_results.values() if success)
+        
+        # 记录用户反馈用于学习
+        try:
+            from app.services.adaptive_learning import adaptive_learning
+            for msg_data in valid_messages:
+                msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                try:
+                    await adaptive_learning.learn_from_user_action(msg_key, 'rejected', reviewer_name)
+                except Exception as e:
+                    logger.debug(f"记录学习反馈失败: {e}")
+        except ImportError:
+            logger.debug("自适应学习模块未找到")
+        
+        # 广播批量状态更新到WebSocket客户端
+        try:
+            from app.api.websocket import websocket_manager
+            for msg_data in valid_messages:
+                msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                await websocket_manager.broadcast_message_status_update(msg_key, "rejected")
+        except Exception as e:
+            logger.debug(f"广播批量状态更新失败: {e}")
+        
+        logger.info(f"批量拒绝：{rejected_count} 条消息已拒绝，{deleted_count} 条审核群消息已删除")
+        
+        return {"success": True, "message": f"已拒绝 {rejected_count} 条消息"}
+        
     except Exception as e:
-        logger.debug(f"批量学习反馈失败: {e}")
-    
-    # 广播批量状态更新到WebSocket客户端
-    try:
-        from app.api.websocket import websocket_manager
-        for message in messages:
-            await websocket_manager.broadcast_message_status_update(message.id, "rejected")
-    except Exception as e:
-        print(f"广播批量状态更新失败: {e}")
-    
-    logger.info(f"批量拒绝：{len(messages)} 条消息已拒绝，{deleted_count} 条审核群消息已删除")
-    
-    return {"success": True, "message": f"已拒绝 {len(messages)} 条消息"}
+        logger.error(f"批量拒绝消息失败: {e}")
+        raise HTTPException(status_code=500, detail="批量拒绝失败")
 
 
 @router.get("/{message_id}")
 async def get_message(
-    message_id: int,
-    db: AsyncSession = Depends(get_db)
+    message_id: str,
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """获取单个消息详情"""
-    result = await db.execute(select(Message).where(Message.id == message_id))
-    message = result.scalar_one_or_none()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    return {
-        "success": True,
-        "message": {
-            "id": message.id,
-            "source_channel": message.source_channel,
-            "message_id": message.message_id,
-            "content": message.content,
-            "filtered_content": message.filtered_content,
-            "media_type": message.media_type,
-            "media_url": message.media_url,
-            "status": message.status,
-            "is_ad": message.is_ad,
-            "reviewed_by": message.reviewed_by,
-            "review_time": message.review_time,
-            "forwarded_time": message.forwarded_time,
-            "created_at": message.created_at,
-            "updated_at": message.updated_at
+    try:
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+            msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        else:
+            # 对于老格式ID，需要更复杂的查找逻辑
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        return {
+            "success": True,
+            "message": {
+                "id": message_id,
+                "source_channel": msg_data.get('source_channel'),
+                "message_id": msg_data.get('message_id'),
+                "content": msg_data.get('content'),
+                "filtered_content": msg_data.get('filtered_content'),
+                "media_type": msg_data.get('media_type'),
+                "media_url": msg_data.get('media_url'),
+                "status": msg_data.get('status'),
+                "is_ad": msg_data.get('is_ad'),
+                "reviewed_by": msg_data.get('reviewed_by'),
+                "review_time": msg_data.get('review_time'),
+                "forwarded_time": msg_data.get('forwarded_time'),
+                "created_at": msg_data.get('created_at'),
+                "updated_at": msg_data.get('updated_at')
+            }
         }
-    }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取消息失败: {e}")
+        raise HTTPException(status_code=500, detail="获取消息失败")
 
 @router.post("/{message_id}/approve")
 async def approve_message(
-    message_id: int,
-    reviewer: str,
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.approve"))
+    message_id: str,
+    request: dict = None,
+    user: Dict[str, Any] = Depends(check_permission("messages.approve")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """批准消息"""
-    result = await db.execute(select(Message).where(Message.id == message_id))
-    message = result.scalar_one_or_none()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    if message.status != "pending":
-        raise HTTPException(status_code=400, detail="消息状态不允许此操作")
-    
-    message.status = "approved"
-    message.reviewed_by = reviewer
-    message.review_time = datetime.now()
-    
-    await db.commit()
-    
-    # 转发到目标频道
     try:
-        logger.info(f"准备转发消息 {message_id} 到目标频道")
-        from app.telegram.bot import telegram_bot
-        logger.debug(f"telegram_bot 对象: {telegram_bot}")
-        logger.debug(f"telegram_bot.client: {getattr(telegram_bot, 'client', None)}")
-        
-        if telegram_bot and telegram_bot.client:
-            from app.telegram.message_forwarder import message_forwarder
-            await message_forwarder.forward_to_target(telegram_bot.client, message)
-            await db.commit()  # 保存转发后的信息
-            
-            # 记录用户反馈用于学习
-            from app.services.adaptive_learning import adaptive_learning
-            try:
-                await adaptive_learning.learn_from_user_action(message_id, 'approved', reviewer)
-            except Exception as e:
-                logger.debug(f"记录学习反馈失败: {e}")
-            
-            logger.info(f"消息 {message_id} 已批准并转发到目标频道")
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
         else:
-            logger.warning(f"消息 {message_id} 已批准但无法转发（Telegram客户端未连接）")
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        # 获取消息
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        if msg_data.get('status') != "pending":
+            raise HTTPException(status_code=400, detail="消息状态不允许此操作")
+        
+        reviewer_name = user.get('username', 'Web用户')
+        
+        # 更新状态
+        success = await message_processor.update_message_status(
+            channel_id, int(msg_id), "approved", reviewer_name
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="更新消息状态失败")
+        
+        # 转发到目标频道
+        try:
+            logger.info(f"准备转发消息 {message_id} 到目标频道")
+            from app.telegram.bot import telegram_bot
+            
+            if telegram_bot and telegram_bot.client:
+                from app.telegram.message_forwarder import message_forwarder
+                await message_forwarder.forward_to_target(telegram_bot.client, msg_data)
+                
+                # 记录用户反馈用于学习
+                try:
+                    from app.services.adaptive_learning import adaptive_learning
+                    await adaptive_learning.learn_from_user_action(message_id, 'approved', reviewer_name)
+                except Exception as e:
+                    logger.debug(f"记录学习反馈失败: {e}")
+                
+                logger.info(f"消息 {message_id} 已批准并转发到目标频道")
+            else:
+                logger.warning(f"消息 {message_id} 已批准但无法转发（Telegram客户端未连接）")
+        except Exception as e:
+            logger.error(f"转发消息 {message_id} 到目标频道失败: {e}", exc_info=True)
+        
+        # 广播状态更新到WebSocket客户端
+        try:
+            from app.api.websocket import websocket_manager
+            await websocket_manager.broadcast_message_status_update(message_id, "approved")
+        except Exception as e:
+            logger.debug(f"广播状态更新失败: {e}")
+        
+        return {"success": True, "message": "消息已批准"}
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"转发消息 {message_id} 到目标频道失败: {e}", exc_info=True)
-    
-    # 广播状态更新到WebSocket客户端
-    try:
-        from app.api.websocket import websocket_manager
-        await websocket_manager.broadcast_message_status_update(message_id, "approved")
-    except Exception as e:
-        print(f"广播状态更新失败: {e}")
-    
-    return {"success": True, "message": "消息已批准"}
+        logger.error(f"批准消息失败: {e}")
+        raise HTTPException(status_code=500, detail="批准消息失败")
 
 @router.post("/{message_id}/reject")
 async def reject_message(
-    message_id: int,
-    reviewer: str = Query(default="Web用户"),
-    reason: Optional[str] = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.reject"))
+    message_id: str,
+    request: dict = None,
+    user: Dict[str, Any] = Depends(check_permission("messages.reject")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """拒绝消息"""
-    result = await db.execute(select(Message).where(Message.id == message_id))
-    message = result.scalar_one_or_none()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    if message.status != "pending":
-        raise HTTPException(status_code=400, detail="消息状态不允许此操作")
-    
-    # 从审核群删除消息
     try:
-        from app.telegram.bot import telegram_bot
-        if telegram_bot and telegram_bot.client and message.review_message_id:
-            await telegram_bot.delete_review_message(message.review_message_id)
-            
-            # 清理媒体文件
-            await telegram_bot._cleanup_message_files(message)
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        # 获取消息
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        if msg_data.get('status') != "pending":
+            raise HTTPException(status_code=400, detail="消息状态不允许此操作")
+        
+        reviewer_name = user.get('username', 'Web用户')
+        reason = request.get('reason') if request else None
+        
+        # 从审核群删除消息
+        try:
+            from app.telegram.bot import telegram_bot
+            review_message_id = msg_data.get('review_message_id')
+            if telegram_bot and telegram_bot.client and review_message_id:
+                await telegram_bot.delete_review_message(review_message_id)
+                
+                # 清理媒体文件
+                await telegram_bot._cleanup_message_files(msg_data)
+        except Exception as e:
+            logger.debug(f"删除审核群消息失败: {e}")
+        
+        # 更新状态
+        success = await message_processor.update_message_status(
+            channel_id, int(msg_id), "rejected", reviewer_name
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="更新消息状态失败")
+        
+        # 记录用户反馈用于学习
+        try:
+            from app.services.adaptive_learning import adaptive_learning
+            await adaptive_learning.learn_from_user_action(message_id, 'rejected', reviewer_name)
+        except Exception as e:
+            logger.debug(f"记录学习反馈失败: {e}")
+        
+        # 广播状态更新到WebSocket客户端
+        try:
+            from app.api.websocket import websocket_manager
+            await websocket_manager.broadcast_message_status_update(message_id, "rejected")
+        except Exception as e:
+            logger.debug(f"广播状态更新失败: {e}")
+        
+        return {"success": True, "message": "消息已拒绝"}
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"删除审核群消息失败: {e}")
-    
-    message.status = "rejected"
-    message.reviewed_by = reviewer
-    message.review_time = datetime.now()
-    
-    await db.commit()
-    
-    # 记录用户反馈用于学习
-    from app.services.adaptive_learning import adaptive_learning
-    try:
-        await adaptive_learning.learn_from_user_action(message_id, 'rejected', reviewer)
-    except Exception as e:
-        logger.debug(f"记录学习反馈失败: {e}")
-    
-    # 广播状态更新到WebSocket客户端
-    try:
-        from app.api.websocket import websocket_manager
-        await websocket_manager.broadcast_message_status_update(message_id, "rejected")
-    except Exception as e:
-        print(f"广播状态更新失败: {e}")
-    
-    return {"success": True, "message": "消息已拒绝"}
+        logger.error(f"拒绝消息失败: {e}")
+        raise HTTPException(status_code=500, detail="拒绝消息失败")
 
 @router.post("/{message_id}/publish")
 async def publish_message(
@@ -607,55 +790,85 @@ async def edit_and_publish_message(
 
 
 @router.get("/stats/overview")
-async def get_message_stats():
+async def get_message_stats(
+    message_processor: MessageProcessor = Depends(get_message_processor)
+):
     """获取消息统计概览"""
-    stats = await message_processor.get_message_stats()
-    return stats
+    try:
+        stats = await message_processor.get_message_stats()
+        return stats
+    except Exception as e:
+        logger.error(f"获取消息统计失败: {e}")
+        return {
+            "total": 0,
+            "pending": 0,
+            "approved": 0,
+            "rejected": 0,
+            "ads": 0,
+            "duplicates": 0,
+            "channels": 0,
+            "auto_forwarded": 0
+        }
 
 @router.delete("/{message_id}/review-message")
 async def delete_review_message(
-    message_id: int,
-    db: AsyncSession = Depends(get_db)
+    message_id: str,
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """删除审核群中的消息"""
-    result = await db.execute(select(Message).where(Message.id == message_id))
-    message = result.scalar_one_or_none()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    if not message.review_message_id:
-        return {"success": True, "message": "消息没有审核群消息ID"}
-    
     try:
-        from app.telegram.bot import telegram_bot
-        if telegram_bot and telegram_bot.client:
-            await telegram_bot.delete_review_message(message)
-            return {"success": True, "message": "审核群消息已删除"}
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
         else:
-            return {"success": False, "message": "Telegram客户端未连接"}
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        review_message_id = msg_data.get('review_message_id')
+        if not review_message_id:
+            return {"success": True, "message": "消息没有审核群消息ID"}
+        
+        try:
+            from app.telegram.bot import telegram_bot
+            if telegram_bot and telegram_bot.client:
+                await telegram_bot.delete_review_message(review_message_id)
+                return {"success": True, "message": "审核群消息已删除"}
+            else:
+                return {"success": False, "message": "Telegram客户端未连接"}
+        except Exception as e:
+            logger.error(f"删除审核群消息失败: {e}")
+            return {"success": False, "message": f"删除失败: {str(e)}"}
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"success": False, "message": f"删除失败: {str(e)}"}
+        logger.error(f"删除审核群消息失败: {e}")
+        raise HTTPException(status_code=500, detail="删除审核群消息失败")
 
 
 @router.post("/{message_id}/refetch-media")
 async def refetch_media(
-    message_id: int,
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("channels.refetch"))
+    message_id: str,
+    user: Dict[str, Any] = Depends(check_permission("channels.refetch")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """
     重新抓取消息的媒体文件
     用于补抓缺失或损坏的媒体
     """
     try:
-        # 获取消息记录
-        result = await db.execute(
-            select(Message).where(Message.id == message_id)
-        )
-        message = result.scalar_one_or_none()
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        if not message:
+        # 获取消息记录
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 检查是否有媒体
@@ -783,13 +996,14 @@ async def refetch_media(
 
 @router.post("/batch/refetch-media")
 async def batch_refetch_media(
-    message_ids: List[int],
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("channels.refetch"))
+    request: dict,
+    user: Dict[str, Any] = Depends(check_permission("channels.refetch")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """
     批量补抓媒体文件
     """
+    message_ids = request.get("message_ids", [])
     results = {
         "success": 0,
         "skipped": 0,
@@ -799,7 +1013,8 @@ async def batch_refetch_media(
     
     for msg_id in message_ids:
         try:
-            result = await refetch_media(msg_id, db)
+            # 调用单个补抓接口
+            result = await refetch_media(str(msg_id), user, message_processor)
             if result["success"]:
                 if result.get("skipped"):
                     results["skipped"] += 1
@@ -824,23 +1039,27 @@ async def batch_refetch_media(
 
 @router.post("/{message_id}/filter-tail")
 async def filter_message_tail(
-    message_id: int,
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("filter.execute"))
+    message_id: str,
+    user: Dict[str, Any] = Depends(check_permission("filter.execute")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """
     对单条消息执行尾部过滤
     """
     try:
-        # 获取消息
-        result = await db.execute(select(Message).where(Message.id == message_id))
-        message = result.scalar_one_or_none()
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        if not message:
+        # 获取消息
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 获取原始内容（如果没有原始内容，使用当前内容）
-        original_content = message.content or message.filtered_content
+        original_content = msg_data.get('content') or msg_data.get('filtered_content')
         
         if not original_content:
             return {
@@ -852,13 +1071,18 @@ async def filter_message_tail(
         from app.services.smart_tail_filter import smart_tail_filter
         filtered_content, has_tail, removed_tail = smart_tail_filter.filter_tail_ads(
             original_content, 
-            channel_id=message.source_channel
+            channel_id=channel_id
         )
         
         # 更新过滤后的内容
         if has_tail:
-            message.filtered_content = filtered_content
-            await db.commit()
+            redis_store = get_redis_message_store()
+            msg_key = f"msg:{channel_id}:{msg_id}"
+            update_data = {
+                'filtered_content': filtered_content,
+                'updated_at': get_current_time().isoformat()
+            }
+            redis_store.redis.hset(msg_key, mapping=update_data)
             
             # 保存尾部训练数据到文件
             if removed_tail:
@@ -896,16 +1120,16 @@ async def filter_message_tail(
                 from app.api.websocket import websocket_manager
                 # 构建更新的消息数据
                 message_data = {
-                    "id": message.id,
+                    "id": message_id,
                     "filtered_content": filtered_content,
-                    "updated_at": message.updated_at.isoformat() if message.updated_at else None
+                    "updated_at": get_current_time().isoformat()
                 }
-                await websocket_manager.broadcast_message_update(message.id, message_data)
+                await websocket_manager.broadcast_message_update(message_id, message_data)
                 logger.info(f"已广播消息 {message_id} 的更新到WebSocket客户端")
             except Exception as e:
                 logger.debug(f"广播消息更新失败: {e}")
             
-            logger.info(f"消息 {message_id} 尾部过滤成功，移除了 {len(removed_tail)} 个字符")
+            logger.info(f"消息 {message_id} 尾部过滤成功，移除了 {len(removed_tail)} 个字符" if removed_tail else f"消息 {message_id} 尾部过滤成功")
             
             return {
                 "success": True,
@@ -930,90 +1154,109 @@ async def filter_message_tail(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/test-broadcast")
-async def test_broadcast(message_data: dict):
+async def test_broadcast(
+    message_data: dict,
+    user: Dict[str, Any] = Depends(require_auth)
+):
     """测试WebSocket广播功能"""
-    from app.api.websocket import websocket_manager
-    import logging
-    
-    logger = logging.getLogger(__name__)
-    
-    # 添加必要的字段
-    message_data["id"] = message_data.get("id", 99999)
-    message_data["message_id"] = message_data.get("message_id", 99999)
-    
-    # 广播消息
-    await websocket_manager.broadcast_new_message(message_data)
-    
-    num_connections = len(websocket_manager.active_connections)
-    logger.info(f"测试广播已发送到 {num_connections} 个连接")
-    
-    return {
-        "success": True,
-        "message": f"消息已广播到 {num_connections} 个WebSocket连接",
-        "connections": num_connections
-    }
+    try:
+        from app.api.websocket import websocket_manager
+        
+        # 添加必要的字段
+        message_data["id"] = message_data.get("id", 99999)
+        message_data["message_id"] = message_data.get("message_id", 99999)
+        
+        # 广播消息
+        await websocket_manager.broadcast_new_message(message_data)
+        
+        num_connections = len(websocket_manager.active_connections)
+        logger.info(f"测试广播已发送到 {num_connections} 个连接")
+        
+        return {
+            "success": True,
+            "message": f"消息已广播到 {num_connections} 个WebSocket连接",
+            "connections": num_connections
+        }
+    except Exception as e:
+        logger.error(f"测试广播失败: {e}")
+        raise HTTPException(status_code=500, detail="测试广播失败")
 
 
 @router.post("/{message_id}/refilter")
 async def refilter_message(
-    message_id: int,
-    db: AsyncSession = Depends(get_db),
-    admin: Admin = Depends(check_permission("messages.edit"))
+    message_id: str,
+    user: Dict[str, Any] = Depends(check_permission("messages.edit")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """重新过滤消息内容（使用最新的训练数据）"""
-    result = await db.execute(
-        select(Message).where(Message.id == message_id)
-    )
-    message = result.scalar_one_or_none()
-    
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    if not message.content:
-        return {"success": False, "message": "消息内容为空"}
-    
     try:
-        # 使用intelligent_tail_filter重新过滤
-        from app.services.intelligent_tail_filter import intelligent_tail_filter
-        from app.services.content_filter import content_filter
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        # 强制重新加载最新训练数据
-        intelligent_tail_filter._load_training_data(force_reload=True)
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
         
-        # 应用完整的过滤流程
-        filtered_content = content_filter.filter_promotional_content(
-            message.content,
-            channel_id=str(message.source_channel) if message.source_channel else None
-        )
+        original_content = msg_data.get('content')
+        if not original_content:
+            return {"success": False, "message": "消息内容为空"}
         
-        # 记录过滤效果
-        original_len = len(message.content)
-        filtered_len = len(filtered_content)
-        
-        # 更新数据库
-        message.filtered_content = filtered_content
-        await db.commit()
-        
-        logger.info(f"消息 {message_id} 重新过滤完成: {original_len} -> {filtered_len} 字符")
-        
-        # 如果有审核群消息ID，尝试更新审核群中的消息
-        if message.review_message_id:
-            try:
-                from app.telegram.bot import telegram_bot
-                if telegram_bot and telegram_bot.client:
-                    await telegram_bot.update_review_message(message)
-                    logger.info(f"审核群消息 {message.review_message_id} 已更新")
-            except Exception as e:
-                logger.error(f"更新审核群消息失败: {e}")
-        
-        return {
-            "success": True,
-            "message": f"消息已重新过滤",
-            "original_length": original_len,
-            "filtered_length": filtered_len,
-            "reduction": original_len - filtered_len
-        }
-        
+        try:
+            # 使用内容过滤器重新过滤
+            from app.services.content_filter import content_filter
+            
+            # 应用完整的过滤流程
+            filtered_content = content_filter.filter_promotional_content(
+                original_content,
+                channel_id=channel_id
+            )
+            
+            # 记录过滤效果
+            original_len = len(original_content)
+            filtered_len = len(filtered_content)
+            
+            # 更新Redis中的数据
+            redis_store = get_redis_message_store()
+            msg_key = f"msg:{channel_id}:{msg_id}"
+            update_data = {
+                'filtered_content': filtered_content,
+                'updated_at': get_current_time().isoformat()
+            }
+            redis_store.redis.hset(msg_key, mapping=update_data)
+            
+            logger.info(f"消息 {message_id} 重新过滤完成: {original_len} -> {filtered_len} 字符")
+            
+            # 如果有审核群消息ID，尝试更新审核群中的消息
+            review_message_id = msg_data.get('review_message_id')
+            if review_message_id:
+                try:
+                    from app.telegram.bot import telegram_bot
+                    if telegram_bot and telegram_bot.client:
+                        # 更新msg_data中的过滤内容然后传递给update_review_message
+                        updated_msg_data = dict(msg_data)
+                        updated_msg_data['filtered_content'] = filtered_content
+                        await telegram_bot.update_review_message(updated_msg_data)
+                        logger.info(f"审核群消息 {review_message_id} 已更新")
+                except Exception as e:
+                    logger.error(f"更新审核群消息失败: {e}")
+            
+            return {
+                "success": True,
+                "message": f"消息已重新过滤",
+                "original_length": original_len,
+                "filtered_length": filtered_len,
+                "reduction": original_len - filtered_len
+            }
+            
+        except Exception as e:
+            logger.error(f"重新过滤消息 {message_id} 失败: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"重新过滤消息 {message_id} 失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"重新过滤消息失败: {e}")
+        raise HTTPException(status_code=500, detail="重新过滤消息失败")
