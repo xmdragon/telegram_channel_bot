@@ -72,6 +72,41 @@ class ChannelManager:
     async def get_active_source_channels(self) -> List[Dict]:
         """获取活跃的源频道列表 - config.py需要的方法"""
         return await self.get_source_channels()
+    
+    async def resolve_missing_channel_ids(self) -> int:
+        """解析缺失的频道ID"""
+        try:
+            # 获取所有频道
+            channels = await unified_channel_service.get_all_channels(active_only=False)
+            resolved_count = 0
+            
+            from app.services.channel_id_resolver import channel_id_resolver
+            
+            for channel in channels:
+                channel_id = channel.get('channel_id')
+                channel_name = channel.get('channel_name')
+                
+                # 如果没有ID或ID无效，尝试解析
+                if not channel_id or not channel_id.startswith('-100'):
+                    if channel_name:
+                        try:
+                            resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
+                            if resolved_id and resolved_id.startswith('-100'):
+                                # 更新频道ID
+                                update_result = await unified_channel_service.update_channel(
+                                    str(channel.get('id')), 
+                                    {'channel_id': resolved_id}
+                                )
+                                if update_result['success']:
+                                    resolved_count += 1
+                                    logger.info(f"成功解析频道ID: {channel_name} -> {resolved_id}")
+                        except Exception as e:
+                            logger.warning(f"解析频道ID失败 {channel_name}: {e}")
+            
+            return resolved_count
+        except Exception as e:
+            logger.error(f"批量解析频道ID失败: {e}")
+            return 0
 
 # 创建全局实例
 channel_manager = ChannelManager()
