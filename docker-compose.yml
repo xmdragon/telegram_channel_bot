@@ -1,32 +1,17 @@
 services:
-  app:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    container_name: telegram_bot_app
-    ports:
-      - "8000:8000"
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - LOG_LEVEL=INFO
-      - TZ=Asia/Shanghai
-    depends_on:
-      - redis
-    volumes:
-      # 持久化数据目录
-      - ./logs:/app/logs
-      - ./data:/app/data
-      - ./temp_media:/app/temp_media
-    restart: unless-stopped
-    networks:
-      - telegram_network
-
+  # 应用服务已迁移到本地运行，无需Docker容器
+  # 使用 python3 main.py 或 ./dev.sh 启动应用
+  
   redis:
     image: redis:7-alpine
     container_name: telegram_bot_redis
     ports:
       - "6379:6379"
+    volumes:
+      # Redis数据持久化
+      - ./data/redis:/data
     restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec
     networks:
       - telegram_network
 
