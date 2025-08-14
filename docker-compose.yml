@@ -7,13 +7,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:telegram123@postgres:5432/telegram_system
       - REDIS_URL=redis://redis:6379
       - LOG_LEVEL=INFO
       - TZ=Asia/Shanghai
     depends_on:
       - redis
-      - postgres
     volumes:
       # 持久化数据目录
       - ./logs:/app/logs
@@ -28,30 +26,9 @@ services:
     container_name: telegram_bot_redis
     ports:
       - "6379:6379"
-    volumes:
-      - ./data/redis:/data
     restart: unless-stopped
     networks:
       - telegram_network
-    command: redis-server --appendonly yes
-
-  postgres:
-    image: postgres:15
-    container_name: telegram_bot_postgres
-    environment:
-      POSTGRES_DB: telegram_system
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: telegram123
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
-      POSTGRES_HOST_AUTH_METHOD: trust
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    networks:
-      - telegram_network
-    user: "${UID:-501}:${GID:-20}"
 
 networks:
   telegram_network:
