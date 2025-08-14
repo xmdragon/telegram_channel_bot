@@ -347,6 +347,7 @@ python3 recover_training_data.py --emergency
 ### 核心工具
 - **auto_commit.py**: 智能分析工具，自动检测变更类型并生成规范提交信息
 - **commit.sh**: 快速提交脚本，支持多种提交模式
+- **auto_commit_claude.py**: Claude Code专用无交互自动提交工具（Claude可以直接调用）
 
 ### 必须使用的场景
 - ✅ 每次完成bug修复后
@@ -365,6 +366,9 @@ python3 recover_training_data.py --emergency
 
 # 智能自动分析（推荐）
 python3 auto_commit.py
+
+# Claude Code自动调用（无交互）
+python3 auto_commit_claude.py auto
 
 # 交互式选择
 ./commit.sh
