@@ -11,11 +11,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple, List, Dict, Any
 
-from sqlalchemy import select, and_, or_, func
-from app.core.database import AsyncSessionLocal, Message
+from app.storage.redis_store import init_redis_stores, get_redis_message_store
 from app.services.content_filter import ContentFilter
 from app.services.ad_detector import AdDetector
-from app.core.training_config import TrainingDataConfig
+
+# 直接使用Redis URL，避免复杂的配置依赖
+REDIS_URL = "redis://localhost:6379"
 import logging
 
 # 配置日志
@@ -48,13 +49,19 @@ class MessageReprocessor:
         self.details = []
         self.error_messages = []
         
-    async def process_message(self, message: Message) -> Dict[str, Any]:
+    async def process_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """处理单条消息"""
         start_time = time.time()
+        
+        channel_id = message.get('channel_id')
+        message_id = message.get('message_id')
+        content = message.get('content', '')
+        
         result = {
-            'id': message.id,
-            'channel_id': message.source_channel,
-            'original_length': len(message.content or ''),
+            'id': f"{channel_id}:{message_id}",
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'original_length': len(content),
             'filtered_length': 0,
             'tail_filtered': False,
             'chars_removed': 0,
@@ -65,17 +72,16 @@ class MessageReprocessor:
         }
         
         try:
-            if not message.content:
+            if not content:
                 result['error'] = '消息内容为空'
                 return result
             
-            original_content = message.content
-            original_length = len(original_content)
+            original_length = len(content)
             
             # 1. 应用尾部过滤（过滤频道推广信息）
             filtered_content = self.content_filter.filter_promotional_content(
-                original_content, 
-                channel_id=str(message.source_channel) if message.source_channel else None
+                content, 
+                channel_id=str(channel_id) if channel_id else None
             )
             
             # 检查是否进行了尾部过滤
@@ -90,9 +96,13 @@ class MessageReprocessor:
             result['is_ad'] = is_ad
             result['ad_confidence'] = confidence
             
-            # 3. 更新消息
-            message.filtered_content = filtered_content
-            message.is_ad = is_ad
+            # 3. 更新消息数据
+            redis_store = get_redis_message_store()
+            full_msg = redis_store.get_message(str(channel_id), int(message_id))
+            if full_msg:
+                full_msg['filtered_content'] = filtered_content
+                full_msg['is_ad'] = is_ad
+                redis_store.save_message(str(channel_id), int(message_id), full_msg)
             
             result['filtered_length'] = len(filtered_content)
             
@@ -111,17 +121,17 @@ class MessageReprocessor:
             result['error'] = str(e)
             self.stats['errors'] += 1
             self.error_messages.append({
-                'message_id': message.id,
+                'message_id': f"{channel_id}:{message_id}",
                 'error': str(e)
             })
-            logger.error(f"处理消息 {message.id} 时出错: {e}")
+            logger.error(f"处理消息 {channel_id}:{message_id} 时出错: {e}")
             
         result['processing_time'] = time.time() - start_time
         self.stats['processing_time'] += result['processing_time']
         
         return result
     
-    async def process_batch(self, db, messages: List[Message], batch_num: int, total_batches: int):
+    async def process_batch(self, messages: List[Dict[str, Any]], batch_num: int, total_batches: int):
         """处理一批消息"""
         print(f"\n处理批次 {batch_num}/{total_batches} ({len(messages)} 条消息)...")
         
@@ -144,14 +154,7 @@ class MessageReprocessor:
             # 可选：添加小延迟模拟实时处理
             # await asyncio.sleep(0.01)
         
-        # 提交数据库更改
-        try:
-            await db.commit()
-            print(f"\n  ✓ 批次 {batch_num} 完成 - 耗时: {time.time() - batch_start:.2f}秒")
-        except Exception as e:
-            logger.error(f"提交批次 {batch_num} 时出错: {e}")
-            await db.rollback()
-            print(f"\n  ✗ 批次 {batch_num} 提交失败: {e}")
+        print(f"\n  ✓ 批次 {batch_num} 完成 - 耗时: {time.time() - batch_start:.2f}秒")
         
         return batch_results
     
@@ -163,59 +166,47 @@ class MessageReprocessor:
         
         overall_start = time.time()
         
-        async with AsyncSessionLocal() as db:
-            # 查询待处理消息总数
-            total_query = select(func.count(Message.id)).where(
-                and_(
-                    Message.status == 'pending',
-                    Message.content.isnot(None),
-                    Message.content != ''
-                )
-            )
-            total_count = await db.scalar(total_query)
+        # 初始化Redis存储
+        init_redis_stores(REDIS_URL)
+        redis_store = get_redis_message_store()
+        
+        # 获取待处理消息
+        all_messages = redis_store.get_messages_by_status('pending', limit=limit or 5000)
+        
+        # 过滤掉没有内容的消息
+        messages = [msg for msg in all_messages 
+                   if msg.get('content') and msg.get('content').strip()]
+        
+        total_count = len(messages)
+        
+        print(f"\n📊 数据统计:")
+        print(f"  • 待处理消息总数: {len(all_messages)}")
+        print(f"  • 有效消息数量: {total_count}")
+        
+        if limit:
+            actual_limit = min(limit, total_count)
+            print(f"  • 本次处理数量: {actual_limit} (限制)")
+            messages = messages[:actual_limit]
+        else:
+            print(f"  • 本次处理数量: {total_count}")
+        
+        if len(messages) == 0:
+            print("\n没有需要处理的消息")
+            return
+        
+        # 分批处理
+        total_batches = (len(messages) + batch_size - 1) // batch_size
+        print(f"  • 批次大小: {batch_size}")
+        print(f"  • 总批次数: {total_batches}")
+        print("\n开始处理...")
+        print("-" * 70)
+        
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, len(messages))
+            batch_messages = messages[start_idx:end_idx]
             
-            print(f"\n📊 数据统计:")
-            print(f"  • 待处理消息总数: {total_count}")
-            
-            if limit:
-                actual_limit = min(limit, total_count)
-                print(f"  • 本次处理数量: {actual_limit} (限制)")
-            else:
-                actual_limit = total_count
-                print(f"  • 本次处理数量: {actual_limit}")
-            
-            if actual_limit == 0:
-                print("\n没有需要处理的消息")
-                return
-            
-            # 查询待处理消息
-            query = select(Message).where(
-                and_(
-                    Message.status == 'pending',
-                    Message.content.isnot(None),
-                    Message.content != ''
-                )
-            ).order_by(Message.id)
-            
-            if limit:
-                query = query.limit(limit)
-            
-            result = await db.execute(query)
-            all_messages = result.scalars().all()
-            
-            # 分批处理
-            total_batches = (len(all_messages) + batch_size - 1) // batch_size
-            print(f"  • 批次大小: {batch_size}")
-            print(f"  • 总批次数: {total_batches}")
-            print("\n开始处理...")
-            print("-" * 70)
-            
-            for batch_num in range(total_batches):
-                start_idx = batch_num * batch_size
-                end_idx = min(start_idx + batch_size, len(all_messages))
-                batch_messages = all_messages[start_idx:end_idx]
-                
-                await self.process_batch(db, batch_messages, batch_num + 1, total_batches)
+            await self.process_batch(batch_messages, batch_num + 1, total_batches)
         
         # 计算总耗时
         total_time = time.time() - overall_start

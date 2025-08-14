@@ -10,9 +10,11 @@ from pathlib import Path
 
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.core.database import get_db, Message
+from app.storage.redis_store import init_redis_stores, get_redis_message_store
 from app.services.media_handler import MediaHandler
-from sqlalchemy import select, and_, or_
+
+# 直接使用Redis URL，避免复杂的配置依赖
+REDIS_URL = "redis://localhost:6379"
 import logging
 
 logging.basicConfig(
@@ -26,38 +28,33 @@ async def find_missing_media():
     """查找所有媒体文件缺失的消息"""
     missing_messages = []
     
-    async for db in get_db():
-        # 查询所有有媒体URL的消息
-        result = await db.execute(
-            select(Message).where(
-                or_(
-                    Message.media_url.isnot(None),
-                    Message.media_group.isnot(None)
-                )
-            ).order_by(Message.id.desc())
-        )
-        messages = result.scalars().all()
+    # 初始化Redis存储
+    init_redis_stores(REDIS_URL)
+    redis_store = get_redis_message_store()
+    
+    # 获取所有有媒体的消息
+    all_messages = redis_store.get_all_messages(limit=5000)
+    
+    for msg in all_messages:
+        has_missing = False
         
-        for msg in messages:
-            has_missing = False
-            
-            # 检查主媒体文件
-            if msg.media_url:
-                if not os.path.exists(msg.media_url):
+        # 检查主媒体文件
+        media_url = msg.get('media_url')
+        if media_url:
+            if not os.path.exists(media_url):
+                has_missing = True
+        
+        # 检查媒体组
+        media_group = msg.get('media_group')
+        if media_group:
+            for item in media_group:
+                file_path = item.get('file_path')
+                if file_path and not os.path.exists(file_path):
                     has_missing = True
-            
-            # 检查媒体组
-            if msg.media_group:
-                for item in msg.media_group:
-                    file_path = item.get('file_path')
-                    if file_path and not os.path.exists(file_path):
-                        has_missing = True
-                        break
-            
-            if has_missing:
-                missing_messages.append(msg)
+                    break
         
-        break
+        if has_missing:
+            missing_messages.append(msg)
     
     return missing_messages
 
@@ -65,7 +62,10 @@ async def find_missing_media():
 async def refetch_media(message, media_handler):
     """重新下载消息的媒体文件"""
     try:
-        logger.info(f"开始补抓消息 #{message.id} 的媒体")
+        channel_id = message['channel_id']
+        message_id = message['message_id']
+        
+        logger.info(f"开始补抓消息 {channel_id}:{message_id} 的媒体")
         
         # 获取Telegram消息
         from app.telegram.bot import telegram_bot
@@ -74,41 +74,45 @@ async def refetch_media(message, media_handler):
             return False
         
         # 获取源消息
-        channel_entity = await telegram_bot.client.get_entity(int(message.source_channel))
+        channel_entity = await telegram_bot.client.get_entity(int(channel_id))
         tg_message = await telegram_bot.client.get_messages(
             channel_entity,
-            ids=message.message_id
+            ids=int(message_id)
         )
         
         if not tg_message:
-            logger.warning(f"未找到Telegram消息 {message.message_id}")
+            logger.warning(f"未找到Telegram消息 {message_id}")
             return False
         
         # 重新下载媒体
         if tg_message.media:
             media_url = await media_handler.download_media(
                 tg_message,
-                message.source_channel,
-                message.message_id
+                channel_id,
+                message_id
             )
             
             if media_url:
-                # 更新数据库
-                async for db in get_db():
-                    message.media_url = media_url
-                    await db.commit()
-                    logger.info(f"成功补抓消息 #{message.id} 的媒体: {media_url}")
-                    break
+                # 更新Redis存储
+                init_redis_stores(settings.redis_url)
+                redis_store = get_redis_message_store()
+                
+                # 获取完整消息数据并更新
+                full_msg = redis_store.get_message(str(channel_id), int(message_id))
+                if full_msg:
+                    full_msg['media_url'] = media_url
+                    redis_store.save_message(str(channel_id), int(message_id), full_msg)
+                    logger.info(f"成功补抓消息 {channel_id}:{message_id} 的媒体: {media_url}")
                 return True
             else:
-                logger.error(f"下载媒体失败: 消息 #{message.id}")
+                logger.error(f"下载媒体失败: 消息 {channel_id}:{message_id}")
                 return False
         else:
-            logger.warning(f"消息 #{message.id} 在Telegram中没有媒体")
+            logger.warning(f"消息 {channel_id}:{message_id} 在Telegram中没有媒体")
             return False
             
     except Exception as e:
-        logger.error(f"补抓消息 #{message.id} 媒体失败: {e}")
+        logger.error(f"补抓消息 {message.get('channel_id')}:{message.get('message_id')} 媒体失败: {e}")
         return False
 
 
@@ -132,9 +136,13 @@ async def main():
     print("\n缺失媒体的消息列表:")
     print("-" * 60)
     for msg in missing_messages[:10]:  # 只显示前10条
-        print(f"ID: {msg.id}, 频道: {msg.source_channel}, 媒体: {msg.media_type}")
-        if msg.media_url:
-            print(f"  缺失文件: {msg.media_url}")
+        channel_id = msg.get('channel_id')
+        message_id = msg.get('message_id')
+        media_type = msg.get('media_type')
+        print(f"ID: {channel_id}:{message_id}, 媒体类型: {media_type}")
+        media_url = msg.get('media_url')
+        if media_url:
+            print(f"  缺失文件: {media_url}")
     
     if len(missing_messages) > 10:
         print(f"  ... 还有 {len(missing_messages) - 10} 条消息")
@@ -164,7 +172,9 @@ async def main():
     fail_count = 0
     
     for i, msg in enumerate(missing_messages, 1):
-        print(f"\n[{i}/{len(missing_messages)}] 处理消息 #{msg.id}")
+        channel_id = msg.get('channel_id')
+        message_id = msg.get('message_id')
+        print(f"\n[{i}/{len(missing_messages)}] 处理消息 {channel_id}:{message_id}")
         
         success = await refetch_media(msg, media_handler)
         if success:
