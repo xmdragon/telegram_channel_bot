@@ -6,8 +6,7 @@ import asyncio
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from app.utils.timezone import get_current_time
-from sqlalchemy import select
-from app.core.database import AsyncSessionLocal, Message
+from app.storage.redis_store import get_redis_message_store
 
 logger = logging.getLogger(__name__)
 
@@ -441,33 +440,41 @@ class MessageGrouper:
         except Exception as e:
             logger.error(f"强制完成消息组时出错: {e}")
     
-    async def _get_existing_combined_message(self, channel_id: str, grouped_id: str) -> Optional[Message]:
+    async def _get_existing_combined_message(self, channel_id: str, grouped_id: str) -> Optional[Dict]:
         """检查是否已存在组合消息"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(
-                        Message.source_channel == channel_id,
-                        Message.grouped_id == grouped_id,
-                        Message.is_combined == True
-                    )
-                )
-                return result.scalar_one_or_none()
+            redis_store = get_redis_message_store()
+            
+            # 查询指定频道的所有消息
+            messages = await redis_store.get_messages_by_channel(channel_id)
+            
+            # 查找已存在的组合消息
+            for message in messages:
+                if (message.get('grouped_id') == grouped_id and 
+                    message.get('is_combined') == True):
+                    return message
+                    
+            return None
+            
         except Exception as e:
             logger.error(f"检查现有组合消息时出错: {e}")
             return None
     
-    async def _get_existing_single_message(self, channel_id: str, message_id: int) -> Optional[Message]:
+    async def _get_existing_single_message(self, channel_id: str, message_id: int) -> Optional[Dict]:
         """检查是否已存在单独消息"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(
-                        Message.source_channel == channel_id,
-                        Message.message_id == message_id
-                    )
-                )
-                return result.scalar_one_or_none()
+            redis_store = get_redis_message_store()
+            
+            # 查询指定频道的所有消息
+            messages = await redis_store.get_messages_by_channel(channel_id)
+            
+            # 查找已存在的单独消息
+            for message in messages:
+                if message.get('telegram_message_id') == message_id:
+                    return message
+                    
+            return None
+            
         except Exception as e:
             logger.error(f"检查现有单独消息时出错: {e}")
             return None
@@ -478,28 +485,33 @@ class MessageGrouper:
             if not combined_message.get('combined_messages'):
                 return
             
-            async with AsyncSessionLocal() as db:
-                # 获取所有相关的单独消息ID
-                message_ids = [msg['message_id'] for msg in combined_message['combined_messages']]
-                
-                # 查找并删除这些单独消息
-                result = await db.execute(
-                    select(Message).where(
-                        Message.source_channel == channel_id,
-                        Message.message_id.in_(message_ids),
-                        Message.is_combined == False  # 只删除单独消息，不删除组合消息
-                    )
-                )
-                
-                messages_to_delete = result.scalars().all()
-                
-                if messages_to_delete:
-                    for msg in messages_to_delete:
-                        logger.info(f"删除已被组合的单独消息: ID={msg.id}, message_id={msg.message_id}")
-                        await db.delete(msg)
-                    
-                    await db.commit()
-                    logger.info(f"已清理 {len(messages_to_delete)} 条被组合的单独消息")
+            redis_store = get_redis_message_store()
+            
+            # 获取所有相关的单独消息ID
+            message_ids = [msg['message_id'] for msg in combined_message['combined_messages']]
+            
+            # 查询指定频道的所有消息
+            messages = await redis_store.get_messages_by_channel(channel_id)
+            
+            # 查找需要删除的单独消息
+            messages_to_delete = []
+            for message in messages:
+                if (message.get('telegram_message_id') in message_ids and 
+                    not message.get('is_combined', False)):
+                    messages_to_delete.append(message)
+            
+            # 删除这些单独消息
+            delete_count = 0
+            for msg in messages_to_delete:
+                msg_id = msg.get('message_id')
+                if msg_id:
+                    success = await redis_store.delete_message(channel_id, msg_id)
+                    if success:
+                        delete_count += 1
+                        logger.info(f"删除已被组合的单独消息: Redis ID={msg_id}, telegram_id={msg.get('telegram_message_id')}")
+            
+            if delete_count > 0:
+                logger.info(f"已清理 {delete_count} 条被组合的单独消息")
                 
         except Exception as e:
             logger.error(f"清理单独消息时出错: {e}")

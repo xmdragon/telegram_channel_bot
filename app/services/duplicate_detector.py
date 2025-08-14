@@ -570,24 +570,16 @@ class DuplicateDetector:
         try:
             messages = []
             
-            # 由于Redis没有复杂查询，我们遍历最近的消息索引
-            # 获取所有频道的最近消息
-            all_channels = self.redis_store.redis.keys("msg:idx:*")
+            # 获取所有频道
+            all_channels = await self.redis_store.get_all_channels()
             
-            for channel_key in all_channels:
-                if channel_key.startswith('msg:idx:') and not ':' in channel_key.split(':', 2)[2]:
-                    # 这是频道索引
-                    channel_id = channel_key.split(':', 2)[2]
+            for channel_id in all_channels:
+                try:
+                    # 获取该频道的所有消息
+                    channel_messages = await self.redis_store.get_messages_by_channel(channel_id)
                     
-                    # 获取最近100条消息
-                    recent_msg_ids = self.redis_store.redis.zrevrange(channel_key, 0, 99)
-                    
-                    for msg_id in recent_msg_ids:
+                    for msg_data in channel_messages:
                         try:
-                            msg_data = self.redis_store.get_message(channel_id, int(msg_id))
-                            if not msg_data:
-                                continue
-                            
                             # 检查是否有视觉哈希
                             if not msg_data.get('visual_hash'):
                                 continue
@@ -602,7 +594,7 @@ class DuplicateDetector:
                                 continue
                             
                             # 排除当前消息
-                            if exclude_message_id and msg_data.get('message_id') == exclude_message_id:
+                            if exclude_message_id and msg_data.get('telegram_message_id') == exclude_message_id:
                                 continue
                             
                             messages.append(msg_data)
@@ -610,6 +602,10 @@ class DuplicateDetector:
                         except Exception as e:
                             logger.debug(f"处理消息失败: {e}")
                             continue
+                            
+                except Exception as e:
+                    logger.debug(f"处理频道 {channel_id} 失败: {e}")
+                    continue
             
             return messages
             
