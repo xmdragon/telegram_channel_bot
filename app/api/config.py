@@ -1,15 +1,18 @@
 """
 配置管理API
 """
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import logging
 
 from app.services.config_manager import config_manager
+from app.services.auth_service import get_auth_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+security = HTTPBearer(auto_error=False)
 
 class ConfigItem(BaseModel):
     key: str
@@ -21,8 +24,45 @@ class ConfigUpdate(BaseModel):
     value: Any
     description: str = ""
 
+# 认证中间件
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> Optional[Dict[str, Any]]:
+    """获取当前用户"""
+    if not credentials:
+        return None
+    
+    try:
+        auth_service = get_auth_service()
+        return await auth_service.get_current_user(credentials.credentials)
+    except Exception as e:
+        logger.error(f"获取当前用户失败: {e}")
+        return None
+
+async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
+    """要求用户认证"""
+    if not user:
+        raise HTTPException(status_code=401, detail="未授权访问")
+    return user
+
+async def check_config_permission(user: Dict[str, Any] = Depends(require_auth)) -> Dict[str, Any]:
+    """检查配置管理权限"""
+    try:
+        # 简化权限检查：超级管理员可以管理配置
+        # 在实际项目中，可以根据需要添加更细粒度的权限控制
+        if user.get('is_super_admin'):
+            return user
+        else:
+            # 暂时只允许超级管理员访问配置管理
+            raise HTTPException(status_code=403, detail="权限不足")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"检查配置权限失败: {e}")
+        raise HTTPException(status_code=500, detail="权限检查失败")
+
 @router.get("/")
-async def get_all_configs():
+async def get_all_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取所有配置项"""
     try:
         configs = await config_manager.get_all_configs()
@@ -34,7 +74,7 @@ async def get_all_configs():
         raise HTTPException(status_code=500, detail=f"获取配置失败: {str(e)}")
 
 @router.get("/{config_key}")
-async def get_config(config_key: str):
+async def get_config(config_key: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """获取单个配置项"""
     try:
         value = await config_manager.get_config(config_key)
@@ -52,7 +92,7 @@ async def get_config(config_key: str):
         raise HTTPException(status_code=500, detail=f"获取配置失败: {str(e)}")
 
 @router.post("/")
-async def create_config(config: ConfigItem):
+async def create_config(config: ConfigItem, user: Dict[str, Any] = Depends(check_config_permission)):
     """创建新配置项"""
     try:
         success = await config_manager.set_config(
@@ -70,32 +110,65 @@ async def create_config(config: ConfigItem):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建配置失败: {str(e)}")
 
-@router.put("/{config_key}")
-async def update_config(config_key: str, config_update: ConfigUpdate):
-    """更新配置项"""
+@router.post("/{config_key}")
+async def set_config(config_key: str, config_update: ConfigUpdate, user: Dict[str, Any] = Depends(check_config_permission)):
+    """设置配置（创建或更新）"""
     try:
-        # 先检查配置是否存在
-        existing_value = await config_manager.get_config(config_key)
-        if existing_value is None:
-            raise HTTPException(status_code=404, detail="配置项不存在")
-        
-        # 获取现有配置信息以保持类型
+        # 获取现有配置信息（如果存在）
         all_configs = await config_manager.get_all_configs()
-        existing_config = all_configs.get(config_key, {})
-        config_type = existing_config.get('config_type', 'string')
+        existing_config = all_configs.get(config_key)
+        
+        # 如果配置存在，保持现有的配置类型和描述（如果没有提供新的描述）
+        if existing_config:
+            config_type = existing_config.get('config_type', 'string')
+            description = config_update.description or existing_config.get('description', '')
+        else:
+            # 新配置，使用默认类型
+            config_type = 'string'
+            description = config_update.description or ''
         
         success = await config_manager.set_config(
             key=config_key,
             value=config_update.value,
-            description=config_update.description,
+            description=description,
             config_type=config_type
         )
         
         if success:
-            # 重新加载应用配置缓存
-            from app.core.config import settings
-            await settings.load_db_configs()
+            # 配置已通过监听器自动更新，无需手动重新加载
+            return {"success": True, "message": "配置设置成功"}
+        else:
+            raise HTTPException(status_code=500, detail="配置设置失败")
             
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"设置配置失败: {str(e)}")
+
+@router.put("/{config_key}")
+async def update_config(config_key: str, config_update: ConfigUpdate, user: Dict[str, Any] = Depends(check_config_permission)):
+    """更新配置项"""
+    try:
+        # 获取现有配置信息以保持类型和描述
+        all_configs = await config_manager.get_all_configs()
+        existing_config = all_configs.get(config_key)
+        
+        if existing_config is None:
+            raise HTTPException(status_code=404, detail="配置项不存在")
+        
+        # 保持现有的配置类型，如果没有提供描述则保持现有描述
+        config_type = existing_config.get('config_type', 'string')
+        description = config_update.description or existing_config.get('description', '')
+        
+        success = await config_manager.set_config(
+            key=config_key,
+            value=config_update.value,
+            description=description,
+            config_type=config_type
+        )
+        
+        if success:
+            # 配置已通过监听器自动更新，无需手动重新加载
             return {"success": True, "message": "配置更新成功"}
         else:
             raise HTTPException(status_code=500, detail="配置更新失败")
@@ -106,7 +179,7 @@ async def update_config(config_key: str, config_update: ConfigUpdate):
         raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
 
 @router.delete("/{config_key}")
-async def delete_config(config_key: str):
+async def delete_config(config_key: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """删除配置项"""
     try:
         success = await config_manager.delete_config(config_key)
@@ -120,14 +193,12 @@ async def delete_config(config_key: str):
         raise HTTPException(status_code=500, detail=f"删除配置失败: {str(e)}")
 
 @router.post("/reload")
-async def reload_configs():
+async def reload_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """重新加载配置缓存"""
     try:
         await config_manager.reload_cache()
         
-        # 重新加载应用配置缓存
-        from app.core.config import settings
-        await settings.load_db_configs()
+        # 配置已通过监听器自动更新，无需手动重新加载
         
         return {"success": True, "message": "配置缓存重新加载成功"}
         
@@ -135,7 +206,7 @@ async def reload_configs():
         raise HTTPException(status_code=500, detail=f"重新加载配置失败: {str(e)}")
 
 @router.get("/resolve-group-id")
-async def resolve_group_id(group_link: str):
+async def resolve_group_id(group_link: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """解析群组ID"""
     try:
         from app.services.telegram_link_resolver import link_resolver
@@ -161,7 +232,7 @@ async def resolve_group_id(group_link: str):
         }
 
 @router.post("/resolve-target-channel")
-async def resolve_target_channel(request: dict):
+async def resolve_target_channel(request: dict, user: Dict[str, Any] = Depends(check_config_permission)):
     """解析目标频道ID"""
     try:
         from telethon import TelegramClient
@@ -219,7 +290,7 @@ async def resolve_target_channel(request: dict):
         }
 
 @router.get("/categories/telegram")
-async def get_telegram_configs():
+async def get_telegram_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取Telegram相关配置"""
     try:
         all_configs = await config_manager.get_all_configs()
@@ -236,7 +307,7 @@ async def get_telegram_configs():
         raise HTTPException(status_code=500, detail=f"获取Telegram配置失败: {str(e)}")
 
 @router.get("/categories/channels")
-async def get_channel_configs():
+async def get_channel_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取频道相关配置"""
     try:
         all_configs = await config_manager.get_all_configs()
@@ -253,7 +324,7 @@ async def get_channel_configs():
         raise HTTPException(status_code=500, detail=f"获取频道配置失败: {str(e)}")
 
 @router.get("/categories/filter")
-async def get_filter_configs():
+async def get_filter_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取过滤相关配置"""
     try:
         all_configs = await config_manager.get_all_configs()
@@ -270,7 +341,7 @@ async def get_filter_configs():
         raise HTTPException(status_code=500, detail=f"获取过滤配置失败: {str(e)}")
 
 @router.get("/categories/accounts")
-async def get_accounts_configs():
+async def get_accounts_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取账号采集相关配置"""
     try:
         all_configs = await config_manager.get_all_configs()
@@ -287,7 +358,7 @@ async def get_accounts_configs():
         raise HTTPException(status_code=500, detail=f"获取账号采集配置失败: {str(e)}")
 
 @router.get("/categories/review")
-async def get_review_configs():
+async def get_review_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取审核相关配置"""
     try:
         all_configs = await config_manager.get_all_configs()
@@ -303,76 +374,163 @@ async def get_review_configs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取审核配置失败: {str(e)}")
 
+@router.post("/batch")
+async def batch_set_configs(configs: List[ConfigItem], user: Dict[str, Any] = Depends(check_config_permission)):
+    """批量设置配置"""
+    try:
+        # 使用新的批量更新方法
+        config_dict = {}
+        for config in configs:
+            config_dict[config.key] = {
+                'value': config.value,
+                'description': config.description,
+                'config_type': config.config_type
+            }
+        
+        # 批量设置配置
+        batch_success = await config_manager.set_multiple_configs(config_dict)
+        
+        if batch_success:
+            return {
+                "success": True,
+                "message": f"成功批量设置 {len(configs)} 个配置",
+                "success_count": len(configs),
+                "errors": []
+            }
+        else:
+            # 如果批量更新失败，回退到逐个更新
+            success_count = 0
+            errors = []
+            
+            for config in configs:
+                try:
+                    success = await config_manager.set_config(
+                        key=config.key,
+                        value=config.value,
+                        description=config.description,
+                        config_type=config.config_type
+                    )
+                    if success:
+                        success_count += 1
+                    else:
+                        errors.append(f"设置配置 {config.key} 失败")
+                except Exception as e:
+                    errors.append(f"设置配置 {config.key} 失败: {str(e)}")
+            
+            return {
+                "success": success_count > 0,
+                "message": f"成功设置 {success_count} 个配置" + (f"，{len(errors)} 个失败" if errors else ""),
+                "success_count": success_count,
+                "errors": errors
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量设置配置失败: {str(e)}")
+
 @router.post("/batch-update")
-async def batch_update_configs(configs: List[ConfigItem]):
+async def batch_update_configs(configs: List[ConfigItem], user: Dict[str, Any] = Depends(check_config_permission)):
     """批量更新配置"""
     try:
-        success_count = 0
-        errors = []
-        
+        # 使用新的批量更新方法
+        config_dict = {}
         for config in configs:
-            try:
-                success = await config_manager.set_config(
-                    key=config.key,
-                    value=config.value,
-                    description=config.description,
-                    config_type=config.config_type
-                )
-                if success:
-                    success_count += 1
-                else:
-                    errors.append(f"更新配置 {config.key} 失败")
-            except Exception as e:
-                errors.append(f"更新配置 {config.key} 失败: {str(e)}")
+            config_dict[config.key] = {
+                'value': config.value,
+                'description': config.description,
+                'config_type': config.config_type
+            }
         
-        # 重新加载应用配置缓存
-        from app.core.config import settings
-        await settings.load_db_configs()
+        # 批量更新配置
+        batch_success = await config_manager.set_multiple_configs(config_dict)
         
-        return {
-            "success": True,
-            "message": f"成功更新 {success_count} 个配置",
-            "success_count": success_count,
-            "errors": errors
-        }
+        if batch_success:
+            return {
+                "success": True,
+                "message": f"成功批量更新 {len(configs)} 个配置",
+                "success_count": len(configs),
+                "errors": []
+            }
+        else:
+            # 如果批量更新失败，回退到逐个更新
+            success_count = 0
+            errors = []
+            
+            for config in configs:
+                try:
+                    success = await config_manager.set_config(
+                        key=config.key,
+                        value=config.value,
+                        description=config.description,
+                        config_type=config.config_type
+                    )
+                    if success:
+                        success_count += 1
+                    else:
+                        errors.append(f"更新配置 {config.key} 失败")
+                except Exception as e:
+                    errors.append(f"更新配置 {config.key} 失败: {str(e)}")
+            
+            return {
+                "success": success_count > 0,
+                "message": f"成功更新 {success_count} 个配置" + (f"，{len(errors)} 个失败" if errors else ""),
+                "success_count": success_count,
+                "errors": errors
+            }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量更新配置失败: {str(e)}")
 
 @router.post("/reset-defaults")
-async def reset_default_configs():
+async def reset_default_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """重置为默认配置"""
     try:
         from app.services.config_manager import DEFAULT_CONFIGS
         
-        success_count = 0
-        errors = []
-        
+        # 使用新的批量更新方法
+        config_dict = {}
         for key, config_info in DEFAULT_CONFIGS.items():
-            try:
-                success = await config_manager.set_config(
-                    key=key,
-                    value=config_info["value"],
-                    description=config_info["description"],
-                    config_type=config_info["config_type"]
-                )
-                if success:
-                    success_count += 1
-                else:
-                    errors.append(f"重置配置 {key} 失败")
-            except Exception as e:
-                errors.append(f"重置配置 {key} 失败: {str(e)}")
+            config_dict[key] = {
+                'value': config_info["value"],
+                'description': config_info["description"],
+                'config_type': config_info["config_type"]
+            }
         
-        # 重新加载应用配置缓存
-        from app.core.config import settings
-        await settings.load_db_configs()
+        # 批量重置配置
+        batch_success = await config_manager.set_multiple_configs(config_dict)
         
-        return {
-            "success": True,
-            "message": f"成功重置 {success_count} 个配置为默认值",
-            "success_count": success_count,
-            "errors": errors
-        }
+        if batch_success:
+            return {
+                "success": True,
+                "message": f"成功重置 {len(DEFAULT_CONFIGS)} 个配置为默认值",
+                "success_count": len(DEFAULT_CONFIGS),
+                "errors": []
+            }
+        else:
+            # 如果批量更新失败，回退到逐个更新
+            success_count = 0
+            errors = []
+            
+            for key, config_info in DEFAULT_CONFIGS.items():
+                try:
+                    success = await config_manager.set_config(
+                        key=key,
+                        value=config_info["value"],
+                        description=config_info["description"],
+                        config_type=config_info["config_type"]
+                    )
+                    if success:
+                        success_count += 1
+                    else:
+                        errors.append(f"重置配置 {key} 失败")
+                except Exception as e:
+                    errors.append(f"重置配置 {key} 失败: {str(e)}")
+            
+            return {
+                "success": success_count > 0,
+                "message": f"成功重置 {success_count} 个配置为默认值" + (f"，{len(errors)} 个失败" if errors else ""),
+                "success_count": success_count,
+                "errors": errors
+            }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"重置默认配置失败: {str(e)}")
@@ -385,7 +543,7 @@ class ChannelAddRequest(BaseModel):
     description: str = ""
 
 @router.post("/channels/add")
-async def add_channel(request: ChannelAddRequest):
+async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """添加监听频道"""
     try:
         from app.services.channel_manager import channel_manager
@@ -408,7 +566,7 @@ async def add_channel(request: ChannelAddRequest):
         raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
 
 @router.delete("/channels/{channel_id}")
-async def remove_channel(channel_id: str):
+async def remove_channel(channel_id: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """移除监听频道"""
     try:
         from app.services.channel_manager import channel_manager
@@ -429,7 +587,7 @@ class ChannelStatusRequest(BaseModel):
     enabled: bool
 
 @router.put("/channels/{channel_id}/status")
-async def update_channel_status(channel_id: str, request: ChannelStatusRequest):
+async def update_channel_status(channel_id: str, request: ChannelStatusRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """更新频道监听状态"""
     try:
         from app.services.channel_manager import channel_manager
@@ -450,7 +608,7 @@ async def update_channel_status(channel_id: str, request: ChannelStatusRequest):
         raise HTTPException(status_code=500, detail=f"更新频道状态失败: {str(e)}")
 
 @router.get("/channels/")
-async def get_channels():
+async def get_channels(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取所有频道"""
     try:
         from app.services.channel_manager import channel_manager
@@ -469,7 +627,7 @@ class ChannelBatchAddRequest(BaseModel):
     channels: str  # 多行文本，每行一个频道
 
 @router.post("/channels/batch-add")
-async def batch_add_channels(request: ChannelBatchAddRequest):
+async def batch_add_channels(request: ChannelBatchAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """批量添加频道"""
     try:
         from app.services.channel_manager import channel_manager
@@ -619,7 +777,7 @@ async def batch_add_channels(request: ChannelBatchAddRequest):
         }
 
 @router.get("/channels/{channel_id}")
-async def get_channel(channel_id: str):
+async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """获取单个频道信息"""
     try:
         from app.services.channel_manager import channel_manager
@@ -645,7 +803,7 @@ class AccountAddRequest(BaseModel):
     account: str
 
 @router.post("/accounts/blacklist/add")
-async def add_account_to_blacklist(request: AccountAddRequest):
+async def add_account_to_blacklist(request: AccountAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """添加账号到黑名单"""
     try:
         blacklist = await config_manager.get_config("accounts.account_blacklist", [])
@@ -659,7 +817,7 @@ async def add_account_to_blacklist(request: AccountAddRequest):
         raise HTTPException(status_code=500, detail=f"添加账号到黑名单失败: {str(e)}")
 
 @router.delete("/accounts/blacklist/{account}")
-async def remove_account_from_blacklist(account: str):
+async def remove_account_from_blacklist(account: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """从黑名单移除账号"""
     try:
         blacklist = await config_manager.get_config("accounts.account_blacklist", [])
@@ -673,7 +831,7 @@ async def remove_account_from_blacklist(account: str):
         raise HTTPException(status_code=500, detail=f"从黑名单移除账号失败: {str(e)}")
 
 @router.post("/accounts/whitelist/add")
-async def add_account_to_whitelist(request: AccountAddRequest):
+async def add_account_to_whitelist(request: AccountAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """添加账号到白名单"""
     try:
         whitelist = await config_manager.get_config("accounts.account_whitelist", [])
@@ -687,7 +845,7 @@ async def add_account_to_whitelist(request: AccountAddRequest):
         raise HTTPException(status_code=500, detail=f"添加账号到白名单失败: {str(e)}")
 
 @router.delete("/accounts/whitelist/{account}")
-async def remove_account_from_whitelist(account: str):
+async def remove_account_from_whitelist(account: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """从白名单移除账号"""
     try:
         whitelist = await config_manager.get_config("accounts.account_whitelist", [])
