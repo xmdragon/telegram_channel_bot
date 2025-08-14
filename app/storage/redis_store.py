@@ -329,6 +329,61 @@ class RedisMessageStore(RedisStore):
             
         except Exception as e:
             logger.error(f"索引清理失败: {e}")
+    
+    async def get_old_messages_for_cleanup(self, cutoff_time):
+        """获取需要清理的旧消息"""
+        try:
+            # 获取所有已完成状态的消息
+            old_messages = []
+            
+            for status in ['approved', 'rejected', 'auto_forwarded']:
+                # 获取指定状态的所有消息
+                message_keys = self.redis.zrange(f"msg:idx:{status}", 0, -1)
+                
+                for key in message_keys:
+                    if ':' not in key:
+                        continue
+                    
+                    channel_id, message_id = key.split(':', 1)
+                    msg_data = self.get_message(channel_id, int(message_id))
+                    
+                    if not msg_data:
+                        continue
+                    
+                    # 检查消息是否足够旧
+                    created_at = msg_data.get('created_at')
+                    review_time = msg_data.get('review_time') 
+                    forwarded_time = msg_data.get('forwarded_time')
+                    
+                    # 解析时间字符串
+                    times_to_check = []
+                    for time_str in [created_at, review_time, forwarded_time]:
+                        if time_str:
+                            try:
+                                time_obj = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                                times_to_check.append(time_obj)
+                            except:
+                                continue
+                    
+                    # 如果任何时间早于cutoff_time，则加入清理列表
+                    if times_to_check and any(t < cutoff_time for t in times_to_check):
+                        # 构造消息对象以兼容原有清理逻辑
+                        message_obj = type('Message', (), {
+                            'channel_id': channel_id,
+                            'message_id': int(message_id),
+                            'status': msg_data.get('status'),
+                            'media_url': msg_data.get('media_url'),
+                            'created_at': created_at,
+                            'review_time': review_time,
+                            'forwarded_time': forwarded_time
+                        })()
+                        old_messages.append(message_obj)
+            
+            return old_messages
+            
+        except Exception as e:
+            logger.error(f"获取旧消息失败: {e}")
+            return []
 
 class RedisSessionStore(RedisStore):
     """会话管理存储"""

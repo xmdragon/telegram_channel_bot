@@ -6,10 +6,10 @@ import logging
 import os
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import select
 from telethon import TelegramClient
 
-from app.core.database import Message, Channel, AsyncSessionLocal
+from app.storage.redis_store import get_redis_message_store
+from app.storage.json_store import get_json_channel_store
 from app.services.telegram_link_resolver import link_resolver
 from app.services.content_filter import ContentFilter
 from app.services.media_handler import media_handler
@@ -22,7 +22,7 @@ class MessageForwarder:
     def __init__(self):
         self.content_filter = ContentFilter()
         
-    async def forward_to_review(self, client: TelegramClient, db_message: Message):
+    async def forward_to_review(self, client: TelegramClient, message_data: dict):
         """转发消息到审核群（包含媒体）"""
         try:
             # 获取有效的审核群ID
@@ -31,63 +31,64 @@ class MessageForwarder:
             if not review_group_id:
                 logger.error("❌ 审核群未配置！为了安全起见，消息不会被转发")
                 # 更新消息状态为错误，防止自动转发
-                async with AsyncSessionLocal() as db:
-                    db_message.status = 'error'
-                    db_message.reject_reason = '审核群未配置，消息被阻止'
-                    db.add(db_message)
-                    await db.commit()
+                message_store = get_redis_message_store()
+                await message_store.update_message_status(
+                    message_data['channel_id'], message_data['message_id'], 
+                    'error', reject_reason='审核群未配置，消息被阻止'
+                )
                 raise ValueError("审核群未配置，消息转发被阻止。请先配置审核群！")
                 return
             
             sent_message = None
             
             # 准备消息内容（使用过滤后的内容）
-            message_text = db_message.filtered_content or db_message.content
+            message_text = message_data.get('filtered_content') or message_data.get('content')
             
             # 记录智能去尾部效果
-            if db_message.filtered_content and len(db_message.filtered_content) < len(db_message.content or ""):
-                removed_chars = len(db_message.content) - len(db_message.filtered_content)
+            if message_data.get('filtered_content') and len(message_data.get('filtered_content', '')) < len(message_data.get('content', '')):
+                removed_chars = len(message_data.get('content', '')) - len(message_data.get('filtered_content', ''))
                 logger.info(f"📤 转发到审核群，智能去尾部已生效，减少 {removed_chars} 字符")
             
             # 在转发时添加频道落款
             # 获取频道名称
             channel_name = "未知频道"
             try:
-                async with AsyncSessionLocal() as db:
-                    result = await db.execute(
-                        select(Channel).where(Channel.channel_id == db_message.source_channel)
-                    )
-                    channel = result.scalar_one_or_none()
-                    if channel:
-                        channel_name = channel.channel_name or channel.channel_title or "未知频道"
+                channel_store = get_json_channel_store()
+                channels = channel_store.get_all_channels()
+                source_channel = str(message_data.get('source_channel', ''))
+                
+                for channel_data in channels:
+                    if str(channel_data.get('channel_id', '')) == source_channel:
+                        channel_name = channel_data.get('channel_name') or channel_data.get('channel_title') or "未知频道"
+                        break
             except Exception as e:
                 logger.debug(f"获取频道名称失败: {e}")
             
             message_text = self.content_filter.add_channel_signature(message_text, channel_name)
             
             # 如果消息被判定为广告且文本被完全过滤，不发送媒体
-            if db_message.is_ad and (not message_text or message_text.strip() == ""):
+            if message_data.get('is_ad') and (not message_text or message_text.strip() == ""):
                 message_text = "[🚫 广告内容已过滤，媒体文件不予显示]"
                 # 发送纯文本消息，不包含媒体
                 sent_message = await client.send_message(
                     entity=int(review_group_id),
                     message=message_text
                 )
-            elif db_message.is_ad and message_text:
+            elif message_data.get('is_ad') and message_text:
                 # 如果是广告但有文本内容，添加标记但仍发送媒体（供审核）
                 message_text = f"[⚠️ 疑似广告内容]\n{message_text}"
             
             # 如果消息已经在上面处理过（广告内容被完全过滤），跳过这里
             if not sent_message:
                 # 检查是否为组合消息
-                if db_message.is_combined and db_message.media_group:
+                if message_data.get('is_combined') and message_data.get('media_group'):
                     # 发送组合消息到审核群
-                    sent_message = await self._send_combined_message_to_review(client, review_group_id, db_message, message_text)
-                elif db_message.media_type:
+                    sent_message = await self._send_combined_message_to_review(client, review_group_id, message_data, message_text)
+                elif message_data.get('media_type'):
                     # 检查媒体文件是否存在
-                    if db_message.media_url and os.path.exists(db_message.media_url):
+                    if message_data.get('media_url') and os.path.exists(message_data.get('media_url')):
                         # 发送单个媒体消息到审核群
-                        sent_message = await self._send_single_media_to_review(client, review_group_id, db_message, message_text)
+                        sent_message = await self._send_single_media_to_review(client, review_group_id, message_data, message_text)
                     else:
                         # 媒体文件不存在（下载失败或超时），添加占位符
                         media_type_name = {
@@ -96,7 +97,7 @@ class MessageForwarder:
                             'document': '文件',
                             'animation': '动图',
                             'audio': '音频'
-                        }.get(db_message.media_type, '媒体')
+                        }.get(message_data.get('media_type'), '媒体')
                         
                         placeholder = f"📎 [{media_type_name}下载超时，未能显示]"
                         

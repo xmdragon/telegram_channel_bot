@@ -9,11 +9,7 @@ from typing import List, Optional
 from datetime import datetime
 from app.utils.timezone import format_for_api
 from telethon.tl.types import Message as TLMessage
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
-
-from app.core.config import db_settings
-from app.core.database import AsyncSessionLocal, Message
+from app.storage.redis_store import get_redis_message_store
 from app.services.message_processor import MessageProcessor
 from app.services.content_filter import ContentFilter
 from app.services.system_monitor import system_monitor
@@ -42,7 +38,8 @@ class TelegramBot:
         self.is_running = False
         self.monitor_task = None
         self.auto_collection_done = False
-        self.config_manager = ConfigManager()
+        from app.services.config_manager import config_manager
+        self.config_manager = config_manager
         self.event_loop_task = None
         
         # 设置组件间的回调关系

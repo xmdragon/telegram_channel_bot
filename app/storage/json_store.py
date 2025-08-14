@@ -193,9 +193,35 @@ class JSONChannelStore(JSONStore):
             logger.error(f"保存频道配置失败 {channel_id}: {e}")
             return False
     
-    def get_all_channels(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_channels(self) -> List[Dict[str, Any]]:
         """获取所有频道配置"""
-        return self._load_json(self.CHANNEL_FILE)
+        channels_dict = self._load_json(self.CHANNEL_FILE)
+        # 转换为列表格式，兼容旧的API
+        return list(channels_dict.values()) if channels_dict else []
+    
+    def add_channel(self, channel_data: Dict[str, Any]) -> bool:
+        """添加频道配置"""
+        try:
+            channels = self._load_json(self.CHANNEL_FILE)
+            
+            # 使用channel_name作为键
+            channel_key = channel_data.get('channel_name')
+            if not channel_key:
+                logger.error("频道数据缺少channel_name")
+                return False
+            
+            # 添加时间戳
+            channel_data = channel_data.copy()
+            channel_data['updated_at'] = get_current_time().isoformat()
+            if 'created_at' not in channel_data:
+                channel_data['created_at'] = get_current_time().isoformat()
+            
+            channels[channel_key] = channel_data
+            return self._save_json(self.CHANNEL_FILE, channels)
+            
+        except Exception as e:
+            logger.error(f"添加频道配置失败: {e}")
+            return False
     
     def get_channels_by_type(self, channel_type: str) -> List[Dict[str, Any]]:
         """根据类型获取频道"""

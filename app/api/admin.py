@@ -2,8 +2,6 @@
 管理员API
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
@@ -14,7 +12,7 @@ import tempfile
 import asyncio
 import logging
 
-from app.core.database import get_db, Channel, AsyncSessionLocal
+from app.storage.json_store import get_json_channel_store
 from app.core.config import settings
 from app.services.config_manager import config_manager
 from app.services.scheduler import MessageScheduler
@@ -38,42 +36,43 @@ class ChannelUpdateRequest(BaseModel):
 
 @router.get("/channels")
 async def get_channels(
-    search: Optional[str] = Query(None, description="搜索关键词，支持名称精准匹配或标题模糊匹配"),
-    db: AsyncSession = Depends(get_db)
+    search: Optional[str] = Query(None, description="搜索关键词，支持名称精准匹配或标题模糊匹配")
 ):
     """获取频道配置 - 只返回源频道，支持搜索"""
-    # 基础查询，只查询源频道
-    query = select(Channel).where(Channel.channel_type == "source")
+    channel_store = get_json_channel_store()
+    all_channels = channel_store.get_all_channels()
     
-    # 如果有搜索关键词，添加搜索条件
+    # 过滤只返回源频道
+    channels = [ch for ch in all_channels if ch.get('channel_type') == 'source']
+    
+    # 如果有搜索关键词，添加搜索过滤
     if search:
-        from sqlalchemy import or_
-        # 支持名称精准匹配或标题模糊匹配
-        query = query.where(
-            or_(
-                Channel.channel_name == search,  # 名称精准匹配
-                Channel.channel_title.ilike(f"%{search}%")  # 标题模糊匹配（不区分大小写）
-            )
-        )
+        filtered_channels = []
+        for ch in channels:
+            channel_name = ch.get('channel_name', '')
+            channel_title = ch.get('channel_title', '')
+            
+            # 名称精准匹配或标题模糊匹配
+            if (channel_name == search or 
+                search.lower() in channel_title.lower()):
+                filtered_channels.append(ch)
+        channels = filtered_channels
     
-    result = await db.execute(query)
-    channels = result.scalars().all()
-    
-    # 按创建时间倒序排列，新添加的频道在最上面
-    channels = sorted(channels, key=lambda x: x.created_at, reverse=True)
+    # 按创建时间倒序排列
+    channels = sorted(channels, key=lambda x: x.get('created_at', ''), reverse=True)
     
     return {
         "success": True,
         "channels": [
             {
-                "id": ch.id,
-                "name": ch.channel_name,
-                "title": ch.channel_title or "",
-                "status": "active" if ch.is_active else "inactive",
-                "channel_id": ch.channel_id,
-                "channel_type": ch.channel_type,
-                "config": ch.config,
-                "created_at": ch.created_at
+                "id": ch.get('id', ''),
+                "name": ch.get('channel_name', ''),
+                "title": ch.get('channel_title', ''),
+                "status": "active" if ch.get('is_active', True) else "inactive",
+                "channel_id": ch.get('channel_id', ''),
+                "channel_type": ch.get('channel_type', ''),
+                "config": ch.get('config', {}),
+                "created_at": ch.get('created_at', '')
             }
             for ch in channels
         ]
@@ -81,14 +80,15 @@ async def get_channels(
 
 @router.post("/channels")
 async def add_channel(
-    request: ChannelCreateRequest,
-    db: AsyncSession = Depends(get_db)
+    request: ChannelCreateRequest
 ):
     """添加频道配置 - 自动解析频道ID和标题"""
     try:
+        channel_store = get_json_channel_store()
+        
         # 检查频道名称是否已存在
-        existing = await db.execute(select(Channel).where(Channel.channel_name == request.channel_name))
-        if existing.scalar_one_or_none():
+        existing_channels = channel_store.get_all_channels()
+        if any(ch.get('channel_name') == request.channel_name for ch in existing_channels):
             raise HTTPException(status_code=400, detail="频道名称已存在")
         
         # 自动解析频道信息
@@ -126,32 +126,34 @@ async def add_channel(
                     # 继续执行，使用用户提供的或空值
         
         # 创建频道记录
-        channel = Channel(
-            channel_id=resolved_id,
-            channel_name=request.channel_name,
-            channel_title=resolved_title or request.channel_name,  # 如果没有标题，使用频道名称
-            channel_type=request.channel_type,
-            config=request.config or {}
-        )
-        
-        db.add(channel)
-        await db.commit()
-        await db.refresh(channel)
-        
-        return {
-            "success": True, 
-            "message": "频道添加成功",
-            "channel": {
-                "id": channel.id,
-                "channel_id": channel.channel_id,
-                "channel_name": channel.channel_name,
-                "channel_title": channel.channel_title
-            }
+        channel_data = {
+            "id": len(existing_channels) + 1,
+            "channel_id": resolved_id,
+            "channel_name": request.channel_name,
+            "channel_title": resolved_title or request.channel_name,
+            "channel_type": request.channel_type,
+            "config": request.config or {},
+            "is_active": True,
+            "created_at": datetime.now().isoformat()
         }
+        
+        if channel_store.add_channel(channel_data):
+            return {
+                "success": True, 
+                "message": "频道添加成功",
+                "channel": {
+                    "id": channel_data["id"],
+                    "channel_id": channel_data["channel_id"],
+                    "channel_name": channel_data["channel_name"],
+                    "channel_title": channel_data["channel_title"]
+                }
+            }
+        else:
+            raise HTTPException(status_code=500, detail="频道添加失败")
+            
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
         raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
 
 @router.put("/channels/{channel_name}")

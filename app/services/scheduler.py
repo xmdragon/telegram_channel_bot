@@ -64,8 +64,7 @@ class MessageScheduler:
         """检查并处理自动转发"""
         try:
             # 检查是否启用自动转发
-            from app.services.config_manager import ConfigManager
-            config_manager = ConfigManager()
+            from app.services.config_manager import config_manager
             auto_forward_enabled = await config_manager.get_config("review.auto_forward_enabled", True)
             
             if not auto_forward_enabled:
@@ -85,34 +84,15 @@ class MessageScheduler:
     async def cleanup_old_data(self):
         """清理旧数据 - 删除7天前已发布或拒绝的消息"""
         try:
-            from app.core.database import AsyncSessionLocal, Message
-            from sqlalchemy import and_, or_
+            from app.storage.redis_store import get_redis_message_store
             from datetime import datetime, timedelta
             
             # 计算7天前的时间
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
             
-            async with AsyncSessionLocal() as session:
-                # 查询7天前已发布或拒绝的消息
-                from sqlalchemy import select
-                
-                stmt = select(Message).where(
-                    and_(
-                        or_(
-                            Message.status == "approved",
-                            Message.status == "rejected",
-                            Message.status == "auto_forwarded"
-                        ),
-                        or_(
-                            Message.review_time < seven_days_ago,
-                            Message.forwarded_time < seven_days_ago,
-                            Message.created_at < seven_days_ago
-                        )
-                    )
-                )
-                
-                result = await session.execute(stmt)
-                messages_to_delete = result.scalars().all()
+            # 使用Redis存储获取旧消息
+            message_store = get_redis_message_store()
+            messages_to_delete = await message_store.get_old_messages_for_cleanup(seven_days_ago)
                 
                 if not messages_to_delete:
                     logger.debug("没有需要清理的旧消息")
@@ -144,12 +124,9 @@ class MessageScheduler:
                                     if media_path.exists():
                                         media_files_to_delete.append(media_path)
                     
-                    # 删除消息记录
-                    await session.delete(message)
-                    deleted_count += 1
-                
-                # 提交数据库更改
-                await session.commit()
+                    # 删除Redis中的消息记录
+                    if await message_store.delete_message(message.channel_id, message.message_id):
+                        deleted_count += 1
                 
                 # 删除媒体文件
                 for media_path in media_files_to_delete:
@@ -179,31 +156,40 @@ class MessageScheduler:
             # 1天前的时间戳（86400秒 = 24小时）
             one_day_ago = current_time - 86400
             
-            # 获取数据库中所有引用的媒体文件
+            # 获取Redis中所有引用的媒体文件
+            from app.storage.redis_store import get_redis_message_store
+            message_store = get_redis_message_store()
             referenced_files = set()
-            async with AsyncSessionLocal() as session:
-                from sqlalchemy import select, or_
-                from app.core.database import Message
-                
-                # 查询所有有媒体的消息
-                stmt = select(Message.media_url, Message.media_group).where(
-                    or_(
-                        Message.media_url.isnot(None),
-                        Message.media_group.isnot(None)
-                    )
-                )
-                result = await session.execute(stmt)
-                
-                for media_url, media_group in result:
-                    # 添加主媒体文件
-                    if media_url:
-                        referenced_files.add(os.path.basename(media_url))
-                    
-                    # 添加媒体组中的文件
-                    if media_group:
-                        for item in media_group:
-                            if item.get('file_path'):
-                                referenced_files.add(os.path.basename(item['file_path']))
+            
+            # 从所有频道获取消息信息
+            channel_patterns = message_store.redis.keys('msg:idx:*')
+            for pattern in channel_patterns:
+                if pattern.startswith(b'msg:idx:') and b':' in pattern[8:]:
+                    try:
+                        channel_id = pattern[8:].decode('utf-8')
+                        if channel_id in ['pending', 'approved', 'rejected', 'auto_forwarded']:
+                            continue
+                        
+                        messages = message_store.get_messages_by_channel(channel_id, limit=1000)
+                        for msg in messages:
+                            # 添加主媒体文件
+                            if msg.get('media_url'):
+                                referenced_files.add(os.path.basename(msg['media_url']))
+                            
+                            # 添加媒体组中的文件
+                            if msg.get('media_group'):
+                                try:
+                                    import json
+                                    media_group = json.loads(msg['media_group']) if isinstance(msg['media_group'], str) else msg['media_group']
+                                    if isinstance(media_group, list):
+                                        for item in media_group:
+                                            if isinstance(item, dict) and item.get('file_path'):
+                                                referenced_files.add(os.path.basename(item['file_path']))
+                                except:
+                                    pass
+                    except Exception as e:
+                        logger.debug(f'处理频道 {pattern} 失败: {e}')
+                        continue
             
             logger.debug(f"数据库中引用了 {len(referenced_files)} 个媒体文件")
             
