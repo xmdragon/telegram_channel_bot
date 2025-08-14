@@ -18,7 +18,7 @@ class UnifiedFilterEngine:
     def __init__(self):
         """初始化引擎"""
         self.ai_filter = None
-        self.intelligent_tail_filter = None
+        self.semantic_tail_filter = None
         self.ad_training_data = []
         self.high_risk_patterns = []
         self._initialized = False
@@ -33,9 +33,9 @@ class UnifiedFilterEngine:
             from app.services.ai_filter import ai_filter
             self.ai_filter = ai_filter
             
-            # 导入智能尾部过滤器（使用用户训练的样本）
-            from app.services.intelligent_tail_filter import intelligent_tail_filter
-            self.intelligent_tail_filter = intelligent_tail_filter
+            # 导入语义尾部过滤器（使用语义分析和训练样本）
+            from app.services.semantic_tail_filter import semantic_tail_filter
+            self.semantic_tail_filter = semantic_tail_filter
             
             # 加载训练数据
             self._load_training_data()

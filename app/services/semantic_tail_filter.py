@@ -252,3 +252,85 @@ class SemanticTailFilter:
             return has_contact and has_promo_verb
         else:
             return False  # 低置信度
+    
+    def filter_message(self, content: str) -> tuple:
+        """
+        过滤消息中的尾部内容
+        
+        Args:
+            content: 完整消息内容
+            
+        Returns:
+            (过滤后内容, 是否过滤了尾部, 尾部内容, 分析详情)
+        """
+        if not content:
+            return content, False, None, {}
+        
+        lines = content.split('\n')
+        if len(lines) < 3:
+            return content, False, None, {}
+        
+        # 从后往前扫描，寻找推广尾部的开始位置
+        best_split_point = None
+        best_score = 0.0
+        analysis = {'scanned_lines': []}
+        
+        # 最多检查最后15行或全部行数的一半，取较小值
+        max_scan_lines = min(15, len(lines) // 2 + 1)
+        
+        for i in range(len(lines) - 1, max(0, len(lines) - max_scan_lines - 1), -1):
+            # 从第i行开始到末尾的内容
+            tail_candidate = '\n'.join(lines[i:])
+            
+            # 计算语义得分
+            semantic_score = self.calculate_semantic_score(tail_candidate, content)
+            
+            # 记录分析详情
+            line_analysis = {
+                'line_start': i,
+                'content_preview': tail_candidate[:100] + '...' if len(tail_candidate) > 100 else tail_candidate,
+                'semantic_score': semantic_score
+            }
+            analysis['scanned_lines'].append(line_analysis)
+            
+            # 如果得分足够高，这可能是一个好的分割点
+            if semantic_score > 0.6 and semantic_score > best_score:
+                best_score = semantic_score
+                best_split_point = i
+                analysis['best_split'] = i
+                analysis['best_score'] = semantic_score
+        
+        # 判断是否找到尾部（阈值0.6）
+        if best_split_point is not None and best_score > 0.6:
+            filtered_content = '\n'.join(lines[:best_split_point]).strip()
+            tail_content = '\n'.join(lines[best_split_point:]).strip()
+            
+            # 安全检查：过滤后的内容不能太短
+            if len(filtered_content) < 30:
+                # 检查是否整条都是推广
+                full_score = self.calculate_semantic_score(content)
+                if full_score > 0.8:
+                    # 允许完全过滤纯推广内容
+                    logger.info(f"检测到纯推广内容，完全过滤: {len(content)} -> 0 字符")
+                    return "", True, content, analysis
+                else:
+                    # 保留原文，避免误删有价值的正常内容
+                    logger.warning(f"过滤后内容过短且包含正常内容，保留原文: {len(filtered_content)} < 30")
+                    return content, False, None, analysis
+            
+            # 计算过滤比例
+            filter_ratio = len(tail_content) / len(content) if content else 0
+            if filter_ratio > 0.7:
+                logger.warning(f"过滤比例过大 ({filter_ratio:.1%})，保留原文")
+                return content, False, None, analysis
+            
+            logger.info(f"语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符 "
+                       f"(过滤{filter_ratio:.1%}，得分{best_score:.2f})")
+            
+            return filtered_content, True, tail_content, analysis
+        
+        return content, False, None, analysis
+
+
+# 全局实例
+semantic_tail_filter = SemanticTailFilter()

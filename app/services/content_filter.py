@@ -529,9 +529,9 @@ class ContentFilter:
         
         return content
     
-    def _apply_trained_tail_filters(self, content: str) -> str:
+    def _apply_semantic_tail_filter(self, content: str) -> str:
         """
-        应用智能训练样本过滤 - 使用精确定位和语义分析
+        应用语义尾部过滤 - 基于语义分析和训练样本
         
         Args:
             content: 消息内容
@@ -543,40 +543,22 @@ class ContentFilter:
             return content
         
         try:
-            # 第1层：智能关键词定位过滤（新增）
-            from app.services.smart_keyword_filter import smart_keyword_filter
+            from app.services.semantic_tail_filter import semantic_tail_filter
             
-            filtered_content, was_filtered, removed_part = smart_keyword_filter.filter_with_semantic_check(content)
+            filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(content)
             
             if was_filtered:
-                logger.info(f"关键词定位过滤移除了尾部内容: {len(content)} -> {len(filtered_content)} 字符")
-                logger.debug(f"移除的内容: {removed_part[:100]}...")
+                logger.info(f"语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符")
+                if removed_tail:
+                    logger.debug(f"移除的尾部内容: {removed_tail[:100]}...")
+                if analysis and analysis.get('similarity', 0) > 0:
+                    logger.debug(f"训练样本匹配相似度: {analysis['similarity']:.2f}")
                 return filtered_content
-            
-            # 第2层：智能学习系统（基于模式学习，作为备用）
-            from app.services.intelligent_learning_system import intelligent_learning_system
-            
-            filtered_content2, was_filtered2, removed_tail2 = intelligent_learning_system.filter_message(content)
-            
-            if was_filtered2 and removed_tail2:
-                logger.info(f"智能学习系统移除了尾部内容: {len(content)} -> {len(filtered_content2)} 字符")
-                logger.debug(f"移除的内容预览: {removed_tail2[:50]}...")
-                return filtered_content2
-            
-            # 第3层：智能尾部过滤器（最后备用，阈值已调高）
-            from app.services.intelligent_tail_filter import intelligent_tail_filter
-            
-            filtered_content3, was_filtered3, removed_tail3 = intelligent_tail_filter.filter_message(content)
-            
-            if was_filtered3 and removed_tail3:
-                logger.info(f"智能尾部过滤器移除了尾部内容: {len(content)} -> {len(filtered_content3)} 字符")
-                logger.debug(f"移除的内容预览: {removed_tail3[:50]}...")
-                return filtered_content3
             
             return content
             
         except Exception as e:
-            logger.error(f"智能过滤失败，返回原始内容: {e}")
+            logger.error(f"语义尾部过滤失败，返回原始内容: {e}")
             return content
     
     def filter_promotional_content(self, content: str, channel_id: str = None) -> str:
@@ -599,112 +581,17 @@ class ContentFilter:
         if content != original_content:
             logger.info(f"移除Markdown链接: {len(original_content)} -> {len(content)}")
         
-        # 1. 然后应用训练的尾部过滤模式
-        content = self._apply_trained_tail_filters(content)
-        if content != original_content:
-            logger.info(f"训练模式过滤了尾部内容: {len(original_content)} -> {len(content)}")
+        # 1. 应用语义尾部过滤（主要过滤方法）
+        semantic_filtered = self._apply_semantic_tail_filter(content)
+        if semantic_filtered != content:
+            logger.info(f"语义尾部过滤成功: {len(content)} -> {len(semantic_filtered)} 字符")
+            # 语义过滤成功后，直接返回结果，不再进行激进的规则过滤
+            # 这避免了对正常内容的误判
+            return semantic_filtered
         
-        # 2. 然后使用智能规则过滤
-        rule_filtered = self._smart_rule_filter(content)
-        if rule_filtered != content:
-            logger.info(f"规则过滤了尾部内容: {len(content)} -> {len(rule_filtered)}")
-            content = rule_filtered
-        
-        # 2. 如果规则没有找到明确的尾部，才使用AI过滤（如果可用）
-        if content == original_content and channel_id and self.ai_filter and self.ai_filter.initialized:
-            ai_filtered = self.ai_filter.filter_channel_tail(channel_id, content)
-            if ai_filtered != content:
-                # 保护机制：验证AI过滤的合理性
-                if not ai_filtered or len(ai_filtered) < 50:
-                    logger.warning(f"AI过滤后内容过短（{len(ai_filtered) if ai_filtered else 0}字符），跳过AI过滤")
-                    content = original_content
-                elif len(ai_filtered) < len(content) * 0.3:
-                    logger.warning(f"AI过滤删除了超过70%的内容，可能误判，跳过AI过滤")
-                    content = original_content
-                else:
-                    logger.info(f"AI过滤了频道 {channel_id} 的尾部内容: {len(content)} -> {len(ai_filtered)}")
-                    content = ai_filtered
-            
-        lines = content.split('\n')
-        total_lines = len(lines)
-        filtered_lines = []
-        
-        # 检查最后15行中的推广内容（扩大范围）
-        tail_start = max(0, total_lines - 15)
-        tail_promo_count = 0
-        first_promo_index = total_lines
-        
-        # 扫描尾部，找到第一个推广行的位置
-        for i in range(tail_start, total_lines):
-            is_promo, score = self.is_promo_line(lines[i])
-            # 特别检查"本频道推荐"等明显的推广开始标志
-            if "本频道" in lines[i] and ("推荐" in lines[i] or "推薦" in lines[i]):
-                # 找到"本频道推荐"，这是明确的推广开始
-                first_promo_index = min(first_promo_index, i)
-                tail_promo_count = 10  # 直接设为高值，确保过滤
-                break
-            elif is_promo and score >= 8:  # 提高阈值到8分
-                tail_promo_count += 1
-                if first_promo_index == total_lines:
-                    first_promo_index = i
-                    # 如果推广行前面有分隔符，也包括分隔符
-                    if i > 0 and re.match(r'^[-=_—➖▪▫◆◇■□●○•]{3,}$', lines[i-1].strip()):
-                        first_promo_index = i - 1
-        
-        # 如果尾部有2行或以上推广内容，从第一个推广行开始全部过滤（降低阈值）
-        if tail_promo_count >= 2:
-            # 只保留推广内容之前的部分
-            for i in range(first_promo_index):
-                filtered_lines.append(lines[i])
-            
-            # 清理尾部空行
-            while filtered_lines and not filtered_lines[-1].strip():
-                filtered_lines.pop()
-                
-            result = '\n'.join(filtered_lines)
-            logger.info(f"过滤尾部推广内容: {len(content)} -> {len(result)} 字符, 删除了 {total_lines - len(filtered_lines)} 行")
-            return result
-        
-        # 如果尾部推广内容不足2行，进行逐行精细过滤
-        for i, line in enumerate(lines):
-            is_promo, score = self.is_promo_line(line)
-            
-            # 尾部区域（最后20%）更严格
-            if i >= total_lines * 0.8:
-                if is_promo and score >= 8:  # 提高到8分
-                    logger.info(f"过滤推广行(位置:{i+1}/{total_lines}, 分数:{score}): {line[:50]}...")
-                    continue
-                if re.match(r'^[-=_—➖▪▫◆◇■□●○•]{5,}$', line.strip()):
-                    # 检查分隔符后是否有推广内容
-                    has_promo_after = False
-                    for j in range(i+1, min(i+3, total_lines)):
-                        next_promo, next_score = self.is_promo_line(lines[j])
-                        if next_promo and next_score >= 8:  # 提高到8分
-                            has_promo_after = True
-                            break
-                    if has_promo_after:
-                        logger.info(f"过滤分隔符(后有推广): {line[:50]}...")
-                        continue
-            # 正文部分（前80%）只过滤高置信度
-            else:
-                # 正文部分要求更高的置信度（10分）才过滤
-                # 这样可以避免误删包含链接的新闻内容
-                if is_promo and score >= 10:
-                    logger.info(f"过滤正文推广行(分数:{score}): {line[:50]}...")
-                    continue
-            
-            filtered_lines.append(line)
-        
-        # 清理尾部空行
-        while filtered_lines and not filtered_lines[-1].strip():
-            filtered_lines.pop()
-            
-        result = '\n'.join(filtered_lines)
-        
-        if len(result) < len(content):
-            logger.info(f"内容过滤: {len(content)} -> {len(result)} 字符")
-            
-        return result
+        # 如果语义过滤没有生效，直接返回原始内容
+        # 不再使用其他过滤策略，避免混乱和过度过滤
+        return content
     
     
     def is_commercial_ad(self, content: str) -> bool:
@@ -814,16 +701,8 @@ class ContentFilter:
                 content, channel_id, message_obj, media_files
             )
             
-            # 如果统一引擎没有检测到，再用本地的推广内容过滤
-            if not is_ad and filtered_content:
-                final_filtered = self.filter_promotional_content(filtered_content, channel_id)
-                if final_filtered != filtered_content:
-                    filtered_content = final_filtered
-                    is_ad = True
-                    if filter_reason:
-                        filter_reason += " | 推广内容"
-                    else:
-                        filter_reason = "推广内容"
+            # 统一过滤引擎已经包含了语义尾部过滤，无需再次进行推广过滤
+            # 这避免了对已经被语义过滤保护的正常内容进行二次过滤
             
             # OCR结果处理（如果需要）
             ocr_result = await self._process_ocr_if_needed(media_files, filtered_content, is_ad)
