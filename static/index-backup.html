@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏠 主控制台</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <!-- 外部样式文件 -->
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav-bar page-title="🏠 主控制台"></nav-bar>
+
+        <div class="stats-container">
+            <!-- 统计面板 -->
+            <div class="stats-grid">
+                <div v-for="(stat, key) in stats" :key="key" 
+                     class="stat-card" 
+                     @click="handleStatClick(key)">
+                    <div class="stat-value">{{ stat.value }}</div>
+                    <div class="stat-label">{{ stat.label }}</div>
+                </div>
+            </div>
+
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <div class="filter-group">
+                    <!-- 搜索框 -->
+                    <div class="search-box">
+                        <input type="text" 
+                               v-model="searchKeyword" 
+                               placeholder="搜索消息内容..." 
+                               class="search-input"
+                               @keyup.enter="loadMessages">
+                    </div>
+                    
+                    <!-- 状态筛选 -->
+                    <select v-model="filters.status" @change="loadMessages" class="form-select">
+                        <option value="">全部状态</option>
+                        <option value="pending">待审核</option>
+                        <option value="approved">已批准</option>
+                        <option value="rejected">已拒绝</option>
+                        <option value="auto_forwarded">自动转发</option>
+                    </select>
+                    
+                    <!-- 广告筛选 -->
+                    <select v-model="filters.is_ad" @change="loadMessages" class="form-select">
+                        <option :value="null">全部消息</option>
+                        <option :value="true">广告消息</option>
+                        <option :value="false">正常消息</option>
+                    </select>
+                    
+                    <!-- 刷新按钮 -->
+                    <button @click="loadMessages" class="btn btn-secondary">
+                        🔄 刷新
+                    </button>
+                </div>
+                
+                <!-- 批量操作按钮 -->
+                <div class="btn-group">
+                    <button class="btn btn-outline" @click="toggleSelectAll">
+                        {{ allSelected ? '取消全选' : '全选' }}
+                    </button>
+                    <button class="btn btn-success" 
+                            @click="approveMessages" 
+                            :disabled="selectedMessages.length === 0">
+                        ✅ 批准 ({{ selectedMessages.length }})
+                    </button>
+                    <button class="btn btn-danger" 
+                            @click="rejectMessages"
+                            :disabled="selectedMessages.length === 0">
+                        ❌ 拒绝 ({{ selectedMessages.length }})
+                    </button>
+                    <button class="btn btn-danger" 
+                            @click="deleteMessages"
+                            :disabled="selectedMessages.length === 0">
+                        🗑️ 删除 ({{ selectedMessages.length }})
+                    </button>
+                </div>
+            </div>
+
+            <!-- 消息列表 -->
+            <div class="message-list">
+                <div v-if="loading" class="loading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">加载中...</div>
+                </div>
+                
+                <div v-else-if="filteredMessages.length === 0" class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-title">暂无消息</div>
+                    <div class="empty-description">当前筛选条件下没有消息</div>
+                </div>
+                
+                <div v-else v-for="message in filteredMessages" :key="message.id" 
+                     class="message-item"
+                     :class="{ 'selected': isSelected(message.id) }">
+                    
+                    <!-- 消息头部 -->
+                    <div class="message-header">
+                        <div class="message-info">
+                            <!-- 选择框 -->
+                            <input type="checkbox" 
+                                   v-if="message.status === 'pending'"
+                                   :checked="isSelected(message.id)"
+                                   @change="toggleMessage(message.id)">
+                            
+                            <!-- 数据库编号 -->
+                            <span class="message-id">
+                                #{{ message.id }}
+                            </span>
+                            
+                            <!-- 频道信息 -->
+                            <span class="message-channel">
+                                📢 {{ message.source_channel_title || message.source_channel || '未知频道' }}
+                            </span>
+                            
+                            <!-- 时间 -->
+                            <span class="message-time">
+                                {{ formatTime(message.created_at) }}
+                            </span>
+                        </div>
+                        
+                        <!-- 状态标签 -->
+                        <div class="message-tags">
+                            <span :class="['tag', 'tag-' + getStatusTag(message.status).type]">
+                                {{ getStatusTag(message.status).text }}
+                            </span>
+                            <span v-if="message.is_ad" class="tag tag-danger">
+                                广告
+                            </span>
+                            <span v-if="message.filter_reason && message.status === 'rejected'" class="tag tag-secondary" :title="message.filter_reason" style="background: #6c757d;">
+                                拒因: {{ message.filter_reason.length > 15 ? message.filter_reason.substring(0, 15) + '...' : message.filter_reason }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- 消息内容 -->
+                    <div class="message-content">
+                        <!-- 媒体内容 -->
+                        <div v-if="message.media_type" class="message-media">
+                            <!-- 组合消息的媒体组 -->
+                            <div v-if="message.is_combined && message.media_group_display && message.media_group_display.length > 0" 
+                                 class="media-grid" 
+                                 :style="{
+                                     'display': 'grid',
+                                     'grid-template-columns': message.media_group_display.length === 1 ? '1fr' : 
+                                                               message.media_group_display.length === 2 ? 'repeat(2, 1fr)' : 
+                                                               'repeat(3, 1fr)',
+                                     'gap': '4px',
+                                     'max-width': '500px'
+                                 }">
+                                <div v-for="(media, index) in message.media_group_display" :key="index">
+                                    <!-- 组合消息中的图片 -->
+                                    <img v-if="media.media_type === 'photo' && media.display_url" 
+                                         :src="media.display_url"
+                                         class="media-image"
+                                         style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                                         @click="openMediaPreview(media.display_url)">
+                                    
+                                    <!-- 组合消息中的视频 -->
+                                    <video v-else-if="media.media_type === 'video' && media.display_url"
+                                           :src="media.display_url"
+                                           class="media-video"
+                                           style="width: 100%; height: 100%; object-fit: cover;"
+                                           controls>
+                                    </video>
+                                    
+                                    <!-- 其他媒体类型 -->
+                                    <div v-else class="media-placeholder" style="padding: 20px; background: #f5f5f5; text-align: center;">
+                                        {{ media.media_type }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 单个媒体（非组合消息） -->
+                            <template v-else>
+                                <!-- 图片 -->
+                                <img v-if="message.media_type === 'photo' && message.media_display_url && !message._mediaLoadFailed" 
+                                     :src="message.media_display_url"
+                                     class="media-image"
+                                     @click="openMediaPreview(message.media_display_url)"
+                                     @error="handleImageError(message, $event)">
+                                
+                                <!-- 视频 -->
+                                <video v-else-if="message.media_type === 'video' && message.media_display_url"
+                                       :src="message.media_display_url"
+                                       class="media-video"
+                                       controls>
+                                </video>
+                                
+                                <!-- 媒体加载失败或其他媒体类型 -->
+                                <div v-else-if="message.media_type && (!message.media_display_url || message._mediaLoadFailed)" class="media-placeholder">
+                                    <div>
+                                        📷 {{ message.media_type === 'photo' ? '图片' : message.media_type === 'video' ? '视频' : message.media_type }}
+                                        <div style="font-size: 12px; color: #999; margin-top: 5px;">媒体文件缺失</div>
+                                    </div>
+                                    <div v-else>
+                                        {{ message.media_type }}
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- 文本内容 -->
+                        <!-- 自动拒绝的消息（有filter_reason）显示原始内容 -->
+                        <div v-if="message.status === 'rejected' && message.filter_reason && message.content" class="message-text">
+                            {{ message.content }}
+                        </div>
+                        <!-- 其他消息（包括手动拒绝的）显示过滤后内容 -->
+                        <div v-else-if="message.filtered_content" class="message-text">
+                            {{ message.filtered_content }}
+                        </div>
+                        
+                        <!-- 显示被移除的隐藏链接信息 -->
+                        <div v-if="message.removed_hidden_links && message.removed_hidden_links.length > 0" 
+                             class="hidden-links-info" 
+                             style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 12px;">
+                            <div style="font-weight: bold; color: #856404; margin-bottom: 5px;">
+                                ⚠️ 检测到 {{ message.removed_hidden_links.length }} 个隐藏链接（已移除）：
+                            </div>
+                            <div v-for="(link, index) in message.removed_hidden_links" :key="index" style="margin-left: 10px; color: #721c24;">
+                                • "{{ link.text }}" → <span style="text-decoration: underline;">{{ link.url }}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 原频道链接 -->
+                        <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666;">
+                            🔗 原消息链接: 
+                            <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
+                               target="_blank" 
+                               style="color: #3498db; text-decoration: none;">
+                                查看原消息
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div v-if="message.status === 'pending'" class="message-actions">
+                        <button v-if="buttonVisibility.edit" 
+                                @click="openEditDialog(message)" 
+                                class="btn btn-sm btn-secondary">
+                            ✏️ 编辑
+                        </button>
+                        <button v-if="buttonVisibility.approve" 
+                                @click="selectedMessages = [message.id]; approveMessages()" 
+                                class="btn btn-sm btn-success">
+                            ✅ 批准
+                        </button>
+                        <button v-if="buttonVisibility.reject" 
+                                @click="selectedMessages = [message.id]; rejectMessages()" 
+                                class="btn btn-sm btn-danger">
+                            ❌ 拒绝
+                        </button>
+                        <!-- AI训练按钮 -->
+                        <button v-if="buttonVisibility.markAsAd" 
+                                @click="markAsAd(message)" 
+                                class="btn btn-sm btn-warning"
+                                title="将此消息标记为广告并加入训练样本">
+                            🚫 广告
+                        </button>
+                        <button v-if="buttonVisibility.markAsTail" 
+                                @click="trainTail(message)" 
+                                class="btn btn-sm btn-info"
+                                title="训练AI识别此消息的尾部内容">
+                            ✂️ 尾部
+                        </button>
+                        <!-- 尾部过滤按钮 -->
+                        <button v-if="buttonVisibility.executeFilter" 
+                                @click="filterTail(message)" 
+                                class="btn btn-sm btn-primary"
+                                title="手动执行尾部过滤">
+                            🎯 过滤
+                        </button>
+                        <!-- 补抓媒体按钮 (改进判断逻辑) -->
+                        <button v-if="buttonVisibility.refetchMedia && message.media_type && !mediaExists(message)"
+                                @click="refetchMedia(message)" 
+                                class="btn btn-sm btn-primary"
+                                :disabled="refetchingMedia[message.id]"
+                                title="重新下载缺失的媒体文件">
+                            <span v-if="refetchingMedia[message.id]">⏳</span>
+                            <span v-else>🔄 补抓</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 加载更多指示器 -->
+                <div v-if="isLoadingMore" class="loading-more">
+                    <div class="spinner-small"></div>
+                    <span>加载更多消息...</span>
+                </div>
+                
+                <div v-else-if="!hasMore && filteredMessages.length > 0" class="no-more">
+                    <span>没有更多消息了</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 编辑对话框 -->
+        <div v-if="editDialog.visible" class="modal-overlay" @click.self="editDialog.visible = false">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">编辑消息</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">消息内容</label>
+                        <textarea v-model="editDialog.content" 
+                                  class="form-textarea"
+                                  rows="15"
+                                  style="min-height: 400px; resize: vertical;">
+                        </textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="editDialog.visible = false" class="btn btn-secondary">
+                        取消
+                    </button>
+                    <button @click="saveEdit" class="btn btn-primary">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 媒体预览（如需要） -->
+        <div v-if="mediaPreview && mediaPreview.show" 
+             class="modal-overlay" 
+             @click="mediaPreview.show = false">
+            <img :src="mediaPreview.url" style="max-width: 90%; max-height: 90%;">
+        </div>
+        
+        <!-- 文件详情对话框 -->
+        <div v-if="fileDetailsDialog && fileDetailsDialog.visible" 
+             class="modal-overlay" 
+             @click.self="fileDetailsDialog.visible = false">
+            <div class="file-details-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">文件详情</h3>
+                    <button class="close-btn" @click="fileDetailsDialog.visible = false">×</button>
+                </div>
+                <div class="modal-body file-details-body">
+                    <table class="file-details-table">
+                        <tr>
+                            <td class="detail-label">文件名</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.fileName }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.originalFileName !== fileDetailsDialog.details.fileName">
+                            <td class="detail-label">原始文件名</td>
+                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.originalFileName }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">路径</td>
+                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.path }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">类型</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.type }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">大小</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.size }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.hash">
+                            <td class="detail-label">哈希</td>
+                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.hash }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.createTime">
+                            <td class="detail-label">创建时间</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.createTime }}</td>
+                        </tr>
+                        <tr v-if="fileDetailsDialog.details.tags && fileDetailsDialog.details.tags.length > 0">
+                            <td class="detail-label">引用样本</td>
+                            <td class="detail-value">
+                                <span v-for="tag in fileDetailsDialog.details.tags" :key="tag" class="file-tag">{{ tag }}</span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button @click="fileDetailsDialog.visible = false" class="btn btn-secondary">
+                        关闭
+                    </button>
+                    <a :href="fileDetailsDialog.details.path" download class="btn btn-primary">
+                        下载文件
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        /* 消息ID样式 - 固定宽度实现对齐 */
+        .message-id {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            min-width: 75px;
+            width: 75px;
+            color: #999;
+            margin-right: 12px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        
+        /* 复选框样式优化 */
+        .message-info input[type="checkbox"] {
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        /* 消息项特定样式 */
+        .message-media {
+            margin: 1rem 0;
+        }
+        
+        .media-image {
+            max-width: 100%;
+            max-height: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .media-image:hover {
+            transform: scale(1.02);
+        }
+        
+        .media-video {
+            max-width: 100%;
+            max-height: 200px;
+            height: 200px;
+            border-radius: 8px;
+        }
+        
+        .media-placeholder {
+            padding: 2rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            text-align: center;
+            color: var(--text-tertiary);
+        }
+        
+        .message-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .message-tags {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        /* 媒体预览 */
+        .mediaPreview {
+            cursor: pointer;
+        }
+        
+        /* 加载更多 */
+        .loading-more, .no-more {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-tertiary);
+            font-size: 14px;
+        }
+        
+        .loading-more {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .no-more {
+            border-top: 1px solid var(--border-color);
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        
+        /* 文件详情对话框样式 */
+        .file-details-modal {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            width: 700px !important;
+            min-width: 600px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow: auto;
+            position: relative;
+        }
+        
+        .file-details-modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .file-details-modal .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .file-details-modal .close-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .file-details-body {
+            padding: 20px;
+        }
+        
+        .file-details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .file-details-table tr {
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .file-details-table tr:last-child {
+            border-bottom: none;
+        }
+        
+        .file-details-table td {
+            padding: 12px 0;
+            vertical-align: top;
+        }
+        
+        .detail-label {
+            width: 100px;
+            min-width: 100px;
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .detail-value {
+            color: #333;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        
+        .detail-value-small {
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #666;
+        }
+        
+        .file-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+        
+        .file-details-modal .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .file-details-modal .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .file-details-modal .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .file-details-modal .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .file-details-modal .btn-primary {
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .file-details-modal .btn-primary:hover {
+            background: #45a049;
+        }
+    </style>
+    
+    <!-- 外部脚本文件 -->
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/auth.js"></script>
+    
+    <!-- 全局组件 -->
+    <script src="assets/js/components/navbar.js"></script>
+    
+    <!-- 工具类 -->
+    <script src="assets/js/utils/permission-checker.js"></script>
+    
+    <!-- 主组件（已包含MessageManager）-->
+    <script src="assets/js/components/index.js"></script>
+</body>
+</html>

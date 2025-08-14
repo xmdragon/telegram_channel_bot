@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="assets/css/element-plus.css">
     <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
     <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/components/index.css">
 </head>
 <body>
     <div id="app">
@@ -134,7 +135,7 @@
                             <span v-if="message.is_ad" class="tag tag-danger">
                                 广告
                             </span>
-                            <span v-if="message.filter_reason && message.status === 'rejected'" class="tag tag-secondary" :title="message.filter_reason" style="background: #6c757d;">
+                            <span v-if="message.filter_reason && message.status === 'rejected'" class="tag tag-secondary reject-reason" :title="message.filter_reason">
                                 拒因: {{ message.filter_reason.length > 15 ? message.filter_reason.substring(0, 15) + '...' : message.filter_reason }}
                             </span>
                         </div>
@@ -146,33 +147,28 @@
                         <div v-if="message.media_type" class="message-media">
                             <!-- 组合消息的媒体组 -->
                             <div v-if="message.is_combined && message.media_group_display && message.media_group_display.length > 0" 
-                                 class="media-grid" 
-                                 :style="{
-                                     'display': 'grid',
-                                     'grid-template-columns': message.media_group_display.length === 1 ? '1fr' : 
-                                                               message.media_group_display.length === 2 ? 'repeat(2, 1fr)' : 
-                                                               'repeat(3, 1fr)',
-                                     'gap': '4px',
-                                     'max-width': '500px'
+                                 class="media-grid"
+                                 :class="{
+                                     'media-grid-single': message.media_group_display.length === 1,
+                                     'media-grid-double': message.media_group_display.length === 2,
+                                     'media-grid-triple': message.media_group_display.length >= 3
                                  }">
                                 <div v-for="(media, index) in message.media_group_display" :key="index">
                                     <!-- 组合消息中的图片 -->
                                     <img v-if="media.media_type === 'photo' && media.display_url" 
                                          :src="media.display_url"
-                                         class="media-image"
-                                         style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                                         class="media-image media-group-item"
                                          @click="openMediaPreview(media.display_url)">
                                     
                                     <!-- 组合消息中的视频 -->
                                     <video v-else-if="media.media_type === 'video' && media.display_url"
                                            :src="media.display_url"
-                                           class="media-video"
-                                           style="width: 100%; height: 100%; object-fit: cover;"
+                                           class="media-video media-group-item"
                                            controls>
                                     </video>
                                     
                                     <!-- 其他媒体类型 -->
-                                    <div v-else class="media-placeholder" style="padding: 20px; background: #f5f5f5; text-align: center;">
+                                    <div v-else class="media-placeholder media-group-other">
                                         {{ media.media_type }}
                                     </div>
                                 </div>
@@ -195,13 +191,10 @@
                                 </video>
                                 
                                 <!-- 媒体加载失败或其他媒体类型 -->
-                                <div v-else-if="message.media_type" class="media-placeholder">
-                                    <div v-if="message._mediaLoadFailed || !message.media_display_url">
+                                <div v-else-if="message.media_type && (!message.media_display_url || message._mediaLoadFailed)" class="media-placeholder">
+                                    <div>
                                         📷 {{ message.media_type === 'photo' ? '图片' : message.media_type === 'video' ? '视频' : message.media_type }}
-                                        <div style="font-size: 12px; color: #999; margin-top: 5px;">媒体文件缺失</div>
-                                    </div>
-                                    <div v-else>
-                                        {{ message.media_type }}
+                                        <div class="media-missing-text">媒体文件缺失</div>
                                     </div>
                                 </div>
                             </template>
@@ -219,22 +212,21 @@
                         
                         <!-- 显示被移除的隐藏链接信息 -->
                         <div v-if="message.removed_hidden_links && message.removed_hidden_links.length > 0" 
-                             class="hidden-links-info" 
-                             style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 12px;">
-                            <div style="font-weight: bold; color: #856404; margin-bottom: 5px;">
+                             class="hidden-links-info">
+                            <div class="hidden-links-title">
                                 ⚠️ 检测到 {{ message.removed_hidden_links.length }} 个隐藏链接（已移除）：
                             </div>
-                            <div v-for="(link, index) in message.removed_hidden_links" :key="index" style="margin-left: 10px; color: #721c24;">
-                                • "{{ link.text }}" → <span style="text-decoration: underline;">{{ link.url }}</span>
+                            <div v-for="(link, index) in message.removed_hidden_links" :key="index" class="hidden-link-item">
+                                • "{{ link.text }}" → <span class="hidden-link-url">{{ link.url }}</span>
                             </div>
                         </div>
                         
                         <!-- 原频道链接 -->
-                        <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666;">
+                        <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer">
                             🔗 原消息链接: 
                             <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
                                target="_blank" 
-                               style="color: #3498db; text-decoration: none;">
+                               class="original-message-link">
                                 查看原消息
                             </a>
                         </div>
@@ -277,8 +269,8 @@
                                 title="手动执行尾部过滤">
                             🎯 过滤
                         </button>
-                        <!-- 补抓媒体按钮 -->
-                        <button v-if="buttonVisibility.refetchMedia && message.media_type && (!message.media_display_url || message._mediaLoadFailed)"
+                        <!-- 补抓媒体按钮 (改进判断逻辑) -->
+                        <button v-if="buttonVisibility.refetchMedia && message.media_type && !mediaExists(message)"
                                 @click="refetchMedia(message)" 
                                 class="btn btn-sm btn-primary"
                                 :disabled="refetchingMedia[message.id]"
@@ -311,9 +303,8 @@
                     <div class="form-group">
                         <label class="form-label">消息内容</label>
                         <textarea v-model="editDialog.content" 
-                                  class="form-textarea"
-                                  rows="15"
-                                  style="min-height: 400px; resize: vertical;">
+                                  class="form-textarea edit-message-textarea"
+                                  rows="15">
                         </textarea>
                     </div>
                 </div>
@@ -332,7 +323,7 @@
         <div v-if="mediaPreview && mediaPreview.show" 
              class="modal-overlay" 
              @click="mediaPreview.show = false">
-            <img :src="mediaPreview.url" style="max-width: 90%; max-height: 90%;">
+            <img :src="mediaPreview.url" class="media-preview-image">
         </div>
         
         <!-- 文件详情对话框 -->
@@ -393,254 +384,15 @@
             </div>
         </div>
     </div>
-
+    
     <!-- 外部脚本文件 -->
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components/navbar.js"></script>
-    
-    <!-- 工具类 -->
     <script src="assets/js/utils/permission-checker.js"></script>
-    
-    <!-- 模块化文件 -->
-    <script src="assets/js/modules/utils.js"></script>
-    <script src="assets/js/modules/message-manager.js"></script>
-    
-    <!-- 主组件 -->
+    <script src="assets/js/message-manager.js"></script>
     <script src="assets/js/components/index.js"></script>
-    
-    <style>
-        /* 消息ID样式 - 固定宽度实现对齐 */
-        .message-id {
-            display: inline-flex;
-            align-items: center;
-            justify-content: flex-start;
-            min-width: 75px;
-            width: 75px;
-            color: #999;
-            margin-right: 12px;
-            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
-            font-size: 13px;
-            flex-shrink: 0;
-        }
-        
-        /* 复选框样式优化 */
-        .message-info input[type="checkbox"] {
-            margin-right: 8px;
-            flex-shrink: 0;
-        }
-        
-        /* 消息项特定样式 */
-        .message-media {
-            margin: 1rem 0;
-        }
-        
-        .media-image {
-            max-width: 100%;
-            max-height: 200px;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-        
-        .media-image:hover {
-            transform: scale(1.02);
-        }
-        
-        .media-video {
-            max-width: 100%;
-            max-height: 200px;
-            height: 200px;
-            border-radius: 8px;
-        }
-        
-        .media-placeholder {
-            padding: 2rem;
-            background: var(--bg-tertiary);
-            border-radius: 8px;
-            text-align: center;
-            color: var(--text-tertiary);
-        }
-        
-        .message-text {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        
-        .message-tags {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        /* 媒体预览 */
-        .mediaPreview {
-            cursor: pointer;
-        }
-        
-        /* 加载更多 */
-        .loading-more, .no-more {
-            text-align: center;
-            padding: 20px;
-            color: var(--text-tertiary);
-            font-size: 14px;
-        }
-        
-        .loading-more {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .spinner-small {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--border-color);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        
-        .no-more {
-            border-top: 1px solid var(--border-color);
-            margin-top: 20px;
-            padding-top: 20px;
-        }
-        
-        /* 文件详情对话框样式 */
-        .file-details-modal {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            width: 700px !important;
-            min-width: 600px;
-            max-width: 90vw;
-            max-height: 80vh;
-            overflow: auto;
-            position: relative;
-        }
-        
-        .file-details-modal .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .file-details-modal .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: #666;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-        
-        .file-details-modal .close-btn:hover {
-            background: #f0f0f0;
-        }
-        
-        .file-details-body {
-            padding: 20px;
-        }
-        
-        .file-details-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .file-details-table tr {
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .file-details-table tr:last-child {
-            border-bottom: none;
-        }
-        
-        .file-details-table td {
-            padding: 12px 0;
-            vertical-align: top;
-        }
-        
-        .detail-label {
-            width: 100px;
-            min-width: 100px;
-            color: #666;
-            font-weight: 500;
-            font-size: 14px;
-            white-space: nowrap;
-        }
-        
-        .detail-value {
-            color: #333;
-            font-size: 14px;
-            word-break: break-word;
-        }
-        
-        .detail-value-small {
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            color: #666;
-        }
-        
-        .file-tag {
-            display: inline-block;
-            background: #e3f2fd;
-            color: #1976d2;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            margin-right: 4px;
-        }
-        
-        .file-details-modal .modal-footer {
-            padding: 20px;
-            border-top: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        
-        .file-details-modal .btn {
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
-        
-        .file-details-modal .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-        
-        .file-details-modal .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-        
-        .file-details-modal .btn-primary {
-            background: #4CAF50;
-            color: white;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
-        .file-details-modal .btn-primary:hover {
-            background: #45a049;
-        }
-    </style>
 </body>
 </html>

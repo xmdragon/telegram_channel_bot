@@ -166,7 +166,7 @@ class MessageScheduler:
             logger.error(f"数据清理失败: {e}")
     
     async def cleanup_temp_media(self):
-        """清理临时媒体文件目录"""
+        """清理临时媒体文件目录（只删除未被引用的文件）"""
         try:
             temp_media_dir = Path("temp_media")
             
@@ -179,27 +179,64 @@ class MessageScheduler:
             # 1天前的时间戳（86400秒 = 24小时）
             one_day_ago = current_time - 86400
             
+            # 获取数据库中所有引用的媒体文件
+            referenced_files = set()
+            async with AsyncSessionLocal() as session:
+                from sqlalchemy import select, or_
+                from app.core.database import Message
+                
+                # 查询所有有媒体的消息
+                stmt = select(Message.media_url, Message.media_group).where(
+                    or_(
+                        Message.media_url.isnot(None),
+                        Message.media_group.isnot(None)
+                    )
+                )
+                result = await session.execute(stmt)
+                
+                for media_url, media_group in result:
+                    # 添加主媒体文件
+                    if media_url:
+                        referenced_files.add(os.path.basename(media_url))
+                    
+                    # 添加媒体组中的文件
+                    if media_group:
+                        for item in media_group:
+                            if item.get('file_path'):
+                                referenced_files.add(os.path.basename(item['file_path']))
+            
+            logger.debug(f"数据库中引用了 {len(referenced_files)} 个媒体文件")
+            
             deleted_count = 0
             deleted_size = 0
+            skipped_count = 0
             
             # 遍历temp_media目录下的所有文件
             for file_path in temp_media_dir.iterdir():
                 if file_path.is_file():
+                    file_name = file_path.name
+                    
+                    # 检查文件是否被数据库引用
+                    if file_name in referenced_files:
+                        skipped_count += 1
+                        logger.debug(f"跳过被引用的文件: {file_name}")
+                        continue
+                    
                     # 获取文件的修改时间
                     file_mtime = file_path.stat().st_mtime
                     
-                    # 如果文件超过1天没有修改，删除它
+                    # 如果文件超过1天没有修改且未被引用，删除它
                     if file_mtime < one_day_ago:
                         file_size = file_path.stat().st_size
                         try:
                             file_path.unlink()
                             deleted_count += 1
                             deleted_size += file_size
-                            logger.debug(f"删除过期媒体文件: {file_path.name}")
+                            logger.debug(f"删除过期且未被引用的文件: {file_name}")
                         except Exception as e:
-                            logger.error(f"删除文件失败 {file_path.name}: {e}")
+                            logger.error(f"删除文件失败 {file_name}: {e}")
             
-            if deleted_count > 0:
+            if deleted_count > 0 or skipped_count > 0:
                 # 转换文件大小为可读格式
                 if deleted_size > 1024 * 1024:  # MB
                     size_str = f"{deleted_size / (1024 * 1024):.2f} MB"
@@ -208,7 +245,10 @@ class MessageScheduler:
                 else:
                     size_str = f"{deleted_size} bytes"
                 
-                logger.info(f"清理临时媒体文件完成: 删除 {deleted_count} 个文件，释放 {size_str} 空间")
+                if deleted_count > 0:
+                    logger.info(f"清理临时媒体文件完成: 删除 {deleted_count} 个文件，释放 {size_str} 空间，跳过 {skipped_count} 个被引用的文件")
+                else:
+                    logger.info(f"清理临时媒体文件: 跳过 {skipped_count} 个被引用的文件，无文件被删除")
             else:
                 logger.debug("没有需要清理的临时媒体文件")
                 

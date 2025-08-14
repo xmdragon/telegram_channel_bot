@@ -3,42 +3,6 @@
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
 
-// 消息管理器
-const MessageManager = {
-    success(message) {
-        ElMessage({
-            message: message,
-            type: 'success',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    error(message) {
-        ElMessage({
-            message: message,
-            type: 'error',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    warning(message) {
-        ElMessage({
-            message: message,
-            type: 'warning',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    info(message) {
-        ElMessage({
-            message: message,
-            type: 'info',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    }
-};
-
 // 主应用组件
 const MainApp = {
     data() {
@@ -136,55 +100,102 @@ const MainApp = {
     },
     
     async mounted() {
-        // 初始化权限检查
-        const isAuthorized = await authManager.initPageAuth('messages.view');
-        if (!isAuthorized) {
-            return;
+        try {
+            // 初始化权限检查
+            const isAuthorized = await authManager.initPageAuth('messages.view');
+            if (!isAuthorized) {
+                return;
+            }
+            
+            // 初始化权限按钮可见性
+            await this.initializePermissions();
+            
+            // 检查是否需要刷新（从训练页面返回）
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('refresh') === 'true') {
+                // 清除refresh参数，避免重复刷新
+                window.history.replaceState({}, document.title, window.location.pathname);
+                // 强制刷新数据
+                this.messages = [];
+            }
+            
+            // 并行加载初始数据
+            await Promise.all([
+                this.loadMessages().catch(err => {
+                    console.error('加载消息失败:', err);
+                    MessageManager.error('加载消息失败，请刷新页面重试');
+                }),
+                this.loadStats().catch(err => {
+                    console.error('加载统计失败:', err);
+                }),
+                this.loadChannelInfo().catch(err => {
+                    console.error('加载频道信息失败:', err);
+                })
+            ]);
+            
+            // 建立WebSocket连接（非关键功能，失败不影响使用）
+            try {
+                this.connectWebSocket();
+            } catch (err) {
+                console.warn('WebSocket连接失败，实时更新功能将不可用:', err);
+            }
+            
+            // 定期检查WebSocket连接状态
+            this.connectionCheckInterval = setInterval(() => {
+                try {
+                    this.checkWebSocketConnection();
+                } catch (err) {
+                    console.warn('WebSocket连接检查失败:', err);
+                }
+            }, 10000);
+            
+            // 页面获得焦点时立即刷新
+            window.addEventListener('focus', () => {
+                this.loadMessages().catch(err => {
+                    console.error('焦点刷新失败:', err);
+                });
+                this.loadStats().catch(err => {
+                    console.error('统计刷新失败:', err);
+                });
+            });
+            
+            // 添加滚动监听
+            this.setupScrollListener();
+        } catch (error) {
+            console.error('页面初始化失败:', error);
+            MessageManager.error('页面初始化失败，部分功能可能不可用');
         }
-        
-        // 初始化权限按钮可见性
-        await this.initializePermissions();
-        
-        // 检查是否需要刷新（从训练页面返回）
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('refresh') === 'true') {
-            // 清除refresh参数，避免重复刷新
-            window.history.replaceState({}, document.title, window.location.pathname);
-            // 强制刷新数据
-            this.messages = [];
-        }
-        
-        this.loadMessages();
-        this.loadStats();
-        this.loadChannelInfo();
-        
-        // 建立WebSocket连接
-        this.connectWebSocket();
-        
-        // 定期检查WebSocket连接状态
-        this.connectionCheckInterval = setInterval(() => {
-            this.checkWebSocketConnection();
-        }, 10000);
-        
-        // 页面获得焦点时立即刷新
-        window.addEventListener('focus', () => {
-            this.loadMessages();
-            this.loadStats();
-        });
-        
-        // 添加滚动监听
-        this.setupScrollListener();
     },
     
     beforeUnmount() {
+        // 标记组件正在卸载，避免重连
+        this._isUnmounting = true;
+        
         // 清理定时器
         if (this.connectionCheckInterval) {
             clearInterval(this.connectionCheckInterval);
+            this.connectionCheckInterval = null;
+        }
+        
+        // 清理心跳定时器
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
         }
         
         // 关闭WebSocket连接
         if (this.websocket) {
             this.websocket.close();
+            this.websocket = null;
+        }
+        
+        // 移除事件监听器
+        if (this.scrollHandler) {
+            window.removeEventListener('scroll', this.scrollHandler);
+            const container = document.querySelector('.message-list');
+            if (container) {
+                container.removeEventListener('scroll', this.scrollHandler);
+            }
         }
     },
     
@@ -196,51 +207,116 @@ const MainApp = {
                 const response = await axios.get('/api/admin/auth/current');
                 const adminInfo = response.data;
                 
-                // 初始化权限检查器
-                if (window.permissionChecker) {
+                // 检查权限检查器是否存在
+                if (window.permissionChecker && typeof window.permissionChecker.initialize === 'function') {
                     try {
                         const initialized = await window.permissionChecker.initialize(adminInfo);
                         if (initialized) {
                             // 更新按钮可见性
                             this.buttonVisibility = window.permissionChecker.getButtonVisibility();
                         } else {
-                            // 设置最小权限
-                            this.buttonVisibility = {
-                                edit: false,
-                                approve: false,
-                                reject: false,
-                                markAsAd: false,
-                                markAsTail: false,
-                                executeFilter: false,
-                                refetchMedia: false,
-                                delete: false
-                            };
+                            // 初始化失败，使用降级权限
+                            console.warn('权限检查器初始化失败，使用降级权限');
+                            this.setFallbackPermissions('limited');
                         }
                     } catch (error) {
-                        // 权限初始化异常 - 设置最小权限
-                        this.buttonVisibility = {
-                            edit: false,
-                            approve: false,
-                            reject: false,
-                            markAsAd: false,
-                            markAsTail: false,
-                            executeFilter: false,
-                            refetchMedia: false,
-                            delete: false
-                        };
+                        // 权限初始化异常 - 使用降级权限
+                        console.error('权限检查器执行错误:', error);
+                        this.setFallbackPermissions('limited');
+                    }
+                } else {
+                    // 权限检查器不存在，根据用户角色设置基础权限
+                    console.warn('权限检查器未加载，使用基础权限');
+                    if (adminInfo && adminInfo.role) {
+                        // 根据角色设置权限
+                        if (adminInfo.role === 'super_admin') {
+                            this.setFallbackPermissions('full');
+                        } else if (adminInfo.role === 'admin') {
+                            this.setFallbackPermissions('admin');
+                        } else {
+                            this.setFallbackPermissions('view');
+                        }
+                    } else {
+                        // 默认只读权限
+                        this.setFallbackPermissions('view');
                     }
                 }
             } catch (error) {
-                // 初始化权限失败 - 默认隐藏所有按钮
-                this.buttonVisibility = {
-                    edit: false,
-                    approve: false,
-                    reject: false,
-                    markAsAd: false,
-                    markAsTail: false,
-                    executeFilter: false,
-                    refetchMedia: false
-                };
+                // 获取用户信息失败 - 使用最小权限
+                console.error('获取用户信息失败:', error);
+                this.setFallbackPermissions('minimal');
+            }
+        },
+        
+        // 设置降级权限
+        setFallbackPermissions(level) {
+            switch(level) {
+                case 'full':
+                    // 完整权限
+                    this.buttonVisibility = {
+                        edit: true,
+                        approve: true,
+                        reject: true,
+                        markAsAd: true,
+                        markAsTail: true,
+                        executeFilter: true,
+                        refetchMedia: true,
+                        delete: true
+                    };
+                    break;
+                case 'admin':
+                    // 管理员权限
+                    this.buttonVisibility = {
+                        edit: true,
+                        approve: true,
+                        reject: true,
+                        markAsAd: true,
+                        markAsTail: false,
+                        executeFilter: true,
+                        refetchMedia: true,
+                        delete: false
+                    };
+                    break;
+                case 'limited':
+                    // 有限权限
+                    this.buttonVisibility = {
+                        edit: true,
+                        approve: true,
+                        reject: true,
+                        markAsAd: false,
+                        markAsTail: false,
+                        executeFilter: false,
+                        refetchMedia: false,
+                        delete: false
+                    };
+                    break;
+                case 'view':
+                    // 只读权限
+                    this.buttonVisibility = {
+                        edit: false,
+                        approve: false,
+                        reject: false,
+                        markAsAd: false,
+                        markAsTail: false,
+                        executeFilter: false,
+                        refetchMedia: true,
+                        delete: false
+                    };
+                    break;
+                case 'minimal':
+                default:
+                    // 最小权限
+                    this.buttonVisibility = {
+                        edit: false,
+                        approve: false,
+                        reject: false,
+                        markAsAd: false,
+                        markAsTail: false,
+                        executeFilter: false,
+                        refetchMedia: false,
+                        delete: false
+                    };
+                    break;
             }
         },
         
@@ -837,49 +913,96 @@ const MainApp = {
         // WebSocket连接管理
         connectWebSocket() {
             try {
+                // 如果已经在连接中，避免重复连接
+                if (this.websocket && this.websocket.readyState === WebSocket.CONNECTING) {
+                    console.log('WebSocket正在连接中，跳过重复连接');
+                    return;
+                }
+                
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${protocol}//${window.location.host}/api/ws/messages`;
                 
-                // console.log('🔌 正在连接WebSocket:', wsUrl);
+                // 创建新连接前清理旧连接
+                if (this.websocket) {
+                    this.websocket.close();
+                }
+                
                 this.websocket = new WebSocket(wsUrl);
                 
+                // 设置超时检测
+                const connectionTimeout = setTimeout(() => {
+                    if (this.websocket.readyState === WebSocket.CONNECTING) {
+                        console.warn('WebSocket连接超时，关闭连接');
+                        this.websocket.close();
+                    }
+                }, 10000); // 10秒超时
+                
                 this.websocket.onopen = () => {
-                    // console.log('✅ WebSocket连接已建立');
+                    clearTimeout(connectionTimeout);
                     this.websocketConnected = true;
                     this.systemStatus = '在线';
+                    this.reconnectAttempts = 0; // 重置重连次数
                     
                     // 发送心跳
                     this.startHeartbeat();
                 };
                 
                 this.websocket.onmessage = (event) => {
-                    this.handleWebSocketMessage(event);
+                    try {
+                        this.handleWebSocketMessage(event);
+                    } catch (err) {
+                        console.error('处理WebSocket消息失败:', err);
+                    }
                 };
                 
-                this.websocket.onclose = () => {
-                    // console.log('❌ WebSocket连接已关闭');
+                this.websocket.onclose = (event) => {
+                    clearTimeout(connectionTimeout);
                     this.websocketConnected = false;
                     this.systemStatus = '离线';
                     
-                    // 尝试重连
-                    setTimeout(() => {
-                        if (!this.websocketConnected) {
-                            // console.log('🔄 尝试重新连接WebSocket...');
-                            this.connectWebSocket();
-                        }
-                    }, 5000);
+                    // 停止心跳
+                    if (this.heartbeatInterval) {
+                        clearInterval(this.heartbeatInterval);
+                        this.heartbeatInterval = null;
+                    }
+                    
+                    // 实现指数退避重连策略
+                    if (!this.reconnectAttempts) this.reconnectAttempts = 0;
+                    this.reconnectAttempts++;
+                    
+                    if (this.reconnectAttempts <= 10) { // 最多重试10次
+                        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000); // 最大延迟30秒
+                        console.log(`WebSocket将在${delay/1000}秒后尝试第${this.reconnectAttempts}次重连`);
+                        
+                        setTimeout(() => {
+                            if (!this.websocketConnected && !this._isUnmounting) {
+                                this.connectWebSocket();
+                            }
+                        }, delay);
+                    } else {
+                        console.warn('WebSocket重连次数已达上限，停止重连');
+                        this.systemStatus = '连接断开（已停止重试）';
+                    }
                 };
                 
                 this.websocket.onerror = (error) => {
-                    // console.error('❌ WebSocket错误:', error);
+                    clearTimeout(connectionTimeout);
+                    console.warn('WebSocket连接错误，将尝试重连');
                     this.websocketConnected = false;
                     this.systemStatus = '连接错误';
                 };
                 
             } catch (error) {
-                // console.error('建立WebSocket连接失败:', error);
+                console.error('建立WebSocket连接失败:', error);
                 this.websocketConnected = false;
                 this.systemStatus = '连接失败';
+                
+                // 5秒后重试
+                setTimeout(() => {
+                    if (!this.websocketConnected && !this._isUnmounting) {
+                        this.connectWebSocket();
+                    }
+                }, 5000);
             }
         },
 
@@ -1266,25 +1389,24 @@ const MainApp = {
         mediaExists(message) {
             // 对于组合消息，检查媒体组
             if (message.is_combined && message.media_group_display) {
-                // 检查是否有任何媒体实际显示（通过检查img/video元素是否加载成功）
+                // 检查是否有任何媒体实际显示
                 return message.media_group_display.some(media => 
-                    media.display_url && media.display_url.trim() !== ''
+                    media.display_url && media.display_url.trim() !== '' && !media._loadFailed
                 );
             }
             
-            // 对于单个媒体，不能仅凭URL判断，需要结合实际显示情况
-            // 如果有display_url但图片没有实际显示，说明文件不存在
+            // 对于单个媒体
+            // 1. 如果没有 media_display_url，文件肯定不存在
             if (!message.media_display_url || message.media_display_url.trim() === '') {
                 return false;
             }
             
-            // 特殊处理：对于图片类型，如果页面上没有显示图片（显示的是占位符），则认为不存在
-            if (message.media_type === 'photo') {
-                // 通过Vue的nextTick来检查图片是否真的加载了
-                // 但这里我们简化处理：如果有URL就暂时认为存在，让浏览器通过onerror来处理
-                return true; // 这会被图片加载失败事件覆盖
+            // 2. 如果已标记加载失败，文件不存在
+            if (message._mediaLoadFailed) {
+                return false;
             }
             
+            // 3. 默认认为文件存在（将通过onerror事件动态更新）
             return true;
         },
         
@@ -1438,19 +1560,128 @@ const MainApp = {
 // 将组件导出供HTML中使用
 window.MainApp = MainApp;
 
-// 等待 DOM 加载完成后初始化Vue应用
-document.addEventListener('DOMContentLoaded', function() {
-    // console.log('DOM loaded, mounting Vue app...');
+// 初始化Vue应用的函数
+function initializeVueApp() {
+    console.log('Initializing Vue app...');
+    
+    // 检查必要的依赖
+    const missingDeps = [];
+    if (typeof Vue === 'undefined') missingDeps.push('Vue');
+    if (typeof ElementPlus === 'undefined') missingDeps.push('ElementPlus');
+    if (typeof axios === 'undefined') missingDeps.push('axios');
+    
+    if (missingDeps.length > 0) {
+        console.error('缺少必要的依赖:', missingDeps.join(', '));
+        const appEl = document.getElementById('app');
+        if (appEl) {
+            appEl.innerHTML = `
+                <div style="padding: 20px; color: #e74c3c; font-family: monospace;">
+                    <h2>⚠️ 页面加载失败</h2>
+                    <p>缺少必要的依赖库: ${missingDeps.join(', ')}</p>
+                    <p>请检查网络连接并刷新页面重试。</p>
+                    <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 10px; cursor: pointer;">刷新页面</button>
+                </div>
+            `;
+        }
+        return;
+    }
+    
     try {
         const app = createApp(MainApp);
+        
+        // 配置全局错误处理
+        app.config.errorHandler = (err, instance, info) => {
+            console.error('Vue错误:', err, info);
+            // 不中断应用运行，只记录错误
+            if (window.MessageManager) {
+                MessageManager.error('操作失败，请重试');
+            }
+        };
+        
+        // 配置全局警告处理
+        app.config.warnHandler = (msg, instance, trace) => {
+            console.warn('Vue警告:', msg);
+        };
+        
         app.use(ElementPlus);
-        // 注册导航栏组件
+        
+        // 注册导航栏组件（可选）
         if (window.NavBar) {
             app.component('nav-bar', window.NavBar);
+        } else {
+            console.warn('导航栏组件未加载，使用降级UI');
         }
+        
+        // 注册全局错误边界组件
+        app.component('error-boundary', {
+            template: `
+                <div v-if="hasError" style="padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px;">
+                    <h3>组件加载错误</h3>
+                    <p>{{ errorMessage }}</p>
+                    <button @click="retry" style="padding: 5px 15px; margin-top: 10px;">重试</button>
+                </div>
+                <slot v-else></slot>
+            `,
+            data() {
+                return {
+                    hasError: false,
+                    errorMessage: ''
+                };
+            },
+            errorCaptured(err, instance, info) {
+                this.hasError = true;
+                this.errorMessage = err.message || '未知错误';
+                console.error('组件错误:', err, info);
+                return false; // 阻止错误继续传播
+            },
+            methods: {
+                retry() {
+                    this.hasError = false;
+                    this.errorMessage = '';
+                    this.$forceUpdate();
+                }
+            }
+        });
+        
         app.mount('#app');
-        // console.log('Vue app mounted successfully');
+        console.log('Vue app mounted successfully');
     } catch (error) {
-        // console.error('Failed to mount Vue app:', error);
+        console.error('Failed to mount Vue app:', error);
+        // 提供更友好的错误界面
+        const appEl = document.getElementById('app');
+        if (appEl) {
+            appEl.innerHTML = `
+                <div style="padding: 20px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; max-width: 600px; margin: 50px auto; font-family: system-ui, -apple-system, sans-serif;">
+                    <h2 style="color: #dc3545; margin-bottom: 15px;">⚠️ 页面加载失败</h2>
+                    <div style="background: #fff; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                        <strong>错误信息：</strong>
+                        <code style="display: block; margin-top: 10px; padding: 10px; background: #f4f4f4; border-radius: 4px; overflow-x: auto;">${error.message}</code>
+                    </div>
+                    <div style="color: #6c757d; margin-bottom: 15px;">
+                        <p>可能的解决方案：</p>
+                        <ul style="margin-left: 20px;">
+                            <li>清除浏览器缓存并刷新页面</li>
+                            <li>检查网络连接是否正常</li>
+                            <li>使用其他浏览器访问</li>
+                            <li>联系系统管理员</li>
+                        </ul>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">刷新页面</button>
+                        <button onclick="window.location.href='/static/status.html'" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">系统状态</button>
+                    </div>
+                </div>
+            `;
+        }
     }
-});
+}
+
+// 更可靠的初始化方式：检查DOM状态
+if (document.readyState === 'loading') {
+    // DOM还在加载，等待DOMContentLoaded事件
+    document.addEventListener('DOMContentLoaded', initializeVueApp);
+} else {
+    // DOM已经加载完成（interactive或complete状态），直接初始化
+    // 使用setTimeout确保所有脚本都已执行完毕
+    setTimeout(initializeVueApp, 0);
+}
