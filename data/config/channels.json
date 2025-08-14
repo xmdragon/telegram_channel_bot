@@ -406,17 +406,5 @@
     "created_at": "2025-08-14 10:06:40.355294",
     "updated_at": "2025-08-14T16:21:53.345312",
     "channel_title": "东南亚大事件"
-  },
-  "channel_36": {
-    "id": 36,
-    "channel_id": "-1001969693044",
-    "channel_name": "@xgsj9",
-    "channel_type": "source",
-    "is_active": true,
-    "config": {},
-    "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
-    "created_at": "2025-08-14 10:06:40.356401",
-    "updated_at": "2025-08-14T16:21:53.720828",
-    "channel_title": "西港事件 | 柬埔寨新闻"
   }
 }

@@ -139,10 +139,9 @@ class MessageForwarder:
     async def forward_to_target(self, client: TelegramClient, message):
         """重新发布到目标频道"""
         try:
-            # 获取目标频道配置
-            from app.services.config_manager import ConfigManager
-            config_manager = ConfigManager()
-            target_channel_id = await config_manager.get_config("channels.target_channel_id")
+            # 获取目标频道配置 - 使用解析后的数字ID
+            from app.core.config import settings
+            target_channel_id = await settings.get_target_channel_resolved_id()
             
             if not target_channel_id:
                 logger.error("未配置目标频道ID")

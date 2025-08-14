@@ -190,19 +190,26 @@ const ConfigApp = {
             try {
                 const response = await axios.get('/api/admin/config');
                 if (response.data) {
-                    // 处理目标频道名称显示格式
-                    // 优先使用target_channel_name（原始用户名），如果没有则使用target_channel_id
-                    let targetChannel = response.data.target_channel_name || response.data.target_channel_id || '';
+                    // 目标频道始终显示用户名格式
+                    // 优先使用target_channel_name（用户名格式），如果没有则检查target_channel_id是否为用户名格式
+                    let targetChannel = '';
+                    if (response.data.target_channel_name) {
+                        targetChannel = response.data.target_channel_name;
+                    } else if (response.data.target_channel_id && !response.data.target_channel_id.startsWith('-100')) {
+                        // 如果target_channel_id不是数字ID，则当作用户名使用
+                        targetChannel = response.data.target_channel_id;
+                    }
+                    
+                    // 确保用户名格式（以@开头）
                     if (targetChannel && !targetChannel.startsWith('@') && !targetChannel.startsWith('-')) {
                         targetChannel = '@' + targetChannel;
                     }
                     
                     // 处理审核群名称显示格式
-                    let reviewGroup = response.data.review_group_id || '';
+                    let reviewGroup = response.data.review_group_name || response.data.review_group_id || '';
                     const cachedGroupId = response.data.review_group_id_cached || '';
                     
-                    // 对于目标频道，如果已经是ID格式（-100开头），直接使用
-                    // 否则使用cached值
+                    // 解析后的目标频道ID（数字格式，仅用于显示）
                     let resolvedTargetId = '';
                     if (response.data.target_channel_id && response.data.target_channel_id.startsWith('-100')) {
                         resolvedTargetId = response.data.target_channel_id;
@@ -210,14 +217,11 @@ const ConfigApp = {
                         resolvedTargetId = response.data.target_channel_id_cached;
                     }
                     
-                    // 保持原始格式，不进行修改
-                    // 只在页面上通过只读字段显示解析后的ID
-                    
                     // 从系统配置中提取转发相关设置
                     this.forwardingConfig = {
                         enabled: response.data.auto_forward_delay > 0,
                         target_channel: targetChannel,
-                        review_group: response.data.review_group_id || '',
+                        review_group: reviewGroup,
                         resolved_group_id: cachedGroupId || '',
                         resolved_target_channel_id: resolvedTargetId || '',
                         delay: response.data.auto_forward_delay || 0,
@@ -416,7 +420,7 @@ const ConfigApp = {
         
         async saveForwardingConfig() {
             try {
-                // 处理目标频道名称，统一格式
+                // 处理目标频道名称，始终保存为用户名格式
                 let targetChannel = this.forwardingConfig.target_channel.trim();
                 if (targetChannel && !targetChannel.startsWith('@') && !targetChannel.startsWith('-') && !targetChannel.includes('t.me')) {
                     targetChannel = '@' + targetChannel;
@@ -435,10 +439,12 @@ const ConfigApp = {
                     reviewGroup = '@' + reviewGroup;
                 }
                 
-                // 使用批量更新API
+                // 使用批量更新API - 保存用户名格式到对应字段
                 const configData = {
-                    'channels.target_channel_id': targetChannel,
+                    'channels.target_channel_id': targetChannel,        // 主字段：保存用户名格式
+                    'channels.target_channel_name': targetChannel,      // 备用字段：保存用户名格式  
                     'channels.review_group_id': reviewGroup,
+                    'channels.review_group_name': reviewGroup,          // 备用字段：保存审核群配置
                     'review.auto_forward_delay': this.forwardingConfig.delay
                 };
                 
