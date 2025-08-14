@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from app.storage.redis_store import get_redis_message_store, RedisMessageStore
-from .duplicate_detector import DuplicateDetector
+from .duplicate_detector_simple import DuplicateDetector
 
 logger = logging.getLogger(__name__)
 

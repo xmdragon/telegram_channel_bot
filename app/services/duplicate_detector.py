@@ -14,9 +14,7 @@ from typing import Optional, List, Dict, Tuple
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 import jieba
-from sqlalchemy import select, and_, or_
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import AsyncSessionLocal, Message
+from app.storage.redis_store import get_redis_message_store
 
 # 导入视觉相似度检测器
 try:
@@ -77,7 +75,7 @@ class DuplicateDetector:
                                   message_id: Optional[int] = None,
                                   media_data: Optional[bytes] = None,
                                   visual_hashes: Optional[dict] = None,
-                                  db: Optional[AsyncSession] = None) -> Tuple[bool, Optional[int], str]:
+                                  db=None) -> Tuple[bool, Optional[int], str]:
         """
         整合的重复消息检测：优先视觉相似度，其次媒体哈希，最后jieba文本相似度
         

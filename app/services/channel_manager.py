@@ -1,45 +1,55 @@
 """
-频道管理服务
+频道管理服务 - 简化版
 """
 import logging
 from typing import List, Dict, Optional
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import AsyncSessionLocal, Channel
+from app.storage.json_store import get_json_channel_store
 
 logger = logging.getLogger(__name__)
 
 class ChannelManager:
-    """频道管理器"""
+    """简化版频道管理器"""
     
     def __init__(self):
+        self.channel_store = None
         self._cache = {}
         self._cache_loaded = False
+    
+    def _get_channel_store(self):
+        """延迟初始化channel_store"""
+        if self.channel_store is None:
+            try:
+                self.channel_store = get_json_channel_store()
+            except RuntimeError:
+                # 如果存储层还没初始化，返回None
+                return None
+        return self.channel_store
     
     async def get_all_channels(self) -> List[Dict]:
         """获取所有频道"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(Channel.is_active == True)
-                )
-                channels = result.scalars().all()
-                
-                return [
-                    {
-                        'id': channel.id,
-                        'channel_id': channel.channel_id,
-                        'channel_name': channel.channel_name,
-                        'channel_type': channel.channel_type,
-                        'is_active': channel.is_active,
-                        'config': channel.config or {},
-                        'description': channel.description,
-                        'created_at': channel.created_at,
-                        'updated_at': channel.updated_at
-                    }
-                    for channel in channels
-                ]
+            channel_store = self._get_channel_store()
+            if not channel_store:
+                return []
+            channels = channel_store.get_all_channels()
+            
+            # 过滤活跃频道
+            active_channels = [ch for ch in channels if ch.get('is_active', True)]
+            
+            return [
+                {
+                    'id': channel.get('id'),
+                    'channel_id': channel.get('channel_id'),
+                    'channel_name': channel.get('channel_name'),
+                    'channel_type': channel.get('channel_type'),
+                    'is_active': channel.get('is_active', True),
+                    'config': channel.get('config', {}),
+                    'description': channel.get('description', ''),
+                    'created_at': channel.get('created_at'),
+                    'updated_at': channel.get('updated_at')
+                }
+                for channel in active_channels
+            ]
         except Exception as e:
             logger.error(f"获取频道列表失败: {e}")
             return []
@@ -47,28 +57,28 @@ class ChannelManager:
     async def get_source_channels(self) -> List[Dict]:
         """获取源频道列表"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(
-                        Channel.channel_type == "source",
-                        Channel.is_active == True
-                    )
-                )
-                channels = result.scalars().all()
-                
-                return [
-                    {
-                        'id': channel.id,
-                        'channel_id': channel.channel_id,
-                        'channel_name': channel.channel_name,
-                        'is_active': channel.is_active,
-                        'config': channel.config or {},
-                        'description': channel.description,
-                        'created_at': channel.created_at,
-                        'updated_at': channel.updated_at
-                    }
-                    for channel in channels
-                ]
+            channel_store = self._get_channel_store()
+            if not channel_store:
+                return []
+            all_channels = channel_store.get_all_channels()
+            
+            # 过滤源频道且活跃的
+            channels = [ch for ch in all_channels 
+                       if ch.get('channel_type') == 'source' and ch.get('is_active', True)]
+            
+            return [
+                {
+                    'id': channel.get('id'),
+                    'channel_id': channel.get('channel_id'),
+                    'channel_name': channel.get('channel_name'),
+                    'is_active': channel.get('is_active', True),
+                    'config': channel.get('config', {}),
+                    'description': channel.get('description', ''),
+                    'created_at': channel.get('created_at'),
+                    'updated_at': channel.get('updated_at')
+                }
+                for channel in channels
+            ]
         except Exception as e:
             logger.error(f"获取源频道列表失败: {e}")
             return []
@@ -78,286 +88,65 @@ class ChannelManager:
                          channel_title: str = "", config: Dict = None) -> bool:
         """添加频道"""
         try:
-            async with AsyncSessionLocal() as db:
-                # 检查频道是否已存在（同时检查channel_id和channel_name）
-                existing = await db.execute(
-                    select(Channel).where(
-                        (Channel.channel_id == channel_id) | 
-                        (Channel.channel_name == channel_name)
-                    )
-                )
-                if existing.scalar_one_or_none():
+            # 检查频道是否已存在
+            channel_store = self._get_channel_store()
+            if not channel_store:
+                return False
+            existing_channels = channel_store.get_all_channels()
+            for ch in existing_channels:
+                if (ch.get('channel_id') == channel_id or 
+                    ch.get('channel_name') == channel_name):
                     logger.warning(f"频道 {channel_id} 或 {channel_name} 已存在")
                     return False
-                
-                # 创建新频道
-                channel = Channel(
-                    channel_id=channel_id,
-                    channel_name=channel_name or channel_id,
-                    channel_title=channel_title or channel_name or channel_id,
-                    channel_type=channel_type,
-                    description=description,
-                    config=config or {},
-                    is_active=True
-                )
-                
-                db.add(channel)
-                await db.commit()
-                
-                logger.info(f"频道 {channel_name} (ID: {channel_id}) 添加成功")
-                return True
-                
+            
+            # 创建新频道数据
+            from datetime import datetime
+            channel_data = {
+                'id': len(existing_channels) + 1,
+                'channel_id': channel_id,
+                'channel_name': channel_name or channel_id,
+                'channel_title': channel_title or channel_name or channel_id,
+                'channel_type': channel_type,
+                'description': description,
+                'config': config or {},
+                'is_active': True,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            return channel_store.add_channel(channel_data)
+            
         except Exception as e:
             logger.error(f"添加频道失败: {e}")
             return False
     
-    async def update_channel(self, channel_id: str, **kwargs) -> bool:
-        """更新频道信息"""
+    async def update_channel_status(self, channel_id: str, is_active: bool) -> bool:
+        """更新频道状态"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(Channel.channel_id == channel_id)
-                )
-                channel = result.scalar_one_or_none()
-                
-                if not channel:
-                    logger.warning(f"频道 {channel_id} 不存在")
-                    return False
-                
-                # 更新字段
-                for key, value in kwargs.items():
-                    if hasattr(channel, key):
-                        setattr(channel, key, value)
-                
-                await db.commit()
-                
-                logger.info(f"频道 {channel_id} 更新成功")
-                return True
-                
+            channel_store = self._get_channel_store()
+            if not channel_store:
+                return False
+            channel_data = channel_store.get_channel(channel_id)
+            if not channel_data:
+                return False
+            
+            channel_data['is_active'] = is_active
+            return channel_store.save_channel(channel_id, channel_data)
+            
         except Exception as e:
-            logger.error(f"更新频道失败: {e}")
-            return False
-    
-    async def delete_channel(self, channel_id: str) -> bool:
-        """删除频道"""
-        try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(Channel.channel_id == channel_id)
-                )
-                channel = result.scalar_one_or_none()
-                
-                if not channel:
-                    logger.warning(f"频道 {channel_id} 不存在")
-                    return False
-                
-                await db.delete(channel)
-                await db.commit()
-                
-                logger.info(f"频道 {channel_id} 删除成功")
-                return True
-                
-        except Exception as e:
-            logger.error(f"删除频道失败: {e}")
-            return False
-    
-    async def toggle_channel_status(self, channel_id: str) -> bool:
-        """切换频道状态"""
-        try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(Channel.channel_id == channel_id)
-                )
-                channel = result.scalar_one_or_none()
-                
-                if not channel:
-                    logger.warning(f"频道 {channel_id} 不存在")
-                    return False
-                
-                channel.is_active = not channel.is_active
-                await db.commit()
-                
-                logger.info(f"频道 {channel_id} 状态切换为: {channel.is_active}")
-                return True
-                
-        except Exception as e:
-            logger.error(f"切换频道状态失败: {e}")
+            logger.error(f"更新频道状态失败: {e}")
             return False
     
     async def get_channel_by_id(self, channel_id: str) -> Optional[Dict]:
-        """根据频道ID获取频道信息"""
+        """根据ID获取频道"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(Channel.channel_id == channel_id)
-                )
-                channel = result.scalar_one_or_none()
-                
-                if not channel:
-                    return None
-                
-                return {
-                    'id': channel.id,
-                    'channel_id': channel.channel_id,
-                    'channel_name': channel.channel_name,
-                    'channel_type': channel.channel_type,
-                    'is_active': channel.is_active,
-                    'config': channel.config or {},
-                    'description': channel.description,
-                    'created_at': channel.created_at,
-                    'updated_at': channel.updated_at
-                }
-                
+            channel_store = self._get_channel_store()
+            if not channel_store:
+                return None
+            return channel_store.get_channel(channel_id)
         except Exception as e:
-            logger.error(f"获取频道信息失败: {e}")
-            return None
-    
-    async def get_active_source_channels(self) -> List[str]:
-        """获取活跃的源频道ID列表，自动解析空的channel_id"""
-        try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(
-                        Channel.channel_type == "source",
-                        Channel.is_active == True
-                    )
-                )
-                channels = result.scalars().all()
-                
-                resolved_channels = []
-                
-                for channel in channels:
-                    channel_id = channel.channel_id
-                    
-                    # 如果channel_id为空或None，尝试解析
-                    if not channel_id or channel_id.strip() == '':
-                        logger.info(f"频道 {channel.channel_name} 的ID为空，正在解析...")
-                        
-                        # 导入解析器（避免循环导入）
-                        from app.services.channel_id_resolver import channel_id_resolver
-                        resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
-                        
-                        if resolved_id:
-                            resolved_channels.append(resolved_id)
-                            logger.info(f"频道 {channel.channel_name} ID解析成功: {resolved_id}")
-                        else:
-                            logger.warning(f"频道 {channel.channel_name} ID解析失败")
-                    else:
-                        resolved_channels.append(channel_id)
-                
-                # 过滤掉None值
-                return [ch_id for ch_id in resolved_channels if ch_id is not None]
-                
-        except Exception as e:
-            logger.error(f"获取活跃源频道列表失败: {e}")
-            return []
-    
-    async def resolve_missing_channel_ids(self) -> int:
-        """解析所有缺失的频道ID，返回解析成功的数量"""
-        try:
-            resolved_count = 0
-            
-            # 导入解析器
-            from app.services.channel_id_resolver import channel_id_resolver
-            
-            async with AsyncSessionLocal() as db:
-                # 获取所有channel_id为空的活跃频道
-                result = await db.execute(
-                    select(Channel).where(
-                        Channel.is_active == True,
-                        (Channel.channel_id.is_(None) | (Channel.channel_id == ''))
-                    )
-                )
-                channels = result.scalars().all()
-                
-                for channel in channels:
-                    logger.info(f"正在解析频道 {channel.channel_name} 的ID...")
-                    resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
-                    
-                    if resolved_id:
-                        resolved_count += 1
-                        logger.info(f"频道 {channel.channel_name} ID解析成功: {resolved_id}")
-                    else:
-                        logger.warning(f"频道 {channel.channel_name} ID解析失败")
-            
-            logger.info(f"频道ID解析完成，成功解析 {resolved_count} 个频道")
-            return resolved_count
-            
-        except Exception as e:
-            logger.error(f"批量解析频道ID失败: {e}")
-            return 0
-    
-    async def get_channel_info_for_display(self) -> Dict[str, Dict]:
-        """获取用于显示的频道信息映射"""
-        try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(Channel.is_active == True)
-                )
-                channels = result.scalars().all()
-                
-                channel_info = {}
-                for channel in channels:
-                    if channel.channel_id:
-                        # 处理username - 去掉@符号
-                        username = channel.channel_name.replace('@', '') if channel.channel_name else None
-                        
-                        # 生成Telegram链接
-                        # 公开频道使用username，私有频道使用channel_id
-                        if username and channel.channel_name.startswith('@'):
-                            # 公开频道
-                            link_prefix = f"https://t.me/{username}"
-                        else:
-                            # 私有频道 - 需要处理channel_id格式
-                            # 将 -100xxx 格式转换为 xxx
-                            channel_id_for_link = channel.channel_id
-                            if channel_id_for_link.startswith('-100'):
-                                channel_id_for_link = channel_id_for_link[4:]  # 去掉-100前缀
-                            elif channel_id_for_link.startswith('-'):
-                                channel_id_for_link = channel_id_for_link[1:]  # 去掉负号
-                            link_prefix = f"https://t.me/c/{channel_id_for_link}"
-                        
-                        channel_info[channel.channel_id] = {
-                            'name': channel.channel_name,
-                            'title': channel.channel_title or channel.channel_name,
-                            'type': channel.channel_type,
-                            'link_prefix': link_prefix  # 添加链接前缀
-                        }
-                
-                return channel_info
-                
-        except Exception as e:
-            logger.error(f"获取频道显示信息失败: {e}")
-            return {}
-    
-    async def get_channel_by_name(self, channel_name: str) -> Optional[Dict]:
-        """根据频道名称获取频道信息"""
-        try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Channel).where(Channel.channel_name == channel_name)
-                )
-                channel = result.scalar_one_or_none()
-                
-                if not channel:
-                    return None
-                
-                return {
-                    'id': channel.id,
-                    'channel_id': channel.channel_id,
-                    'channel_name': channel.channel_name,
-                    'channel_title': channel.channel_title,
-                    'channel_type': channel.channel_type,
-                    'is_active': channel.is_active,
-                    'config': channel.config or {},
-                    'description': channel.description,
-                    'created_at': channel.created_at,
-                    'updated_at': channel.updated_at
-                }
-                
-        except Exception as e:
-            logger.error(f"根据名称获取频道信息失败: {e}")
+            logger.error(f"获取频道失败: {e}")
             return None
 
-# 全局频道管理器实例
-channel_manager = ChannelManager() 
+# 创建全局实例
+channel_manager = ChannelManager()
