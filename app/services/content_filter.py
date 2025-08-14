@@ -531,8 +531,7 @@ class ContentFilter:
     
     def _apply_trained_tail_filters(self, content: str) -> str:
         """
-        应用智能学习系统进行尾部过滤
-        使用模式匹配而非简单的文本匹配，避免破坏正文内容
+        应用智能训练样本过滤 - 使用精确定位和语义分析
         
         Args:
             content: 消息内容
@@ -544,29 +543,35 @@ class ContentFilter:
             return content
         
         try:
-            # 优先使用智能尾部过滤器（基于用户训练样本）
-            from app.services.intelligent_tail_filter import intelligent_tail_filter
+            # 第1层：智能关键词定位过滤（新增）
+            from app.services.smart_keyword_filter import smart_keyword_filter
             
-            # 不需要每次都重新加载，intelligent_tail_filter在初始化时已加载
-            # 应用过滤
-            filtered_content, was_filtered, removed_tail = intelligent_tail_filter.filter_message(content)
+            filtered_content, was_filtered, removed_part = smart_keyword_filter.filter_with_semantic_check(content)
             
             if was_filtered:
-                logger.info(f"智能尾部过滤器移除了尾部内容: {len(content)} -> {len(filtered_content)} 字符")
-                if removed_tail:
-                    logger.debug(f"移除的内容预览: {removed_tail[:50]}...")
+                logger.info(f"关键词定位过滤移除了尾部内容: {len(content)} -> {len(filtered_content)} 字符")
+                logger.debug(f"移除的内容: {removed_part[:100]}...")
                 return filtered_content
             
-            # 如果智能尾部过滤器没有检测到，尝试智能学习系统
+            # 第2层：智能学习系统（基于模式学习，作为备用）
             from app.services.intelligent_learning_system import intelligent_learning_system
             
             filtered_content2, was_filtered2, removed_tail2 = intelligent_learning_system.filter_message(content)
             
-            if was_filtered2:
+            if was_filtered2 and removed_tail2:
                 logger.info(f"智能学习系统移除了尾部内容: {len(content)} -> {len(filtered_content2)} 字符")
-                if removed_tail2:
-                    logger.debug(f"移除的内容预览: {removed_tail2[:50]}...")
+                logger.debug(f"移除的内容预览: {removed_tail2[:50]}...")
                 return filtered_content2
+            
+            # 第3层：智能尾部过滤器（最后备用，阈值已调高）
+            from app.services.intelligent_tail_filter import intelligent_tail_filter
+            
+            filtered_content3, was_filtered3, removed_tail3 = intelligent_tail_filter.filter_message(content)
+            
+            if was_filtered3 and removed_tail3:
+                logger.info(f"智能尾部过滤器移除了尾部内容: {len(content)} -> {len(filtered_content3)} 字符")
+                logger.debug(f"移除的内容预览: {removed_tail3[:50]}...")
+                return filtered_content3
             
             return content
             

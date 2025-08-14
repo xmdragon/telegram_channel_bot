@@ -62,8 +62,13 @@ class TailFeatureExtractor:
         
         # 6. 格式特征
         features['has_pipe_separator'] = 1.0 if '|' in text else 0.0
-        features['has_arrow'] = 1.0 if '↓' in text or '→' in text else 0.0
+        features['has_arrow'] = 1.0 if '↓' in text or '→' in text or '▼' in text or '👇' in text else 0.0
         features['has_brackets'] = 1.0 if re.search(r'\[.*\]|\(.*\)', text) else 0.0
+        
+        # 7. 常见尾部标识符
+        features['has_channel_indicator'] = 1.0 if re.search(r'频道|頻道|channel|群组|群組|group', text, re.IGNORECASE) else 0.0
+        features['has_follow_indicator'] = 1.0 if re.search(r'关注|關注|订阅|訂閱|follow|subscribe', text, re.IGNORECASE) else 0.0
+        features['has_contact_info'] = 1.0 if re.search(r'微信|wechat|qq|电话|電話|tel|联系|聯繫|contact', text, re.IGNORECASE) else 0.0
         
         return features
     
@@ -92,7 +97,7 @@ class IntelligentTailFilter:
         self.tail_samples = []
         self.sample_features = []  # 缓存的特征向量
         self.feature_weights = None  # 特征权重
-        self.threshold = 0.6  # 判定阈值
+        self.threshold = 0.5  # 判定阈值（降低以提高敏感度）
         self._last_load_time = 0  # 上次加载时间
         self._reload_interval = 300  # 5分钟重载间隔
         
@@ -262,25 +267,39 @@ class IntelligentTailFilter:
         if not text or len(text) < 10:
             return False
         
+        # 0. 完全匹配检查：如果与训练样本完全匹配，直接返回True
+        text_stripped = text.strip()
+        for sample in self.tail_samples:
+            sample_stripped = sample.strip()
+            # 完全匹配或包含匹配（训练样本包含在检测文本中）
+            if text_stripped == sample_stripped or sample_stripped in text_stripped:
+                logger.info(f"完全匹配训练样本，直接过滤")
+                return True
+            # 检测文本包含在训练样本中（检测文本是训练样本的子集）
+            if text_stripped in sample_stripped and len(text_stripped) >= len(sample_stripped) * 0.8:
+                logger.info(f"高度匹配训练样本（80%+重合），直接过滤")
+                return True
+        
         # 提取特征
         features = self.feature_extractor.extract_features(text)
         
-        # 三层判断机制
+        # 四层判断机制（仅用于部分匹配情况）
         
-        # 1. 快速判断：强特征组合
-        if features.get('link_count', 0) >= 1 and features.get('username_count', 0) >= 1:
-            if len(text) < 500:  # 尾部通常不会太长
-                return True
+        # 1. 移除了过激的快速判断规则（之前误判正常内容）
         
-        # 2. 特征得分判断
+        # 2. 特征得分判断：特征得分很高直接过滤
         feature_score = self._calculate_feature_score(features)
-        if feature_score > 0.7:  # 特征得分很高
+        if feature_score > 0.8:  # 提高阈值，减少误判
             return True
         
-        # 3. 相似度判断（与训练样本对比）
-        if feature_score > 0.3:  # 有一定特征
-            similarity = self.calculate_similarity(text)
-            
+        # 3. 高相似度判断：与训练样本高度相似
+        similarity = self.calculate_similarity(text)
+        if similarity > 0.85:  # 85%以上相似度直接过滤
+            logger.info(f"高相似度匹配 ({similarity:.2f})，直接过滤")
+            return True
+        
+        # 4. 综合判断：特征+相似度综合评估（使用阈值）
+        if feature_score > 0.25:  # 有一定特征才进行综合判断
             # 动态阈值：特征越明显，相似度要求越低
             dynamic_threshold = self.threshold - (feature_score * 0.2)
             
@@ -337,6 +356,14 @@ class IntelligentTailFilter:
         if features.get('has_pipe_separator', 0) > 0:
             score += 0.07
         
+        # 新增特征评分
+        if features.get('has_channel_indicator', 0) > 0:
+            score += 0.12  # 频道标识符权重较高
+        if features.get('has_follow_indicator', 0) > 0:
+            score += 0.10
+        if features.get('has_contact_info', 0) > 0:
+            score += 0.15  # 联系信息权重很高
+        
         return min(score, 1.0)
     
     def filter_message(self, content: str) -> Tuple[str, bool, Optional[str]]:
@@ -364,7 +391,9 @@ class IntelligentTailFilter:
         ]
         
         separator_line = -1
-        for i in range(len(lines) - 1, max(0, len(lines) - 15), -1):
+        # 缩小扫描范围，从最后10行开始扫描
+        scan_start = max(0, len(lines) - 10)
+        for i in range(len(lines) - 1, scan_start, -1):
             for pattern in separator_patterns:
                 if re.match(pattern, lines[i].strip()):
                     separator_line = i
@@ -386,11 +415,13 @@ class IntelligentTailFilter:
         best_tail = None
         
         # 从后往前扫描，找到最早的尾部起始位置
-        for i in range(len(lines) - 1, 0, -1):  # 从倒数第二行扫描到第二行
+        # 缩小扫描范围，最多扫描10行
+        scan_end = max(1, len(lines) - 10)
+        for i in range(len(lines) - 1, scan_end - 1, -1):  # 从倒数第二行扫描
             potential_tail = '\n'.join(lines[i:])
             
-            # 跳过太短的内容
-            if len(potential_tail) < 15:
+            # 跳过太短的内容（降低最小长度）
+            if len(potential_tail) < 10:
                 continue
             
             # 检查是否为尾部

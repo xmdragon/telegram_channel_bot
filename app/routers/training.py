@@ -3310,8 +3310,10 @@ async def get_media_file_ocr(
         
         # 只处理图片文件（兼容type和media_type字段）
         file_type = file_info.get("type") or ("image" if file_info.get("media_type") == "photo" else "video")
+        logger.info(f"OCR请求 - 文件类型判断: type={file_info.get('type')}, media_type={file_info.get('media_type')}, 计算结果={file_type}")
         if file_type != "image":
-            raise HTTPException(status_code=400, detail="只支持图片文件的OCR识别")
+            logger.warning(f"OCR请求被拒绝: 文件类型为{file_type}，文件信息={file_info}")
+            raise HTTPException(status_code=400, detail=f"只支持图片文件的OCR识别，当前文件类型: {file_type}")
         
         # 提取OCR内容
         ocr_result = await ocr_service.extract_image_content(str(file_path))

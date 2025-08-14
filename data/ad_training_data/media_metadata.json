@@ -1481,7 +1481,30 @@
       "optimized": true,
       "original_size": 2531013,
       "optimized_size": 244848
+    },
+    "113fccc1b49604d7f6d2c51490340db0b23b5596fee455cb9a6f337e165a1bce": {
+      "path": "videos/2025-08/7957_20250814_145315_113fccc1.MP4",
+      "message_ids": [
+        7957
+      ],
+      "channel_id": "-1001313162502",
+      "media_type": "video",
+      "is_ad": true,
+      "file_size": 11605875,
+      "saved_at": "2025-08-14T14:53:15.695296",
+      "original_name": "39511_20250814_135949_video.MP4",
+      "file_hash": "113fccc1b49604d7f6d2c51490340db0b23b5596fee455cb9a6f337e165a1bce",
+      "thumbnail_path": "images/2025-08/7957_20250814_145315_113fccc1_thumb.jpg",
+      "display_path": "images/2025-08/7957_20250814_145315_113fccc1_thumb.jpg",
+      "visual_hashes": {
+        "phash": "c69178acb34e8db1",
+        "dhash": "ef50f36c4c6725c9",
+        "ahash": "fffcf8347f330000",
+        "whash": "fffcf83c2f330000",
+        "colorhash": "02002000180",
+        "sha256": "65cdf7ede8e08d65c3473ca0718c8500ad933a704ca10b1ed9fda280839b3d4a"
+      }
     }
   },
-  "updated_at": "2025-08-13T23:48:39.216268"
+  "updated_at": "2025-08-14T14:53:15.695303"
 }
