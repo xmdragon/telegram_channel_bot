@@ -146,7 +146,7 @@ class MessageProcessor:
             )
             
             if is_duplicate:
-                logger.info(f"检测到重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，拒绝处理")
+                logger.info(f"🔄 message_processor: 检测到重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，拒绝处理")
                 return None
             
             # 非重复消息，检查数据库中是否已存在相同的source_channel+message_id
@@ -161,7 +161,7 @@ class MessageProcessor:
                 existing_message = existing_result.scalar_one_or_none()
                 
                 if existing_message:
-                    logger.info(f"消息已存在于数据库中：频道 {message_data.get('source_channel')}，消息ID {message_data.get('message_id')}")
+                    logger.info(f"📋 message_processor: 消息已存在于数据库中：频道 {message_data.get('source_channel')}，消息ID {message_data.get('message_id')}")
                     return existing_message
                 
                 # 插入新消息
@@ -170,7 +170,7 @@ class MessageProcessor:
                 await db.commit()
                 await db.refresh(message)
                 
-                logger.info(f"新消息 {message.id} 成功保存到数据库")
+                logger.info(f"💾 message_processor: 新消息 {message.id} 成功保存到数据库 [状态: {message.status}]")
                 return message
                 
         except Exception as e:

@@ -51,6 +51,7 @@ class UnifiedMessageProcessor:
             # 步骤2: 通用处理（提取内容、下载媒体、过滤广告）
             processed_data = await self._common_message_processing(message, channel_id, is_history)
             if not processed_data:
+                logger.info(f"📭 消息 #{message.id} 在通用处理阶段被过滤")
                 return None  # 消息被过滤
             
             # 确保原始内容被保留
@@ -68,7 +69,7 @@ class UnifiedMessageProcessor:
             
             # 如果返回None，说明消息正在等待组合
             if combined_message is None:
-                logger.debug(f"消息 {message.id} 正在等待组合")
+                logger.info(f"⏳ 消息 #{message.id} 正在等待组合")
                 return None
             
             # 步骤4: 准备保存数据
@@ -82,7 +83,7 @@ class UnifiedMessageProcessor:
             # 步骤5: 去重检测
             duplicate_info = await self._check_duplicate_with_details(save_data, channel_id)
             if duplicate_info:
-                logger.info(f"{'历史' if is_history else '实时'}消息被去重检测拒绝: {duplicate_info['reason']}")
+                logger.info(f"🔄 {'历史' if is_history else '实时'}消息被去重检测拒绝: {duplicate_info['reason']}")
                 # 保存被去重拒绝的消息到数据库，状态为rejected
                 save_data['status'] = 'rejected'
                 save_data['reject_reason'] = f"去重检测: {duplicate_info['reason']} (原消息ID: {duplicate_info.get('original_id', 'N/A')})"
@@ -91,7 +92,7 @@ class UnifiedMessageProcessor:
                 # 保存到数据库
                 db_message = await self.message_processor.process_new_message(save_data)
                 if db_message:
-                    logger.info(f"去重拒绝的消息已保存到数据库，ID: {db_message.id}")
+                    logger.info(f"❌ 最终处理结果: 消息 #{message.id} -> 数据库ID #{db_message.id} [状态: rejected] [原因: 去重检测]")
                 
                 # 清理媒体文件（如果不想保留的话）
                 # await self._cleanup_media_files(save_data)
@@ -101,7 +102,7 @@ class UnifiedMessageProcessor:
             db_message = await self.message_processor.process_new_message(save_data)
             
             if not db_message:
-                logger.info(f"消息保存失败或被拒绝")
+                logger.info(f"💥 消息 #{message.id} 保存失败或被拒绝")
                 await self._cleanup_media_files(save_data)
                 return None
             
@@ -112,6 +113,16 @@ class UnifiedMessageProcessor:
             # 步骤8: 广播到WebSocket（所有新消息都广播，让web端能看到）
             # 不再区分是否历史消息，所有成功保存的消息都广播到web端
             await self._broadcast_new_message(db_message)
+            
+            # 最终处理结果日志
+            status_emoji = {
+                'pending': '⏳',
+                'approved': '✅', 
+                'rejected': '❌',
+                'auto_forwarded': '🤖'
+            }.get(db_message.status, '❓')
+            
+            logger.info(f"{status_emoji} 最终处理结果: 消息 #{message.id} -> 数据库ID #{db_message.id} [状态: {db_message.status}] [广告: {'是' if db_message.is_ad else '否'}]")
             
             return db_message
             
@@ -246,7 +257,7 @@ class UnifiedMessageProcessor:
                 
                 # 如果配置了自动过滤广告，直接返回None
                 if await db_settings.get_auto_filter_ads():
-                    logger.info(f"自动过滤广告消息")
+                    logger.info(f"🚫 自动过滤广告消息: {filter_reason}")
                     if media_info and media_info.get('file_path'):
                         await media_handler.cleanup_file(media_info['file_path'])
                     return None
