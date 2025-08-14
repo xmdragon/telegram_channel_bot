@@ -4,6 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 重大变更历史
 
+- 2025-08-14: 添加自动Git提交工具系统 🤖
+  - **新增工具**: auto_commit.py - 智能分析代码变更并生成规范提交信息
+  - **快速脚本**: commit.sh - 支持多种提交模式的Shell脚本
+  - **核心功能**:
+    - 自动检测变更类型（fix/feat/docs/style/refactor等）
+    - 智能生成提交描述和详细说明列表
+    - 文件分类识别（前端/后端/配置/文档/脚本等）
+    - 规范化提交格式，包含emoji标识和时间戳
+  - **使用方式**:
+    - `python3 auto_commit.py` - 智能自动分析并生成提交信息
+    - `./commit.sh fix "描述"` - 快速提交bug修复
+    - `./commit.sh feat "描述"` - 快速提交新功能
+    - `./commit.sh` - 交互式提交模式
+  - **特殊处理**: 支持非交互环境，自动处理EOFError异常
+  - **文档**: docs/auto_commit_usage.md - 完整使用说明和最佳实践
 - 2025-08-10: OCR功能优化 - 改用基于图像处理的轻量级方案
   - **技术调整**: 从EasyOCR深度学习方案改为OpenCV图像处理方案
   - **功能实现**: 
@@ -324,3 +339,43 @@ python3 recover_training_data.py --emergency
 - html页面要做到html,css,js代码分离,html代码中不要有stle="xxx"这样的内联样式
 - 代码支持热加载，非必要不重启应用
 - 测试功能要在虚拟环境下
+
+## 自动Git提交工具 🤖
+
+项目配备了完整的自动提交工具系统，**完成任何bug修复或功能开发后都应该使用这些工具进行提交**。
+
+### 核心工具
+- **auto_commit.py**: 智能分析工具，自动检测变更类型并生成规范提交信息
+- **commit.sh**: 快速提交脚本，支持多种提交模式
+
+### 必须使用的场景
+- ✅ 每次完成bug修复后
+- ✅ 每次添加新功能后  
+- ✅ 每次完成代码重构后
+- ✅ 每次更新文档后
+- ✅ 每次修改配置后
+
+### 快速使用指南
+```bash
+# 修复bug后
+./commit.sh fix "修复具体问题描述"
+
+# 添加功能后  
+./commit.sh feat "新功能描述"
+
+# 智能自动分析（推荐）
+python3 auto_commit.py
+
+# 交互式选择
+./commit.sh
+```
+
+### 提交信息规范
+- 使用emoji标识（🐛 fix、✨ feat、📝 docs等）
+- 简洁明确的描述
+- 自动生成时间戳和详细说明
+- 符合约定式提交规范
+
+**⚠️ 重要提醒**: 不要手动执行 `git commit`，始终使用自动提交工具确保提交信息的规范性和一致性。
+
+详细使用说明见: `docs/auto_commit_usage.md`
