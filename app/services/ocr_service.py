@@ -108,8 +108,8 @@ class OCRService:
                 # 提取识别到的文字
                 texts = []
                 for bbox, text, confidence in result:
-                    # 过滤置信度太低的结果
-                    if confidence > 0.5 and text.strip():
+                    # 过滤置信度太低的结果（降低阈值以识别更多中文文字）
+                    if confidence > 0.3 and text.strip():
                         texts.append(text.strip())
                 
                 logger.debug(f"EasyOCR识别到 {len(texts)} 个文字: {texts}")

@@ -3308,8 +3308,9 @@ async def get_media_file_ocr(
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="媒体文件不存在")
         
-        # 只处理图片文件
-        if file_info.get("type") != "image":
+        # 只处理图片文件（兼容type和media_type字段）
+        file_type = file_info.get("type") or ("image" if file_info.get("media_type") == "photo" else "video")
+        if file_type != "image":
             raise HTTPException(status_code=400, detail="只支持图片文件的OCR识别")
         
         # 提取OCR内容
