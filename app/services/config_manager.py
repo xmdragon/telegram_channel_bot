@@ -3,11 +3,11 @@
 """
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+import threading
+from typing import Any, Dict, List, Optional, Union, Callable
+from datetime import datetime
 
-from app.core.database import AsyncSessionLocal, SystemConfig
+from app.storage.json_store import get_json_config_store, JSONConfigStore
 
 logger = logging.getLogger(__name__)
 
@@ -17,144 +17,230 @@ class ConfigManager:
     def __init__(self):
         self._cache = {}
         self._cache_loaded = False
+        self._cache_lock = threading.RLock()
+        self._change_listeners = []  # 配置变更监听器
+        self._json_store: Optional[JSONConfigStore] = None
+    
+    def _get_store(self) -> JSONConfigStore:
+        """获取JSON存储实例"""
+        if self._json_store is None:
+            self._json_store = get_json_config_store()
+        return self._json_store
     
     async def get_config(self, key: str, default: Any = None) -> Any:
         """获取配置值"""
-        if not self._cache_loaded:
-            await self._load_cache()
-        
-        if key in self._cache:
-            return self._parse_value(self._cache[key]['value'], self._cache[key]['config_type'])
-        
-        return default
+        with self._cache_lock:
+            if not self._cache_loaded:
+                await self._load_cache()
+            
+            if key in self._cache:
+                return self._parse_value(self._cache[key]['value'], self._cache[key]['config_type'])
+            
+            return default
     
     async def set_config(self, key: str, value: Any, description: str = "", config_type: str = "string") -> bool:
         """设置配置值"""
-        # 确保缓存已加载
-        if not self._cache_loaded:
-            await self._load_cache()
-            
-        try:
-            async with AsyncSessionLocal() as db:
-                # 查找现有配置
-                result = await db.execute(
-                    select(SystemConfig).where(SystemConfig.key == key)
-                )
-                config = result.scalar_one_or_none()
+        with self._cache_lock:
+            # 确保缓存已加载
+            if not self._cache_loaded:
+                await self._load_cache()
+                
+            try:
+                store = self._get_store()
                 
                 # 序列化值
                 serialized_value = self._serialize_value(value, config_type)
                 
-                if config:
-                    # 更新现有配置
-                    config.value = serialized_value
-                    config.description = description or config.description
-                    config.config_type = config_type
-                    config.is_active = True  # 确保配置是活跃的
-                else:
-                    # 创建新配置
-                    config = SystemConfig(
-                        key=key,
-                        value=serialized_value,
-                        description=description,
-                        config_type=config_type,
-                        is_active=True  # 新配置默认活跃
-                    )
-                    db.add(config)
+                # 获取现有配置信息（保留描述）
+                existing_config = None
+                if key in self._cache:
+                    existing_config = self._cache[key]
                 
-                await db.commit()
-                
-                # 更新缓存
-                self._cache[key] = {
+                # 构建配置数据
+                config_data = {
                     'value': serialized_value,
                     'config_type': config_type,
-                    'description': description
+                    'description': description or (existing_config.get('description', '') if existing_config else ''),
+                    'is_active': True,
+                    'updated_at': datetime.now().isoformat()
                 }
                 
-                return True
+                # 如果是新配置，添加创建时间
+                if existing_config is None:
+                    config_data['created_at'] = datetime.now().isoformat()
+                else:
+                    config_data['created_at'] = existing_config.get('created_at', datetime.now().isoformat())
                 
-        except Exception as e:
-            logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
-            return False
+                # 保存到JSON存储
+                success = store.set_config(key, config_data)
+                
+                if success:
+                    # 更新缓存
+                    self._cache[key] = config_data
+                    
+                    # 通知监听器
+                    self._notify_config_change(key, value, config_type)
+                    
+                    logger.debug(f"配置已更新: {key} = {value}")
+                    return True
+                else:
+                    logger.error(f"保存配置到存储失败: {key}")
+                    return False
+                    
+            except Exception as e:
+                logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
+                return False
     
     async def get_all_configs(self) -> Dict[str, Dict]:
         """获取所有配置"""
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(SystemConfig).where(SystemConfig.is_active == True)
-            )
-            configs = result.scalars().all()
+        with self._cache_lock:
+            if not self._cache_loaded:
+                await self._load_cache()
             
-            return {
-                config.key: {
-                    'value': self._parse_value(config.value, config.config_type),
-                    'raw_value': config.value,
-                    'description': config.description,
-                    'config_type': config.config_type,
-                    'created_at': config.created_at,
-                    'updated_at': config.updated_at
-                }
-                for config in configs
-            }
+            result = {}
+            for key, config_data in self._cache.items():
+                if config_data.get('is_active', True):  # 默认为激活状态
+                    result[key] = {
+                        'value': self._parse_value(config_data['value'], config_data['config_type']),
+                        'raw_value': config_data['value'],
+                        'description': config_data.get('description', ''),
+                        'config_type': config_data['config_type'],
+                        'created_at': config_data.get('created_at', ''),
+                        'updated_at': config_data.get('updated_at', '')
+                    }
+            
+            return result
     
     async def delete_config(self, key: str) -> bool:
         """删除配置"""
-        try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(SystemConfig).where(SystemConfig.key == key)
-                )
-                config = result.scalar_one_or_none()
+        with self._cache_lock:
+            try:
+                store = self._get_store()
                 
-                if config:
-                    await db.delete(config)
-                    await db.commit()
-                    
+                # 从JSON存储中删除
+                success = store.delete_config(key)
+                
+                if success:
                     # 从缓存中移除
                     if key in self._cache:
                         del self._cache[key]
                     
+                    # 通知监听器
+                    self._notify_config_change(key, None, 'deleted')
+                    
+                    logger.debug(f"配置已删除: {key}")
                     return True
                 
                 return False
                 
-        except Exception as e:
-            logger.error(f"删除配置失败: {key}, 错误: {e}")
-            return False
+            except Exception as e:
+                logger.error(f"删除配置失败: {key}, 错误: {e}")
+                return False
+    
+    async def set_multiple_configs(self, configs: Dict[str, Dict[str, Any]]) -> bool:
+        """批量设置配置"""
+        with self._cache_lock:
+            # 确保缓存已加载
+            if not self._cache_loaded:
+                await self._load_cache()
+                
+            try:
+                store = self._get_store()
+                
+                # 构建所有配置数据
+                config_data_map = {}
+                for key, config_info in configs.items():
+                    value = config_info.get('value')
+                    description = config_info.get('description', '')
+                    config_type = config_info.get('config_type', 'string')
+                    
+                    # 序列化值
+                    serialized_value = self._serialize_value(value, config_type)
+                    
+                    # 获取现有配置信息
+                    existing_config = self._cache.get(key)
+                    
+                    config_data_map[key] = {
+                        'value': serialized_value,
+                        'config_type': config_type,
+                        'description': description or (existing_config.get('description', '') if existing_config else ''),
+                        'is_active': True,
+                        'updated_at': datetime.now().isoformat(),
+                        'created_at': existing_config.get('created_at', datetime.now().isoformat()) if existing_config else datetime.now().isoformat()
+                    }
+                
+                # 批量保存到JSON存储
+                success = store.set_multiple_config(config_data_map)
+                
+                if success:
+                    # 批量更新缓存和通知监听器
+                    for key, config_data in config_data_map.items():
+                        self._cache[key] = config_data
+                        # 通知监听器
+                        original_value = configs[key]['value']
+                        config_type = configs[key].get('config_type', 'string')
+                        self._notify_config_change(key, original_value, config_type)
+                    
+                    logger.debug(f"批量配置已更新：{len(configs)} 个配置项")
+                    return True
+                else:
+                    logger.error(f"批量保存配置到存储失败")
+                    return False
+                    
+            except Exception as e:
+                logger.error(f"批量设置配置失败: {e}")
+                return False
     
     async def reload_cache(self):
         """重新加载缓存"""
-        self._cache = {}
-        self._cache_loaded = False
-        await self._load_cache()
+        with self._cache_lock:
+            self._cache = {}
+            self._cache_loaded = False
+            await self._load_cache()
+            logger.info("配置缓存已重新加载")
     
     async def clear_cache(self):
         """清理缓存"""
-        self._cache = {}
-        self._cache_loaded = False
-        logger.info("配置缓存已清理")
+        with self._cache_lock:
+            self._cache = {}
+            self._cache_loaded = False
+            logger.info("配置缓存已清理")
+    
+    def add_change_listener(self, listener: Callable[[str, Any, str], None]):
+        """添加配置变更监听器"""
+        self._change_listeners.append(listener)
+    
+    def remove_change_listener(self, listener: Callable[[str, Any, str], None]):
+        """移除配置变更监听器"""
+        if listener in self._change_listeners:
+            self._change_listeners.remove(listener)
+    
+    def _notify_config_change(self, key: str, value: Any, config_type: str):
+        """通知配置变更"""
+        for listener in self._change_listeners:
+            try:
+                listener(key, value, config_type)
+            except Exception as e:
+                logger.error(f"配置变更监听器错误: {e}")
     
     async def _load_cache(self):
         """加载配置到缓存"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(SystemConfig).where(SystemConfig.is_active == True)
-                )
-                configs = result.scalars().all()
-                
-                for config in configs:
-                    self._cache[config.key] = {
-                        'value': config.value,
-                        'config_type': config.config_type,
-                        'description': config.description
-                    }
-                
-                self._cache_loaded = True
-                logger.info(f"已加载 {len(self._cache)} 个配置项到缓存")
-                
+            store = self._get_store()
+            all_configs = store.get_all_config()
+            
+            # 只加载活跃的配置
+            for key, config_data in all_configs.items():
+                if isinstance(config_data, dict) and config_data.get('is_active', True):
+                    self._cache[key] = config_data
+            
+            self._cache_loaded = True
+            logger.info(f"已从JSON存储加载 {len(self._cache)} 个配置项到缓存")
+            
         except Exception as e:
             logger.error(f"加载配置缓存失败: {e}")
+            # 如果加载失败，至少标记为已加载，避免无限循环
+            self._cache_loaded = True
     
     def _serialize_value(self, value: Any, config_type: str) -> str:
         """序列化配置值"""
@@ -341,16 +427,21 @@ async def init_default_configs():
     """初始化默认配置"""
     logger.info("正在初始化默认配置...")
     
+    initialized_count = 0
     for key, config_info in DEFAULT_CONFIGS.items():
         existing_value = await config_manager.get_config(key)
         # 只有当值为None或空字符串时才初始化（对于cached字段，保留已有的值）
         if existing_value is None or (existing_value == "" and not key.endswith("_cached")):
-            await config_manager.set_config(
+            success = await config_manager.set_config(
                 key=key,
                 value=config_info["value"],
                 description=config_info["description"],
                 config_type=config_info["config_type"]
             )
-            logger.info(f"已初始化配置: {key}")
+            if success:
+                logger.info(f"已初始化配置: {key}")
+                initialized_count += 1
+            else:
+                logger.error(f"初始化配置失败: {key}")
     
-    logger.info("默认配置初始化完成")
+    logger.info(f"默认配置初始化完成，共初始化 {initialized_count} 个配置项")

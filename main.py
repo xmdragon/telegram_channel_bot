@@ -95,6 +95,12 @@ async def lifespan(app: FastAPI):
     # 初始化数据库
     await init_db()
     
+    # 初始化JSON存储层
+    from app.storage.json_store import init_json_stores
+    if not init_json_stores():
+        logger.error("JSON存储层初始化失败")
+        raise RuntimeError("初始化失败")
+    
     # 初始化默认配置
     from app.services.config_manager import init_default_configs
     await init_default_configs()

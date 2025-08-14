@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 class JSONStore:
     """JSON文件存储基类"""
     
-    def __init__(self, data_dir: str = "/Users/eric/workspace/telegram_channel_bot/data/config"):
+    def __init__(self, data_dir: str = None):
+        if data_dir is None:
+            data_dir = "./data/config"
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"JSON存储初始化: {self.data_dir}")
