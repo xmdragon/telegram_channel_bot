@@ -50,6 +50,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 2025-08-07: 添加开发模式脚本（dev.sh），支持热重载开发
 - 有大的改动，特别是涉及脚本及重大功能变化，要记录到CLAUDE.md和README.md
 
+## 🚨 CLAUDE自动提交规则 - 必读！
+
+### 🤖 自动Git提交指南（新Session必读）
+**重要：每次完成代码修改后，Claude必须自动提交到Git！**
+
+#### 何时必须自动提交：
+1. ✅ **修复Bug** - 任何功能性修复
+2. ✅ **新增功能** - 任何新功能实现
+3. ✅ **重要配置修改** - 影响系统行为的配置变更
+4. ✅ **数据库结构变更** - 表结构、字段修改
+5. ✅ **性能优化** - 算法改进、参数调整
+6. ✅ **安全修复** - 任何安全相关的修改
+
+#### 自动提交流程：
+```bash
+# 1. 完成修改后立即检查状态
+git status
+git diff --name-only
+
+# 2. 使用自动提交工具
+python3 auto_commit.py  # 智能分析并生成提交信息
+# 或者
+./commit.sh fix "修复描述"  # 快速修复提交
+./commit.sh feat "功能描述"  # 快速功能提交
+
+# 3. 验证提交成功
+git status
+git log --oneline -1
+```
+
+#### 🎯 提交标准：
+- **提交消息格式**: `🔧 type: 简短描述`
+- **类型**: fix, feat, docs, style, refactor, test, chore
+- **必须包含**: 详细的变更列表
+- **必须添加**: Claude Code标识和Co-Authored-By
+
+#### ⚠️ 新Session自动检查系统：
+```bash
+# 每次新session开始时运行
+./.claude_session_init.sh
+
+# 完成重要修改后检查
+python3 .claude_commit_reminder.py
+```
+
+#### 🎮 一键智能提交命令：
+```bash
+# Claude专用：完成修改后立即运行
+python3 auto_commit.py && git status
+```
+
 ## 重要提醒和常见错误
 
 ### tail命令使用（macOS）

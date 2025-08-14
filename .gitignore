@@ -66,4 +66,22 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+test_*.py
+debug_*.py
+
+# Claude Code session files (不提交临时会话文件)
+.claude_session_*.tmp
+.claude_temp_*
+
+# 但要包含Claude配置和提醒系统
+!.claude_session_init.sh
+!.claude_commit_reminder.py
+
+# 数据库运行时文件（排除运行时变化）
+data/postgres/postmaster.pid
+data/postgres/pg_wal/*
+data/postgres/pg_xact/*
+data/postgres/base/*/pg_internal.init
+data/postgres/global/pg_internal.init
+data/postgres/global/pg_control 
