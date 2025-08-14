@@ -3,23 +3,16 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, List
-import bcrypt
-import secrets
 import logging
 from pydantic import BaseModel
 
-from app.core.database import get_db, Admin, AdminSession, Permission, AdminPermission
+from app.services.auth_service import get_auth_service, AuthService
+from app.storage.json_store import get_json_admin_store
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# Token有效期设置
-TOKEN_EXPIRE_HOURS = 24
-SESSION_EXPIRE_DAYS = 7
 
 # HTTP Bearer认证
 security = HTTPBearer(auto_error=False)
@@ -43,95 +36,40 @@ class AdminResponse(BaseModel):
     username: str
     is_super_admin: bool
     permissions: List[str]
-    last_login: Optional[datetime]
-    created_at: datetime
+    last_login: Optional[str]
+    created_at: Optional[str]
 
 
-async def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """验证密码"""
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-
-
-async def hash_password(password: str) -> str:
-    """密码哈希"""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-
-async def create_session_token(admin_id: int, request: Request, db: AsyncSession) -> str:
-    """创建会话token"""
-    # 生成随机token
-    token = secrets.token_urlsafe(32)
-    
-    # 创建会话记录
-    session = AdminSession(
-        admin_id=admin_id,
-        token=token,
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get('user-agent'),
-        created_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(days=SESSION_EXPIRE_DAYS),
-        is_active=True
-    )
-    
-    db.add(session)
-    await db.commit()
-    
-    return token
+def get_auth() -> AuthService:
+    """获取认证服务实例"""
+    return get_auth_service()
 
 
 async def get_current_admin(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> Optional[Admin]:
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> Optional[dict]:
     """获取当前登录的管理员"""
     if not credentials:
         return None
     
     token = credentials.credentials
+    auth = get_auth()
     
-    # 查询会话
-    result = await db.execute(
-        select(AdminSession).where(
-            and_(
-                AdminSession.token == token,
-                AdminSession.is_active == True,
-                AdminSession.expires_at > datetime.utcnow()
-            )
-        )
-    )
-    session = result.scalars().first()
-    
-    if not session:
-        return None
-    
-    # 更新最后活动时间
-    session.last_activity = datetime.utcnow()
-    await db.commit()
-    
-    # 获取管理员信息
-    result = await db.execute(
-        select(Admin).where(
-            and_(
-                Admin.id == session.admin_id,
-                Admin.is_active == True
-            )
-        )
-    )
-    admin = result.scalars().first()
-    
-    return admin
+    # 从认证服务获取用户信息
+    user = await auth.get_current_user(token)
+    return user
 
 
-async def require_admin(admin: Admin = Depends(get_current_admin)) -> Admin:
+async def require_admin(admin: dict = Depends(get_current_admin)) -> dict:
     """要求管理员登录"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录或登录已过期")
     return admin
 
 
-async def require_super_admin(admin: Admin = Depends(require_admin)) -> Admin:
+async def require_super_admin(admin: dict = Depends(require_admin)) -> dict:
     """要求超级管理员权限"""
-    if not admin.is_super_admin:
+    if not admin.get('is_super_admin', False):
         raise HTTPException(status_code=403, detail="需要超级管理员权限")
     return admin
 
@@ -139,26 +77,22 @@ async def require_super_admin(admin: Admin = Depends(require_admin)) -> Admin:
 def check_permission(permission_name: str):
     """检查权限装饰器 - 返回依赖函数"""
     async def permission_checker(
-        admin: Admin = Depends(require_admin),
-        db: AsyncSession = Depends(get_db)
-    ) -> Admin:
-        # 超级管理员拥有所有权限
-        if admin.is_super_admin:
-            return admin
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    ) -> dict:
+        if not credentials:
+            raise HTTPException(status_code=401, detail="未登录")
         
-        # 检查是否有指定权限
-        result = await db.execute(
-            select(AdminPermission)
-            .join(Permission)
-            .where(
-                and_(
-                    AdminPermission.admin_id == admin.id,
-                    Permission.name == permission_name
-                )
-            )
-        )
+        token = credentials.credentials
+        auth = get_auth()
         
-        if not result.scalars().first():
+        # 获取当前用户
+        admin = await auth.get_current_user(token)
+        if not admin:
+            raise HTTPException(status_code=401, detail="未登录或登录已过期")
+        
+        # 检查权限
+        has_permission = await auth.check_permission(token, permission_name)
+        if not has_permission:
             raise HTTPException(status_code=403, detail=f"缺少权限: {permission_name}")
         
         return admin
@@ -169,52 +103,36 @@ def check_permission(permission_name: str):
 @router.post("/login")
 async def login(
     request: Request,
-    login_req: LoginRequest,
-    db: AsyncSession = Depends(get_db)
+    login_req: LoginRequest
 ) -> dict:
     """管理员登录"""
-    # 查找管理员
-    result = await db.execute(
-        select(Admin).where(Admin.username == login_req.username)
+    auth = get_auth()
+    
+    # 获取客户端信息
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get('user-agent')
+    
+    # 尝试登录
+    login_result = await auth.login(
+        login_req.username, 
+        login_req.password,
+        ip_address=ip_address,
+        user_agent=user_agent
     )
-    admin = result.scalars().first()
     
-    if not admin or not admin.is_active:
+    if not login_result:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
-    
-    # 验证密码
-    if not await verify_password(login_req.password, admin.password_hash):
-        raise HTTPException(status_code=401, detail="用户名或密码错误")
-    
-    # 创建会话
-    token = await create_session_token(admin.id, request, db)
-    
-    # 更新最后登录时间
-    admin.last_login = datetime.utcnow()
-    await db.commit()
     
     # 获取权限列表
-    permissions = []
-    if admin.is_super_admin:
-        # 超级管理员拥有所有权限
-        result = await db.execute(select(Permission))
-        permissions = [p.name for p in result.scalars().all()]
-    else:
-        # 普通管理员获取分配的权限
-        result = await db.execute(
-            select(Permission)
-            .join(AdminPermission)
-            .where(AdminPermission.admin_id == admin.id)
-        )
-        permissions = [p.name for p in result.scalars().all()]
+    permissions = await auth.get_user_permissions(login_result['token'])
     
     return {
         "success": True,
-        "token": token,
+        "token": login_result['token'],
         "admin": {
-            "id": admin.id,
-            "username": admin.username,
-            "is_super_admin": admin.is_super_admin,
+            "id": login_result['admin_id'],
+            "username": login_result['username'],
+            "is_super_admin": login_result['is_super_admin'],
             "permissions": permissions
         }
     }
@@ -222,97 +140,74 @@ async def login(
 
 @router.post("/logout")
 async def logout(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
     """管理员登出"""
     if not credentials:
         raise HTTPException(status_code=401, detail="未登录")
     
-    # 查找并禁用会话
-    result = await db.execute(
-        select(AdminSession).where(AdminSession.token == credentials.credentials)
-    )
-    session = result.scalars().first()
+    auth = get_auth()
+    token = credentials.credentials
     
-    if session:
-        session.is_active = False
-        await db.commit()
+    # 登出
+    success = await auth.logout(token)
     
-    return {"success": True, "message": "已成功登出"}
+    return {"success": success, "message": "已成功登出"}
 
 
 @router.get("/current")
 async def get_current_admin_info(
-    admin: Admin = Depends(require_admin),
-    db: AsyncSession = Depends(get_db)
+    admin: dict = Depends(require_admin),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
     """获取当前登录管理员信息"""
+    auth = get_auth()
+    token = credentials.credentials
+    
     # 获取权限列表
-    permissions = []
-    if admin.is_super_admin:
-        result = await db.execute(select(Permission))
-        permissions = [p.name for p in result.scalars().all()]
-    else:
-        result = await db.execute(
-            select(Permission)
-            .join(AdminPermission)
-            .where(AdminPermission.admin_id == admin.id)
-        )
-        permissions = [p.name for p in result.scalars().all()]
+    permissions = await auth.get_user_permissions(token)
     
     return {
-        "id": admin.id,
-        "username": admin.username,
-        "is_super_admin": admin.is_super_admin,
+        "id": admin['id'],
+        "username": admin['username'],
+        "is_super_admin": admin.get('is_super_admin', False),
         "permissions": permissions,
-        "last_login": admin.last_login,
-        "created_at": admin.created_at
+        "last_login": admin.get('last_login'),
+        "created_at": admin.get('created_at')
     }
 
 
 @router.post("/change-password")
 async def change_password(
     req: ChangePasswordRequest,
-    admin: Admin = Depends(require_admin),
-    db: AsyncSession = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
     """修改密码"""
-    # 验证旧密码
-    if not await verify_password(req.old_password, admin.password_hash):
-        raise HTTPException(status_code=400, detail="原密码错误")
+    if not credentials:
+        raise HTTPException(status_code=401, detail="未登录")
     
     # 检查新密码
     if len(req.new_password) < 6:
         raise HTTPException(status_code=400, detail="新密码长度至少6位")
     
+    auth = get_auth()
+    token = credentials.credentials
+    
     # 更新密码
-    admin.password_hash = await hash_password(req.new_password)
-    admin.updated_at = datetime.utcnow()
+    success = await auth.update_password(token, req.old_password, req.new_password)
     
-    # 可选：使其他会话失效
-    await db.execute(
-        select(AdminSession)
-        .where(
-            and_(
-                AdminSession.admin_id == admin.id,
-                AdminSession.is_active == True
-            )
-        )
-        .execution_options(synchronize_session="fetch")
-    )
-    
-    await db.commit()
+    if not success:
+        raise HTTPException(status_code=400, detail="原密码错误或更新失败")
     
     return {"success": True, "message": "密码修改成功，请重新登录"}
 
 
 @router.get("/check-auth")
-async def check_auth(admin: Optional[Admin] = Depends(get_current_admin)) -> dict:
+async def check_auth(admin: Optional[dict] = Depends(get_current_admin)) -> dict:
     """检查认证状态"""
     return {
         "authenticated": admin is not None,
-        "is_super_admin": admin.is_super_admin if admin else False
+        "is_super_admin": admin.get('is_super_admin', False) if admin else False
     }
 
 
@@ -336,34 +231,33 @@ class UpdateAdminRequest(BaseModel):
 
 @router.get("/admins")
 async def get_admins(
-    admin: Admin = Depends(require_super_admin),
-    db: AsyncSession = Depends(get_db)
+    admin: dict = Depends(require_super_admin)
 ) -> dict:
     """获取所有管理员列表"""
-    result = await db.execute(select(Admin).order_by(Admin.created_at.desc()))
-    admins = result.scalars().all()
+    admin_store = get_json_admin_store()
+    
+    # 获取所有管理员数据
+    admins_data = admin_store._load_json(admin_store.ADMIN_FILE)
     
     admin_list = []
-    for a in admins:
+    for admin_id, admin_data in admins_data.items():
         # 获取权限列表
         permissions = []
-        if not a.is_super_admin:
-            result = await db.execute(
-                select(Permission)
-                .join(AdminPermission)
-                .where(AdminPermission.admin_id == a.id)
-            )
-            permissions = [p.name for p in result.scalars().all()]
+        if not admin_data.get('is_super_admin', False):
+            permissions = admin_store.get_admin_permissions(int(admin_id))
         
         admin_list.append({
-            "id": a.id,
-            "username": a.username,
-            "is_active": a.is_active,
-            "is_super_admin": a.is_super_admin,
+            "id": int(admin_id),
+            "username": admin_data.get('username'),
+            "is_active": admin_data.get('is_active', True),
+            "is_super_admin": admin_data.get('is_super_admin', False),
             "permissions": permissions,
-            "last_login": a.last_login,
-            "created_at": a.created_at
+            "last_login": admin_data.get('last_login'),
+            "created_at": admin_data.get('created_at')
         })
+    
+    # 按创建时间倒序排列
+    admin_list.sort(key=lambda x: x.get('created_at') or '', reverse=True)
     
     return {"success": True, "admins": admin_list}
 
@@ -371,55 +265,34 @@ async def get_admins(
 @router.post("/admins")
 async def create_admin(
     req: CreateAdminRequest,
-    admin: Admin = Depends(require_super_admin),
-    db: AsyncSession = Depends(get_db)
+    admin: dict = Depends(require_super_admin)
 ) -> dict:
     """创建新管理员"""
-    # 检查用户名是否已存在
-    result = await db.execute(
-        select(Admin).where(Admin.username == req.username)
-    )
-    if result.scalars().first():
-        raise HTTPException(status_code=400, detail="用户名已存在")
+    auth = get_auth()
     
     # 创建管理员
-    new_admin = Admin(
+    new_admin = await auth.create_user(
         username=req.username,
-        password_hash=await hash_password(req.password),
-        is_super_admin=req.is_super_admin,
-        is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        password=req.password,
+        is_super_admin=req.is_super_admin
     )
-    db.add(new_admin)
-    await db.flush()
+    
+    if not new_admin:
+        raise HTTPException(status_code=400, detail="用户名已存在或创建失败")
     
     # 分配权限（仅非超级管理员）
     if not req.is_super_admin and req.permissions:
-        # 获取权限对象
-        result = await db.execute(
-            select(Permission).where(Permission.name.in_(req.permissions))
-        )
-        permissions = result.scalars().all()
-        
-        for perm in permissions:
-            admin_perm = AdminPermission(
-                admin_id=new_admin.id,
-                permission_id=perm.id,
-                granted_by=admin.id,  # 记录授权人
-                granted_at=datetime.utcnow()
-            )
-            db.add(admin_perm)
-    
-    await db.commit()
+        success = await auth.set_user_permissions(new_admin['id'], req.permissions)
+        if not success:
+            logger.warning(f"创建管理员成功但权限设置失败: {new_admin['id']}")
     
     return {
         "success": True,
         "message": "管理员创建成功",
         "admin": {
-            "id": new_admin.id,
-            "username": new_admin.username,
-            "is_super_admin": new_admin.is_super_admin
+            "id": new_admin['id'],
+            "username": new_admin['username'],
+            "is_super_admin": new_admin.get('is_super_admin', False)
         }
     }
 
@@ -428,65 +301,44 @@ async def create_admin(
 async def update_admin(
     admin_id: int,
     req: UpdateAdminRequest,
-    admin: Admin = Depends(require_super_admin),
-    db: AsyncSession = Depends(get_db)
+    admin: dict = Depends(require_super_admin)
 ) -> dict:
     """更新管理员信息"""
-    # 获取要更新的管理员
-    result = await db.execute(
-        select(Admin).where(Admin.id == admin_id)
-    )
-    target_admin = result.scalars().first()
+    admin_store = get_json_admin_store()
+    auth = get_auth()
     
+    # 获取要更新的管理员
+    target_admin = admin_store.get_admin_by_id(admin_id)
     if not target_admin:
         raise HTTPException(status_code=404, detail="管理员不存在")
     
     # 不允许修改自己的超级管理员权限
-    if admin_id == admin.id and req.is_super_admin is False:
+    if admin_id == admin['id'] and req.is_super_admin is False:
         raise HTTPException(status_code=400, detail="不能取消自己的超级管理员权限")
     
     # 更新基本信息
     if req.is_active is not None:
-        target_admin.is_active = req.is_active
+        target_admin['is_active'] = req.is_active
     
     if req.is_super_admin is not None:
-        target_admin.is_super_admin = req.is_super_admin
+        target_admin['is_super_admin'] = req.is_super_admin
     
     if req.password:
         if len(req.password) < 6:
             raise HTTPException(status_code=400, detail="密码长度至少6位")
-        target_admin.password_hash = await hash_password(req.password)
+        target_admin['password_hash'] = auth.hash_password(req.password)
     
-    target_admin.updated_at = datetime.utcnow()
+    target_admin['updated_at'] = datetime.now().isoformat()
+    
+    # 保存管理员更新
+    if not admin_store.save_admin(target_admin):
+        raise HTTPException(status_code=500, detail="更新管理员信息失败")
     
     # 更新权限（仅非超级管理员）
-    if req.permissions is not None and not target_admin.is_super_admin:
-        # 删除现有权限
-        result = await db.execute(
-            select(AdminPermission)
-            .where(AdminPermission.admin_id == admin_id)
-        )
-        old_permissions = result.scalars().all()
-        for perm in old_permissions:
-            await db.delete(perm)
-        
-        # 分配新权限
-        if req.permissions:
-            result = await db.execute(
-                select(Permission).where(Permission.name.in_(req.permissions))
-            )
-            permissions = result.scalars().all()
-            
-            for perm in permissions:
-                admin_perm = AdminPermission(
-                    admin_id=admin_id,
-                    permission_id=perm.id,
-                    granted_by=admin.id,  # 记录授权人
-                    granted_at=datetime.utcnow()
-                )
-                db.add(admin_perm)
-    
-    await db.commit()
+    if req.permissions is not None and not target_admin.get('is_super_admin', False):
+        success = admin_store.set_admin_permissions(admin_id, req.permissions or [])
+        if not success:
+            logger.warning(f"更新管理员权限失败: {admin_id}")
     
     return {"success": True, "message": "管理员信息更新成功"}
 
@@ -494,60 +346,109 @@ async def update_admin(
 @router.delete("/admins/{admin_id}")
 async def delete_admin(
     admin_id: int,
-    admin: Admin = Depends(require_super_admin),
-    db: AsyncSession = Depends(get_db)
+    admin: dict = Depends(require_super_admin)
 ) -> dict:
     """删除管理员"""
     # 不允许删除自己
-    if admin_id == admin.id:
+    if admin_id == admin['id']:
         raise HTTPException(status_code=400, detail="不能删除自己的账号")
     
-    # 获取要删除的管理员
-    result = await db.execute(
-        select(Admin).where(Admin.id == admin_id)
-    )
-    target_admin = result.scalars().first()
+    admin_store = get_json_admin_store()
     
+    # 获取要删除的管理员
+    target_admin = admin_store.get_admin_by_id(admin_id)
     if not target_admin:
         raise HTTPException(status_code=404, detail="管理员不存在")
     
-    # 删除相关会话
-    result = await db.execute(
-        select(AdminSession)
-        .where(AdminSession.admin_id == admin_id)
-    )
-    sessions = result.scalars().all()
-    for session in sessions:
-        await db.delete(session)
+    # 从管理员文件中删除
+    admins_data = admin_store._load_json(admin_store.ADMIN_FILE)
+    if str(admin_id) in admins_data:
+        del admins_data[str(admin_id)]
+        admin_store._save_json(admin_store.ADMIN_FILE, admins_data)
     
-    # 删除管理员（权限关联会自动删除）
-    await db.delete(target_admin)
-    await db.commit()
+    # 删除权限关联
+    admin_perms_data = admin_store._load_json(admin_store.ADMIN_PERM_FILE)
+    if str(admin_id) in admin_perms_data:
+        del admin_perms_data[str(admin_id)]
+        admin_store._save_json(admin_store.ADMIN_PERM_FILE, admin_perms_data)
+    
+    # TODO: 清理相关会话（需要从Redis中清理）
     
     return {"success": True, "message": "管理员删除成功"}
 
 
 @router.get("/permissions")
 async def get_permissions(
-    admin: Admin = Depends(require_super_admin),
-    db: AsyncSession = Depends(get_db)
+    admin: dict = Depends(require_super_admin)
 ) -> dict:
     """获取所有可用权限"""
-    result = await db.execute(
-        select(Permission).order_by(Permission.module, Permission.action)
-    )
-    permissions = result.scalars().all()
+    admin_store = get_json_admin_store()
+    
+    # 获取所有权限
+    permissions = admin_store.get_all_permissions()
     
     # 按模块分组
     modules = {}
     for perm in permissions:
-        if perm.module not in modules:
-            modules[perm.module] = []
-        modules[perm.module].append({
-            "id": perm.id,
-            "name": perm.name,
-            "action": perm.action,
-            "description": perm.description
+        module = perm.get('module', 'default')
+        if module not in modules:
+            modules[module] = []
+        modules[module].append({
+            "id": perm['id'],
+            "name": perm.get('name', ''),
+            "action": perm.get('action', ''),
+            "description": perm.get('description', '')
         })
     
     return {"success": True, "permissions": modules}
+
+
+# ==================== 会话管理功能 ====================
+
+@router.get("/sessions")
+async def get_active_sessions(
+    admin: dict = Depends(require_super_admin)
+) -> dict:
+    """获取活跃会话列表"""
+    auth = get_auth()
+    sessions = await auth.get_active_sessions()
+    return {"success": True, "sessions": sessions}
+
+
+@router.delete("/sessions/{token}")
+async def revoke_session(
+    token: str,
+    admin: dict = Depends(require_super_admin)
+) -> dict:
+    """撤销指定会话"""
+    auth = get_auth()
+    success = await auth.revoke_session(token)
+    
+    if success:
+        return {"success": True, "message": "会话已撤销"}
+    else:
+        return {"success": False, "message": "会话不存在或撤销失败"}
+
+
+@router.get("/me")
+async def get_me(
+    admin: dict = Depends(require_admin),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """获取当前用户信息（别名接口）"""
+    return await get_current_admin_info(admin, credentials)
+
+
+@router.get("/permissions/me")
+async def get_my_permissions(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """获取当前用户权限"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    auth = get_auth()
+    token = credentials.credentials
+    permissions = await auth.get_user_permissions(token)
+    
+    return {"success": True, "permissions": permissions}
