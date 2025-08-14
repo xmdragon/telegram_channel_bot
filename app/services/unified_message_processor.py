@@ -221,14 +221,11 @@ class UnifiedMessageProcessor:
             from app.services.structural_ad_detector import structural_detector
             entities = structural_detector.extract_entity_data(message)
             
-            # 移除隐藏链接（根据配置）
+            # 移除隐藏链接（系统默认策略：始终移除）
             removed_hidden_links = []
-            from app.services.config_manager import config_manager
-            hidden_link_action = await config_manager.get_config('filter.hidden_link_action')
-            if hidden_link_action == 'remove' or hidden_link_action is None:  # 默认移除
-                clean_entities, removed_hidden_links = structural_detector.remove_hidden_links(message)
-                if removed_hidden_links:
-                    logger.info(f"🔗 移除了 {len(removed_hidden_links)} 个隐藏链接")
+            clean_entities, removed_hidden_links = structural_detector.remove_hidden_links(message)
+            if removed_hidden_links:
+                logger.info(f"🔗 移除了 {len(removed_hidden_links)} 个隐藏链接")
             
             # 内容过滤（智能去尾部 + 结构化广告检测 + AI广告检测 + OCR图片文字提取）
             is_ad, filtered_content, filter_reason, ocr_result = await self.content_filter.filter_message(
