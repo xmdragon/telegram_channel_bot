@@ -87,8 +87,7 @@ const ConfigApp = {
                 review_group: '',
                 resolved_group_id: '',
                 resolved_target_channel_id: '',
-                delay: 0,
-                conditions: ['approved']
+                delay: 0
             },
             
             // 帮助提示标记
@@ -96,22 +95,13 @@ const ConfigApp = {
             
             // 系统设置
             systemConfig: {
-                review_mode: 'manual',
-                retention_days: 30,
-                max_concurrent: 10,
-                log_level: 'info',
                 history_message_limit: 50,
                 channel_signature: ''
             },
             
             // 过滤设置
             filterConfig: {
-                auto_filter_ads: false,
-                hidden_link_action: 'remove',  // remove, keep, expose
-                smart_tail_removal: true,
-                structural_ad_detection: true,
-                ocr_detection: true,
-                duplicate_detection: true
+                hidden_link_action: 'remove'  // remove, keep, expose
             }
         }
     },
@@ -240,10 +230,6 @@ const ConfigApp = {
                 if (response.data) {
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
-                        review_mode: 'manual', // 默认手动审核
-                        retention_days: 30,
-                        max_concurrent: 10,
-                        log_level: 'info',
                         history_message_limit: response.data.history_message_limit || 50,
                         channel_signature: response.data['channels.signature'] || ''
                     };
@@ -512,10 +498,6 @@ const ConfigApp = {
         
         async resetSystemConfig() {
             this.systemConfig = {
-                review_mode: 'manual',
-                retention_days: 30,
-                max_concurrent: 10,
-                log_level: 'info',
                 history_message_limit: 50,
                 channel_signature: ''
             };
@@ -528,12 +510,7 @@ const ConfigApp = {
                 if (response.data) {
                     // 从系统配置中提取过滤设置
                     this.filterConfig = {
-                        auto_filter_ads: response.data['filter.auto_filter_ads'] || false,
-                        hidden_link_action: response.data['filter.hidden_link_action'] || 'remove',
-                        smart_tail_removal: response.data['filter.smart_tail_removal'] !== false,  // 默认true
-                        structural_ad_detection: response.data['filter.structural_ad_detection'] !== false,  // 默认true
-                        ocr_detection: response.data['filter.ocr_detection'] !== false,  // 默认true
-                        duplicate_detection: response.data['filter.duplicate_detection'] !== false  // 默认true
+                        hidden_link_action: response.data['filter.hidden_link_action'] || 'remove'
                     };
                 }
             } catch (error) {
@@ -546,12 +523,7 @@ const ConfigApp = {
             try {
                 // 准备保存的配置数据
                 const configData = {
-                    'filter.auto_filter_ads': this.filterConfig.auto_filter_ads,
-                    'filter.hidden_link_action': this.filterConfig.hidden_link_action,
-                    'filter.smart_tail_removal': this.filterConfig.smart_tail_removal,
-                    'filter.structural_ad_detection': this.filterConfig.structural_ad_detection,
-                    'filter.ocr_detection': this.filterConfig.ocr_detection,
-                    'filter.duplicate_detection': this.filterConfig.duplicate_detection
+                    'filter.hidden_link_action': this.filterConfig.hidden_link_action
                 };
                 
                 // 批量保存配置
@@ -570,12 +542,7 @@ const ConfigApp = {
         
         async resetFilterConfig() {
             this.filterConfig = {
-                auto_filter_ads: false,
-                hidden_link_action: 'remove',
-                smart_tail_removal: true,
-                structural_ad_detection: true,
-                ocr_detection: true,
-                duplicate_detection: true
+                hidden_link_action: 'remove'
             };
             MessageManager.success('过滤配置已重置为默认值');
         },

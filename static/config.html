@@ -239,46 +239,45 @@
                                 <el-switch v-model="forwardingConfig.enabled"></el-switch>
                             </el-form-item>
                             <el-form-item label="目标频道">
-                                <el-input v-model="forwardingConfig.target_channel" placeholder="输入目标频道名称（支持带@或不带@）" @blur="updateTargetChannelId"></el-input>
+                                <el-input v-model="forwardingConfig.target_channel" placeholder="输入用户名（如：@bigeventsinsea），系统会自动解析为ID" @blur="updateTargetChannelId"></el-input>
+                                <div class="form-hint">
+                                    <small>💡 输入频道用户名（如：@bigeventsinsea 或 bigeventsinsea），系统会自动解析为数字ID用于消息发送</small>
+                                </div>
                             </el-form-item>
-                            <el-form-item label="目标频道ID">
-                                <el-input :value="forwardingConfig.resolved_target_channel_id || '未解析'" readonly>
+                            <el-form-item label="解析后的ID" v-if="forwardingConfig.resolved_target_channel_id">
+                                <el-input :value="forwardingConfig.resolved_target_channel_id" readonly>
                                     <template #prepend>
                                         <el-icon><InfoFilled /></el-icon>
                                     </template>
                                     <template #append>
                                         <el-button @click="manualResolveTargetChannel" :loading="loading" size="small">
-                                            手动解析
+                                            重新解析
                                         </el-button>
                                     </template>
                                 </el-input>
                                 <div class="form-hint">
-                                    <small>此ID由系统自动解析生成，点击"手动解析"可重新解析</small>
+                                    <small>✅ 用户名已成功解析为数字ID，消息会发送到此频道</small>
                                 </div>
                             </el-form-item>
                             <el-form-item label="审核群">
-                                <el-input v-model="forwardingConfig.review_group" placeholder="输入审核群链接、ID或用户名" @blur="updateReviewGroupId">
-                                    <template #prepend>
-                                        <el-button @click="showReviewGroupHelp">💡</el-button>
-                                    </template>
-                                </el-input>
+                                <el-input v-model="forwardingConfig.review_group" placeholder="输入群组链接（如：https://t.me/+xxx），系统会自动解析为ID" @blur="updateReviewGroupId"></el-input>
                                 <div class="form-hint">
-                                    <small>支持群链接（如：https://t.me/+xxx）、群ID（如：-1001234567890）或群用户名（如：@review_group）。</small>
+                                    <small>💡 输入私有群组链接（如：https://t.me/+HPbDzWj3ID01OTJl），系统会自动解析为数字ID用于消息发送</small>
                                 </div>
                             </el-form-item>
-                            <el-form-item label="审核群ID">
-                                <el-input :value="forwardingConfig.resolved_group_id || '未解析'" readonly>
+                            <el-form-item label="解析后的ID" v-if="forwardingConfig.resolved_group_id">
+                                <el-input :value="forwardingConfig.resolved_group_id" readonly>
                                     <template #prepend>
                                         <el-icon><InfoFilled /></el-icon>
                                     </template>
                                     <template #append>
                                         <el-button @click="manualResolveReviewGroup" :loading="loading" size="small">
-                                            手动解析
+                                            重新解析
                                         </el-button>
                                     </template>
                                 </el-input>
                                 <div class="form-hint">
-                                    <small>此ID由系统自动解析生成，点击"手动解析"可重新解析</small>
+                                    <small>✅ 群组链接已成功解析为数字ID，消息会发送到此群组进行审核</small>
                                 </div>
                             </el-form-item>
                             <el-form-item label="转发延迟（秒）">
@@ -286,12 +285,6 @@
                                 <div class="form-hint">
                                     <small>消息在审核群中停留多长时间后自动转发（0表示不自动转发）</small>
                                 </div>
-                            </el-form-item>
-                            <el-form-item label="转发条件">
-                                <el-checkbox-group v-model="forwardingConfig.conditions">
-                                    <el-checkbox label="approved">已批准消息</el-checkbox>
-                                    <el-checkbox label="auto_approved">自动批准消息</el-checkbox>
-                                </el-checkbox-group>
                             </el-form-item>
                             <el-form-item>
                                 <el-button type="primary" @click="saveForwardingConfig">保存配置</el-button>
@@ -305,12 +298,6 @@
                     <div class="config-section">
                         <h3>内容过滤配置</h3>
                         <el-form :model="filterConfig" label-width="180px">
-                            <el-form-item label="自动过滤广告">
-                                <el-switch v-model="filterConfig.auto_filter_ads"></el-switch>
-                                <div class="form-hint">
-                                    <small>自动拒绝被检测为广告的消息</small>
-                                </div>
-                            </el-form-item>
                             <el-form-item label="隐藏链接处理策略">
                                 <el-radio-group v-model="filterConfig.hidden_link_action">
                                     <el-radio label="remove">移除链接（保留文本）</el-radio>
@@ -321,33 +308,8 @@
                                     <small>处理消息中隐藏的URL链接（MessageEntityTextUrl）</small>
                                 </div>
                             </el-form-item>
-                            <el-form-item label="智能去尾部">
-                                <el-switch v-model="filterConfig.smart_tail_removal"></el-switch>
-                                <div class="form-hint">
-                                    <small>自动移除消息末尾的推广内容</small>
-                                </div>
-                            </el-form-item>
-                            <el-form-item label="结构化广告检测">
-                                <el-switch v-model="filterConfig.structural_ad_detection"></el-switch>
-                                <div class="form-hint">
-                                    <small>检测按钮、隐藏链接等结构化广告</small>
-                                </div>
-                            </el-form-item>
-                            <el-form-item label="OCR文字识别">
-                                <el-switch v-model="filterConfig.ocr_detection"></el-switch>
-                                <div class="form-hint">
-                                    <small>从图片中提取文字进行广告检测</small>
-                                </div>
-                            </el-form-item>
-                            <el-form-item label="重复消息检测">
-                                <el-switch v-model="filterConfig.duplicate_detection"></el-switch>
-                                <div class="form-hint">
-                                    <small>检测并过滤重复的消息</small>
-                                </div>
-                            </el-form-item>
                             <el-form-item>
                                 <el-button type="primary" @click="saveFilterConfig">保存配置</el-button>
-                                <el-button @click="resetFilterConfig">重置默认</el-button>
                             </el-form-item>
                         </el-form>
                     </div>
@@ -358,27 +320,6 @@
                     <div class="config-section">
                         <h3>系统参数配置</h3>
                         <el-form :model="systemConfig" label-width="150px">
-                            <el-form-item label="审核模式">
-                                <el-radio-group v-model="systemConfig.review_mode">
-                                    <el-radio label="manual">手动审核</el-radio>
-                                    <el-radio label="auto">自动审核</el-radio>
-                                    <el-radio label="hybrid">混合模式</el-radio>
-                                </el-radio-group>
-                            </el-form-item>
-                            <el-form-item label="消息保留天数">
-                                <el-input-number v-model="systemConfig.retention_days" :min="1" :max="365"></el-input-number>
-                            </el-form-item>
-                            <el-form-item label="最大并发数">
-                                <el-input-number v-model="systemConfig.max_concurrent" :min="1" :max="100"></el-input-number>
-                            </el-form-item>
-                            <el-form-item label="日志级别">
-                                <el-select v-model="systemConfig.log_level">
-                                    <el-option label="DEBUG" value="debug"></el-option>
-                                    <el-option label="INFO" value="info"></el-option>
-                                    <el-option label="WARNING" value="warning"></el-option>
-                                    <el-option label="ERROR" value="error"></el-option>
-                                </el-select>
-                            </el-form-item>
                             <el-form-item label="历史消息采集数">
                                 <el-input-number v-model="systemConfig.history_message_limit" :min="1" :max="1000" placeholder="50"></el-input-number>
                                 <div style="font-size: 12px; color: #999; margin-top: 5px;">
