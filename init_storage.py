@@ -1,206 +1,480 @@
 #!/usr/bin/env python3
 """
-新存储系统初始化脚本
-初始化Redis和JSON存储，替代原来的数据库初始化
+存储系统初始化脚本（Redis + JSON）
 """
 import asyncio
-import logging
-import sys
 import os
+import json
+import logging
 from pathlib import Path
-
-# 添加项目根目录到Python路径
-sys.path.insert(0, str(Path(__file__).parent))
+import sys
+sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
 from app.storage.redis_store import init_redis_stores
 from app.storage.json_store import init_json_stores
-from app.services.auth_service import init_auth_service
 from app.services.config_manager import config_manager
 
-logging.basicConfig(level=logging.INFO)
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-async def init_storage_systems():
-    """初始化所有存储系统"""
-    logger.info("开始初始化存储系统...")
+async def init_default_configs():
+    """初始化默认配置"""
+    
+    DEFAULT_CONFIGS = {
+        # Telegram相关配置
+        "telegram.api_id": {
+            "value": "",
+            "config_type": "string", 
+            "description": "Telegram API ID",
+            "category": "telegram"
+        },
+        "telegram.api_hash": {
+            "value": "",
+            "config_type": "string",
+            "description": "Telegram API Hash", 
+            "category": "telegram"
+        },
+        "telegram.session_string": {
+            "value": "",
+            "config_type": "text",
+            "description": "Telegram Session String",
+            "category": "telegram"
+        },
+        "telegram.bot_token": {
+            "value": "",
+            "config_type": "string",
+            "description": "Telegram Bot Token（可选）",
+            "category": "telegram"
+        },
+        
+        # 频道配置
+        "channels.source_channels": {
+            "value": "[]",
+            "config_type": "json",
+            "description": "源频道列表",
+            "category": "channels"
+        },
+        "channels.target_channels": {
+            "value": "[]", 
+            "config_type": "json",
+            "description": "目标频道列表",
+            "category": "channels"
+        },
+        "channels.review_chat_id": {
+            "value": "",
+            "config_type": "string",
+            "description": "审核群组ID",
+            "category": "channels"
+        },
+        
+        # 过滤配置
+        "filter.enabled": {
+            "value": "true",
+            "config_type": "boolean",
+            "description": "启用内容过滤",
+            "category": "filter"
+        },
+        "filter.ad_keywords": {
+            "value": "[]",
+            "config_type": "json", 
+            "description": "广告关键词列表",
+            "category": "filter"
+        },
+        "filter.tail_filter_enabled": {
+            "value": "true",
+            "config_type": "boolean",
+            "description": "启用尾部过滤",
+            "category": "filter"
+        },
+        "filter.ocr_enabled": {
+            "value": "true",
+            "config_type": "boolean",
+            "description": "启用OCR图片文字识别",
+            "category": "filter"
+        },
+        
+        # 审核配置
+        "review.auto_forward_delay": {
+            "value": "30",
+            "config_type": "integer",
+            "description": "自动转发延时（分钟）",
+            "category": "review"
+        },
+        "review.require_approval": {
+            "value": "true",
+            "config_type": "boolean",
+            "description": "需要人工审核",
+            "category": "review"
+        },
+        "review.auto_reject_ads": {
+            "value": "false",
+            "config_type": "boolean", 
+            "description": "自动拒绝广告消息",
+            "category": "review"
+        },
+        
+        # 采集配置
+        "collection.enabled": {
+            "value": "true",
+            "config_type": "boolean",
+            "description": "启用消息采集",
+            "category": "collection"
+        },
+        "collection.interval": {
+            "value": "30",
+            "config_type": "integer",
+            "description": "采集间隔（秒）",
+            "category": "collection"
+        },
+        "collection.max_messages_per_batch": {
+            "value": "50",
+            "config_type": "integer",
+            "description": "每批最大消息数",
+            "category": "collection"
+        },
+        
+        # 系统配置
+        "system.log_level": {
+            "value": "INFO",
+            "config_type": "string",
+            "description": "日志级别",
+            "category": "system"
+        },
+        "system.max_message_age_days": {
+            "value": "30",
+            "config_type": "integer",
+            "description": "消息最大保留天数",
+            "category": "system"
+        },
+        "system.cleanup_enabled": {
+            "value": "true",
+            "config_type": "boolean",
+            "description": "启用定期清理",
+            "category": "system"
+        },
+        
+        # Web界面配置
+        "web.page_size": {
+            "value": "20",
+            "config_type": "integer",
+            "description": "页面显示消息数",
+            "category": "web"
+        },
+        "web.auto_refresh_interval": {
+            "value": "30",
+            "config_type": "integer",
+            "description": "自动刷新间隔（秒）",
+            "category": "web"
+        }
+    }
+    
+    updated_count = 0
+    for key, config in DEFAULT_CONFIGS.items():
+        try:
+            # 检查是否已存在
+            existing = await config_manager.get_config(key)
+            if existing is None:
+                success = await config_manager.set_config(
+                    key, 
+                    config["value"], 
+                    config["description"], 
+                    config["config_type"]
+                )
+                if success:
+                    updated_count += 1
+                    logger.debug(f"初始化配置: {key}")
+        except Exception as e:
+            logger.error(f"初始化配置失败 {key}: {e}")
+    
+    if updated_count > 0:
+        logger.info(f"✅ 初始化了 {updated_count} 个默认配置")
+    else:
+        logger.info("ℹ️  配置已存在，跳过初始化")
+    
+    return updated_count
+
+def init_default_permissions():
+    """初始化默认权限数据（JSON文件）"""
+    
+    PERMISSION_DEFINITIONS = [
+        # 消息管理
+        {"name": "messages.view", "module": "messages", "action": "view", "description": "查看消息"},
+        {"name": "messages.approve", "module": "messages", "action": "approve", "description": "批准消息"},
+        {"name": "messages.reject", "module": "messages", "action": "reject", "description": "拒绝消息"},
+        {"name": "messages.edit", "module": "messages", "action": "edit", "description": "编辑消息"},
+        {"name": "messages.delete", "module": "messages", "action": "delete", "description": "删除消息"},
+        
+        # 配置管理
+        {"name": "config.view", "module": "config", "action": "view", "description": "查看配置"},
+        {"name": "config.edit", "module": "config", "action": "edit", "description": "修改配置"},
+        
+        # 频道管理
+        {"name": "channels.view", "module": "channels", "action": "view", "description": "查看频道"},
+        {"name": "channels.add", "module": "channels", "action": "add", "description": "添加频道"},
+        {"name": "channels.edit", "module": "channels", "action": "edit", "description": "编辑频道"},
+        {"name": "channels.delete", "module": "channels", "action": "delete", "description": "删除频道"},
+        {"name": "channels.refetch", "module": "channels", "action": "refetch", "description": "补抓消息"},
+        
+        # 训练管理
+        {"name": "training.view", "module": "training", "action": "view", "description": "查看训练数据"},
+        {"name": "training.submit", "module": "training", "action": "submit", "description": "提交训练数据"},
+        {"name": "training.mark_ad", "module": "training", "action": "mark_ad", "description": "标记为广告"},
+        {"name": "training.mark_tail", "module": "training", "action": "mark_tail", "description": "标记尾部内容"},
+        {"name": "training.manage", "module": "training", "action": "manage", "description": "管理训练数据"},
+        
+        # 过滤管理
+        {"name": "filter.view", "module": "filter", "action": "view", "description": "查看过滤规则"},
+        {"name": "filter.add_keyword", "module": "filter", "action": "add_keyword", "description": "添加过滤关键词"},
+        {"name": "filter.execute", "module": "filter", "action": "execute", "description": "执行过滤操作"},
+        {"name": "filter.manage", "module": "filter", "action": "manage", "description": "管理过滤规则"},
+        
+        # 系统管理
+        {"name": "system.view_status", "module": "system", "action": "view_status", "description": "查看系统状态"},
+        {"name": "system.view_logs", "module": "system", "action": "view_logs", "description": "查看系统日志"},
+        {"name": "system.restart", "module": "system", "action": "restart", "description": "重启系统"},
+        
+        # 管理员管理
+        {"name": "admin.manage_users", "module": "admin", "action": "manage_users", "description": "管理用户"},
+        {"name": "admin.manage_permissions", "module": "admin", "action": "manage_permissions", "description": "管理权限"},
+    ]
+    
+    permissions_file = Path("data/permissions.json")
+    permissions_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    if permissions_file.exists():
+        logger.info("ℹ️  权限文件已存在，跳过初始化")
+        return 0
     
     try:
-        # 1. 初始化Redis存储
-        logger.info("初始化Redis存储...")
-        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
-        if not init_redis_stores(redis_url):
-            logger.error("Redis存储初始化失败")
-            return False
-        
-        # 2. 初始化JSON存储
-        logger.info("初始化JSON存储...")
-        data_dir = Path(__file__).parent / "data" / "config"
-        if not init_json_stores(str(data_dir)):
-            logger.error("JSON存储初始化失败")
-            return False
-        
-        # 3. 初始化认证服务
-        logger.info("初始化认证服务...")
-        if not init_auth_service():
-            logger.error("认证服务初始化失败")
-            return False
-        
-        # 4. 初始化配置管理器
-        logger.info("初始化配置管理器...")
-        # 配置管理器不需要异步初始化
-        
-        # 5. 创建默认管理员（如果不存在）
-        await create_default_admin()
-        
-        # 6. 初始化默认配置
-        await initialize_default_configs()
-        
-        logger.info("✅ 存储系统初始化完成!")
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ 存储系统初始化失败: {e}")
-        return False
-
-async def create_default_admin():
-    """创建默认管理员账户"""
-    try:
-        from app.services.auth_service import get_auth_service
-        from app.storage.json_store import get_json_admin_store
-        
-        auth_service = get_auth_service()
-        admin_store = get_json_admin_store()
-        
-        # 检查是否已有管理员
-        admin_file = admin_store._get_file_path(admin_store.ADMIN_FILE)
-        if admin_file.exists():
-            admins = admin_store._load_json(admin_store.ADMIN_FILE)
-            if admins:
-                logger.info("管理员账户已存在，跳过创建")
-                return
-        
-        # 创建默认超级管理员
-        default_admin = await auth_service.create_user(
-            username="admin",
-            password="admin123",
-            is_super_admin=True
-        )
-        
-        if default_admin:
-            logger.info("✅ 默认管理员创建成功")
-            logger.info("用户名: admin")
-            logger.info("密码: admin123")
-            logger.warning("⚠️  请立即修改默认密码!")
-        else:
-            logger.error("❌ 默认管理员创建失败")
-            
-    except Exception as e:
-        logger.error(f"创建默认管理员失败: {e}")
-
-async def initialize_default_configs():
-    """初始化默认配置"""
-    try:
-        # 基础系统配置
-        default_configs = {
-            # Telegram相关配置
-            "telegram.api_id": "",
-            "telegram.api_hash": "",
-            "telegram.session_string": "",
-            
-            # 频道配置
-            "channels.source_channels": [],
-            "channels.review_group_id": "",
-            "channels.target_channels": [],
-            
-            # 过滤配置
-            "filter.enable_ad_detection": True,
-            "filter.enable_duplicate_detection": True,
-            "filter.enable_ocr_detection": True,
-            "filter.ad_keywords": [],
-            
-            # 审核配置
-            "review.auto_forward_delay": 30,
-            "review.require_manual_review": True,
-            "review.enable_batch_operations": True,
-            
-            # 媒体配置
-            "media.download_media": True,
-            "media.media_storage_path": "./temp_media",
-            "media.max_file_size": 50 * 1024 * 1024,  # 50MB
-            
-            # 系统配置
-            "system.log_level": "INFO",
-            "system.max_daily_messages": 1000,
-            "system.enable_statistics": True,
-            
-            # 账号管理配置
-            "accounts.blacklist": [],
-            "accounts.whitelist": [],
-            "accounts.enable_account_filtering": True,
+        permissions_data = {
+            "permissions": PERMISSION_DEFINITIONS,
+            "created_at": "2024-01-01T00:00:00",
+            "updated_at": "2024-01-01T00:00:00"
         }
         
-        # 批量设置默认配置（只设置未存在的配置项）
-        for key, default_value in default_configs.items():
-            current_value = config_manager.get_config(key)
-            if current_value is None:  # 配置不存在时才设置默认值
-                config_manager.set_config(key, default_value)
+        with open(permissions_file, 'w', encoding='utf-8') as f:
+            json.dump(permissions_data, f, ensure_ascii=False, indent=2)
         
-        logger.info("✅ 默认配置初始化完成")
+        logger.info(f"✅ 初始化 {len(PERMISSION_DEFINITIONS)} 个权限项")
+        return len(PERMISSION_DEFINITIONS)
         
     except Exception as e:
-        logger.error(f"初始化默认配置失败: {e}")
+        logger.error(f"初始化权限文件失败: {e}")
+        return 0
 
-def check_environment():
-    """检查环境依赖"""
-    logger.info("检查环境依赖...")
+def init_directory_structure():
+    """初始化目录结构"""
     
-    # 检查Redis连接
-    try:
-        import redis
-        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
-        r = redis.from_url(redis_url)
-        r.ping()
-        logger.info("✅ Redis连接正常")
-    except Exception as e:
-        logger.error(f"❌ Redis连接失败: {e}")
-        logger.error("请确保Redis服务正在运行")
+    DIRECTORIES = [
+        "data",
+        "data/ad_training_data",
+        "data/ad_training_data/images",
+        "data/ad_training_data/videos", 
+        "data/ad_training_data/backups",
+        "logs",
+        "temp_media",
+        "static"
+    ]
+    
+    created_count = 0
+    for directory in DIRECTORIES:
+        dir_path = Path(directory)
+        if not dir_path.exists():
+            try:
+                dir_path.mkdir(parents=True, exist_ok=True)
+                created_count += 1
+                logger.debug(f"创建目录: {directory}")
+            except Exception as e:
+                logger.error(f"创建目录失败 {directory}: {e}")
+    
+    if created_count > 0:
+        logger.info(f"✅ 创建了 {created_count} 个目录")
+    else:
+        logger.info("ℹ️  目录结构已存在")
+    
+    return created_count
+
+def init_default_data_files():
+    """初始化默认数据文件"""
+    
+    DATA_FILES = {
+        "data/tail_filter_samples.json": {
+            "samples": [],
+            "created_at": "2024-01-01T00:00:00",
+            "total_count": 0
+        },
+        "data/ocr_samples.json": {
+            "samples": [],
+            "created_at": "2024-01-01T00:00:00", 
+            "total_count": 0
+        },
+        "data/feedback_learning.json": {
+            "feedback_data": [],
+            "created_at": "2024-01-01T00:00:00",
+            "total_count": 0
+        },
+        "data/ad_training_data.json": {
+            "positive_samples": [],
+            "negative_samples": [],
+            "created_at": "2024-01-01T00:00:00",
+            "version": "1.0"
+        }
+    }
+    
+    created_count = 0
+    for file_path, default_content in DATA_FILES.items():
+        file_obj = Path(file_path)
+        file_obj.parent.mkdir(parents=True, exist_ok=True)
+        
+        if not file_obj.exists():
+            try:
+                with open(file_obj, 'w', encoding='utf-8') as f:
+                    json.dump(default_content, f, ensure_ascii=False, indent=2)
+                created_count += 1
+                logger.debug(f"创建数据文件: {file_path}")
+            except Exception as e:
+                logger.error(f"创建数据文件失败 {file_path}: {e}")
+    
+    if created_count > 0:
+        logger.info(f"✅ 创建了 {created_count} 个数据文件")
+    else:
+        logger.info("ℹ️  数据文件已存在")
+    
+    return created_count
+
+async def initialize_storage_system():
+    """初始化存储系统"""
+    logger.info("🚀 正在初始化 Telegram 消息审核系统存储层...")
+    
+    # 1. 创建目录结构
+    logger.info("📁 初始化目录结构...")
+    init_directory_structure()
+    
+    # 2. 初始化JSON存储
+    logger.info("📄 初始化JSON存储...")
+    json_success = init_json_stores()
+    if json_success:
+        logger.info("✅ JSON存储初始化完成")
+    else:
+        logger.error("❌ JSON存储初始化失败")
         return False
     
-    # 检查数据目录
-    data_dir = Path(__file__).parent / "data"
-    if not data_dir.exists():
-        data_dir.mkdir(parents=True)
-        logger.info(f"✅ 创建数据目录: {data_dir}")
+    # 3. 初始化Redis存储
+    logger.info("🔴 初始化Redis存储...")
+    redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+    redis_success = init_redis_stores(redis_url)
+    if redis_success:
+        logger.info("✅ Redis存储初始化完成")
+    else:
+        logger.error("❌ Redis存储初始化失败")
+        return False
     
-    config_dir = data_dir / "config"
-    if not config_dir.exists():
-        config_dir.mkdir(parents=True)
-        logger.info(f"✅ 创建配置目录: {config_dir}")
+    # 4. 初始化默认数据文件
+    logger.info("📊 初始化默认数据文件...")
+    init_default_data_files()
+    
+    # 5. 初始化权限数据
+    logger.info("🔐 初始化权限数据...")
+    init_default_permissions()
+    
+    # 6. 初始化默认配置
+    logger.info("⚙️  初始化默认配置...")
+    try:
+        config_count = await init_default_configs()
+        logger.info("✅ 默认配置初始化完成")
+    except Exception as e:
+        logger.error(f"❌ 默认配置初始化失败: {e}")
+        return False
+    
+    logger.info("\n🎉 存储系统初始化完成！")
+    logger.info("\n📋 下一步操作：")
+    logger.info("1. 运行 python3 init_admin.py 创建超级管理员")
+    logger.info("2. 启动系统: python3 main.py 或 ./start.sh")
+    logger.info("3. 访问 http://localhost:8000/static/auth.html 完成Telegram认证")
+    logger.info("4. 访问 http://localhost:8000/static/config.html 配置频道")
+    logger.info("5. 访问 http://localhost:8000 开始使用系统")
     
     return True
 
+async def check_storage_status():
+    """检查存储系统状态"""
+    logger.info("🔍 检查存储系统状态...")
+    
+    # 检查Redis连接
+    try:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        if init_redis_stores(redis_url):
+            logger.info("✅ Redis连接正常")
+            
+            # 获取Redis统计信息
+            from app.storage.redis_store import get_redis_message_store
+            store = get_redis_message_store()
+            
+            total_messages = len(store.get_all_messages(limit=1000))
+            pending_messages = len(store.get_messages_by_status('pending', 100))
+            
+            logger.info(f"📊 Redis消息统计: 总计 {total_messages} 条，待审核 {pending_messages} 条")
+        else:
+            logger.error("❌ Redis连接失败")
+    except Exception as e:
+        logger.error(f"❌ Redis检查失败: {e}")
+    
+    # 检查JSON配置
+    try:
+        if init_json_stores():
+            logger.info("✅ JSON存储正常")
+            
+            config_count = await config_manager.get_all_configs()
+            logger.info(f"📋 配置项数量: {len(config_count)}")
+        else:
+            logger.error("❌ JSON存储失败")
+    except Exception as e:
+        logger.error(f"❌ JSON配置检查失败: {e}")
+    
+    # 检查数据文件
+    data_files = [
+        "data/tail_filter_samples.json",
+        "data/ocr_samples.json", 
+        "data/feedback_learning.json",
+        "data/ad_training_data.json",
+        "data/permissions.json"
+    ]
+    
+    existing_files = 0
+    for file_path in data_files:
+        if Path(file_path).exists():
+            existing_files += 1
+    
+    logger.info(f"📄 数据文件: {existing_files}/{len(data_files)} 个存在")
+    
+    logger.info("✅ 存储系统状态检查完成")
+
 async def main():
     """主函数"""
-    logger.info("🚀 开始初始化新存储系统...")
+    import argparse
     
-    # 检查环境
-    if not check_environment():
-        logger.error("❌ 环境检查失败，请解决依赖问题后重试")
-        return False
+    parser = argparse.ArgumentParser(description='存储系统管理工具')
+    parser.add_argument('--init', action='store_true', help='初始化存储系统')
+    parser.add_argument('--check', action='store_true', help='检查存储状态')
+    parser.add_argument('--reset', action='store_true', help='重置存储系统（危险操作）')
     
-    # 初始化存储系统
-    success = await init_storage_systems()
+    args = parser.parse_args()
     
-    if success:
-        logger.info("🎉 存储系统初始化成功!")
-        logger.info("您现在可以启动应用程序了")
-        logger.info("运行: python3 main.py")
+    if args.check:
+        await check_storage_status()
+    elif args.reset:
+        response = input("⚠️  确认要重置存储系统吗？这将删除所有数据！(yes/no): ")
+        if response.lower() == 'yes':
+            logger.warning("🗑️  重置存储系统功能待实现...")
+        else:
+            logger.info("取消重置操作")
+    elif args.init or len(sys.argv) == 1:  # 默认行为
+        success = await initialize_storage_system()
+        if not success:
+            sys.exit(1)
     else:
-        logger.error("💥 存储系统初始化失败")
-        logger.error("请检查错误信息并解决问题后重试")
-    
-    return success
+        parser.print_help()
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
-    sys.exit(0 if success else 1)
+    asyncio.run(main())
