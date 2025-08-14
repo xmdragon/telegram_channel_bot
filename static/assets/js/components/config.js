@@ -207,13 +207,12 @@ const ConfigApp = {
                     
                     // 从系统配置中提取转发相关设置
                     this.forwardingConfig = {
-                        enabled: response.data.auto_forward_delay > 0,
+                        enabled: response.data['review.auto_forward_enabled'] === true || response.data['review.auto_forward_enabled'] === 'true',
                         target_channel: targetChannel,
                         review_group: reviewGroup,
                         resolved_group_id: cachedGroupId || '',
                         resolved_target_channel_id: resolvedTargetId || '',
-                        delay: response.data.auto_forward_delay || 0,
-                        conditions: ['approved']
+                        delay: response.data.auto_forward_delay || 0
                     };
                 }
             } catch (error) {
@@ -429,6 +428,7 @@ const ConfigApp = {
                     'channels.target_channel_name': targetChannel,      // 备用字段：保存用户名格式  
                     'channels.review_group_id': reviewGroup,
                     'channels.review_group_name': reviewGroup,          // 备用字段：保存审核群配置
+                    'review.auto_forward_enabled': this.forwardingConfig.enabled,
                     'review.auto_forward_delay': this.forwardingConfig.delay
                 };
                 

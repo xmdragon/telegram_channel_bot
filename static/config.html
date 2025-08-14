@@ -237,6 +237,9 @@
                         <el-form :model="forwardingConfig" label-width="150px">
                             <el-form-item label="启用自动转发">
                                 <el-switch v-model="forwardingConfig.enabled"></el-switch>
+                                <div class="form-hint">
+                                    <small>启用后，消息会在指定延迟时间后自动转发到目标频道</small>
+                                </div>
                             </el-form-item>
                             <el-form-item label="目标频道">
                                 <el-input v-model="forwardingConfig.target_channel" placeholder="输入用户名（如：@bigeventsinsea），系统会自动解析为ID" @blur="updateTargetChannelId"></el-input>
@@ -244,40 +247,10 @@
                                     <small>💡 输入频道用户名（如：@bigeventsinsea 或 bigeventsinsea），系统会自动解析为数字ID用于消息发送</small>
                                 </div>
                             </el-form-item>
-                            <el-form-item label="解析后的ID" v-if="forwardingConfig.resolved_target_channel_id">
-                                <el-input :value="forwardingConfig.resolved_target_channel_id" readonly>
-                                    <template #prepend>
-                                        <el-icon><InfoFilled /></el-icon>
-                                    </template>
-                                    <template #append>
-                                        <el-button @click="manualResolveTargetChannel" :loading="loading" size="small">
-                                            重新解析
-                                        </el-button>
-                                    </template>
-                                </el-input>
-                                <div class="form-hint">
-                                    <small>✅ 用户名已成功解析为数字ID，消息会发送到此频道</small>
-                                </div>
-                            </el-form-item>
                             <el-form-item label="审核群">
                                 <el-input v-model="forwardingConfig.review_group" placeholder="输入群组链接（如：https://t.me/+xxx），系统会自动解析为ID" @blur="updateReviewGroupId"></el-input>
                                 <div class="form-hint">
                                     <small>💡 输入私有群组链接（如：https://t.me/+HPbDzWj3ID01OTJl），系统会自动解析为数字ID用于消息发送</small>
-                                </div>
-                            </el-form-item>
-                            <el-form-item label="解析后的ID" v-if="forwardingConfig.resolved_group_id">
-                                <el-input :value="forwardingConfig.resolved_group_id" readonly>
-                                    <template #prepend>
-                                        <el-icon><InfoFilled /></el-icon>
-                                    </template>
-                                    <template #append>
-                                        <el-button @click="manualResolveReviewGroup" :loading="loading" size="small">
-                                            重新解析
-                                        </el-button>
-                                    </template>
-                                </el-input>
-                                <div class="form-hint">
-                                    <small>✅ 群组链接已成功解析为数字ID，消息会发送到此群组进行审核</small>
                                 </div>
                             </el-form-item>
                             <el-form-item label="转发延迟（秒）">
@@ -293,16 +266,6 @@
                     </div>
                 </el-tab-pane>
 
-                <!-- 过滤设置 -->
-                <el-tab-pane label="🛡️ 过滤设置" name="filter">
-                    <div class="config-section">
-                        <h3>内容过滤配置</h3>
-                        <div style="text-align: center; padding: 40px; color: #909399;">
-                            <el-icon size="48"><InfoFilled /></el-icon>
-                            <p style="margin-top: 16px;">过滤策略由系统自动管理，无需手动配置</p>
-                        </div>
-                    </div>
-                </el-tab-pane>
 
                 <!-- 系统设置 -->
                 <el-tab-pane label="🔧 系统设置" name="system">

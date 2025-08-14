@@ -7,7 +7,7 @@
     "updated_at": "2025-08-15T00:43:18.841785",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-14T16:43:18.843077",
+  "updated_at": "2025-08-14T16:45:12.928893",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
@@ -33,11 +33,11 @@
     "created_at": "2025-08-14T22:53:30.662570"
   },
   "channels.review_group_id": {
-    "value": "-1002871459104",
+    "value": "https://t.me/+HPbDzWj3ID01OTJl",
     "config_type": "string",
     "description": "审核群ID或链接",
     "is_active": true,
-    "updated_at": "2025-08-15T00:00:20.968083",
+    "updated_at": "2025-08-15T00:45:12.742664",
     "created_at": "2025-08-14T22:53:30.662827"
   },
   "channels.review_group_id_cached": {
@@ -45,15 +45,15 @@
     "config_type": "string",
     "description": "缓存的审核群ID（由系统自动解析链接后设置）",
     "is_active": true,
-    "updated_at": "2025-08-15T00:34:51.251721",
+    "updated_at": "2025-08-15T00:45:12.928867",
     "created_at": "2025-08-14T22:53:30.663121"
   },
   "channels.target_channel_id": {
-    "value": "-1002696592354",
+    "value": "@bigeventsinsea",
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-15T00:00:20.776298",
+    "updated_at": "2025-08-15T00:45:12.739041",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "channels.history_message_limit": {
@@ -93,7 +93,7 @@
     "config_type": "integer",
     "description": "自动转发延迟(秒)",
     "is_active": true,
-    "updated_at": "2025-08-15T00:00:19.462997",
+    "updated_at": "2025-08-15T00:45:12.746398",
     "created_at": "2025-08-14T22:53:30.665092"
   },
   "channels.signature": {
@@ -117,7 +117,7 @@
     "config_type": "string",
     "description": "",
     "is_active": true,
-    "updated_at": "2025-08-15T00:00:20.780230",
+    "updated_at": "2025-08-15T00:45:12.741360",
     "created_at": "2025-08-14T23:46:07.015035"
   },
   "channels.review_group_name": {
@@ -125,7 +125,7 @@
     "config_type": "string",
     "description": "",
     "is_active": true,
-    "updated_at": "2025-08-15T00:00:20.971170",
+    "updated_at": "2025-08-15T00:45:12.744195",
     "created_at": "2025-08-15T00:00:20.971185"
   }
 }
