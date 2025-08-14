@@ -71,6 +71,4746 @@
       "rejection_reason": "高风险赌博广告",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "f3b43c3f6eac",
+      "image_hash": "7621eb0d0c64485e2242e856d4a5b09c359eb6d59ebf02dc8eabff55b287476a",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:05:51",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5138,
+      "source_channel": "-1001546415661"
+    },
+    {
+      "id": "9e8d031ee1ed",
+      "image_hash": "f12b124d41e55da5",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:05:51",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "0d3f80d5e067",
+      "image_hash": "36c6895b2f9522210bbaee9634fb814fb36c15e793d18cfd5d4036c9367231df",
+      "image_path": "data/ad_training_data/images/2025-08/5149_20250810_215635_36c6895b.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:05:51",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5149,
+      "source_channel": "-1002829999238"
+    },
+    {
+      "id": "be86d62fb67a",
+      "image_hash": "7c47dda414c037b5",
+      "image_path": "data/ad_training_data/images/2025-08/5149_20250810_215635_36c6895b.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:05:51",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "3c30d4a558d1",
+      "image_hash": "8a976125a5e8b8c832855a42755a36f52c0f41fc6a42fc0eacfb7bd31c79b0ab",
+      "image_path": "data/ad_training_data/images/2025-08/5162_20250810_215635_8a976125.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:05:52",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5162,
+      "source_channel": "-1002829999238"
+    },
+    {
+      "id": "9ceb6e18339e",
+      "image_hash": "37f312f7ba598149",
+      "image_path": "data/ad_training_data/images/2025-08/5162_20250810_215635_8a976125.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:05:52",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "4cb0ecea53d8",
+      "image_hash": "62aaac33e7692fc431ecb6c2a81d61cd43f1147dee1066fa7c589e7c762ef821",
+      "image_path": "data/ad_training_data/images/2025-08/5172_20250810_215635_62aaac33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:05:52",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5172,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "fecb6296530e",
+      "image_hash": "bedbe27f00701536",
+      "image_path": "data/ad_training_data/images/2025-08/5172_20250810_215635_62aaac33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:05:52",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "50e55bb8cfc8",
+      "image_hash": "e8bea42690c9ba20d603741b5ea25b137a9f87f4e08bbcf88a2dc5bd1a6f24da",
+      "image_path": "data/ad_training_data/images/2025-08/4979_20250810_215635_e8bea426.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:05:54",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4979,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "019a72ef6f5f",
+      "image_hash": "c93ea9de3506a2f2",
+      "image_path": "data/ad_training_data/images/2025-08/4979_20250810_215635_e8bea426.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:05:54",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f03aacb68eb3",
+      "image_hash": "7621eb0d0c64485e2242e856d4a5b09c359eb6d59ebf02dc8eabff55b287476a",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:00",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5138,
+      "source_channel": "-1001546415661"
+    },
+    {
+      "id": "a8b974e0c49c",
+      "image_hash": "f12b124d41e55da5",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:00",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "fd53c27e91d1",
+      "image_hash": "36c6895b2f9522210bbaee9634fb814fb36c15e793d18cfd5d4036c9367231df",
+      "image_path": "data/ad_training_data/images/2025-08/5149_20250810_215635_36c6895b.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5149,
+      "source_channel": "-1002829999238"
+    },
+    {
+      "id": "9e9f57d3fa10",
+      "image_hash": "7c47dda414c037b5",
+      "image_path": "data/ad_training_data/images/2025-08/5149_20250810_215635_36c6895b.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ea324d238798",
+      "image_hash": "8a976125a5e8b8c832855a42755a36f52c0f41fc6a42fc0eacfb7bd31c79b0ab",
+      "image_path": "data/ad_training_data/images/2025-08/5162_20250810_215635_8a976125.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5162,
+      "source_channel": "-1002829999238"
+    },
+    {
+      "id": "1fbc9b44fb4b",
+      "image_hash": "37f312f7ba598149",
+      "image_path": "data/ad_training_data/images/2025-08/5162_20250810_215635_8a976125.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "97521e9631be",
+      "image_hash": "62aaac33e7692fc431ecb6c2a81d61cd43f1147dee1066fa7c589e7c762ef821",
+      "image_path": "data/ad_training_data/images/2025-08/5172_20250810_215635_62aaac33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5172,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "48831a27fb34",
+      "image_hash": "bedbe27f00701536",
+      "image_path": "data/ad_training_data/images/2025-08/5172_20250810_215635_62aaac33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f5e1ae4876ae",
+      "image_hash": "e8bea42690c9ba20d603741b5ea25b137a9f87f4e08bbcf88a2dc5bd1a6f24da",
+      "image_path": "data/ad_training_data/images/2025-08/4979_20250810_215635_e8bea426.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:04",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4979,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "1f69c7465425",
+      "image_hash": "c93ea9de3506a2f2",
+      "image_path": "data/ad_training_data/images/2025-08/4979_20250810_215635_e8bea426.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:04",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "a069389c7bc0",
+      "image_hash": "edf4dd46b1b0fbf8a872c0353e5cd5f04e8715551df88d274c4e8ed2b29ae245",
+      "image_path": "data/ad_training_data/images/2025-08/4778_20250810_215635_edf4dd46.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:05",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4778,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "2c8bfa5eab20",
+      "image_hash": "2dd2f0cf28268d6c",
+      "image_path": "data/ad_training_data/images/2025-08/4778_20250810_215635_edf4dd46.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:05",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "dc26886e4e31",
+      "image_hash": "17b9b92b1a31a57be2acf58f998887b4dfdb63e78e0ac08a006db3378badec0f",
+      "image_path": "data/ad_training_data/images/2025-08/5037_20250810_215635_17b9b92b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:07",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5037,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "435de8c135a9",
+      "image_hash": "38f3108cf44d2760",
+      "image_path": "data/ad_training_data/images/2025-08/5037_20250810_215635_17b9b92b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:07",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9466f77c3c40",
+      "image_hash": "c03a2c695358a770b837cbceb3b2468fc84f55e3ae5fc51732a19cc0a6efcf0d",
+      "image_path": "data/ad_training_data/images/2025-08/5327_20250810_215635_c03a2c69.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:07",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5327,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "5e6baed0185d",
+      "image_hash": "f75dbfcbbfe2afe9",
+      "image_path": "data/ad_training_data/images/2025-08/5327_20250810_215635_c03a2c69.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:07",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "fa7852bf1f3f",
+      "image_hash": "7f92cd6b6d066ba3ac9ea45a01d8390f1bfbc990e2c50953e5edbd0ecc39e17b",
+      "image_path": "data/ad_training_data/images/2025-08/4981_20250810_215635_7f92cd6b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:08",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4981,
+      "source_channel": "-1002137718790"
+    },
+    {
+      "id": "e09d73f40648",
+      "image_hash": "b86ac010b5fa07c8",
+      "image_path": "data/ad_training_data/images/2025-08/4981_20250810_215635_7f92cd6b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:08",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "3348bc593368",
+      "image_hash": "dae2bd1481cc7bf6c06b211dd2ff0b185e1233ce021a5468dc95ee0ce214a95a",
+      "image_path": "data/ad_training_data/images/2025-08/5035_20250810_215635_dae2bd14.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5035,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "023416c79f50",
+      "image_hash": "e380c52a72a41b06",
+      "image_path": "data/ad_training_data/images/2025-08/5035_20250810_215635_dae2bd14.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e77a46cb5e0a",
+      "image_hash": "e14db67886e60860e708f6c99d4569fdfd6dd096f7c5ea93fb8c82ad6bf9600c",
+      "image_path": "data/ad_training_data/images/2025-08/5353_20250810_215635_e14db678.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5353,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "4fa75ef6eacc",
+      "image_hash": "2b2a9a0870f0bcb8",
+      "image_path": "data/ad_training_data/images/2025-08/5353_20250810_215635_e14db678.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b0425017d805",
+      "image_hash": "885861746cdef8aee24eb5262a7d49bbd1552f97ced22af79a3b3826dd776a0f",
+      "image_path": "data/ad_training_data/images/2025-08/5371_20250810_215635_88586174.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5371,
+      "source_channel": "-1002062871756"
+    },
+    {
+      "id": "9b71baeb107e",
+      "image_hash": "94b465d3e54de13d",
+      "image_path": "data/ad_training_data/images/2025-08/5371_20250810_215635_88586174.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "338369c8223e",
+      "image_hash": "58d9fe8cc3564ff147988ee6fb1575eb359559bbc2aa72d297319e5ac918df20",
+      "image_path": "data/ad_training_data/images/2025-08/5404_20250810_224358_58d9fe8c.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5404,
+      "source_channel": "-1002305901042"
+    },
+    {
+      "id": "27ab90a61cd7",
+      "image_hash": "4e1830b95a7675b1",
+      "image_path": "data/ad_training_data/images/2025-08/5404_20250810_224358_58d9fe8c.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "a635da3347e9",
+      "image_hash": "6c378a2096b4bbceba199b75c9b52eda6a88e63222fa13bdf91ff62d8115069a",
+      "image_path": "data/ad_training_data/images/2025-08/4713_20250811_003504_6c378a20.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4713,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "204508644275",
+      "image_hash": "abba36a2c3087cc9",
+      "image_path": "data/ad_training_data/images/2025-08/4713_20250811_003504_6c378a20.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "4457e72732a4",
+      "image_hash": "c3c772b1e4ffe95e4da853cd1fc86b3d3af80afd81b394754ba66e9d964f1c04",
+      "image_path": "data/ad_training_data/images/2025-08/5368_20250810_215635_c3c772b1.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:12",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5368,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "ca86c6bdea18",
+      "image_hash": "3e3692f174264488",
+      "image_path": "data/ad_training_data/images/2025-08/5368_20250810_215635_c3c772b1.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:12",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "0a8f26a1f439",
+      "image_hash": "5f93e9c8f51a7a8b05d1811b7791983c25cc0b811c36e53bcce17eec921a5586",
+      "image_path": "data/ad_training_data/images/2025-08/4717_20250811_003556_5f93e9c8.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4717,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "0dd360d96f92",
+      "image_hash": "a4faa7a1e1f782d573c1cb388653cfb738a5c2cd63cc767a33992c5befbe21b4",
+      "image_path": "data/ad_training_data/images/2025-08/6916_20250811_084751_a4faa7a1.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6916,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "8ad332064c0d",
+      "image_hash": "d4a135c90a273416bbdfa0dc82eccc8edd3ce598b4b1cbe1c86edac3ee5a9b77",
+      "image_path": "data/ad_training_data/images/2025-08/4714_20250811_003531_d4a135c9.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4714,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "f32a5d710311",
+      "image_hash": "06938352d2d4827c",
+      "image_path": "data/ad_training_data/images/2025-08/4714_20250811_003531_d4a135c9.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e0a23b57936d",
+      "image_hash": "b216e0bbbf179131b61ae0289ec0cfdf16b8cc7a51b0de12f0f4934f8b3db2c3",
+      "image_path": "data/ad_training_data/images/2025-08/6624_20250811_084802_b216e0bb.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:14",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6624,
+      "source_channel": "-1002373762238"
+    },
+    {
+      "id": "ec09197cd92d",
+      "image_hash": "cdb3485306d942f8",
+      "image_path": "data/ad_training_data/images/2025-08/6624_20250811_084802_b216e0bb.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:14",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b0b7f408b862",
+      "image_hash": "c60107d9107601595329f1cdff95ca503b426617384ddcf93fcd079eb8f07791",
+      "image_path": "data/ad_training_data/images/2025-08/4715_20250811_003601_c60107d9.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:16",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4715,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "8570471e91db",
+      "image_hash": "28245f79c7371406",
+      "image_path": "data/ad_training_data/images/2025-08/4715_20250811_003601_c60107d9.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:16",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ea1d5cf6b6f3",
+      "image_hash": "1db2589887f6ae4ad38f0cc134d1800c03ef3f940af5ed03c85594a380315c41",
+      "image_path": "data/ad_training_data/images/2025-08/5763_20250811_103756_1db25898.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5763,
+      "source_channel": "-1001153220419"
+    },
+    {
+      "id": "490fbe23e448",
+      "image_hash": "d7b7b1663ba0e86b",
+      "image_path": "data/ad_training_data/images/2025-08/5763_20250811_103756_1db25898.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "82461ba1d971",
+      "image_hash": "f95dd50d065a401d60b449e252bb1c2c7750f5802ba65f327035481849eb5e1b",
+      "image_path": "data/ad_training_data/images/2025-08/5704_20250811_103900_f95dd50d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5704,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "ee048c471048",
+      "image_hash": "5c38419427258de7",
+      "image_path": "data/ad_training_data/images/2025-08/5704_20250811_103900_f95dd50d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "09536f3c53f6",
+      "image_hash": "11f87c200a8826123b4b1b6f50eb48cc428ff7ce7cd1da82af9b108f9f4efe86",
+      "image_path": "data/ad_training_data/images/2025-08/5701_20250811_104118_11f87c20.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5701,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "f5df55e89dec",
+      "image_hash": "d637aeaef21df2ed",
+      "image_path": "data/ad_training_data/images/2025-08/5701_20250811_104118_11f87c20.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "67d49899dea1",
+      "image_hash": "53245ddd88d6d1bc2c5dd0e06e8d00e1e986a496a73b961d92acfcd142265a58",
+      "image_path": "data/ad_training_data/images/2025-08/6141_20250811_104146_53245ddd.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6141,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "2922d28105fd",
+      "image_hash": "ce2cf5aaab24f8d9",
+      "image_path": "data/ad_training_data/images/2025-08/6141_20250811_104146_53245ddd.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cbaa091a3545",
+      "image_hash": "4d031153a38f029e775acabaad279cccc95e52d3c142fe0e72e15a27ce0c644f",
+      "image_path": "data/ad_training_data/images/2025-08/5700_20250811_104133_4d031153.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:20",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5700,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "cc914ae8fc80",
+      "image_hash": "baad5702e6ca0912",
+      "image_path": "data/ad_training_data/images/2025-08/5700_20250811_104133_4d031153.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:20",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "55c66b931245",
+      "image_hash": "1d054866d09399a2ba7803e7c5541e4bf65a9d93cc4d47794a0a788841196350",
+      "image_path": "data/ad_training_data/images/2025-08/5699_20250811_104154_1d054866.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5699,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "e2bb5a7e9b98",
+      "image_hash": "47e07bf66e30ccbb",
+      "image_path": "data/ad_training_data/images/2025-08/5699_20250811_104154_1d054866.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "c2be85290592",
+      "image_hash": "e178ab3b9dfd1894f98d22653b21cb728ab34f9a3091b6d06afa69bc9ca72781",
+      "image_path": "data/ad_training_data/images/2025-08/5697_20250811_104203_e178ab3b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5697,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "aa846f3ecba8",
+      "image_hash": "1bcbc532cbd64fd3",
+      "image_path": "data/ad_training_data/images/2025-08/5697_20250811_104203_e178ab3b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "68f7cc9af2a5",
+      "image_hash": "e069827fa78e3b5aa5188baf9306ee3508eb0974135a005229e2c725b7056fa1",
+      "image_path": "data/ad_training_data/images/2025-08/5696_20250811_104214_e069827f.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5696,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "cb5a29672245",
+      "image_hash": "eafb1dd7efbb685f",
+      "image_path": "data/ad_training_data/images/2025-08/5696_20250811_104214_e069827f.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ec35824026ec",
+      "image_hash": "6dcf6c02a55e0edca4ab3dd62dfd22256a0083a62c9f3ac407176fcf84dbd7ae",
+      "image_path": "data/ad_training_data/images/2025-08/5695_20250811_104240_6dcf6c02.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:22",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5695,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "5b726ef94ed5",
+      "image_hash": "1f25a8b966992cba",
+      "image_path": "data/ad_training_data/images/2025-08/5695_20250811_104240_6dcf6c02.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:22",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "07a3e2fb55c1",
+      "image_hash": "49ce51da545c9d5770d1dbfdf6f13ca680c23b3eca91a9485fae6338b4ade836",
+      "image_path": "data/ad_training_data/images/2025-08/5698_20250811_104158_49ce51da.jpg",
+      "ocr_texts": [
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5698,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "dbbe29852609",
+      "image_hash": "ffcecb29e5238f84",
+      "image_path": "data/ad_training_data/images/2025-08/5698_20250811_104158_49ce51da.jpg",
+      "ocr_texts": [
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1d9d7827d4db",
+      "image_hash": "dcd30313285d79201480ddd0fe3e26039b2a95348c91ab10a6e39c8873d2001b",
+      "image_path": "data/ad_training_data/images/2025-08/6058_20250811_131606_dcd30313.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6058,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "dd8a1acfbffd",
+      "image_hash": "1e11992eb21e51d221ede72ee0676430a2a814757f7c02a70fb989226782f3fd",
+      "image_path": "data/ad_training_data/images/2025-08/7646_20250812_192900_1e11992e.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7646,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "feb012dc27de",
+      "image_hash": "002526aaa0ab47f55dbd447a6792b00c2a8b3820c4f12175f3d098e003a373f8",
+      "image_path": "data/ad_training_data/images/2025-08/7643_20250812_192923_002526aa.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7643,
+      "source_channel": "-1002167120993"
+    },
+    {
+      "id": "7281421adeae",
+      "image_hash": "ffab8aef68c50fb92b3d9819f9ef2dd0a69e14714a6ef84cc200dca24e7ca356",
+      "image_path": "data/ad_training_data/images/2025-08/7638_20250812_193945_ffab8aef.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7638,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "1e110662e73d",
+      "image_hash": "ec79f521a82a81c47dd85bd65dab3489084631341e4f0938ec07e1be40fb2215",
+      "image_path": "data/ad_training_data/images/2025-08/5694_20250811_104642_ec79f521.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5694,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "90d861b78778",
+      "image_hash": "4256d8ea0c9f7290",
+      "image_path": "data/ad_training_data/images/2025-08/5694_20250811_104642_ec79f521.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "032994bca6d7",
+      "image_hash": "b745cc3b66fa0454a765b57c07d9a2e3f7d0e5ccca61f865fb42d915420cd911",
+      "image_path": "data/ad_training_data/images/2025-08/7654_20250812_194412_b745cc3b.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7654,
+      "source_channel": "-1002495270592"
+    },
+    {
+      "id": "1c09a1170ee2",
+      "image_hash": "f0376a4f72af3ccddd11b60f071b2a5b45250f20b83e923fc3e1c1a7cf045a88",
+      "image_path": "data/ad_training_data/images/2025-08/7674_20250812_231223_f0376a4f.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7674,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "db61940a1d64",
+      "image_hash": "1b7c93ba2d87f8be7ded8b904b4caa1e6ed0d72d99857dddd9a54e8de98143a0",
+      "image_path": "data/ad_training_data/images/2025-08/7677_20250812_215015_1b7c93ba.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7677,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "6fcb2eefc83f",
+      "image_hash": "0312b677d7cea00d",
+      "image_path": "data/ad_training_data/images/2025-08/7677_20250812_215015_1b7c93ba.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "027ac0e6036c",
+      "image_hash": "a673485b6d1ec4beafe42b6b697e9620196bc3415bdfb1727806336153238bf9",
+      "image_path": "data/ad_training_data/images/2025-08/7607_20250813_001029_a673485b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:25",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7607,
+      "source_channel": "-1001546415661"
+    },
+    {
+      "id": "160e6087066f",
+      "image_hash": "4baa5a2486ae705f",
+      "image_path": "data/ad_training_data/images/2025-08/7607_20250813_001029_a673485b.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:25",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e7d94562b34b",
+      "image_hash": "d801164d2b3ddd48b1a1399049acf0f2fb4bc3fda7eeb83df278b3e86c3d696c",
+      "image_path": "data/ad_training_data/images/2025-08/7663_20250812_201304_d801164d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7663,
+      "source_channel": "-1002662224030"
+    },
+    {
+      "id": "cfb1a6166b4d",
+      "image_hash": "0f877e70f3d79cb9",
+      "image_path": "data/ad_training_data/images/2025-08/7663_20250812_201304_d801164d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "093cbaccd80e",
+      "image_hash": "6a98fbf0c09f8168da42717fdb2790211d1d31405942eec533c4ac5bb5a8c423",
+      "image_path": "data/ad_training_data/images/2025-08/7719_20250813_131559_6a98fbf0.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7719,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "0b88bd0bee70",
+      "image_hash": "ceee24eb9cf56b65",
+      "image_path": "data/ad_training_data/images/2025-08/7719_20250813_131559_6a98fbf0.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "294058360669",
+      "image_hash": "6b96646c8d31d152ae6869d1f75e2a72d7f970b57e9c50cf45e915388d192341",
+      "image_path": "data/ad_training_data/images/2025-08/7788_20250813_151237_6b96646c.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7788,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "85fbebc8bfa5",
+      "image_hash": "7ca15c27cc90eb77",
+      "image_path": "data/ad_training_data/images/2025-08/7788_20250813_151237_6b96646c.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "571fb7bcd532",
+      "image_hash": "27ae975998cbf7f3c7566ebba0a8267c3ceb3ffe3081d0ed99ddcd24fe1c34e5",
+      "image_path": "data/ad_training_data/images/2025-08/7805_20250813_164857_27ae9759.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:37",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7805,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "335ebf6434bc",
+      "image_hash": "4df065b2e0491fb9",
+      "image_path": "data/ad_training_data/images/2025-08/7805_20250813_164857_27ae9759.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:37",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "bdc1dde0f51d",
+      "image_hash": "030a90fd2deb2ef9c48a3ecf3fb7891f5a0e2d402012bc3574af9f6b56c384e7",
+      "image_path": "data/ad_training_data/images/2025-08/7793_20250813_164931_030a90fd.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:37",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7793,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "d2a2668a4beb",
+      "image_hash": "e57b2607db9fef39",
+      "image_path": "data/ad_training_data/images/2025-08/7793_20250813_164931_030a90fd.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:37",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "982be64e0641",
+      "image_hash": "751b14229bbbb1d1184cb4aefb8cec2da3f663a5c711ef914f5f299207f5ce13",
+      "image_path": "data/ad_training_data/images/2025-08/7795_20250813_164918_751b1422.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:39",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7795,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "8c4aacbebf2c",
+      "image_hash": "4695d3d89cabff74",
+      "image_path": "data/ad_training_data/images/2025-08/7795_20250813_164918_751b1422.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:06:39",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "757ceeed603b",
+      "image_hash": "3d50db333f2239a18161eb17a86f43556f9e46ae495c02e4c88fea7f7b0c8baa",
+      "image_path": "data/ad_training_data/images/2025-08/7816_20250813_175722_3d50db33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:06:39",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7816,
+      "source_channel": "-1001956665373"
+    },
+    {
+      "id": "79fa3449f911",
+      "image_hash": "b86ac010b5fa07c8",
+      "image_path": "data/ad_training_data/images/2025-08/7816_20250813_175722_3d50db33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:10:19",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "036412cb9b1a",
+      "image_hash": "b86ac010b5fa07c8",
+      "image_path": "data/ad_training_data/images/2025-08/7816_20250813_175722_3d50db33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:16:03",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d8e12517b62e",
+      "image_hash": "b86ac010b5fa07c8",
+      "image_path": "data/ad_training_data/images/2025-08/7816_20250813_175722_3d50db33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:19:54",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "5c5cac2b947c",
+      "image_hash": "b86ac010b5fa07c8",
+      "image_path": "data/ad_training_data/images/2025-08/7816_20250813_175722_3d50db33.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-14 13:24:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "8e9cc95e0053",
+      "image_hash": "a7fdc84c85b02789",
+      "image_path": "temp_media/8701_20250814_133136_photo.jpg",
+      "ocr_texts": [
+        "POLIC"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:31:39",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "930efc3a712f",
+      "image_hash": "0362b6537aa957b5",
+      "image_path": "temp_media/8703_20250814_133139_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:31:41",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1bcf3f2756dc",
+      "image_hash": "4d4db8ad4cdf38a9",
+      "image_path": "temp_media/8704_20250814_133141_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:31:42",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "8429ee9d10d0",
+      "image_hash": "8e6305e9b7ea4a04",
+      "image_path": "temp_media/8707_20250814_133143_photo.jpg",
+      "ocr_texts": [
+        "HC"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:31:43",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "50e07b1ddd87",
+      "image_hash": "96da092a06e7b0f2",
+      "image_path": "temp_media/8712_20250814_133144_photo.jpg",
+      "ocr_texts": [
+        "园区",
+        "顺达园区0",
+        "宿舍区",
+        "新建园区 顺达园区0",
+        "16334'50.5\"N"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:31:46",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "930f81543018",
+      "image_hash": "26e371024197a2b5",
+      "image_path": "temp_media/8716_20250814_133206_photo.jpg",
+      "ocr_texts": [
+        "81TC01"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:07",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "4e614617190a",
+      "image_hash": "e105fbdcd5094b0d",
+      "image_path": "temp_media/8718_20250814_133214_photo.jpg",
+      "ocr_texts": [
+        "高先生提供贾某某外出买莱画面"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ad265f7eb71e",
+      "image_hash": "031a376472ba13e6",
+      "image_path": "temp_media/8719_20250814_133215_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "19186ab591f2",
+      "image_hash": "32ed22910fd4641e",
+      "image_path": "temp_media/8720_20250814_133215_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ba992cbe2afb",
+      "image_hash": "c5c92ffbd980a829",
+      "image_path": "temp_media/8722_20250814_133218_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:19",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "071566707b25",
+      "image_hash": "e5915b55fd6d1a99",
+      "image_path": "temp_media/8724_20250814_133219_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:19",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "56b777d01e6a",
+      "image_hash": "fa9a0b01d07e67a0",
+      "image_path": "temp_media/8726_20250814_133219_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:20",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "698f9e08581b",
+      "image_hash": "64275bcdb306e6b6",
+      "image_path": "temp_media/8727_20250814_133220_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "44d88fe16460",
+      "image_hash": "6b3eb813ced90f3a",
+      "image_path": "temp_media/8728_20250814_133221_photo.jpg",
+      "ocr_texts": [
+        "Erontline",
+        "2 CREW NG CHINA COAST GUARD;NAPAULAT",
+        "NASAWI SA BAJO DE MASINLOC",
+        "NA"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:32:22",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f3e15d603cef",
+      "image_hash": "8020c7a1e7980e86",
+      "image_path": "temp_media/12854_20250814_133408_photo.jpg",
+      "ocr_texts": [
+        "Google"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:34:11",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "2522530bd6d1",
+      "image_hash": "f12b124d41e55da5",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "平台全面支持U5DT娱乐。安全稳定。充值秒到账",
+        "注册即送$28+$6666",
+        "支持",
+        "tothor",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方客服: @tyGGsvip"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:34:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "8a23b231ae90",
+      "image_hash": "031a376472ba13e6",
+      "image_path": "temp_media/7251_20250814_133441_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:34:41",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "46b48dc3ae33",
+      "image_hash": "6b3eb813ced90f3a",
+      "image_path": "temp_media/7260_20250814_133443_photo.jpg",
+      "ocr_texts": [
+        "Erontline",
+        "2 CREW NG CHINA COAST GUARD;NAPAULAT",
+        "NASAWI SA BAJO DE MASINLOC",
+        "NA"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:34:43",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "faaf07e629c7",
+      "image_hash": "7621eb0d0c64485e2242e856d4a5b09c359eb6d59ebf02dc8eabff55b287476a",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "平台全面支持U5DT娱乐。安全稳定。充值秒到账",
+        "注册即送$28+$6666",
+        "支持",
+        "tothor",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方客服: @tyGGsvip"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:34:55",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5138,
+      "source_channel": "-1001546415661"
+    },
+    {
+      "id": "0371dd91a8e2",
+      "image_hash": "f12b124d41e55da5",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "平台全面支持U5DT娱乐。安全稳定。充值秒到账",
+        "注册即送$28+$6666",
+        "支持",
+        "tothor",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方客服: @tyGGsvip"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:34:55",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "5257e1f9f25d",
+      "image_hash": "e8bea42690c9ba20d603741b5ea25b137a9f87f4e08bbcf88a2dc5bd1a6f24da",
+      "image_path": "data/ad_training_data/images/2025-08/4979_20250810_215635_e8bea426.jpg",
+      "ocr_texts": [
+        "铂莱娱乐场",
+        "ABA",
+        "大额无忧",
+        "注册即享有抽38机会",
+        "首存赠送50%",
+        "2存13存再送7777",
+        "存100送88",
+        "PG电子返1.3%起",
+        "官方客服: @BLKFO",
+        "官方招商:@bolaidaili",
+        "官方频道:@BLzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:34:56",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4979,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "4edb5e397f9b",
+      "image_hash": "c93ea9de3506a2f2",
+      "image_path": "data/ad_training_data/images/2025-08/4979_20250810_215635_e8bea426.jpg",
+      "ocr_texts": [
+        "铂莱娱乐场",
+        "ABA",
+        "大额无忧",
+        "注册即享有抽38机会",
+        "首存赠送50%",
+        "2存13存再送7777",
+        "存100送88",
+        "PG电子返1.3%起",
+        "官方客服: @BLKFO",
+        "官方招商:@bolaidaili",
+        "官方频道:@BLzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:34:56",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d0175201a7ce",
+      "image_hash": "8a976125a5e8b8c832855a42755a36f52c0f41fc6a42fc0eacfb7bd31c79b0ab",
+      "image_path": "data/ad_training_data/images/2025-08/5162_20250810_215635_8a976125.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:34:57",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5162,
+      "source_channel": "-1002829999238"
+    },
+    {
+      "id": "ce749dc214a7",
+      "image_hash": "37f312f7ba598149",
+      "image_path": "data/ad_training_data/images/2025-08/5162_20250810_215635_8a976125.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:34:57",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "43ed2143d9ba",
+      "image_hash": "36c6895b2f9522210bbaee9634fb814fb36c15e793d18cfd5d4036c9367231df",
+      "image_path": "data/ad_training_data/images/2025-08/5149_20250810_215635_36c6895b.jpg",
+      "ocr_texts": [
+        "西港娱乐城",
+        "XIGANG.COM",
+        "XIGANG COM",
+        "创造梦想",
+        "支持",
+        "tether",
+        "无需实名认证",
+        "A",
+        "佣金招代理",
+        "百分百扶持",
+        "官方频道@XGzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: XIGANG.COM",
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:34:57",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5149,
+      "source_channel": "-1002829999238"
+    },
+    {
+      "id": "50d7e4327488",
+      "image_hash": "7c47dda414c037b5",
+      "image_path": "data/ad_training_data/images/2025-08/5149_20250810_215635_36c6895b.jpg",
+      "ocr_texts": [
+        "西港娱乐城",
+        "XIGANG.COM",
+        "XIGANG COM",
+        "创造梦想",
+        "支持",
+        "tether",
+        "无需实名认证",
+        "A",
+        "佣金招代理",
+        "百分百扶持",
+        "官方频道@XGzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: XIGANG.COM",
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:34:57",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b03ac1e593b3",
+      "image_hash": "62aaac33e7692fc431ecb6c2a81d61cd43f1147dee1066fa7c589e7c762ef821",
+      "image_path": "data/ad_training_data/images/2025-08/5172_20250810_215635_62aaac33.jpg",
+      "ocr_texts": [
+        "4",
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "超多兖值渠道",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        ">",
+        "信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正",
+        "超离反水"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:00",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5172,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "e770eb64b46a",
+      "image_hash": "bedbe27f00701536",
+      "image_path": "data/ad_training_data/images/2025-08/5172_20250810_215635_62aaac33.jpg",
+      "ocr_texts": [
+        "4",
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "超多兖值渠道",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        ">",
+        "信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正",
+        "超离反水"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:00",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "3f2fc2f159b8",
+      "image_hash": "079f3f794f01a75b",
+      "image_path": "temp_media/9845_20250814_133458_photo.jpg",
+      "ocr_texts": [
+        "@FAFAI3BKHCS"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "39c554e919cd",
+      "image_hash": "8f1e46b61fe4ce1a",
+      "image_path": "temp_media/9847_20250814_133501_photo.jpg",
+      "ocr_texts": [
+        "WhatsApP"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "a64e0030a615",
+      "image_hash": "edf4dd46b1b0fbf8a872c0353e5cd5f04e8715551df88d274c4e8ed2b29ae245",
+      "image_path": "data/ad_training_data/images/2025-08/4778_20250810_215635_edf4dd46.jpg",
+      "ocr_texts": [
+        "随时随地尽情畅玩!",
+        "老虎机返水99起",
+        "官方客服:@x400",
+        "巅峰代理模式",
+        "官方频道:@xihuzs",
+        "行业领先平台",
+        "西湖娱乐城"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 娱乐城",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4778,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "a3161f313124",
+      "image_hash": "2dd2f0cf28268d6c",
+      "image_path": "data/ad_training_data/images/2025-08/4778_20250810_215635_edf4dd46.jpg",
+      "ocr_texts": [
+        "随时随地尽情畅玩!",
+        "老虎机返水99起",
+        "官方客服:@x400",
+        "巅峰代理模式",
+        "官方频道:@xihuzs",
+        "行业领先平台",
+        "西湖娱乐城"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: 娱乐城",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ae0c4b396bbb",
+      "image_hash": "dae2bd1481cc7bf6c06b211dd2ff0b185e1233ce021a5468dc95ee0ce214a95a",
+      "image_path": "data/ad_training_data/images/2025-08/5035_20250810_215635_dae2bd14.jpg",
+      "ocr_texts": [
+        "以小博大存100送88",
+        "官方客服:@xh400",
+        "巅峰代理模式",
+        "西湖娱乐城"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:35:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5035,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "2baed8ca27b0",
+      "image_hash": "e380c52a72a41b06",
+      "image_path": "data/ad_training_data/images/2025-08/5035_20250810_215635_dae2bd14.jpg",
+      "ocr_texts": [
+        "以小博大存100送88",
+        "官方客服:@xh400",
+        "巅峰代理模式",
+        "西湖娱乐城"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:35:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "485068a2ad1c",
+      "image_hash": "b928b70897c4b122",
+      "image_path": "temp_media/9848_20250814_133502_photo.jpg",
+      "ocr_texts": [
+        "Director CID",
+        "Deputy"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:04",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cb59590351df",
+      "image_hash": "c03a2c695358a770b837cbceb3b2468fc84f55e3ae5fc51732a19cc0a6efcf0d",
+      "image_path": "data/ad_training_data/images/2025-08/5327_20250810_215635_c03a2c69.jpg",
+      "ocr_texts": [
+        "注册即送$28+$6666",
+        "支持",
+        "tether",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方频道: @TYGGGvip"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:05",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5327,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "5e1ce6f242bb",
+      "image_hash": "f75dbfcbbfe2afe9",
+      "image_path": "data/ad_training_data/images/2025-08/5327_20250810_215635_c03a2c69.jpg",
+      "ocr_texts": [
+        "注册即送$28+$6666",
+        "支持",
+        "tether",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方频道: @TYGGGvip"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:05",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "34f9c9c634d0",
+      "image_hash": "17b9b92b1a31a57be2acf58f998887b4dfdb63e78e0ac08a006db3378badec0f",
+      "image_path": "data/ad_training_data/images/2025-08/5037_20250810_215635_17b9b92b.jpg",
+      "ocr_texts": [
+        "首存",
+        "支持视频验资",
+        "尊享",
+        "以小博大",
+        "存100即送88",
+        "每日亿元红包大放送",
+        "大额无忧",
+        "全球畅连  随时随地",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方招商:@jinbeidaili",
+        "官方频道:@JBzhaoshang",
+        "官方客服:@jinbeio7"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:06",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5037,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "d2a9426a2b97",
+      "image_hash": "38f3108cf44d2760",
+      "image_path": "data/ad_training_data/images/2025-08/5037_20250810_215635_17b9b92b.jpg",
+      "ocr_texts": [
+        "首存",
+        "支持视频验资",
+        "尊享",
+        "以小博大",
+        "存100即送88",
+        "每日亿元红包大放送",
+        "大额无忧",
+        "全球畅连  随时随地",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方招商:@jinbeidaili",
+        "官方频道:@JBzhaoshang",
+        "官方客服:@jinbeio7"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:06",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "191e6f291d2a",
+      "image_hash": "7f92cd6b6d066ba3ac9ea45a01d8390f1bfbc990e2c50953e5edbd0ecc39e17b",
+      "image_path": "data/ad_training_data/images/2025-08/4981_20250810_215635_7f92cd6b.jpg",
+      "ocr_texts": [
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        "〉信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:07",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4981,
+      "source_channel": "-1002137718790"
+    },
+    {
+      "id": "b44b65b5d7b5",
+      "image_hash": "b86ac010b5fa07c8",
+      "image_path": "data/ad_training_data/images/2025-08/4981_20250810_215635_7f92cd6b.jpg",
+      "ocr_texts": [
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        "〉信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:07",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9207cda287dd",
+      "image_hash": "c3c772b1e4ffe95e4da853cd1fc86b3d3af80afd81b394754ba66e9d964f1c04",
+      "image_path": "data/ad_training_data/images/2025-08/5368_20250810_215635_c3c772b1.jpg",
+      "ocr_texts": [
+        "即迭",
+        "8888",
+        "100U",
+        "280",
+        "300U",
+        "580",
+        "5OOU",
+        "1380",
+        "1000U",
+        "2380",
+        "5OOOU",
+        "5380",
+        "10000U",
+        "12880",
+        "电子返",
+        "50000U",
+        "30880",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方招商:@KY333V"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5368,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "a16cf2a61ce5",
+      "image_hash": "3e3692f174264488",
+      "image_path": "data/ad_training_data/images/2025-08/5368_20250810_215635_c3c772b1.jpg",
+      "ocr_texts": [
+        "即迭",
+        "8888",
+        "100U",
+        "280",
+        "300U",
+        "580",
+        "5OOU",
+        "1380",
+        "1000U",
+        "2380",
+        "5OOOU",
+        "5380",
+        "10000U",
+        "12880",
+        "电子返",
+        "50000U",
+        "30880",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方招商:@KY333V"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "6a27c5b28738",
+      "image_hash": "e14db67886e60860e708f6c99d4569fdfd6dd096f7c5ea93fb8c82ad6bf9600c",
+      "image_path": "data/ad_training_data/images/2025-08/5353_20250810_215635_e14db678.jpg",
+      "ocr_texts": [
+        "CASINO",
+        "18.VIP KK娱乐城",
+        "新人注册即送",
+        "PG超级好礼赚不停",
+        "电子巅峰排行狂送",
+        "二存三存再送",
+        "邀请好友豪赠",
+        "每日干万红包雨",
+        "代理佣金永久",
+        "官方频道:@KKYL5000",
+        "命运翻牌!  今夜",
+        "赌桌只认你的叫跳!",
+        "入局定乾坤"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: CASINO",
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:35:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5353,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "ad3cf7a15505",
+      "image_hash": "2b2a9a0870f0bcb8",
+      "image_path": "data/ad_training_data/images/2025-08/5353_20250810_215635_e14db678.jpg",
+      "ocr_texts": [
+        "CASINO",
+        "18.VIP KK娱乐城",
+        "新人注册即送",
+        "PG超级好礼赚不停",
+        "电子巅峰排行狂送",
+        "二存三存再送",
+        "邀请好友豪赠",
+        "每日干万红包雨",
+        "代理佣金永久",
+        "官方频道:@KKYL5000",
+        "命运翻牌!  今夜",
+        "赌桌只认你的叫跳!",
+        "入局定乾坤"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: CASINO",
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:35:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "94455084edf6",
+      "image_hash": "885861746cdef8aee24eb5262a7d49bbd1552f97ced22af79a3b3826dd776a0f",
+      "image_path": "data/ad_training_data/images/2025-08/5371_20250810_215635_88586174.jpg",
+      "ocr_texts": [
+        "给我说废话",
+        "00:24"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5371,
+      "source_channel": "-1002062871756"
+    },
+    {
+      "id": "b61f6b0d6c59",
+      "image_hash": "94b465d3e54de13d",
+      "image_path": "data/ad_training_data/images/2025-08/5371_20250810_215635_88586174.jpg",
+      "ocr_texts": [
+        "给我说废话",
+        "00:24"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9332f610b610",
+      "image_hash": "58d9fe8cc3564ff147988ee6fb1575eb359559bbc2aa72d297319e5ac918df20",
+      "image_path": "data/ad_training_data/images/2025-08/5404_20250810_224358_58d9fe8c.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5404,
+      "source_channel": "-1002305901042"
+    },
+    {
+      "id": "81e91d54c3ab",
+      "image_hash": "4e1830b95a7675b1",
+      "image_path": "data/ad_training_data/images/2025-08/5404_20250810_224358_58d9fe8c.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b1dbb86eccd0",
+      "image_hash": "6c378a2096b4bbceba199b75c9b52eda6a88e63222fa13bdf91ff62d8115069a",
+      "image_path": "data/ad_training_data/images/2025-08/4713_20250811_003504_6c378a20.jpg",
+      "ocr_texts": [
+        "优惠第",
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "USDT充值  无需实名  在线娱乐行业龙头  业界NO.1"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 优惠",
+        "文字广告模式: USDT",
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:35:11",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4713,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "52610868fac1",
+      "image_hash": "abba36a2c3087cc9",
+      "image_path": "data/ad_training_data/images/2025-08/4713_20250811_003504_6c378a20.jpg",
+      "ocr_texts": [
+        "优惠第",
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "USDT充值  无需实名  在线娱乐行业龙头  业界NO.1"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 优惠",
+        "文字广告模式: USDT",
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:35:11",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9df4b7a9a52d",
+      "image_hash": "5f93e9c8f51a7a8b05d1811b7791983c25cc0b811c36e53bcce17eec921a5586",
+      "image_path": "data/ad_training_data/images/2025-08/4717_20250811_003556_5f93e9c8.jpg",
+      "ocr_texts": [
+        "CASINO",
+        "18.VIP KK娱乐城",
+        "新人注册即送",
+        "PG超级好礼赚不停",
+        "电子巅峰排行狂送",
+        "二存三存再送",
+        "邀请好友豪赠",
+        "每日干万红包雨",
+        "代理佣金永久",
+        "官方频道:@KKYL5000",
+        "命运翻牌!  今夜",
+        "赌桌只认你的叫跳!",
+        "入局定乾坤"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: CASINO",
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:35:11",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4717,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "f4b2ad02800e",
+      "image_hash": "a4faa7a1e1f782d573c1cb388653cfb738a5c2cd63cc767a33992c5befbe21b4",
+      "image_path": "data/ad_training_data/images/2025-08/6916_20250811_084751_a4faa7a1.jpg",
+      "ocr_texts": [
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        "〉信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:11",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6916,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "feca7f43352c",
+      "image_hash": "d4a135c90a273416bbdfa0dc82eccc8edd3ce598b4b1cbe1c86edac3ee5a9b77",
+      "image_path": "data/ad_training_data/images/2025-08/4714_20250811_003531_d4a135c9.jpg",
+      "ocr_texts": [
+        "西港娱乐城",
+        "XIGANG.COM",
+        "「东南亚大事件」上押担保金额",
+        "200,000USDT",
+        "首存500",
+        "138",
+        "支持",
+        "tether",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "百分百扶持"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: XIGANG.COM",
+        "文字广告模式: 娱乐城",
+        "文字广告模式: USDT"
+      ],
+      "created_at": "2025-08-14 13:35:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4714,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "4776f8d38e33",
+      "image_hash": "06938352d2d4827c",
+      "image_path": "data/ad_training_data/images/2025-08/4714_20250811_003531_d4a135c9.jpg",
+      "ocr_texts": [
+        "西港娱乐城",
+        "XIGANG.COM",
+        "「东南亚大事件」上押担保金额",
+        "200,000USDT",
+        "首存500",
+        "138",
+        "支持",
+        "tether",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "百分百扶持"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: XIGANG.COM",
+        "文字广告模式: 娱乐城",
+        "文字广告模式: USDT"
+      ],
+      "created_at": "2025-08-14 13:35:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "4b5026fddc54",
+      "image_hash": "c60107d9107601595329f1cdff95ca503b426617384ddcf93fcd079eb8f07791",
+      "image_path": "data/ad_training_data/images/2025-08/4715_20250811_003601_c60107d9.jpg",
+      "ocr_texts": [
+        "JINBIANCOM",
+        "博彩担保.信誉平台",
+        "金边娱乐城官方网址:jbiancom"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 博彩",
+        "文字广告模式: 娱乐城",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:35:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 4715,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "81e064d6bf9b",
+      "image_hash": "28245f79c7371406",
+      "image_path": "data/ad_training_data/images/2025-08/4715_20250811_003601_c60107d9.jpg",
+      "ocr_texts": [
+        "JINBIANCOM",
+        "博彩担保.信誉平台",
+        "金边娱乐城官方网址:jbiancom"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 博彩",
+        "文字广告模式: 娱乐城",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:35:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ac72d6305fdd",
+      "image_hash": "b216e0bbbf179131b61ae0289ec0cfdf16b8cc7a51b0de12f0f4934f8b3db2c3",
+      "image_path": "data/ad_training_data/images/2025-08/6624_20250811_084802_b216e0bb.jpg",
+      "ocr_texts": [
+        "唯-飞机:"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:14",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6624,
+      "source_channel": "-1002373762238"
+    },
+    {
+      "id": "dc30f5c7c157",
+      "image_hash": "cdb3485306d942f8",
+      "image_path": "data/ad_training_data/images/2025-08/6624_20250811_084802_b216e0bb.jpg",
+      "ocr_texts": [
+        "唯-飞机:"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:14",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "2e3da07eaffb",
+      "image_hash": "1db2589887f6ae4ad38f0cc134d1800c03ef3f940af5ed03c85594a380315c41",
+      "image_path": "data/ad_training_data/images/2025-08/5763_20250811_103756_1db25898.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5763,
+      "source_channel": "-1001153220419"
+    },
+    {
+      "id": "621edbceadff",
+      "image_hash": "d7b7b1663ba0e86b",
+      "image_path": "data/ad_training_data/images/2025-08/5763_20250811_103756_1db25898.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "02eabe3f3f07",
+      "image_hash": "f95dd50d065a401d60b449e252bb1c2c7750f5802ba65f327035481849eb5e1b",
+      "image_path": "data/ad_training_data/images/2025-08/5704_20250811_103900_f95dd50d.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5704,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "967a1620c04a",
+      "image_hash": "5c38419427258de7",
+      "image_path": "data/ad_training_data/images/2025-08/5704_20250811_103900_f95dd50d.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "3e3f5267868c",
+      "image_hash": "11f87c200a8826123b4b1b6f50eb48cc428ff7ce7cd1da82af9b108f9f4efe86",
+      "image_path": "data/ad_training_data/images/2025-08/5701_20250811_104118_11f87c20.jpg",
+      "ocr_texts": [
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "存",
+        "电子大奖爆不停海外华人终极VP殿堂",
+        "赠送"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:16",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5701,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "b9794a9e5814",
+      "image_hash": "d637aeaef21df2ed",
+      "image_path": "data/ad_training_data/images/2025-08/5701_20250811_104118_11f87c20.jpg",
+      "ocr_texts": [
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "存",
+        "电子大奖爆不停海外华人终极VP殿堂",
+        "赠送"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:16",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "bd1182a4d666",
+      "image_hash": "4d031153a38f029e775acabaad279cccc95e52d3c142fe0e72e15a27ce0c644f",
+      "image_path": "data/ad_training_data/images/2025-08/5700_20250811_104133_4d031153.jpg",
+      "ocr_texts": [
+        "8888",
+        "280",
+        "3000",
+        "580",
+        "全网最高",
+        "5OOU",
+        "1380",
+        "2390",
+        "5OOOU",
+        "5300",
+        "10000U",
+        "12890",
+        "电子返",
+        "30990",
+        "No 大颧无忧",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方频道:@KY33VI"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5700,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "25dab52cf30c",
+      "image_hash": "baad5702e6ca0912",
+      "image_path": "data/ad_training_data/images/2025-08/5700_20250811_104133_4d031153.jpg",
+      "ocr_texts": [
+        "8888",
+        "280",
+        "3000",
+        "580",
+        "全网最高",
+        "5OOU",
+        "1380",
+        "2390",
+        "5OOOU",
+        "5300",
+        "10000U",
+        "12890",
+        "电子返",
+        "30990",
+        "No 大颧无忧",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方频道:@KY33VI"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "7d432405d84a",
+      "image_hash": "53245ddd88d6d1bc2c5dd0e06e8d00e1e986a496a73b961d92acfcd142265a58",
+      "image_path": "data/ad_training_data/images/2025-08/6141_20250811_104146_53245ddd.jpg",
+      "ocr_texts": [
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        "〉信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6141,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "19282f574280",
+      "image_hash": "ce2cf5aaab24f8d9",
+      "image_path": "data/ad_training_data/images/2025-08/6141_20250811_104146_53245ddd.jpg",
+      "ocr_texts": [
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        "〉信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "78e7ec76062e",
+      "image_hash": "f2b5c22c6ce519d5",
+      "image_path": "temp_media/42985_20250814_133511_photo.jpg",
+      "ocr_texts": [
+        "BREAKING NEWS"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:19",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e626ada15c8e",
+      "image_hash": "49ce51da545c9d5770d1dbfdf6f13ca680c23b3eca91a9485fae6338b4ade836",
+      "image_path": "data/ad_training_data/images/2025-08/5698_20250811_104158_49ce51da.jpg",
+      "ocr_texts": [
+        "|铂莱娱乐场",
+        "大额无忧",
+        "代理佣金",
+        "首存赠送7777",
+        "2存13存再送7777",
+        "存100送88",
+        "无论在哪都能随时娱乐!",
+        "官方客服: @BLKFO",
+        "官方频道:@BLzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:20",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5698,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "7e1222d7dd84",
+      "image_hash": "ffcecb29e5238f84",
+      "image_path": "data/ad_training_data/images/2025-08/5698_20250811_104158_49ce51da.jpg",
+      "ocr_texts": [
+        "|铂莱娱乐场",
+        "大额无忧",
+        "代理佣金",
+        "首存赠送7777",
+        "2存13存再送7777",
+        "存100送88",
+        "无论在哪都能随时娱乐!",
+        "官方客服: @BLKFO",
+        "官方频道:@BLzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:20",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "254ede70abe4",
+      "image_hash": "1d054866d09399a2ba7803e7c5541e4bf65a9d93cc4d47794a0a788841196350",
+      "image_path": "data/ad_training_data/images/2025-08/5699_20250811_104154_1d054866.jpg",
+      "ocr_texts": [
+        "CASINO",
+        "18.VIP KK娱乐城",
+        "PG超级好礼赚不停",
+        "电孑巅峰排行狂送",
+        "二存三存再送",
+        "邀请好友豪赠",
+        "每曰干万红包雨",
+        "代理佣金永久",
+        "官方客服:@KKYL8000",
+        "官方频道:@KKYL5000",
+        "指尖一推;"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: CASINO",
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:35:20",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5699,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "c3506fddf83b",
+      "image_hash": "47e07bf66e30ccbb",
+      "image_path": "data/ad_training_data/images/2025-08/5699_20250811_104154_1d054866.jpg",
+      "ocr_texts": [
+        "CASINO",
+        "18.VIP KK娱乐城",
+        "PG超级好礼赚不停",
+        "电孑巅峰排行狂送",
+        "二存三存再送",
+        "邀请好友豪赠",
+        "每曰干万红包雨",
+        "代理佣金永久",
+        "官方客服:@KKYL8000",
+        "官方频道:@KKYL5000",
+        "指尖一推;"
+      ],
+      "qr_codes": [],
+      "ad_score": 20.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: CASINO",
+        "文字广告模式: 娱乐城"
+      ],
+      "created_at": "2025-08-14 13:35:20",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "184971627df3",
+      "image_hash": "e178ab3b9dfd1894f98d22653b21cb728ab34f9a3091b6d06afa69bc9ca72781",
+      "image_path": "data/ad_training_data/images/2025-08/5697_20250811_104203_e178ab3b.jpg",
+      "ocr_texts": [
+        "支持视频验资",
+        "全网最高",
+        "以小博大",
+        "实时返水",
+        "S%",
+        "存100即送88",
+        "天天首存尊享",
+        "每日亿元红包大放送",
+        "15%加赠",
+        "每日抢不停",
+        "大额无忧",
+        "全球畅连  随时随地",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "55",
+        "官方招商;@jinbeidaili",
+        "官方频道;@JBzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5697,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "878610f54e39",
+      "image_hash": "1bcbc532cbd64fd3",
+      "image_path": "data/ad_training_data/images/2025-08/5697_20250811_104203_e178ab3b.jpg",
+      "ocr_texts": [
+        "支持视频验资",
+        "全网最高",
+        "以小博大",
+        "实时返水",
+        "S%",
+        "存100即送88",
+        "天天首存尊享",
+        "每日亿元红包大放送",
+        "15%加赠",
+        "每日抢不停",
+        "大额无忧",
+        "全球畅连  随时随地",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "55",
+        "官方招商;@jinbeidaili",
+        "官方频道;@JBzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "363dd02a6d65",
+      "image_hash": "e069827fa78e3b5aa5188baf9306ee3508eb0974135a005229e2c725b7056fa1",
+      "image_path": "data/ad_training_data/images/2025-08/5696_20250811_104214_e069827f.jpg",
+      "ocr_texts": [
+        "东南亚首创",
+        "P628COM",
+        "UDST 1:1",
+        "投注娱乐",
+        "佣金招代理",
+        "支持",
+        "tether",
+        "百分百扶持",
+        "9%起",
+        "招商专员@PG28net",
+        "官方频道@PG28zhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5696,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "ab47b90200aa",
+      "image_hash": "eafb1dd7efbb685f",
+      "image_path": "data/ad_training_data/images/2025-08/5696_20250811_104214_e069827f.jpg",
+      "ocr_texts": [
+        "东南亚首创",
+        "P628COM",
+        "UDST 1:1",
+        "投注娱乐",
+        "佣金招代理",
+        "支持",
+        "tether",
+        "百分百扶持",
+        "9%起",
+        "招商专员@PG28net",
+        "官方频道@PG28zhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cb570f800159",
+      "image_hash": "de7aab90d7fae1a3",
+      "image_path": "temp_media/42986_20250814_133519_photo.jpg",
+      "ocr_texts": [
+        "Deputy Director CID",
+        "NRA"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cedc96d7471c",
+      "image_hash": "6dcf6c02a55e0edca4ab3dd62dfd22256a0083a62c9f3ac407176fcf84dbd7ae",
+      "image_path": "data/ad_training_data/images/2025-08/5695_20250811_104240_6dcf6c02.jpg",
+      "ocr_texts": [
+        "JINBIANCOM",
+        "博彩担保.信誉平台",
+        "金边娱乐城官方网址:jibiancom"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 博彩",
+        "文字广告模式: 娱乐城",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:35:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5695,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "e7419a42324e",
+      "image_hash": "1f25a8b966992cba",
+      "image_path": "data/ad_training_data/images/2025-08/5695_20250811_104240_6dcf6c02.jpg",
+      "ocr_texts": [
+        "JINBIANCOM",
+        "博彩担保.信誉平台",
+        "金边娱乐城官方网址:jibiancom"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 博彩",
+        "文字广告模式: 娱乐城",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:35:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9a83e00c39f6",
+      "image_hash": "dcd30313285d79201480ddd0fe3e26039b2a95348c91ab10a6e39c8873d2001b",
+      "image_path": "data/ad_training_data/images/2025-08/6058_20250811_131606_dcd30313.jpg",
+      "ocr_texts": [
+        "注册即送$28+$6666",
+        "支持",
+        "tether",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方频道: @TYGGGvip"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:25",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 6058,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "d64bd763dfe2",
+      "image_hash": "1e11992eb21e51d221ede72ee0676430a2a814757f7c02a70fb989226782f3fd",
+      "image_path": "data/ad_training_data/images/2025-08/7646_20250812_192900_1e11992e.jpg",
+      "ocr_texts": [
+        "JINBIANCOM",
+        "博彩担保.信誉平台",
+        "金边娱乐城官方网址:jbiancom"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 博彩",
+        "文字广告模式: 娱乐城",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-14 13:35:25",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7646,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "face6e2d5642",
+      "image_hash": "002526aaa0ab47f55dbd447a6792b00c2a8b3820c4f12175f3d098e003a373f8",
+      "image_path": "data/ad_training_data/images/2025-08/7643_20250812_192923_002526aa.jpg",
+      "ocr_texts": [
+        "即迭",
+        "8888",
+        "100U",
+        "280",
+        "300U",
+        "580",
+        "5OOU",
+        "1380",
+        "1000U",
+        "2380",
+        "5OOOU",
+        "5380",
+        "10000U",
+        "12880",
+        "电子返",
+        "50000U",
+        "30880",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方招商:@KY333V"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:25",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7643,
+      "source_channel": "-1002167120993"
+    },
+    {
+      "id": "3d229162b026",
+      "image_hash": "ffab8aef68c50fb92b3d9819f9ef2dd0a69e14714a6ef84cc200dca24e7ca356",
+      "image_path": "data/ad_training_data/images/2025-08/7638_20250812_193945_ffab8aef.jpg",
+      "ocr_texts": [
+        "8888",
+        "280",
+        "3000",
+        "580",
+        "全网最高",
+        "5OOU",
+        "1380",
+        "2390",
+        "5OOOU",
+        "5300",
+        "10000U",
+        "12890",
+        "电子返",
+        "30990",
+        "No 大颧无忧",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方频道:@KY33VI"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:25",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7638,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "5e7dbd70db6a",
+      "image_hash": "ec79f521a82a81c47dd85bd65dab3489084631341e4f0938ec07e1be40fb2215",
+      "image_path": "data/ad_training_data/images/2025-08/5694_20250811_104642_ec79f521.jpg",
+      "ocr_texts": [
+        "西港娱乐城",
+        "东南亚首创",
+        "XIGANG.COM",
+        "XIGANG COM",
+        "1USDT 投注娱乐",
+        "首存500送881",
+        "创造梦想",
+        "支持",
+        "tether",
+        "1.3%起",
+        "佣金招代理",
+        "百分百扶持",
+        "官方频道@XGzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: XIGANG.COM",
+        "文字广告模式: 娱乐城",
+        "文字广告模式: USDT"
+      ],
+      "created_at": "2025-08-14 13:35:26",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 5694,
+      "source_channel": "-1001397840771"
+    },
+    {
+      "id": "ac776f42fc6a",
+      "image_hash": "4256d8ea0c9f7290",
+      "image_path": "data/ad_training_data/images/2025-08/5694_20250811_104642_ec79f521.jpg",
+      "ocr_texts": [
+        "西港娱乐城",
+        "东南亚首创",
+        "XIGANG.COM",
+        "XIGANG COM",
+        "1USDT 投注娱乐",
+        "首存500送881",
+        "创造梦想",
+        "支持",
+        "tether",
+        "1.3%起",
+        "佣金招代理",
+        "百分百扶持",
+        "官方频道@XGzhaoshang"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: XIGANG.COM",
+        "文字广告模式: 娱乐城",
+        "文字广告模式: USDT"
+      ],
+      "created_at": "2025-08-14 13:35:26",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "17888e369d2a",
+      "image_hash": "26e371024197a2b5",
+      "image_path": "temp_media/42987_20250814_133524_photo.jpg",
+      "ocr_texts": [
+        "81TC01"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:26",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1b7085e08497",
+      "image_hash": "b745cc3b66fa0454a765b57c07d9a2e3f7d0e5ccca61f865fb42d915420cd911",
+      "image_path": "data/ad_training_data/images/2025-08/7654_20250812_194412_b745cc3b.jpg",
+      "ocr_texts": [
+        "即迭",
+        "8888",
+        "100U",
+        "280",
+        "300U",
+        "580",
+        "5OOU",
+        "1380",
+        "1000U",
+        "2380",
+        "5OOOU",
+        "5380",
+        "10000U",
+        "12880",
+        "电子返",
+        "50000U",
+        "30880",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方招商:@KY333V"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:26",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7654,
+      "source_channel": "-1002495270592"
+    },
+    {
+      "id": "cc9d40a9b820",
+      "image_hash": "f0376a4f72af3ccddd11b60f071b2a5b45250f20b83e923fc3e1c1a7cf045a88",
+      "image_path": "data/ad_training_data/images/2025-08/7674_20250812_231223_f0376a4f.jpg",
+      "ocr_texts": [
+        "即迭",
+        "8888",
+        "100U",
+        "280",
+        "300U",
+        "580",
+        "5OOU",
+        "1380",
+        "1000U",
+        "2380",
+        "5OOOU",
+        "5380",
+        "10000U",
+        "12880",
+        "电子返",
+        "50000U",
+        "30880",
+        "代理佣金",
+        "尽享顶级娱乐体验",
+        "永久扶持",
+        "官方招商:@KY333V"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:26",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7674,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "09b70b934d84",
+      "image_hash": "d801164d2b3ddd48b1a1399049acf0f2fb4bc3fda7eeb83df278b3e86c3d696c",
+      "image_path": "data/ad_training_data/images/2025-08/7663_20250812_201304_d801164d.jpg",
+      "ocr_texts": [
+        "新币娱乐",
+        "XINBT.ME",
+        "客服专员:",
+        "代理专员: @DAILIXW"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: XINBT.ME"
+      ],
+      "created_at": "2025-08-14 13:35:30",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7663,
+      "source_channel": "-1002662224030"
+    },
+    {
+      "id": "73a6133079bc",
+      "image_hash": "0f877e70f3d79cb9",
+      "image_path": "data/ad_training_data/images/2025-08/7663_20250812_201304_d801164d.jpg",
+      "ocr_texts": [
+        "新币娱乐",
+        "XINBT.ME",
+        "客服专员:",
+        "代理专员: @DAILIXW"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: XINBT.ME"
+      ],
+      "created_at": "2025-08-14 13:35:30",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1bea135e4f0c",
+      "image_hash": "1b7c93ba2d87f8be7ded8b904b4caa1e6ed0d72d99857dddd9a54e8de98143a0",
+      "image_path": "data/ad_training_data/images/2025-08/7677_20250812_215015_1b7c93ba.jpg",
+      "ocr_texts": [
+        "RETOYBPORT"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7677,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "a70f7b1778c1",
+      "image_hash": "0312b677d7cea00d",
+      "image_path": "data/ad_training_data/images/2025-08/7677_20250812_215015_1b7c93ba.jpg",
+      "ocr_texts": [
+        "RETOYBPORT"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9bf3e6e81050",
+      "image_hash": "a673485b6d1ec4beafe42b6b697e9620196bc3415bdfb1727806336153238bf9",
+      "image_path": "data/ad_training_data/images/2025-08/7607_20250813_001029_a673485b.jpg",
+      "ocr_texts": [
+        "服务第一",
+        "优惠第",
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "电子大奖爆不停海外华人终极V殿堂",
+        "USDT充值  无需实名  在线娱乐行业龙头  业界NO.1"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 优惠",
+        "文字广告模式: USDT",
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:35:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7607,
+      "source_channel": "-1001546415661"
+    },
+    {
+      "id": "2fab25f3bca5",
+      "image_hash": "4baa5a2486ae705f",
+      "image_path": "data/ad_training_data/images/2025-08/7607_20250813_001029_a673485b.jpg",
+      "ocr_texts": [
+        "服务第一",
+        "优惠第",
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "电子大奖爆不停海外华人终极V殿堂",
+        "USDT充值  无需实名  在线娱乐行业龙头  业界NO.1"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 优惠",
+        "文字广告模式: USDT",
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:35:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "dac5712d1117",
+      "image_hash": "6a98fbf0c09f8168da42717fdb2790211d1d31405942eec533c4ac5bb5a8c423",
+      "image_path": "data/ad_training_data/images/2025-08/7719_20250813_131559_6a98fbf0.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:32",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7719,
+      "source_channel": "-1001567533819"
+    },
+    {
+      "id": "d30ab345068f",
+      "image_hash": "ceee24eb9cf56b65",
+      "image_path": "data/ad_training_data/images/2025-08/7719_20250813_131559_6a98fbf0.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:32",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "a3dc99dd1979",
+      "image_hash": "27ae975998cbf7f3c7566ebba0a8267c3ceb3ffe3081d0ed99ddcd24fe1c34e5",
+      "image_path": "data/ad_training_data/images/2025-08/7805_20250813_164857_27ae9759.jpg",
+      "ocr_texts": [
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "电子大奖爆不停海外华人终极VP殿堂"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:34",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7805,
+      "source_channel": "-1002104628852"
+    },
+    {
+      "id": "c01ff1647b47",
+      "image_hash": "4df065b2e0491fb9",
+      "image_path": "data/ad_training_data/images/2025-08/7805_20250813_164857_27ae9759.jpg",
+      "ocr_texts": [
+        "招商专员: @TGDL9999",
+        "官方频道@TGYLCzhaoshang",
+        "电子大奖爆不停海外华人终极VP殿堂"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:34",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d4d1d3667fa5",
+      "image_hash": "6b96646c8d31d152ae6869d1f75e2a72d7f970b57e9c50cf45e915388d192341",
+      "image_path": "data/ad_training_data/images/2025-08/7788_20250813_151237_6b96646c.jpg",
+      "ocr_texts": [
+        "人飞 机",
+        "业务即"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7788,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "cdf4ddeb45f3",
+      "image_hash": "7ca15c27cc90eb77",
+      "image_path": "data/ad_training_data/images/2025-08/7788_20250813_151237_6b96646c.jpg",
+      "ocr_texts": [
+        "人飞 机",
+        "业务即"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1598abf238db",
+      "image_hash": "030a90fd2deb2ef9c48a3ecf3fb7891f5a0e2d402012bc3574af9f6b56c384e7",
+      "image_path": "data/ad_training_data/images/2025-08/7793_20250813_164931_030a90fd.jpg",
+      "ocr_texts": [
+        "官方直营",
+        "929"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": true,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7793,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "9bfc948ec3a2",
+      "image_hash": "e57b2607db9fef39",
+      "image_path": "data/ad_training_data/images/2025-08/7793_20250813_164931_030a90fd.jpg",
+      "ocr_texts": [
+        "官方直营",
+        "929"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "bf6bb157aa8a",
+      "image_hash": "751b14229bbbb1d1184cb4aefb8cec2da3f663a5c711ef914f5f299207f5ce13",
+      "image_path": "data/ad_training_data/images/2025-08/7795_20250813_164918_751b1422.jpg",
+      "ocr_texts": [
+        "选择我们,不只是赢,而是稳赢!",
+        "累计出款超8亿0",
+        "零审核大额无忧",
+        "注册即可领取28.80",
+        "电子能暴富",
+        "首存最高赠送",
+        "PA下重注",
+        "88880",
+        "捕鱼枪炮准",
+        "棋牌把把胜",
+        "充值笔笔存笔笔送3%",
+        "0审核 秒到账 免实名",
+        "充提渠道:",
+        "IN@"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 棋牌",
+        "文字广告模式: 出款",
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:35:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7795,
+      "source_channel": "-1001548749089"
+    },
+    {
+      "id": "d2d02e26c568",
+      "image_hash": "4695d3d89cabff74",
+      "image_path": "data/ad_training_data/images/2025-08/7795_20250813_164918_751b1422.jpg",
+      "ocr_texts": [
+        "选择我们,不只是赢,而是稳赢!",
+        "累计出款超8亿0",
+        "零审核大额无忧",
+        "注册即可领取28.80",
+        "电子能暴富",
+        "首存最高赠送",
+        "PA下重注",
+        "88880",
+        "捕鱼枪炮准",
+        "棋牌把把胜",
+        "充值笔笔存笔笔送3%",
+        "0审核 秒到账 免实名",
+        "充提渠道:",
+        "IN@"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 棋牌",
+        "文字广告模式: 出款",
+        "文字广告模式: 充值"
+      ],
+      "created_at": "2025-08-14 13:35:35",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "154378319032",
+      "image_hash": "3d50db333f2239a18161eb17a86f43556f9e46ae495c02e4c88fea7f7b0c8baa",
+      "image_path": "data/ad_training_data/images/2025-08/7816_20250813_175722_3d50db33.jpg",
+      "ocr_texts": [
+        "93.CC",
+        "全网最高返水",
+        "干万秒出",
+        "多种游戏选择",
+        "无私彩痛快玩",
+        "实力平台",
+        ">",
+        "时时返水",
+        ">",
+        "大额无忧",
+        "〉信誉之上",
+        ">",
+        "逢赌必赢",
+        "地址高达两亿0现金储备",
+        "服务好  提款快  公平公正"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 提款",
+        "文字广告模式: 返水",
+        "文字广告模式: 返水"
+      ],
+      "created_at": "2025-08-14 13:35:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": 7816,
+      "source_channel": "-1001956665373"
+    },
+    {
+      "id": "0d7d01837a78",
+      "image_hash": "5259cd0a73252604",
+      "image_path": "temp_media/39509_20250814_133534_photo.jpg",
+      "ocr_texts": [
+        "81TC01"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 13:35:38",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -127,12 +4867,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 3,
-    "ad_samples": 3,
-    "non_ad_samples": 0,
+    "total_samples": 208,
+    "ad_samples": 156,
+    "non_ad_samples": 52,
     "auto_rejected_samples": 3,
-    "high_score_samples": 3,
-    "last_updated": "2025-08-14 12:59:58",
+    "high_score_samples": 100,
+    "last_updated": "2025-08-14 13:35:38",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",

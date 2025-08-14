@@ -68,9 +68,20 @@ class OCRService:
             from PIL import Image
             import numpy as np
             
-            # 标记为已初始化 - 我们将使用基于图像处理的文字检测
+            # 尝试初始化EasyOCR进行真实文字识别
+            try:
+                self._initialize_easyocr()
+                if self.ocr_reader is not None:
+                    logger.info("✅ OCR服务初始化成功 (使用EasyOCR真实文字识别)")
+                    self.initialized = True
+                    return
+            except Exception as e:
+                logger.warning(f"⚠️ EasyOCR初始化失败，降级到图像特征分析: {e}")
+            
+            # 如果EasyOCR初始化失败，标记为已初始化但使用图像特征分析
             self.initialized = True
-            logger.info("✅ OCR服务初始化成功 (使用图像处理方案)")
+            logger.info("✅ OCR服务初始化成功 (使用图像特征分析)")
+            
         except ImportError as e:
             logger.warning(f"⚠️ OCR依赖缺失: {e}")
             self.initialized = False
@@ -83,11 +94,53 @@ class OCRService:
         return hashlib.md5(image_data).hexdigest()[:16]
     
     def _extract_text_sync(self, image_path: str) -> List[str]:
-        """同步提取图片文字（使用图像处理分析）"""
+        """同步提取图片文字（使用EasyOCR真实文字识别）"""
         try:
-            if not self.initialized:
-                return []
+            # 检查OCR是否初始化且EasyOCR可用
+            if not self.initialized or self.ocr_reader is None:
+                logger.warning("OCR未初始化或EasyOCR不可用，使用图像特征分析")
+                return self._extract_text_features_fallback(image_path)
             
+            # 使用EasyOCR进行真实文字识别
+            try:
+                result = self.ocr_reader.readtext(image_path)
+                
+                # 提取识别到的文字
+                texts = []
+                for bbox, text, confidence in result:
+                    # 过滤置信度太低的结果
+                    if confidence > 0.5 and text.strip():
+                        texts.append(text.strip())
+                
+                logger.debug(f"EasyOCR识别到 {len(texts)} 个文字: {texts}")
+                return texts
+                
+            except Exception as e:
+                logger.error(f"EasyOCR文字识别失败: {e}")
+                # 如果EasyOCR失败，使用图像特征分析作为回退
+                return self._extract_text_features_fallback(image_path)
+                
+        except Exception as e:
+            logger.error(f"文字提取失败: {e}")
+            return []
+    
+    def _initialize_easyocr(self):
+        """初始化EasyOCR"""
+        try:
+            import easyocr
+            if self.ocr_reader is None:
+                logger.info("正在初始化EasyOCR（支持中英文识别）...")
+                # 创建中英文OCR识别器，gpu=False确保兼容性
+                self.ocr_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False)
+                logger.info("EasyOCR初始化成功")
+            self.initialized = True
+        except Exception as e:
+            logger.error(f"EasyOCR初始化失败: {e}")
+            self.initialized = False
+    
+    def _extract_text_features_fallback(self, image_path: str) -> List[str]:
+        """回退方案：使用图像特征分析（原方法）"""
+        try:
             from PIL import Image
             import numpy as np
             
