@@ -20,7 +20,6 @@ const app = createApp({
             // 统计
             totalSamples: 0,
             validSamples: 0,
-            samplesWithSeparator: 0,
             todayAdded: 0,
             
             // 对话框
@@ -69,8 +68,7 @@ const app = createApp({
                     // 搜索内容、描述和尾部内容
                     return (sample.content && sample.content.toLowerCase().includes(searchLower)) ||
                            (sample.description && sample.description.toLowerCase().includes(searchLower)) ||
-                           (sample.tail_part && sample.tail_part.toLowerCase().includes(searchLower)) ||
-                           (sample.separator && sample.separator.toLowerCase().includes(searchLower));
+                           (sample.tail_part && sample.tail_part.toLowerCase().includes(searchLower));
                 });
             }
             
@@ -87,7 +85,6 @@ const app = createApp({
         calculateStats() {
             this.totalSamples = this.allSamples.length;
             this.validSamples = this.allSamples.filter(s => s.content && s.tail_part).length;
-            this.samplesWithSeparator = this.allSamples.filter(s => s.separator).length;
             
             // 计算今日新增
             const today = new Date().toISOString().split('T')[0];

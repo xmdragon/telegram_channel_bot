@@ -678,7 +678,10 @@ async def refetch_media(
                 }
         
         # 检查Telegram客户端
-        if not telegram_bot.client or not telegram_bot.client.is_connected():
+        from app.telegram.client_manager import client_manager
+        client = await client_manager.get_client()
+        
+        if not client or not client.is_connected():
             return {
                 "success": False,
                 "message": "Telegram客户端未连接"
@@ -687,8 +690,8 @@ async def refetch_media(
         # 获取原始消息
         try:
             # 尝试从源频道获取消息
-            source_entity = await telegram_bot.client.get_entity(message.source_channel)
-            original_msg = await telegram_bot.client.get_messages(
+            source_entity = await client.get_entity(int(message.source_channel))
+            original_msg = await client.get_messages(
                 entity=source_entity,
                 ids=message.message_id
             )
@@ -702,8 +705,9 @@ async def refetch_media(
             # 下载媒体文件
             logger.info(f"开始补抓消息 #{message_id} 的媒体文件")
             
+            from app.services.media_handler import media_handler
             media_info = await media_handler.download_media(
-                client=telegram_bot.client,
+                client=client,
                 message=original_msg,
                 message_id=message.id,
                 timeout=120.0  # 给更长的超时时间
@@ -856,12 +860,50 @@ async def filter_message_tail(
             message.filtered_content = filtered_content
             await db.commit()
             
-            # 让AI学习用户的过滤操作
-            await smart_tail_filter.learn_from_user_filter(
-                message.source_channel,
-                original_content,
-                filtered_content
-            )
+            # 保存尾部训练数据到文件
+            if removed_tail:
+                import json
+                from datetime import datetime
+                from app.core.training_config import TrainingDataConfig
+                
+                # 加载现有数据
+                tail_file = str(TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE)
+                try:
+                    with open(tail_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        samples = data.get('samples', [])
+                except:
+                    samples = []
+                
+                # 简化的样本结构 - 只保留尾部
+                new_sample = {
+                    "id": len(samples) + 1,
+                    "tail_part": removed_tail,  # 只保留尾部内容
+                    "created_at": datetime.now().isoformat()
+                }
+                samples.append(new_sample)
+                
+                # 保存更新后的数据
+                with open(tail_file, 'w', encoding='utf-8') as f:
+                    json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
+                
+                # 自动学习已禁用，只保存样本到文件，不触发智能学习
+                # 智能学习仅通过用户手动训练触发
+                logger.info(f"已保存尾部训练数据（自动学习已禁用）")
+            
+            # 广播消息更新到WebSocket客户端
+            try:
+                from app.api.websocket import websocket_manager
+                # 构建更新的消息数据
+                message_data = {
+                    "id": message.id,
+                    "filtered_content": filtered_content,
+                    "updated_at": message.updated_at.isoformat() if message.updated_at else None
+                }
+                await websocket_manager.broadcast_message_update(message.id, message_data)
+                logger.info(f"已广播消息 {message_id} 的更新到WebSocket客户端")
+            except Exception as e:
+                logger.debug(f"广播消息更新失败: {e}")
             
             logger.info(f"消息 {message_id} 尾部过滤成功，移除了 {len(removed_tail)} 个字符")
             
@@ -910,3 +952,68 @@ async def test_broadcast(message_data: dict):
         "message": f"消息已广播到 {num_connections} 个WebSocket连接",
         "connections": num_connections
     }
+
+
+@router.post("/{message_id}/refilter")
+async def refilter_message(
+    message_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: Admin = Depends(check_permission("messages.edit"))
+):
+    """重新过滤消息内容（使用最新的训练数据）"""
+    result = await db.execute(
+        select(Message).where(Message.id == message_id)
+    )
+    message = result.scalar_one_or_none()
+    
+    if not message:
+        raise HTTPException(status_code=404, detail="消息不存在")
+    
+    if not message.content:
+        return {"success": False, "message": "消息内容为空"}
+    
+    try:
+        # 使用intelligent_tail_filter重新过滤
+        from app.services.intelligent_tail_filter import intelligent_tail_filter
+        from app.services.content_filter import content_filter
+        
+        # 强制重新加载最新训练数据
+        intelligent_tail_filter._load_training_data(force_reload=True)
+        
+        # 应用完整的过滤流程
+        filtered_content = content_filter.filter_promotional_content(
+            message.content,
+            channel_id=str(message.source_channel) if message.source_channel else None
+        )
+        
+        # 记录过滤效果
+        original_len = len(message.content)
+        filtered_len = len(filtered_content)
+        
+        # 更新数据库
+        message.filtered_content = filtered_content
+        await db.commit()
+        
+        logger.info(f"消息 {message_id} 重新过滤完成: {original_len} -> {filtered_len} 字符")
+        
+        # 如果有审核群消息ID，尝试更新审核群中的消息
+        if message.review_message_id:
+            try:
+                from app.telegram.bot import telegram_bot
+                if telegram_bot and telegram_bot.client:
+                    await telegram_bot.update_review_message(message)
+                    logger.info(f"审核群消息 {message.review_message_id} 已更新")
+            except Exception as e:
+                logger.error(f"更新审核群消息失败: {e}")
+        
+        return {
+            "success": True,
+            "message": f"消息已重新过滤",
+            "original_length": original_len,
+            "filtered_length": filtered_len,
+            "reduction": original_len - filtered_len
+        }
+        
+    except Exception as e:
+        logger.error(f"重新过滤消息 {message_id} 失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

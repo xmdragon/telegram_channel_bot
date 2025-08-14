@@ -1,0 +1,151 @@
+{
+  "migration_time": "2025-08-13T21:10:19.819192",
+  "statistics": {
+    "total_samples": 68,
+    "valid_samples": 34,
+    "invalid_samples": 34,
+    "patterns_learned": 34,
+    "errors": [
+      {
+        "sample_id": 3,
+        "reasons": [
+          "样本长度不合理: 16",
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 26,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 27,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 39,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 47,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 49,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 52,
+        "reasons": [
+          "样本长度不合理: 13",
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 56,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 57,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 66,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      },
+      {
+        "sample_id": 68,
+        "reasons": [
+          "样本不包含推广特征"
+        ]
+      }
+    ]
+  },
+  "success_rate": 0.5,
+  "system_stats": {
+    "learning_stats": {
+      "samples_processed": 57,
+      "samples_accepted": 34,
+      "samples_rejected": 0,
+      "patterns_learned": 34
+    },
+    "pattern_count": 34,
+    "patterns": [
+      {
+        "id": "pattern_20250813211019_ed2c68",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_876a34",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_15272a",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_ac5173",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_259e34",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_3b446a",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_936277",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_071de2",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_c68468",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      },
+      {
+        "id": "pattern_20250813211019_b67538",
+        "confidence": 1.0,
+        "usage_count": 0,
+        "success_rate": 0.0
+      }
+    ]
+  }
+}

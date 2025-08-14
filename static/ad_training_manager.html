@@ -46,49 +46,47 @@
             <div class="toolbar-section">
                 <div class="toolbar-card">
                     <div class="toolbar-content">
-                        <div class="toolbar">
-                            <div class="toolbar-left">
-                                <el-input 
-                                    v-model="searchText" 
-                                    placeholder="搜索广告训练样本..." 
-                                    class="search-input"
-                                    @keyup.enter="loadSamples"
-                                    clearable>
-                                    <template #prefix>
-                                        <el-icon><Search /></el-icon>
-                                    </template>
-                                </el-input>
-                                <el-select v-model="filterType" placeholder="筛选类型" class="filter-select" @change="loadSamples">
-                                    <el-option label="全部" value="all"></el-option>
-                                    <el-option label="有媒体" value="with_media"></el-option>
-                                    <el-option label="纯文本" value="text_only"></el-option>
-                                    <el-option label="疑似重复" value="duplicate"></el-option>
-                                </el-select>
-                            </div>
-                            <div class="toolbar-right">
-                                <div class="btn-group">
-                                    <el-button @click="showDuplicates" type="warning" class="btn-warning">
-                                        <el-icon><CopyDocument /></el-icon>
-                                        检测重复
-                                    </el-button>
-                                    <el-button @click="optimizeStorage" type="info">
-                                        <el-icon><FolderOpened /></el-icon>
-                                        优化存储
-                                    </el-button>
-                                    <el-button @click="reloadModel" type="success" class="btn-success">
-                                        <el-icon><Refresh /></el-icon>
-                                        重载模型
-                                    </el-button>
-                                    <el-button @click="openMediaManager" type="primary" class="btn-primary">
-                                        <el-icon><Picture /></el-icon>
-                                        媒体管理
-                                    </el-button>
-                                    <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
-                                        <el-icon><Delete /></el-icon>
-                                        批量删除 ({{ selectedSamples.length }})
-                                    </el-button>
-                                </div>
-                            </div>
+                        <!-- 搜索栏 -->
+                        <div class="search-bar">
+                            <el-input 
+                                v-model="searchText" 
+                                placeholder="搜索广告训练样本..." 
+                                class="search-input"
+                                @keyup.enter="loadSamples"
+                                clearable>
+                                <template #prefix>
+                                    <el-icon><Search /></el-icon>
+                                </template>
+                            </el-input>
+                            <el-select v-model="filterType" placeholder="筛选类型" class="filter-select" @change="loadSamples">
+                                <el-option label="全部" value="all"></el-option>
+                                <el-option label="有媒体" value="with_media"></el-option>
+                                <el-option label="纯文本" value="text_only"></el-option>
+                                <el-option label="疑似重复" value="duplicate"></el-option>
+                            </el-select>
+                        </div>
+                        <!-- 按钮栏 -->
+                        <div class="button-bar">
+                            <el-button @click="showDuplicates" type="warning" class="btn-warning">
+                                <el-icon><CopyDocument /></el-icon>
+                                检测重复
+                            </el-button>
+                            <el-button @click="optimizeStorage" type="info">
+                                <el-icon><FolderOpened /></el-icon>
+                                优化存储
+                            </el-button>
+                            <el-button @click="reloadModel" type="success" class="btn-success">
+                                <el-icon><Refresh /></el-icon>
+                                重载模型
+                            </el-button>
+                            <el-button @click="openMediaManager" type="primary" class="btn-primary">
+                                <el-icon><Picture /></el-icon>
+                                媒体管理
+                            </el-button>
+                            <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
+                                <el-icon><Delete /></el-icon>
+                                批量删除 ({{ selectedSamples.length }})
+                            </el-button>
                         </div>
                     </div>
                 </div>

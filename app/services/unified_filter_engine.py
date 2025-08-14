@@ -18,7 +18,7 @@ class UnifiedFilterEngine:
     def __init__(self):
         """初始化引擎"""
         self.ai_filter = None
-        self.smart_tail_filter = None
+        self.intelligent_tail_filter = None
         self.ad_training_data = []
         self.high_risk_patterns = []
         self._initialized = False
@@ -33,9 +33,9 @@ class UnifiedFilterEngine:
             from app.services.ai_filter import ai_filter
             self.ai_filter = ai_filter
             
-            # 导入智能尾部过滤器
-            from app.services.smart_tail_filter import smart_tail_filter
-            self.smart_tail_filter = smart_tail_filter
+            # 导入智能尾部过滤器（使用用户训练的样本）
+            from app.services.intelligent_tail_filter import intelligent_tail_filter
+            self.intelligent_tail_filter = intelligent_tail_filter
             
             # 加载训练数据
             self._load_training_data()
@@ -216,7 +216,7 @@ class UnifiedFilterEngine:
         media_files: Optional[List[str]] = None
     ) -> Tuple[bool, str, str]:
         """
-        统一的广告检测方法
+        统一的广告检测方法 - 优化检测优先级
         
         Args:
             content: 消息内容
@@ -234,6 +234,25 @@ class UnifiedFilterEngine:
         filtered_content = content
         reasons = []
         
+        # 0. 优先级最高：实体结构检测（新增，基于Telegram原生结构）
+        if message_obj:
+            try:
+                from app.services.structural_ad_detector import structural_detector
+                structural_result = await structural_detector.detect_structural_ads(message_obj)
+                
+                if structural_result['has_structural_ad']:
+                    is_ad = True
+                    filtered_content = structural_result['clean_text']
+                    reasons.append(f"结构化检测({structural_result['ad_type']})")
+                    logger.info(f"实体结构检测到推广: {structural_result['ad_type']}, 置信度: {structural_result['confidence']:.2f}")
+                    
+                    # 如果结构化检测置信度很高，直接返回结果
+                    if structural_result['confidence'] > 0.85:
+                        return True, filtered_content, " | ".join(reasons)
+                        
+            except Exception as e:
+                logger.debug(f"实体结构检测失败: {e}")
+        
         # 1. 高风险广告检测
         is_high_risk, risk_patterns = self.is_high_risk_ad(content)
         if is_high_risk:
@@ -244,8 +263,8 @@ class UnifiedFilterEngine:
             logger.warning(f"检测到高风险广告，内容已清空")
             return True, "", " | ".join(reasons)
             
-        # 2. AI广告检测（使用训练数据）
-        if self.ai_filter and self.ai_filter.initialized:
+        # 2. AI广告检测（使用训练数据）- 只有在实体检测未识别时才运行
+        if not is_ad and self.ai_filter and self.ai_filter.initialized:
             try:
                 is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(filtered_content)
                 if is_ad_by_ai and ai_confidence > 0.8:
@@ -255,12 +274,13 @@ class UnifiedFilterEngine:
             except Exception as e:
                 logger.debug(f"AI检测失败: {e}")
                 
-        # 3. 智能尾部过滤
-        if self.smart_tail_filter and filtered_content:
+        # 3. 智能尾部过滤 - 只有在前面检测都未识别时才运行
+        if not is_ad and self.intelligent_tail_filter and filtered_content:
             try:
-                clean_content, has_tail, removed_tail = self.smart_tail_filter.filter_tail_ads(
-                    filtered_content,
-                    channel_id=channel_id
+                # 不再每次都重新加载，intelligent_tail_filter在初始化时已加载
+                # 使用intelligent_tail_filter进行过滤
+                clean_content, has_tail, removed_tail = self.intelligent_tail_filter.filter_message(
+                    filtered_content
                 )
                 if has_tail:
                     filtered_content = clean_content
@@ -295,8 +315,8 @@ class UnifiedFilterEngine:
         message_obj: Any = None
     ) -> Tuple[bool, str, str]:
         """
-        同步版本的广告检测（向后兼容）
-        通过asyncio.run调用异步版本，确保AI检测生效
+        同步版本的广告检测（向后兼容）- 优先使用实体检测
+        通过asyncio.run调用异步版本，确保实体检测和AI检测生效
         """
         try:
             # 创建新的事件循环运行异步方法
@@ -316,8 +336,24 @@ class UnifiedFilterEngine:
                 # 等待完成（这在某些情况下可能不工作）
                 return asyncio.get_event_loop().run_until_complete(future)
             except:
-                # 降级到基本检测
-                logger.warning("无法运行异步AI检测，降级到基本检测")
+                # 降级到基本检测，但仍然尝试使用实体检测
+                logger.warning("无法运行异步检测，降级到基本检测")
+                
+                # 尝试同步调用实体检测
+                if message_obj:
+                    try:
+                        from app.services.structural_ad_detector import structural_detector
+                        # 同步调用实体检测（不使用await）
+                        components = structural_detector._extract_message_components(message_obj)
+                        entity_result = structural_detector._detect_promotional_entity_patterns(message_obj, components)
+                        
+                        if entity_result['has_ad']:
+                            logger.info(f"同步实体检测到推广: {entity_result['ad_type']}")
+                            return True, entity_result['clean_text'], f"结构化检测({entity_result['ad_type']})"
+                    except Exception as e:
+                        logger.debug(f"同步实体检测失败: {e}")
+                
+                # 最后降级到高风险检测
                 is_high_risk, _ = self.is_high_risk_ad(content)
                 if is_high_risk:
                     return True, "", "高风险广告"

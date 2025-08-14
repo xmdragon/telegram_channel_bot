@@ -1476,23 +1476,108 @@ async def save_separator_patterns(request: dict):
 
 @router.get("/tail-filter-samples")
 async def get_tail_filter_samples():
-    """获取尾部过滤训练样本（用于移除频道标识，不是广告）"""
+    """获取尾部过滤训练样本（用户真实数据）"""
     try:
         if TAIL_FILTER_SAMPLES_FILE.exists():
             data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
             samples = data.get("samples", []) if data else []
             
-            # 添加ID如果没有
-            for i, sample in enumerate(samples):
-                if 'id' not in sample:
-                    sample['id'] = i + 1
+            # 清理样本数据，只保留必要字段
+            cleaned_samples = []
+            for sample in samples:
+                cleaned_sample = {
+                    'id': sample.get('id'),
+                    'tail_part': sample.get('tail_part', ''),
+                    'created_at': sample.get('created_at', '')
+                }
+                cleaned_samples.append(cleaned_sample)
             
-            return {"samples": samples}
+            logger.info(f"返回 {len(cleaned_samples)} 个真实尾部样本")
+            return {"samples": cleaned_samples}
         else:
             return {"samples": []}
     except Exception as e:
         logger.error(f"获取尾部过滤样本失败: {e}")
         return {"samples": []}
+
+
+@router.get("/tail-filter-statistics")
+async def get_tail_filter_statistics():
+    """获取尾部过滤训练样本统计（只返回数量，不返回内容）"""
+    try:
+        total_samples = 0
+        valid_samples = 0
+        samples_with_separator = 0
+        today_added = 0
+        
+        if TAIL_FILTER_SAMPLES_FILE.exists():
+            data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
+            samples = data.get("samples", []) if data else []
+            
+            # 计算统计信息
+            total_samples = len(samples)
+            valid_samples = len([s for s in samples if s.get('tail_part')])
+            samples_with_separator = len([s for s in samples if s.get('separator')])
+            
+            # 计算今日新增
+            today = datetime.now().date().isoformat()
+            today_added = len([s for s in samples if s.get('created_at', '').startswith(today)])
+        
+        return {
+            "success": True,
+            "total_samples": total_samples,
+            "valid_samples": valid_samples,
+            "samples_with_separator": samples_with_separator,
+            "today_added": today_added
+        }
+    except Exception as e:
+        logger.error(f"获取尾部过滤统计失败: {e}")
+        return {
+            "success": False,
+            "total_samples": 0,
+            "valid_samples": 0,
+            "samples_with_separator": 0,
+            "today_added": 0
+        }
+
+
+@router.get("/tail-filter-history")
+async def get_tail_filter_history(limit: int = 20):
+    """获取尾部过滤训练历史（只返回最近记录）"""
+    try:
+        history = []
+        
+        if TAIL_FILTER_SAMPLES_FILE.exists():
+            data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
+            samples = data.get("samples", []) if data else []
+            
+            # 筛选有创建时间的样本
+            samples_with_time = [s for s in samples if s.get('created_at')]
+            
+            # 排序并限制数量
+            samples_with_time.sort(key=lambda x: x['created_at'], reverse=True)
+            samples_with_time = samples_with_time[:limit]
+            
+            # 转换为历史记录格式
+            for sample in samples_with_time:
+                history.append({
+                    'id': sample.get('id'),
+                    'channel_name': '尾部过滤',
+                    'message_preview': sample.get('content', '')[:50] + '...' if sample.get('content') else '',
+                    'tail_preview': sample.get('tail_part', '')[:30] + '...' if sample.get('tail_part') else '',
+                    'created_at': sample.get('created_at')
+                })
+        
+        return {
+            "success": True,
+            "history": history
+        }
+    except Exception as e:
+        logger.error(f"获取尾部过滤历史失败: {e}")
+        return {
+            "success": False,
+            "history": []
+        }
 
 
 @router.post("/add-ad-sample")
@@ -1610,56 +1695,51 @@ async def add_tail_filter_sample(
     db: AsyncSession = Depends(get_db),
     _admin = Depends(check_permission("training.mark_tail"))
 ):
-    """添加尾部过滤训练样本（用于移除频道标识，不是广告）"""
+    """手动添加尾部过滤训练样本（保存到文件 + 智能学习）"""
     try:
-        # 提取参数
-        description = request.get("description", "")
-        content = request.get("content", "")
-        separator = request.get("separator", "")
-        normal_part = request.get("normalPart", "")
+        # 提取参数，注意：只保存尾部数据，不保存原始内容
         tail_part = request.get("tailPart", request.get("adPart", ""))  # 兼容旧字段名
         message_id = request.get("message_id")  # 获取消息ID
         
-        # 记录接收到的数据
-        logger.info(f"收到尾部过滤训练请求: content长度={len(content)}, tail_part长度={len(tail_part)}, separator={separator[:20] if separator else 'None'}, message_id={message_id}")
+        # 记录接收到的数据（增强日志）
+        tail_lines = tail_part.split('\n')
+        logger.info(f"收到手动尾部训练请求: tail_part长度={len(tail_part)}字符, {len(tail_lines)}行, message_id={message_id}")
+        logger.debug(f"尾部内容预览: {tail_part[:100]}..." if len(tail_part) > 100 else f"尾部内容: {tail_part}")
         
-        if not content:
-            logger.warning("内容为空")
-            return {"success": False, "message": "内容不能为空"}
-        
-        # 分隔符可以为空（允许没有明确分隔符的情况）
         if not tail_part:
             logger.warning("尾部内容为空")
             return {"success": False, "message": "尾部内容不能为空"}
         
-        # 加载现有样本
+        # 1. 保存到用户的样本文件（只保留尾部数据）
         samples = []
         if TAIL_FILTER_SAMPLES_FILE.exists():
             data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
             samples = data.get("samples", []) if data else []
         
-        # 生成ID
-        new_id = max([s.get('id', 0) for s in samples], default=0) + 1
-        
-        # 创建新样本
-        new_sample = {
-            "id": new_id,
-            "description": description,
-            "content": content,
-            "separator": separator,
-            "normal_part": normal_part,
-            "tail_part": tail_part,  # 改为tail_part
-            "content_hash": hashlib.md5(content.encode()).hexdigest(),
-            "created_at": datetime.now().isoformat()
-        }
-        
         # 检查重复
         is_duplicate = False
+        existing_id = None
+        content_hash = hashlib.md5(tail_part.encode()).hexdigest()
         for sample in samples:
-            if sample.get("content_hash") == new_sample["content_hash"]:
+            existing_hash = hashlib.md5(sample.get('tail_part', '').encode()).hexdigest()
+            if existing_hash == content_hash:
                 is_duplicate = True
-                logger.info("样本已存在，跳过添加")
+                existing_id = sample.get('id')
+                logger.info(f"样本已存在，ID: {existing_id}，跳过添加")
                 break
+        
+        # 如果是重复的，使用已存在的ID；否则生成新ID
+        if is_duplicate:
+            new_id = existing_id
+        else:
+            new_id = max([s.get('id', 0) for s in samples], default=0) + 1
+        
+        # 创建新样本（严格只保留尾部数据）
+        new_sample = {
+            "id": new_id,
+            "tail_part": tail_part,
+            "created_at": datetime.now().isoformat()
+        }
         
         # 如果不是重复，才添加样本并保存
         if not is_duplicate:
@@ -1669,13 +1749,27 @@ async def add_tail_filter_sample(
             if not SafeFileOperation.write_json_safe(TAIL_FILTER_SAMPLES_FILE, {
                 "samples": samples,
                 "updated_at": datetime.now().isoformat(),
-                "description": "尾部过滤训练样本 - 用于识别和移除频道标识（不是广告）"
+                "description": "尾部过滤训练样本 - 只保留尾部数据"
             }):
                 return {"success": False, "message": "保存数据失败"}
             
-            logger.info(f"添加新的尾部过滤样本: {new_id}")
+            logger.info(f"成功保存新的尾部过滤样本: {new_id}")
         
-        # 重新加载ContentFilter的训练模式（关键步骤！）
+        # 2. 触发智能学习系统学习（基于用户手动样本）
+        try:
+            from app.services.intelligent_learning_system import intelligent_learning_system
+            
+            # 从用户添加的样本中学习（不提供原始内容）
+            learning_result = intelligent_learning_system.add_training_sample(
+                tail_part=tail_part,
+                original_content=None,  # 不提供原始内容
+                message_id=None  # 不关联特定消息
+            )
+            logger.info(f"智能学习结果: {learning_result.get('message', 'unknown')}")
+        except Exception as e:
+            logger.warning(f"智能学习失败，但样本已保存: {e}")
+        
+        # 3. 重新加载ContentFilter的训练模式
         try:
             from app.services.content_filter import content_filter
             content_filter.reload_trained_patterns()
@@ -1683,40 +1777,39 @@ async def add_tail_filter_sample(
         except Exception as e:
             logger.error(f"重新加载训练模式失败: {e}")
         
-        # 无论是否重复，都更新消息（如果有message_id）
+        # 4. 更新消息（如果有message_id）
         if message_id:
             try:
                 message_id = int(message_id)
                 logger.info(f"更新消息 {message_id} 的过滤内容")
                 
-                # 调用已有的更新函数
+                # 调用更新函数
                 await update_message_after_training(
                     db,
                     message_id,
-                    content,  # 这个参数会被忽略
+                    "",  # 不提供原始内容
                     tail_part  # 尾部内容
                 )
                 
                 logger.info(f"消息 {message_id} 已更新过滤内容")
             except Exception as e:
                 logger.error(f"更新消息 {message_id} 失败: {e}")
-                # 如果更新消息失败，返回部分成功的消息
                 if is_duplicate:
                     return {"success": True, "message": f"样本已存在，但更新消息失败: {str(e)}"}
                 else:
                     return {"success": True, "message": f"样本已添加，但更新消息失败: {str(e)}"}
         
-        # 返回成功消息
+        # 返回成功消息（对用户来说都是成功的）
         if is_duplicate:
             if message_id:
-                return {"success": True, "message": "样本已存在，消息内容已更新", "id": new_id}
+                return {"success": True, "message": "样本已提交，消息内容已更新", "id": new_id}
             else:
-                return {"success": True, "message": "提交成功，样本已经存在"}
+                return {"success": True, "message": "样本已提交成功", "id": new_id}
         else:
             if message_id:
                 return {"success": True, "message": "样本已添加，消息内容已更新", "id": new_id}
             else:
-                return {"success": True, "message": "样本已添加", "id": new_id}
+                return {"success": True, "message": "样本已添加成功", "id": new_id}
         
     except Exception as e:
         logger.error(f"添加尾部过滤样本失败: {e}")
@@ -2169,7 +2262,12 @@ async def detect_duplicate_samples(
         # 查找相似样本组
         duplicate_groups = []
         processed = set()
-        threshold = 0.85  # 相似度阈值
+        threshold = 0.95  # 相似度阈值（提高到0.95，只检测高度相似的内容）
+        
+        # 获取样本的唯一标识
+        def get_sample_identifier(sample):
+            """获取样本的唯一标识（支持id和message_id）"""
+            return sample.get("id") or sample.get("message_id")
         
         for i in range(len(samples)):
             if i in processed:
@@ -2186,6 +2284,10 @@ async def detect_duplicate_samples(
                 for idx in similar_indices:
                     if idx not in processed:
                         sample_copy = samples[idx].copy()
+                        # 确保有正确的ID字段
+                        sample_id = get_sample_identifier(sample_copy)
+                        if not sample_copy.get("id"):
+                            sample_copy["id"] = sample_id  # 确保返回数据中有id字段
                         # 确保keep是Python原生bool类型，而不是numpy.bool_
                         sample_copy["keep"] = bool(idx == similar_indices[0])  # 默认保留第一个
                         # 限制内容长度，避免返回数据过大
@@ -2243,13 +2345,33 @@ async def deduplicate_samples(
         samples = data.get("samples", [])
         original_count = len(samples)
         
+        # 安全检查：限制单次删除数量
+        if len(to_delete) > original_count * 0.2:
+            logger.warning(f"尝试删除过多样本: {len(to_delete)}/{original_count}")
+            return {
+                "success": False,
+                "message": f"安全保护：单次删除不能超过总样本数的20%（最多{int(original_count * 0.2)}个）"
+            }
+        
+        # 获取样本的唯一标识
+        def get_sample_id(sample):
+            """获取样本的唯一标识（支持id和message_id）"""
+            return sample.get("id") or sample.get("message_id")
+        
         # 删除媒体文件
         for sample_id in to_delete:
             await _delete_sample_media_files(sample_id)
         
-        # 过滤掉重复的样本
-        samples = [s for s in samples if s.get("id") not in to_delete]
-        deleted_count = original_count - len(samples)
+        # 过滤掉重复的样本（修复：支持多种ID字段）
+        to_delete_set = set(to_delete)  # 转为集合提高性能
+        new_samples = []
+        for sample in samples:
+            sample_id = get_sample_id(sample)
+            if sample_id not in to_delete_set:
+                new_samples.append(sample)
+        
+        deleted_count = original_count - len(new_samples)
+        samples = new_samples
         
         # 保存更新后的数据
         data["samples"] = samples

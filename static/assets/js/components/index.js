@@ -145,6 +145,15 @@ const MainApp = {
         // 初始化权限按钮可见性
         await this.initializePermissions();
         
+        // 检查是否需要刷新（从训练页面返回）
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('refresh') === 'true') {
+            // 清除refresh参数，避免重复刷新
+            window.history.replaceState({}, document.title, window.location.pathname);
+            // 强制刷新数据
+            this.messages = [];
+        }
+        
         this.loadMessages();
         this.loadStats();
         this.loadChannelInfo();

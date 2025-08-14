@@ -15,44 +15,26 @@ logger = logging.getLogger(__name__)
 
 
 class SmartTailFilter:
-    """智能尾部过滤器 - AI驱动的语义理解"""
+    """智能尾部过滤器 - 纯数据驱动的机器学习"""
     
     def __init__(self):
+        # 使用新的智能过滤器
+        from app.services.intelligent_tail_filter import intelligent_tail_filter
+        self.intelligent_filter = intelligent_tail_filter
+        
+        # 保留这些以保持兼容性
         self.ad_detector = ad_detector
-        self.ai_filter = ai_filter  # 集成AI过滤器
-        self.semantic_threshold = 0.5  # 语义相似度阈值
-        self.known_tail_patterns = []  # 已知的尾部模式
-        self.channel_tail_patterns = {}  # 按频道存储的尾部模式
-        self._load_tail_patterns()  # 加载训练的尾部模式
-        
-        # 保留规则作为fallback
-        self.separator_patterns = [
-            r'━{10,}',  # 横线分隔符
-            r'═{10,}',  # 双线分隔符
-            r'─{10,}',  # 细线分隔符
-            r'▬{10,}',  # 粗线分隔符
-            r'-{3,}',   # 短横线（降低到3个）
-            r'={3,}',   # 等号线（降低到3个）
-            r'\*{3,}',  # 星号线（降低到3个）
-            r'#{3,}',   # 井号线（新增）
-            r'\.{3,}',  # 点线（新增）
-            r'_{3,}',   # 下划线（新增）
-            r'~{3,}',   # 波浪线（新增）
-        ]
-        
-        # 尾部标识关键词（强信号）
-        self.tail_keywords = [
-            '失联导航', '订阅频道', '便民信息', '商务合作', '投稿爆料',
-            '频道推荐', '互助群', '联系方式', '官方群组', '广告合作'
-        ]
+        self.ai_filter = ai_filter
+        self.known_tail_patterns = []  # 兼容旧代码
+        self._load_tail_patterns()  # 加载训练数据
     
     def filter_tail_ads(self, content: str, channel_id: str = None) -> Tuple[str, bool, Optional[str]]:
         """
-        过滤尾部频道标识 - AI优先，规则兜底
+        过滤尾部频道标识 - 使用智能引擎
         
         Args:
             content: 原始消息内容
-            channel_id: 频道ID（用于AI模式匹配）
+            channel_id: 频道ID（不再使用，仅为兼容）
             
         Returns:
             (过滤后内容, 是否包含尾部, 被过滤的尾部部分)
@@ -60,31 +42,68 @@ class SmartTailFilter:
         if not content:
             return content, False, None
         
-        # 0. 首先检查已知的精确尾部模式
+        # 使用智能过滤器
+        try:
+            result = self.intelligent_filter.filter_message(content)
+            if result[1]:  # 如果检测到尾部
+                logger.info(f"智能过滤器检测到尾部，原长度: {len(content)}, 过滤后: {len(result[0])}")
+                return result
+        except Exception as e:
+            logger.error(f"智能过滤器异常: {e}")
+        
+        # 0. 优先检查明显的emoji分隔符（最可靠的标识）
+        emoji_separators = [
+            r'😉{5,}',  # 连续的笑脸
+            r'👑{5,}',  # 连续的皇冠
+            r'🔥{5,}',  # 连续的火焰
+            r'[😉☺️]{10,}',  # 混合表情
+            r'[📣🔗✅💬😍]{3,}.*订阅',  # 表情+订阅组合
+        ]
+        
+        for pattern in emoji_separators:
+            import re
+            match = re.search(pattern, content)
+            if match:
+                # 找到emoji分隔符，从这里开始都是尾部
+                tail_start = match.start()
+                if tail_start > len(content) * 0.3:  # 确保不会过度裁剪
+                    clean_content = content[:tail_start].rstrip()
+                    tail_part = content[tail_start:]
+                    # 验证尾部确实包含推广内容
+                    if self._is_likely_tail(tail_part):
+                        logger.info(f"通过emoji分隔符检测到尾部，原长度: {len(content)}, 过滤后: {len(clean_content)}")
+                        return clean_content, True, tail_part
+        
+        # 1. 然后检查已知的精确尾部模式
         result = self._filter_by_known_patterns(content, channel_id)
         if result[1]:
-            logger.info(f"精确匹配到已知尾部，原长度: {len(content)}, 过滤后: {len(result[0])}")
+            # 添加安全检查：如果过滤后内容太少，可能是错误匹配
+            if len(result[0]) < len(content) * 0.3 and len(content) > 200:
+                logger.warning(f"过滤结果可能过度裁剪，跳过此匹配")
+            else:
+                logger.info(f"精确匹配到已知尾部，原长度: {len(content)}, 过滤后: {len(result[0])}")
+                return result
+        
+        # 1. 使用混合智能过滤器（语义+结构）
+        from app.services.hybrid_tail_filter import hybrid_tail_filter
+        result = hybrid_tail_filter.filter_message(content)
+        if result[1]:
+            logger.info(f"混合智能过滤器检测到尾部，原长度: {len(content)}, 过滤后: {len(result[0])}")
             return result
         
-        # 1. 使用AI语义检测
+        # 如果混合过滤器没有检测到，尝试AI（如果可用）
         if self.ai_filter and self.ai_filter.initialized:
             result = self._filter_by_ai_semantics(content, channel_id)
-            if result[1]:  # AI检测到尾部
+            if result[1]:
                 logger.info(f"AI语义检测到尾部，原长度: {len(content)}, 过滤后: {len(result[0])}")
                 return result
         
-        # AI无法判断时，使用规则作为fallback
+        # 智能过滤无法判断时，使用规则作为fallback
         
         # 1. 特殊格式检测（如 -------[链接] | [链接]）
         result = self._filter_by_special_format(content)
         if result[1]:
             logger.info(f"规则检测到特殊格式尾部，原长度: {len(content)}, 过滤后: {len(result[0])}")
-            return result
-        
-        # 2. 分隔符检测
-        result = self._filter_by_separator(content)
-        if result[1]:
-            logger.info(f"规则检测到分隔符尾部，原长度: {len(content)}, 过滤后: {len(result[0])}")
             return result
         
         # 3. 链接密度检测
@@ -96,7 +115,7 @@ class SmartTailFilter:
         return content, False, None
     
     def _load_tail_patterns(self):
-        """加载训练的尾部模式"""
+        """加载训练的尾部模式（主要用于向智能过滤器添加样本）"""
         import json
         import os
         from app.core.training_config import TrainingDataConfig
@@ -107,23 +126,20 @@ class SmartTailFilter:
             if os.path.exists(tail_file):
                 with open(tail_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    # 处理可能的嵌套结构
                     samples = data.get('samples', data) if isinstance(data, dict) else data
+                    
+                    # 只提取tail_part供智能过滤器学习
+                    tail_count = 0
                     for sample in samples:
                         if sample.get('tail_part'):
-                            # 存储尾部模式
                             tail_pattern = sample['tail_part'].strip()
                             if tail_pattern:
                                 self.known_tail_patterns.append(tail_pattern)
-                                
-                                # 按频道存储
-                                if sample.get('source'):
-                                    channel = sample['source']
-                                    if channel not in self.channel_tail_patterns:
-                                        self.channel_tail_patterns[channel] = []
-                                    self.channel_tail_patterns[channel].append(tail_pattern)
+                                # 添加到智能过滤器
+                                self.intelligent_filter.add_training_sample(tail_pattern)
+                                tail_count += 1
                 
-                logger.info(f"加载了 {len(self.known_tail_patterns)} 个尾部模式")
+                logger.info(f"加载了 {tail_count} 个尾部模式到智能过滤器")
                 
             # 加载手动训练数据
             manual_file = str(TrainingDataConfig.MANUAL_TRAINING_FILE)
@@ -153,8 +169,12 @@ class SmartTailFilter:
             logger.error(f"加载尾部模式失败: {e}")
     
     def _filter_by_known_patterns(self, content: str, channel_id: str = None) -> Tuple[str, bool, Optional[str]]:
-        """基于已知模式的精确匹配"""
+        """基于已知模式的智能匹配（增强版）"""
         if not content or not self.known_tail_patterns:
+            return content, False, None
+        
+        # 添加安全检查：如果内容很短，直接返回
+        if len(content) < 100:
             return content, False, None
         
         # 优先检查频道特定的模式
@@ -176,59 +196,117 @@ class SmartTailFilter:
             if not pattern:
                 continue
                 
-            # 尝试精确匹配（在内容末尾）
+            # 1. 尝试精确匹配（在内容末尾）
             if content.endswith(pattern):
                 clean_content = content[:-len(pattern)].rstrip()
                 return clean_content, True, pattern
             
-            # 尝试模糊匹配（允许尾部有少量额外内容）
-            pattern_lines = pattern.split('\n')
-            if len(pattern_lines) >= 2:
-                # 获取模式的前两行作为特征
-                pattern_start = '\n'.join(pattern_lines[:2])
-                
-                # 在内容中查找这个特征
-                idx = content.rfind(pattern_start)
+            # 2. 智能部分匹配（处理细微差异）
+            # 尝试忽略空格和换行的差异
+            pattern_normalized = re.sub(r'\s+', ' ', pattern.strip())
+            content_tail = content[-len(pattern)*2:] if len(content) > len(pattern)*2 else content
+            content_normalized = re.sub(r'\s+', ' ', content_tail.strip())
+            
+            if pattern_normalized in content_normalized:
+                # 找到匹配位置
+                idx = content.rfind(pattern_normalized.split()[0] if pattern_normalized.split() else pattern_normalized)
                 if idx > 0:
-                    # 找到了模式的开始位置
-                    # 检查从这个位置到结尾是否都是推广内容
                     potential_tail = content[idx:]
+                    clean_content = content[:idx].rstrip()
+                    return clean_content, True, potential_tail
+            
+            # 2.5. 关键词匹配（如"博闻资讯"）
+            # 检查模式中的关键特征词
+            key_phrases = ['博闻资讯', '东南亚吃瓜', '订阅频道', '点击进群']
+            for phrase in key_phrases:
+                if phrase in pattern and phrase in content:
+                    # 找到关键词的位置
+                    phrase_idx = content.rfind(phrase)
+                    if phrase_idx > len(content) * 0.5:  # 在后半部分
+                        # 向前查找可能的开始位置（分隔符或换行）
+                        start_idx = phrase_idx
+                        for back_idx in range(phrase_idx - 1, max(0, phrase_idx - 50), -1):
+                            if content[back_idx:back_idx+1] in ['\n', '|', '━', '═', '─', '▬']:
+                                start_idx = back_idx
+                                break
+                        potential_tail = content[start_idx:]
+                        if self._is_likely_tail(potential_tail):
+                            clean_content = content[:start_idx].rstrip()
+                            return clean_content, True, potential_tail
+            
+            # 3. 关键词序列匹配（提取模式中的关键词）
+            # 提取模式中的关键词（中文词、英文单词、链接、用户名）
+            keywords = []
+            # 提取中文词（2个字以上）
+            chinese_words = re.findall(r'[\u4e00-\u9fa5]{2,}', pattern)
+            keywords.extend(chinese_words)
+            # 提取英文单词
+            english_words = re.findall(r'\b[A-Za-z]{3,}\b', pattern)
+            keywords.extend(english_words)
+            # 提取链接和用户名
+            pattern_links = re.findall(r'https?://[^\s\)]+|t\.me/[^\s\)]+', pattern)
+            pattern_usernames = re.findall(r'@\w+', pattern)
+            keywords.extend(pattern_links)
+            keywords.extend(pattern_usernames)
+            
+            if len(keywords) >= 2:  # 至少有2个关键词
+                # 检查内容中是否包含这些关键词的序列
+                matched_count = 0
+                last_match_idx = -1
+                
+                for keyword in keywords:
+                    if keyword in content:
+                        keyword_idx = content.rfind(keyword)
+                        if keyword_idx > last_match_idx:  # 确保顺序
+                            matched_count += 1
+                            if last_match_idx == -1:
+                                last_match_idx = keyword_idx
+                
+                # 如果匹配了80%以上的关键词
+                if matched_count >= len(keywords) * 0.8 and last_match_idx > 0:
+                    # 找到第一个关键词的位置作为尾部开始
+                    first_keyword_idx = content.rfind(keywords[0])
+                    # 向前查找可能的分隔符
+                    search_start = max(0, first_keyword_idx - 100)
+                    search_section = content[search_start:first_keyword_idx]
                     
-                    # 验证是否包含关键元素（如@符号、链接等）
+                    # 查找分隔符
+                    sep_patterns = [r'[-=*#_~。.]{3,}', r'\n{2,}', r'\|{2,}']
+                    for sep_pattern in sep_patterns:
+                        sep_match = re.search(sep_pattern, search_section)
+                        if sep_match:
+                            actual_start = search_start + sep_match.start()
+                            potential_tail = content[actual_start:]
+                            if self._is_likely_tail(potential_tail):
+                                clean_content = content[:actual_start].rstrip()
+                                return clean_content, True, potential_tail
+                    
+                    # 如果没找到分隔符，从第一个关键词开始
+                    potential_tail = content[first_keyword_idx:]
+                    if self._is_likely_tail(potential_tail):
+                        clean_content = content[:first_keyword_idx].rstrip()
+                        return clean_content, True, potential_tail
+            
+            # 4. 结构化匹配（基于分隔符）
+            # 查找模式中的分隔符
+            separator_matches = re.findall(r'[-=*#_~。.]{3,}|\|{2,}', pattern)
+            for separator in separator_matches:
+                # 在内容中查找相同或相似的分隔符
+                # 允许分隔符长度有差异
+                sep_char = separator[0]
+                flexible_sep_pattern = re.escape(sep_char) + '{3,}'
+                
+                for match in re.finditer(flexible_sep_pattern, content):
+                    idx = match.start()
+                    potential_tail = content[idx:]
+                    # 验证是否为推广内容
                     if self._is_likely_tail(potential_tail):
                         clean_content = content[:idx].rstrip()
                         return clean_content, True, potential_tail
         
-        # 检查是否包含尾部关键词组合
-        return self._filter_by_tail_keywords(content)
-    
-    def _filter_by_tail_keywords(self, content: str) -> Tuple[str, bool, Optional[str]]:
-        """基于尾部关键词的检测"""
-        lines = content.split('\n')
-        
-        # 从后往前查找包含关键词的行
-        for i in range(len(lines) - 1, max(0, len(lines) - 10), -1):
-            line = lines[i]
-            
-            # 计算这一行包含的关键词数量
-            keyword_count = sum(1 for kw in self.tail_keywords if kw in line)
-            
-            # 如果包含2个或以上关键词，很可能是尾部开始
-            if keyword_count >= 2:
-                # 检查这一行及后续行是否都是推广内容
-                potential_tail = '\n'.join(lines[i:])
-                if self._is_likely_tail(potential_tail):
-                    clean_content = '\n'.join(lines[:i]).rstrip()
-                    return clean_content, True, potential_tail
-            
-            # 单个强关键词 + @ 符号
-            if keyword_count >= 1 and '@' in line:
-                potential_tail = '\n'.join(lines[i:])
-                if self._is_likely_tail(potential_tail):
-                    clean_content = '\n'.join(lines[:i]).rstrip()
-                    return clean_content, True, potential_tail
-        
+        # 没有匹配到已知模式
         return content, False, None
+    
     
     def _is_likely_tail(self, text: str) -> bool:
         """判断文本是否可能是尾部推广"""
@@ -246,10 +324,10 @@ class SmartTailFilter:
         if 'http' in text or 't.me' in text:
             features += 2
         
-        # 3. 包含尾部关键词
-        for kw in self.tail_keywords:
-            if kw in text:
-                features += 1
+        # 3. 包含多个表情符号（推广内容常用表情装饰）
+        emoji_count = len(re.findall(r'[\U0001F300-\U0001F9FF]', text))
+        if emoji_count > 5:
+            features += 1
         
         # 4. 包含emoji装饰
         emoji_pattern = r'[🛎✅🙋📣✉️😍📢🔔💬❤️🔗📌]'
@@ -349,13 +427,16 @@ class SmartTailFilter:
         if username_count >= 2:  # 2个或以上@用户名
             return True
         
-        # 检查是否包含多个尾部关键词
-        keyword_matches = sum(1 for kw in self.tail_keywords if kw in text)
-        if keyword_matches >= 2:  # 包含2个或以上关键词
-            return True
+        # 检查链接密度
+        link_count = len(re.findall(r'https?://|t\.me/', text))
+        text_length = len(text)
+        if text_length > 0:
+            link_density = link_count * 100 / text_length  # 链接字符占比
+            if link_density > 5:  # 链接密度超过5%
+                return True
         
-        # 单个@用户名 + 尾部关键词
-        if username_count >= 1 and keyword_matches >= 1:
+        # @用户名 + 链接的组合（典型推广模式）
+        if username_count >= 1 and link_count >= 1:
             return True
         
         # 2. 使用AI模型判断是否为广告/推广
@@ -448,41 +529,6 @@ class SmartTailFilter:
         
         return content, False, None
     
-    def _filter_by_separator(self, content: str) -> Tuple[str, bool, Optional[str]]:
-        """通过分隔符检测并过滤尾部标识"""
-        # 查找所有分隔符位置
-        separator_positions = []
-        
-        for pattern in self.separator_patterns:
-            matches = list(re.finditer(pattern, content))
-            for match in matches:
-                separator_positions.append({
-                    'pos': match.start(),
-                    'pattern': pattern,
-                    'text': match.group()
-                })
-        
-        if not separator_positions:
-            return content, False, None
-        
-        # 按位置排序
-        separator_positions.sort(key=lambda x: x['pos'])
-        
-        # 从最后一个分隔符开始检查
-        for sep in reversed(separator_positions):
-            pos = sep['pos']
-            
-            # 获取分隔符后的内容
-            after_separator = content[pos:].strip()
-            
-            # 检查分隔符后的内容是否为广告
-            if self._is_ad_section(after_separator):
-                # 返回分隔符前的内容
-                clean_content = content[:pos].rstrip()
-                ad_part = content[pos:]
-                return clean_content, True, ad_part
-        
-        return content, False, None
     
     def _filter_by_semantic_split(self, content: str) -> Tuple[str, bool, Optional[str]]:
         """通过语义分割检测尾部标识"""
@@ -590,12 +636,19 @@ class SmartTailFilter:
         return content, False, None
     
     def _is_separator_line(self, line: str) -> bool:
-        """检查是否为分隔符行"""
+        """检查是否为分隔符行（基于常见模式）"""
         line = line.strip()
         if not line:
             return False
         
-        for pattern in self.separator_patterns:
+        # 直接检查常见的分隔符模式
+        import re
+        separator_patterns = [
+            r'^[-=*#_~━═─▬]{3,}$',  # 各种分隔符
+            r'^[😉☺️👑🔥]{5,}$',    # emoji分隔符
+        ]
+        
+        for pattern in separator_patterns:
             if re.match(pattern, line):
                 return True
         return False

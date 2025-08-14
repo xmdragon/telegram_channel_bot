@@ -15,6 +15,13 @@ const TrainApp = {
             // 训练模式
             trainingMode: 'tail',  // 'tail', 'ad', 'separator', 'data'
             
+            // 保存URL参数用于自动返回
+            autoReturnParams: {
+                enabled: false,
+                messageId: null,
+                mode: null
+            },
+            
             // 频道列表
             channels: [],
             
@@ -106,6 +113,16 @@ const TrainApp = {
             // 保存message_id到表单中
             this.trainingForm.message_id = messageId;
             
+            // 保存自动返回参数（在清除URL之前）
+            if (messageId && mode === 'tail') {
+                this.autoReturnParams = {
+                    enabled: true,
+                    messageId: messageId,
+                    mode: mode
+                };
+                console.log('设置自动返回参数:', this.autoReturnParams);
+            }
+            
             // 如果有消息ID，从API获取消息内容
             if (messageId) {
                 try {
@@ -192,10 +209,10 @@ const TrainApp = {
                 // 数据管理模式，加载统计信息
                 await this.loadTrainingDataStats();
             } else {
-                // 尾部过滤训练
-                await this.loadChannels();
-                await this.loadStats();
-                await this.loadHistory();
+                // 尾部过滤训练 - 不再加载统计和历史数据
+                // 只加载频道列表（如果需要）
+                // await this.loadChannels();
+                // 不需要加载统计和历史
             }
         },
         
@@ -319,57 +336,49 @@ const TrainApp = {
         
         async loadStats() {
             try {
-                // 从tail-filter-samples获取统计数据
-                const response = await axios.get('/api/training/tail-filter-samples');
-                const samples = response.data.samples || [];
+                // 只获取统计数据，不获取完整样本列表
+                const response = await axios.get('/api/training/tail-filter-statistics');
                 
-                // 计算统计信息
-                const totalSamples = samples.length;
-                const validSamples = samples.filter(s => s.content && s.tail_part).length;
-                const samplesWithSeparator = samples.filter(s => s.separator).length;
-                
-                // 计算今日新增
-                const today = new Date().toISOString().split('T')[0];
-                const todayAdded = samples.filter(s => {
-                    if (s.created_at) {
-                        const sampleDate = new Date(s.created_at).toISOString().split('T')[0];
-                        return sampleDate === today;
-                    }
-                    return false;
-                }).length;
-                
-                // 更新统计数据（映射到原有的字段名）
-                this.stats = {
-                    totalChannels: totalSamples,  // 显示为"总样本数"
-                    trainedChannels: validSamples,  // 显示为"有效样本"
-                    totalSamples: samplesWithSeparator,  // 显示为"包含分隔符"
-                    todayTraining: todayAdded  // 显示为"今日新增"
-                };
+                // 直接使用返回的统计数据
+                if (response.data.success) {
+                    this.stats = {
+                        totalChannels: response.data.total_samples || 0,  // 显示为"总样本数"
+                        trainedChannels: response.data.valid_samples || 0,  // 显示为"有效样本"
+                        totalSamples: response.data.samples_with_separator || 0,  // 显示为"包含分隔符"
+                        todayTraining: response.data.today_added || 0  // 显示为"今日新增"
+                    };
+                }
             } catch (error) {
                 // console.error('加载统计失败:', error);
+                // 如果统计端点不存在，降级到不加载
+                this.stats = {
+                    totalChannels: 0,
+                    trainedChannels: 0,
+                    totalSamples: 0,
+                    todayTraining: 0
+                };
             }
         },
         
         async loadHistory() {
+            // 如果处于自动返回模式，不加载历史记录
+            if (this.autoReturnParams.enabled) {
+                console.log('自动返回模式，跳过加载历史记录');
+                return;
+            }
+            
             try {
-                // 从tail-filter-samples获取最近的样本作为历史记录
-                const response = await axios.get('/api/training/tail-filter-samples');
-                const samples = response.data.samples || [];
+                // 获取最近的历史记录（限制数量）
+                const response = await axios.get('/api/training/tail-filter-history', {
+                    params: { limit: 20 }
+                });
                 
-                // 转换为历史记录格式并排序
-                this.trainingHistory = samples
-                    .filter(s => s.created_at)  // 只保留有创建时间的
-                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))  // 按时间倒序
-                    .slice(0, 20)  // 只取最近20条
-                    .map(sample => ({
-                        id: sample.id,
-                        channel_name: '尾部过滤',
-                        message_preview: sample.content ? sample.content.substring(0, 50) + '...' : '',
-                        tail_preview: sample.tail_part ? sample.tail_part.substring(0, 30) + '...' : '',
-                        created_at: sample.created_at
-                    }));
+                if (response.data.success) {
+                    this.trainingHistory = response.data.history || [];
+                }
             } catch (error) {
                 // console.error('加载历史失败:', error);
+                // 如果历史端点不存在，设置为空
                 this.trainingHistory = [];
             }
         },
@@ -445,15 +454,29 @@ const TrainApp = {
                 });
                 
                 if (response.data.success) {
+                    // 显示实际的响应消息
                     ElMessage({
-                        message: '训练样本已提交并自动应用',
+                        message: response.data.message || '训练样本已提交并自动应用',
                         type: 'success',
                         offset: 20,
                         customClass: 'bottom-right-message'
                     });
+                    
+                    // 检查是否需要自动返回主控制台
+                    console.log('检查自动返回参数:', this.autoReturnParams);
+                    
+                    if (this.autoReturnParams.enabled) {
+                        console.log('满足自动返回条件，1秒后返回主控制台');
+                        // 立即返回，不需要刷新历史记录
+                        setTimeout(() => {
+                            window.location.href = '/static/index.html?refresh=true';
+                        }, 1000);
+                        return; // 直接返回，不执行后续操作
+                    }
+                    
+                    // 只有在非自动返回模式下才清空表单
                     this.clearForm();
-                    await this.loadHistory();
-                    await this.loadStats();
+                    // 不再加载历史和统计数据
                     
                     // 不再需要更新频道训练计数
                 } else {
@@ -498,8 +521,7 @@ const TrainApp = {
                         offset: 20,
                         customClass: 'bottom-right-message'
                     });
-                    await this.loadHistory();
-                    await this.loadStats();
+                    // 不再加载历史和统计数据
                 } else {
                     ElMessage({
                         message: response.data.message || '删除失败',

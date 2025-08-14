@@ -11,6 +11,54 @@
     <link rel="stylesheet" href="assets/css/training-common.css">
     <link rel="stylesheet" href="assets/css/training-manager.css">
     <link rel="stylesheet" href="assets/css/training-nav.css">
+    <style>
+        /* 修复表格操作列覆盖问题 */
+        .el-table {
+            overflow: auto;
+        }
+        
+        /* 确保表格在小屏幕上能正常滚动 */
+        .table-content {
+            overflow-x: auto;
+        }
+        
+        /* 操作按钮最小宽度 */
+        .el-table .el-table__cell:last-child {
+            min-width: 100px;
+        }
+        
+        /* 响应式布局 */
+        @media (max-width: 1400px) {
+            .el-table {
+                font-size: 13px;
+            }
+            
+            .el-table .el-button--small {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            /* 在小屏幕上调整列宽 */
+            .data-table {
+                min-width: 1000px;
+            }
+        }
+        
+        /* 点击提示样式 */
+        .content-preview:hover {
+            background-color: #f0f8ff;
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        
+        .content-preview::after {
+            content: " 点击查看完整内容";
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
 </head>
 <body>
     <div id="app">
@@ -30,10 +78,6 @@
                     <div class="stat-item-inline">
                         <span class="stat-label">有效样本:</span>
                         <span class="stat-value">{{ validSamples }}</span>
-                    </div>
-                    <div class="stat-item-inline">
-                        <span class="stat-label">包含分隔符:</span>
-                        <span class="stat-value">{{ samplesWithSeparator }}</span>
                     </div>
                     <div class="stat-item-inline">
                         <span class="stat-label">今日新增:</span>
@@ -96,45 +140,23 @@
                     
                     <el-table-column prop="id" label="ID" width="80" sortable></el-table-column>
                     
-                    <el-table-column label="描述" width="200">
-                        <template #default="scope">
-                            {{ scope.row.description || '无描述' }}
-                        </template>
-                    </el-table-column>
                     
-                    <el-table-column label="原始内容" min-width="300">
+                    <el-table-column label="尾部内容" min-width="400">
                         <template #default="scope">
-                            <div class="content-preview" @click="showDetail(scope.row)">
-                                {{ truncateText(scope.row.content, 150) }}
-                            </div>
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column label="分隔符" width="150">
-                        <template #default="scope">
-                            <span v-if="scope.row.separator" class="separator-display">
-                                {{ scope.row.separator }}
-                            </span>
-                            <span v-else class="no-media">-</span>
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column label="尾部内容" width="200">
-                        <template #default="scope">
-                            <div v-if="scope.row.tail_part">
-                                {{ truncateText(scope.row.tail_part, 50) }}
+                            <div v-if="scope.row.tail_part" class="content-preview" @click="showDetail(scope.row)" style="cursor: pointer; color: #409EFF;">
+                                {{ truncateText(scope.row.tail_part, 100) }}
                             </div>
                             <span v-else>-</span>
                         </template>
                     </el-table-column>
                     
-                    <el-table-column prop="created_at" label="创建时间" width="180" sortable>
+                    <el-table-column prop="created_at" label="创建时间" min-width="160" sortable>
                         <template #default="scope">
                             {{ formatTime(scope.row.created_at) }}
                         </template>
                     </el-table-column>
                     
-                    <el-table-column label="操作" width="100" fixed="right">
+                    <el-table-column label="操作" width="100">
                         <template #default="scope">
                             <el-button type="danger" size="small" class="btn-danger" @click="deleteSample(scope.row)">
                                 删除
@@ -160,32 +182,17 @@
         </div>
 
         <!-- 详情对话框 -->
-        <el-dialog v-model="detailDialog" title="样本详情" width="60%">
+        <el-dialog v-model="detailDialog" title="尾部内容详情" width="60%">
             <div v-if="currentSample">
                 <el-descriptions :column="1" border>
                     <el-descriptions-item label="ID">{{ currentSample.id }}</el-descriptions-item>
-                    <el-descriptions-item label="描述">{{ currentSample.description || '无' }}</el-descriptions-item>
-                    <el-descriptions-item label="分隔符">
-                        <span class="separator-display">{{ currentSample.separator || '无' }}</span>
-                    </el-descriptions-item>
                     <el-descriptions-item label="创建时间">{{ formatTime(currentSample.created_at) }}</el-descriptions-item>
                 </el-descriptions>
                 
-                <el-divider></el-divider>
-                
-                <h4>完整内容：</h4>
-                <div class="detail-content">{{ currentSample.content }}</div>
-                
-                <div v-if="currentSample.normal_part">
-                    <el-divider></el-divider>
-                    <h4>正常部分：</h4>
-                    <div class="detail-content">{{ currentSample.normal_part }}</div>
-                </div>
-                
                 <div v-if="currentSample.tail_part">
                     <el-divider></el-divider>
-                    <h4>尾部部分：</h4>
-                    <div class="detail-content">{{ currentSample.tail_part }}</div>
+                    <h4>完整尾部内容：</h4>
+                    <div class="detail-content" style="white-space: pre-line; background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #409EFF; font-family: 'Consolas', 'Monaco', monospace;">{{ currentSample.tail_part }}</div>
                 </div>
             </div>
         </el-dialog>

@@ -189,6 +189,14 @@ class ContentFilter:
         """重新加载训练模式（当新增训练数据时调用）"""
         self._trained_tail_patterns = []
         self._load_trained_patterns()
+        
+        # 同时重新加载intelligent_tail_filter的训练数据
+        try:
+            from app.services.intelligent_tail_filter import intelligent_tail_filter
+            intelligent_tail_filter._load_training_data(force_reload=True)
+            logger.info("已重新加载intelligent_tail_filter训练数据")
+        except Exception as e:
+            logger.error(f"重新加载intelligent_tail_filter失败: {e}")
     
     def _compile_patterns(self):
         """编译所有正则表达式以提高性能"""
@@ -523,7 +531,8 @@ class ContentFilter:
     
     def _apply_trained_tail_filters(self, content: str) -> str:
         """
-        应用训练的尾部过滤模式
+        应用智能学习系统进行尾部过滤
+        使用模式匹配而非简单的文本匹配，避免破坏正文内容
         
         Args:
             content: 消息内容
@@ -531,47 +540,39 @@ class ContentFilter:
         Returns:
             过滤后的内容
         """
-        if not content or not self._trained_tail_patterns:
+        if not content:
             return content
         
-        original_content = content
-        best_match = None
-        longest_match_length = 0
-        
-        # 遍历所有训练的尾部模式，找到最长的匹配
-        for pattern_info in self._trained_tail_patterns:
-            original_text = pattern_info['original_text'].strip()
+        try:
+            # 优先使用智能尾部过滤器（基于用户训练样本）
+            from app.services.intelligent_tail_filter import intelligent_tail_filter
             
-            # 尝试直接字符串匹配（更准确）
-            if original_text in content:
-                # 找到匹配的位置
-                match_start = content.rfind(original_text)  # 使用rfind找最后一次出现
-                if match_start != -1:
-                    # 检查这是否是尾部匹配（允许后面有少量空白字符）
-                    after_match = content[match_start + len(original_text):].strip()
-                    if len(after_match) <= 50:  # 允许后面有少量内容（如"测试尾部内容"）
-                        # 这是一个有效的尾部匹配
-                        match_length = len(original_text)
-                        if match_length > longest_match_length:
-                            longest_match_length = match_length
-                            best_match = {
-                                'start': match_start,
-                                'text': original_text,
-                                'description': pattern_info.get('description', ''),
-                                'after_content': after_match
-                            }
-        
-        # 应用最佳匹配
-        if best_match:
-            # 移除匹配的尾部内容及其后的所有内容
-            filtered = content[:best_match['start']].rstrip()
-            removed_content = content[best_match['start']:]
+            # 不需要每次都重新加载，intelligent_tail_filter在初始化时已加载
+            # 应用过滤
+            filtered_content, was_filtered, removed_tail = intelligent_tail_filter.filter_message(content)
             
-            logger.info(f"应用训练模式移除尾部: '{best_match['text'][:30]}...' + 后续内容")
-            logger.info(f"移除内容: '{removed_content[:50]}...' - 从 {len(content)} -> {len(filtered)} 字符")
-            return filtered
-        
-        return content
+            if was_filtered:
+                logger.info(f"智能尾部过滤器移除了尾部内容: {len(content)} -> {len(filtered_content)} 字符")
+                if removed_tail:
+                    logger.debug(f"移除的内容预览: {removed_tail[:50]}...")
+                return filtered_content
+            
+            # 如果智能尾部过滤器没有检测到，尝试智能学习系统
+            from app.services.intelligent_learning_system import intelligent_learning_system
+            
+            filtered_content2, was_filtered2, removed_tail2 = intelligent_learning_system.filter_message(content)
+            
+            if was_filtered2:
+                logger.info(f"智能学习系统移除了尾部内容: {len(content)} -> {len(filtered_content2)} 字符")
+                if removed_tail2:
+                    logger.debug(f"移除的内容预览: {removed_tail2[:50]}...")
+                return filtered_content2
+            
+            return content
+            
+        except Exception as e:
+            logger.error(f"智能过滤失败，返回原始内容: {e}")
+            return content
     
     def filter_promotional_content(self, content: str, channel_id: str = None) -> str:
         """
