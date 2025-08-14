@@ -260,7 +260,8 @@ class UnifiedFilterEngine:
             temp_filter = ContentFilter()
             
             # 使用ContentFilter的推广内容过滤来处理尾部
-            temp_filtered = temp_filter.filter_promotional_content(filtered_content, channel_id)
+            has_media = media_files and len(media_files) > 0
+            temp_filtered = temp_filter.filter_promotional_content(filtered_content, channel_id, has_media)
             if temp_filtered != filtered_content:
                 original_len = len(filtered_content)
                 filtered_len = len(temp_filtered)

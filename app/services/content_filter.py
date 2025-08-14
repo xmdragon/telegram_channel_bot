@@ -529,12 +529,13 @@ class ContentFilter:
         
         return content
     
-    def _apply_semantic_tail_filter(self, content: str) -> str:
+    def _apply_semantic_tail_filter(self, content: str, has_media: bool = False) -> str:
         """
         应用语义尾部过滤 - 基于语义分析和训练样本
         
         Args:
             content: 消息内容
+            has_media: 是否有媒体文件
             
         Returns:
             过滤后的内容
@@ -545,7 +546,7 @@ class ContentFilter:
         try:
             from app.services.semantic_tail_filter import semantic_tail_filter
             
-            filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(content)
+            filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(content, has_media)
             
             if was_filtered:
                 logger.info(f"语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符")
@@ -561,7 +562,7 @@ class ContentFilter:
             logger.error(f"语义尾部过滤失败，返回原始内容: {e}")
             return content
     
-    def filter_promotional_content(self, content: str, channel_id: str = None) -> str:
+    def filter_promotional_content(self, content: str, channel_id: str = None, has_media: bool = False) -> str:
         """
         智能过滤推广内容 - 优化版本
         优先使用训练数据，然后使用规则，保护正文内容
@@ -569,6 +570,7 @@ class ContentFilter:
         Args:
             content: 消息内容
             channel_id: 频道ID（用于AI尾部过滤和自引用检测）
+            has_media: 是否有媒体文件（图片、视频等）
         """
         if not content:
             return content
@@ -582,7 +584,7 @@ class ContentFilter:
             logger.info(f"移除Markdown链接: {len(original_content)} -> {len(content)}")
         
         # 1. 应用语义尾部过滤（主要过滤方法）
-        semantic_filtered = self._apply_semantic_tail_filter(content)
+        semantic_filtered = self._apply_semantic_tail_filter(content, has_media)
         if semantic_filtered != content:
             logger.info(f"语义尾部过滤成功: {len(content)} -> {len(semantic_filtered)} 字符")
             # 语义过滤成功后，直接返回结果，不再进行激进的规则过滤

@@ -10488,6 +10488,58 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "26002cf69f64",
+      "image_hash": "98ec49be8f795802",
+      "image_path": "temp_media/2003_20250814_165345_photo.jpg",
+      "ocr_texts": [
+        "赌"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 16:53:47",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e96a2f7a3116",
+      "image_hash": "4b53794b21383ba5",
+      "image_path": "temp_media/2920_20250814_165344_photo.jpg",
+      "ocr_texts": [
+        "GPNERAL DEPARTMENT OEIMMIGRATON",
+        "WIIDI"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 16:53:47",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "2decf85e8ae1",
+      "image_hash": "4f9967c9d08778f2",
+      "image_path": "temp_media/43005_20250814_165926_photo.jpg",
+      "ocr_texts": [
+        "Mnistry af Forlom Affalrs"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 16:59:30",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -10544,12 +10596,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 416,
+    "total_samples": 419,
     "ad_samples": 212,
-    "non_ad_samples": 204,
+    "non_ad_samples": 207,
     "auto_rejected_samples": 3,
     "high_score_samples": 106,
-    "last_updated": "2025-08-14 16:48:11",
+    "last_updated": "2025-08-14 16:59:30",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",

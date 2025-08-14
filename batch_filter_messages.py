@@ -47,8 +47,9 @@ async def batch_filter_messages():
                         continue
                     
                     # 应用语义尾部过滤
+                    has_media = bool(message.media_type or message.media_url or (message.combined_messages and any(m.get('media_type') for m in message.combined_messages)))
                     filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(
-                        message.content
+                        message.content, has_media
                     )
                     
                     # 更新数据库中的过滤后内容
