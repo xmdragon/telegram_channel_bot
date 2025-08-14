@@ -103,14 +103,103 @@ class OCRService:
             
             # 使用EasyOCR进行真实文字识别
             try:
-                result = self.ocr_reader.readtext(image_path)
-                
-                # 提取识别到的文字
+                # 尝试多种识别策略
                 texts = []
+                
+                # 策略1：直接识别
+                result = self.ocr_reader.readtext(image_path)
                 for bbox, text, confidence in result:
-                    # 过滤置信度太低的结果（降低阈值以识别更多中文文字）
+                    # 降低阈值并允许极低置信度的高质量文字
                     if confidence > 0.3 and text.strip():
                         texts.append(text.strip())
+                    elif confidence > 0.05 and len(text.strip()) > 2 and text.strip():
+                        # 对于较长的文字，允许更低的置信度
+                        texts.append(text.strip())
+                
+                # 策略2：如果直接识别结果为空，尝试多种图像预处理
+                if len(texts) == 0:
+                    try:
+                        import cv2
+                        import numpy as np
+                        
+                        # 读取图像并预处理
+                        img = cv2.imread(image_path)
+                        if img is not None:
+                            # 多种预处理策略
+                            processed_images = []
+                            
+                            # 策略1：增强对比度
+                            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                            enhanced = cv2.convertScaleAbs(gray, alpha=1.8, beta=40)
+                            processed_images.append(("enhanced", enhanced))
+                            
+                            # 策略2：直方图均衡化
+                            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+                            clahe_img = clahe.apply(gray)
+                            processed_images.append(("clahe", clahe_img))
+                            
+                            # 策略3：高斯模糊后锐化
+                            blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+                            sharpened = cv2.addWeighted(gray, 1.5, blurred, -0.5, 0)
+                            processed_images.append(("sharpened", sharpened))
+                            
+                            # 策略4：形态学操作
+                            kernel = np.ones((2,2), np.uint8)
+                            morph = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+                            processed_images.append(("morph", morph))
+                            
+                            # 策略5：双边滤波（保边去噪）
+                            bilateral = cv2.bilateralFilter(gray, 9, 75, 75)
+                            processed_images.append(("bilateral", bilateral))
+                            
+                            # 对每种预处理图像进行OCR
+                            for strategy_name, processed_img in processed_images:
+                                temp_path = image_path.replace('.jpg', f'_temp_{strategy_name}.jpg')
+                                cv2.imwrite(temp_path, processed_img)
+                                
+                                try:
+                                    result2 = self.ocr_reader.readtext(temp_path)
+                                    for bbox, text, confidence in result2:
+                                        # 使用更低的置信度阈值
+                                        if confidence > 0.1 and text.strip() and text.strip() not in texts:
+                                            texts.append(text.strip())
+                                            logger.debug(f"{strategy_name}策略识别到: {text} (置信度: {confidence:.3f})")
+                                except Exception as e:
+                                    logger.debug(f"{strategy_name}策略OCR失败: {e}")
+                                
+                                # 清理临时文件
+                                try:
+                                    os.remove(temp_path)
+                                except:
+                                    pass
+                                    
+                            # 如果还是没有结果，尝试极限预处理
+                            if len(texts) == 0:
+                                # 极限策略：强对比度+二值化
+                                _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                                temp_path = image_path.replace('.jpg', '_temp_extreme.jpg')
+                                cv2.imwrite(temp_path, binary)
+                                
+                                try:
+                                    result3 = self.ocr_reader.readtext(temp_path)
+                                    for bbox, text, confidence in result3:
+                                        if confidence > 0.05 and text.strip():  # 极低置信度
+                                            texts.append(text.strip())
+                                            logger.debug(f"极限策略识别到: {text} (置信度: {confidence:.3f})")
+                                except Exception as e:
+                                    logger.debug(f"极限策略OCR失败: {e}")
+                                
+                                try:
+                                    os.remove(temp_path)
+                                except:
+                                    pass
+                                
+                    except Exception as e:
+                        logger.debug(f"增强图像预处理失败: {e}")
+                
+                # 去重并清理
+                texts = list(dict.fromkeys(texts))  # 保持顺序的去重
+                texts = [t for t in texts if len(t.strip()) > 0]
                 
                 logger.debug(f"EasyOCR识别到 {len(texts)} 个文字: {texts}")
                 return texts
