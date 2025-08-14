@@ -302,8 +302,51 @@ class UnifiedFilterEngine:
                 
         # 4. OCR检测（如果有媒体文件）
         if media_files and not is_ad:
-            # TODO: 实现OCR检测
-            pass
+            try:
+                from app.services.ocr_service import ocr_service
+                
+                # 过滤出图片文件
+                image_files = []
+                for media_file in media_files:
+                    if media_file and any(media_file.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
+                        image_files.append(media_file)
+                
+                if image_files and ocr_service.initialized:
+                    logger.info(f"统一引擎OCR处理 {len(image_files)} 个图片文件")
+                    
+                    # 批量处理图片
+                    ocr_results = await ocr_service.batch_extract_content(image_files)
+                    
+                    # 分析OCR结果
+                    total_ad_score = 0
+                    ocr_ad_indicators = []
+                    
+                    for file_path, result in ocr_results.items():
+                        if result.get('error'):
+                            logger.warning(f"OCR处理失败: {file_path} - {result['error']}")
+                            continue
+                        
+                        ad_score = result.get('ad_score', 0)
+                        ad_indicators = result.get('ad_indicators', [])
+                        
+                        total_ad_score = max(total_ad_score, ad_score)
+                        ocr_ad_indicators.extend(ad_indicators)
+                    
+                    # OCR广告检测
+                    if total_ad_score >= 50:  # 50分以上直接判定为广告
+                        is_ad = True
+                        reasons.append(f"OCR检测高风险广告(分数:{total_ad_score:.0f})")
+                        # 清空内容，因为是纯广告媒体
+                        filtered_content = ""
+                        logger.warning(f"OCR检测到高风险广告媒体，分数: {total_ad_score}")
+                        return True, "", " | ".join(reasons)
+                    elif total_ad_score >= 30:  # 30-49分标记为广告但保留内容
+                        is_ad = True
+                        reasons.append(f"OCR检测广告内容(分数:{total_ad_score:.0f})")
+                        logger.info(f"OCR检测到广告媒体，分数: {total_ad_score}")
+                        
+            except Exception as e:
+                logger.debug(f"OCR检测失败: {e}")
             
         # 5. 最终判定：只有明确被识别为广告的才标记为广告
         # 不再因为内容被过滤就标记为广告

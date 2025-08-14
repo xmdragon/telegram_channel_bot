@@ -567,20 +567,21 @@ class UnifiedMessageProcessor:
         """
         import re
         
-        # 高危广告关键词
+        # 高危广告关键词（赌博、色情、诈骗）
         HIGH_RISK_AD_KEYWORDS = [
-            # 赌博相关
-            r'[Yy]3.*(?:娱乐|娛樂|国际|國際)',
-            r'(?:USDT|泰达币|虚拟币).*(?:娱乐城|娛樂城|平台)',
-            r'(?:博彩|赌场|賭場|棋牌|体育|體育).*(?:平台|官网|官網)',
-            r'(?:首充|首存).*(?:返水|优惠|優惠)',
-            r'(?:日出|日入).*[0-9]+.*[uU]',
-            r'(?:实力|實力).*(?:U盘|U盤|USDT)',
-            r'(?:千万|千萬|巨款).*(?:无忧|無憂)',
+            # 赌博平台相关
+            r'(?:铂莱|博莱|Y3|AG|BBIN).*(?:娱乐|娛樂|国际|國際|平台)',
+            r'(?:USDT|泰达币|虚拟币|加密货币).*(?:娱乐城|娛樂城|平台|充值|提款)',
+            r'(?:博彩|赌场|賭場|棋牌|体育|體育|真人|电子).*(?:平台|官网|官網|娱乐城)',
+            r'(?:首充|首存|二存|三存).*(?:返水|优惠|優惠|赠送|贈送)',
+            r'(?:日出|日入|月入|日赚|日賺).*[0-9]+.*[万萬uU]',
+            r'(?:实力|實力|信誉|信譽).*(?:U盘|U盤|USDT|出款)',
+            r'(?:千万|千萬|巨款|巨额|大额).*(?:无忧|無憂|秒到|提款)',
+            r'777.*(?:老虎机|老虎機|slots|游戏|遊戲)',
             
             # 色情相关
-            r'(?:上线|上線).*(?:福利|八大)',
-            r'(?:永久|免费|免費).*(?:送|领取|領取)',
+            r'(?:上线|上線).*(?:福利|八大|妹妹)',
+            r'(?:永久|免费|免費).*(?:送|领取|領取|看片)',
             r'(?:幸运|幸運).*(?:单|單).*(?:奖|獎)',
             
             # 诈骗相关
@@ -588,55 +589,67 @@ class UnifiedMessageProcessor:
             r'(?:三个月|三個月).*(?:套房|房子)',
             r'(?:汽车|汽車).*(?:违停|違停).*(?:拍照|一张|一張).*[0-9]+',
             r'(?:想功成名就|胆子大|膽子大).*(?:灰色|看我)',
+            
+            # 特定平台标识
+            r'(?:官方|客服).*(?:QQ|qq|微信|WeChat|wechat).*[0-9]+',
+            r'(?:注册|註冊|登录|登錄).*(?:就送|即送|立即送)',
         ]
         
-        # 情况1：整条消息都是广告文本
-        if "整条消息都是广告" in filter_reason:
-            # 检查是否包含高危关键词
-            for pattern in HIGH_RISK_AD_KEYWORDS:
-                if re.search(pattern, content, re.IGNORECASE):
-                    return True, "高风险纯广告（赌博/色情/诈骗）"
+        # 提取OCR文字内容
+        ocr_texts = []
+        if ocr_result:
+            # 从OCR结果中提取所有文字
+            if ocr_result.get('texts'):
+                ocr_texts.extend(ocr_result['texts'])
             
-            # 如果有媒体文件
-            if media_info:
-                # 如果OCR结果显示媒体也包含广告内容
-                if ocr_result and ocr_result.get('ad_score', 0) > 0.5:
-                    return True, "纯广告消息（文本+媒体都是广告）"
-                
-                # 如果OCR提取到了类似的广告文字
-                if ocr_result and ocr_result.get('ocr_text'):
-                    ocr_text = ocr_result.get('ocr_text', '')
-                    # 检查OCR文字是否包含高危关键词
-                    for pattern in HIGH_RISK_AD_KEYWORDS:
-                        if re.search(pattern, ocr_text, re.IGNORECASE):
-                            return True, "纯广告消息（媒体含高危广告内容）"
-            else:
-                # 没有媒体，纯广告文本，直接拒绝
-                return True, "纯广告文本（无媒体）"
+            # 从二维码中提取文字内容  
+            if ocr_result.get('qr_codes'):
+                for qr in ocr_result['qr_codes']:
+                    if qr.get('data'):
+                        ocr_texts.append(qr['data'])
         
-        # 情况2：文本被完全过滤且有媒体
+        # 合并所有需要检查的文本
+        all_text_to_check = content
+        if ocr_texts:
+            all_text_to_check += " " + " ".join(ocr_texts)
+        
+        # 优先级1：OCR检测到高分广告内容 - 直接拒绝
+        if ocr_result and ocr_result.get('ad_score', 0) >= 50:
+            return True, f"图片广告内容自动拒绝（OCR分数:{ocr_result.get('ad_score', 0)}）"
+        
+        # 优先级2：检查是否包含高危赌博关键词
+        for pattern in HIGH_RISK_AD_KEYWORDS:
+            if re.search(pattern, all_text_to_check, re.IGNORECASE):
+                # 如果还有媒体文件，更严格
+                if media_info:
+                    return True, "高风险广告自动拒绝（赌博/色情/诈骗+媒体）"
+                # 仅文字也可能拒绝
+                elif len(filtered_content.strip()) < 20:  # 过滤后内容很少
+                    return True, "高风险广告自动拒绝（赌博/色情/诈骗内容）"
+        
+        # 优先级3：纯媒体消息且OCR检测到广告
+        if not content.strip() and media_info and ocr_result:
+            if ocr_result.get('ad_score', 0) >= 30:
+                return True, "纯媒体广告自动拒绝（无文字内容，OCR检测为广告）"
+        
+        # 优先级4：文本被完全过滤且有媒体
         if not filtered_content.strip() and media_info:
-            # 检查原文本是否包含高危关键词
-            for pattern in HIGH_RISK_AD_KEYWORDS:
-                if re.search(pattern, content, re.IGNORECASE):
-                    return True, "高风险广告媒体（文本含高危内容）"
+            # 如果OCR也检测到广告内容
+            if ocr_result and ocr_result.get('ad_score', 0) >= 30:
+                return True, "纯广告媒体自动拒绝（文字+媒体都是广告）"
             
-            # 检查OCR结果
-            if ocr_result:
-                # 高广告分数
-                if ocr_result.get('ad_score', 0) > 0.7:
-                    return True, "纯广告媒体（OCR检测高分）"
-                
-                # OCR文字包含高危关键词
-                ocr_text = ocr_result.get('ocr_text', '')
-                if ocr_text:
-                    for pattern in HIGH_RISK_AD_KEYWORDS:
-                        if re.search(pattern, ocr_text, re.IGNORECASE):
-                            return True, "纯广告媒体（OCR含高危内容）"
-            
-            # 如果文本过滤掉了超过90%的内容，也视为纯广告
-            if len(content) > 0 and len(filtered_content) < len(content) * 0.1:
-                return True, "疑似纯广告（文本过滤超90%）"
+            # 如果原文本过滤掉了超过95%的内容
+            if len(content) > 10 and len(filtered_content) < len(content) * 0.05:
+                return True, "疑似纯广告自动拒绝（文本过滤超95%）"
+        
+        # 优先级5：整条消息都是广告文本的处理
+        if "整条消息都是广告" in filter_reason or "高风险广告" in filter_reason:
+            # 没有媒体的纯文字广告，直接拒绝
+            if not media_info:
+                return True, "纯文字广告自动拒绝"
+            # 有媒体且OCR也是广告，拒绝
+            elif ocr_result and ocr_result.get('ad_score', 0) >= 30:
+                return True, "纯广告消息自动拒绝（文字+媒体都是广告）"
         
         return False, ""
     

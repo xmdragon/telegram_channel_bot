@@ -157,7 +157,7 @@ class OCRService:
             total_pixels = image.shape[0] * image.shape[1]
             red_ratio = red_pixels / total_pixels
             
-            if red_ratio > 0.1:  # 超过10%的红色区域
+            if red_ratio > 0.05:  # 降低阈值到5%
                 detected_texts.append("包含醒目红色文字")
             
             # 检测黄色区域（广告常用）
@@ -168,8 +168,45 @@ class OCRService:
             yellow_pixels = cv2.countNonZero(yellow_mask)
             yellow_ratio = yellow_pixels / total_pixels
             
-            if yellow_ratio > 0.1:  # 超过10%的黄色区域
+            if yellow_ratio > 0.05:  # 降低阈值到5%
                 detected_texts.append("包含醒目黄色文字")
+            
+            # 检测绿色区域（赌博网站常用绿色）
+            lower_green = np.array([40, 50, 50])
+            upper_green = np.array([80, 255, 255])
+            green_mask = cv2.inRange(hsv, lower_green, upper_green)
+            
+            green_pixels = cv2.countNonZero(green_mask)
+            green_ratio = green_pixels / total_pixels
+            
+            if green_ratio > 0.1:  # 超过10%的绿色区域
+                detected_texts.append("包含大量绿色元素")
+                
+            # 7. 特殊图像特征检测（赌博相关）
+            # 检测圆形区域（老虎机转盘、筹码等）
+            circles = cv2.HoughCircles(
+                gray,
+                cv2.HOUGH_GRADIENT, 
+                dp=1,
+                minDist=50,
+                param1=50,
+                param2=30,
+                minRadius=20,
+                maxRadius=100
+            )
+            
+            if circles is not None and len(circles[0]) >= 3:
+                detected_texts.append("检测到多个圆形元素（疑似老虎机/筹码）")
+                
+            # 8. 组合特征检测（高风险组合）
+            has_text_regions = text_regions > 5
+            has_bright_colors = red_ratio > 0.05 or yellow_ratio > 0.05 or green_ratio > 0.1
+            has_circles = circles is not None and len(circles[0]) >= 3
+            
+            # 高风险组合判定
+            risk_factors = sum([has_text_regions, has_bright_colors, has_circles])
+            if risk_factors >= 2:
+                detected_texts.append("高风险广告图像特征组合")
             
             logger.debug(f"图像分析检测到 {len(detected_texts)} 个文字特征")
             return detected_texts
@@ -349,6 +386,31 @@ class OCRService:
             if matches:
                 ad_score += len(matches) * 10  # 每个匹配加10分
                 ad_indicators.extend([f"文字广告模式: {match[:20]}" for match in matches[:3]])
+        
+        # 1.5 基于检测到的特征文字进行赌博广告检测
+        gambling_indicators = [
+            "检测到密集文字区域",
+            "包含醒目红色文字", 
+            "包含醒目黄色文字",
+            "包含大量绿色元素",
+            "检测到多个圆形元素",
+            "高风险广告图像特征组合"
+        ]
+        
+        # 统计赌博相关视觉特征
+        visual_gambling_score = 0
+        for text in texts:
+            if text in gambling_indicators:
+                if "高风险" in text:
+                    visual_gambling_score += 25
+                elif "密集文字" in text or "圆形元素" in text:
+                    visual_gambling_score += 15
+                elif "醒目" in text or "大量" in text:
+                    visual_gambling_score += 10
+                    
+        ad_score += visual_gambling_score
+        if visual_gambling_score > 0:
+            ad_indicators.append(f"赌博视觉特征检测: {visual_gambling_score}分")
         
         # 2. 检查二维码内容
         for qr in qr_codes:
