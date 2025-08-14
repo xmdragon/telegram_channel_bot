@@ -10424,6 +10424,70 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "e23b566cd1eb",
+      "image_hash": "c5a86898cc8b96b6",
+      "image_path": "temp_media/42998_20250814_163441_photo.jpg",
+      "ocr_texts": [
+        "(i1: |1;!:1';1|"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 16:34:51",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "209334ec0266",
+      "image_hash": "23401570ea95cd74",
+      "image_path": "temp_media/10074_20250814_163845_photo.jpg",
+      "ocr_texts": [
+        "11.1K 位订阅者",
+        "置顶消息",
+        "今1249P 上饯",
+        "用户各",
+        "05/2499",
+        "99",
+        "#网友曝光 #此人以前在妙瓦底东美",
+        "园区TNT公司做团长,代号大熊;河",
+        "南人",
+        "经常吃喝嫖赌到处借钱,找各种方法",
+        "预支数百万泰铢。借员工的。借组长",
+        "和团长的,在工作期间吃客户钱,上",
+        "班打PG, 上班回宿舍吸毒,后找机会",
+        "说看病直接跑路"
+      ],
+      "qr_codes": [],
+      "ad_score": 10.0,
+      "is_ad": false,
+      "keywords_detected": [
+        "文字广告模式: 借钱"
+      ],
+      "created_at": "2025-08-14 16:38:47",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "51b660c6d7e1",
+      "image_hash": "dc38ee7c621f31e5",
+      "image_path": "temp_media/8760_20250814_164802_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-14 16:48:11",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -10480,12 +10544,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 413,
+    "total_samples": 416,
     "ad_samples": 212,
-    "non_ad_samples": 201,
+    "non_ad_samples": 204,
     "auto_rejected_samples": 3,
     "high_score_samples": 106,
-    "last_updated": "2025-08-14 15:24:51",
+    "last_updated": "2025-08-14 16:48:11",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",
