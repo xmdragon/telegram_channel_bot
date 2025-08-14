@@ -287,11 +287,6 @@ DEFAULT_CONFIGS = {
         "description": "Telegram API Hash (从 https://my.telegram.org 获取)",
         "config_type": "string"
     },
-    "telegram.phone": {
-        "value": "",
-        "description": "Telegram手机号码 (格式: +8613800138000)",
-        "config_type": "string"
-    },
     
     # 频道监听配置
     "channels.source_channels": {
@@ -320,32 +315,6 @@ DEFAULT_CONFIGS = {
         "config_type": "integer"
     },
     
-    # 账号采集配置
-    "accounts.collect_accounts": {
-        "value": True,
-        "description": "是否启用账号采集功能",
-        "config_type": "boolean"
-    },
-    "accounts.collected_accounts": {
-        "value": [],
-        "description": "已采集的账号列表",
-        "config_type": "list"
-    },
-    "accounts.account_blacklist": {
-        "value": [],
-        "description": "账号黑名单 (不采集这些账号)",
-        "config_type": "list"
-    },
-    "accounts.account_whitelist": {
-        "value": [],
-        "description": "账号白名单 (只采集这些账号)",
-        "config_type": "list"
-    },
-    "accounts.auto_collect": {
-        "value": True,
-        "description": "是否自动采集新账号",
-        "config_type": "boolean"
-    },
     
     # 广告过滤配置 - 文中关键词
     "filter.ad_keywords_text": {
@@ -372,31 +341,7 @@ DEFAULT_CONFIGS = {
         "description": "自动转发延迟(秒)",
         "config_type": "integer"
     },
-    "review.auto_filter_ads": {
-        "value": False,
-        "description": "是否自动过滤广告消息",
-        "config_type": "boolean"
-    },
-    "review.enable_keyword_filter": {
-        "value": True,
-        "description": "是否启用关键词过滤",
-        "config_type": "boolean"
-    },
-    "review.enable_line_filter": {
-        "value": True,
-        "description": "是否启用行过滤",
-        "config_type": "boolean"
-    },
     
-    # 频道替换配置
-    "filter.channel_replacements": {
-        "value": {
-            "@原频道": "@你的频道",
-            "原频道链接": "你的频道链接"
-        },
-        "description": "频道信息替换规则",
-        "config_type": "json"
-    },
     
     # 频道落款配置
     "channels.signature": {
@@ -405,22 +350,6 @@ DEFAULT_CONFIGS = {
         "config_type": "string"
     },
     
-    # 系统配置
-    "system.secret_key": {
-        "value": "your-secret-key-change-this-in-production",
-        "description": "系统密钥",
-        "config_type": "string"
-    },
-    "system.database_url": {
-        "value": "postgresql://postgres:telegram123@postgres:5432/telegram_system",
-        "description": "数据库连接URL",
-        "config_type": "string"
-    },
-    "system.redis_url": {
-        "value": "redis://localhost:6379",
-        "description": "Redis连接URL",
-        "config_type": "string"
-    }
 }
 
 async def init_default_configs():

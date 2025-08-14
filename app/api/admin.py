@@ -463,7 +463,6 @@ async def get_system_config():
         "target_channel_id_cached": target_channel_id if target_channel_id and target_channel_id.startswith('-100') else '',
         "history_message_limit": await db_settings.get_history_message_limit(),
         "ad_keywords": await db_settings.get_ad_keywords_text(),
-        "channel_replacements": await db_settings.get_channel_replacements(),
         "channels.signature": await config_manager.get_config('channels.signature', '')
     }
 

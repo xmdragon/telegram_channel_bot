@@ -340,22 +340,6 @@ async def get_filter_configs(user: Dict[str, Any] = Depends(check_config_permiss
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取过滤配置失败: {str(e)}")
 
-@router.get("/categories/accounts")
-async def get_accounts_configs(user: Dict[str, Any] = Depends(check_config_permission)):
-    """获取账号采集相关配置"""
-    try:
-        all_configs = await config_manager.get_all_configs()
-        accounts_configs = {
-            key: value for key, value in all_configs.items()
-            if key.startswith('accounts.')
-        }
-        
-        return {
-            "success": True,
-            "configs": accounts_configs
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取账号采集配置失败: {str(e)}")
 
 @router.get("/categories/review")
 async def get_review_configs(user: Dict[str, Any] = Depends(check_config_permission)):
@@ -798,62 +782,3 @@ async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(check_conf
         raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
 
 
-# 账号管理相关API
-class AccountAddRequest(BaseModel):
-    account: str
-
-@router.post("/accounts/blacklist/add")
-async def add_account_to_blacklist(request: AccountAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
-    """添加账号到黑名单"""
-    try:
-        blacklist = await config_manager.get_config("accounts.account_blacklist", [])
-        if request.account not in blacklist:
-            blacklist.append(request.account)
-            await config_manager.set_config("accounts.account_blacklist", blacklist, "账号黑名单", "list")
-        
-        return {"success": True, "message": f"账号 '{request.account}' 已添加到黑名单"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"添加账号到黑名单失败: {str(e)}")
-
-@router.delete("/accounts/blacklist/{account}")
-async def remove_account_from_blacklist(account: str, user: Dict[str, Any] = Depends(check_config_permission)):
-    """从黑名单移除账号"""
-    try:
-        blacklist = await config_manager.get_config("accounts.account_blacklist", [])
-        if account in blacklist:
-            blacklist.remove(account)
-            await config_manager.set_config("accounts.account_blacklist", blacklist, "账号黑名单", "list")
-        
-        return {"success": True, "message": f"账号 '{account}' 已从黑名单移除"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"从黑名单移除账号失败: {str(e)}")
-
-@router.post("/accounts/whitelist/add")
-async def add_account_to_whitelist(request: AccountAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
-    """添加账号到白名单"""
-    try:
-        whitelist = await config_manager.get_config("accounts.account_whitelist", [])
-        if request.account not in whitelist:
-            whitelist.append(request.account)
-            await config_manager.set_config("accounts.account_whitelist", whitelist, "账号白名单", "list")
-        
-        return {"success": True, "message": f"账号 '{request.account}' 已添加到白名单"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"添加账号到白名单失败: {str(e)}")
-
-@router.delete("/accounts/whitelist/{account}")
-async def remove_account_from_whitelist(account: str, user: Dict[str, Any] = Depends(check_config_permission)):
-    """从白名单移除账号"""
-    try:
-        whitelist = await config_manager.get_config("accounts.account_whitelist", [])
-        if account in whitelist:
-            whitelist.remove(account)
-            await config_manager.set_config("accounts.account_whitelist", whitelist, "账号白名单", "list")
-        
-        return {"success": True, "message": f"账号 '{account}' 已从白名单移除"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"从白名单移除账号失败: {str(e)}")

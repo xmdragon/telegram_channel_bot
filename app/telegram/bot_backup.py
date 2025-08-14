@@ -269,13 +269,8 @@ class TelegramBot:
                     await media_handler.cleanup_file(media_info['file_path'])
                 return
             
-            # 如果是广告且配置了自动过滤，则跳过
-            auto_filter_ads = await db_settings.get_auto_filter_ads()
-            if is_ad and auto_filter_ads:
-                logger.info(f"自动过滤广告消息: {content[:50]}...")
-                if media_info:
-                    await media_handler.cleanup_file(media_info['file_path'])
-                return
+            # 不进行自动过滤，所有消息都发送到审核群
+            # 注：根据配置要求，移除了自动过滤逻辑
             
             # 保存到数据库 - 使用统一的ID格式
             raw_chat_id = chat.id
@@ -1028,14 +1023,8 @@ class TelegramBot:
             media_hash = None
             combined_media_hash = None
             
-            # 如果是广告且配置了自动过滤，则跳过
-            auto_filter_ads = await db_settings.get_auto_filter_ads()
-            if is_ad and auto_filter_ads:
-                logger.info(f"{'历史' if is_history else '实时'}消息：自动过滤广告消息: {message_data.get('content', '')[:50]}...")
-                
-                # 清理已下载的媒体文件
-                if message_data.get('media_url') and os.path.exists(message_data['media_url']):
-                    await media_handler.cleanup_file(message_data['media_url'])
+            # 不进行自动过滤，所有消息都发送到审核群
+            # 注：根据配置要求，移除了自动过滤逻辑
                 
                 # 对于组合消息，清理所有媒体文件
                 if message_data.get('is_combined') and message_data.get('combined_messages'):

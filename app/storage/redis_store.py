@@ -548,6 +548,48 @@ class RedisChannelStore(RedisStore):
         except Exception as e:
             logger.error(f"获取所有采集点失败: {e}")
             return {}
+    
+    def delete_checkpoint(self, channel_id: str) -> bool:
+        """删除频道采集点"""
+        try:
+            self.redis.hdel("channel:checkpoint", channel_id)
+            self.redis.hdel("channel:checkpoint:time", channel_id)
+            logger.debug(f"已删除频道采集点: {channel_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"删除采集点失败 {channel_id}: {e}")
+            return False
+    
+    def get_checkpoint_time(self, channel_id: str) -> Optional[str]:
+        """获取频道采集点更新时间"""
+        try:
+            checkpoint_time = self.redis.hget("channel:checkpoint:time", channel_id)
+            if checkpoint_time:
+                # 如果是bytes类型需要decode，如果是字符串直接返回
+                return checkpoint_time.decode() if isinstance(checkpoint_time, bytes) else checkpoint_time
+            return None
+            
+        except Exception as e:
+            logger.error(f"获取采集点时间失败 {channel_id}: {e}")
+            return None
+    
+    def get_checkpoint_info(self, channel_id: str) -> Dict[str, any]:
+        """获取频道采集点完整信息"""
+        try:
+            checkpoint = self.get_checkpoint(channel_id)
+            checkpoint_time = self.get_checkpoint_time(channel_id)
+            
+            return {
+                'channel_id': channel_id,
+                'checkpoint': checkpoint,
+                'updated_at': checkpoint_time,
+                'exists': checkpoint is not None
+            }
+            
+        except Exception as e:
+            logger.error(f"获取采集点信息失败 {channel_id}: {e}")
+            return {'channel_id': channel_id, 'checkpoint': None, 'updated_at': None, 'exists': False}
 
 # 全局实例
 redis_message_store = None
