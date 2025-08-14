@@ -749,21 +749,6 @@ class TelegramBot:
             
             # 不进行自动过滤，所有消息都发送到审核群
             # 注：根据配置要求，移除了自动过滤逻辑
-                
-                # 对于组合消息，清理所有媒体文件
-                if message_data.get('is_combined') and message_data.get('combined_messages'):
-                    for msg in message_data['combined_messages']:
-                        if msg.get('media_info') and msg['media_info'].get('file_path'):
-                            if os.path.exists(msg['media_info']['file_path']):
-                                await media_handler.cleanup_file(msg['media_info']['file_path'])
-                
-                # 对于媒体组，清理所有媒体文件
-                if message_data.get('media_group'):
-                    for media_item in message_data['media_group']:
-                        if media_item.get('file_path') and os.path.exists(media_item['file_path']):
-                            await media_handler.cleanup_file(media_item['file_path'])
-                
-                return
             
             # 计算媒体哈希（先计算，再检查重复）
             logger.info(f"📊 开始计算媒体哈希: is_combined={message_data.get('is_combined')}, media_type={message_data.get('media_type')}, media_url={message_data.get('media_url')}")

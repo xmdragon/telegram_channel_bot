@@ -29,15 +29,8 @@ mkdir -p logs data temp_media
 # 设置权限
 chmod 755 logs data temp_media
 
-# 检查并启动Docker数据库服务
-echo "🐳 检查Docker数据库服务..."
-if ! docker compose ps postgres 2>/dev/null | grep -q "running"; then
-    echo "📦 启动PostgreSQL数据库..."
-    docker compose up -d postgres
-    # 等待数据库就绪
-    echo "⏳ 等待数据库就绪..."
-    sleep 3
-fi
+# 检查并启动Redis服务（PostgreSQL已废弃）
+echo "🐳 检查Redis服务..."
 
 if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
     echo "📦 启动Redis缓存..."
@@ -58,12 +51,8 @@ if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
     done
 fi
 
-# 检查数据库是否需要初始化
-if [ ! -f "data/db_initialized.flag" ]; then
-    echo "📊 初始化数据库..."
-    python3 init_db.py
-    touch data/db_initialized.flag
-fi
+# 数据库初始化已废弃（使用Redis+JSON存储）
+# 系统启动时会自动初始化配置
 
 # 启动应用
 echo "🌟 启动应用..."
