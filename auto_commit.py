@@ -204,19 +204,27 @@ class GitAutoCommitter:
         print(commit_message)
         print("=" * 50)
         
-        # 询问确认
-        confirm = input("\n是否使用此提交信息？ (y/n/e[编辑]): ").lower()
+        # 询问确认（处理非交互环境）
+        try:
+            confirm = input("\n是否使用此提交信息？ (y/n/e[编辑]): ").lower()
+        except EOFError:
+            # 非交互环境，自动确认
+            print("\n非交互环境，自动使用生成的提交信息")
+            confirm = 'y'
         
         if confirm == 'e':
             # 允许编辑
-            print("\n请输入自定义提交信息（输入END结束）：")
-            lines = []
-            while True:
-                line = input()
-                if line == 'END':
-                    break
-                lines.append(line)
-            commit_message = '\n'.join(lines)
+            try:
+                print("\n请输入自定义提交信息（输入END结束）：")
+                lines = []
+                while True:
+                    line = input()
+                    if line == 'END':
+                        break
+                    lines.append(line)
+                commit_message = '\n'.join(lines)
+            except EOFError:
+                print("无法在非交互环境中编辑，使用原提交信息")
         elif confirm != 'y':
             print("❌ 取消提交")
             return False
@@ -238,8 +246,13 @@ class GitAutoCommitter:
             print(f"✅ 提交成功！")
             print(output)
             
-            # 询问是否推送
-            push = input("\n是否推送到远程仓库？ (y/n): ").lower()
+            # 询问是否推送（处理非交互环境）
+            try:
+                push = input("\n是否推送到远程仓库？ (y/n): ").lower()
+            except EOFError:
+                print("\n非交互环境，跳过推送")
+                push = 'n'
+                
             if push == 'y':
                 success, output = self.run_git_command(['push'])
                 if success:
