@@ -827,8 +827,20 @@
       "hash": "80e5fe40cdad196ef4ce74f0aaedf99e",
       "source": "user_feedback",
       "added_at": "2025-08-14T17:33:38.586928"
+    },
+    {
+      "content": "这是一条广告内容",
+      "hash": "fe8536a2d93c487408e70b1ea5fd2dbf",
+      "source": "user_feedback",
+      "added_at": "2025-08-14T20:59:52.969734"
+    },
+    {
+      "content": "这是一个测试广告样本",
+      "hash": "f98b6e98365e032b89a901e302270aec",
+      "source": "user_feedback",
+      "added_at": "2025-08-14T20:59:52.971673"
     }
   ],
-  "updated_at": "2025-08-14T17:33:38.586940",
+  "updated_at": "2025-08-14T20:59:52.971675",
   "normalized": true
 }

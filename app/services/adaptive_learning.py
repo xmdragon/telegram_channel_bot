@@ -8,9 +8,7 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-from sqlalchemy import select
-from app.core.database import AsyncSessionLocal, Message
-from app.services.ad_detector import ad_detector
+# 移除数据库依赖，改为基于文件的数据管理
 from app.core.training_config import TrainingDataConfig
 
 logger = logging.getLogger(__name__)
@@ -44,62 +42,38 @@ class AdaptiveLearningSystem:
             logger.error(f"加载反馈历史失败: {e}")
             self.feedback_buffer = []
     
-    async def learn_from_user_action(self, message_id: int, action: str, reviewer: str = None):
+    async def record_feedback_to_file(self, feedback_data: Dict):
         """
-        从用户操作中学习
+        将反馈数据记录到文件
         
         Args:
-            message_id: 消息ID
-            action: 用户操作 ('approved', 'rejected', 'edited')
-            reviewer: 审核人
+            feedback_data: 包含message_id, action, reviewer, content等的字典
         """
         try:
-            # 获取消息详情
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(Message.id == message_id)
-                )
-                message = result.scalar_one_or_none()
-                
-                if not message:
-                    logger.warning(f"消息 {message_id} 不存在")
-                    return
-                
-                # 提取学习数据
-                learning_data = self._extract_learning_data(message, action)
-                
-                # 记录反馈
-                await self._record_feedback(learning_data)
-                
-                # 根据操作类型进行不同的学习
-                if action == 'approved':
-                    await self._learn_from_approval(message)
-                elif action == 'rejected':
-                    await self._learn_from_rejection(message)
-                elif action == 'edited':
-                    await self._learn_from_edit(message)
-                
-                # 检查是否需要触发批量学习
-                if len(self.feedback_buffer) >= self.learning_threshold:
-                    await self._trigger_batch_learning()
+            # 添加到缓冲区
+            self.feedback_buffer.append(feedback_data)
+            
+            # 保存到文件
+            with open(self.feedback_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'feedback_buffer': self.feedback_buffer,
+                    'last_updated': datetime.now().isoformat()
+                }, f, ensure_ascii=False, indent=2)
+            
+            logger.debug(f"记录反馈: {feedback_data['action']} for message {feedback_data['message_id']}")
+            
+            # 处理拒绝的内容，添加到广告样本
+            if feedback_data['action'] == 'rejected' and feedback_data.get('content'):
+                await self.add_ad_sample_to_file(feedback_data['content'])
+            
+            # 检查是否需要触发批量学习
+            if len(self.feedback_buffer) >= self.learning_threshold:
+                await self._trigger_batch_learning()
         
         except Exception as e:
-            logger.error(f"学习失败: {e}")
+            logger.error(f"记录反馈失败: {e}")
     
-    def _extract_learning_data(self, message: Message, action: str) -> Dict:
-        """提取学习数据"""
-        return {
-            'message_id': message.id,
-            'content': message.content,
-            'filtered_content': message.filtered_content,
-            'is_ad': message.is_ad,
-            'action': action,
-            'has_buttons': message.has_buttons if hasattr(message, 'has_buttons') else False,
-            'button_data': message.button_data if hasattr(message, 'button_data') else None,
-            'entity_data': message.entity_data if hasattr(message, 'entity_data') else None,
-            'timestamp': datetime.now().isoformat(),
-            'content_hash': hashlib.md5(message.content.encode()).hexdigest() if message.content else None
-        }
+    # 移除数据库相关的方法，改为文件操作
     
     async def _record_feedback(self, learning_data: Dict):
         """记录反馈数据"""
@@ -119,58 +93,13 @@ class AdaptiveLearningSystem:
         except Exception as e:
             logger.error(f"记录反馈失败: {e}")
     
-    async def _learn_from_approval(self, message: Message):
-        """从批准操作中学习 - 这是正常内容"""
-        try:
-            if message.is_ad:
-                # 用户批准了被标记为广告的内容，可能是误判
-                logger.info(f"检测到可能的误判: 消息 {message.id} 被标记为广告但用户批准了")
-                
-                # 不再收集正常样本，因为：
-                # 1. 正常内容太多样化，没有统一特征
-                # 2. 收集大量正常样本会稀释模型判断能力
-                # 3. 重点应该是学习广告特征，而不是正常内容
-                
-                # 可以考虑记录误判情况用于后续分析
-                # TODO: 记录误判统计
-        
-        except Exception as e:
-            logger.error(f"从批准操作学习失败: {e}")
+    # 移除数据库依赖的学习方法
     
-    async def _learn_from_rejection(self, message: Message):
-        """从拒绝操作中学习 - 这是广告内容"""
-        try:
-            if not message.is_ad:
-                # 用户拒绝了未被标记为广告的内容，这是漏检
-                logger.info(f"检测到漏检: 消息 {message.id} 未被标记为广告但用户拒绝了")
-                
-                # 将此内容添加到广告样本库
-                await self._add_ad_sample(message.content)
-                
-                # 更新广告检测器
-                await ad_detector.update_ad_samples([message.content])
-        
-        except Exception as e:
-            logger.error(f"从拒绝操作学习失败: {e}")
+    # 移除数据库依赖的学习方法
     
-    async def _learn_from_edit(self, message: Message):
-        """从编辑操作中学习 - 学习编辑模式"""
-        try:
-            if message.content != message.filtered_content:
-                # 用户编辑了内容，学习编辑模式
-                logger.info(f"学习编辑模式: 消息 {message.id}")
-                
-                # 分析编辑差异
-                original = message.content
-                edited = message.filtered_content
-                
-                # TODO: 实现编辑模式学习
-                # 例如：学习哪些部分被删除，哪些被保留
-        
-        except Exception as e:
-            logger.error(f"从编辑操作学习失败: {e}")
+    # 移除数据库依赖的学习方法
     
-    async def _add_ad_sample(self, content: str):
+    async def add_ad_sample_to_file(self, content: str):
         """添加广告样本"""
         if not content:
             return
@@ -282,10 +211,14 @@ class AdaptiveLearningSystem:
             if ad_samples:
                 logger.info(f"批量添加 {len(ad_samples)} 个广告样本")
                 for sample in ad_samples:
-                    await self._add_ad_sample(sample)
+                    await self.add_ad_sample_to_file(sample)
                 
-                # 更新广告检测器
-                await ad_detector.update_ad_samples(ad_samples)
+                # 更新广告检测器（如果存在的话）
+                try:
+                    from app.services.ad_detector import ad_detector
+                    await ad_detector.update_ad_samples(ad_samples)
+                except ImportError:
+                    logger.info("广告检测器模块未找到，跳过更新")
             
             # 不再收集正常样本
             # if normal_samples:
@@ -308,13 +241,15 @@ class AdaptiveLearningSystem:
         except Exception as e:
             logger.error(f"批量学习失败: {e}")
     
-    def get_learning_stats(self) -> Dict:
-        """获取学习统计"""
+    async def get_learning_stats_from_file(self) -> Dict:
+        """从文件获取学习统计"""
         stats = {
             'feedback_count': len(self.feedback_buffer),
             'ad_samples': 0,
             'normal_samples': 0,
-            'last_learning': None
+            'last_learning': None,
+            'tail_samples': 0,
+            'separator_patterns': 0
         }
         
         try:
@@ -324,11 +259,17 @@ class AdaptiveLearningSystem:
                     data = json.load(f)
                     stats['ad_samples'] = len(data.get('samples', []))
             
-            # 统计正常样本
-            if self.normal_samples_file.exists():
-                with open(self.normal_samples_file, 'r', encoding='utf-8') as f:
+            # 统计尾部样本
+            if TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE.exists():
+                with open(TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    stats['normal_samples'] = len(data.get('normal_samples', []))
+                    stats['tail_samples'] = len(data.get('samples', []))
+            
+            # 统计分隔符模式
+            if TrainingDataConfig.SEPARATOR_PATTERNS_FILE.exists():
+                with open(TrainingDataConfig.SEPARATOR_PATTERNS_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    stats['separator_patterns'] = len(data.get('patterns', []))
             
             # 最后学习时间
             if self.feedback_file.exists():

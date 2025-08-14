@@ -55,34 +55,21 @@ if not exists:
 else:
     print("样本已存在，跳过添加")
 
-# 强制重新过滤消息7911
-print("\n重新过滤消息7911...")
-import asyncio
-from app.core.database import get_db, Message
-from sqlalchemy import select
+# 测试过滤器功能
+print("\n测试尾部过滤器...")
 from app.services.intelligent_tail_filter import intelligent_tail_filter
 from app.services.content_filter import content_filter
 
-async def refilter():
-    async for db in get_db():
-        result = await db.execute(select(Message).where(Message.id == 7911))
-        msg = result.scalar_one_or_none()
-        
-        if msg:
-            # 强制重新加载
-            intelligent_tail_filter._load_training_data(force_reload=True)
-            
-            # 重新过滤
-            filtered = content_filter.filter_promotional_content(msg.content)
-            
-            print(f"过滤结果: {len(msg.content)} -> {len(filtered)}")
-            print(f"\n过滤后内容:")
-            print(filtered)
-            
-            # 更新数据库
-            msg.filtered_content = filtered
-            await db.commit()
-            print("\n✅ 数据库已更新")
-        break
+# 强制重新加载训练数据
+intelligent_tail_filter._load_training_data(force_reload=True)
 
-asyncio.run(refilter())
+# 测试内容
+test_content = f"这是一个测试消息\n\n{tail_part}"
+print(f"\n测试内容长度: {len(test_content)} 字符")
+
+# 应用过滤器
+filtered = content_filter.filter_promotional_content(test_content)
+print(f"过滤结果: {len(test_content)} -> {len(filtered)} 字符")
+print(f"\n过滤后内容:")
+print(filtered[:200] + "..." if len(filtered) > 200 else filtered)
+print("\n✅ 过滤测试完成")

@@ -7,10 +7,10 @@ import asyncio
 import logging
 from pathlib import Path
 from app.services.ai_filter import ai_filter
-from app.core.database import AsyncSessionLocal, Message
-from sqlalchemy import select, text
+from app.core.training_config import TrainingDataConfig
 from datetime import datetime, timedelta
 import json
+from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,68 +24,58 @@ async def retrain_ai_filter():
     ai_filter.channel_patterns = {}
     logger.info("✅ 已清理现有模式")
     
-    # 从数据库获取最近的消息样本
-    async with AsyncSessionLocal() as db:
-        # 获取每个频道的最近消息
-        query = text("""
-            SELECT source_channel, content, created_at
-            FROM messages
-            WHERE content IS NOT NULL 
-            AND LENGTH(content) > 100
-            AND created_at > :since
-            ORDER BY source_channel, created_at DESC
-        """)
+    # 从训练数据文件获取样本
+    training_file = TrainingDataConfig.MANUAL_TRAINING_FILE
+    if not training_file.exists():
+        logger.error("训练数据文件不存在")
+        return
+    
+    with open(training_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        samples = data.get('samples', [])
+    
+    # 按频道分组消息
+    messages_by_channel = defaultdict(list)
+    for sample in samples:
+        channel_id = sample.get('channel_id')
+        content = sample.get('original_message')
+        if channel_id and content:
+            messages_by_channel[channel_id].append(content)
         
-        # 获取最近7天的消息
-        since = datetime.now() - timedelta(days=7)
-        result = await db.execute(query, {"since": since})
-        messages_by_channel = {}
+    logger.info(f"📊 获取了 {len(messages_by_channel)} 个频道的训练样本")
         
-        for row in result:
-            channel_id = str(row[0])
-            content = row[1]
+    # 为每个频道重新训练
+    success_count = 0
+    failed_count = 0
+    
+    for channel_id, messages in messages_by_channel.items():
+        if len(messages) >= 5:  # 至少需要5条消息
+            logger.info(f"🎯 训练频道 {channel_id} ({len(messages)} 条消息)...")
             
-            if channel_id not in messages_by_channel:
-                messages_by_channel[channel_id] = []
-            
-            # 限制每个频道最多50条消息
-            if len(messages_by_channel[channel_id]) < 50:
-                messages_by_channel[channel_id].append(content)
-        
-        logger.info(f"📊 获取了 {len(messages_by_channel)} 个频道的消息")
-        
-        # 为每个频道重新训练
-        success_count = 0
-        failed_count = 0
-        
-        for channel_id, messages in messages_by_channel.items():
-            if len(messages) >= 5:  # 至少需要5条消息
-                logger.info(f"🎯 训练频道 {channel_id} ({len(messages)} 条消息)...")
+            try:
+                # 使用新的学习策略
+                result = await ai_filter.learn_channel_pattern(channel_id, messages)
                 
-                try:
-                    # 使用新的学习策略
-                    result = await ai_filter.learn_channel_pattern(channel_id, messages)
-                    
-                    if result:
-                        success_count += 1
-                        logger.info(f"✅ 频道 {channel_id} 训练成功")
-                    else:
-                        failed_count += 1
-                        logger.info(f"⚠️ 频道 {channel_id} 未发现固定尾部模式")
-                        
-                except Exception as e:
+                if result:
+                    success_count += 1
+                    logger.info(f"✅ 频道 {channel_id} 训练成功")
+                else:
                     failed_count += 1
-                    logger.error(f"❌ 频道 {channel_id} 训练失败: {e}")
-            else:
-                logger.info(f"⏭️ 频道 {channel_id} 样本不足，跳过")
+                    logger.info(f"⚠️ 频道 {channel_id} 未发现固定尾部模式")
+                    
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"❌ 频道 {channel_id} 训练失败: {e}")
+        else:
+            logger.info(f"⏭️ 频道 {channel_id} 样本不足，跳过")
         
-        logger.info(f"\n📈 训练结果统计:")
-        logger.info(f"  - 成功训练: {success_count} 个频道")
-        logger.info(f"  - 未发现模式: {failed_count} 个频道")
-        logger.info(f"  - 总频道数: {len(messages_by_channel)}")
+    logger.info(f"\n📈 训练结果统计:")
+    logger.info(f"  - 成功训练: {success_count} 个频道")
+    logger.info(f"  - 未发现模式: {failed_count} 个频道")
+    logger.info(f"  - 总频道数: {len(messages_by_channel)}")
     
     # 保存新的模式
-    patterns_file = Path("data/ai_filter_patterns.json")
+    patterns_file = TrainingDataConfig.AI_FILTER_PATTERNS_FILE
     ai_filter.save_patterns(str(patterns_file))
     logger.info(f"💾 新模式已保存到 {patterns_file}")
     

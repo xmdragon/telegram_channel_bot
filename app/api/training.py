@@ -1,8 +1,7 @@
 """
 广告训练相关API
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Optional
 from datetime import datetime
 import json
@@ -10,9 +9,9 @@ import hashlib
 from pathlib import Path
 import logging
 
-from app.core.database import get_db
 from app.services.adaptive_learning import adaptive_learning
 from app.core.training_config import TrainingDataConfig
+from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -163,7 +162,7 @@ async def add_tail_ad_sample(request: dict):
         # 同时添加到广告样本库用于AI学习
         if ad_part:
             logger.debug(f"添加广告部分到AI学习库 - 长度: {len(ad_part)}")
-            await adaptive_learning._add_ad_sample(ad_part)
+            await adaptive_learning.add_ad_sample_to_file(ad_part)
         else:
             logger.warning("广告部分为空，跳过AI学习库添加")
         
@@ -213,7 +212,7 @@ async def delete_tail_ad_sample(sample_id: int):
 async def get_learning_stats():
     """获取学习统计信息"""
     try:
-        stats = adaptive_learning.get_learning_stats()
+        stats = await adaptive_learning.get_learning_stats_from_file()
         return {"success": True, "stats": stats}
     except Exception as e:
         logger.error(f"获取学习统计失败: {e}")
@@ -227,12 +226,21 @@ async def record_feedback(request: dict):
         message_id = request.get("message_id")
         action = request.get("action")  # 'approved', 'rejected', 'edited'
         reviewer = request.get("reviewer", "Web用户")
+        content = request.get("content", "")
         
         if not message_id or not action:
             return {"success": False, "error": "参数不完整"}
         
-        # 记录反馈
-        await adaptive_learning.learn_from_user_action(message_id, action, reviewer)
+        # 记录反馈到JSON文件
+        feedback_data = {
+            "message_id": message_id,
+            "action": action,
+            "reviewer": reviewer,
+            "content": content,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        await adaptive_learning.record_feedback_to_file(feedback_data)
         
         return {"success": True, "message": "反馈已记录"}
         

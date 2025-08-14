@@ -5,121 +5,102 @@
 """
 import asyncio
 import logging
-from sqlalchemy import select, and_, func
-from app.core.database import AsyncSessionLocal, Message, Channel
+import json
+from pathlib import Path
 from app.services.ai_filter import ai_filter
+from app.core.training_config import TrainingDataConfig
 from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def train_channel_tails():
-    """训练频道的尾部模式 - 基于整体数据智能采样"""
-    async with AsyncSessionLocal() as db:
-        # 获取所有消息，按频道分组
-        result = await db.execute(
-            select(Message).where(
-                Message.source_channel.isnot(None)
-            ).order_by(Message.created_at.desc()).limit(1000)  # 从整体数据池采样
-        )
-        all_messages = result.scalars().all()
+    """训练频道的尾部模式 - 从训练数据文件学习"""
+    # 加载手动训练数据
+    manual_training_file = TrainingDataConfig.MANUAL_TRAINING_FILE
+    if not manual_training_file.exists():
+        logger.warning("手动训练数据文件不存在")
+        return
+    
+    with open(manual_training_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        samples = data.get('samples', [])
+    
+    if not samples:
+        logger.warning("没有可用的训练数据")
+        return
+    
+    # 按频道分组训练数据
+    channel_samples = defaultdict(list)
+    for sample in samples:
+        channel_id = sample.get('channel_id')
+        original_message = sample.get('original_message')
+        if channel_id and original_message:
+            channel_samples[channel_id].append(original_message)
+    
+    logger.info(f"从 {len(channel_samples)} 个频道加载了 {len(samples)} 个训练样本")
+    
+    # 训练每个频道
+    learned_channels = 0
+    skipped_channels = 0
+    
+    for channel_id, messages in channel_samples.items():
+        # 获取频道名称
+        channel_name = f"频道{channel_id}"
+        for sample in samples:
+            if sample.get('channel_id') == channel_id and sample.get('channel_name'):
+                channel_name = sample['channel_name']
+                break
         
-        # 按频道分组消息
-        channel_messages = defaultdict(list)
-        for msg in all_messages:
-            if msg.source_channel:
-                channel_messages[msg.source_channel].append(msg)
+        if len(messages) < 3:
+            logger.info(f"{channel_name} 样本太少（{len(messages)}条），跳过")
+            skipped_channels += 1
+            continue
         
-        logger.info(f"从 {len(channel_messages)} 个频道收集到 {len(all_messages)} 条消息")
+        logger.info(f"分析 {channel_name} 的消息模式（{len(messages)}条）...")
+        success = await ai_filter.learn_channel_pattern(channel_id, messages)
+        if success:
+            learned_channels += 1
+            logger.info(f"✅ {channel_name} 发现尾部模式并学习成功")
+        else:
+            skipped_channels += 1
+            logger.info(f"ℹ️ {channel_name} 未发现固定尾部模式（正常情况）")
         
-        # 智能采样 - 不再要求每个频道固定数量
-        learned_channels = 0
-        skipped_channels = 0
-        
-        for channel_id, messages in channel_messages.items():
-            # 获取频道信息（可选）
-            channel_result = await db.execute(
-                select(Channel).where(Channel.channel_id == channel_id)
-            )
-            channel = channel_result.scalar_one_or_none()
-            channel_name = channel.channel_name if channel else f"频道{channel_id}"
-            
-            # 不再强制要求最少消息数，让AI过滤器自己判断
-            if len(messages) < 3:
-                logger.info(f"{channel_name} 样本太少（{len(messages)}条），跳过")
-                skipped_channels += 1
-                continue
-            
-            # 提取消息内容
-            contents = []
-            for msg in messages:
-                # 优先使用原始内容来学习完整的尾部模式
-                content = msg.content or msg.filtered_content
-                if content:
-                    contents.append(content)
-            
-            if contents:
-                logger.info(f"分析 {channel_name} 的消息模式（{len(contents)}条）...")
-                success = await ai_filter.learn_channel_pattern(channel_id, contents)
-                if success:
-                    learned_channels += 1
-                    logger.info(f"✅ {channel_name} 发现尾部模式并学习成功")
-                else:
-                    skipped_channels += 1
-                    logger.info(f"ℹ️ {channel_name} 未发现固定尾部模式（正常情况）")
-        
-        # 输出统计
-        logger.info(f"\n📊 尾部模式学习统计:")
-        logger.info(f"  - 总频道数: {len(channel_messages)}")
-        logger.info(f"  - 发现尾部模式: {learned_channels} 个频道")
-        logger.info(f"  - 无尾部模式: {skipped_channels} 个频道")
-        if len(channel_messages) > 0:
-            success_rate = learned_channels/len(channel_messages)*100
-            logger.info(f"  - 检出率: {success_rate:.1f}%（不是所有频道都有尾部）")
+    # 输出统计
+    logger.info(f"\n📊 尾部模式学习统计:")
+    logger.info(f"  - 总频道数: {len(channel_samples)}")
+    logger.info(f"  - 发现尾部模式: {learned_channels} 个频道")
+    logger.info(f"  - 无尾部模式: {skipped_channels} 个频道")
+    if len(channel_samples) > 0:
+        success_rate = learned_channels/len(channel_samples)*100
+        logger.info(f"  - 检出率: {success_rate:.1f}%（不是所有频道都有尾部）")
 
 async def train_ad_classifier():
     """训练广告分类器"""
-    async with AsyncSessionLocal() as db:
-        # 获取标记为广告的消息
-        ad_result = await db.execute(
-            select(Message).where(
-                Message.is_ad == True
-            ).limit(500)
-        )
-        ad_messages = ad_result.scalars().all()
-        
-        # 获取正常消息（已批准的）
-        normal_result = await db.execute(
-            select(Message).where(
-                and_(
-                    Message.is_ad == False,
-                    Message.status == 'approved'
-                )
-            ).limit(500)
-        )
-        normal_messages = normal_result.scalars().all()
-        
-        logger.info(f"准备训练数据: {len(ad_messages)} 个广告样本, {len(normal_messages)} 个正常样本")
-        
-        # 提取内容
+    # 加载广告训练数据
+    ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
+    if ad_training_file.exists():
+        with open(ad_training_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            ad_samples_data = data.get('samples', [])
+            ad_samples = [s.get('content', '') for s in ad_samples_data if s.get('content')]
+    else:
         ad_samples = []
-        for msg in ad_messages:
-            content = msg.content or msg.filtered_content
-            if content:
-                ad_samples.append(content)
-        
-        normal_samples = []
-        for msg in normal_messages:
-            content = msg.filtered_content or msg.content
-            if content:
-                normal_samples.append(content)
-        
-        if ad_samples or normal_samples:
-            logger.info("开始训练广告分类器...")
+    
+    # 暂时不加载正常样本（正常内容太多样化）
+    normal_samples = []
+    
+    logger.info(f"准备训练数据: {len(ad_samples)} 个广告样本, {len(normal_samples)} 个正常样本")
+    
+    if ad_samples:
+        logger.info("开始训练广告分类器...")
+        try:
             await ai_filter.train_ad_classifier(ad_samples, normal_samples)
             logger.info("✅ 广告分类器训练完成")
-        else:
-            logger.warning("没有足够的训练样本")
+        except Exception as e:
+            logger.error(f"广告分类器训练失败: {e}")
+    else:
+        logger.warning("没有可用的广告训练数据")
 
 async def test_ai_filter():
     """测试AI过滤器效果"""
@@ -172,7 +153,7 @@ async def main():
     
     # 保存模型
     logger.info("\n💾 步骤3: 保存训练结果")
-    ai_filter.save_patterns("data/ai_filter_patterns.json")
+    ai_filter.save_patterns(str(TrainingDataConfig.AI_FILTER_PATTERNS_FILE))
     
     # 测试效果
     logger.info("\n🧪 步骤4: 测试AI过滤器")

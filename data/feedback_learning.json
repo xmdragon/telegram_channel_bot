@@ -299,7 +299,14 @@
       "entity_data": null,
       "timestamp": "2025-08-14T17:39:25.413067",
       "content_hash": "e65988bf99d01388b48df2ac9f1fd492"
+    },
+    {
+      "message_id": 9999,
+      "action": "rejected",
+      "reviewer": "测试用户",
+      "content": "这是一条广告内容",
+      "timestamp": "2025-08-14T20:59:52.968579"
     }
   ],
-  "last_updated": "2025-08-14T17:39:25.413529"
+  "last_updated": "2025-08-14T20:59:52.968944"
 }
