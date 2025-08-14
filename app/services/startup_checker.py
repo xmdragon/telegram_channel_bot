@@ -217,14 +217,15 @@ class StartupChecker:
                     channel_data['channel_id'] = resolved_id
                     channel_store.save_channel(channel_name, channel_data)
                 else:
-                    # 创建新的频道记录
+                    # 创建新的频道记录，使用add_channel方法确保一致的键格式
                     new_channel = {
                         'channel_name': channel_name,
                         'channel_id': resolved_id,
                         'channel_type': 'source',
                         'is_active': True
                     }
-                    channel_store.save_channel(channel_name, new_channel)
+                    # 使用add_channel方法以确保一致的键格式和重复检查
+                    channel_store.add_channel(new_channel)
                 
                 return resolved_id
             

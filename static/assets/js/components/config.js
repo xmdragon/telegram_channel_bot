@@ -191,7 +191,8 @@ const ConfigApp = {
                 const response = await axios.get('/api/admin/config');
                 if (response.data) {
                     // 处理目标频道名称显示格式
-                    let targetChannel = response.data.target_channel_id || '';
+                    // 优先使用target_channel_name（原始用户名），如果没有则使用target_channel_id
+                    let targetChannel = response.data.target_channel_name || response.data.target_channel_id || '';
                     if (targetChannel && !targetChannel.startsWith('@') && !targetChannel.startsWith('-')) {
                         targetChannel = '@' + targetChannel;
                     }
@@ -421,11 +422,6 @@ const ConfigApp = {
                     targetChannel = '@' + targetChannel;
                 }
                 
-                // 在保存前先解析目标频道ID
-                if (targetChannel && !this.forwardingConfig.resolved_target_channel_id) {
-                    await this.updateTargetChannelId();
-                }
-                
                 // 处理审核群名称，智能格式化
                 let reviewGroup = this.forwardingConfig.review_group.trim();
                 // 如果是HTTP/HTTPS链接，保持原样
@@ -439,25 +435,10 @@ const ConfigApp = {
                     reviewGroup = '@' + reviewGroup;
                 }
                 
-                // 在保存前先解析审核群ID
-                if (reviewGroup && !this.forwardingConfig.resolved_group_id) {
-                    await this.updateReviewGroupId();
-                }
-                
-                // console.log('保存转发配置:', {
-                //     enabled: this.forwardingConfig.enabled,
-                //     target_channel: targetChannel,
-                //     review_group: reviewGroup,
-                //     delay: this.forwardingConfig.delay,
-                //     conditions: this.forwardingConfig.conditions
-                // });
-                
                 // 使用批量更新API
                 const configData = {
                     'channels.target_channel_id': targetChannel,
                     'channels.review_group_id': reviewGroup,
-                    'channels.target_channel_id_cached': this.forwardingConfig.resolved_target_channel_id || '',
-                    'channels.review_group_id_cached': this.forwardingConfig.resolved_group_id || '',
                     'review.auto_forward_delay': this.forwardingConfig.delay
                 };
                 
@@ -467,6 +448,10 @@ const ConfigApp = {
                 if (!response.data.success) {
                     throw new Error(response.data.message || '批量保存配置失败');
                 }
+                
+                // 更新配置对象
+                this.forwardingConfig.target_channel = targetChannel;
+                this.forwardingConfig.review_group = reviewGroup;
                 
                 // 如果配置了审核群链接，尝试解析并缓存ID
                 if (reviewGroup && (reviewGroup.includes('t.me/+') || reviewGroup.includes('t.me/joinchat/'))) {
@@ -478,6 +463,8 @@ const ConfigApp = {
                         if (resolveResponse.data.success) {
                             // console.log('审核群链接解析成功:', resolveResponse.data);
                             MessageManager.success(`转发配置保存成功，审核群ID已解析为: ${resolveResponse.data.resolved_id}`);
+                            // 更新解析后的ID
+                            this.forwardingConfig.resolved_group_id = resolveResponse.data.resolved_id;
                         } else {
                             MessageManager.warning('转发配置保存成功，但审核群链接解析失败，请检查链接或机器人权限');
                         }
@@ -488,10 +475,6 @@ const ConfigApp = {
                 } else {
                     MessageManager.success('转发配置保存成功');
                 }
-                
-                // 更新配置对象
-                this.forwardingConfig.target_channel = targetChannel;
-                this.forwardingConfig.review_group = reviewGroup;
                 
             } catch (error) {
                 // console.error('保存转发配置失败:', error);
@@ -631,14 +614,16 @@ const ConfigApp = {
         async updateReviewGroupId() {
             if (this.forwardingConfig.review_group) {
                 try {
-                    const response = await axios.get('/api/config/resolve-group-id', {
-                        params: { group_link: this.forwardingConfig.review_group }
+                    // 使用admin API解析审核群ID
+                    const response = await axios.post('/api/admin/resolve-review-group', {
+                        review_group_config: this.forwardingConfig.review_group
                     });
-                    if (response.data.success && response.data.group_id) {
-                        this.forwardingConfig.resolved_group_id = response.data.group_id;
+                    if (response.data.success && response.data.resolved_id) {
+                        this.forwardingConfig.resolved_group_id = response.data.resolved_id;
                     }
                 } catch (error) {
                     // console.error('解析群ID失败:', error);
+                    // 静默处理，不影响主流程
                 }
             }
         },
@@ -652,7 +637,9 @@ const ConfigApp = {
             
             try {
                 this.loading = true;
-                const response = await axios.post('/api/channel-resolver/resolve-target');
+                const response = await axios.post('/api/admin/resolve-channel-id', {
+                    channel_name: this.forwardingConfig.target_channel
+                });
                 
                 if (response.data.success) {
                     this.forwardingConfig.resolved_target_channel_id = response.data.resolved_id;
@@ -680,7 +667,9 @@ const ConfigApp = {
             
             try {
                 this.loading = true;
-                const response = await axios.post('/api/channel-resolver/resolve-review');
+                const response = await axios.post('/api/admin/resolve-review-group', {
+                    review_group_config: this.forwardingConfig.review_group
+                });
                 
                 if (response.data.success) {
                     this.forwardingConfig.resolved_group_id = response.data.resolved_id;
@@ -705,24 +694,10 @@ const ConfigApp = {
                 this.loading = true;
                 this.loadingMessage = '正在解析所有频道ID...';
                 
-                const response = await axios.post('/api/channel-resolver/resolve-all');
+                const response = await axios.post('/api/admin/resolve-channel-ids');
                 
                 if (response.data.success) {
-                    let message = '频道解析完成\n';
-                    
-                    if (response.data.resolved && response.data.resolved.length > 0) {
-                        message += `\n✅ 已解析: ${response.data.resolved.length} 个`;
-                    }
-                    
-                    if (response.data.errors && response.data.errors.length > 0) {
-                        message += `\n❌ 错误: ${response.data.errors.length} 个`;
-                    }
-                    
-                    if (response.data.warnings && response.data.warnings.length > 0) {
-                        message += `\n⚠️ 警告: ${response.data.warnings.length} 个`;
-                    }
-                    
-                    MessageManager.success(message);
+                    MessageManager.success(`频道解析完成: ${response.data.message}`);
                     
                     // 重新加载配置
                     await this.loadChannels();
@@ -742,8 +717,9 @@ const ConfigApp = {
         async updateTargetChannelId() {
             if (this.forwardingConfig.target_channel) {
                 try {
-                    const response = await axios.post('/api/config/resolve-target-channel', {
-                        target_channel: this.forwardingConfig.target_channel
+                    // 使用admin API解析频道ID
+                    const response = await axios.post('/api/admin/resolve-channel-id', {
+                        channel_name: this.forwardingConfig.target_channel
                     });
                     if (response.data.success && response.data.resolved_id) {
                         this.forwardingConfig.resolved_target_channel_id = response.data.resolved_id;
@@ -751,6 +727,7 @@ const ConfigApp = {
                     }
                 } catch (error) {
                     // console.error('解析目标频道ID失败:', error);
+                    // 静默处理，不影响主流程
                 }
             }
         },

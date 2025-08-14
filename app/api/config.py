@@ -24,6 +24,9 @@ class ConfigUpdate(BaseModel):
     value: Any
     description: str = ""
 
+class TargetChannelResolveRequest(BaseModel):
+    target_channel: str
+
 # 认证中间件
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
@@ -232,13 +235,13 @@ async def resolve_group_id(group_link: str, user: Dict[str, Any] = Depends(check
         }
 
 @router.post("/resolve-target-channel")
-async def resolve_target_channel(request: dict, user: Dict[str, Any] = Depends(check_config_permission)):
+async def resolve_target_channel(request: TargetChannelResolveRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """解析目标频道ID"""
     try:
         from telethon import TelegramClient
         from telethon.sessions import StringSession
         
-        target_channel = request.get("target_channel", "").strip()
+        target_channel = request.target_channel.strip()
         if not target_channel:
             return {"success": False, "message": "目标频道不能为空"}
         

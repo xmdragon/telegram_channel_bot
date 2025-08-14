@@ -2,7 +2,7 @@
 管理员API
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
 import os
@@ -16,6 +16,7 @@ from app.storage.json_store import get_json_channel_store
 from app.core.config import settings
 from app.services.config_manager import config_manager
 from app.services.scheduler import MessageScheduler
+from app.services.unified_channel_service import unified_channel_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class ChannelUpdateRequest(BaseModel):
     channel_type: Optional[str] = None
     is_active: Optional[bool] = None
     config: Optional[dict] = None
+
 
 @router.get("/channels")
 async def get_channels(
@@ -228,6 +230,16 @@ async def delete_channel(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除频道失败: {str(e)}")
+
+@router.post("/channels/refresh-titles")
+async def refresh_channel_titles():
+    """刷新所有频道的真实标题"""
+    try:
+        result = await unified_channel_service.refresh_channel_titles()
+        return result
+    except Exception as e:
+        logger.error(f"刷新频道标题失败: {e}")
+        raise HTTPException(status_code=500, detail=f"刷新频道标题失败: {str(e)}")
 
 @router.post("/cleanup/temp-media")
 async def cleanup_temp_media():
@@ -622,7 +634,7 @@ async def update_config(request: ConfigUpdateRequest):
         raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
 
 @router.post("/config/batch")
-async def update_config_batch(configs: dict):
+async def update_config_batch(configs: Dict[str, Any]):
     """批量更新配置项"""
     try:
         success_count = 0

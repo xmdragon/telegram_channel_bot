@@ -204,10 +204,32 @@ class JSONChannelStore(JSONStore):
         try:
             channels = self._load_json(self.CHANNEL_FILE)
             
-            # 使用channel_name作为键
-            channel_key = channel_data.get('channel_name')
+            # 检查是否已存在相同channel_id的频道
+            channel_id = channel_data.get('channel_id')
+            if channel_id:
+                # 检查是否已存在
+                for existing_key, existing_data in channels.items():
+                    if existing_data.get('channel_id') == channel_id:
+                        logger.warning(f"频道已存在，跳过添加: {channel_id}")
+                        return True  # 返回True避免错误，但不重复添加
+            
+            # 生成一致的键格式 channel_{id}
+            channel_key = None
+            if 'id' in channel_data:
+                # 如果有数字ID，使用channel_前缀格式
+                channel_key = f"channel_{channel_data['id']}"
+            else:
+                # 如果没有数字ID，生成一个新的ID
+                existing_ids = []
+                for key, data in channels.items():
+                    if key.startswith('channel_') and data.get('id'):
+                        existing_ids.append(data['id'])
+                new_id = max(existing_ids, default=0) + 1
+                channel_data['id'] = new_id
+                channel_key = f"channel_{new_id}"
+            
             if not channel_key:
-                logger.error("频道数据缺少channel_name")
+                logger.error("无法生成频道键")
                 return False
             
             # 添加时间戳
@@ -229,10 +251,11 @@ class JSONChannelStore(JSONStore):
             channels = self._load_json(self.CHANNEL_FILE)
             result = []
             
-            for channel_id, channel_data in channels.items():
+            for channel_key, channel_data in channels.items():
                 if channel_data.get('channel_type') == channel_type:
+                    # 复制频道数据，但不要覆盖原有的channel_id字段
                     channel_data = channel_data.copy()
-                    channel_data['channel_id'] = channel_id
+                    # 保持原有的channel_id字段不变（它包含正确的Telegram ID）
                     result.append(channel_data)
             
             return result
@@ -246,19 +269,35 @@ class JSONChannelStore(JSONStore):
         try:
             channels = self._load_json(self.CHANNEL_FILE)
             
-            # 使用channel_name或id作为键
+            # 查找频道键
             channel_key = None
-            if 'channel_name' in channel_data:
-                channel_key = channel_data['channel_name']
-            elif 'id' in channel_data:
-                # 查找对应的channel_name
-                for name, data in channels.items():
-                    if data.get('id') == channel_data['id']:
-                        channel_key = name
+            
+            # 优先通过数字ID查找（最可靠的方式）
+            if 'id' in channel_data:
+                target_id = channel_data['id']
+                for key, data in channels.items():
+                    if data.get('id') == target_id:
+                        channel_key = key
+                        break
+            
+            # 如果没找到，尝试通过channel_id查找
+            if not channel_key and 'channel_id' in channel_data:
+                target_channel_id = channel_data['channel_id']
+                for key, data in channels.items():
+                    if data.get('channel_id') == target_channel_id:
+                        channel_key = key
+                        break
+            
+            # 如果还没找到，尝试通过channel_name查找
+            if not channel_key and 'channel_name' in channel_data:
+                target_name = channel_data['channel_name']
+                for key, data in channels.items():
+                    if data.get('channel_name') == target_name:
+                        channel_key = key
                         break
             
             if not channel_key:
-                logger.error("未找到频道键")
+                logger.error(f"未找到频道键，搜索条件: {channel_data}")
                 return False
             
             if channel_key not in channels:
