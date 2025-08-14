@@ -99,6 +99,7 @@ async def get_tail_ad_samples():
 @router.post("/tail-ad-samples")
 async def add_tail_ad_sample(request: dict):
     """添加尾部广告训练样本"""
+    logger.info(f"📥 收到尾部数据提交请求 - 请求数据键: {list(request.keys()) if request else 'None'}")
     try:
         # 提取参数
         description = request.get("description", "")
@@ -107,15 +108,23 @@ async def add_tail_ad_sample(request: dict):
         normal_part = request.get("normalPart", "")
         ad_part = request.get("adPart", "")
         
+        logger.debug(f"提取的参数 - 内容长度: {len(content) if content else 0}, 分隔符: '{separator[:20]}...', 描述: '{description[:30]}...'")
+        logger.debug(f"正常部分长度: {len(normal_part) if normal_part else 0}, 广告部分长度: {len(ad_part) if ad_part else 0}")
+        
         if not content or not separator:
+            logger.warning("❌ 参数验证失败 - 内容或分隔符为空")
             return {"success": False, "error": "内容和分隔符不能为空"}
         
         # 加载现有样本
         samples = []
         if TAIL_AD_SAMPLES_FILE.exists():
+            logger.debug(f"加载现有样本文件: {TAIL_AD_SAMPLES_FILE}")
             with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 samples = data.get("samples", [])
+                logger.debug(f"当前样本数量: {len(samples)}")
+        else:
+            logger.debug("样本文件不存在，创建新文件")
         
         # 生成ID
         new_id = max([s.get('id', 0) for s in samples], default=0) + 1
@@ -135,26 +144,34 @@ async def add_tail_ad_sample(request: dict):
         # 检查重复
         for sample in samples:
             if sample.get("content_hash") == new_sample["content_hash"]:
+                logger.warning(f"❌ 检测到重复样本 - hash: {new_sample['content_hash'][:8]}...")
                 return {"success": False, "error": "样本已存在"}
         
         # 添加样本
         samples.append(new_sample)
+        logger.debug(f"➕ 添加新样本 - ID: {new_id}, 总数量: {len(samples)}")
         
         # 保存到文件
+        logger.debug(f"保存数据到文件: {TAIL_AD_SAMPLES_FILE}")
         with open(TAIL_AD_SAMPLES_FILE, 'w', encoding='utf-8') as f:
             json.dump({
                 "samples": samples,
                 "updated_at": datetime.now().isoformat()
             }, f, ensure_ascii=False, indent=2)
+        logger.debug("✅ 文件保存成功")
         
         # 同时添加到广告样本库用于AI学习
-        await adaptive_learning._add_ad_sample(ad_part)
+        if ad_part:
+            logger.debug(f"添加广告部分到AI学习库 - 长度: {len(ad_part)}")
+            await adaptive_learning._add_ad_sample(ad_part)
+        else:
+            logger.warning("广告部分为空，跳过AI学习库添加")
         
-        logger.info(f"添加新的尾部广告样本: {new_id}")
+        logger.info(f"✅ 成功添加新的尾部广告样本: ID={new_id}, 内容长度={len(content)}, 广告长度={len(ad_part)}")
         return {"success": True, "message": "样本已添加", "id": new_id}
         
     except Exception as e:
-        logger.error(f"添加尾部广告样本失败: {e}")
+        logger.error(f"❌ 添加尾部广告样本失败: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 

@@ -546,15 +546,23 @@ class ContentFilter:
         try:
             from app.services.semantic_tail_filter import semantic_tail_filter
             
+            logger.info(f"🎯 开始语义尾部过滤 - 输入内容长度: {len(content)}, 包含媒体: {has_media}")
             filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(content, has_media)
             
+            logger.info(f"📋 语义尾部过滤结果: 是否过滤={was_filtered}, 输出长度={len(filtered_content)}")
+            
             if was_filtered:
-                logger.info(f"语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符")
+                logger.info(f"✅ 语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符")
                 if removed_tail:
-                    logger.debug(f"移除的尾部内容: {removed_tail[:100]}...")
-                if analysis and analysis.get('similarity', 0) > 0:
-                    logger.debug(f"训练样本匹配相似度: {analysis['similarity']:.2f}")
+                    logger.debug(f"🗑️ 移除的尾部内容: {removed_tail[:100]}...")
+                    logger.debug(f"🗑️ 移除的尾部完整内容: {removed_tail}")
+                if analysis:
+                    logger.debug(f"📊 分析详情: {analysis}")
+                    if analysis.get('similarity', 0) > 0:
+                        logger.debug(f"🔍 训练样本匹配相似度: {analysis['similarity']:.2f}")
                 return filtered_content
+            else:
+                logger.debug(f"❌ 语义尾部过滤未生效，保留原始内容")
             
             return content
             

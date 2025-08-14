@@ -85,15 +85,23 @@ class SemanticAnalyzer:
         Returns:
             (正常内容得分, 推广内容得分)
         """
+        logger.debug(f"🤖 语义分析器开始分析 - 文本长度: {len(text) if text else 0}")
+        if text:
+            logger.debug(f"分析文本: {text[:100]}{'...' if len(text) > 100 else ''}")
+        
         if not text:
+            logger.debug("文本为空，返回(0.0, 0.0)")
             return 0.0, 0.0
         
         # 计算正常内容得分
         normal_score = self._calculate_normal_score(text)
+        logger.debug(f"正常内容得分: {normal_score:.3f}")
         
         # 计算推广内容得分
         promo_score = self._calculate_promo_score(text)
+        logger.debug(f"推广内容得分: {promo_score:.3f}")
         
+        logger.info(f"📈 语义分析结果: 正常={normal_score:.3f}, 推广={promo_score:.3f}")
         return normal_score, promo_score
     
     def _calculate_normal_score(self, text: str) -> float:

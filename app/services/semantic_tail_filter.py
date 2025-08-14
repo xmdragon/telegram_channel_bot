@@ -76,6 +76,9 @@ class SemanticTailFilter:
         """
         if not text:
             return 0.0
+        
+        logger.debug(f"📊 计算语义得分 - 文本长度: {len(text)}")
+        logger.debug(f"分析文本: {text[:100]}{'...' if len(text) > 100 else ''}")
             
         score = 0.0
         text_lower = text.lower()
@@ -152,7 +155,7 @@ class SemanticTailFilter:
         
         # 确保得分在0-1范围内
         final_score = max(0, min(1, score))
-        logger.debug(f"最终语义得分: {final_score:.3f}")
+        logger.info(f"📈 语义得分计算完成: {final_score:.3f} (文本长度: {len(text)})")
         
         return final_score
     
@@ -323,17 +326,25 @@ class SemanticTailFilter:
         Returns:
             (过滤后内容, 是否过滤了尾部, 尾部内容, 分析详情)
         """
+        logger.info(f"🔍 开始语义尾部过滤 - 输入内容长度: {len(content) if content else 0} 字符")
+        if content:
+            logger.debug(f"原始内容预览: {content[:200]}{'...' if len(content) > 200 else ''}")
+        
         if not content:
+            logger.debug("内容为空，跳过过滤")
             return content, False, None, {}
         
         lines = content.split('\n')
         if len(lines) < 3:
+            logger.debug(f"内容行数不足({len(lines)}行)，跳过过滤")
             return content, False, None, {}
         
         # 从后往前扫描，寻找推广尾部的开始位置
         best_split_point = None
         best_score = 0.0
         analysis = {'scanned_lines': []}
+        
+        logger.debug(f"开始扫描 - 总行数: {len(lines)}, 准备检查后{min(15, len(lines) // 2 + 1)}行")
         
         # 最多检查最后15行或全部行数的一半，取较小值
         max_scan_lines = min(15, len(lines) // 2 + 1)
@@ -344,6 +355,7 @@ class SemanticTailFilter:
             
             # 计算语义得分
             semantic_score = self.calculate_semantic_score(tail_candidate, content)
+            logger.debug(f"扫描第{i}行开始的尾部候选 - 得分: {semantic_score:.3f}, 内容: {tail_candidate[:50]}{'...' if len(tail_candidate) > 50 else ''}")
             
             # 记录分析详情
             line_analysis = {
@@ -355,6 +367,7 @@ class SemanticTailFilter:
             
             # 如果得分足够高，这可能是一个好的分割点
             if semantic_score > 0.4 and semantic_score > best_score:
+                logger.debug(f"✅ 找到更好的分割点 - 行{i}, 得分: {semantic_score:.3f} > {best_score:.3f}")
                 best_score = semantic_score
                 best_split_point = i
                 analysis['best_split'] = i
@@ -374,9 +387,16 @@ class SemanticTailFilter:
                         logger.debug(f"扩展推广边界: {i} -> {extended_split} (得分: {extended_score:.3f})")
         
         # 判断是否找到尾部（阈值0.5，提高识别敏感度）
+        logger.debug(f"扫描完成 - 最佳分割点: {best_split_point}, 最佳得分: {best_score:.3f}")
+        
         if best_split_point is not None and best_score > 0.5:
             filtered_content = '\n'.join(lines[:best_split_point]).strip()
             tail_content = '\n'.join(lines[best_split_point:]).strip()
+            
+            logger.info(f"🎯 检测到推广尾部 - 分割点: 第{best_split_point}行, 得分: {best_score:.3f}")
+            logger.debug(f"过滤后内容长度: {len(filtered_content)}, 尾部内容长度: {len(tail_content)}")
+            logger.debug(f"过滤后内容预览: {filtered_content[:100]}{'...' if len(filtered_content) > 100 else ''}")
+            logger.debug(f"移除的尾部内容: {tail_content[:100]}{'...' if len(tail_content) > 100 else ''}")
             
             # 安全检查：过滤后的内容不能太短（但有媒体时允许完全过滤）
             if len(filtered_content) < 30 and not has_media:
@@ -406,11 +426,12 @@ class SemanticTailFilter:
             else:
                 logger.debug(f"有媒体消息，不限制过滤比例: {filter_ratio:.1%}")
             
-            logger.info(f"语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符 "
+            logger.info(f"✅ 语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符 "
                        f"(过滤{filter_ratio:.1%}，得分{best_score:.2f})")
             
             return filtered_content, True, tail_content, analysis
         
+        logger.debug(f"❌ 未检测到推广尾部，保留原始内容 (最佳得分: {best_score:.3f} < 0.5)")
         return content, False, None, analysis
 
 

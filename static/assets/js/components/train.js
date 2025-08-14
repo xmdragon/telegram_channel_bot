@@ -419,6 +419,8 @@ const TrainApp = {
             }
             
             this.submitting = true;
+            console.log('🛠️ 开始处理提交数据...');
+            
             try {
                 // 提取分隔符（尾部内容的第一行作为分隔符）
                 const tailLines = this.trainingForm.tail_content.split('\n');
@@ -429,6 +431,13 @@ const TrainApp = {
                 const normalPart = tailIndex > -1 
                     ? this.trainingForm.original_message.substring(0, tailIndex).trim()
                     : this.trainingForm.original_message;
+                
+                console.log('📊 数据处理结果:', {
+                    separator: separator.substring(0, 20) + '...',
+                    normalPartLength: normalPart.length,
+                    tailIndex: tailIndex,
+                    tailLinesCount: tailLines.length
+                });
                 
                 // 打印调试信息
                 // console.log('提交数据:', {
@@ -444,16 +453,34 @@ const TrainApp = {
                 // console.log('Authorization header:', axios.defaults.headers.common['Authorization']);
                 
                 // 统一提交到tail-filter-samples
-                const response = await axios.post('/api/training/tail-filter-samples', {
+                const postData = {
                     description: '尾部过滤训练样本',
                     content: this.trainingForm.original_message,
                     separator: separator,
                     normalPart: normalPart,
                     tailPart: this.trainingForm.tail_content,
                     message_id: this.trainingForm.message_id  // 传递message_id
+                };
+                
+                console.log('📡 发送API请求:', {
+                    url: '/api/training/tail-filter-samples',
+                    method: 'POST',
+                    dataKeys: Object.keys(postData),
+                    contentLength: postData.content.length,
+                    tailPartLength: postData.tailPart.length
+                });
+                
+                const response = await axios.post('/api/training/tail-filter-samples', postData);
+                
+                console.log('📥 收到API响应:', {
+                    status: response.status,
+                    success: response.data.success,
+                    message: response.data.message,
+                    id: response.data.id
                 });
                 
                 if (response.data.success) {
+                    console.log('✅ API请求成功');
                     // 显示实际的响应消息
                     ElMessage({
                         message: response.data.message || '训练样本已提交并自动应用',
@@ -488,6 +515,14 @@ const TrainApp = {
                     });
                 }
             } catch (error) {
+                console.error('❌ 提交训练数据失败:', error);
+                console.error('错误详情:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    responseData: error.response?.data
+                });
+                
                 ElMessage({
                     message: '提交失败: ' + (error.response?.data?.message || error.response?.data?.detail || error.message),
                     type: 'error',
@@ -495,6 +530,7 @@ const TrainApp = {
                     customClass: 'bottom-right-message'
                 });
             } finally {
+                console.log('🏁 提交过程结束');
                 this.submitting = false;
             }
         },

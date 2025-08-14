@@ -1504,7 +1504,52 @@
         "colorhash": "02002000180",
         "sha256": "65cdf7ede8e08d65c3473ca0718c8500ad933a704ca10b1ed9fda280839b3d4a"
       }
+    },
+    "35cdb6ba06257b7825f5b9947d6e923aac2a3c481247a8dd2fababf21117e8b2": {
+      "path": "videos/2025-08/7985_20250814_173215_35cdb6ba.mp4",
+      "message_ids": [
+        7985
+      ],
+      "channel_id": "-1002167120993",
+      "media_type": "video",
+      "is_ad": true,
+      "file_size": 15339498,
+      "saved_at": "2025-08-14T17:32:15.395768",
+      "original_name": "13882_20250814_161927_video.mp4",
+      "file_hash": "35cdb6ba06257b7825f5b9947d6e923aac2a3c481247a8dd2fababf21117e8b2",
+      "thumbnail_path": "images/2025-08/7985_20250814_173215_35cdb6ba_thumb.jpg",
+      "display_path": "images/2025-08/7985_20250814_173215_35cdb6ba_thumb.jpg",
+      "visual_hashes": {
+        "phash": "d5e9e98a9d719805",
+        "dhash": "1260049864741c36",
+        "ahash": "fff0f0ee1e1e00de",
+        "whash": "fff090ee1e1e009a",
+        "colorhash": "03601010000",
+        "sha256": "f762b9e5375c03200d9443a4e852cc70d2c74e886817d254eff6cfc4dc297df6"
+      }
+    },
+    "cd2ff7ef34907a3f7cf9ffac1f91496a4ad12995b31e90d0e93e85851da8b96e": {
+      "path": "images/2025-08/7982_20250814_173219_cd2ff7ef.jpg",
+      "message_ids": [
+        7982
+      ],
+      "channel_id": "-1001956665373",
+      "media_type": "photo",
+      "is_ad": true,
+      "file_size": 157337,
+      "saved_at": "2025-08-14T17:32:19.980287",
+      "original_name": "57419_20250814_161751_photo.jpg",
+      "file_hash": "cd2ff7ef34907a3f7cf9ffac1f91496a4ad12995b31e90d0e93e85851da8b96e",
+      "display_path": "images/2025-08/7982_20250814_173219_cd2ff7ef.jpg",
+      "visual_hashes": {
+        "phash": "eb92b6a5e502c327",
+        "dhash": "3e39195363131161",
+        "ahash": "ff8c8cf8f1f980f0",
+        "whash": "ff8d88f8f0f880e0",
+        "colorhash": "062010000c0",
+        "sha256": "cd2ff7ef34907a3f7cf9ffac1f91496a4ad12995b31e90d0e93e85851da8b96e"
+      }
     }
   },
-  "updated_at": "2025-08-14T14:53:15.695303"
+  "updated_at": "2025-08-14T17:32:19.980293"
 }
