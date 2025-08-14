@@ -7,7 +7,7 @@
     "updated_at": "2025-08-14T18:52:47.200494",
     "created_at": "2025-08-14T18:52:47.200496"
   },
-  "updated_at": "2025-08-14T13:49:46.318299",
+  "updated_at": "2025-08-14T13:59:42.842344",
   "test.integer_value": {
     "value": "42",
     "config_type": "integer",
@@ -69,7 +69,7 @@
     "config_type": "string",
     "description": "Telegram API ID (从 https://my.telegram.org 获取)",
     "is_active": true,
-    "updated_at": "2025-08-14T21:49:46.315688",
+    "updated_at": "2025-08-14T21:59:42.839651",
     "created_at": "2025-08-14T18:52:47.202969"
   },
   "telegram.api_hash": {
@@ -77,7 +77,7 @@
     "config_type": "string",
     "description": "Telegram API Hash (从 https://my.telegram.org 获取)",
     "is_active": true,
-    "updated_at": "2025-08-14T21:49:46.316333",
+    "updated_at": "2025-08-14T21:59:42.840261",
     "created_at": "2025-08-14T18:52:47.203278"
   },
   "telegram.phone": {
@@ -85,7 +85,7 @@
     "config_type": "string",
     "description": "Telegram手机号码 (格式: +8613800138000)",
     "is_active": true,
-    "updated_at": "2025-08-14T21:49:46.316738",
+    "updated_at": "2025-08-14T21:59:42.840651",
     "created_at": "2025-08-14T18:52:47.203543"
   },
   "channels.source_channels": {
@@ -101,7 +101,7 @@
     "config_type": "string",
     "description": "审核群ID或链接",
     "is_active": true,
-    "updated_at": "2025-08-14T21:49:46.317132",
+    "updated_at": "2025-08-14T21:59:42.841045",
     "created_at": "2025-08-14T18:52:47.204112"
   },
   "channels.review_group_id_cached": {
@@ -109,7 +109,7 @@
     "config_type": "string",
     "description": "缓存的审核群ID（由系统自动解析链接后设置）",
     "is_active": true,
-    "updated_at": "2025-08-14T21:49:46.317492",
+    "updated_at": "2025-08-14T21:59:42.841477",
     "created_at": "2025-08-14T18:52:47.204446"
   },
   "channels.target_channel_id": {
@@ -117,7 +117,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-14T21:49:46.317886",
+    "updated_at": "2025-08-14T21:59:42.841879",
     "created_at": "2025-08-14T18:52:47.204763"
   },
   "channels.history_message_limit": {
@@ -237,7 +237,7 @@
     "config_type": "string",
     "description": "频道落款内容（支持多行，用\\n分隔）",
     "is_active": true,
-    "updated_at": "2025-08-14T21:49:46.318297",
+    "updated_at": "2025-08-14T21:59:42.842342",
     "created_at": "2025-08-14T18:52:47.209854"
   },
   "system.secret_key": {

@@ -28,16 +28,8 @@ fi
 # 创建必要的目录
 mkdir -p logs data temp_media
 
-# 检查并启动Docker数据库服务
-echo "🐳 检查Docker数据库服务..."
-if ! docker compose ps postgres 2>/dev/null | grep -q "running"; then
-    echo "📦 启动PostgreSQL数据库..."
-    docker compose up -d postgres
-    # 等待数据库就绪
-    echo "⏳ 等待数据库就绪..."
-    sleep 3
-fi
-
+# 检查并启动Redis缓存服务
+echo "🐳 检查Redis服务..."
 if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
     echo "📦 启动Redis缓存..."
     docker compose up -d redis
@@ -55,13 +47,6 @@ if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
         fi
         sleep 1
     done
-fi
-
-# 检查数据库是否需要初始化
-if [ ! -f "data/db_initialized.flag" ]; then
-    echo "📊 初始化数据库..."
-    python3 init_db.py
-    touch data/db_initialized.flag
 fi
 
 # 使用uvicorn的reload功能启动（如果可用）

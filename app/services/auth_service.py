@@ -56,9 +56,12 @@ class AuthService:
             # 生成会话token
             token = self.generate_token()
             
+            # 保存admin_id，因为save_admin会删除id字段
+            admin_id = admin['id']
+            
             # 创建会话数据
             session_data = {
-                'admin_id': admin['id'],
+                'admin_id': admin_id,
                 'username': admin['username'],
                 'is_super_admin': admin.get('is_super_admin', False),
                 'ip_address': ip_address,
@@ -80,7 +83,7 @@ class AuthService:
             # 返回登录结果
             return {
                 'token': token,
-                'admin_id': admin['id'],
+                'admin_id': admin_id,
                 'username': admin['username'],
                 'is_super_admin': admin.get('is_super_admin', False),
                 'expires_at': (datetime.now() + timedelta(seconds=self.default_session_expire)).isoformat()

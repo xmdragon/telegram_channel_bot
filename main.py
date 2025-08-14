@@ -108,6 +108,13 @@ async def lifespan(app: FastAPI):
     from app.services.config_manager import init_default_configs
     await init_default_configs()
     
+    # 初始化认证服务
+    from app.services.auth_service import init_auth_service
+    if not init_auth_service():
+        logger.error("认证服务初始化失败")
+        raise RuntimeError("初始化失败")
+    logger.info("认证服务已初始化")
+    
     # 初始化训练数据目录和配置
     from app.core.training_config import TrainingDataConfig
     TrainingDataConfig.initialize()
