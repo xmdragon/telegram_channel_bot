@@ -5,11 +5,8 @@
 import re
 import logging
 from typing import Optional, Union
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.telegram.auth import auth_manager
-from app.core.database import AsyncSessionLocal, Channel
+from app.storage.json_store import get_json_channel_store
 
 logger = logging.getLogger(__name__)
 
@@ -103,23 +100,39 @@ class ChannelIdResolver:
             return None
     
     async def update_channel_id(self, channel_name: str, resolved_id: str) -> bool:
-        """更新数据库中的频道ID"""
+        """更新JSON存储中的频道ID"""
         try:
-            async with AsyncSessionLocal() as db:
-                # 查找频道记录
-                result = await db.execute(
-                    select(Channel).where(Channel.channel_name == channel_name)
-                )
-                channel = result.scalar_one_or_none()
+            channel_store = get_json_channel_store()
+            
+            # 查找频道记录
+            channel_data = channel_store.get_channel(channel_name)
+            
+            if channel_data:
+                # 更新频道ID
+                channel_data['channel_id'] = resolved_id
+                success = channel_store.save_channel(channel_name, channel_data)
                 
-                if channel:
-                    # 更新频道ID
-                    channel.channel_id = resolved_id
-                    await db.commit()
+                if success:
                     logger.info(f"已更新频道 {channel_name} 的ID为: {resolved_id}")
                     return True
                 else:
-                    logger.error(f"未找到频道记录: {channel_name}")
+                    logger.error(f"保存频道配置失败: {channel_name}")
+                    return False
+            else:
+                # 创建新的频道记录
+                new_channel = {
+                    'channel_name': channel_name,
+                    'channel_id': resolved_id,
+                    'channel_type': 'source',  # 默认为源频道
+                    'is_active': True
+                }
+                success = channel_store.save_channel(channel_name, new_channel)
+                
+                if success:
+                    logger.info(f"已创建频道 {channel_name} 并设置ID为: {resolved_id}")
+                    return True
+                else:
+                    logger.error(f"创建频道配置失败: {channel_name}")
                     return False
                     
         except Exception as e:
@@ -160,35 +173,37 @@ class ChannelIdResolver:
         try:
             resolved_channels = []
             
-            async with AsyncSessionLocal() as db:
-                # 获取所有活跃的源频道
-                result = await db.execute(
-                    select(Channel).where(
-                        Channel.channel_type == 'source',
-                        Channel.is_active == True
-                    )
-                )
-                channels = result.scalars().all()
+            channel_store = get_json_channel_store()
+            # 获取所有活跃的源频道
+            channels = channel_store.get_channels_by_type('source')
+            
+            for channel in channels:
+                # 检查是否为活跃状态
+                if not channel.get('is_active', True):
+                    continue
                 
-                for channel in channels:
-                    # 检查是否需要解析ID
-                    if not channel.channel_id or channel.channel_id.strip() == '':
-                        logger.info(f"正在解析频道 {channel.channel_name} 的ID...")
-                        resolved_id = await self.resolve_and_update_channel(channel.channel_name)
-                        
-                        if resolved_id:
-                            resolved_channels.append({
-                                'name': channel.channel_name,
-                                'id': resolved_id,
-                                'title': channel.channel_title
-                            })
-                    else:
-                        # 已有ID，直接添加到列表
+                channel_name = channel.get('channel_name', '')
+                channel_id = channel.get('channel_id', '')
+                channel_title = channel.get('channel_title', channel_name)
+                
+                # 检查是否需要解析ID
+                if not channel_id or channel_id.strip() == '':
+                    logger.info(f"正在解析频道 {channel_name} 的ID...")
+                    resolved_id = await self.resolve_and_update_channel(channel_name)
+                    
+                    if resolved_id:
                         resolved_channels.append({
-                            'name': channel.channel_name,
-                            'id': channel.channel_id,
-                            'title': channel.channel_title
+                            'name': channel_name,
+                            'id': resolved_id,
+                            'title': channel_title
                         })
+                else:
+                    # 已有ID，直接添加到列表
+                    resolved_channels.append({
+                        'name': channel_name,
+                        'id': channel_id,
+                        'title': channel_title
+                    })
             
             logger.info(f"频道ID解析完成，共 {len(resolved_channels)} 个频道")
             return resolved_channels

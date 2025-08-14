@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from app.telegram.auth import auth_manager
 from app.core.config import db_settings
 from app.services.channel_manager import ChannelManager
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_store import get_redis_message_store, get_redis_store
+from app.storage.json_store import get_json_channel_store
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,8 @@ class SystemMonitor:
         self.status_callbacks = []
         self.check_interval = 30  # 30秒检查一次
         self.channel_manager = ChannelManager()
+        self._stats_cache = {}
+        self._cache_time = None
         self.last_auth_error_logged = False  # 记录是否已经记录过认证错误
         
     async def start(self):
@@ -261,6 +264,52 @@ class SystemMonitor:
         except Exception as e:
             logger.error(f"检查最近消息时间出错: {e}")
             return None
+    
+    async def get_system_stats(self) -> Dict:
+        """获取系统统计信息"""
+        try:
+            # 使用缓存减少Redis查询频率
+            now = datetime.utcnow()
+            if (self._cache_time is None or 
+                (now - self._cache_time).seconds > 60):  # 1分钟缓存
+                
+                redis_store = get_redis_message_store()
+                
+                # 获取各状态消息统计
+                stats = {
+                    'total_messages': redis_store.get_message_count(),
+                    'pending_messages': redis_store.get_message_count(status='pending'),
+                    'approved_messages': redis_store.get_message_count(status='approved'),
+                    'rejected_messages': redis_store.get_message_count(status='rejected'),
+                    'auto_forwarded_messages': redis_store.get_message_count(status='auto_forwarded'),
+                    'timestamp': now.isoformat()
+                }
+                
+                # 获取频道统计
+                try:
+                    channel_store = get_json_channel_store()
+                    source_channels = channel_store.get_channels_by_type('source')
+                    stats['source_channels_count'] = len(source_channels)
+                except Exception as e:
+                    logger.warning(f"获取频道统计失败: {e}")
+                    stats['source_channels_count'] = 0
+                
+                self._stats_cache = stats
+                self._cache_time = now
+            
+            return self._stats_cache
+            
+        except Exception as e:
+            logger.error(f"获取系统统计信息失败: {e}")
+            return {
+                'total_messages': 0,
+                'pending_messages': 0,
+                'approved_messages': 0, 
+                'rejected_messages': 0,
+                'auto_forwarded_messages': 0,
+                'source_channels_count': 0,
+                'timestamp': datetime.utcnow().isoformat()
+            }
             
     async def _log_status_changes(self, status: SystemStatus):
         """记录重要的状态变化"""
@@ -300,29 +349,58 @@ class SystemMonitor:
             
         status = self.current_status
         
+        # 添加系统统计信息
+        try:
+            stats = await self.get_system_stats()
+            status_dict = {
+                "timestamp": status.timestamp.isoformat() if status.timestamp else None,
+                "telegram_auth": status.telegram_auth,
+                "telegram_connected": status.telegram_connected,
+                "source_channels": status.source_channels,
+                "target_channel": status.target_channel,
+                "review_group": status.review_group,
+                "errors": status.errors,
+                "warnings": status.warnings,
+                "last_message_time": status.last_message_time.isoformat() if status.last_message_time else None,
+                "stats": stats
+            }
+        except Exception as e:
+            logger.warning(f"获取统计信息失败: {e}")
+            status_dict = {
+                "timestamp": status.timestamp.isoformat() if status.timestamp else None,
+                "telegram_auth": status.telegram_auth,
+                "telegram_connected": status.telegram_connected,
+                "source_channels": status.source_channels,
+                "target_channel": status.target_channel,
+                "review_group": status.review_group,
+                "errors": status.errors,
+                "warnings": status.warnings,
+                "last_message_time": status.last_message_time.isoformat() if status.last_message_time else None
+            }
+        
         if status.errors:
             return {
                 "status": "error",
                 "message": f"系统错误: {', '.join(status.errors[:3])}",
-                "details": status
+                "details": status_dict
             }
         elif status.warnings:
             return {
                 "status": "warning", 
                 "message": f"系统警告: {', '.join(status.warnings[:3])}",
-                "details": status
+                "details": status_dict
             }
         elif status.telegram_auth and status.telegram_connected and status.source_channels:
             return {
                 "status": "healthy",
                 "message": f"系统正常运行，监控 {len(status.source_channels)} 个源频道",
-                "details": status
+                "details": status_dict
             }
         else:
             return {
                 "status": "initializing",
                 "message": "系统正在初始化",
-                "details": status
+                "details": status_dict
             }
 
 # 全局监控实例

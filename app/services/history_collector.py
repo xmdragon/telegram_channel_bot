@@ -9,10 +9,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
 from telethon.errors import FloodWaitError, ChannelPrivateError
-# from sqlalchemy import select, and_  # 已移除数据库依赖
-# from sqlalchemy.orm import sessionmaker  # 已移除数据库依赖
-
-# from app.core.database import AsyncSessionLocal, Message  # 已移除数据库依赖
+from app.storage.redis_store import get_redis_message_store, get_redis_channel_store
 from app.core.config import db_settings
 from app.services.content_filter import ContentFilter
 from app.services.channel_manager import ChannelManager
@@ -175,6 +172,13 @@ class HistoryCollector:
                 progress.collected_messages = existing_count
                 progress.end_time = datetime.utcnow()
                 return
+            
+            # 设置采集点（用于记录频道状态）
+            try:
+                channel_store = get_redis_channel_store()
+                channel_store.set_checkpoint(channel_id, 0)  # 初始化采集点
+            except Exception as e:
+                logger.warning(f"设置采集点失败: {e}")
                 
             # 处理频道ID格式，去掉-100前缀来获取实体
             # channel_id 格式为 -1002829999238
@@ -236,6 +240,16 @@ class HistoryCollector:
             progress.end_time = datetime.utcnow()
             progress.total_messages = collected
             
+            # 更新采集点
+            try:
+                if all_messages:
+                    last_msg_id = all_messages[-1].id  # 最新消息的ID
+                    channel_store = get_redis_channel_store()
+                    channel_store.set_checkpoint(channel_id, last_msg_id)
+                    logger.debug(f"已更新频道 {channel_id} 采集点为: {last_msg_id}")
+            except Exception as e:
+                logger.warning(f"更新采集点失败: {e}")
+            
             logger.info(f"频道 {channel_id} 历史消息采集完成，共采集 {collected} 条")
             
         except ChannelPrivateError:
@@ -252,12 +266,9 @@ class HistoryCollector:
     async def _get_existing_message_count(self, channel_id: str) -> int:
         """获取已存在的消息数量"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(Message.source_channel == channel_id)
-                )
-                messages = result.scalars().all()
-                return len(messages)
+            redis_store = get_redis_message_store()
+            # 获取频道消息总数
+            return redis_store.get_message_count(channel_id=channel_id)
         except Exception as e:
             logger.error(f"获取现有消息数量失败: {e}")
             return 0
@@ -302,15 +313,14 @@ class HistoryCollector:
             # process_source_message会：
             # 1. 创建媒体占位符（不立即下载）
             # 2. 过滤内容
-            # 3. 保存到数据库（状态为auto_forwarded）
+            # 3. 保存到Redis（状态为auto_forwarded）
             # 4. 添加到异步下载队列
             # 5. 不转发到审核群（历史消息不需要审核）
             await telegram_bot.process_source_message(tl_message, entity)
             
-            # 历史消息需要异步下载媒体
-            # 注意：这个功能需要在process_source_message中实现
+            # 历史消息将被process_source_message处理并保存到Redis
             
-            logger.debug(f"历史消息 {tl_message.id} 已通过标准流程处理")
+            logger.debug(f"历史消息 {tl_message.id} 已通过标准流程处理并保存到Redis")
                 
         except Exception as e:
             logger.error(f"处理历史消息失败: {e}")
@@ -318,16 +328,10 @@ class HistoryCollector:
     async def _message_exists(self, channel_id: str, message_id: int) -> bool:
         """检查消息是否已存在"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(
-                        and_(
-                            Message.source_channel == channel_id,
-                            Message.message_id == message_id
-                        )
-                    )
-                )
-                return result.scalar_one_or_none() is not None
+            redis_store = get_redis_message_store()
+            # 直接检查消息是否存在
+            message_data = redis_store.get_message(channel_id, message_id)
+            return message_data is not None
         except Exception as e:
             logger.error(f"检查消息是否存在失败: {e}")
             return False
@@ -367,11 +371,9 @@ class HistoryCollector:
         
         return groups
     
-    async def auto_collect_for_new_channels(self):
+    async def auto_collect_for_new_channels(self, history_limit: int = 100):
         """为新添加的频道自动采集历史消息"""
         try:
-            # 获取历史消息采集配置
-            history_limit = await db_settings.get_history_limit()
             if history_limit <= 0:
                 return
                 
@@ -379,7 +381,9 @@ class HistoryCollector:
             channels = await self.channel_manager.get_channels_by_type('source')
             
             for channel in channels:
-                channel_id = channel.telegram_id
+                channel_id = channel.get('channel_id')
+                if not channel_id:
+                    continue
                 
                 # 检查是否已采集过
                 existing_count = await self._get_existing_message_count(channel_id)

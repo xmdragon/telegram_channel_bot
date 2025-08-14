@@ -14,10 +14,7 @@ from typing import Tuple, Optional, List
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 import jieba
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import AsyncSessionLocal, Message
+from app.storage.redis_store import get_redis_message_store
 
 logger = logging.getLogger(__name__)
 
@@ -127,36 +124,48 @@ class MessageDeduplicator:
         return intersection / union if union > 0 else 0.0
     
     async def is_duplicate(self, content: str, source_channel: str, 
-                          message_time: datetime, db: AsyncSession) -> Tuple[bool, Optional[int]]:
+                          message_time: datetime) -> Tuple[bool, Optional[str]]:
         """
         检查消息是否为重复消息
-        返回: (是否重复, 原始消息ID)
+        返回: (是否重复, 原始消息Key)
         """
         try:
+            redis_store = get_redis_message_store()
+            
             # 设置时间窗口
             time_start = message_time - timedelta(minutes=self.time_window_minutes)
             time_end = message_time + timedelta(minutes=self.time_window_minutes)
             
-            # 查询时间窗口内的其他消息
-            result = await db.execute(
-                select(Message).where(
-                    and_(
-                        Message.created_at >= time_start,
-                        Message.created_at <= time_end,
-                        Message.source_channel != source_channel  # 不同频道
-                    )
-                ).order_by(Message.created_at.desc())
-            )
-            recent_messages = result.scalars().all()
+            # 获取所有消息进行筛选检查
+            all_messages = redis_store.get_all_messages(limit=1000)  # 限制数量避免内存问题
+            
+            # 筛选时间窗口内的不同频道消息
+            recent_messages = []
+            for msg in all_messages:
+                if not msg.get('content'):
+                    continue
+                    
+                # 检查时间和频道
+                msg_time_str = msg.get('created_at')
+                msg_channel = msg.get('source_channel', '')
+                
+                if not msg_time_str or msg_channel == source_channel:
+                    continue
+                
+                try:
+                    msg_time = datetime.fromisoformat(msg_time_str.replace('Z', '+00:00'))
+                    if time_start <= msg_time <= time_end:
+                        recent_messages.append(msg)
+                except Exception:
+                    continue
             
             # 检查相似度
             for msg in recent_messages:
-                if not msg.content:
-                    continue
+                msg_content = msg.get('content', '')
                 
                 # 计算多种相似度
-                text_similarity = self._calculate_similarity(content, msg.content)
-                hash_similarity = self._calculate_hash_similarity(content, msg.content)
+                text_similarity = self._calculate_similarity(content, msg_content)
+                hash_similarity = self._calculate_hash_similarity(content, msg_content)
                 
                 # 取最高相似度
                 max_similarity = max(text_similarity, hash_similarity)
@@ -164,8 +173,9 @@ class MessageDeduplicator:
                 logger.debug(f"相似度检查: {max_similarity:.2f} (文本: {text_similarity:.2f}, 哈希: {hash_similarity:.2f})")
                 
                 if max_similarity >= self.similarity_threshold:
+                    msg_key = f"{msg.get('source_channel')}:{msg.get('message_id')}"
                     logger.info(f"发现重复消息，相似度: {max_similarity:.2f}")
-                    return True, msg.id
+                    return True, msg_key
             
             return False, None
             
@@ -174,8 +184,7 @@ class MessageDeduplicator:
             return False, None
     
     async def find_similar_messages(self, content: str, source_channel: str,
-                                   message_time: datetime, db: AsyncSession,
-                                   limit: int = 5) -> List[dict]:
+                                   message_time: datetime, limit: int = 5) -> List[dict]:
         """
         查找相似的消息
         返回相似消息列表，包含相似度信息
@@ -183,38 +192,50 @@ class MessageDeduplicator:
         similar_messages = []
         
         try:
+            redis_store = get_redis_message_store()
+            
             # 扩大时间窗口用于分析
             time_start = message_time - timedelta(hours=2)
             time_end = message_time + timedelta(hours=2)
             
-            # 查询时间窗口内的消息
-            result = await db.execute(
-                select(Message).where(
-                    and_(
-                        Message.created_at >= time_start,
-                        Message.created_at <= time_end,
-                        Message.source_channel != source_channel
-                    )
-                ).order_by(Message.created_at.desc())
-            )
-            messages = result.scalars().all()
+            # 获取所有消息进行筛选检查
+            all_messages = redis_store.get_all_messages(limit=2000)  # 扩大查询范围
             
-            # 计算相似度并排序
-            for msg in messages:
-                if not msg.content:
+            # 筛选时间窗口内的不同频道消息
+            filtered_messages = []
+            for msg in all_messages:
+                if not msg.get('content'):
+                    continue
+                    
+                # 检查时间和频道
+                msg_time_str = msg.get('created_at')
+                msg_channel = msg.get('source_channel', '')
+                
+                if not msg_time_str or msg_channel == source_channel:
                     continue
                 
-                text_similarity = self._calculate_similarity(content, msg.content)
-                hash_similarity = self._calculate_hash_similarity(content, msg.content)
+                try:
+                    msg_time = datetime.fromisoformat(msg_time_str.replace('Z', '+00:00'))
+                    if time_start <= msg_time <= time_end:
+                        filtered_messages.append(msg)
+                except Exception:
+                    continue
+            
+            # 计算相似度并排序
+            for msg in filtered_messages:
+                msg_content = msg.get('content', '')
+                
+                text_similarity = self._calculate_similarity(content, msg_content)
+                hash_similarity = self._calculate_hash_similarity(content, msg_content)
                 max_similarity = max(text_similarity, hash_similarity)
                 
                 if max_similarity >= 0.5:  # 50%以上的相似度才记录
                     similar_messages.append({
-                        'message_id': msg.id,
-                        'channel': msg.source_channel,
-                        'content': msg.content[:100] + '...' if len(msg.content) > 100 else msg.content,
+                        'message_key': f"{msg.get('source_channel')}:{msg.get('message_id')}",
+                        'channel': msg.get('source_channel'),
+                        'content': msg_content[:100] + '...' if len(msg_content) > 100 else msg_content,
                         'similarity': max_similarity,
-                        'created_at': msg.created_at
+                        'created_at': msg.get('created_at')
                     })
             
             # 按相似度排序

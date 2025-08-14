@@ -7,8 +7,8 @@ from typing import Dict, List, Optional
 from app.services.config_manager import ConfigManager
 from app.services.channel_id_resolver import channel_id_resolver
 from app.services.channel_manager import channel_manager
-from app.core.database import AsyncSessionLocal, Channel
-from sqlalchemy import select
+from app.storage.json_store import get_json_channel_store
+from app.storage.redis_store import get_redis_store
 
 logger = logging.getLogger(__name__)
 
@@ -133,73 +133,106 @@ class StartupChecker:
         }
         
         try:
-            # 获取所有活跃源频道
-            async with AsyncSessionLocal() as db:
-                query_result = await db.execute(
-                    select(Channel).where(
-                        Channel.channel_type == "source",
-                        Channel.is_active == True
-                    )
-                )
-                channels = query_result.scalars().all()
+            # 从 JSON 存储获取所有活跃源频道
+            channel_store = get_json_channel_store()
+            channels = channel_store.get_channels_by_type('source')
                 
-                if not channels:
-                    result['errors'].append("未配置任何源频道")
-                    return result
+            if not channels:
+                result['errors'].append("未配置任何源频道")
+                return result
+            
+            for channel in channels:
+                # 棆查是否为活跃状态
+                if not channel.get('is_active', True):
+                    continue
+                    
+                channel_name = channel.get('channel_name', '')
+                channel_id = channel.get('channel_id', '')
                 
-                for channel in channels:
-                    if not channel.channel_id or channel.channel_id.strip() == '':
-                        # 需要解析ID
-                        logger.info(f"  - 频道 {channel.channel_name} 需要解析ID...")
-                        resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
+                if not channel_id or channel_id.strip() == '':
+                    # 需要解析ID
+                    logger.info(f"  - 频道 {channel_name} 需要解析ID...")
+                    resolved_id = await self._resolve_and_save_channel_id(channel_name)
                         
+                    if resolved_id:
+                        result['channels'].append(resolved_id)
+                        result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
+                        logger.info(f"    ✅ 解析成功: {resolved_id}")
+                    else:
+                        result['warnings'].append(f"源频道 {channel_name} ID解析失败")
+                        logger.warning(f"    ❌ 解析失败")
+                else:
+                    # 已有ID，检查是否需要解析
+                    if channel_id.startswith('@'):
+                        # 是用户名，需要解析
+                        logger.info(f"  - 频道 {channel_name} (@用户名) 需要解析ID...")
+                        resolved_id = await self._resolve_and_save_channel_id(channel_name)
+                            
                         if resolved_id:
                             result['channels'].append(resolved_id)
-                            result['resolved'].append(f"源频道 {channel.channel_name} -> {resolved_id}")
+                            result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
                             logger.info(f"    ✅ 解析成功: {resolved_id}")
                         else:
-                            result['warnings'].append(f"源频道 {channel.channel_name} ID解析失败")
+                            result['warnings'].append(f"源频道 {channel_name} ID解析失败")
                             logger.warning(f"    ❌ 解析失败")
-                    else:
-                        # 已有ID，检查是否需要解析
-                        channel_id = channel.channel_id
-                        if channel_id.startswith('@'):
-                            # 是用户名，需要解析
-                            logger.info(f"  - 频道 {channel.channel_name} (@用户名) 需要解析ID...")
-                            resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
+                    elif not channel_id.startswith('-100'):
+                        # ID格式可能不正确，尝试解析
+                        logger.info(f"  - 频道 {channel_name} (ID格式异常) 需要解析...")
+                        resolved_id = await self._resolve_and_save_channel_id(channel_name)
                             
-                            if resolved_id:
-                                result['channels'].append(resolved_id)
-                                result['resolved'].append(f"源频道 {channel.channel_name} -> {resolved_id}")
-                                logger.info(f"    ✅ 解析成功: {resolved_id}")
-                            else:
-                                result['warnings'].append(f"源频道 {channel.channel_name} ID解析失败")
-                                logger.warning(f"    ❌ 解析失败")
-                        elif not channel_id.startswith('-100'):
-                            # ID格式可能不正确，尝试解析
-                            logger.info(f"  - 频道 {channel.channel_name} (ID格式异常) 需要解析...")
-                            resolved_id = await channel_id_resolver.resolve_and_update_channel(channel.channel_name)
-                            
-                            if resolved_id:
-                                result['channels'].append(resolved_id)
-                                result['resolved'].append(f"源频道 {channel.channel_name} -> {resolved_id}")
-                                logger.info(f"    ✅ 解析成功: {resolved_id}")
-                            else:
-                                # 解析失败，仍然使用原ID但给出警告
-                                result['warnings'].append(f"源频道 {channel.channel_name} 的ID格式可能不正确: {channel_id}")
-                                result['channels'].append(channel_id)
-                                logger.warning(f"    ⚠️ ID格式异常但解析失败，继续使用: {channel_id}")
+                        if resolved_id:
+                            result['channels'].append(resolved_id)
+                            result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
+                            logger.info(f"    ✅ 解析成功: {resolved_id}")
                         else:
-                            # 格式正确的ID
+                            # 解析失败，仍然使用原ID但给出警告
+                            result['warnings'].append(f"源频道 {channel_name} 的ID格式可能不正确: {channel_id}")
                             result['channels'].append(channel_id)
-                            logger.info(f"  - 频道 {channel.channel_name}: {channel_id} (已配置)")
+                            logger.warning(f"    ⚠️ ID格式异常但解析失败，继续使用: {channel_id}")
+                    else:
+                        # 格式正确的ID
+                        result['channels'].append(channel_id)
+                        logger.info(f"  - 频道 {channel_name}: {channel_id} (已配置)")
                 
-                logger.info(f"  共找到 {len(result['channels'])} 个活跃源频道")
+            logger.info(f"  共找到 {len(result['channels'])} 个活跃源频道")
                 
         except Exception as e:
             result['errors'].append(f"检查源频道失败: {str(e)}")
             
         return result
+    
+    async def _resolve_and_save_channel_id(self, channel_name: str) -> Optional[str]:
+        """解析并保存频道ID到JSON存储"""
+        try:
+            # 使用频道ID解析器解析
+            resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
+            
+            if resolved_id:
+                # 保存到JSON存储
+                channel_store = get_json_channel_store()
+                
+                # 更新频道配置
+                channel_data = channel_store.get_channel(channel_name)
+                if channel_data:
+                    channel_data['channel_id'] = resolved_id
+                    channel_store.save_channel(channel_name, channel_data)
+                else:
+                    # 创建新的频道记录
+                    new_channel = {
+                        'channel_name': channel_name,
+                        'channel_id': resolved_id,
+                        'channel_type': 'source',
+                        'is_active': True
+                    }
+                    channel_store.save_channel(channel_name, new_channel)
+                
+                return resolved_id
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"解析并保存频道ID失败 {channel_name}: {e}")
+            return None
     
     async def _check_target_channel(self) -> Dict:
         """检查目标频道配置"""
@@ -345,7 +378,7 @@ class StartupChecker:
         return result
     
     async def _check_telegram_auth(self) -> Dict:
-        """检查Telegram认证"""
+        """检查Telegram认证和存储系统状态"""
         result = {
             'authenticated': False,
             'error': None,
@@ -367,11 +400,52 @@ class StartupChecker:
             else:
                 result['authenticated'] = True
                 logger.info("  - Telegram认证状态: ✅ 已认证")
+            
+            # 检查存储系统状态
+            await self._check_storage_system()
                 
         except Exception as e:
             result['error'] = f"检查Telegram认证失败: {str(e)}"
             
         return result
+    
+    async def _check_storage_system(self) -> Dict:
+        """检查存储系统状态"""
+        result = {
+            'redis_available': False,
+            'json_available': False,
+            'errors': [],
+            'warnings': []
+        }
+        
+        try:
+            # 检查 Redis 连接
+            try:
+                redis_store = get_redis_store()
+                redis_store.redis.ping()
+                result['redis_available'] = True
+                logger.info("  - Redis存储: ✅ 连接正常")
+            except Exception as e:
+                result['errors'].append(f"Redis连接失败: {str(e)}")
+                logger.error(f"  - Redis存储: ❌ 连接失败 - {e}")
+            
+            # 检查 JSON 存储
+            try:
+                channel_store = get_json_channel_store()
+                # 尝试读取配置文件
+                channel_store.get_all_channels()
+                result['json_available'] = True
+                logger.info("  - JSON存储: ✅ 文件系统正常")
+            except Exception as e:
+                result['errors'].append(f"JSON存储失败: {str(e)}")
+                logger.error(f"  - JSON存储: ❌ 文件系统错误 - {e}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"检查存储系统失败: {e}")
+            result['errors'].append(f"存储系统检查失败: {str(e)}")
+            return result
 
 # 创建全局实例
 startup_checker = StartupChecker()
