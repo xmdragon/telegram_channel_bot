@@ -28,13 +28,12 @@ services:
     container_name: telegram_bot_redis
     ports:
       - "6379:6379"
-    # 暂时不使用持久化，避免权限问题
-    # volumes:
-    #   - ./data/redis:/data
+    volumes:
+      - ./data/redis:/data
     restart: unless-stopped
     networks:
       - telegram_network
-    command: redis-server --appendonly no
+    command: redis-server --appendonly yes
 
   postgres:
     image: postgres:15
