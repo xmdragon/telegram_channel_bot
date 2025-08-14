@@ -136,7 +136,7 @@ class MessageForwarder:
         except Exception as e:
             logger.error(f"转发到审核群时出错: {e}")
     
-    async def forward_to_target(self, client: TelegramClient, message: Message):
+    async def forward_to_target(self, client: TelegramClient, message):
         """重新发布到目标频道"""
         try:
             # 获取目标频道配置
@@ -196,7 +196,7 @@ class MessageForwarder:
             logger.error(f"重新发布到目标频道时出错: {e}")
             await self._cleanup_message_files(message)
     
-    async def update_review_message(self, client: TelegramClient, message: Message):
+    async def update_review_message(self, client: TelegramClient, message):
         """更新审核群中的消息内容"""
         try:
             if not message.review_message_id:
@@ -304,7 +304,7 @@ class MessageForwarder:
         except Exception as e:
             logger.error(f"删除审核群消息失败: {e}")
     
-    async def _send_combined_message_to_review(self, client: TelegramClient, review_group_id: str, message: Message, caption: str):
+    async def _send_combined_message_to_review(self, client: TelegramClient, review_group_id: str, message, caption: str):
         """发送组合消息到审核群"""
         try:
             # 如果是广告消息且文本被过滤，不发送媒体
@@ -369,7 +369,7 @@ class MessageForwarder:
                 message=caption
             )
     
-    async def _send_single_media_to_review(self, client: TelegramClient, review_group_id: str, message: Message, caption: str):
+    async def _send_single_media_to_review(self, client: TelegramClient, review_group_id: str, message, caption: str):
         """发送单个媒体消息到审核群"""
         try:
             # 如果是广告消息且文本被过滤，不发送媒体
@@ -416,7 +416,7 @@ class MessageForwarder:
             logger.error(f"添加频道落款失败: {e}")
             return content
     
-    async def _send_combined_message(self, client: TelegramClient, target_channel_id: str, message: Message):
+    async def _send_combined_message(self, client: TelegramClient, target_channel_id: str, message):
         """发送组合消息（媒体组）"""
         try:
             media_files = []
@@ -460,7 +460,7 @@ class MessageForwarder:
                 message=content_with_footer
             )
     
-    async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message: Message):
+    async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message):
         """发送单个媒体消息"""
         try:
             # 添加频道落款到caption
@@ -479,7 +479,7 @@ class MessageForwarder:
                 message=content_with_footer
             )
     
-    async def _cleanup_message_files(self, message: Message):
+    async def _cleanup_message_files(self, message):
         """清理消息相关的媒体文件"""
         try:
             if message.is_combined and message.media_group:

@@ -72,8 +72,8 @@ class DuplicateDetector:
     """整合的消息重复检测器：媒体哈希 + jieba文本相似度"""
     
     def __init__(self):
-        # Redis存储实例
-        self.redis_store = get_redis_message_store()
+        # Redis存储实例（延迟初始化）
+        self.redis_store = None
         
         # 媒体检测参数（增加检测窗口）
         self.media_cache_hours = 72  # 媒体检测72小时窗口
@@ -140,6 +140,14 @@ class DuplicateDetector:
         Returns:
             (is_duplicate, original_message_id, duplicate_type)
         """
+        # 延迟初始化Redis存储
+        if self.redis_store is None:
+            try:
+                self.redis_store = get_redis_message_store()
+            except RuntimeError:
+                logger.debug("Redis存储未初始化，跳过重复检测")
+                return False, None, "skip"
+        
         if message_time is None:
             message_time = datetime.utcnow()
         # 确保时间没有时区信息（naive datetime）

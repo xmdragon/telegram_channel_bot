@@ -14,11 +14,16 @@ class MessageProcessor:
     
     def __init__(self):
         self.duplicate_detector = DuplicateDetector()
-        self.redis_store = get_redis_message_store()
+        self.redis_store = None  # 延迟初始化
     
     async def get_pending_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
         """获取待审核的消息"""
         try:
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                except RuntimeError:
+                    return []
             return self.redis_store.get_pending_messages(limit=limit)
         except Exception as e:
             logger.error(f"获取待审核消息失败: {e}")

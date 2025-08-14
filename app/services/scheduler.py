@@ -93,10 +93,10 @@ class MessageScheduler:
             # 使用Redis存储获取旧消息
             message_store = get_redis_message_store()
             messages_to_delete = await message_store.get_old_messages_for_cleanup(seven_days_ago)
-                
-                if not messages_to_delete:
-                    logger.debug("没有需要清理的旧消息")
-                    return
+            
+            if not messages_to_delete:
+                logger.debug("没有需要清理的旧消息")
+                return
                 
                 deleted_count = 0
                 deleted_media_count = 0

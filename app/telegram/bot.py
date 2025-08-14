@@ -484,21 +484,21 @@ class TelegramBot:
             logger.error(f"处理回调时出错: {e}")
     
     # 保持所有原有的公开方法接口不变
-    async def forward_to_review(self, db_message: Message):
+    async def forward_to_review(self, db_message):
         """转发消息到审核群 - 委托给转发器"""
         if self.client:
             await message_forwarder.forward_to_review(self.client, db_message)
         else:
             logger.error("客户端未连接，无法转发消息")
     
-    async def forward_to_target(self, message: Message):
+    async def forward_to_target(self, message):
         """重新发布到目标频道 - 委托给转发器"""
         if self.client:
             await message_forwarder.forward_to_target(self.client, message)
         else:
             logger.error("客户端未连接，无法转发消息")
     
-    async def update_review_message(self, message: Message):
+    async def update_review_message(self, message):
         """更新审核群中的消息内容 - 委托给转发器"""
         if self.client:
             await message_forwarder.update_review_message(self.client, message)
@@ -601,7 +601,7 @@ class TelegramBot:
         logger.info("Telegram客户端已停止")
     
     # 以下为内部方法，保持原有逻辑
-    async def _broadcast_new_message(self, db_message: Message):
+    async def _broadcast_new_message(self, db_message):
         """广播新消息到WebSocket客户端"""
         try:
             from app.api.websocket import websocket_manager
@@ -633,7 +633,7 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"广播新消息到WebSocket时出错: {e}")
     
-    def _prepare_media_group_display(self, db_message: Message):
+    def _prepare_media_group_display(self, db_message):
         """准备媒体组显示数据"""
         try:
             if not db_message.is_combined or not db_message.media_group:
@@ -942,7 +942,7 @@ class TelegramBot:
             if message_data.get('media_url') and os.path.exists(message_data['media_url']):
                 await media_handler.cleanup_file(message_data['media_url'])
     
-    async def _cleanup_message_files(self, message: Message):
+    async def _cleanup_message_files(self, message):
         """清理消息相关的媒体文件"""
         try:
             if message.is_combined and message.media_group:

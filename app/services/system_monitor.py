@@ -10,9 +10,8 @@ from dataclasses import dataclass
 
 from app.telegram.auth import auth_manager
 from app.core.config import db_settings
-from app.core.database import AsyncSessionLocal, Message
 from app.services.channel_manager import ChannelManager
-from sqlalchemy import select
+from app.storage.redis_store import get_redis_message_store
 
 logger = logging.getLogger(__name__)
 
@@ -251,14 +250,14 @@ class SystemMonitor:
     async def _check_last_message(self) -> Optional[datetime]:
         """检查最近消息时间"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message.created_at)
-                    .order_by(Message.created_at.desc())
-                    .limit(1)
-                )
-                last_message = result.scalar_one_or_none()
-                return last_message
+            redis_store = get_redis_message_store()
+            # 获取最近的消息
+            recent_messages = redis_store.get_all_messages(limit=1)
+            if recent_messages:
+                last_message_time = recent_messages[0].get('created_at')
+                if last_message_time:
+                    return datetime.fromisoformat(last_message_time.replace('Z', '+00:00'))
+            return None
         except Exception as e:
             logger.error(f"检查最近消息时间出错: {e}")
             return None

@@ -6,11 +6,12 @@ import logging
 import asyncio
 from typing import Optional, Callable
 from datetime import datetime
-from sqlalchemy import select, func
+# from sqlalchemy import select, func  # 已移除数据库依赖
 from telethon import TelegramClient
 
-from app.core.database import AsyncSessionLocal, Message, Channel
+# from app.core.database import AsyncSessionLocal, Message, Channel  # 已移除数据库依赖
 from app.services.config_manager import ConfigManager
+from app.storage.redis_store import get_redis_message_store
 
 logger = logging.getLogger(__name__)
 

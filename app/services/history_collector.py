@@ -9,10 +9,10 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
 from telethon.errors import FloodWaitError, ChannelPrivateError
-from sqlalchemy import select, and_
-from sqlalchemy.orm import sessionmaker
+# from sqlalchemy import select, and_  # 已移除数据库依赖
+# from sqlalchemy.orm import sessionmaker  # 已移除数据库依赖
 
-from app.core.database import AsyncSessionLocal, Message
+# from app.core.database import AsyncSessionLocal, Message  # 已移除数据库依赖
 from app.core.config import db_settings
 from app.services.content_filter import ContentFilter
 from app.services.channel_manager import ChannelManager
