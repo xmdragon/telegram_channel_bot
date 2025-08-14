@@ -18,6 +18,15 @@ const MainApp = {
             selectedMessages: [],
             searchKeyword: '',  // 搜索关键词
             channelInfo: {},
+            
+            // 虚拟列表配置
+            useVirtualScroll: true,
+            virtualScrollThreshold: 100,
+            messageItemHeight: 200,
+            virtualListHeight: 600,
+            
+            // 状态管理
+            processingMessages: new Set(),
             mediaPreview: {
                 show: false,
                 url: null
@@ -109,6 +118,11 @@ const MainApp = {
             
             // 初始化权限按钮可见性
             await this.initializePermissions();
+            
+            // 初始化状态管理器
+            if (window.messageStateManager) {
+                window.messageStateManager.subscribe(this.handleStateUpdates);
+            }
             
             // 检查是否需要刷新（从训练页面返回）
             const urlParams = new URLSearchParams(window.location.search);
@@ -1470,6 +1484,101 @@ const MainApp = {
             }
         },
         
+        // 处理状态更新
+        handleStateUpdates(updates) {
+            // 处理批量状态更新
+            if (updates.update && updates.update.length > 0) {
+                updates.update.forEach(update => {
+                    const index = this.messages.findIndex(m => m.id === update.messageId);
+                    if (index !== -1) {
+                        // 更新消息状态
+                        this.messages[index] = { ...this.messages[index], ...update.changes };
+                    }
+                });
+            }
+        },
+        
+        // 智能全选
+        smartSelectAll() {
+            const pendingMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
+            if (pendingMessages.length === this.selectedMessages.length) {
+                this.selectedMessages = [];
+            } else {
+                this.selectedMessages = pendingMessages.map(msg => msg.id);
+            }
+        },
+        
+        // 反选
+        invertSelection() {
+            const pendingMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
+            const currentSelected = new Set(this.selectedMessages);
+            this.selectedMessages = pendingMessages
+                .filter(msg => !currentSelected.has(msg.id))
+                .map(msg => msg.id);
+        },
+        
+        // 清空选择
+        clearSelection() {
+            this.selectedMessages = [];
+        },
+        
+        // 处理快速选择模式变化
+        handleQuickSelectModeChange(enabled) {
+            // 可以在这里处理快速选择模式的状态变化
+            console.log('快速选择模式:', enabled);
+        },
+        
+        // 按条件快速选择
+        handleQuickSelectByCondition(condition) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let targetMessages = [];
+            
+            switch(condition) {
+                case 'today':
+                    targetMessages = this.filteredMessages.filter(msg => {
+                        const msgDate = new Date(msg.created_at);
+                        msgDate.setHours(0, 0, 0, 0);
+                        return msgDate.getTime() === today.getTime() && msg.status === 'pending';
+                    });
+                    break;
+                case 'ads':
+                    targetMessages = this.filteredMessages.filter(msg => 
+                        msg.is_ad && msg.status === 'pending'
+                    );
+                    break;
+                case 'no-media':
+                    targetMessages = this.filteredMessages.filter(msg => 
+                        !msg.media_type && msg.status === 'pending'
+                    );
+                    break;
+                case 'long-text':
+                    targetMessages = this.filteredMessages.filter(msg => {
+                        const content = msg.filtered_content || msg.content || '';
+                        return content.length > 200 && msg.status === 'pending';
+                    });
+                    break;
+            }
+            
+            this.selectedMessages = targetMessages.map(msg => msg.id);
+            MessageManager.success(`已选择 ${targetMessages.length} 条消息`);
+        },
+        
+        // 处理批量操作完成
+        handleBatchOperationComplete(result) {
+            console.log('批量操作完成:', result);
+            // 刷新数据
+            this.loadMessages();
+            this.loadStats();
+        },
+        
+        // 处理进度更新
+        handleProgressUpdate(progress) {
+            console.log('进度更新:', progress);
+            // 可以在这里显示全局进度条
+        },
+        
         // 设置滚动监听
         setupScrollListener() {
             // 移除之前的所有滚动监听
@@ -1642,6 +1751,19 @@ function initializeVueApp() {
                 }
             }
         });
+        
+        // 注册新组件
+        if (window.VirtualList) {
+            app.component('virtual-list', window.VirtualList);
+        }
+        
+        if (window.BatchOperationPanel) {
+            app.component('batch-operation-panel', window.BatchOperationPanel);
+        }
+        
+        if (window.MessageContentRenderer) {
+            app.component('message-content-renderer', window.MessageContentRenderer);
+        }
         
         app.mount('#app');
         console.log('Vue app mounted successfully');

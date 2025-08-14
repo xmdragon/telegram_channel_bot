@@ -1,0 +1,456 @@
+/* 高性能UI组件样式 - 专为批量处理优化 */
+
+/* ===== 虚拟列表容器样式 ===== */
+.virtual-list-container {
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+    /* 启用硬件加速 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: scroll-position;
+    /* 滚动优化 */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.virtual-list-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.virtual-list-container::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 4px;
+}
+
+.virtual-list-container::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.virtual-list-container::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+.virtual-list-phantom {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: -1;
+}
+
+.virtual-list-content {
+    position: relative;
+    /* 使用translate3d启用硬件加速 */
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+}
+
+.virtual-list-item {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    /* 防止内容溢出影响性能 */
+    contain: layout style paint;
+}
+
+/* ===== 批量操作面板样式 ===== */
+.batch-operation-panel {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 10px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.batch-operation-panel.floating {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 90vw;
+    width: auto;
+    min-width: 600px;
+}
+
+/* 选择控制区 */
+.selection-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.selection-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.selected-count {
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.selected-count.has-selection {
+    color: #059669;
+    font-size: 16px;
+    animation: pulse-subtle 2s infinite;
+}
+
+@keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+.selection-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* 快速选择区域 */
+.quick-select-area {
+    margin: 12px 0;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e0;
+}
+
+.quick-select-area .el-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* 批量操作区 */
+.batch-operations {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* 操作进度条 */
+.operation-progress {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    animation: slideInDown 0.3s ease;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1e40af;
+}
+
+/* 批量删除模态框 */
+.batch-delete-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.batch-delete-modal .modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.batch-delete-modal .modal-content {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-width: 500px;
+    width: 90%;
+    animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.batch-delete-modal .modal-header {
+    padding: 24px 24px 0;
+    border-bottom: none;
+}
+
+.batch-delete-modal .modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #dc2626;
+}
+
+.batch-delete-modal .modal-body {
+    padding: 16px 24px;
+    color: #374151;
+    line-height: 1.6;
+}
+
+.batch-delete-modal .modal-body p {
+    margin: 8px 0;
+}
+
+.delete-options {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+}
+
+.delete-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.batch-delete-modal .modal-footer {
+    padding: 0 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.batch-delete-modal .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 14px;
+}
+
+.batch-delete-modal .btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.batch-delete-modal .btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+.batch-delete-modal .btn-danger {
+    background: #dc2626;
+    color: white;
+}
+
+.batch-delete-modal .btn-danger:hover {
+    background: #b91c1c;
+}
+
+/* ===== 性能优化的消息项样式 ===== */
+.message-item-optimized {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    margin-bottom: 12px;
+    padding: 16px;
+    transition: all 0.2s ease;
+    /* 内容包含优化 */
+    contain: layout style paint;
+    /* 避免回流 */
+    will-change: transform, opacity;
+}
+
+.message-item-optimized:hover {
+    border-color: #5b63d3;
+    box-shadow: 0 4px 12px rgba(91, 99, 211, 0.15);
+    transform: translateY(-2px);
+}
+
+.message-item-optimized.selected {
+    border-color: #059669;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.message-item-optimized.processing {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.message-item-optimized.processing::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.8) 50%, transparent 70%);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* ===== 响应式设计 ===== */
+@media (max-width: 768px) {
+    .batch-operation-panel {
+        padding: 12px;
+        border-radius: 8px;
+    }
+    
+    .batch-operation-panel.floating {
+        position: sticky;
+        top: 0;
+        left: auto;
+        transform: none;
+        width: 100%;
+        min-width: auto;
+        margin: 0 10px;
+    }
+    
+    .selection-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .batch-operations {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .quick-select-area .el-button-group {
+        justify-content: center;
+    }
+    
+    .batch-delete-modal .modal-content {
+        width: 95%;
+        max-width: none;
+        margin: 0 10px;
+    }
+}
+
+/* ===== 加载状态优化 ===== */
+.loading-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: #f7fafc;
+    border-radius: 8px;
+}
+
+.loading-skeleton::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* ===== 滚动性能优化 ===== */
+.scroll-optimized {
+    /* 使用 contain 属性优化滚动性能 */
+    contain: strict;
+    /* 减少重绘 */
+    transform: translateZ(0);
+    /* 优化滚动 */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* ===== 成功/错误状态动画 ===== */
+.success-flash {
+    animation: successFlash 0.6s ease;
+}
+
+@keyframes successFlash {
+    0%, 100% { background-color: transparent; }
+    50% { background-color: rgba(16, 185, 129, 0.1); }
+}
+
+.error-flash {
+    animation: errorFlash 0.6s ease;
+}
+
+@keyframes errorFlash {
+    0%, 100% { background-color: transparent; }
+    50% { background-color: rgba(239, 68, 68, 0.1); }
+}
+
+/* ===== 高DPI屏幕优化 ===== */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .batch-operation-panel {
+        border-width: 1px;
+    }
+    
+    .message-item-optimized {
+        border-width: 1px;
+    }
+}
