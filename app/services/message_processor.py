@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from app.storage.redis_store import get_redis_message_store, RedisMessageStore
-from .duplicate_detector_simple import DuplicateDetector
+from .duplicate_detector import DuplicateDetector
 
 logger = logging.getLogger(__name__)
 
@@ -151,10 +151,14 @@ class MessageProcessor:
             
             if is_duplicate and orig_id:
                 # 直接标记为重复并指向原始消息
-                await self.duplicate_detector.mark_as_duplicate(
-                    message_id=msg_id,
-                    original_message_id=orig_id
-                )
+                # 解析channel_id和message_id
+                if ':' in str(msg_id):
+                    ch_id, m_id = str(msg_id).split(':', 1)
+                    await self.duplicate_detector.mark_as_duplicate(
+                        channel_id=ch_id,
+                        message_id=int(m_id),
+                        original_message_id=orig_id
+                    )
                 
                 logger.info(f"消息 {msg_id} 被检测为{dup_type}重复消息（原消息ID: {orig_id}），已自动过滤")
                 return True

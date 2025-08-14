@@ -9,13 +9,12 @@ from datetime import datetime
 from app.utils.timezone import get_current_time, parse_telegram_time, format_for_api
 from telethon.tl.types import Message as TLMessage
 
-from app.core.database import AsyncSessionLocal, Message
 from app.services.content_filter import ContentFilter
 from app.services.media_handler import media_handler
 from app.services.message_grouper import message_grouper
 from app.services.duplicate_detector import DuplicateDetector
 from app.services.message_processor import MessageProcessor
-from app.core.config import db_settings
+from app.storage.redis_store import get_redis_message_store
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class UnifiedMessageProcessor:
         message: TLMessage, 
         channel_id: str, 
         is_history: bool = False
-    ) -> Optional[Message]:
+    ) -> Optional[Dict]:
         """
         统一的消息处理入口
         
@@ -42,7 +41,7 @@ class UnifiedMessageProcessor:
             is_history: 是否为历史消息
             
         Returns:
-            处理后的数据库消息对象，如果消息被过滤则返回None
+            处理后的消息数据字典，如果消息被过滤则返回None
         """
         try:
             # 步骤1: 首先提取原始内容并保存
@@ -89,30 +88,31 @@ class UnifiedMessageProcessor:
                 save_data['reject_reason'] = f"去重检测: {duplicate_info['reason']} (原消息ID: {duplicate_info.get('original_id', 'N/A')})"
                 save_data['filter_reason'] = duplicate_info['reason']
                 
-                # 保存到数据库
-                db_message = await self.message_processor.process_new_message(save_data)
-                if db_message:
-                    logger.info(f"❌ 最终处理结果: 消息 #{message.id} -> 数据库ID #{db_message.id} [状态: rejected] [原因: 去重检测]")
+                # 保存到Redis存储
+                saved_message = await self.message_processor.process_new_message(save_data)
+                if saved_message:
+                    msg_id = saved_message.get('message_id', 'N/A')
+                    logger.info(f"❌ 最终处理结果: 消息 #{message.id} -> Redis {channel_id}:{msg_id} [状态: rejected] [原因: 去重检测]")
                 
                 # 清理媒体文件（如果不想保留的话）
                 # await self._cleanup_media_files(save_data)
-                return db_message
+                return saved_message
             
-            # 步骤6: 保存到数据库
-            db_message = await self.message_processor.process_new_message(save_data)
+            # 步骤6: 保存到Redis存储
+            saved_message = await self.message_processor.process_new_message(save_data)
             
-            if not db_message:
+            if not saved_message:
                 logger.info(f"💥 消息 #{message.id} 保存失败或被拒绝")
                 await self._cleanup_media_files(save_data)
                 return None
             
             # 步骤7: 转发到审核群（根据配置决定）
             if await self._should_forward_to_review(is_history):
-                await self._forward_to_review(db_message)
+                await self._forward_to_review(saved_message)
             
             # 步骤8: 广播到WebSocket（所有新消息都广播，让web端能看到）
             # 不再区分是否历史消息，所有成功保存的消息都广播到web端
-            await self._broadcast_new_message(db_message)
+            await self._broadcast_new_message(saved_message)
             
             # 最终处理结果日志
             status_emoji = {
@@ -120,11 +120,15 @@ class UnifiedMessageProcessor:
                 'approved': '✅', 
                 'rejected': '❌',
                 'auto_forwarded': '🤖'
-            }.get(db_message.status, '❓')
+            }.get(saved_message.get('status'), '❓')
             
-            logger.info(f"{status_emoji} 最终处理结果: 消息 #{message.id} -> 数据库ID #{db_message.id} [状态: {db_message.status}] [广告: {'是' if db_message.is_ad else '否'}]")
+            msg_id = saved_message.get('message_id', 'N/A')
+            status = saved_message.get('status', 'unknown')
+            is_ad = saved_message.get('is_ad', False)
             
-            return db_message
+            logger.info(f"{status_emoji} 最终处理结果: 消息 #{message.id} -> Redis {channel_id}:{msg_id} [状态: {status}] [广告: {'是' if is_ad else '否'}]")
+            
+            return saved_message
             
         except Exception as e:
             logger.error(f"统一消息处理失败: {e}")
@@ -256,6 +260,7 @@ class UnifiedMessageProcessor:
                         try:
                             from app.services.ocr_service import ocr_service
                             import hashlib
+                            import asyncio
                             
                             # 计算文件哈希
                             with open(media_info['file_path'], 'rb') as f:
@@ -281,12 +286,17 @@ class UnifiedMessageProcessor:
                         await media_handler.cleanup_file(media_info['file_path'])
                     return None
                 
-                # 如果配置了自动过滤广告，直接返回None
-                if await db_settings.get_auto_filter_ads():
-                    logger.info(f"🚫 自动过滤广告消息: {filter_reason}")
-                    if media_info and media_info.get('file_path'):
-                        await media_handler.cleanup_file(media_info['file_path'])
-                    return None
+                # 检查是否配置了自动过滤广告
+                try:
+                    from app.services.config_manager import config_manager
+                    auto_filter = await config_manager.get_config('filter.auto_filter_ads', False)
+                    if auto_filter:
+                        logger.info(f"🚫 自动过滤广告消息: {filter_reason}")
+                        if media_info and media_info.get('file_path'):
+                            await media_handler.cleanup_file(media_info['file_path'])
+                        return None
+                except Exception as e:
+                    logger.debug(f"检查自动过滤配置失败: {e}")
             
             # 检查消息是否有有效内容
             # 如果既没有媒体，filtered_content又为空，则拒绝这条消息
@@ -560,7 +570,7 @@ class UnifiedMessageProcessor:
         """检查是否应该转发历史消息到审核群（保留兼容性）"""
         return await self._should_forward_to_review(is_history=True)
     
-    async def _forward_to_review(self, db_message: Message):
+    async def _forward_to_review(self, message_data: Dict):
         """转发消息到审核群"""
         try:
             # 延迟导入避免循环引用
@@ -568,7 +578,19 @@ class UnifiedMessageProcessor:
             from app.telegram.bot import telegram_bot
             
             if telegram_bot and telegram_bot.client:
-                await message_forwarder.forward_to_review(telegram_bot.client, db_message)
+                # 创建临时的消息对象以兼容原有转发逻辑
+                from app.services.duplicate_detector import MessageCompat
+                temp_message = MessageCompat(message_data)
+                temp_message.id = message_data.get('message_id')
+                temp_message.source_channel = message_data.get('source_channel')
+                temp_message.content = message_data.get('content')
+                temp_message.filtered_content = message_data.get('filtered_content')
+                temp_message.media_type = message_data.get('media_type')
+                temp_message.media_url = message_data.get('media_url')
+                temp_message.is_ad = message_data.get('is_ad')
+                temp_message.status = message_data.get('status')
+                
+                await message_forwarder.forward_to_review(telegram_bot.client, temp_message)
             else:
                 logger.warning("Telegram客户端未连接，无法转发到审核群")
                 
@@ -679,32 +701,33 @@ class UnifiedMessageProcessor:
         
         return False, ""
     
-    async def _broadcast_new_message(self, db_message: Message):
+    async def _broadcast_new_message(self, message_data: Dict):
         """广播新消息到WebSocket客户端"""
         try:
             # 直接使用websocket_manager，避免依赖telegram_bot
             from app.api.websocket import websocket_manager
             
-            # 准备消息数据（确保包含所有必要字段）
-            message_data = {
-                "id": db_message.id,
-                "message_id": db_message.message_id,  # 添加message_id字段
-                "source_channel": db_message.source_channel,
-                "content": db_message.content,
-                "filtered_content": db_message.filtered_content,
-                "media_type": db_message.media_type,
-                "media_url": db_message.media_url,
-                "is_ad": db_message.is_ad,
-                "status": db_message.status,
-                "created_at": format_for_api(db_message.created_at),
-                "is_combined": db_message.is_combined,
-                "media_group": db_message.media_group if db_message.is_combined else None,
-                "combined_messages": db_message.combined_messages if db_message.is_combined else None
+            # 准备广播数据（确保包含所有必要字段）
+            broadcast_data = {
+                "id": message_data.get('message_id'),  # 使用message_id作为唯一标识
+                "message_id": message_data.get('message_id'),
+                "source_channel": message_data.get('source_channel'),
+                "content": message_data.get('content'),
+                "filtered_content": message_data.get('filtered_content'),
+                "media_type": message_data.get('media_type'),
+                "media_url": message_data.get('media_url'),
+                "is_ad": message_data.get('is_ad'),
+                "status": message_data.get('status'),
+                "created_at": message_data.get('created_at'),
+                "is_combined": message_data.get('is_combined'),
+                "media_group": message_data.get('media_group') if message_data.get('is_combined') else None,
+                "combined_messages": message_data.get('combined_messages') if message_data.get('is_combined') else None
             }
             
             # 广播消息
-            await websocket_manager.broadcast_new_message(message_data)
-            logger.info(f"✅ 成功广播新消息 ID:{db_message.id} 到 {len(websocket_manager.active_connections)} 个WebSocket连接")
+            await websocket_manager.broadcast_new_message(broadcast_data)
+            msg_id = message_data.get('message_id', 'N/A')
+            logger.info(f"✅ 成功广播新消息 ID:{msg_id} 到 {len(websocket_manager.active_connections)} 个WebSocket连接")
             
         except ImportError as e:
             logger.error(f"导入WebSocket管理器失败: {e}")
