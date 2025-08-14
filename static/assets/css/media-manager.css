@@ -4,6 +4,64 @@
 
 /* 紧凑的统计信息栏样式已在 training-common.css 中定义 */
 
+/* OCR识别结果样式 */
+.ocr-result {
+    max-width: 100%;
+}
+
+.ocr-section {
+    margin-bottom: 15px;
+}
+
+.ocr-section:last-child {
+    margin-bottom: 0;
+}
+
+.ocr-text-list {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ocr-text-tag {
+    max-width: 300px;
+    word-break: break-all;
+    white-space: normal;
+}
+
+.ad-score-tag {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.ad-indicator {
+    color: #f56c6c;
+    font-weight: bold;
+}
+
+.ocr-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #409eff;
+}
+
+.ocr-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #909399;
+    font-style: italic;
+}
+
+.ocr-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #f56c6c;
+}
+
 /* 媒体网格布局 */
 .media-grid {
     display: grid;

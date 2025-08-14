@@ -173,6 +173,59 @@
                             #{{ id }}
                         </el-tag>
                     </el-descriptions-item>
+                    <el-descriptions-item label="OCR识别结果" v-if="currentFile.type === 'image'">
+                        <div v-if="currentFile.ocrLoading" class="ocr-loading">
+                            <el-icon class="is-loading"><Loading /></el-icon>
+                            <span>正在识别图片内容...</span>
+                        </div>
+                        <div v-else-if="currentFile.ocrResult" class="ocr-result">
+                            <div v-if="currentFile.ocrResult.texts && currentFile.ocrResult.texts.length > 0" class="ocr-section">
+                                <strong>识别文字 ({{ currentFile.ocrResult.texts.length }}条):</strong>
+                                <div class="ocr-text-list">
+                                    <el-tag v-for="(text, index) in currentFile.ocrResult.texts" :key="index" 
+                                           type="info" class="ocr-text-tag">
+                                        {{ text }}
+                                    </el-tag>
+                                </div>
+                            </div>
+                            <div v-if="currentFile.ocrResult.qr_codes && currentFile.ocrResult.qr_codes.length > 0" class="ocr-section">
+                                <strong>二维码内容 ({{ currentFile.ocrResult.qr_codes.length }}个):</strong>
+                                <div class="ocr-text-list">
+                                    <el-tag v-for="(qr, index) in currentFile.ocrResult.qr_codes" :key="index" 
+                                           type="warning" class="ocr-text-tag">
+                                        <el-icon><QrCode /></el-icon> {{ qr.data || qr }}
+                                    </el-tag>
+                                </div>
+                            </div>
+                            <div v-if="currentFile.ocrResult.ad_score !== undefined" class="ocr-section">
+                                <strong>广告分数:</strong>
+                                <el-tag :type="getAdScoreType(currentFile.ocrResult.ad_score)" class="ad-score-tag">
+                                    {{ currentFile.ocrResult.ad_score.toFixed(1) }}/100
+                                </el-tag>
+                                <span v-if="currentFile.ocrResult.is_ad" class="ad-indicator">
+                                    <el-icon color="red"><Warning /></el-icon> 疑似广告
+                                </span>
+                            </div>
+                            <div v-if="currentFile.ocrResult.ad_indicators && currentFile.ocrResult.ad_indicators.length > 0" class="ocr-section">
+                                <strong>广告特征:</strong>
+                                <div class="ocr-text-list">
+                                    <el-tag v-for="(indicator, index) in currentFile.ocrResult.ad_indicators" :key="index" 
+                                           type="danger" class="ocr-text-tag">
+                                        {{ indicator }}
+                                    </el-tag>
+                                </div>
+                            </div>
+                            <div v-if="(!currentFile.ocrResult.texts || currentFile.ocrResult.texts.length === 0) && 
+                                     (!currentFile.ocrResult.qr_codes || currentFile.ocrResult.qr_codes.length === 0)" class="ocr-empty">
+                                <el-icon><InfoFilled /></el-icon>
+                                <span>未识别到文字或二维码内容</span>
+                            </div>
+                        </div>
+                        <div v-else-if="currentFile.ocrError" class="ocr-error">
+                            <el-icon color="red"><CircleCloseFilled /></el-icon>
+                            <span>OCR识别失败: {{ currentFile.ocrError }}</span>
+                        </div>
+                    </el-descriptions-item>
                 </el-descriptions>
                 
                 <div class="dialog-footer">

@@ -250,6 +250,32 @@ class UnifiedMessageProcessor:
                 
                 if should_reject:
                     logger.warning(f"🚨 拒绝纯广告消息: {reject_reason}")
+                    
+                    # 保存被拒绝的OCR样本（如果有媒体文件）
+                    if media_info and media_info.get('file_path') and ocr_result:
+                        try:
+                            from app.services.ocr_service import ocr_service
+                            import hashlib
+                            
+                            # 计算文件哈希
+                            with open(media_info['file_path'], 'rb') as f:
+                                file_hash = hashlib.md5(f.read()).hexdigest()
+                            
+                            # 异步保存样本
+                            asyncio.create_task(ocr_service._save_ocr_sample(
+                                image_path=media_info['file_path'],
+                                image_hash=file_hash,
+                                texts=ocr_result.get('texts', []),
+                                qr_codes=[qr.get('data', '') for qr in ocr_result.get('qr_codes', []) if qr.get('data')],
+                                ad_score=ocr_result.get('ad_score', 0),
+                                is_ad=True,
+                                keywords_detected=ocr_result.get('ad_indicators', []),
+                                auto_rejected=True,
+                                rejection_reason=reject_reason
+                            ))
+                        except Exception as e:
+                            logger.debug(f"保存拒绝样本失败: {e}")
+                    
                     # 清理媒体文件
                     if media_info and media_info.get('file_path'):
                         await media_handler.cleanup_file(media_info['file_path'])

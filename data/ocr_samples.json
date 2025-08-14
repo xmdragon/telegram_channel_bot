@@ -1,0 +1,140 @@
+{
+  "samples": [
+    {
+      "id": "0e1d4a12ae6a",
+      "image_hash": "test_hash_123",
+      "image_path": "test_image.jpg",
+      "ocr_texts": [
+        "测试文字",
+        "USDT",
+        "娱乐城"
+      ],
+      "qr_codes": [
+        "t.me/test"
+      ],
+      "ad_score": 75.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "USDT",
+        "娱乐城"
+      ],
+      "created_at": "2025-08-14 12:59:48",
+      "auto_rejected": true,
+      "rejection_reason": "高风险赌博广告",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "489724fe91ca",
+      "image_hash": "test_hash_456",
+      "image_path": "test_image2.jpg",
+      "ocr_texts": [
+        "铂莱娱乐",
+        "777老虎机",
+        "免费送1000U"
+      ],
+      "qr_codes": [
+        "weixin://test"
+      ],
+      "ad_score": 85.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "铂莱娱乐",
+        "777",
+        "免费送"
+      ],
+      "created_at": "2025-08-14 12:59:58",
+      "auto_rejected": true,
+      "rejection_reason": "高风险赌博广告",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "32e1797ffb61",
+      "image_hash": "test_hash_789",
+      "image_path": "test_image3.jpg",
+      "ocr_texts": [
+        "AG真人",
+        "体育投注",
+        "首充返水50%"
+      ],
+      "qr_codes": [],
+      "ad_score": 90.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "AG",
+        "体育投注",
+        "首充"
+      ],
+      "created_at": "2025-08-14 12:59:58",
+      "auto_rejected": true,
+      "rejection_reason": "高风险赌博广告",
+      "message_id": null,
+      "source_channel": null
+    }
+  ],
+  "learned_patterns": {
+    "high_risk_keywords": [
+      "赌博",
+      "博彩",
+      "娱乐城",
+      "USDT",
+      "泰达币",
+      "虚拟币",
+      "充值",
+      "提款",
+      "返水",
+      "优惠",
+      "首充",
+      "首存",
+      "777",
+      "老虎机",
+      "slots",
+      "真人",
+      "体育投注",
+      "铂莱",
+      "博莱",
+      "AG",
+      "BBIN",
+      "娱乐平台"
+    ],
+    "common_ad_phrases": [
+      "注册就送",
+      "立即送",
+      "免费送",
+      "永久",
+      "信誉",
+      "实力",
+      "秒到",
+      "无忧",
+      "千万",
+      "巨款",
+      "大额",
+      "官方",
+      "客服",
+      "QQ",
+      "微信",
+      "WeChat"
+    ],
+    "qr_code_patterns": [
+      "t.me/",
+      "telegram.me/",
+      "telegram.org/",
+      "weixin://",
+      "qq.com",
+      "微信",
+      "QQ"
+    ]
+  },
+  "statistics": {
+    "total_samples": 3,
+    "ad_samples": 3,
+    "non_ad_samples": 0,
+    "auto_rejected_samples": 3,
+    "high_score_samples": 3,
+    "last_updated": "2025-08-14 12:59:58",
+    "created_at": "2025-08-14 14:30:00"
+  },
+  "version": "1.0",
+  "description": "OCR文字识别样本收集系统，用于学习和改进广告检测能力"
+}

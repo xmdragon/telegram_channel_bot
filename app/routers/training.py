@@ -3160,3 +3160,177 @@ async def optimize_storage_sse(
             "Access-Control-Allow-Origin": "*",
         }
     )
+
+
+# =================== OCR样本管理相关API ===================
+
+@router.get("/ocr-samples")
+async def get_ocr_samples(
+    limit: int = 100,
+    offset: int = 0,
+    is_ad: Optional[bool] = None,
+    auto_rejected: Optional[bool] = None,
+    min_score: Optional[float] = None,
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取OCR样本列表"""
+    try:
+        from app.services.ocr_sample_manager import ocr_sample_manager
+        
+        samples = await ocr_sample_manager.get_samples(
+            limit=limit,
+            offset=offset,
+            is_ad=is_ad,
+            auto_rejected=auto_rejected,
+            min_score=min_score
+        )
+        
+        return {
+            "success": True,
+            "samples": samples,
+            "total": len(samples),
+            "params": {
+                "limit": limit,
+                "offset": offset,
+                "is_ad": is_ad,
+                "auto_rejected": auto_rejected,
+                "min_score": min_score
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取OCR样本失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ocr-samples/statistics")
+async def get_ocr_statistics(
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取OCR样本统计信息"""
+    try:
+        from app.services.ocr_sample_manager import ocr_sample_manager
+        
+        stats = await ocr_sample_manager.get_statistics()
+        
+        return {
+            "success": True,
+            "statistics": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"获取OCR统计信息失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/ocr-samples/learn")
+async def learn_from_ocr_samples(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """从OCR样本中学习新的广告模式"""
+    try:
+        from app.services.ocr_sample_manager import ocr_sample_manager
+        
+        result = await ocr_sample_manager.learn_from_samples()
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"OCR样本学习失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/ocr-samples/{sample_id}")
+async def delete_ocr_sample(
+    sample_id: str,
+    _admin = Depends(check_permission("training.manage"))
+):
+    """删除OCR样本"""
+    try:
+        from app.services.ocr_sample_manager import ocr_sample_manager
+        
+        success = await ocr_sample_manager.delete_sample(sample_id)
+        
+        if success:
+            return {"success": True, "message": "样本已删除"}
+        else:
+            return {"success": False, "message": "样本不存在或删除失败"}
+        
+    except Exception as e:
+        logger.error(f"删除OCR样本失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/ocr-samples/export")
+async def export_ocr_samples(
+    _admin = Depends(check_permission("training.manage"))
+):
+    """导出OCR样本用于训练"""
+    try:
+        from app.services.ocr_sample_manager import ocr_sample_manager
+        
+        output_file = await ocr_sample_manager.export_for_training()
+        
+        return {
+            "success": True,
+            "export_file": output_file,
+            "message": "OCR训练数据导出成功"
+        }
+        
+    except Exception as e:
+        logger.error(f"导出OCR样本失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/media-files/{file_hash}/ocr")
+async def get_media_file_ocr(
+    file_hash: str,
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取指定媒体文件的OCR识别结果"""
+    try:
+        from app.services.ocr_service import ocr_service
+        
+        # 获取文件信息
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            raise HTTPException(status_code=404, detail="媒体元数据文件不存在")
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or file_hash not in data.get("media_files", {}):
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        file_info = data["media_files"][file_hash]
+        file_path = media_dir / file_info["path"]
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="媒体文件不存在")
+        
+        # 只处理图片文件
+        if file_info.get("type") != "image":
+            raise HTTPException(status_code=400, detail="只支持图片文件的OCR识别")
+        
+        # 提取OCR内容
+        ocr_result = await ocr_service.extract_image_content(str(file_path))
+        
+        return {
+            "success": True,
+            "file_hash": file_hash,
+            "file_path": str(file_path),
+            "ocr_result": {
+                "texts": ocr_result.get("texts", []),
+                "qr_codes": ocr_result.get("qr_codes", []),
+                "combined_text": ocr_result.get("combined_text", ""),
+                "ad_score": ocr_result.get("ad_score", 0),
+                "is_ad": ocr_result.get("has_ad_content", False),
+                "ad_indicators": ocr_result.get("ad_indicators", [])
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取媒体文件OCR结果失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -117,8 +117,48 @@ const app = createApp({
         
         // 查看文件详情
         viewDetails(file) {
-            this.currentFile = file;
+            this.currentFile = {
+                ...file,
+                ocrResult: null,
+                ocrLoading: false,
+                ocrError: null
+            };
             this.detailDialog = true;
+            
+            // 如果是图片文件，自动获取OCR识别结果
+            if (file.type === 'image') {
+                this.loadOCRResult(file.hash);
+            }
+        },
+        
+        // 加载OCR识别结果
+        async loadOCRResult(fileHash) {
+            try {
+                this.currentFile.ocrLoading = true;
+                this.currentFile.ocrError = null;
+                
+                const response = await axios.get(`/api/training/media-files/${fileHash}/ocr`);
+                
+                if (response.data.success) {
+                    this.currentFile.ocrResult = response.data.ocr_result;
+                } else {
+                    this.currentFile.ocrError = response.data.message || '获取OCR结果失败';
+                }
+                
+            } catch (error) {
+                this.currentFile.ocrError = error.response?.data?.detail || '网络错误';
+                console.error('获取OCR结果失败:', error);
+            } finally {
+                this.currentFile.ocrLoading = false;
+            }
+        },
+        
+        // 获取广告分数类型（用于标签颜色）
+        getAdScoreType(score) {
+            if (score >= 70) return 'danger';
+            if (score >= 50) return 'warning';
+            if (score >= 30) return 'info';
+            return 'success';
         },
         
         // 删除文件

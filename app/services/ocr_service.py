@@ -352,6 +352,20 @@ class OCRService:
             
             logger.info(f"图片内容提取完成: 文字{len(texts)}条, 二维码{len(qr_codes)}个, 广告分数{ad_score:.2f}")
             
+            # 保存OCR样本（异步执行，不影响主流程）
+            try:
+                asyncio.create_task(self._save_ocr_sample(
+                    image_path=image_path,
+                    image_hash=image_hash,
+                    texts=texts,
+                    qr_codes=[qr.get('data', '') for qr in qr_codes if qr.get('data')],
+                    ad_score=ad_score,
+                    is_ad=has_ad_content,
+                    keywords_detected=ad_indicators
+                ))
+            except Exception as e:
+                logger.debug(f"保存OCR样本失败（不影响主流程）: {e}")
+            
             return result
             
         except Exception as e:
@@ -550,6 +564,42 @@ class OCRService:
             size += sum(self._estimate_object_size(item) for item in obj)
         
         return size
+    
+    async def _save_ocr_sample(
+        self,
+        image_path: str,
+        image_hash: str,
+        texts: List[str],
+        qr_codes: List[str],
+        ad_score: float,
+        is_ad: bool,
+        keywords_detected: List[str],
+        auto_rejected: bool = False,
+        rejection_reason: str = "",
+        message_id: Optional[int] = None,
+        source_channel: Optional[str] = None
+    ):
+        """保存OCR识别样本"""
+        try:
+            # 延迟导入，避免循环依赖
+            from app.services.ocr_sample_manager import ocr_sample_manager
+            
+            await ocr_sample_manager.save_sample(
+                image_hash=image_hash,
+                image_path=image_path,
+                ocr_texts=texts,
+                qr_codes=qr_codes,
+                ad_score=ad_score,
+                is_ad=is_ad,
+                keywords_detected=keywords_detected,
+                auto_rejected=auto_rejected,
+                rejection_reason=rejection_reason,
+                message_id=message_id,
+                source_channel=source_channel
+            )
+            
+        except Exception as e:
+            logger.debug(f"保存OCR样本失败: {e}")
     
     def __del__(self):
         """析构函数，清理资源"""
