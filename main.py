@@ -18,7 +18,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import init_db
 from app.api import api_router
 from app.telegram.bot import TelegramBot
 from app.services.scheduler import MessageScheduler
@@ -92,8 +91,10 @@ async def lifespan(app: FastAPI):
     # 启动时初始化
     logger.info("正在启动Telegram消息采集审核系统...")
     
-    # 初始化数据库
-    await init_db()
+    # 初始化Redis连接
+    from app.storage.redis_client import init_redis_client
+    await init_redis_client()
+    logger.info("Redis连接已初始化")
     
     # 初始化JSON存储层
     from app.storage.json_store import init_json_stores
@@ -114,8 +115,12 @@ async def lifespan(app: FastAPI):
     from app.core.config import settings
     await settings.load_db_configs()
     
-    # 检查Telegram认证状态
+    # 初始化认证服务
     from app.telegram.auth import auth_manager
+    await auth_manager.initialize()
+    logger.info("认证服务已初始化")
+    
+    # 检查Telegram认证状态
     auth_status = await auth_manager.get_auth_status()
     
     # 初始化全局变量
