@@ -297,21 +297,10 @@
                 <el-tab-pane label="🛡️ 过滤设置" name="filter">
                     <div class="config-section">
                         <h3>内容过滤配置</h3>
-                        <el-form :model="filterConfig" label-width="180px">
-                            <el-form-item label="隐藏链接处理策略">
-                                <el-radio-group v-model="filterConfig.hidden_link_action">
-                                    <el-radio label="remove">移除链接（保留文本）</el-radio>
-                                    <el-radio label="keep">保留原样</el-radio>
-                                    <el-radio label="expose">显式化链接</el-radio>
-                                </el-radio-group>
-                                <div class="form-hint">
-                                    <small>处理消息中隐藏的URL链接（MessageEntityTextUrl）</small>
-                                </div>
-                            </el-form-item>
-                            <el-form-item>
-                                <el-button type="primary" @click="saveFilterConfig">保存配置</el-button>
-                            </el-form-item>
-                        </el-form>
+                        <div style="text-align: center; padding: 40px; color: #909399;">
+                            <el-icon size="48"><InfoFilled /></el-icon>
+                            <p style="margin-top: 16px;">过滤策略由系统自动管理，无需手动配置</p>
+                        </div>
                     </div>
                 </el-tab-pane>
 

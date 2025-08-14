@@ -99,10 +99,8 @@ const ConfigApp = {
                 channel_signature: ''
             },
             
-            // 过滤设置
-            filterConfig: {
-                hidden_link_action: 'remove'  // remove, keep, expose
-            }
+            // 过滤设置 - 系统自动管理
+            filterConfig: {}
         }
     },
     
@@ -505,46 +503,11 @@ const ConfigApp = {
         },
         
         async loadFilterConfig() {
-            try {
-                const response = await axios.get('/api/admin/config');
-                if (response.data) {
-                    // 从系统配置中提取过滤设置
-                    this.filterConfig = {
-                        hidden_link_action: response.data['filter.hidden_link_action'] || 'remove'
-                    };
-                }
-            } catch (error) {
-                // 静默处理错误，使用默认配置
-                // console.log('使用默认过滤配置');
-            }
+            // 过滤设置由系统自动管理，无需加载
         },
         
         async saveFilterConfig() {
-            try {
-                // 准备保存的配置数据
-                const configData = {
-                    'filter.hidden_link_action': this.filterConfig.hidden_link_action
-                };
-                
-                // 批量保存配置
-                const response = await axios.post('/api/admin/config/batch', configData);
-                
-                if (response.data.success) {
-                    MessageManager.success('过滤配置保存成功');
-                } else {
-                    throw new Error(response.data.message || '保存配置失败');
-                }
-            } catch (error) {
-                // console.error('保存过滤配置失败:', error);
-                MessageManager.error('过滤配置保存失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        async resetFilterConfig() {
-            this.filterConfig = {
-                hidden_link_action: 'remove'
-            };
-            MessageManager.success('过滤配置已重置为默认值');
+            MessageManager.info('过滤策略由系统自动管理，无需手动保存');
         },
         
         
