@@ -184,22 +184,22 @@ class SystemMonitor:
             
             # 获取目标频道和审核群配置（从系统配置表）
             from app.services.config_manager import config_manager
-            target_channel = await config_manager.get_config('channels.target_channel_id')
-            target_channel_config = await config_manager.get_config('channels.target_channel')
-            review_group = await config_manager.get_config('channels.review_group_id')
-            review_group_config = await config_manager.get_config('channels.review_group')
+            target_channel_id = await config_manager.get_config('channels.target_channel_id')
+            target_channel = await config_manager.get_config('channels.target_channel')
+            review_group_id = await config_manager.get_config('channels.review_group_id')
+            review_group = await config_manager.get_config('channels.review_group')
                     
             # 验证必要配置
             if not source_channels:
                 errors.append("未配置源频道")
-            if not target_channel:
-                if target_channel_config:
-                    errors.append(f"目标频道 {target_channel_config} 未解析ID，请重启应用")
+            if not target_channel_id:
+                if target_channel:
+                    errors.append(f"目标频道 {target_channel} 未解析ID，请重启应用")
                 else:
                     errors.append("未配置目标频道")
-            if not review_group:
-                if review_group_config:
-                    warnings.append(f"审核群 {review_group_config} 未解析ID")
+            if not review_group_id:
+                if review_group:
+                    warnings.append(f"审核群 {review_group} 未解析ID")
                 else:
                     warnings.append("未配置审核群")
                 
