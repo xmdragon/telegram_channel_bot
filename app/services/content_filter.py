@@ -529,13 +529,14 @@ class ContentFilter:
         
         return content
     
-    def _apply_semantic_tail_filter(self, content: str, has_media: bool = False) -> str:
+    async def _apply_semantic_tail_filter(self, content: str, has_media: bool = False, channel_id: str = None) -> str:
         """
-        应用语义尾部过滤 - 基于语义分析和训练样本
+        应用智能尾部过滤 - 基于AI语义分析和向量相似度匹配
         
         Args:
             content: 消息内容
             has_media: 是否有媒体文件
+            channel_id: 频道ID (用于上下文分析)
             
         Returns:
             过滤后的内容
@@ -544,30 +545,57 @@ class ContentFilter:
             return content
         
         try:
-            from app.services.semantic_tail_filter import semantic_tail_filter
+            from app.services.intelligent_tail_filter import intelligent_tail_filter
             
-            logger.info(f"🎯 开始语义尾部过滤 - 输入内容长度: {len(content)}, 包含媒体: {has_media}")
-            filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(content, has_media)
+            logger.info(f"🎯 开始智能尾部过滤 - 输入内容长度: {len(content)}, 包含媒体: {has_media}")
             
-            logger.info(f"📋 语义尾部过滤结果: 是否过滤={was_filtered}, 输出长度={len(filtered_content)}")
+            # 构建上下文信息
+            context = {}
+            if channel_id:
+                context['channel_id'] = channel_id
+            if has_media:
+                context['has_media'] = has_media
             
-            if was_filtered:
-                logger.info(f"✅ 语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符")
+            # 使用智能尾部过滤器进行分析和过滤
+            filtered_content, removed_tail, analysis = await intelligent_tail_filter.filter_message(content, context)
+            
+            logger.info(f"📋 智能尾部过滤结果: 输出长度={len(filtered_content)}")
+            
+            # 检查是否有内容被过滤
+            if len(filtered_content) < len(content):
+                was_filtered = True
+                logger.info(f"✅ 智能尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符")
+                
                 if removed_tail:
                     logger.debug(f"🗑️ 移除的尾部内容: {removed_tail[:100]}...")
                     logger.debug(f"🗑️ 移除的尾部完整内容: {removed_tail}")
+                
                 if analysis:
-                    logger.debug(f"📊 分析详情: {analysis}")
-                    if analysis.get('similarity', 0) > 0:
-                        logger.debug(f"🔍 训练样本匹配相似度: {analysis['similarity']:.2f}")
+                    logger.debug(f"📊 分析详情: 置信度={analysis.get('confidence', 0):.2f}")
+                    if analysis.get('similar_samples'):
+                        similar_count = len(analysis['similar_samples'])
+                        logger.debug(f"🔍 找到 {similar_count} 个相似样本")
+                    if analysis.get('filter_reason'):
+                        logger.debug(f"🎯 过滤原因: {analysis['filter_reason']}")
+                
                 return filtered_content
             else:
-                logger.debug(f"❌ 语义尾部过滤未生效，保留原始内容")
+                logger.debug(f"❌ 智能尾部过滤未生效，保留原始内容")
             
             return content
             
         except Exception as e:
-            logger.error(f"语义尾部过滤失败，返回原始内容: {e}")
+            logger.error(f"智能尾部过滤失败，返回原始内容: {e}")
+            # 降级到传统语义过滤器
+            try:
+                from app.services.semantic_tail_filter import semantic_tail_filter
+                filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(content, has_media)
+                if was_filtered:
+                    logger.info(f"✅ 降级到传统语义过滤成功: {len(content)} -> {len(filtered_content)} 字符")
+                    return filtered_content
+            except Exception as fallback_e:
+                logger.error(f"传统语义过滤也失败: {fallback_e}")
+            
             return content
     
     def filter_promotional_content(self, content: str, channel_id: str = None, has_media: bool = False) -> str:
@@ -591,8 +619,28 @@ class ContentFilter:
         if content != original_content:
             logger.info(f"移除Markdown链接: {len(original_content)} -> {len(content)}")
         
-        # 1. 应用语义尾部过滤（主要过滤方法）
-        semantic_filtered = self._apply_semantic_tail_filter(content, has_media)
+        # 1. 应用智能尾部过滤（主要过滤方法）
+        # 注意：这里需要异步调用，但当前方法是同步的
+        # 在实际使用时，应该尽量使用异步版本
+        import asyncio
+        try:
+            if asyncio.get_event_loop().is_running():
+                # 如果在异步环境中，创建新任务
+                task = asyncio.create_task(self._apply_semantic_tail_filter(content, has_media, channel_id))
+                semantic_filtered = content  # 暂时使用原内容，避免阻塞
+            else:
+                # 如果不在异步环境中，运行异步函数
+                semantic_filtered = asyncio.run(self._apply_semantic_tail_filter(content, has_media, channel_id))
+        except Exception as e:
+            logger.warning(f"智能尾部过滤调用失败，使用同步降级方案: {e}")
+            # 降级到传统语义过滤器
+            try:
+                from app.services.semantic_tail_filter import semantic_tail_filter
+                semantic_filtered, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(content, has_media)
+            except Exception as fallback_e:
+                logger.error(f"传统语义过滤也失败: {fallback_e}")
+                semantic_filtered = content
+        
         if semantic_filtered != content:
             logger.info(f"语义尾部过滤成功: {len(content)} -> {len(semantic_filtered)} 字符")
             # 语义过滤成功后，直接返回结果，不再进行激进的规则过滤
@@ -600,6 +648,39 @@ class ContentFilter:
             return semantic_filtered
         
         # 如果语义过滤没有生效，直接返回原始内容
+        # 不再使用其他过滤策略，避免混乱和过度过滤
+        return content
+
+    async def filter_promotional_content_async(self, content: str, channel_id: str = None, has_media: bool = False) -> str:
+        """
+        智能过滤推广内容 - 异步版本 (推荐使用)
+        优先使用AI智能尾部过滤，提供更精准的语义分析
+        
+        Args:
+            content: 消息内容
+            channel_id: 频道ID（用于AI尾部过滤和自引用检测）
+            has_media: 是否有媒体文件（图片、视频等）
+        """
+        if not content:
+            return content
+        
+        # 保存原始内容
+        original_content = content
+        
+        # 0. 首先移除所有Markdown链接（最高优先级）
+        content = self.remove_all_markdown_links(content, channel_id)
+        if content != original_content:
+            logger.info(f"移除Markdown链接: {len(original_content)} -> {len(content)}")
+        
+        # 1. 应用智能尾部过滤（主要过滤方法）
+        semantic_filtered = await self._apply_semantic_tail_filter(content, has_media, channel_id)
+        if semantic_filtered != content:
+            logger.info(f"智能尾部过滤成功: {len(content)} -> {len(semantic_filtered)} 字符")
+            # 智能过滤成功后，直接返回结果，不再进行激进的规则过滤
+            # 这避免了对正常内容的误判
+            return semantic_filtered
+        
+        # 如果智能过滤没有生效，直接返回原始内容
         # 不再使用其他过滤策略，避免混乱和过度过滤
         return content
     

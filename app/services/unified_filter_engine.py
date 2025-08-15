@@ -10,94 +10,80 @@ from typing import Tuple, List, Optional, Dict, Any
 from pathlib import Path
 import json
 
+# 导入新的过滤器架构
+from app.services.filters.filter_pipeline import FilterPipeline, PipelineConfig
+from app.services.filters.base import FilterContext
+from app.services.filters.duplicate_detector import DuplicateDetectorFilter
+from app.services.filters.ad_detector import AdDetectorFilter  
+from app.services.filters.tail_filter import TailFilter
+from app.services.filters.markdown_filter import MarkdownFilter
+from app.services.filters.promo_link_filter import PromoLinkFilter
+
 logger = logging.getLogger(__name__)
 
 class UnifiedFilterEngine:
-    """统一的消息过滤引擎"""
+    """统一的消息过滤引擎 - 使用新的FilterPipeline架构"""
     
     def __init__(self):
         """初始化引擎"""
-        self.ai_filter = None
-        self.semantic_tail_filter = None
-        self.ad_training_data = []
+        self.filter_pipeline = None
         self.high_risk_patterns = []
         self._initialized = False
         
         # 初始化组件
         self._initialize_components()
         
+    def _init_filter_pipeline(self) -> FilterPipeline:
+        """初始化过滤器管道"""
+        config = PipelineConfig(
+            enable_early_stopping=True,
+            early_stop_filters={'duplicate_detector', 'ad_detector'},
+            filter_timeout=30.0,
+            pipeline_timeout=60.0
+        )
+        
+        pipeline = FilterPipeline(config)
+        
+        # 按顺序添加5个过滤器
+        pipeline.add_filter(DuplicateDetectorFilter())
+        pipeline.add_filter(AdDetectorFilter())
+        pipeline.add_filter(TailFilter())
+        pipeline.add_filter(MarkdownFilter())
+        pipeline.add_filter(PromoLinkFilter())
+        
+        return pipeline
+        
     def _initialize_components(self):
         """初始化所有组件"""
         try:
-            # 导入AI过滤器
-            from app.services.ai_filter import ai_filter
-            self.ai_filter = ai_filter
-            
-            # 导入语义尾部过滤器（使用语义分析和训练样本）
-            from app.services.semantic_tail_filter import semantic_tail_filter
-            self.semantic_tail_filter = semantic_tail_filter
-            
-            # 加载训练数据
-            self._load_training_data()
+            # 初始化新的过滤器管道
+            self.filter_pipeline = self._init_filter_pipeline()
             
             # 初始化高风险模式
             self._init_high_risk_patterns()
             
             self._initialized = True
-            logger.info("✅ 统一过滤引擎初始化成功")
+            logger.info("✅ 统一过滤引擎初始化成功（使用FilterPipeline架构）")
             
         except Exception as e:
             logger.error(f"统一过滤引擎初始化失败: {e}")
             
-    def _load_training_data(self):
-        """加载所有训练数据"""
-        try:
-            # 加载广告训练数据
-            ad_file = Path("data/ad_training_data.json")
-            if ad_file.exists():
-                with open(ad_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    # 处理JSON结构：{"samples": [...]}
-                    if isinstance(data, dict) and 'samples' in data:
-                        self.ad_training_data = data['samples']
-                    else:
-                        self.ad_training_data = data if isinstance(data, list) else []
-                        
-                logger.info(f"加载了 {len(self.ad_training_data)} 个广告训练样本")
-                
-                # 让AI过滤器学习这些样本
-                if self.ai_filter and self.ai_filter.initialized:
-                    ad_texts = []
-                    for item in self.ad_training_data:
-                        if isinstance(item, dict) and item.get('content'):
-                            ad_texts.append(item['content'])
-                    
-                    if ad_texts:
-                        # 异步训练AI模型（需要在事件循环中运行）
-                        try:
-                            loop = asyncio.get_running_loop()
-                            loop.create_task(self._train_ai_with_samples(ad_texts))
-                            logger.info(f"准备训练AI模型，样本数: {len(ad_texts)}")
-                        except RuntimeError:
-                            # 没有运行的事件循环，记录但不阻塞
-                            logger.debug(f"无法异步训练AI模型（无事件循环），样本数: {len(ad_texts)}")
-                        
-        except Exception as e:
-            logger.error(f"加载训练数据失败: {e}")
-            
-    async def _train_ai_with_samples(self, samples: List[str]):
-        """用训练样本训练AI模型"""
-        try:
-            if self.ai_filter and self.ai_filter.initialized:
-                # 将样本添加到AI过滤器的广告样本库
-                for sample in samples[:100]:  # 限制数量避免内存过大
-                    if sample and len(sample) > 20:
-                        # 计算嵌入向量并存储
-                        embedding = self.ai_filter.model.encode([sample])[0]
-                        self.ai_filter.ad_embeddings.append(embedding)
-                logger.info(f"AI模型已学习 {len(samples[:100])} 个广告样本")
-        except Exception as e:
-            logger.error(f"AI训练失败: {e}")
+    def get_pipeline_stats(self) -> Dict[str, Any]:
+        """获取过滤器管道统计信息"""
+        if self.filter_pipeline:
+            return self.filter_pipeline.get_pipeline_stats()
+        return {}
+        
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """获取性能指标"""
+        if self.filter_pipeline:
+            return self.filter_pipeline.get_performance_metrics()
+        return {}
+        
+    def reset_stats(self) -> None:
+        """重置统计信息"""
+        if self.filter_pipeline:
+            self.filter_pipeline.reset_stats()
             
     def _init_high_risk_patterns(self):
         """初始化高风险广告检测模式"""
@@ -216,7 +202,7 @@ class UnifiedFilterEngine:
         media_files: Optional[List[str]] = None
     ) -> Tuple[bool, str, str]:
         """
-        统一的广告检测方法 - 优化检测优先级
+        统一的广告检测方法 - 使用新的FilterPipeline架构
         
         Args:
             content: 消息内容
@@ -230,132 +216,43 @@ class UnifiedFilterEngine:
         if not content:
             return False, content, ""
             
-        is_ad = False
-        filtered_content = content
-        reasons = []
-        
-        # 0. 优先级最高：实体结构检测（新增，基于Telegram原生结构）
-        if message_obj:
-            try:
-                from app.services.structural_ad_detector import structural_detector
-                structural_result = await structural_detector.detect_structural_ads(message_obj)
-                
-                if structural_result['has_structural_ad']:
-                    is_ad = True
-                    filtered_content = structural_result['clean_text']
-                    reasons.append(f"结构化检测({structural_result['ad_type']})")
-                    logger.info(f"实体结构检测到推广: {structural_result['ad_type']}, 置信度: {structural_result['confidence']:.2f}")
-                    
-                    # 如果结构化检测置信度很高，直接返回结果
-                    if structural_result['confidence'] > 0.85:
-                        return True, filtered_content, " | ".join(reasons)
-                        
-            except Exception as e:
-                logger.debug(f"实体结构检测失败: {e}")
-        
-        # 1. 智能尾部过滤 - 优先移除推广尾部
-        # 使用ContentFilter的逻辑进行尾部过滤
+        if not self.filter_pipeline:
+            logger.error("FilterPipeline未初始化，降级到高风险检测")
+            is_high_risk, _ = self.is_high_risk_ad(content)
+            return is_high_risk, content if not is_high_risk else "", "高风险广告" if is_high_risk else ""
+            
         try:
-            from app.services.content_filter import ContentFilter
-            temp_filter = ContentFilter()
+            # 创建过滤器上下文
+            filter_context = FilterContext(
+                message_id="temp",
+                channel_id=channel_id,
+                media_files=media_files,
+                message_obj=message_obj
+            )
             
-            # 使用ContentFilter的推广内容过滤来处理尾部
-            has_media = media_files and len(media_files) > 0
-            temp_filtered = temp_filter.filter_promotional_content(filtered_content, channel_id, has_media)
-            if temp_filtered != filtered_content:
-                original_len = len(filtered_content)
-                filtered_len = len(temp_filtered)
-                filtered_content = temp_filtered
-                
-                # 如果过滤后完全没有内容，且原始内容不为空
-                if not filtered_content.strip() and original_len > 0:
+            # 执行过滤器管道
+            pipeline_result = await self.filter_pipeline.process(content, filter_context)
+            
+            # 提取结果
+            is_ad = not pipeline_result.passed
+            filtered_content = pipeline_result.final_content
+            filter_reason = pipeline_result.overall_reason or ""
+            
+            # 如果管道没有识别为广告，进行高风险检测补充
+            if not is_ad:
+                is_high_risk, risk_patterns = self.is_high_risk_ad(filtered_content)
+                if is_high_risk:
                     is_ad = True
-                    reasons.append("完全是尾部推广")
-                else:
-                    # 仅移除了尾部，不标记为广告
-                    reasons.append("移除尾部内容（非广告）")
+                    filtered_content = ""
+                    filter_reason = f"高风险广告({len(risk_patterns)}个特征)"
                     
-                logger.info(f"移除了尾部推广: {original_len - filtered_len} 字符")
+            return is_ad, filtered_content, filter_reason
+            
         except Exception as e:
-            logger.debug(f"尾部过滤失败: {e}")
-                
-        # 2. 高风险广告检测（在尾部过滤后的内容上检测）
-        if not is_ad:  # 只有在尾部过滤没有标记为广告时才检测
-            is_high_risk, risk_patterns = self.is_high_risk_ad(filtered_content)
-            if is_high_risk:
-                is_ad = True
-                reasons.append(f"高风险广告({len(risk_patterns)}个特征)")
-                # 高风险广告直接清空内容
-                filtered_content = ""
-                logger.warning(f"检测到高风险广告，内容已清空")
-                return True, "", " | ".join(reasons)
-                
-        # 3. AI广告检测（使用训练数据）- 只有在前面检测都未识别时才运行
-        if not is_ad and self.ai_filter and self.ai_filter.initialized:
-            try:
-                is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(filtered_content)
-                if is_ad_by_ai and ai_confidence > 0.8:
-                    is_ad = True
-                    reasons.append(f"AI检测(置信度:{ai_confidence:.2f})")
-                    logger.info(f"AI检测到广告，置信度: {ai_confidence:.2f}")
-            except Exception as e:
-                logger.debug(f"AI检测失败: {e}")
-                
-        # 4. OCR检测（如果有媒体文件）
-        if media_files and not is_ad:
-            try:
-                from app.services.ocr_service import ocr_service
-                
-                # 过滤出图片文件
-                image_files = []
-                for media_file in media_files:
-                    if media_file and any(media_file.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
-                        image_files.append(media_file)
-                
-                if image_files and ocr_service.initialized:
-                    logger.info(f"统一引擎OCR处理 {len(image_files)} 个图片文件")
-                    
-                    # 批量处理图片
-                    ocr_results = await ocr_service.batch_extract_content(image_files)
-                    
-                    # 分析OCR结果
-                    total_ad_score = 0
-                    ocr_ad_indicators = []
-                    
-                    for file_path, result in ocr_results.items():
-                        if result.get('error'):
-                            logger.warning(f"OCR处理失败: {file_path} - {result['error']}")
-                            continue
-                        
-                        ad_score = result.get('ad_score', 0)
-                        ad_indicators = result.get('ad_indicators', [])
-                        
-                        total_ad_score = max(total_ad_score, ad_score)
-                        ocr_ad_indicators.extend(ad_indicators)
-                    
-                    # OCR广告检测
-                    if total_ad_score >= 50:  # 50分以上直接判定为广告
-                        is_ad = True
-                        reasons.append(f"OCR检测高风险广告(分数:{total_ad_score:.0f})")
-                        # 清空内容，因为是纯广告媒体
-                        filtered_content = ""
-                        logger.warning(f"OCR检测到高风险广告媒体，分数: {total_ad_score}")
-                        return True, "", " | ".join(reasons)
-                    elif total_ad_score >= 30:  # 30-49分标记为广告但保留内容
-                        is_ad = True
-                        reasons.append(f"OCR检测广告内容(分数:{total_ad_score:.0f})")
-                        logger.info(f"OCR检测到广告媒体，分数: {total_ad_score}")
-                        
-            except Exception as e:
-                logger.debug(f"OCR检测失败: {e}")
-            
-        # 5. 最终判定：只有明确被识别为广告的才标记为广告
-        # 不再因为内容被过滤就标记为广告
-        # 已经在上面的各个检测步骤中设置了is_ad标志
-                
-        filter_reason = " | ".join(reasons) if reasons else ""
-        
-        return is_ad, filtered_content, filter_reason
+            logger.error(f"FilterPipeline执行失败: {e}")
+            # 降级到高风险检测
+            is_high_risk, _ = self.is_high_risk_ad(content)
+            return is_high_risk, content if not is_high_risk else "", "高风险广告" if is_high_risk else ""
         
     def detect_advertisement_sync(
         self,
@@ -364,8 +261,7 @@ class UnifiedFilterEngine:
         message_obj: Any = None
     ) -> Tuple[bool, str, str]:
         """
-        同步版本的广告检测（向后兼容）- 优先使用实体检测
-        通过asyncio.run调用异步版本，确保实体检测和AI检测生效
+        同步版本的广告检测（向后兼容）- 使用FilterPipeline
         """
         try:
             # 创建新的事件循环运行异步方法
@@ -385,28 +281,10 @@ class UnifiedFilterEngine:
                 # 等待完成（这在某些情况下可能不工作）
                 return asyncio.get_event_loop().run_until_complete(future)
             except:
-                # 降级到基本检测，但仍然尝试使用实体检测
-                logger.warning("无法运行异步检测，降级到基本检测")
-                
-                # 尝试同步调用实体检测
-                if message_obj:
-                    try:
-                        from app.services.structural_ad_detector import structural_detector
-                        # 同步调用实体检测（不使用await）
-                        components = structural_detector._extract_message_components(message_obj)
-                        entity_result = structural_detector._detect_promotional_entity_patterns(message_obj, components)
-                        
-                        if entity_result['has_ad']:
-                            logger.info(f"同步实体检测到推广: {entity_result['ad_type']}")
-                            return True, entity_result['clean_text'], f"结构化检测({entity_result['ad_type']})"
-                    except Exception as e:
-                        logger.debug(f"同步实体检测失败: {e}")
-                
-                # 最后降级到高风险检测
+                # 降级到高风险检测
+                logger.warning("无法运行异步检测，降级到高风险检测")
                 is_high_risk, _ = self.is_high_risk_ad(content)
-                if is_high_risk:
-                    return True, "", "高风险广告"
-                return False, content, ""
+                return is_high_risk, content if not is_high_risk else "", "高风险广告" if is_high_risk else ""
 
 # 全局实例
 unified_filter_engine = UnifiedFilterEngine()

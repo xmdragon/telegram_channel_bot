@@ -1,495 +1,304 @@
 """
-智能尾部过滤器 - 纯数据驱动的机器学习模型
-仅基于尾部内容本身进行学习，不依赖上下文或频道信息
+智能尾部过滤器
+基于AI语义分析的智能尾部识别和过滤系统
 """
 import re
-import json
 import logging
-from typing import Tuple, List, Dict, Optional
+from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
-from collections import Counter
-from pathlib import Path
+from datetime import datetime
+import asyncio
+
+from app.services.tail_feature_extractor import tail_feature_extractor
+from app.services.tail_vector_manager import tail_vector_manager
+from app.core.path_config import PathConfig
+from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
 
-
-class TailFeatureExtractor:
-    """尾部内容特征提取器"""
-    
-    def __init__(self):
-        self.learned_keywords = Counter()  # 从训练数据中学习的关键词
-        
-    def extract_features(self, text: str) -> Dict[str, float]:
-        """
-        提取文本特征
-        
-        Returns:
-            特征字典，包含各种特征的数值
-        """
-        if not text:
-            return {}
-            
-        features = {}
-        lines = text.split('\n')
-        text_length = len(text)
-        
-        # 1. 链接特征
-        links = re.findall(r'https?://[^\s]+|t\.me/[^\s]+', text)
-        features['link_count'] = len(links)
-        features['link_density'] = len(''.join(links)) / text_length if text_length > 0 else 0
-        
-        # 2. @用户名特征
-        usernames = re.findall(r'@\w+', text)
-        features['username_count'] = len(usernames)
-        features['username_density'] = len(usernames) / len(lines) if lines else 0
-        
-        # 3. Emoji特征
-        emojis = re.findall(r'[\U0001F300-\U0001F9FF\U00002600-\U000027BF]', text)
-        features['emoji_count'] = len(emojis)
-        features['emoji_density'] = len(emojis) / text_length if text_length > 0 else 0
-        
-        # 4. 结构特征
-        features['line_count'] = len(lines)
-        features['avg_line_length'] = sum(len(line) for line in lines) / len(lines) if lines else 0
-        features['has_separator'] = 1.0 if re.search(r'^[-=*#_~]{3,}$', text, re.MULTILINE) else 0.0
-        
-        # 5. 推广关键词特征（动态学习的）
-        promo_score = 0
-        for keyword, weight in self.learned_keywords.most_common(20):
-            if keyword in text:
-                promo_score += weight
-        features['promo_keyword_score'] = promo_score
-        
-        # 6. 格式特征
-        features['has_pipe_separator'] = 1.0 if '|' in text else 0.0
-        features['has_arrow'] = 1.0 if '↓' in text or '→' in text or '▼' in text or '👇' in text else 0.0
-        features['has_brackets'] = 1.0 if re.search(r'\[.*\]|\(.*\)', text) else 0.0
-        
-        # 7. 常见尾部标识符
-        features['has_channel_indicator'] = 1.0 if re.search(r'频道|頻道|channel|群组|群組|group', text, re.IGNORECASE) else 0.0
-        features['has_follow_indicator'] = 1.0 if re.search(r'关注|關注|订阅|訂閱|follow|subscribe', text, re.IGNORECASE) else 0.0
-        features['has_contact_info'] = 1.0 if re.search(r'微信|wechat|qq|电话|電話|tel|联系|聯繫|contact', text, re.IGNORECASE) else 0.0
-        
-        return features
-    
-    def learn_keywords(self, tail_samples: List[str]):
-        """从尾部样本中学习关键词"""
-        # 提取所有中文词组和英文单词
-        for sample in tail_samples:
-            # 中文词组（2-4个字）
-            chinese_words = re.findall(r'[\u4e00-\u9fa5]{2,4}', sample)
-            for word in chinese_words:
-                self.learned_keywords[word] += 1
-            
-            # 英文单词
-            english_words = re.findall(r'\b[A-Za-z]{3,}\b', sample.lower())
-            for word in english_words:
-                self.learned_keywords[word] += 1
-        
-        logger.info(f"学习了 {len(self.learned_keywords)} 个关键词")
-
-
 class IntelligentTailFilter:
-    """智能尾部过滤器 - 基于纯尾部数据学习"""
+    """智能尾部过滤器"""
     
     def __init__(self):
-        self.feature_extractor = TailFeatureExtractor()
-        self.tail_samples = []
-        self.sample_features = []  # 缓存的特征向量
-        self.feature_weights = None  # 特征权重
-        self.threshold = 0.5  # 判定阈值（降低以提高敏感度）
-        self._last_load_time = 0  # 上次加载时间
-        self._reload_interval = 300  # 5分钟重载间隔
+        self.feature_extractor = tail_feature_extractor
+        self.vector_manager = tail_vector_manager
         
-        # 加载训练数据
-        self._load_training_data()
+        # 过滤配置
+        self.default_threshold = 0.7
+        self.similarity_threshold = 0.75
+        self.confidence_threshold = 0.6
         
-    def _load_training_data(self, force_reload=False):
-        """加载训练数据（带缓存机制）"""
-        import time
-        current_time = time.time()
-        
-        # 如果不是强制重载，且在缓存时间内，跳过加载
-        if not force_reload and self._last_load_time > 0:
-            if current_time - self._last_load_time < self._reload_interval:
-                return
-        
-        from app.core.path_config import PathConfig
-        
-        try:
-            self._last_load_time = current_time
-            tail_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
-            if tail_file.exists():
-                with open(tail_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    samples = data.get('samples', data) if isinstance(data, dict) else data
-                    
-                    # 只提取tail_part
-                    self.tail_samples = []
-                    for sample in samples:
-                        if sample.get('tail_part'):
-                            self.tail_samples.append(sample['tail_part'])
-                    
-                    logger.info(f"加载了 {len(self.tail_samples)} 个尾部样本")
-                    
-                    # 学习关键词
-                    self.feature_extractor.learn_keywords(self.tail_samples)
-                    
-                    # 提取所有样本的特征
-                    self._extract_sample_features()
-                    
-                    # 计算特征权重
-                    self._calculate_feature_weights()
-                    
-        except Exception as e:
-            logger.error(f"加载训练数据失败: {e}")
-    
-    def _extract_sample_features(self):
-        """提取所有样本的特征向量"""
-        self.sample_features = []
-        for sample in self.tail_samples:
-            features = self.feature_extractor.extract_features(sample)
-            self.sample_features.append(features)
-    
-    def _calculate_feature_weights(self):
-        """计算特征权重（基于特征的区分度和重要性）"""
-        if not self.sample_features:
-            return
-        
-        # 获取所有特征名
-        all_features = set()
-        for features in self.sample_features:
-            all_features.update(features.keys())
-        
-        # 基础权重（根据特征重要性预设）
-        base_weights = {
-            'link_count': 0.25,  # 链接是强特征
-            'username_count': 0.20,  # @用户名也是强特征
-            'promo_keyword_score': 0.15,  # 推广关键词
-            'emoji_density': 0.10,  # emoji密度
-            'has_separator': 0.10,  # 分隔符
-            'has_arrow': 0.08,  # 箭头符号
-            'line_count': 0.05,  # 行数
-            'has_pipe_separator': 0.04,  # 管道分隔符
-            'has_brackets': 0.03  # 括号
-        }
-        
-        # 计算每个特征的标准差（标准差大说明区分度高）
-        feature_stds = {}
-        for feature_name in all_features:
-            values = [f.get(feature_name, 0) for f in self.sample_features]
-            if values:
-                feature_stds[feature_name] = np.std(values)
-        
-        # 结合基础权重和标准差
-        self.feature_weights = {}
-        for feature_name in all_features:
-            base_w = base_weights.get(feature_name, 0.01)
-            std_w = feature_stds.get(feature_name, 0)
-            
-            # 组合权重：基础权重70% + 标准差权重30%
-            if sum(feature_stds.values()) > 0:
-                std_normalized = std_w / sum(feature_stds.values())
-            else:
-                std_normalized = 1.0 / len(all_features)
-            
-            self.feature_weights[feature_name] = base_w * 0.7 + std_normalized * 0.3
-        
-        # 归一化权重
-        total_weight = sum(self.feature_weights.values())
-        if total_weight > 0:
-            self.feature_weights = {
-                name: weight / total_weight
-                for name, weight in self.feature_weights.items()
-            }
-        
-        logger.info(f"计算了 {len(self.feature_weights)} 个特征的权重")
-    
-    def calculate_similarity(self, text: str) -> float:
-        """
-        计算文本与训练样本的相似度
-        
-        Returns:
-            相似度分数 (0-1)
-        """
-        if not self.tail_samples:
-            return 0.0
-        
-        # 提取特征
-        features = self.feature_extractor.extract_features(text)
-        
-        if not features or not self.sample_features:
-            return 0.0
-        
-        # 计算与每个样本的相似度
-        similarities = []
-        for sample_feat in self.sample_features:
-            similarity = self._compute_feature_similarity(features, sample_feat)
-            similarities.append(similarity)
-        
-        # 返回最大相似度
-        return max(similarities) if similarities else 0.0
-    
-    def _compute_feature_similarity(self, feat1: Dict, feat2: Dict) -> float:
-        """计算两个特征向量的相似度"""
-        if not self.feature_weights:
-            return 0.0
-        
-        similarity = 0.0
-        total_weight = 0.0
-        
-        for feature_name, weight in self.feature_weights.items():
-            val1 = feat1.get(feature_name, 0)
-            val2 = feat2.get(feature_name, 0)
-            
-            # 计算该特征的相似度（使用1-normalized_diff）
-            max_val = max(abs(val1), abs(val2))
-            if max_val > 0:
-                feature_sim = 1 - abs(val1 - val2) / max_val
-            else:
-                feature_sim = 1.0 if val1 == val2 else 0.0
-            
-            similarity += feature_sim * weight
-            total_weight += weight
-        
-        return similarity / total_weight if total_weight > 0 else 0.0
-    
-    def is_tail(self, text: str) -> bool:
-        """
-        判断文本是否为尾部推广
-        
-        Args:
-            text: 要检测的文本
-            
-        Returns:
-            是否为尾部
-        """
-        if not text or len(text) < 10:
-            return False
-        
-        # 0. 完全匹配检查：如果与训练样本完全匹配，直接返回True
-        text_stripped = text.strip()
-        for sample in self.tail_samples:
-            sample_stripped = sample.strip()
-            # 完全匹配或包含匹配（训练样本包含在检测文本中）
-            if text_stripped == sample_stripped or sample_stripped in text_stripped:
-                logger.info(f"完全匹配训练样本，直接过滤")
-                return True
-            # 检测文本包含在训练样本中（检测文本是训练样本的子集）
-            if text_stripped in sample_stripped and len(text_stripped) >= len(sample_stripped) * 0.8:
-                logger.info(f"高度匹配训练样本（80%+重合），直接过滤")
-                return True
-        
-        # 提取特征
-        features = self.feature_extractor.extract_features(text)
-        
-        # 四层判断机制（仅用于部分匹配情况）
-        
-        # 1. 移除了过激的快速判断规则（之前误判正常内容）
-        
-        # 2. 特征得分判断：特征得分很高直接过滤
-        feature_score = self._calculate_feature_score(features)
-        if feature_score > 0.8:  # 提高阈值，减少误判
-            return True
-        
-        # 3. 高相似度判断：与训练样本高度相似
-        similarity = self.calculate_similarity(text)
-        if similarity > 0.85:  # 85%以上相似度直接过滤
-            logger.info(f"高相似度匹配 ({similarity:.2f})，直接过滤")
-            return True
-        
-        # 4. 综合判断：特征+相似度综合评估（使用阈值）
-        if feature_score > 0.25:  # 有一定特征才进行综合判断
-            # 动态阈值：特征越明显，相似度要求越低
-            dynamic_threshold = self.threshold - (feature_score * 0.2)
-            
-            # 综合得分
-            final_score = similarity * 0.5 + feature_score * 0.5
-            
-            return final_score > dynamic_threshold
-        
-        return False
-    
-    def _calculate_feature_score(self, features: Dict) -> float:
-        """计算特征得分（更精细的评分）"""
-        score = 0.0
-        
-        # 链接特征（最强信号）
-        link_count = features.get('link_count', 0)
-        if link_count >= 2:
-            score += 0.35
-        elif link_count == 1:
-            score += 0.25
-        
-        # 用户名特征
-        username_count = features.get('username_count', 0)
-        if username_count >= 2:
-            score += 0.25
-        elif username_count == 1:
-            score += 0.15
-        
-        # Emoji密度（广告常用emoji）
-        emoji_density = features.get('emoji_density', 0)
-        if emoji_density > 0.15:
-            score += 0.15
-        elif emoji_density > 0.1:
-            score += 0.10
-        elif emoji_density > 0.05:
-            score += 0.05
-        
-        # 分隔符（明显的结构特征）
-        if features.get('has_separator', 0) > 0:
-            score += 0.15
-        
-        # 推广关键词（从训练数据学习）
-        keyword_score = features.get('promo_keyword_score', 0)
-        if keyword_score > 10:
-            score += 0.20
-        elif keyword_score > 5:
-            score += 0.15
-        elif keyword_score > 0:
-            score += 0.10
-        
-        # 箭头和管道符号
-        if features.get('has_arrow', 0) > 0:
-            score += 0.08
-        if features.get('has_pipe_separator', 0) > 0:
-            score += 0.07
-        
-        # 新增特征评分
-        if features.get('has_channel_indicator', 0) > 0:
-            score += 0.12  # 频道标识符权重较高
-        if features.get('has_follow_indicator', 0) > 0:
-            score += 0.10
-        if features.get('has_contact_info', 0) > 0:
-            score += 0.15  # 联系信息权重很高
-        
-        return min(score, 1.0)
-    
-    def filter_message(self, content: str) -> Tuple[str, bool, Optional[str]]:
-        """
-        过滤消息中的尾部（简化逻辑：只要匹配就过滤）
-        
-        Args:
-            content: 完整消息内容
-            
-        Returns:
-            (过滤后内容, 是否有尾部, 尾部内容)
-        """
-        import re
-        
-        if not content:
-            return content, False, None
-        
-        lines = content.split('\n')
-        
-        # 策略1：快速检测明显的分隔符
-        separator_patterns = [
-            r'^[-=*#_~]{3,}$',  # 常见分隔符
-            r'^[—]+$',  # 中文破折号
-            r'^\s*[📣🔔😉👌]+\s*$'  # emoji分隔行
+        # 分隔符模式
+        self.separator_patterns = [
+            r'[-—=]{3,}', r'[▔═]{3,}', r'\.{3,}', r'~{3,}', r'\*{3,}', r'#{3,}'
         ]
         
-        separator_line = -1
-        # 缩小扫描范围，从最后10行开始扫描
-        scan_start = max(0, len(lines) - 10)
-        for i in range(len(lines) - 1, scan_start, -1):
-            for pattern in separator_patterns:
-                if re.match(pattern, lines[i].strip()):
-                    separator_line = i
-                    break
-            if separator_line != -1:
-                break
+        # 尾部标识
+        self.tail_indicators = [
+            r'(?:^|\n)[-—=▔═.~*#]{3,}',
+            r'(?:^|\n).*订阅.*频道', r'(?:^|\n).*关注.*获取',
+            r'(?:^|\n).*投稿.*爆料', r'(?:^|\n).*商务.*合作',
+            r'(?:^|\n).*联系.*方式', r'(?:^|\n).*失联.*导航'
+        ]
         
-        # 如果找到分隔符，从分隔符开始检查
-        if separator_line != -1:
-            potential_tail = '\n'.join(lines[separator_line:])
-            if self.is_tail(potential_tail):
-                clean_content = '\n'.join(lines[:separator_line]).rstrip()
-                # 简化：只要有内容就返回，不管比例
-                if clean_content:
-                    return clean_content, True, potential_tail
-        
-        # 策略2：智能扫描（找到最大的尾部范围）
-        best_split = -1
-        best_tail = None
-        
-        # 从后往前扫描，找到最早的尾部起始位置
-        # 缩小扫描范围，最多扫描10行
-        scan_end = max(1, len(lines) - 10)
-        for i in range(len(lines) - 1, scan_end - 1, -1):  # 从倒数第二行扫描
-            potential_tail = '\n'.join(lines[i:])
-            
-            # 跳过太短的内容（降低最小长度）
-            if len(potential_tail) < 10:
-                continue
-            
-            # 检查是否为尾部
-            if self.is_tail(potential_tail):
-                # 记录这个位置（继续向前扫描，找更大的尾部）
-                best_split = i
-                best_tail = potential_tail
+        self._load_samples()
+    
+    def _load_samples(self):
+        """加载训练样本"""
+        try:
+            samples_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
+            if samples_file.exists():
+                data = SafeFileOperation.read_json_safe(samples_file)
+                if data and 'samples' in data:
+                    logger.info(f"✅ 加载了 {len(data['samples'])} 个尾部过滤样本")
+                else:
+                    logger.warning("⚠️ 尾部样本文件格式异常")
             else:
-                # 如果不是尾部了，停止扫描
-                if best_split != -1:
-                    break
-        
-        # 如果找到尾部
-        if best_split != -1 and best_tail:
-            clean_content = '\n'.join(lines[:best_split]).rstrip()
-            
-            # 简化的判断逻辑
-            # 1. 如果有正文内容（>5字符），直接返回
-            if clean_content and len(clean_content) > 5:
-                # 确保正文有基本内容
-                has_content = bool(re.search(r'[\u4e00-\u9fa5a-zA-Z0-9]+', clean_content))
-                if has_content:
-                    return clean_content, True, best_tail
-            
-            # 2. 如果没有正文或正文太短，可能整条都是推广
-            if best_split <= 1:  # 只剩第一行或没有正文
-                # 检查第一行是否也是推广
-                if lines and self.is_tail(lines[0]):
-                    return "", True, content  # 整条都是推广
-                elif clean_content:  # 有短正文
-                    return clean_content, True, best_tail
-        
-        return content, False, None
+                logger.info("📝 尾部样本文件不存在")
+        except Exception as e:
+            logger.error(f"❌ 加载尾部样本失败: {e}")
     
-    def add_training_sample(self, tail_text: str):
-        """
-        添加新的训练样本
+    async def analyze_message(self, content: str, context: Dict = None) -> Dict:
+        """分析消息，识别可能的尾部"""
+        if not content or len(content.strip()) < 10:
+            return self._empty_analysis(content)
         
-        Args:
-            tail_text: 尾部文本
-        """
-        if tail_text and tail_text not in self.tail_samples:
-            self.tail_samples.append(tail_text)
-            
-            # 更新关键词
-            self.feature_extractor.learn_keywords([tail_text])
-            
-            # 重新提取特征
-            self._extract_sample_features()
-            
-            # 重新计算权重
-            self._calculate_feature_weights()
-            
-            # 强制重新加载以获取最新数据
-            self._load_training_data(force_reload=True)
-            
-            logger.info(f"添加了新的训练样本，当前共 {len(self.tail_samples)} 个样本")
-    
-    def get_statistics(self) -> Dict:
-        """获取统计信息"""
+        # 检测尾部边界
+        tail_boundary = self._detect_tail_boundary(content)
+        if tail_boundary == -1:
+            tail_boundary = await self._semantic_boundary_detection(content)
+        
+        # 提取尾部
+        if tail_boundary > 0:
+            main_content = content[:tail_boundary].strip()
+            tail_content = content[tail_boundary:].strip()
+        else:
+            main_content = content
+            tail_content = ""
+        
+        # 分析尾部
+        if tail_content:
+            tail_analysis = await self._analyze_tail_content(tail_content, context)
+        else:
+            tail_analysis = self._empty_tail_analysis()
+        
         return {
-            'total_samples': len(self.tail_samples),
-            'learned_keywords': len(self.feature_extractor.learned_keywords),
-            'top_keywords': self.feature_extractor.learned_keywords.most_common(10),
-            'feature_count': len(self.feature_weights) if self.feature_weights else 0,
-            'threshold': self.threshold
+            'original_content': content,
+            'main_content': main_content,
+            'tail_content': tail_content,
+            'tail_boundary': tail_boundary,
+            'tail_analysis': tail_analysis,
+            'should_filter_tail': tail_analysis.get('should_filter', False),
+            'confidence': tail_analysis.get('confidence', 0.0),
+            'analysis_time': datetime.now().isoformat()
         }
+    
+    def _detect_tail_boundary(self, content: str) -> int:
+        """检测尾部边界位置"""
+        # 查找分隔符
+        for pattern in self.separator_patterns:
+            matches = list(re.finditer(pattern, content))
+            if matches:
+                return matches[-1].start()
+        
+        # 查找尾部标识
+        for pattern in self.tail_indicators:
+            match = re.search(pattern, content)
+            if match:
+                return match.start()
+        
+        # 启发式检测
+        if len(content) > 200:
+            lines = content.split('\n')
+            if len(lines) > 5:
+                last_lines = lines[-min(3, len(lines)//4):]
+                last_part = '\n'.join(last_lines)
+                
+                link_count = len(re.findall(r'@\w+|t\.me/|https?://', last_part))
+                promo_words = ['订阅', '关注', '投稿', '商务', '合作', '联系']
+                promo_count = sum(1 for word in promo_words if word in last_part)
+                
+                if link_count >= 2 or promo_count >= 2:
+                    boundary_pos = content.rfind('\n'.join(last_lines))
+                    if boundary_pos > len(content) // 2:
+                        return boundary_pos
+        
+        return -1
+    
+    async def _semantic_boundary_detection(self, content: str) -> int:
+        """基于语义的边界检测"""
+        if not self.vector_manager.model:
+            return -1
+        
+        lines = content.split('\n')
+        if len(lines) < 3:
+            return -1
+        
+        line_scores = []
+        for line in lines:
+            if len(line.strip()) > 5:
+                features = self.feature_extractor.extract_features(line)
+                scores = self.feature_extractor.calculate_scores(line, features)
+                line_scores.append(scores['overall_score'])
+            else:
+                line_scores.append(0.0)
+        
+        if len(line_scores) >= 3:
+            for i in range(1, len(line_scores) - 1):
+                if (line_scores[i] > 0.6 and 
+                    line_scores[i] > line_scores[i-1] * 2 and
+                    i > len(line_scores) / 2):
+                    
+                    boundary_lines = lines[:i]
+                    return len('\n'.join(boundary_lines))
+        
+        return -1
+    
+    async def _analyze_tail_content(self, tail_content: str, context: Dict = None) -> Dict:
+        """分析尾部内容"""
+        # 提取特征和得分
+        features = self.feature_extractor.extract_features(tail_content)
+        scores = self.feature_extractor.calculate_scores(tail_content, features)
+        
+        # 向量相似度匹配
+        similar_samples = self.vector_manager.find_similar(
+            tail_content, top_k=5, threshold=self.similarity_threshold
+        )
+        
+        # 调整得分
+        if similar_samples:
+            avg_confidence = np.mean([s['similarity'] for s in similar_samples])
+            if avg_confidence > 0.8:
+                scores['overall_score'] = min(scores['overall_score'] + 0.2, 1.0)
+        
+        if context:
+            scores = self._apply_context_adjustment(scores, context, features)
+        
+        # 综合判断
+        should_filter = scores['overall_score'] >= self.default_threshold
+        confidence = self._calculate_confidence(scores, similar_samples, features)
+        
+        return {
+            'features': features,
+            'scores': scores,
+            'similar_samples': similar_samples,
+            'should_filter': should_filter,
+            'confidence': confidence,
+            'filter_reason': self._generate_filter_reason(scores, features, similar_samples)
+        }
+    
+    def _apply_context_adjustment(self, scores: Dict, context: Dict, features: Dict) -> Dict:
+        """根据上下文调整得分"""
+        adjusted_scores = scores.copy()
+        
+        channel_id = context.get('channel_id')
+        if channel_id:
+            if 'news' in str(channel_id).lower():
+                if features.get('has_channel_mention') and features.get('link_count', 0) <= 2:
+                    adjusted_scores['overall_score'] *= 0.8
+            elif 'business' in str(channel_id).lower():
+                adjusted_scores['overall_score'] *= 1.2
+        
+        current_hour = datetime.now().hour
+        if 9 <= current_hour <= 18:
+            if features.get('business_word_count', 0) > 0:
+                adjusted_scores['commercial_score'] *= 1.1
+        
+        return adjusted_scores
+    
+    def _calculate_confidence(self, scores: Dict, similar_samples: List, features: Dict) -> float:
+        """计算过滤决策的置信度"""
+        confidence = 0.5
+        
+        overall_score = scores['overall_score']
+        if overall_score > 0.8:
+            confidence += 0.3
+        elif overall_score > 0.6:
+            confidence += 0.2
+        elif overall_score > 0.4:
+            confidence += 0.1
+        
+        if similar_samples:
+            max_similarity = max(s['similarity'] for s in similar_samples)
+            if max_similarity > 0.9:
+                confidence += 0.2
+            elif max_similarity > 0.8:
+                confidence += 0.15
+            elif max_similarity > 0.7:
+                confidence += 0.1
+        
+        if features.get('has_telegram_link') and features.get('link_count', 0) > 2:
+            confidence += 0.1
+        if features.get('business_word_count', 0) > 2:
+            confidence += 0.1
+        if features.get('action_word_count', 0) > 2:
+            confidence += 0.1
+        
+        return min(confidence, 1.0)
+    
+    def _generate_filter_reason(self, scores: Dict, features: Dict, similar_samples: List) -> str:
+        """生成过滤原因说明"""
+        reasons = []
+        
+        if scores['promotion_score'] > 0.7:
+            reasons.append(f"推广得分较高({scores['promotion_score']:.2f})")
+        if scores['commercial_score'] > 0.7:
+            reasons.append(f"商业化得分较高({scores['commercial_score']:.2f})")
+        if features.get('has_telegram_link'):
+            reasons.append("包含Telegram链接")
+        if features.get('link_count', 0) > 2:
+            reasons.append(f"链接数量过多({features['link_count']}个)")
+        if features.get('action_word_count', 0) > 0:
+            action_words = ', '.join(features.get('action_words', []))
+            reasons.append(f"包含动作词汇({action_words})")
+        if similar_samples:
+            max_sim = max(s['similarity'] for s in similar_samples)
+            reasons.append(f"与已知推广样本相似度高({max_sim:.2f})")
+        
+        return "; ".join(reasons) if reasons else "综合评分超过阈值"
+    
+    def _empty_analysis(self, content: str) -> Dict:
+        """返回空分析结果"""
+        return {
+            'original_content': content,
+            'main_content': content,
+            'tail_content': "",
+            'tail_boundary': -1,
+            'tail_analysis': self._empty_tail_analysis(),
+            'should_filter_tail': False,
+            'confidence': 0.0,
+            'analysis_time': datetime.now().isoformat()
+        }
+    
+    def _empty_tail_analysis(self) -> Dict:
+        """返回空尾部分析结果"""
+        return {
+            'features': {},
+            'scores': {'promotion_score': 0.0, 'commercial_score': 0.0, 'relevance_score': 0.0, 'overall_score': 0.0},
+            'similar_samples': [],
+            'should_filter': False,
+            'confidence': 0.0,
+            'filter_reason': ""
+        }
+    
+    async def filter_message(self, content: str, context: Dict = None) -> Tuple[str, str, Dict]:
+        """过滤消息中的尾部内容"""
+        analysis = await self.analyze_message(content, context)
+        
+        if analysis['should_filter_tail'] and analysis['confidence'] >= self.confidence_threshold:
+            filtered_content = analysis['main_content']
+            removed_tail = analysis['tail_content']
+            
+            logger.info(f"🚫 过滤尾部内容 - 长度: {len(removed_tail)}, 置信度: {analysis['confidence']:.2f}")
+        else:
+            filtered_content = content
+            removed_tail = ""
+            
+            if analysis['tail_content']:
+                logger.debug(f"✅ 保留尾部内容 - 置信度不足: {analysis['confidence']:.2f}")
+        
+        return filtered_content, removed_tail, analysis
 
 
-# 全局实例
+# 创建全局实例
 intelligent_tail_filter = IntelligentTailFilter()

@@ -286,13 +286,28 @@ class UnifiedMessageProcessor:
             if removed_hidden_links:
                 logger.info(f"🔗 移除了 {len(removed_hidden_links)} 个隐藏链接")
             
-            # 内容过滤（智能去尾部 + 结构化广告检测 + AI广告检测 + OCR图片文字提取）
-            is_ad, filtered_content, filter_reason, ocr_result = await self.content_filter.filter_message(
-                content, 
+            # 使用新的过滤器管道进行内容过滤
+            filter_context = FilterContext(
+                message_id=str(message.id),
                 channel_id=channel_id,
-                message_obj=message,  # 传递消息对象用于结构化检测
-                media_files=media_files  # 传递媒体文件用于OCR处理
+                is_history=is_history,
+                media_files=media_files,
+                message_obj=message  # 传递完整的消息对象
             )
+            
+            # 执行过滤器管道
+            pipeline_result = await self.filter_pipeline.process(content, filter_context)
+            
+            # 提取结果
+            is_ad = not pipeline_result.passed
+            filtered_content = pipeline_result.final_content
+            filter_reason = pipeline_result.overall_reason or ""
+            
+            # 提取OCR结果（如果有）
+            ocr_result = {}
+            if 'ad_detector' in pipeline_result.filter_results:
+                ad_result = pipeline_result.filter_results['ad_detector']
+                ocr_result = ad_result.details.get('ocr_result', {}) if ad_result.details else {}
             
             # 记录过滤效果
             if content != filtered_content:

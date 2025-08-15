@@ -10,6 +10,8 @@ from pathlib import Path
 import logging
 
 from app.services.adaptive_learning import adaptive_learning
+from app.services.tail_feature_extractor import tail_feature_extractor
+from app.services.tail_vector_manager import tail_vector_manager
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 
@@ -18,7 +20,6 @@ router = APIRouter()
 
 # 数据文件路径（使用集中配置）
 SEPARATOR_PATTERNS_FILE = PathConfig.SEPARATOR_PATTERNS_FILE
-TAIL_AD_SAMPLES_FILE = PathConfig.TAIL_AD_SAMPLES_FILE
 
 # 确保数据目录存在
 PathConfig.ensure_directories()
@@ -73,26 +74,6 @@ async def save_separator_patterns(request: dict):
         return {"success": False, "error": str(e)}
 
 
-@router.get("/tail-ad-samples")
-async def get_tail_ad_samples():
-    """获取尾部广告训练样本"""
-    try:
-        if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                samples = data.get("samples", [])
-                
-                # 添加ID如果没有
-                for i, sample in enumerate(samples):
-                    if 'id' not in sample:
-                        sample['id'] = i + 1
-                
-                return {"samples": samples}
-        else:
-            return {"samples": []}
-    except Exception as e:
-        logger.error(f"获取尾部广告样本失败: {e}")
-        return {"samples": []}
 
 @router.get("/ad-samples")
 async def get_ad_samples(page: int = 1, size: int = 20, search: str = "", filter: str = "all"):
@@ -124,25 +105,6 @@ async def get_ad_samples(page: int = 1, size: int = 20, search: str = "", filter
                     samples.append(formatted_sample)
                     sample_id_counter += 1
         
-        # 从tail_ad_samples获取样本
-        if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                tail_samples = data.get("samples", [])
-                
-                for sample in tail_samples:
-                    formatted_sample = {
-                        "id": sample_id_counter,  # 使用统一的样本ID
-                        "content": sample.get('content', ''),
-                        "is_ad": True,  # tail_ad_samples都是广告样本
-                        "description": sample.get('description', ''),
-                        "created_at": sample.get('created_at', ''),
-                        "source": "tail_ad",
-                        # 保留原始ID用于删除操作
-                        "_original_tail_id": sample.get('id')
-                    }
-                    samples.append(formatted_sample)
-                    sample_id_counter += 1
         
         # 搜索过滤
         if search:
@@ -198,12 +160,6 @@ async def get_ad_statistics():
             if ad_data:
                 samples.extend(ad_data.get("samples", []))
         
-        # 从tail_ad_samples获取
-        if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                tail_samples = data.get("samples", [])
-                samples.extend(tail_samples)
         
         # 计算统计数据
         total_samples = len(samples)
@@ -260,15 +216,6 @@ async def delete_ad_sample(sample_id: int):
                 ad_samples = ad_data.get("samples", [])
                 all_samples.extend([(i, sample, 'ad_data') for i, sample in enumerate(ad_samples)])
         
-        # 从tail_ad_samples获取所有样本
-        tail_start_index = len(all_samples)
-        tail_data = None
-        
-        if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                tail_data = json.load(f)
-                tail_samples = tail_data.get("samples", [])
-                all_samples.extend([(i, sample, 'tail_ad') for i, sample in enumerate(tail_samples)])
         
         # 检查sample_id是否有效（从1开始计数）
         if sample_id < 1 or sample_id > len(all_samples):
@@ -291,17 +238,6 @@ async def delete_ad_sample(sample_id: int):
                 deleted = True
                 logger.info(f"从ad_training_data.json删除样本: index={original_index}")
         
-        elif source == 'tail_ad' and tail_data:
-            # 从tail_ad_samples删除
-            samples = tail_data.get("samples", [])
-            if original_index < len(samples):
-                samples.pop(original_index)
-                tail_data['samples'] = samples
-                tail_data['updated_at'] = datetime.now().isoformat()
-                with open(TAIL_AD_SAMPLES_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(tail_data, f, ensure_ascii=False, indent=2)
-                deleted = True
-                logger.info(f"从tail_ad_samples.json删除样本: index={original_index}")
         
         if deleted:
             return {"success": True, "message": "样本已删除"}
@@ -335,20 +271,6 @@ async def delete_ad_samples_batch(request: dict):
                     ad_data['updated_at'] = datetime.now().isoformat()
                     SafeFileOperation.write_json_safe(ad_data_file, ad_data)
         
-        # 从tail_ad_samples批量删除
-        if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                samples = data.get("samples", [])
-                original_count = len(samples)
-                samples = [s for s in samples if s.get('id') not in ids]
-                batch_deleted = original_count - len(samples)
-                if batch_deleted > 0:
-                    deleted_count += batch_deleted
-                    data['samples'] = samples
-                    data['updated_at'] = datetime.now().isoformat()
-                    with open(TAIL_AD_SAMPLES_FILE, 'w', encoding='utf-8') as f:
-                        json.dump(data, f, ensure_ascii=False, indent=2)
         
         return {
             "success": True, 
@@ -377,24 +299,6 @@ async def detect_ad_duplicates():
                 logger.info(f"从ad_training_data.json加载了 {len(ad_samples)} 个样本")
                 all_samples.extend(ad_samples)
         
-        # 从tail_ad_samples获取
-        if TAIL_AD_SAMPLES_FILE.exists():
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                tail_samples = data.get("samples", [])
-                logger.info(f"从tail_ad_samples.json加载了 {len(tail_samples)} 个样本")
-                
-                # 转换格式并确保ID存在
-                for i, sample in enumerate(tail_samples):
-                    formatted_sample = {
-                        "id": sample.get('id', f"tail_{i}"),  # 确保ID存在
-                        "content": sample.get('content', ''),
-                        "is_ad": True,
-                        "description": sample.get('description', ''),
-                        "created_at": sample.get('created_at', ''),
-                        "source": "tail_ad"
-                    }
-                    all_samples.append(formatted_sample)
         
         logger.info(f"总共收集了 {len(all_samples)} 个样本进行重复检测")
         
@@ -509,119 +413,6 @@ async def deduplicate_ad_samples(request: dict):
         return {"success": False, "message": str(e)}
 
 
-@router.post("/tail-ad-samples")
-async def add_tail_ad_sample(request: dict):
-    """添加尾部广告训练样本"""
-    logger.info(f"📥 收到尾部数据提交请求 - 请求数据键: {list(request.keys()) if request else 'None'}")
-    try:
-        # 提取参数
-        description = request.get("description", "")
-        content = request.get("content", "")
-        separator = request.get("separator", "")
-        normal_part = request.get("normalPart", "")
-        ad_part = request.get("adPart", "")
-        
-        logger.debug(f"提取的参数 - 内容长度: {len(content) if content else 0}, 分隔符: '{separator[:20]}...', 描述: '{description[:30]}...'")
-        logger.debug(f"正常部分长度: {len(normal_part) if normal_part else 0}, 广告部分长度: {len(ad_part) if ad_part else 0}")
-        
-        if not content:
-            logger.warning("❌ 参数验证失败 - 内容为空")
-            return {"success": False, "error": "内容不能为空"}
-        
-        # 对于纯广告样本（没有分隔符的情况），separator可以为空
-        
-        # 加载现有样本
-        samples = []
-        if TAIL_AD_SAMPLES_FILE.exists():
-            logger.debug(f"加载现有样本文件: {TAIL_AD_SAMPLES_FILE}")
-            with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                samples = data.get("samples", [])
-                logger.debug(f"当前样本数量: {len(samples)}")
-        else:
-            logger.debug("样本文件不存在，创建新文件")
-        
-        # 生成ID
-        new_id = max([s.get('id', 0) for s in samples], default=0) + 1
-        
-        # 创建新样本
-        new_sample = {
-            "id": new_id,
-            "description": description,
-            "content": content,
-            "separator": separator,
-            "normal_part": normal_part,
-            "ad_part": ad_part,
-            "content_hash": hashlib.md5(content.encode()).hexdigest(),
-            "created_at": datetime.now().isoformat()
-        }
-        
-        # 检查重复
-        for sample in samples:
-            if sample.get("content_hash") == new_sample["content_hash"]:
-                logger.warning(f"❌ 检测到重复样本 - hash: {new_sample['content_hash'][:8]}...")
-                return {"success": False, "error": "样本已存在"}
-        
-        # 添加样本
-        samples.append(new_sample)
-        logger.debug(f"➕ 添加新样本 - ID: {new_id}, 总数量: {len(samples)}")
-        
-        # 保存到文件
-        logger.debug(f"保存数据到文件: {TAIL_AD_SAMPLES_FILE}")
-        with open(TAIL_AD_SAMPLES_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                "samples": samples,
-                "updated_at": datetime.now().isoformat()
-            }, f, ensure_ascii=False, indent=2)
-        logger.debug("✅ 文件保存成功")
-        
-        # 同时添加到广告样本库用于AI学习
-        if ad_part:
-            logger.debug(f"添加广告部分到AI学习库 - 长度: {len(ad_part)}")
-            await adaptive_learning.add_ad_sample_to_file(ad_part)
-        else:
-            logger.warning("广告部分为空，跳过AI学习库添加")
-        
-        logger.info(f"✅ 成功添加新的尾部广告样本: ID={new_id}, 内容长度={len(content)}, 广告长度={len(ad_part)}")
-        return {"success": True, "message": "样本已添加", "id": new_id}
-        
-    except Exception as e:
-        logger.error(f"❌ 添加尾部广告样本失败: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
-
-
-@router.delete("/tail-ad-samples/{sample_id}")
-async def delete_tail_ad_sample(sample_id: int):
-    """删除尾部广告训练样本"""
-    try:
-        # 加载样本
-        if not TAIL_AD_SAMPLES_FILE.exists():
-            return {"success": False, "error": "样本文件不存在"}
-        
-        with open(TAIL_AD_SAMPLES_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            samples = data.get("samples", [])
-        
-        # 查找并删除
-        original_count = len(samples)
-        samples = [s for s in samples if s.get('id') != sample_id]
-        
-        if len(samples) == original_count:
-            return {"success": False, "error": "样本不存在"}
-        
-        # 保存
-        with open(TAIL_AD_SAMPLES_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                "samples": samples,
-                "updated_at": datetime.now().isoformat()
-            }, f, ensure_ascii=False, indent=2)
-        
-        logger.info(f"删除尾部广告样本: {sample_id}")
-        return {"success": True, "message": "样本已删除"}
-        
-    except Exception as e:
-        logger.error(f"删除尾部广告样本失败: {e}")
-        return {"success": False, "error": str(e)}
 
 
 @router.get("/learning-stats")
@@ -663,3 +454,367 @@ async def record_feedback(request: dict):
     except Exception as e:
         logger.error(f"记录反馈失败: {e}")
         return {"success": False, "error": str(e)}
+
+
+# ==================== 尾部过滤样本 API ====================
+
+@router.get("/tail-samples")
+async def get_tail_samples(page: int = 1, size: int = 20, search: str = ""):
+    """获取尾部过滤样本（分页）"""
+    try:
+        samples_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
+        if not samples_file.exists():
+            return {
+                "success": True,
+                "samples": [],
+                "pagination": {
+                    "current_page": 1,
+                    "page_size": size,
+                    "total_items": 0,
+                    "total_pages": 0
+                },
+                "total": 0
+            }
+        
+        # 读取样本数据
+        data = SafeFileOperation.read_json_safe(samples_file)
+        if not data or 'samples' not in data:
+            return {
+                "success": True,
+                "samples": [],
+                "pagination": {
+                    "current_page": 1,
+                    "page_size": size,
+                    "total_items": 0,
+                    "total_pages": 0
+                },
+                "total": 0
+            }
+        
+        samples = data['samples']
+        
+        # 搜索过滤
+        if search:
+            samples = [s for s in samples if search.lower() in str(s.get('tail_part', '')).lower()]
+        
+        # 分页
+        total = len(samples)
+        start = (page - 1) * size
+        end = start + size
+        page_samples = samples[start:end]
+        
+        # 为展示添加额外信息
+        for sample in page_samples:
+            if 'characteristics' in sample:
+                char = sample['characteristics']
+                sample['display_score'] = f"{char.get('promotion_score', 0):.2f}"
+                sample['display_commercial'] = f"{char.get('commercial_score', 0):.2f}"
+            if 'auto_features' in sample:
+                features = sample['auto_features']
+                sample['display_features'] = {
+                    'has_links': features.get('has_telegram_link', False) or features.get('link_count', 0) > 0,
+                    'link_count': features.get('link_count', 0),
+                    'action_words': len(features.get('action_words', [])),
+                    'business_words': len(features.get('business_words', []))
+                }
+        
+        return {
+            "success": True,
+            "samples": page_samples,
+            "pagination": {
+                "current_page": page,
+                "page_size": size,
+                "total_items": total,
+                "total_pages": (total + size - 1) // size
+            },
+            "total": total,
+            "metadata": data.get('metadata', {})
+        }
+    except Exception as e:
+        logger.error(f"获取尾部样本失败: {e}")
+        return {
+            "success": False,
+            "samples": [],
+            "pagination": {
+                "current_page": 1,
+                "page_size": size,
+                "total_items": 0,
+                "total_pages": 0
+            },
+            "total": 0
+        }
+
+@router.get("/tail-statistics")
+async def get_tail_statistics():
+    """获取尾部过滤统计信息"""
+    try:
+        samples_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
+        if not samples_file.exists():
+            return {
+                "success": True,
+                "total_samples": 0,
+                "high_promotion_samples": 0,
+                "has_links_samples": 0,
+                "avg_promotion_score": 0.0,
+                "vector_count": 0,
+                "cluster_count": 0
+            }
+        
+        data = SafeFileOperation.read_json_safe(samples_file)
+        if not data or 'samples' not in data:
+            return {
+                "success": True,
+                "total_samples": 0,
+                "high_promotion_samples": 0,
+                "has_links_samples": 0,
+                "avg_promotion_score": 0.0,
+                "vector_count": 0,
+                "cluster_count": 0
+            }
+        
+        samples = data['samples']
+        total_samples = len(samples)
+        
+        if total_samples == 0:
+            return {
+                "success": True,
+                "total_samples": 0,
+                "high_promotion_samples": 0,
+                "has_links_samples": 0,
+                "avg_promotion_score": 0.0,
+                "vector_count": 0,
+                "cluster_count": 0
+            }
+        
+        # 统计信息
+        promotion_scores = []
+        high_promotion_count = 0
+        has_links_count = 0
+        
+        for sample in samples:
+            if 'characteristics' in sample:
+                char = sample['characteristics']
+                score = char.get('promotion_score', 0)
+                promotion_scores.append(score)
+                if score > 0.7:
+                    high_promotion_count += 1
+            
+            if 'auto_features' in sample:
+                features = sample['auto_features']
+                if features.get('has_telegram_link', False) or features.get('link_count', 0) > 0:
+                    has_links_count += 1
+        
+        avg_promotion_score = sum(promotion_scores) / len(promotion_scores) if promotion_scores else 0.0
+        
+        # 向量统计
+        vector_stats = tail_vector_manager.get_statistics()
+        
+        return {
+            "success": True,
+            "total_samples": total_samples,
+            "high_promotion_samples": high_promotion_count,
+            "has_links_samples": has_links_count,
+            "avg_promotion_score": round(avg_promotion_score, 3),
+            "vector_count": vector_stats.get('total_vectors', 0),
+            "cluster_count": vector_stats.get('cluster_count', 0),
+            "metadata": data.get('metadata', {})
+        }
+    except Exception as e:
+        logger.error(f"获取尾部统计失败: {e}")
+        return {
+            "success": False,
+            "total_samples": 0,
+            "high_promotion_samples": 0,
+            "has_links_samples": 0,
+            "avg_promotion_score": 0.0,
+            "vector_count": 0,
+            "cluster_count": 0
+        }
+
+@router.post("/tail-samples")
+async def add_tail_sample(request: dict):
+    """添加新的尾部过滤样本（使用AI分析）"""
+    try:
+        tail_part = request.get("tail_part", "").strip()
+        if not tail_part:
+            return {"success": False, "message": "尾部内容不能为空"}
+        
+        # 读取现有数据
+        samples_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
+        if samples_file.exists():
+            data = SafeFileOperation.read_json_safe(samples_file)
+            if not data:
+                data = {"version": "2.0", "samples": [], "metadata": {}}
+        else:
+            data = {"version": "2.0", "samples": [], "metadata": {}}
+        
+        # 生成新样本ID
+        existing_ids = [s.get('id', 0) for s in data.get('samples', [])]
+        new_id = max(existing_ids) + 1 if existing_ids else 1
+        
+        # AI特征提取和分析
+        features = tail_feature_extractor.extract_features(tail_part)
+        scores = tail_feature_extractor.calculate_scores(tail_part, features)
+        
+        # 向量化并添加到管理器
+        vector_index = tail_vector_manager.add_vector(tail_part, new_id)
+        
+        # 构建新样本
+        new_sample = {
+            "id": new_id,
+            "tail_part": tail_part,
+            
+            # AI分析结果
+            "characteristics": {
+                "promotion_score": scores['promotion_score'],
+                "commercial_score": scores['commercial_score'],
+                "relevance_score": scores['relevance_score']
+            },
+            
+            # 自动提取的特征
+            "auto_features": {
+                "has_telegram_link": features['has_telegram_link'],
+                "has_contact": features['has_contact'],
+                "action_words": features['action_words'],
+                "business_words": features['business_words'],
+                "link_count": features['link_count'],
+                "emoji_count": features['emoji_count'],
+                "text_length": features['text_length'],
+                "word_count": features['word_count']
+            },
+            
+            # 向量信息
+            "vector_index": vector_index,
+            
+            # 时间信息
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        # 添加到数据中
+        data['samples'].append(new_sample)
+        data['updated_at'] = datetime.now().isoformat()
+        
+        # 更新元数据
+        if 'metadata' not in data:
+            data['metadata'] = {}
+        data['metadata']['total_samples'] = len(data['samples'])
+        data['metadata']['last_added'] = datetime.now().isoformat()
+        
+        # 保存数据
+        SafeFileOperation.write_json_safe(samples_file, data)
+        
+        # 保存向量数据
+        tail_vector_manager.save()
+        
+        logger.info(f"添加新尾部样本: ID={new_id}, 推广得分={scores['promotion_score']:.2f}")
+        
+        return {
+            "success": True,
+            "message": "尾部样本已添加",
+            "sample_id": new_id,
+            "analysis": {
+                "promotion_score": round(scores['promotion_score'], 3),
+                "commercial_score": round(scores['commercial_score'], 3),
+                "features": {
+                    "has_links": features['has_telegram_link'] or features['link_count'] > 0,
+                    "link_count": features['link_count'],
+                    "action_words_count": len(features['action_words']),
+                    "business_words_count": len(features['business_words'])
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"添加尾部样本失败: {e}")
+        return {"success": False, "message": str(e)}
+
+@router.delete("/tail-samples/{sample_id}")
+async def delete_tail_sample(sample_id: int):
+    """删除尾部过滤样本"""
+    try:
+        # 读取现有数据
+        samples_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
+        if not samples_file.exists():
+            return {"success": False, "message": "样本文件不存在"}
+        
+        data = SafeFileOperation.read_json_safe(samples_file)
+        if not data or 'samples' not in data:
+            return {"success": False, "message": "样本数据异常"}
+        
+        # 查找并删除样本
+        original_count = len(data['samples'])
+        data['samples'] = [s for s in data['samples'] if s.get('id') != sample_id]
+        
+        if len(data['samples']) == original_count:
+            return {"success": False, "message": "样本不存在"}
+        
+        # 从向量管理器删除
+        tail_vector_manager.remove_vector(sample_id)
+        
+        # 更新数据
+        data['updated_at'] = datetime.now().isoformat()
+        if 'metadata' in data:
+            data['metadata']['total_samples'] = len(data['samples'])
+        
+        # 保存数据
+        SafeFileOperation.write_json_safe(samples_file, data)
+        
+        # 保存向量数据
+        tail_vector_manager.save()
+        
+        logger.info(f"删除尾部样本: ID={sample_id}")
+        
+        return {"success": True, "message": "尾部样本已删除"}
+    except Exception as e:
+        logger.error(f"删除尾部样本失败: {e}")
+        return {"success": False, "message": str(e)}
+
+@router.post("/tail-samples/analyze")
+async def analyze_tail_content(request: dict):
+    """分析尾部内容（不保存，仅分析）"""
+    try:
+        tail_part = request.get("tail_part", "").strip()
+        if not tail_part:
+            return {"success": False, "message": "尾部内容不能为空"}
+        
+        # AI特征提取和分析
+        features = tail_feature_extractor.extract_features(tail_part)
+        scores = tail_feature_extractor.calculate_scores(tail_part, features)
+        
+        # 查找相似样本
+        similar_samples = tail_vector_manager.find_similar(
+            tail_part, top_k=5, threshold=0.7
+        )
+        
+        return {
+            "success": True,
+            "analysis": {
+                "scores": {
+                    "promotion_score": round(scores['promotion_score'], 3),
+                    "commercial_score": round(scores['commercial_score'], 3),
+                    "relevance_score": round(scores['relevance_score'], 3),
+                    "overall_score": round(scores['overall_score'], 3)
+                },
+                "features": {
+                    "has_telegram_link": features['has_telegram_link'],
+                    "has_contact": features['has_contact'],
+                    "link_count": features['link_count'],
+                    "emoji_count": features['emoji_count'],
+                    "text_length": features['text_length'],
+                    "word_count": features['word_count'],
+                    "action_words": features['action_words'],
+                    "business_words": features['business_words']
+                },
+                "similar_samples": similar_samples,
+                "recommendation": {
+                    "should_filter": scores['overall_score'] >= 0.7,
+                    "confidence": min(scores['overall_score'] * 1.2, 1.0),
+                    "reason": "高推广得分" if scores['promotion_score'] > 0.7 else 
+                             "高商业化得分" if scores['commercial_score'] > 0.7 else 
+                             "综合评分较低" if scores['overall_score'] < 0.3 else "中等评分"
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"分析尾部内容失败: {e}")
+        return {"success": False, "message": str(e)}

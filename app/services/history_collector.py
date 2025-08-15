@@ -11,7 +11,14 @@ from dataclasses import dataclass
 from telethon.errors import FloodWaitError, ChannelPrivateError
 from app.storage.redis_store import get_redis_message_store, get_redis_channel_store
 from app.core.config import db_settings
-from app.services.content_filter import ContentFilter
+# 使用新的FilterPipeline架构
+from app.services.filters.filter_pipeline import FilterPipeline, PipelineConfig
+from app.services.filters.base import FilterContext
+from app.services.filters.duplicate_detector import DuplicateDetectorFilter
+from app.services.filters.ad_detector import AdDetectorFilter  
+from app.services.filters.tail_filter import TailFilter
+from app.services.filters.markdown_filter import MarkdownFilter
+from app.services.filters.promo_link_filter import PromoLinkFilter
 from app.services.channel_manager import ChannelManager
 # 移除这行，改为在需要时导入telegram_bot
 
@@ -33,10 +40,30 @@ class HistoryCollector:
     """历史消息采集器"""
     
     def __init__(self):
-        self.content_filter = ContentFilter()
+        self.filter_pipeline = self._init_filter_pipeline()
         self.channel_manager = ChannelManager()
         self.collection_tasks = {}  # channel_id -> task
         self.collection_progress = {}  # channel_id -> CollectionProgress
+        
+    def _init_filter_pipeline(self) -> FilterPipeline:
+        """初始化过滤器管道"""
+        config = PipelineConfig(
+            enable_early_stopping=True,
+            early_stop_filters={'duplicate_detector', 'ad_detector'},
+            filter_timeout=30.0,
+            pipeline_timeout=60.0
+        )
+        
+        pipeline = FilterPipeline(config)
+        
+        # 按顺序添加5个过滤器
+        pipeline.add_filter(DuplicateDetectorFilter())
+        pipeline.add_filter(AdDetectorFilter())
+        pipeline.add_filter(TailFilter())
+        pipeline.add_filter(MarkdownFilter())
+        pipeline.add_filter(PromoLinkFilter())
+        
+        return pipeline
         
     async def start_collection(self, channel_id: str, limit: int = 100) -> bool:
         """

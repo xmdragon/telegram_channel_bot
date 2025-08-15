@@ -7,7 +7,7 @@
     "updated_at": "2025-08-15T22:03:51.986024",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-15T14:03:53.350193",
+  "updated_at": "2025-08-15T14:03:53.347756",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
@@ -117,7 +117,7 @@
     "config_type": "string",
     "description": "",
     "is_active": true,
-    "updated_at": "2025-08-15T22:03:53.350186",
+    "updated_at": "2025-08-15T21:58:28.308310",
     "created_at": "2025-08-14T23:46:07.015035"
   },
   "channels.review_group": {

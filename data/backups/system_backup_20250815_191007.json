@@ -1,7 +1,0 @@
-{
-  "test_key1": "test_value1",
-  "updated_at": "2025-08-15T11:10:07.575207",
-  "test_key2": {
-    "nested": "data"
-  }
-}

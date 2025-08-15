@@ -37,7 +37,6 @@ class PathConfig:
     # 尾部过滤相关
     TAIL_TRAINING_DIR = TRAINING_DIR / "tail"
     TAIL_FILTER_SAMPLES_FILE = TAIL_TRAINING_DIR / "tail_filter_samples.json"
-    TAIL_AD_SAMPLES_FILE = TAIL_TRAINING_DIR / "tail_ad_samples.json"
     SEPARATOR_PATTERNS_FILE = TAIL_TRAINING_DIR / "separator_patterns.json"
     
     # 其他训练数据
