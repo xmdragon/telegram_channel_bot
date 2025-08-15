@@ -53,6 +53,65 @@ class UnifiedMessageProcessor:
                 logger.info(f"📭 消息 #{message.id} 在通用处理阶段被过滤")
                 return None  # 消息被过滤
             
+            # 检查是否为自动拒绝的消息
+            if processed_data.get('_auto_rejected'):
+                logger.warning(f"🚨 消息 #{message.id} 被自动拒绝: {processed_data.get('_reject_reason')}")
+                
+                # 为自动拒绝的消息创建保存数据
+                rejected_save_data = {
+                    'source_channel': channel_id,
+                    'message_id': message.id,
+                    'content': processed_data.get('content', ''),
+                    'filtered_content': processed_data.get('filtered_content', ''),
+                    'is_ad': processed_data.get('is_ad', True),
+                    'media_type': None,
+                    'media_url': None,
+                    'media_hash': None,
+                    'status': 'rejected',  # 直接设为rejected状态
+                    'reject_reason': processed_data.get('_reject_reason', '自动拒绝'),
+                    'filter_reason': processed_data.get('filter_reason', ''),
+                    'created_at': parse_telegram_time(message.date)
+                }
+                
+                # 处理媒体信息
+                media_info = processed_data.get('media_info')
+                if media_info:
+                    rejected_save_data['media_type'] = media_info.get('media_type')
+                    rejected_save_data['media_url'] = media_info.get('file_path')
+                    rejected_save_data['media_hash'] = media_info.get('hash')
+                
+                # 处理OCR结果
+                ocr_result = processed_data.get('ocr_result', {})
+                if ocr_result:
+                    import json
+                    if ocr_result.get('texts'):
+                        rejected_save_data['ocr_text'] = json.dumps(ocr_result['texts'], ensure_ascii=False)
+                    if ocr_result.get('qr_codes'):
+                        rejected_save_data['qr_codes'] = json.dumps(ocr_result['qr_codes'], ensure_ascii=False)
+                    rejected_save_data['ocr_ad_score'] = int(ocr_result.get('ad_score', 0))
+                    rejected_save_data['ocr_processed'] = bool(ocr_result.get('processed_files', 0) > 0)
+                
+                # 保存到Redis存储
+                saved_rejected = await self.message_processor.process_new_message(rejected_save_data)
+                
+                if saved_rejected:
+                    # 广播到WebSocket让前端能看到拒绝的消息
+                    await self._broadcast_new_message(saved_rejected)
+                    msg_id = saved_rejected.get('message_id', 'N/A')
+                    logger.info(f"❌ 最终处理结果: 消息 #{message.id} -> Redis {channel_id}:{msg_id} [状态: rejected] [原因: 自动拒绝]")
+                    
+                    # 清理媒体文件（拒绝的消息不保留媒体）
+                    if media_info and media_info.get('file_path'):
+                        await media_handler.cleanup_file(media_info['file_path'])
+                    
+                    return saved_rejected
+                else:
+                    logger.error(f"💥 自动拒绝消息 #{message.id} 保存失败")
+                    # 清理媒体文件
+                    if media_info and media_info.get('file_path'):
+                        await media_handler.cleanup_file(media_info['file_path'])
+                    return None
+            
             # 确保原始内容被保留
             processed_data['original_content'] = original_content
             
@@ -278,10 +337,22 @@ class UnifiedMessageProcessor:
                         except Exception as e:
                             logger.debug(f"保存拒绝样本失败: {e}")
                     
-                    # 清理媒体文件
-                    if media_info and media_info.get('file_path'):
-                        await media_handler.cleanup_file(media_info['file_path'])
-                    return None
+                    # 为被拒绝的消息创建保存数据，状态设为rejected
+                    rejected_data = {
+                        'content': content,
+                        'filtered_content': filtered_content,
+                        'is_ad': is_ad,
+                        'filter_reason': filter_reason,
+                        'media_info': media_info,
+                        'ocr_result': ocr_result,
+                        'entities': [],
+                        'removed_hidden_links': []
+                    }
+                    
+                    # 返回拒绝数据，让上层处理保存逻辑
+                    rejected_data['_auto_rejected'] = True
+                    rejected_data['_reject_reason'] = reject_reason
+                    return rejected_data
                 
                 # 检查是否配置了自动过滤广告
                 try:
@@ -289,9 +360,23 @@ class UnifiedMessageProcessor:
                     auto_filter = await config_manager.get_config('filter.auto_filter_ads', False)
                     if auto_filter:
                         logger.info(f"🚫 自动过滤广告消息: {filter_reason}")
-                        if media_info and media_info.get('file_path'):
-                            await media_handler.cleanup_file(media_info['file_path'])
-                        return None
+                        
+                        # 为自动过滤的消息创建保存数据
+                        filtered_data = {
+                            'content': content,
+                            'filtered_content': filtered_content,
+                            'is_ad': is_ad,
+                            'filter_reason': filter_reason,
+                            'media_info': media_info,
+                            'ocr_result': ocr_result,
+                            'entities': [],
+                            'removed_hidden_links': []
+                        }
+                        
+                        # 返回过滤数据，让上层处理保存逻辑
+                        filtered_data['_auto_rejected'] = True
+                        filtered_data['_reject_reason'] = f"配置自动过滤: {filter_reason}"
+                        return filtered_data
                 except Exception as e:
                     logger.debug(f"检查自动过滤配置失败: {e}")
             

@@ -58,7 +58,7 @@ const app = createApp({
                 { name: 'Telegram客户端', description: '消息采集服务', status: 'stopped' },
                 { name: '消息处理器', description: '内容过滤与处理', status: 'stopped' },
                 { name: '调度器', description: '自动转发调度', status: 'stopped' },
-                { name: '数据库', description: 'PostgreSQL数据库', status: 'stopped' }
+                { name: 'Redis存储', description: 'Redis数据存储服务', status: 'stopped' }
             ],
             
             // 系统信息
@@ -106,7 +106,7 @@ const app = createApp({
                 this.services[0].status = data.services.telegram_client ? 'running' : 'stopped';
                 this.services[1].status = data.services.message_processor ? 'running' : 'stopped';
                 this.services[2].status = data.services.scheduler ? 'running' : 'stopped';
-                this.services[3].status = data.services.database ? 'running' : 'stopped';
+                this.services[3].status = data.services.redis ? 'running' : 'stopped';
             }
             
             // 更新系统信息

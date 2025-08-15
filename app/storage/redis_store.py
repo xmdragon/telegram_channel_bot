@@ -81,6 +81,10 @@ class RedisMessageStore(RedisStore):
                 pipe.zadd("msg:idx:pending", {f"{channel_id}:{message_id}": timestamp})
             elif status == 'approved':
                 pipe.zadd("msg:idx:approved", {f"{channel_id}:{message_id}": timestamp})
+            elif status == 'rejected':
+                pipe.zadd("msg:idx:rejected", {f"{channel_id}:{message_id}": timestamp})
+            elif status == 'auto_forwarded':
+                pipe.zadd("msg:idx:auto_forwarded", {f"{channel_id}:{message_id}": timestamp})
             
             # 更新计数器
             pipe.incr(f"msg:count:{channel_id}:total")

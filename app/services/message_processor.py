@@ -32,6 +32,13 @@ class MessageProcessor:
     async def get_auto_forward_messages(self) -> List[Dict[str, Any]]:
         """获取需要自动转发的消息"""
         try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                except RuntimeError:
+                    return []
+            
             # 获取自动转发延迟配置
             from app.services.config_manager import ConfigManager
             config_manager = ConfigManager()
@@ -185,6 +192,10 @@ class MessageProcessor:
             处理后的消息字典，如果重复则返回None
         """
         try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                self.redis_store = get_redis_message_store()
+            
             channel_id = str(message_data.get('source_channel', ''))
             message_id = message_data.get('message_id')
             
@@ -221,18 +232,34 @@ class MessageProcessor:
                 return existing_message
             
             # 保存新消息到Redis
-            success = self.redis_store.save_message(channel_id, int(message_id), message_data)
-            
-            if success:
-                # 获取保存后的消息
-                saved_message = self.redis_store.get_message(channel_id, int(message_id))
-                if saved_message:
-                    logger.info(f"💾 message_processor: 新消息 {channel_id}:{message_id} 成功保存到Redis [状态: {saved_message.get('status', 'unknown')}]")
-                    return saved_message
+            try:
+                success = self.redis_store.save_message(channel_id, int(message_id), message_data)
+                
+                if success:
+                    # 获取保存后的消息
+                    saved_message = self.redis_store.get_message(channel_id, int(message_id))
+                    if saved_message:
+                        logger.info(f"💾 message_processor: 新消息 {channel_id}:{message_id} 成功保存到Redis [状态: {saved_message.get('status', 'unknown')}]")
+                        return saved_message
+                    else:
+                        logger.error(f"保存成功但无法获取消息: {channel_id}:{message_id}")
                 else:
-                    logger.error(f"保存成功但无法获取消息: {channel_id}:{message_id}")
-            else:
-                logger.error(f"保存消息失败: {channel_id}:{message_id}")
+                    logger.error(f"保存消息失败: {channel_id}:{message_id}")
+                    
+            except Exception as redis_error:
+                logger.error(f"Redis操作失败 {channel_id}:{message_id}: {redis_error}")
+                # 重新初始化Redis连接并重试一次
+                try:
+                    self.redis_store = get_redis_message_store()
+                    success = self.redis_store.save_message(channel_id, int(message_id), message_data)
+                    if success:
+                        saved_message = self.redis_store.get_message(channel_id, int(message_id))
+                        if saved_message:
+                            logger.info(f"💾 message_processor: 重试成功，消息 {channel_id}:{message_id} 已保存")
+                            return saved_message
+                    logger.error(f"重试保存消息失败: {channel_id}:{message_id}")
+                except Exception as retry_error:
+                    logger.error(f"重试Redis操作也失败: {retry_error}")
                 
             return None
                 
@@ -292,7 +319,14 @@ class MessageProcessor:
                     channel_id = parts[2]
                     channel_set.add(channel_id)
             
-            stats["channels"] = len(channel_set)
+            # 获取活跃源频道数量
+            try:
+                from app.services.unified_channel_service import unified_channel_service
+                active_channels = await unified_channel_service.get_all_channels(channel_type="source", active_only=True)
+                stats["channels"] = len(active_channels)
+            except Exception as e:
+                logger.warning(f"获取活跃频道数失败，使用消息频道数: {e}")
+                stats["channels"] = len(channel_set)
             
             # 通过采样方式估算广告和重复数量（避免遍历所有消息）
             sample_size = min(100, stats["total"])  # 最多采样100条

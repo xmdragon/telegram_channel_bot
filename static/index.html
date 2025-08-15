@@ -61,6 +61,16 @@
                     <button @click="loadMessages" class="btn btn-secondary">
                         🔄 刷新
                     </button>
+                    
+                    <!-- 频道筛选状态 -->
+                    <div v-if="filters.source_channel" class="channel-filter-status">
+                        <span class="filter-label">
+                            📡 筛选频道: {{ getChannelName(filters.source_channel) }}
+                        </span>
+                        <button @click="clearChannelFilter" class="btn btn-sm btn-outline" title="清除频道筛选">
+                            ✕ 清除
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -127,14 +137,14 @@
                                    :checked="isSelected(message.id)"
                                    @change="toggleMessage(message.id)">
                             
-                            <!-- 数据库编号 -->
-                            <span class="message-id">
-                                #{{ message.id }}
-                            </span>
-                            
                             <!-- 频道信息 -->
                             <span class="message-channel">
-                                📢 {{ message.source_channel_title || message.source_channel || '未知频道' }}
+                                📢 <a href="javascript:void(0)" 
+                                     @click="filterByChannel(message.source_channel, message.source_channel_title || message.source_channel)"
+                                     class="channel-link"
+                                     :title="'点击查看频道「' + (message.source_channel_title || message.source_channel) + '」的所有消息'">
+                                    {{ message.source_channel_title || message.source_channel || '未知频道' }}
+                                </a>
                             </span>
                             
                             <!-- 时间 -->
@@ -237,55 +247,122 @@
                             </div>
                         </div>
                         
-                        <!-- 原频道链接 -->
+                        <!-- 消息ID和原频道链接 -->
                         <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer">
-                            🔗 原消息链接: 
-                            <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
-                               target="_blank" 
-                               class="original-message-link">
-                                查看原消息
-                            </a>
+                            <span class="message-full-id">
+                                📋 消息ID: #{{ message.source_channel }}:{{ message.message_id }}
+                            </span>
+                            <span class="message-link-separator">|</span>
+                            <span class="original-link">
+                                🔗 <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
+                                     target="_blank" 
+                                     class="original-message-link">
+                                    查看原消息
+                                </a>
+                            </span>
                         </div>
                     </div>
                     
                     <!-- 操作按钮 -->
-                    <div v-if="message.status === 'pending'" class="message-actions">
-                        <button v-if="buttonVisibility.edit" 
-                                @click="openEditDialog(message)" 
-                                class="btn btn-sm btn-secondary">
-                            ✏️ 编辑
-                        </button>
-                        <button v-if="buttonVisibility.approve" 
-                                @click="selectedMessages = [message.id]; approveMessages()" 
-                                class="btn btn-sm btn-success">
-                            ✅ 批准
-                        </button>
-                        <button v-if="buttonVisibility.reject" 
-                                @click="selectedMessages = [message.id]; rejectMessages()" 
-                                class="btn btn-sm btn-danger">
-                            ❌ 拒绝
-                        </button>
-                        <!-- AI训练按钮 -->
-                        <button v-if="buttonVisibility.markAsAd" 
-                                @click="markAsAd(message)" 
-                                class="btn btn-sm btn-warning"
-                                title="将此消息标记为广告并加入训练样本">
-                            🚫 广告
-                        </button>
-                        <button v-if="buttonVisibility.markAsTail" 
-                                @click="trainTail(message)" 
-                                class="btn btn-sm btn-info"
-                                title="训练AI识别此消息的尾部内容">
-                            ✂️ 尾部
-                        </button>
-                        <!-- 尾部过滤按钮 -->
-                        <button v-if="buttonVisibility.executeFilter" 
-                                @click="filterTail(message)" 
-                                class="btn btn-sm btn-primary"
-                                title="手动执行尾部过滤">
-                            🎯 过滤
-                        </button>
-                        <!-- 补抓媒体按钮 (改进判断逻辑) -->
+                    <div class="message-actions">
+                        <!-- 待审核状态按钮 -->
+                        <template v-if="message.status === 'pending'">
+                            <button v-if="buttonVisibility.edit" 
+                                    @click="openEditDialog(message)" 
+                                    class="btn btn-sm btn-secondary">
+                                ✏️ 编辑
+                            </button>
+                            <button v-if="buttonVisibility.approve" 
+                                    @click="selectedMessages = [message.id]; approveMessages()" 
+                                    class="btn btn-sm btn-success">
+                                ✅ 批准
+                            </button>
+                            <button v-if="buttonVisibility.reject" 
+                                    @click="selectedMessages = [message.id]; rejectMessages()" 
+                                    class="btn btn-sm btn-danger">
+                                ❌ 拒绝
+                            </button>
+                            <!-- AI训练按钮 -->
+                            <button v-if="buttonVisibility.markAsAd" 
+                                    @click="markAsAd(message)" 
+                                    class="btn btn-sm btn-warning"
+                                    title="将此消息标记为广告并加入训练样本">
+                                🚫 广告
+                            </button>
+                            <button v-if="buttonVisibility.markAsTail" 
+                                    @click="trainTail(message)" 
+                                    class="btn btn-sm btn-info"
+                                    title="训练AI识别此消息的尾部内容">
+                                ✂️ 尾部
+                            </button>
+                            <!-- 尾部过滤按钮 -->
+                            <button v-if="buttonVisibility.executeFilter" 
+                                    @click="filterTail(message)" 
+                                    class="btn btn-sm btn-primary"
+                                    title="手动执行尾部过滤">
+                                🎯 过滤
+                            </button>
+                        </template>
+                        
+                        <!-- 已拒绝状态按钮 -->
+                        <template v-else-if="message.status === 'rejected'">
+                            <button v-if="buttonVisibility.edit" 
+                                    @click="openEditDialog(message)" 
+                                    class="btn btn-sm btn-secondary">
+                                ✏️ 编辑
+                            </button>
+                            <button v-if="buttonVisibility.approve" 
+                                    @click="selectedMessages = [message.id]; approveMessages()" 
+                                    class="btn btn-sm btn-success"
+                                    title="重新批准此消息">
+                                ♻️ 恢复
+                            </button>
+                            <!-- 重置按钮 - 用于误判恢复 -->
+                            <button @click="resetMessage(message)" 
+                                    class="btn btn-sm btn-info"
+                                    title="重置为待审核状态，如果是广告误判会从训练样本中移除">
+                                🔄 重置
+                            </button>
+                            <!-- 对于已拒绝的消息，仍可进行AI训练 -->
+                            <button v-if="buttonVisibility.markAsAd && !message.is_ad" 
+                                    @click="markAsAd(message)" 
+                                    class="btn btn-sm btn-warning"
+                                    title="将此消息标记为广告并加入训练样本">
+                                🚫 广告
+                            </button>
+                            <button v-if="buttonVisibility.markAsTail" 
+                                    @click="trainTail(message)" 
+                                    class="btn btn-sm btn-info"
+                                    title="训练AI识别此消息的尾部内容">
+                                ✂️ 尾部
+                            </button>
+                        </template>
+                        
+                        <!-- 已批准状态按钮 -->
+                        <template v-else-if="message.status === 'approved'">
+                            <button v-if="buttonVisibility.edit" 
+                                    @click="openEditDialog(message)" 
+                                    class="btn btn-sm btn-secondary">
+                                ✏️ 编辑
+                            </button>
+                            <button v-if="buttonVisibility.reject" 
+                                    @click="selectedMessages = [message.id]; rejectMessages()" 
+                                    class="btn btn-sm btn-danger"
+                                    title="撤回批准">
+                                ↩️ 撤回
+                            </button>
+                        </template>
+                        
+                        <!-- 自动转发状态按钮 -->
+                        <template v-else-if="message.status === 'auto_forwarded'">
+                            <button v-if="buttonVisibility.edit" 
+                                    @click="openEditDialog(message)" 
+                                    class="btn btn-sm btn-secondary">
+                                ✏️ 编辑
+                            </button>
+                        </template>
+                        
+                        <!-- 补抓媒体按钮 - 对所有状态的消息都可用 -->
                         <button v-if="buttonVisibility.refetchMedia && message.media_type && !mediaExists(message)"
                                 @click="refetchMedia(message)" 
                                 class="btn btn-sm btn-primary"

@@ -108,8 +108,8 @@ async def get_messages(
                 all_messages = redis_store.get_messages_by_status("approved", limit=size * 20)
             elif status == "rejected":
                 all_messages = redis_store.get_messages_by_status("rejected", limit=size * 20)
-            elif status == "forwarded":
-                all_messages = redis_store.get_messages_by_status("forwarded", limit=size * 20)
+            elif status == "auto_forwarded":
+                all_messages = redis_store.get_messages_by_status("auto_forwarded", limit=size * 20)
             else:
                 # 无状态过滤或其他状态，获取所有消息
                 all_messages = redis_store.get_all_messages(limit=size * 20)
@@ -151,7 +151,15 @@ async def get_messages(
         processed_messages = []
         for msg in page_messages:
             # 为了保持兼容性，生成假的id（使用channel_id:message_id）
-            msg_id = f"{msg.get('source_channel', '')}:{msg.get('message_id', '')}"
+            source_channel = msg.get('source_channel')
+            message_id = msg.get('message_id')
+            
+            # 跳过无效的消息
+            if not source_channel or not message_id:
+                logger.warning(f"跳过无效消息: source_channel={source_channel}, message_id={message_id}")
+                continue
+                
+            msg_id = f"{source_channel}:{message_id}"
             
             # 检查主媒体文件是否存在
             media_display_url = None
@@ -650,16 +658,32 @@ async def edit_and_publish_message(
 ):
     """编辑消息内容"""
     try:
+        logger.info(f"编辑消息请求: message_id={message_id}, request={request}")
+        
         # 解析消息ID
         if ':' in message_id:
             channel_id, msg_id = message_id.split(':', 1)
+            logger.debug(f"解析消息ID: channel_id={channel_id}, msg_id={msg_id}")
         else:
-            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+            logger.error(f"不支持的消息ID格式: {message_id}")
+            raise HTTPException(status_code=400, detail=f"不支持的消息ID格式: {message_id}")
+        
+        # 验证解析后的ID
+        if not channel_id or not msg_id or msg_id == 'None':
+            logger.error(f"无效的消息ID组件: channel_id={channel_id}, msg_id={msg_id}")
+            raise HTTPException(status_code=400, detail=f"无效的消息ID: {message_id}")
         
         # 获取消息
-        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        try:
+            msg_id_int = int(msg_id)
+        except ValueError:
+            logger.error(f"消息ID不是有效数字: {msg_id}")
+            raise HTTPException(status_code=400, detail=f"消息ID必须是数字: {msg_id}")
+            
+        msg_data = await message_processor.get_message(channel_id, msg_id_int)
         if not msg_data:
-            raise HTTPException(status_code=404, detail="消息不存在")
+            logger.error(f"消息不存在: {channel_id}:{msg_id_int}")
+            raise HTTPException(status_code=404, detail=f"消息不存在: {channel_id}:{msg_id_int}")
         
         # 更新消息内容
         new_content = request.get("content", "").strip()
@@ -1181,3 +1205,103 @@ async def refilter_message(
     except Exception as e:
         logger.error(f"重新过滤消息失败: {e}")
         raise HTTPException(status_code=500, detail="重新过滤消息失败")
+
+@router.post("/reset")
+async def reset_message(
+    request: Request,
+    user: Dict[str, Any] = Depends(check_permission("messages.edit")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
+):
+    """重置消息状态为待审核，用于误判恢复"""
+    try:
+        data = await request.json()
+        source_channel = data.get('source_channel')
+        message_id = data.get('message_id')
+        is_ad = data.get('is_ad', False)
+        
+        if not source_channel or not message_id:
+            raise HTTPException(status_code=400, detail="缺少必要参数: source_channel 或 message_id")
+        
+        # 获取消息数据
+        msg_data = await message_processor.get_message(source_channel, int(message_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        logger.info(f"重置消息: {source_channel}:{message_id}, is_ad: {is_ad}")
+        
+        # 如果是广告消息，需要从训练样本中移除
+        if is_ad:
+            try:
+                # 尝试从广告训练数据中移除此消息
+                import json
+                from pathlib import Path
+                from app.utils.safe_file_ops import SafeFileOperation
+                
+                # 读取广告训练数据
+                ad_data_file = Path("data/ad_training_data.json")
+                if ad_data_file.exists():
+                    safe_file_op = SafeFileOperation()
+                    ad_data = safe_file_op.read_json(ad_data_file)
+                    
+                    # 构造要查找的样本ID
+                    sample_id = f"{source_channel}:{message_id}"
+                    
+                    # 从samples中移除
+                    original_count = len(ad_data.get('samples', []))
+                    ad_data['samples'] = [
+                        sample for sample in ad_data.get('samples', []) 
+                        if sample.get('id') != sample_id
+                    ]
+                    new_count = len(ad_data.get('samples', []))
+                    
+                    # 如果有移除，保存文件
+                    if original_count > new_count:
+                        safe_file_op.write_json(ad_data_file, ad_data)
+                        logger.info(f"已从广告训练样本中移除消息 {source_channel}:{message_id}")
+                    else:
+                        logger.info(f"消息 {source_channel}:{message_id} 未在训练样本中找到")
+                        
+            except Exception as e:
+                logger.warning(f"从训练样本中移除消息失败，但继续重置操作: {e}")
+        
+        # 重置消息状态为pending
+        success = await message_processor.update_message_status(
+            source_channel, 
+            int(message_id), 
+            "pending", 
+            reviewed_by=user.get('username', 'system')
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="重置消息状态失败")
+        
+        # 重置广告标记
+        redis_store = get_redis_message_store()
+        await redis_store.update_message_field(source_channel, int(message_id), 'is_ad', False)
+        
+        # 添加重置记录
+        await redis_store.update_message_field(
+            source_channel, 
+            int(message_id), 
+            'reset_time', 
+            get_current_time().isoformat()
+        )
+        await redis_store.update_message_field(
+            source_channel, 
+            int(message_id), 
+            'reset_by', 
+            user.get('username', 'system')
+        )
+        
+        logger.info(f"消息 {source_channel}:{message_id} 已重置为待审核状态")
+        
+        return {
+            "success": True, 
+            "message": "消息已重置为待审核状态" + ("，并从广告训练样本中移除" if is_ad else "")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"重置消息失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"重置消息失败: {str(e)}")

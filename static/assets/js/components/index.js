@@ -45,7 +45,8 @@ const MainApp = {
             },
             filters: {
                 status: 'pending',
-                is_ad: null
+                is_ad: null,
+                source_channel: null  // 新增频道筛选
             },
             currentPage: 1,
             pageSize: 20,
@@ -355,13 +356,17 @@ const MainApp = {
             }
             
             try {
-                // 确保status有默认值，避免清空筛选器时显示所有消息
+                // 准备请求参数
                 const params = {
                     ...this.filters,
-                    status: this.filters.status || 'pending',  // 如果status为null或空，默认使用'pending'
                     page: this.currentPage,
                     size: this.pageSize
                 };
+                
+                // 只有当status为null或undefined时才使用默认值，空字符串应该被保留
+                if (this.filters.status === null || this.filters.status === undefined) {
+                    params.status = 'pending';
+                }
                 
                 // 添加搜索关键词参数
                 if (this.searchKeyword && this.searchKeyword.trim()) {
@@ -583,6 +588,31 @@ const MainApp = {
                     this.filters.is_ad = null;
             }
             this.loadMessages();
+        },
+        
+        // 点击频道名称筛选该频道的消息
+        filterByChannel(channelId, channelTitle) {
+            // 设置频道筛选
+            this.filters.source_channel = channelId;
+            // 重置其他筛选条件以便只显示该频道的消息
+            this.filters.status = '';
+            this.filters.is_ad = null;
+            // 重新加载消息
+            this.currentPage = 1;
+            this.hasMore = true;
+            this.loadMessages();
+            // 显示筛选提示
+            MessageManager.info(`正在显示频道「${channelTitle || channelId}」的消息`);
+        },
+        
+        // 清除频道筛选
+        clearChannelFilter() {
+            this.filters.source_channel = null;
+            this.filters.status = 'pending';  // 恢复默认筛选
+            this.currentPage = 1;
+            this.hasMore = true;
+            this.loadMessages();
+            MessageManager.info('已清除频道筛选');
         },
         
         // 批准消息
@@ -1282,6 +1312,45 @@ const MainApp = {
                 }
             } catch (error) {
                 MessageManager.error('批量拒绝失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 重置消息状态 - 用于误判恢复
+        async resetMessage(message) {
+            try {
+                // 解析消息ID
+                const idParts = message.id.split(':');
+                if (idParts.length !== 2) {
+                    MessageManager.error('消息ID格式错误');
+                    return;
+                }
+                
+                const [sourceChannel, messageId] = idParts;
+                
+                // 确认操作
+                const confirmText = message.is_ad 
+                    ? '确定要重置此广告消息吗？这将从训练样本中移除并重置为待审核状态。'
+                    : '确定要重置此消息为待审核状态吗？';
+                    
+                if (!confirm(confirmText)) {
+                    return;
+                }
+                
+                const response = await axios.post('/api/messages/reset', {
+                    source_channel: sourceChannel,
+                    message_id: parseInt(messageId),
+                    is_ad: message.is_ad
+                });
+                
+                if (response.data.success) {
+                    MessageManager.success('消息已重置为待审核状态');
+                    this.loadMessages();
+                    this.loadStats();
+                } else {
+                    MessageManager.error('重置失败: ' + response.data.message);
+                }
+            } catch (error) {
+                MessageManager.error('重置失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         

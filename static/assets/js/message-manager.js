@@ -34,6 +34,10 @@ window.MessageManager = {
             ElMessage[type]({
                 message,
                 duration,
+                offset: 20,
+                grouping: true,
+                showClose: true,
+                customClass: 'message-toast-bottom-right',
                 ...options
             });
         } else {

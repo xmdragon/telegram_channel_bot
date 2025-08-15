@@ -211,6 +211,37 @@ class MessageGrouper:
             # 将处理后的数据存储，供后续获取
             if processed_data:
                 self.completed_groups[group_key] = processed_data
+                
+                # 调用message_processor保存到Redis
+                try:
+                    from app.services.message_processor import MessageProcessor
+                    processor = MessageProcessor()
+                    
+                    # 准备保存数据
+                    save_data = {
+                        'source_channel': channel_id,
+                        'message_id': processed_data['message_id'],
+                        'content': processed_data['content'],
+                        'filtered_content': processed_data.get('filtered_content'),
+                        'media_hash': processed_data.get('combined_media_hash'),
+                        'visual_hash': processed_data.get('visual_hash'),
+                        'grouped_id': processed_data.get('grouped_id'),
+                        'is_combined': True,
+                        'status': 'ads' if processed_data.get('is_ad') else 'pending',
+                        'combined_messages': processed_data.get('combined_messages'),
+                        'media_group': processed_data.get('media_group'),
+                        'created_at': processed_data.get('date', combined_message.get('date'))
+                    }
+                    
+                    # 保存到Redis
+                    saved_message = await processor.process_new_message(save_data)
+                    if saved_message:
+                        logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
+                    else:
+                        logger.error(f"❌ 组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
+                        
+                except Exception as save_error:
+                    logger.error(f"保存组合消息到Redis时出错: {save_error}")
             
             # 清理
             del self.pending_groups[group_key]
@@ -429,8 +460,40 @@ class MessageGrouper:
                     # 创建组合消息
                     combined_message = await self._create_combined_message(messages, channel_id)
                     
-                    # 保存组合消息到数据库
-                    await self._save_combined_message(combined_message, channel_id)
+                    # 准备组合消息数据
+                    processed_data = await self._save_combined_message(combined_message, channel_id)
+                    
+                    # 调用message_processor保存到Redis
+                    if processed_data:
+                        try:
+                            from app.services.message_processor import MessageProcessor
+                            processor = MessageProcessor()
+                            
+                            # 准备保存数据
+                            save_data = {
+                                'source_channel': channel_id,
+                                'message_id': processed_data['message_id'],
+                                'content': processed_data['content'],
+                                'filtered_content': processed_data.get('filtered_content'),
+                                'media_hash': processed_data.get('combined_media_hash'),
+                                'visual_hash': processed_data.get('visual_hash'),
+                                'grouped_id': processed_data.get('grouped_id'),
+                                'is_combined': True,
+                                'status': 'ads' if processed_data.get('is_ad') else 'pending',
+                                'combined_messages': processed_data.get('combined_messages'),
+                                'media_group': processed_data.get('media_group'),
+                                'created_at': processed_data.get('date', combined_message.get('date'))
+                            }
+                            
+                            # 保存到Redis
+                            saved_message = await processor.process_new_message(save_data)
+                            if saved_message:
+                                logger.info(f"✅ 强制完成时组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
+                            else:
+                                logger.error(f"❌ 强制完成时组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
+                                
+                        except Exception as save_error:
+                            logger.error(f"强制完成时保存组合消息到Redis出错: {save_error}")
             
             # 清理所有待处理的组
             self.pending_groups.clear()

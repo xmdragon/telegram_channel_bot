@@ -72,7 +72,7 @@ async def get_system_status() -> Dict[str, Any]:
                 "telegram_client": telegram_connected,
                 "message_processor": True,  # 始终运行
                 "scheduler": True,  # 始终运行
-                "storage": True  # Redis 和 JSON 存储
+                "redis": True  # Redis 存储服务
             },
             "system": {
                 "uptime": uptime_seconds,
@@ -92,7 +92,7 @@ async def get_system_status() -> Dict[str, Any]:
                 "telegram_client": False,
                 "message_processor": False,
                 "scheduler": False,
-                "storage": False
+                "redis": False
             },
             "system": {
                 "uptime": 0,

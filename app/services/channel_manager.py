@@ -116,16 +116,30 @@ class ChannelManager:
             
             for channel in channels:
                 channel_id = channel.get('channel_id', '')
-                username = channel.get('username', '')
+                username = channel.get('channel_name', '')  # 实际字段名是channel_name
+                
+                # 生成消息链接前缀
+                link_prefix = ''
+                if username:
+                    # 优先使用username生成t.me链接
+                    clean_username = username.lstrip('@')
+                    link_prefix = f'https://t.me/{clean_username}'
+                elif channel_id:
+                    # 如果没有username，使用数字ID（但这种链接用户无法直接访问）
+                    # 去掉-100前缀，使用c/格式
+                    if channel_id.startswith('-100'):
+                        numeric_id = channel_id[4:]  # 去掉-100
+                        link_prefix = f'https://t.me/c/{numeric_id}'
                 
                 # 创建显示用的频道信息
                 display_info = {
                     'id': channel_id,
                     'username': username,
-                    'title': channel.get('title', username),
-                    'type': channel.get('type', 'source'),
+                    'title': channel.get('channel_title', username),  # 使用正确的字段名
+                    'type': channel.get('channel_type', 'source'),  # 修正字段名
                     'description': channel.get('description', ''),
-                    'active': channel.get('active', True),
+                    'active': channel.get('is_active', True),
+                    'link_prefix': link_prefix,
                     'last_collected_id': channel.get('last_collected_id'),
                     'created_at': channel.get('created_at', ''),
                     'updated_at': channel.get('updated_at', '')

@@ -917,3 +917,100 @@ h4 { font-size: 1.125rem; }
 .visible { visibility: visible !important; }
 .invisible { visibility: hidden !important; }
 
+/* ===========================
+   Message Toast Styles
+   =========================== */
+
+/* 右下角消息提示样式 */
+.el-message.message-toast-bottom-right {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 80px !important;
+    right: 20px !important;
+    left: auto !important;
+    transform: none !important;
+    max-width: 400px;
+    min-width: 300px;
+    z-index: 9999 !important;
+    margin: 0 !important;
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--border-radius);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    display: flex !important;
+    align-items: center !important;
+    position: relative;
+}
+
+/* 多条消息时的堆叠效果 */
+.el-message.message-toast-bottom-right + .el-message.message-toast-bottom-right {
+    margin-bottom: 10px !important;
+}
+
+/* 消息类型颜色 */
+.el-message.message-toast-bottom-right.el-message--success {
+    background: rgba(82, 196, 26, 0.95);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.el-message.message-toast-bottom-right.el-message--error {
+    background: rgba(255, 77, 79, 0.95);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+.el-message.message-toast-bottom-right.el-message--warning {
+    background: rgba(250, 173, 20, 0.95);
+    border-color: var(--warning-color);
+    color: white;
+}
+
+.el-message.message-toast-bottom-right.el-message--info {
+    background: rgba(24, 144, 255, 0.95);
+    border-color: var(--info-color);
+    color: white;
+}
+
+/* 关闭按钮样式 */
+.el-message.message-toast-bottom-right .el-message__closeBtn {
+    color: rgba(255, 255, 255, 0.8);
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+}
+
+.el-message.message-toast-bottom-right .el-message__closeBtn:hover {
+    color: white;
+}
+
+/* 确保消息内容区域给关闭按钮留出空间 */
+.el-message.message-toast-bottom-right .el-message__content {
+    color: white;
+    font-weight: 500;
+    line-height: 1.4;
+    padding-right: 30px !important; /* 为关闭按钮预留空间 */
+    flex: 1;
+}
+
+
+/* 消息图标样式 */
+.el-message.message-toast-bottom-right .el-message__icon {
+    color: white;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .el-message.message-toast-bottom-right {
+        right: 10px !important;
+        bottom: 60px !important;
+        max-width: calc(100vw - 40px);
+        min-width: 280px;
+    }
+}
+
