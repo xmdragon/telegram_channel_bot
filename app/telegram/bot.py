@@ -823,14 +823,10 @@ class TelegramBot:
             visual_hashes_dict = None
             if visual_hash:
                 try:
-                    # 尝试解析视觉哈希字符串 - 优先使用JSON解析
+                    # 解析视觉哈希字符串（现在全部都是JSON格式）
                     import json
                     if isinstance(visual_hash, str):
-                        try:
-                            visual_hashes_dict = json.loads(visual_hash)
-                        except json.JSONDecodeError:
-                            # 兼容旧的Python dict格式
-                            visual_hashes_dict = eval(visual_hash)
+                        visual_hashes_dict = json.loads(visual_hash)
                     else:
                         visual_hashes_dict = visual_hash
                     # 如果是列表（组合媒体），取第一个

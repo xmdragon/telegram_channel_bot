@@ -219,12 +219,9 @@ class VisualSimilarityDetector:
                 visual_hash = msg.get('visual_hash')
                 if visual_hash:
                     try:
-                        # 优先使用JSON解析，兼容旧的Python dict格式
+                        # 解析JSON格式的visual_hash
                         import json
-                        try:
-                            stored_hashes = json.loads(visual_hash)
-                        except json.JSONDecodeError:
-                            stored_hashes = eval(visual_hash)  # 兼容旧格式
+                        stored_hashes = json.loads(visual_hash)
                         is_similar, similarity = self.is_visually_similar(current_hashes, stored_hashes)
                         if is_similar:
                             msg_id = msg.get('message_id')

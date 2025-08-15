@@ -478,3 +478,4 @@ python3 auto_commit_claude.py auto
 **⚠️ 重要提醒**: 不要手动执行 `git commit`，始终使用自动提交工具确保提交信息的规范性和一致性。
 
 详细使用说明见: `docs/auto_commit_usage.md`
+- 修复bug，要用彻底解决的方式，不要用兼容，向下的方式变相逃避bug。

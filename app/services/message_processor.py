@@ -134,12 +134,9 @@ class MessageProcessor:
             if 'visual_hash' in message and message['visual_hash']:
                 try:
                     if isinstance(message['visual_hash'], str):
-                        # 优先使用JSON解析，兼容旧的Python dict格式
+                        # 解析JSON格式的visual_hash
                         import json
-                        try:
-                            visual_hashes = json.loads(message['visual_hash'])
-                        except json.JSONDecodeError:
-                            visual_hashes = eval(message['visual_hash'])  # 兼容旧格式
+                        visual_hashes = json.loads(message['visual_hash'])
                     else:
                         visual_hashes = message['visual_hash']
                 except Exception as e:

@@ -35,17 +35,10 @@ class RedisStore:
         if not data:
             return None
         try:
-            # 首先尝试标准JSON解析
             return json.loads(data)
         except (json.JSONDecodeError, TypeError):
-            try:
-                # 如果JSON解析失败，尝试Python字典字面量解析
-                # 这处理了visual_hash等字段存储为Python字典字符串的情况
-                import ast
-                return ast.literal_eval(data)
-            except (ValueError, SyntaxError):
-                # 如果都失败了，返回原始数据
-                return data
+            # 如果不是JSON，返回原始数据
+            return data
 
 class RedisMessageStore(RedisStore):
     """消息存储管理"""

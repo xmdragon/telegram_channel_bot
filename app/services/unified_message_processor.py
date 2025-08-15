@@ -577,12 +577,9 @@ class UnifiedMessageProcessor:
             visual_hashes = None
             if save_data.get('visual_hash'):
                 try:
-                    # 优先使用JSON解析，兼容旧的Python dict格式
+                    # 解析JSON格式的visual_hash
                     import json
-                    try:
-                        visual_hashes = json.loads(save_data['visual_hash'])
-                    except json.JSONDecodeError:
-                        visual_hashes = eval(save_data['visual_hash'])  # 兼容旧格式
+                    visual_hashes = json.loads(save_data['visual_hash'])
                     if isinstance(visual_hashes, list) and visual_hashes:
                         visual_hashes = visual_hashes[0]
                 except:
