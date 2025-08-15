@@ -630,23 +630,52 @@ async def get_media_files():
     """获取媒体文件列表"""
     try:
         media_dir = TrainingDataConfig.AD_MEDIA_DIR
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_files = []
         
-        if media_dir.exists():
+        # 优先使用metadata.json中的信息
+        if media_metadata_file.exists():
+            data = SafeFileOperation.read_json_safe(media_metadata_file)
+            if data and "media_files" in data:
+                for file_hash, file_info in data["media_files"].items():
+                    file_path = media_dir / file_info["path"]
+                    
+                    # 检查文件是否真实存在
+                    if file_path.exists():
+                        # 获取文件类型（兼容type和media_type字段）
+                        file_type = file_info.get("type") or ("image" if file_info.get("media_type") == "photo" else "video")
+                        
+                        media_files.append({
+                            "hash": file_hash,  # 使用metadata中的真实hash
+                            "name": file_path.name,
+                            "filename": file_path.name,
+                            "type": file_type,
+                            "size": file_info.get("file_size", file_path.stat().st_size),
+                            "created_at": file_info.get("saved_at", datetime.fromtimestamp(file_path.stat().st_ctime).isoformat()),
+                            "path": file_info["path"],
+                            "messageIds": file_info.get("message_ids", []),
+                            "isReferenced": bool(file_info.get("message_ids", [])),
+                            "referenceCount": len(file_info.get("message_ids", []))
+                        })
+        
+        # 如果metadata文件不存在或为空，回退到文件系统扫描
+        if not media_files and media_dir.exists():
             # 扫描图片文件
             for ext in ['*.jpg', '*.jpeg', '*.png', '*.webp']:
                 for img_path in media_dir.glob(f"**/{ext}"):
                     if img_path.is_file():
                         stat = img_path.stat()
+                        # 从文件名提取hash作为fallback
+                        extracted_hash = img_path.stem.split('_')[-1] if '_' in img_path.stem else img_path.stem
                         media_files.append({
-                            "hash": img_path.stem.split('_')[-1] if '_' in img_path.stem else img_path.stem,
+                            "hash": extracted_hash,
                             "name": img_path.name,
                             "filename": img_path.name,
                             "type": "image",
                             "size": stat.st_size,
                             "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
                             "path": str(img_path.relative_to(media_dir)),
-                            "messageIds": [],  # 暂时为空，后续可以添加引用关系
+                            "messageIds": [],
                             "isReferenced": False,
                             "referenceCount": 0
                         })
@@ -656,15 +685,17 @@ async def get_media_files():
                 for video_path in media_dir.glob(f"**/{ext}"):
                     if video_path.is_file():
                         stat = video_path.stat()
+                        # 从文件名提取hash作为fallback
+                        extracted_hash = video_path.stem.split('_')[-1] if '_' in video_path.stem else video_path.stem
                         media_files.append({
-                            "hash": video_path.stem.split('_')[-1] if '_' in video_path.stem else video_path.stem,
+                            "hash": extracted_hash,
                             "name": video_path.name,
                             "filename": video_path.name,
                             "type": "video",
                             "size": stat.st_size,
                             "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
                             "path": str(video_path.relative_to(media_dir)),
-                            "messageIds": [],  # 暂时为空，后续可以添加引用关系
+                            "messageIds": [],
                             "isReferenced": False,
                             "referenceCount": 0
                         })

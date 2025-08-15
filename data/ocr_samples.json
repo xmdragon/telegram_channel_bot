@@ -10638,6 +10638,74 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "0d5cfd389068",
+      "image_hash": "f12b124d41e55da5",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "平台全面支持U5DT娱乐。安全稳定。充值秒到账",
+        "COTI",
+        "USDT 1.1娱乐。  资金进出无忧。畅玩更安心",
+        "PG电孑震撼来袭。超高中奖概率",
+        "注册即送$28+$6666",
+        "口戌电子反水1.3%起",
+        "支持",
+        "tothor",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方客服: @tyGGsvip",
+        "官方招商: @ty6Gssvip",
+        "官方频道: @TYGGGvip",
+        "6体育"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 体育",
+        "文字广告模式: 充值",
+        "文字广告模式: USDT"
+      ],
+      "created_at": "2025-08-15 09:50:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "46a86d03337f",
+      "image_hash": "f12b124d41e55da5",
+      "image_path": "data/ad_training_data/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "平台全面支持U5DT娱乐。安全稳定。充值秒到账",
+        "COTI",
+        "USDT 1.1娱乐。  资金进出无忧。畅玩更安心",
+        "PG电孑震撼来袭。超高中奖概率",
+        "注册即送$28+$6666",
+        "口戌电子反水1.3%起",
+        "支持",
+        "tothor",
+        "创造梦想续写传奇",
+        "佣金招代理",
+        "官方客服: @tyGGsvip",
+        "官方招商: @ty6Gssvip",
+        "官方频道: @TYGGGvip",
+        "6体育"
+      ],
+      "qr_codes": [],
+      "ad_score": 30.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "文字广告模式: 体育",
+        "文字广告模式: 充值",
+        "文字广告模式: USDT"
+      ],
+      "created_at": "2025-08-15 09:51:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -10694,12 +10762,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 425,
-    "ad_samples": 212,
+    "total_samples": 427,
+    "ad_samples": 214,
     "non_ad_samples": 213,
     "auto_rejected_samples": 3,
     "high_score_samples": 106,
-    "last_updated": "2025-08-14 17:50:10",
+    "last_updated": "2025-08-15 09:51:31",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",
