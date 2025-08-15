@@ -27,6 +27,10 @@ from .filter_pipeline import (
     PipelineConfig
 )
 
+# 导入具体的过滤器实现
+from .duplicate_detector import DuplicateDetectorFilter, duplicate_detector_filter
+from .ad_detector import AdDetectorFilter, ad_detector_filter
+
 __all__ = [
     # 基础类和数据结构
     'BaseFilter',
@@ -38,10 +42,24 @@ __all__ = [
     'FilterPipeline',
     'PipelineConfig',
     
+    # 具体过滤器类
+    'DuplicateDetectorFilter',
+    'AdDetectorFilter',
+    
+    # 预配置的过滤器实例
+    'duplicate_detector_filter',
+    'ad_detector_filter',
+    
     # 异常类
     'FilterException',
     'FilterConfigError',
-    'FilterProcessingError'
+    'FilterProcessingError',
+    
+    # 便利函数
+    'create_pipeline',
+    'create_early_stop_pipeline',
+    'create_default_filters',
+    'get_filter_info'
 ]
 
 # 版本信息
@@ -76,6 +94,33 @@ EARLY_STOP_CAPABLE_FILTERS = {
     'duplicate_detector', 
     'ad_detector'
 }
+
+
+def create_default_filters() -> dict:
+    """创建默认的过滤器实例集合
+    
+    Returns:
+        dict: 过滤器名称到实例的映射
+    """
+    return {
+        'duplicate_detector': duplicate_detector_filter,
+        'ad_detector': ad_detector_filter
+    }
+
+
+def create_early_stop_pipeline() -> FilterPipeline:
+    """创建支持早停的标准管道
+    
+    Returns:
+        FilterPipeline: 配置好的管道，包含去重和广告检测器
+    """
+    pipeline = create_pipeline()
+    
+    # 添加早停过滤器（按优先级顺序：先去重，后广告检测）
+    pipeline.add_filter(duplicate_detector_filter)
+    pipeline.add_filter(ad_detector_filter)
+    
+    return pipeline
 
 
 def create_pipeline(config: dict = None) -> FilterPipeline:
