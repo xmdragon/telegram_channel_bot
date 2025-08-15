@@ -23,5 +23,4 @@ api_router.include_router(admin_auth_router, prefix="/admin/auth", tags=["admin-
 api_router.include_router(system_router, tags=["system"])
 api_router.include_router(lock_router, prefix="/lock", tags=["lock"])
 api_router.include_router(training_router, prefix="/training", tags=["training"])  # 修复后重新启用
-api_router.include_router(training_api_router, prefix="/training-api", tags=["training-api"])  # 训练相关API，分离前缀避免冲突
 # api_router.include_router(channel_resolver_router, prefix="/channel-resolver", tags=["channel-resolver"])  # 暂时禁用

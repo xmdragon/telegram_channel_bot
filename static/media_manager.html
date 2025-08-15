@@ -167,7 +167,7 @@
                     <el-descriptions-item label="类型">{{ currentFile.type }}</el-descriptions-item>
                     <el-descriptions-item label="大小">{{ formatSize(currentFile.size) }}</el-descriptions-item>
                     <el-descriptions-item label="哈希">{{ currentFile.hash }}</el-descriptions-item>
-                    <el-descriptions-item label="创建时间">{{ currentFile.createdAt }}</el-descriptions-item>
+                    <el-descriptions-item label="创建时间">{{ currentFile.created_at }}</el-descriptions-item>
                     <el-descriptions-item label="引用样本">
                         <el-tag v-for="id in currentFile.messageIds" :key="id" class="dialog-tag">
                             #{{ id }}

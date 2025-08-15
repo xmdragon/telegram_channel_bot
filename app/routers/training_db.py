@@ -1,7 +1,7 @@
 """
 训练数据管理API路由 - 基于JSON文件存储
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.core.training_config import TrainingDataConfig
 from app.utils.safe_file_ops import SafeFileOperation
+from app.api.admin_auth import check_permission
 import os
 import glob
 
@@ -758,200 +759,6 @@ async def get_duplicate_files():
             "canSaveMb": 0
         }
 
-@router.get("/media-files/{file_hash}/ocr")
-async def get_media_file_ocr(file_hash: str):
-    """获取媒体文件OCR信息"""
-    try:
-        # 查找训练数据目录中的媒体文件
-        training_base_dir = TrainingDataConfig.AD_MEDIA_DIR
-        
-        if not training_base_dir.exists():
-            return {
-                "success": False,
-                "message": "训练数据目录不存在",
-                "ocr_result": None
-            }
-        
-        # 查找匹配的媒体文件
-        media_file = None
-        for img_dir in [training_base_dir / "images", training_base_dir / "videos"]:
-            if img_dir.exists():
-                for file_path in img_dir.glob("**/*"):
-                    if file_hash in file_path.name:
-                        media_file = file_path
-                        break
-                if media_file:
-                    break
-        
-        if not media_file or not media_file.exists():
-            return {
-                "success": False,
-                "message": "媒体文件不存在",
-                "ocr_result": None
-            }
-        
-        # 只对图片文件进行OCR处理
-        if not media_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.gif']:
-            return {
-                "success": True,
-                "message": "非图片文件，跳过OCR",
-                "ocr_result": {
-                    "texts": [],
-                    "qr_codes": [],
-                    "ad_indicators": [],
-                    "is_ad": False,
-                    "confidence": 0
-                }
-            }
-        
-        # 使用基于OpenCV的轻量级OCR方案
-        try:
-            import cv2
-            import numpy as np
-            from PIL import Image
-            
-            # 读取图片
-            img = cv2.imread(str(media_file))
-            if img is None:
-                raise Exception("无法读取图片文件")
-            
-            # 转换为PIL图片用于处理
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            pil_img = Image.fromarray(img_rgb)
-            
-            # 简单的文字区域检测（基于边缘检测）
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-            
-            # 形态学操作连接文字区域
-            kernel = np.ones((3, 3), np.uint8)
-            edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
-            
-            # 查找轮廓
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            # 简单的文字检测：基于轮廓大小和长宽比
-            text_regions = []
-            for contour in contours:
-                x, y, w, h = cv2.boundingRect(contour)
-                aspect_ratio = w / h if h > 0 else 0
-                area = w * h
-                
-                # 文字区域通常有特定的长宽比和大小
-                if 0.1 <= aspect_ratio <= 10 and 100 <= area <= 10000:
-                    text_regions.append((x, y, w, h))
-            
-            # 检测二维码
-            qr_codes = []
-            try:
-                qr_detector = cv2.QRCodeDetector()
-                data, points, _ = qr_detector.detectAndDecode(img)
-                if data:
-                    qr_codes.append({"data": data, "points": points.tolist() if points is not None else []})
-            except:
-                pass
-            
-            # 颜色分析 - 检测广告常用的醒目颜色
-            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            
-            # 红色范围（两个区间）
-            red_mask1 = cv2.inRange(hsv, (0, 50, 50), (10, 255, 255))
-            red_mask2 = cv2.inRange(hsv, (170, 50, 50), (180, 255, 255))
-            red_mask = red_mask1 + red_mask2
-            
-            # 黄色范围
-            yellow_mask = cv2.inRange(hsv, (20, 50, 50), (30, 255, 255))
-            
-            # 计算颜色比例
-            total_pixels = img.shape[0] * img.shape[1]
-            red_ratio = np.sum(red_mask > 0) / total_pixels
-            yellow_ratio = np.sum(yellow_mask > 0) / total_pixels
-            
-            # 广告指标分析
-            ad_indicators = []
-            is_ad = False
-            confidence = 0
-            
-            if red_ratio > 0.1:
-                ad_indicators.append(f"大量红色区域 ({red_ratio:.1%})")
-                confidence += 30
-            
-            if yellow_ratio > 0.1:
-                ad_indicators.append(f"大量黄色区域 ({yellow_ratio:.1%})")
-                confidence += 20
-            
-            if len(text_regions) > 10:
-                ad_indicators.append(f"密集文字区域 ({len(text_regions)}个)")
-                confidence += 25
-            
-            if len(qr_codes) > 0:
-                ad_indicators.append(f"包含二维码 ({len(qr_codes)}个)")
-                confidence += 40
-            
-            # 综合判断
-            is_ad = confidence > 50
-            
-            # 模拟文字识别结果（基于检测到的文字区域数量）
-            texts = []
-            if len(text_regions) > 0:
-                texts.append("检测到文字区域（需要完整OCR引擎进行识别）")
-                if len(text_regions) > 5:
-                    texts.append("包含多个文字区域")
-                if red_ratio > 0.05 or yellow_ratio > 0.05:
-                    texts.append("包含醒目颜色文字")
-            
-            return {
-                "success": True,
-                "message": "OCR分析完成",
-                "ocr_result": {
-                    "texts": texts,
-                    "qr_codes": [qr["data"] for qr in qr_codes],
-                    "ad_indicators": ad_indicators,
-                    "is_ad": is_ad,
-                    "confidence": min(confidence, 100),
-                    "text_regions_count": len(text_regions),
-                    "color_analysis": {
-                        "red_ratio": round(red_ratio, 3),
-                        "yellow_ratio": round(yellow_ratio, 3)
-                    }
-                }
-            }
-            
-        except ImportError:
-            # 如果没有cv2，返回基础结果
-            return {
-                "success": True,
-                "message": "OCR功能需要OpenCV库",
-                "ocr_result": {
-                    "texts": ["需要安装OpenCV进行图像分析"],
-                    "qr_codes": [],
-                    "ad_indicators": [],
-                    "is_ad": False,
-                    "confidence": 0
-                }
-            }
-        except Exception as ocr_error:
-            logger.error(f"OCR处理失败: {ocr_error}")
-            return {
-                "success": True,
-                "message": f"OCR处理出错: {str(ocr_error)}",
-                "ocr_result": {
-                    "texts": [],
-                    "qr_codes": [],
-                    "ad_indicators": [f"处理错误: {str(ocr_error)}"],
-                    "is_ad": False,
-                    "confidence": 0
-                }
-            }
-            
-    except Exception as e:
-        logger.error(f"获取OCR信息失败: {e}")
-        return {
-            "success": False,
-            "message": str(e),
-            "ocr_result": None
-        }
-
 @router.get("/media-files/export")
 async def export_media_files():
     """导出媒体文件信息"""
@@ -1114,3 +921,59 @@ async def reload_model():
     except Exception as e:
         logger.error(f"重载模型失败: {e}")
         raise HTTPException(status_code=500, detail=f"重载模型失败: {str(e)}")
+
+@router.get("/media-files/{file_hash}/ocr")
+async def get_media_file_ocr(
+    file_hash: str,
+    _admin = Depends(check_permission("training.view"))
+):
+    """获取指定媒体文件的OCR识别结果"""
+    try:
+        from app.services.ocr_service import ocr_service
+        
+        # 获取文件信息
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            raise HTTPException(status_code=404, detail="媒体元数据文件不存在")
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or file_hash not in data.get("media_files", {}):
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        file_info = data["media_files"][file_hash]
+        file_path = media_dir / file_info["path"]
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="媒体文件不存在")
+        
+        # 只处理图片文件（兼容type和media_type字段）
+        file_type = file_info.get("type") or ("image" if file_info.get("media_type") == "photo" else "video")
+        logger.info(f"OCR请求 - 文件类型判断: type={file_info.get('type')}, media_type={file_info.get('media_type')}, 计算结果={file_type}")
+        if file_type != "image":
+            logger.warning(f"OCR请求被拒绝: 文件类型为{file_type}，文件信息={file_info}")
+            raise HTTPException(status_code=400, detail=f"只支持图片文件的OCR识别，当前文件类型: {file_type}")
+        
+        # 提取OCR内容
+        ocr_result = await ocr_service.extract_image_content(str(file_path))
+        
+        return {
+            "success": True,
+            "file_hash": file_hash,
+            "file_path": str(file_path),
+            "ocr_result": {
+                "texts": ocr_result.get("texts", []),
+                "qr_codes": ocr_result.get("qr_codes", []),
+                "combined_text": ocr_result.get("combined_text", ""),
+                "ad_score": ocr_result.get("ad_score", 0),
+                "is_ad": ocr_result.get("has_ad_content", False),
+                "ad_indicators": ocr_result.get("ad_indicators", [])
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取媒体文件OCR结果失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
