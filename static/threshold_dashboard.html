@@ -54,22 +54,16 @@
                                 placeholder="搜索过滤器或指标..." 
                                 class="search-input"
                                 clearable>
-                                <template #prefix>
-                                    <el-icon><Search /></el-icon>
-                                </template>
                             </el-input>
                         </div>
                         <div class="button-bar">
                             <el-button @click="refreshData" :loading="loading" type="primary">
-                                <el-icon><Refresh /></el-icon>
                                 刷新数据
                             </el-button>
                             <el-button @click="optimizeAllThresholds" :loading="optimizing" type="success">
-                                <el-icon><TrendCharts /></el-icon>
                                 批量优化
                             </el-button>
                             <el-button @click="showOptimizeDialog" type="info">
-                                <el-icon><Setting /></el-icon>
                                 优化设置
                             </el-button>
                         </div>
@@ -82,12 +76,6 @@
                 <div class="table-card">
                     <div class="table-header">
                         <h3 class="table-title">🎯 阈值监控面板</h3>
-                        <div class="table-actions">
-                            <el-button size="small" @click="exportConfig" type="primary" text>
-                                <el-icon><Download /></el-icon>
-                                导出配置
-                            </el-button>
-                        </div>
                     </div>
                     
                     <div class="table-content">

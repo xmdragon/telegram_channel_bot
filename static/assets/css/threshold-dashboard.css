@@ -207,3 +207,33 @@
     color: #606266;
     font-size: 14px;
 }
+
+/* 工具栏样式 */
+.toolbar-card {
+    background: white;
+    border: 1px solid #e4e7ed;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.toolbar-content {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.search-bar {
+    flex: 1;
+    max-width: 300px;
+}
+
+.search-input {
+    width: 100%;
+}
+
+.button-bar {
+    display: flex;
+    gap: 10px;
+}
