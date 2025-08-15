@@ -2469,15 +2469,22 @@ async def get_media_files(
                     # 根据实际返回的路径判断文件类型，而不是原始媒体类型
                     file_type = "video" if display_path.startswith("videos/") else "image"
                     
+                    # 构建消息ID列表
+                    message_ids = info.get("message_ids", [])
+                    
                     file_info = {
                         "hash": file_hash,
                         "name": Path(info["path"]).name,
+                        "filename": Path(info["path"]).name,  # 添加filename字段
                         "path": display_path,  # 使用display_path以显示缩略图
                         "originalPath": info['path'],  # 保留原始路径
                         "type": file_type,
                         "size": file_size,
-                        "messageIds": info.get("message_ids", []),
-                        "createdAt": info.get("saved_at", info.get("created_at", "")),
+                        "messageIds": message_ids,
+                        "isReferenced": len(message_ids) > 0,  # 添加isReferenced字段
+                        "referenceCount": len(message_ids),    # 添加referenceCount字段
+                        "createdAt": info.get("saved_at") or info.get("created_at") or "",
+                        "created_at": info.get("saved_at") or info.get("created_at") or "",  # 兼容字段
                         "hasThumbnail": "thumbnail_path" in info or "display_path" in info
                     }
                     

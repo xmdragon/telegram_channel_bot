@@ -197,10 +197,10 @@
                                     </el-tag>
                                 </div>
                             </div>
-                            <div v-if="currentFile.ocrResult.ad_score !== undefined" class="ocr-section">
+                            <div v-if="currentFile.ocrResult.confidence !== undefined" class="ocr-section">
                                 <strong>广告分数:</strong>
-                                <el-tag :type="getAdScoreType(currentFile.ocrResult.ad_score)" class="ad-score-tag">
-                                    {{ currentFile.ocrResult.ad_score.toFixed(1) }}/100
+                                <el-tag :type="getAdScoreType(currentFile.ocrResult.confidence)" class="ad-score-tag">
+                                    {{ currentFile.ocrResult.confidence.toFixed(1) }}/100
                                 </el-tag>
                                 <span v-if="currentFile.ocrResult.is_ad" class="ad-indicator">
                                     <el-icon color="red"><Warning /></el-icon> 疑似广告
