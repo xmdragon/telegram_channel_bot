@@ -131,7 +131,7 @@ const app = createApp({
         // 计算统计信息
         calculateStats() {
             this.totalSamples = this.allSamples.length;
-            this.validSamples = this.allSamples.filter(s => s.content && s.tail_part).length;
+            this.validSamples = this.allSamples.filter(s => s.tail_part).length;
             
             // 计算今日新增
             const today = new Date().toISOString().split('T')[0];
@@ -210,14 +210,14 @@ const app = createApp({
             console.log('✏️ 编辑样本:', sample);
             this.editingSample = {
                 id: sample.id,
-                tail_content: sample.tail_content
+                tail_part: sample.tail_part
             };
             this.editDialog = true;
         },
         
         // 保存编辑
         async saveEdit() {
-            if (!this.editingSample || !this.editingSample.tail_content.trim()) {
+            if (!this.editingSample || !this.editingSample.tail_part.trim()) {
                 ElMessage.warning('请输入尾部内容');
                 return;
             }
@@ -225,7 +225,7 @@ const app = createApp({
             this.submitting = true;
             try {
                 const response = await axios.put(`/api/training/tail-filter-samples/${this.editingSample.id}`, {
-                    tail_content: this.editingSample.tail_content.trim()
+                    tail_part: this.editingSample.tail_part.trim()
                 });
                 
                 if (response.data.success) {

@@ -444,9 +444,9 @@ async def get_tail_filter_statistics():
         
         # 计算统计数据
         total_samples = len(samples)
-        valid_samples = len([s for s in samples if s.get('tail_content') or s.get('tail_part')])
-        samples_with_separator = len([s for s in samples if (s.get('tail_content') or s.get('tail_part', '')) and any(
-            char in (s.get('tail_content') or s.get('tail_part', '')) for char in ['━', '═', '─', '▬', '-', '=', '*', '🔔', '🔗', '☎️', '♾', '😀', '⚡', '📱', '📣', '👌']
+        valid_samples = len([s for s in samples if s.get('tail_part')])
+        samples_with_separator = len([s for s in samples if s.get('tail_part', '') and any(
+            char in s.get('tail_part', '') for char in ['━', '═', '─', '▬', '-', '=', '*', '🔔', '🔗', '☎️', '♾', '😀', '⚡', '📱', '📣', '👌']
         )])
         
         # 计算今日新增
@@ -518,13 +518,13 @@ async def get_tail_filter_samples():
         for sample in samples:
             # 原始数据格式兼容处理
             content = sample.get('content', sample.get('original_message', ''))
-            tail_content = sample.get('tail_content', sample.get('tail_part', ''))
+            tail_content = sample.get('tail_part', '')
             
-            # 前端期望的字段名是"tail_content"，但要确保数据正确映射
+            # 统一使用tail_part字段
             formatted_samples.append({
                 "id": sample.get('id', ''),
                 "content": content,
-                "tail_content": tail_content,  # 这里映射到正确的字段
+                "tail_part": tail_content,  # 统一使用tail_part字段
                 "separator": sample.get('separator', ''),
                 "normal_part": sample.get('normal_part', ''),
                 "created_at": sample.get('created_at', ''),
@@ -607,13 +607,12 @@ async def add_tail_filter_sample(request: dict):
 async def update_tail_filter_sample(sample_id: int, request: dict):
     """更新尾部过滤训练样本"""
     try:
-        # 验证参数
-        if 'tail_content' not in request:
-            return {"success": False, "message": "缺少tail_content参数"}
+        # 验证参数 - 支持新旧字段名
+        tail_content = request.get('tail_content') or request.get('tail_part', '')
+        tail_content = tail_content.strip()
         
-        tail_content = request.get('tail_content', '').strip()
         if not tail_content:
-            return {"success": False, "message": "tail_content不能为空"}
+            return {"success": False, "message": "尾部内容不能为空"}
         
         # 加载样本
         samples = load_tail_filter_samples()
@@ -622,9 +621,12 @@ async def update_tail_filter_sample(sample_id: int, request: dict):
         sample_found = False
         for sample in samples:
             if sample.get('id') == sample_id:
-                # 更新样本数据
-                sample['tail_content'] = tail_content
+                # 更新样本数据 - 直接存储到tail_part
+                sample['tail_part'] = tail_content
                 sample['updated_at'] = datetime.now().isoformat()
+                # 清除旧的tail_content字段（如果存在）
+                if 'tail_content' in sample:
+                    del sample['tail_content']
                 sample_found = True
                 break
         
@@ -695,8 +697,7 @@ async def detect_tail_filter_duplicates():
                     continue
                     
                 group = [sample1]
-                # 优先使用 tail_content，如果为空则使用 tail_part
-                content1 = str(sample1.get('tail_content', '') or sample1.get('tail_part', '')).lower().strip()
+                content1 = str(sample1.get('tail_part', '')).lower().strip()
                 
                 # 只有内容不为空才进行比较
                 if not content1:
@@ -710,8 +711,7 @@ async def detect_tail_filter_duplicates():
                     if sample2_id in processed:
                         continue
                         
-                    # 优先使用 tail_content，如果为空则使用 tail_part
-                    content2 = str(sample2.get('tail_content', '') or sample2.get('tail_part', '')).lower().strip()
+                    content2 = str(sample2.get('tail_part', '')).lower().strip()
                     
                     # 只有内容不为空才进行比较
                     if not content2:
@@ -742,8 +742,8 @@ async def detect_tail_filter_duplicates():
                     similarity_percentage = 100  # 默认完全匹配
                     if len(group) > 1:
                         # 简单计算组内平均相似度
-                        content1 = str(group[0].get('tail_content', '') or group[0].get('tail_part', '')).lower().strip()
-                        content2 = str(group[1].get('tail_content', '') or group[1].get('tail_part', '')).lower().strip()
+                        content1 = str(group[0].get('tail_part', '')).lower().strip()
+                        content2 = str(group[1].get('tail_part', '')).lower().strip()
                         if content1 != content2 and content1 and content2:
                             similarity_percentage = int(len(set(content1) & set(content2)) / len(set(content1) | set(content2)) * 100)
                     

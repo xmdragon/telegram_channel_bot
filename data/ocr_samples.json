@@ -17662,6 +17662,59 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "7f0c41fe4d4e",
+      "image_hash": "c6f73974ee802809",
+      "image_path": "temp_media/14191_20250815_170938_photo.jpg",
+      "ocr_texts": [
+        "\""
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 17:09:47",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "47ecad10e847",
+      "image_hash": "11f1dc0e62515abf",
+      "image_path": "temp_media/9954_20250815_172117_photo.jpg",
+      "ocr_texts": [
+        "INSPECTIONOEL",
+        "POUCEKHANBOSIGKENG KANG"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 17:21:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "82ad9a069a91",
+      "image_hash": "11f1dc0e62515abf",
+      "image_path": "temp_media/9954_20250815_172255_photo.jpg",
+      "ocr_texts": [
+        "INSPECTIONOEL",
+        "POUCEKHANBOSIGKENG KANG"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 17:23:05",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -17718,12 +17771,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 755,
+    "total_samples": 758,
     "ad_samples": 287,
-    "non_ad_samples": 468,
+    "non_ad_samples": 471,
     "auto_rejected_samples": 3,
     "high_score_samples": 179,
-    "last_updated": "2025-08-15 17:05:52",
+    "last_updated": "2025-08-15 17:23:05",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",
