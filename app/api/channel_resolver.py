@@ -160,7 +160,7 @@ async def resolve_target_channel():
         # 保存解析的ID
         await config_manager.set_config('channels.target_channel_id', resolved_id)
         
-        # 如果原来是用户名，保存到target_channel_name
+        # 如果原来是用户名，保存到target_channel
         if target_channel.startswith('@'):
             await config_manager.set_config('channels.target_channel', target_channel)
         
@@ -229,7 +229,7 @@ async def resolve_review_group():
         # 保存解析的ID
         await config_manager.set_config('channels.review_group_id', resolved_id)
         
-        # 如果原来是用户名或链接，保存到review_group_name
+        # 如果原来是用户名或链接，保存到review_group
         if review_group.startswith('@') or review_group.startswith('http'):
             await config_manager.set_config('channels.review_group', review_group)
         
