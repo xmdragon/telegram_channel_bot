@@ -624,9 +624,9 @@ async def delete_tail_filter_sample(sample_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 # 媒体文件管理端点
-@router.get("/media-files-simple")
-async def get_media_files_simple():
-    """获取媒体文件列表（简单实现，已禁用）"""
+@router.get("/media-files")
+async def get_media_files():
+    """获取媒体文件列表"""
     try:
         media_dir = TrainingDataConfig.AD_MEDIA_DIR
         media_files = []
@@ -701,9 +701,9 @@ async def get_media_files_simple():
             }
         }
 
-@router.delete("/media-files-simple/{file_hash}")
-async def delete_media_file_simple(file_hash: str):
-    """删除媒体文件（简单实现，已禁用）"""
+@router.delete("/media-files/{file_hash}")
+async def delete_media_file(file_hash: str):
+    """删除媒体文件"""
     try:
         media_dir = TrainingDataConfig.AD_MEDIA_DIR
         deleted = False
@@ -758,9 +758,9 @@ async def get_duplicate_files():
             "canSaveMb": 0
         }
 
-@router.get("/media-files-ocr/{file_hash}")
-async def get_media_file_ocr_simple(file_hash: str):
-    """获取媒体文件OCR信息（OpenCV实现）"""
+@router.get("/media-files/{file_hash}/ocr")
+async def get_media_file_ocr(file_hash: str):
+    """获取媒体文件OCR信息"""
     try:
         # 查找训练数据目录中的媒体文件
         training_base_dir = TrainingDataConfig.AD_MEDIA_DIR

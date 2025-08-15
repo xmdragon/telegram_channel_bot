@@ -2430,11 +2430,11 @@ async def reload_training_model(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/media-files")
-async def get_media_files(
+@router.get("/media-files-detailed")
+async def get_media_files_detailed(
     _admin = Depends(check_permission("training.view"))
 ):
-    """获取所有媒体文件列表"""
+    """获取所有媒体文件列表（详细版，已禁用避免冲突）"""
     try:
         media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
