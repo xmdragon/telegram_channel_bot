@@ -105,7 +105,7 @@ const app = createApp({
             if (!silent) this.loading = true;
             try {
                 const response = await axios.get('/api/messages/thresholds/stats', {
-                    headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
                 if (response.data.success) {
@@ -129,7 +129,7 @@ const app = createApp({
             this.optimizing = true;
             try {
                 const response = await axios.post('/api/messages/thresholds/optimize', {}, {
-                    headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
                 if (response.data.success) {
@@ -159,7 +159,7 @@ const app = createApp({
                 this.$set(this.resetting, key, true);
                 
                 const response = await axios.post(`/api/messages/thresholds/${filterName}/${metricName}/reset`, {}, {
-                    headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
                 if (response.data.success) {
@@ -198,7 +198,7 @@ const app = createApp({
                 };
 
                 const response = await axios.post('/api/messages/test-message/feedback', data, {
-                    headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
                 if (response.data.success) {
@@ -226,7 +226,7 @@ const app = createApp({
         async exportConfig() {
             try {
                 const response = await axios.get('/api/messages/thresholds/stats', {
-                    headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
                 const data = JSON.stringify(response.data.data, null, 2);

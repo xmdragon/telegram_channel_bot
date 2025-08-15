@@ -226,3 +226,27 @@ if (typeof axios !== 'undefined') {
         }
     );
 }
+
+/**
+ * 获取认证Token的全局函数
+ * 兼容不同的Token获取方式
+ */
+function getAuthToken() {
+    // 优先使用admin_token
+    let token = localStorage.getItem('admin_token');
+    if (token) {
+        return token;
+    }
+    
+    // 降级使用auth_token
+    token = localStorage.getItem('auth_token');
+    if (token) {
+        return token;
+    }
+    
+    // 如果都没有，返回默认值
+    return 'your-auth-token';
+}
+
+// 导出为全局函数
+window.getAuthToken = getAuthToken;

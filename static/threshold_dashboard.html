@@ -133,7 +133,7 @@
 
                                     <!-- 阈值历史图表 -->
                                     <div v-if="metricData.history && metricData.history.length > 1" class="chart-container">
-                                        <canvas :ref="getChartRef(filterName, metricName)"></canvas>
+                                        <canvas :data-ref="getChartRef(filterName, metricName)"></canvas>
                                     </div>
 
                                     <!-- 详细统计 -->
