@@ -14140,6 +14140,272 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "7bb0c834e38b",
+      "image_hash": "017d1773b43c2e66",
+      "image_path": "temp_media/908_20250815_150744_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:07:47",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "6681f68e56b4",
+      "image_hash": "7cecca979ab73991",
+      "image_path": "temp_media/913_20250815_150749_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:07:55",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b319504af925",
+      "image_hash": "83f1e19c90aa61e8",
+      "image_path": "temp_media/919_20250815_150757_photo.jpg",
+      "ocr_texts": [
+        "》"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:07:58",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d66b635f4c02",
+      "image_hash": "3cfb2be8d2cf0e02",
+      "image_path": "temp_media/923_20250815_150758_photo.jpg",
+      "ocr_texts": [
+        "VSOT2"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:08:00",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "6123e1267eb6",
+      "image_hash": "1559b913742b1d5a",
+      "image_path": "temp_media/3016_20250815_151012_photo.jpg",
+      "ocr_texts": [
+        "2025年02月05日",
+        "Sea",
+        "20:32;51",
+        "20.32.56",
+        "20:33.04",
+        "20:33.30",
+        "群友在陌陌上找86年的富婆"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:10:14",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cf1089637967",
+      "image_hash": "0920fa9a4469a422",
+      "image_path": "temp_media/3020_20250815_151016_photo.jpg",
+      "ocr_texts": [
+        "大包",
+        "80元",
+        "本小区有茶楼"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:10:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "3c34e84ff5e3",
+      "image_hash": "b858fc89e0e6ea5b",
+      "image_path": "temp_media/3027_20250815_151113_photo.jpg",
+      "ocr_texts": [
+        "猪肉怎么选?",
+        "前腿肉  后腿肉",
+        "里脊肉",
+        "腱孑肉",
+        "五花肉",
+        "梅花肉",
+        "坐臀肉",
+        "臂肉",
+        "上脑肉",
+        "猪肘孑  猪颊肉",
+        "猪圣骨",
+        "猫#骨",
+        "猪",
+        "扇孑骨"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:11:14",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "bd3b4a93905e",
+      "image_hash": "577176aee9342f8e",
+      "image_path": "temp_media/3043_20250815_151143_photo.jpg",
+      "ocr_texts": [
+        "YOSHIAWA"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:11:46",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "381e5389c4eb",
+      "image_hash": "0487de4d11c6d6a3",
+      "image_path": "temp_media/2033_20250815_151259_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:13:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "00a6bd66f1ea",
+      "image_hash": "567eec015ed24e98",
+      "image_path": "temp_media/8096_20250815_151654_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:17:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "3011cdf321fb",
+      "image_hash": "c4ffb945aa3cac44",
+      "image_path": "temp_media/186558_20250815_153220_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:32:30",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ef0b626f7bc1",
+      "image_hash": "1559b913742b1d5a",
+      "image_path": "temp_media/3016_20250815_153317_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:33:21",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "90bdcf4a507f",
+      "image_hash": "b858fc89e0e6ea5b",
+      "image_path": "temp_media/3027_20250815_153332_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:33:33",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "14c02c5e49a5",
+      "image_hash": "a32eeb4085fae469",
+      "image_path": "temp_media/3052_20250815_153404_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:34:05",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -14196,12 +14462,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 592,
-    "ad_samples": 214,
-    "non_ad_samples": 378,
+    "total_samples": 606,
+    "ad_samples": 217,
+    "non_ad_samples": 389,
     "auto_rejected_samples": 3,
-    "high_score_samples": 106,
-    "last_updated": "2025-08-15 14:34:48",
+    "high_score_samples": 109,
+    "last_updated": "2025-08-15 15:34:05",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",

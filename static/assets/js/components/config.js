@@ -178,41 +178,12 @@ const ConfigApp = {
             try {
                 const response = await axios.get('/api/admin/config');
                 if (response.data) {
-                    // 目标频道始终显示用户名格式
-                    // 优先使用target_channel_name（用户名格式），如果没有则检查target_channel_id是否为用户名格式
-                    let targetChannel = '';
-                    if (response.data.target_channel_name) {
-                        targetChannel = response.data.target_channel_name;
-                    } else if (response.data.target_channel_id && !response.data.target_channel_id.startsWith('-100')) {
-                        // 如果target_channel_id不是数字ID，则当作用户名使用
-                        targetChannel = response.data.target_channel_id;
-                    }
-                    
-                    // 确保用户名格式（以@开头）
-                    if (targetChannel && !targetChannel.startsWith('@') && !targetChannel.startsWith('-')) {
-                        targetChannel = '@' + targetChannel;
-                    }
-                    
-                    // 处理审核群名称显示格式
-                    let reviewGroup = response.data.review_group_name || response.data.review_group_id || '';
-                    const cachedGroupId = response.data.review_group_id_cached || '';
-                    
-                    // 解析后的目标频道ID（数字格式，仅用于显示）
-                    let resolvedTargetId = '';
-                    if (response.data.target_channel_id && response.data.target_channel_id.startsWith('-100')) {
-                        resolvedTargetId = response.data.target_channel_id;
-                    } else if (response.data.target_channel_id_cached) {
-                        resolvedTargetId = response.data.target_channel_id_cached;
-                    }
-                    
-                    // 从系统配置中提取转发相关设置
+                    // 直接赋值，无需任何判断
                     this.forwardingConfig = {
-                        enabled: response.data['review.auto_forward_enabled'] === true || response.data['review.auto_forward_enabled'] === 'true',
-                        target_channel: targetChannel,
-                        review_group: reviewGroup,
-                        resolved_group_id: cachedGroupId || '',
-                        resolved_target_channel_id: resolvedTargetId || '',
-                        delay: response.data.auto_forward_delay || 0
+                        enabled: response.data.auto_forward_enabled || false,
+                        target_channel: response.data.target_channel || '',
+                        review_group: response.data.review_group || '',
+                        delay: response.data.auto_forward_delay || 1800
                     };
                 }
             } catch (error) {
@@ -403,71 +374,21 @@ const ConfigApp = {
         
         async saveForwardingConfig() {
             try {
-                // 处理目标频道名称，始终保存为用户名格式
-                let targetChannel = this.forwardingConfig.target_channel.trim();
-                if (targetChannel && !targetChannel.startsWith('@') && !targetChannel.startsWith('-') && !targetChannel.includes('t.me')) {
-                    targetChannel = '@' + targetChannel;
-                }
+                // 直接发送原始值到新的API端点
+                const response = await axios.post('/api/admin/config/forwarding', {
+                    target_channel: this.forwardingConfig.target_channel.trim(),
+                    review_group: this.forwardingConfig.review_group.trim(),
+                    auto_forward_enabled: this.forwardingConfig.enabled,
+                    auto_forward_delay: this.forwardingConfig.delay
+                });
                 
-                // 处理审核群名称，智能格式化
-                let reviewGroup = this.forwardingConfig.review_group.trim();
-                // 如果是HTTP/HTTPS链接，保持原样
-                if (reviewGroup && (reviewGroup.startsWith('http://') || reviewGroup.startsWith('https://'))) {
-                    // 保持链接格式不变
-                } else if (reviewGroup && reviewGroup.includes('t.me') && !reviewGroup.startsWith('http')) {
-                    // 如果包含t.me但不是完整链接，添加https://前缀
-                    reviewGroup = 'https://' + reviewGroup;
-                } else if (reviewGroup && !reviewGroup.startsWith('@') && !reviewGroup.startsWith('-') && !reviewGroup.includes('t.me')) {
-                    // 如果不是链接且不是ID，添加@符号
-                    reviewGroup = '@' + reviewGroup;
-                }
-                
-                // 使用批量更新API - 保存用户名格式到对应字段
-                const configData = {
-                    'channels.target_channel_id': targetChannel,        // 主字段：保存用户名格式
-                    'channels.target_channel_name': targetChannel,      // 备用字段：保存用户名格式  
-                    'channels.review_group_id': reviewGroup,
-                    'channels.review_group_name': reviewGroup,          // 备用字段：保存审核群配置
-                    'review.auto_forward_enabled': this.forwardingConfig.enabled,
-                    'review.auto_forward_delay': this.forwardingConfig.delay
-                };
-                
-                // 批量保存配置
-                const response = await axios.post('/api/admin/config/batch', configData);
-                
-                if (!response.data.success) {
-                    throw new Error(response.data.message || '批量保存配置失败');
-                }
-                
-                // 更新配置对象
-                this.forwardingConfig.target_channel = targetChannel;
-                this.forwardingConfig.review_group = reviewGroup;
-                
-                // 如果配置了审核群链接，尝试解析并缓存ID
-                if (reviewGroup && (reviewGroup.includes('t.me/+') || reviewGroup.includes('t.me/joinchat/'))) {
-                    try {
-                        const resolveResponse = await axios.post('/api/admin/resolve-review-group', {
-                            review_group_config: reviewGroup
-                        });
-                        
-                        if (resolveResponse.data.success) {
-                            // console.log('审核群链接解析成功:', resolveResponse.data);
-                            MessageManager.success(`转发配置保存成功，审核群ID已解析为: ${resolveResponse.data.resolved_id}`);
-                            // 更新解析后的ID
-                            this.forwardingConfig.resolved_group_id = resolveResponse.data.resolved_id;
-                        } else {
-                            MessageManager.warning('转发配置保存成功，但审核群链接解析失败，请检查链接或机器人权限');
-                        }
-                    } catch (error) {
-                        // console.warn('解析审核群链接失败:', error);
-                        MessageManager.warning('转发配置保存成功，但审核群链接解析失败');
-                    }
+                if (response.data.success) {
+                    MessageManager.success('转发配置保存成功，缓存已自动刷新');
                 } else {
-                    MessageManager.success('转发配置保存成功');
+                    throw new Error(response.data.message || '配置保存失败');
                 }
                 
             } catch (error) {
-                // console.error('保存转发配置失败:', error);
                 MessageManager.error('转发配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },

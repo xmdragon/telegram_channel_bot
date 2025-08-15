@@ -25,8 +25,9 @@ class MessageForwarder:
     async def forward_to_review(self, client: TelegramClient, message_data: dict):
         """转发消息到审核群（包含媒体）"""
         try:
-            # 获取有效的审核群ID
-            review_group_id = await link_resolver.get_effective_group_id()
+            # 获取审核群ID（从Redis缓存）
+            from app.services.channel_cache import channel_cache
+            review_group_id = await channel_cache.get_review_group_id()
             
             if not review_group_id:
                 logger.error("❌ 审核群未配置！为了安全起见，消息不会被转发")
@@ -150,9 +151,9 @@ class MessageForwarder:
     async def forward_to_target(self, client: TelegramClient, message):
         """重新发布到目标频道"""
         try:
-            # 获取目标频道配置 - 使用解析后的数字ID
-            from app.core.config import settings
-            target_channel_id = await settings.get_target_channel_resolved_id()
+            # 获取目标频道ID（从Redis缓存）
+            from app.services.channel_cache import channel_cache
+            target_channel_id = await channel_cache.get_target_channel_id()
             
             if not target_channel_id:
                 logger.error("未配置目标频道ID")
@@ -211,8 +212,9 @@ class MessageForwarder:
                 logger.warning("消息没有审核群消息ID，无法更新")
                 return
             
-            # 获取审核群ID
-            review_group_id = await link_resolver.get_effective_group_id()
+            # 获取审核群ID（从Redis缓存）
+            from app.services.channel_cache import channel_cache
+            review_group_id = await channel_cache.get_review_group_id()
             
             if not review_group_id:
                 logger.error("未配置审核群ID或无法解析审核群链接")
@@ -312,8 +314,9 @@ class MessageForwarder:
     async def delete_review_message(self, client: TelegramClient, review_message_id: int):
         """删除审核群的消息"""
         try:
-            # 获取审核群ID
-            review_group_id = await link_resolver.get_effective_group_id()
+            # 获取审核群ID（从Redis缓存）
+            from app.services.channel_cache import channel_cache
+            review_group_id = await channel_cache.get_review_group_id()
             
             if not review_group_id:
                 return

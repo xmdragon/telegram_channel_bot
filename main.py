@@ -115,6 +115,11 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("初始化失败")
     logger.info("认证服务已初始化")
     
+    # 初始化频道ID缓存
+    from app.services.channel_cache import channel_cache
+    await channel_cache.init_cache()
+    logger.info("频道ID缓存已初始化")
+    
     # 初始化训练数据目录和配置
     from app.core.training_config import TrainingDataConfig
     TrainingDataConfig.initialize()

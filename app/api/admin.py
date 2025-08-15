@@ -358,20 +358,18 @@ async def get_system_config():
     """获取系统配置"""
     from app.core.config import db_settings
     
-    # 直接从数据库获取
-    target_channel_id = await db_settings.get_target_channel_id()
-    review_group_id = await db_settings.get_review_group_id()
-    
     return {
+        # 前端显示用（用户友好格式）
+        "target_channel": await config_manager.get_config('channels.target_channel_name', ''),
+        "review_group": await config_manager.get_config('channels.review_group_name', ''),
+        
+        # 其他配置
+        "auto_forward_enabled": await config_manager.get_config('review.auto_forward_enabled', False),
         "auto_forward_delay": await db_settings.get_auto_forward_delay(),
         "source_channels": await db_settings.get_source_channels(),
-        "review_group_id": review_group_id,
-        "review_group_id_cached": await config_manager.get_config('channels.review_group_id_cached', ''),
-        "target_channel_id": target_channel_id,
-        "target_channel_id_cached": target_channel_id if target_channel_id and target_channel_id.startswith('-100') else '',
         "history_message_limit": await db_settings.get_history_message_limit(),
         "ad_keywords": await db_settings.get_ad_keywords_text(),
-        "channels.signature": await config_manager.get_config('channels.signature', '')
+        "channel_signature": await config_manager.get_config('channels.signature', '')
     }
 
 @router.post("/restart")
@@ -569,6 +567,50 @@ async def update_config_batch(configs: Dict[str, Any]):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量更新配置失败: {str(e)}")
+
+class ForwardingConfigRequest(BaseModel):
+    target_channel: str
+    review_group: str
+    auto_forward_enabled: bool = False
+    auto_forward_delay: int = 1800
+
+@router.post("/config/forwarding")
+async def update_forwarding_config(request: ForwardingConfigRequest):
+    """更新转发配置并刷新缓存"""
+    try:
+        # 保存用户输入的用户名/链接格式
+        await config_manager.set_config('channels.target_channel_name', request.target_channel)
+        await config_manager.set_config('channels.review_group_name', request.review_group)
+        await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled)
+        await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay)
+        
+        # 刷新Redis缓存并获取解析结果
+        from app.services.channel_cache import channel_cache
+        target_result = await channel_cache.refresh_target_channel_cache()
+        review_result = await channel_cache.refresh_review_group_cache()
+        
+        # 构建详细的返回消息
+        messages = ["转发配置已保存"]
+        if target_result:
+            messages.append(f"目标频道解析成功: {target_result}")
+        else:
+            messages.append("目标频道暂未解析（需要Telegram连接）")
+            
+        if review_result:
+            messages.append(f"审核群解析成功: {review_result}")
+        else:
+            messages.append("审核群暂未解析（需要Telegram连接）")
+        
+        return {
+            "success": True,
+            "message": "，".join(messages),
+            "target_resolved": target_result,
+            "review_resolved": review_result
+        }
+        
+    except Exception as e:
+        logger.error(f"更新转发配置失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"更新转发配置失败: {str(e)}")
 
 class ReviewGroupResolveRequest(BaseModel):
     review_group_config: str

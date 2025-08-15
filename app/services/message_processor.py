@@ -78,10 +78,9 @@ class MessageProcessor:
     async def auto_forward_message(self, message: Dict[str, Any]):
         """自动转发消息"""
         try:
-            # 首先检查审核群是否已配置
-            from app.services.config_manager import ConfigManager
-            config_manager = ConfigManager()
-            review_group = await config_manager.get_config('channels.review_group_id')
+            # 首先检查审核群是否已配置（从Redis缓存）
+            from app.services.channel_cache import channel_cache
+            review_group = await channel_cache.get_review_group_id()
             
             if not review_group:
                 logger.error("❌ 审核群未配置，阻止自动转发！所有消息必须经过审核群。")

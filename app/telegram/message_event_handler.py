@@ -33,7 +33,8 @@ class MessageEventHandler:
         
         # 获取需要监听的频道ID列表
         source_channels = await db_settings.get_source_channels()
-        review_group_id = await link_resolver.get_effective_group_id()
+        from app.services.channel_cache import channel_cache
+        review_group_id = await channel_cache.get_review_group_id()
         
         # 构建监听列表（转换为整数格式）
         chats_to_monitor = []
@@ -136,7 +137,8 @@ class MessageEventHandler:
         """判断消息来源类型"""
         # 获取配置
         source_channels = await db_settings.get_source_channels()
-        review_group_id = await link_resolver.get_effective_group_id()
+        from app.services.channel_cache import channel_cache
+        review_group_id = await channel_cache.get_review_group_id()
         
         # 检查是否来自源频道
         if chat_id in source_channels:
