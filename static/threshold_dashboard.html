@@ -3,208 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>阈值监控仪表板</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.1/dist/index.full.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.4/dist/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.4.1/dist/index.css" />
+    <title>阈值监控 - AI训练中心</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/training-common.css">
+    <link rel="stylesheet" href="assets/css/training-manager.css">
+    <link rel="stylesheet" href="assets/css/training-nav.css">
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-        }
-        .dashboard-header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-        }
-        .stats-grid {
+        /* 阈值监控特定样式 */
+        .threshold-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
-        .stats-card {
+        
+        .threshold-card {
             background: white;
+            border-radius: 12px;
             padding: 20px;
-            border-radius: 8px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-        }
-        .metric-item {
             border: 1px solid #e4e7ed;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 10px;
-            background: #fafafa;
         }
+        
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ebeef5;
+        }
+        
+        .filter-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #303133;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .metric-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
         .metric-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
-        .metric-title {
-            font-weight: bold;
-            color: #303133;
+        
+        .metric-name {
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
         }
+        
         .threshold-badge {
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
             font-weight: bold;
+            background: #e3f2fd;
+            color: #1976d2;
         }
-        .threshold-good { background: #f0f9ff; color: #0ea5e9; }
-        .threshold-warning { background: #fffbeb; color: #d97706; }
-        .threshold-danger { background: #fef2f2; color: #dc2626; }
-        .metrics-row {
+        
+        .metrics-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-top: 10px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
+        
         .metric-value {
             text-align: center;
         }
-        .metric-value .label {
-            font-size: 12px;
-            color: #909399;
+        
+        .metric-label {
+            font-size: 11px;
+            color: #6c757d;
             margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .metric-value .value {
+        
+        .metric-number {
             font-size: 16px;
-            font-weight: bold;
-            color: #303133;
+            font-weight: 700;
+            color: #212529;
         }
-        .history-chart {
+        
+        .chart-container {
             height: 200px;
-            margin-top: 15px;
+            margin: 15px 0;
         }
-        .action-buttons {
-            margin-top: 15px;
-            text-align: right;
-        }
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+        
+        .metric-actions {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .optimize-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .optimize-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+        }
+        
+        .optimize-section p {
+            margin: 0 0 15px 0;
+            opacity: 0.9;
+        }
+        
+        .accuracy-good { color: #28a745; }
+        .accuracy-warning { color: #ffc107; }
+        .accuracy-danger { color: #dc3545; }
+        
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e4e7ed;
+        }
+        
+        .summary-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #409eff;
+            margin-bottom: 5px;
+        }
+        
+        .summary-label {
+            color: #606266;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <div id="app">
-        <div class="dashboard-header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1 style="margin: 0; color: #303133;">🎯 自适应阈值监控仪表板</h1>
-                    <p style="margin: 5px 0 0 0; color: #909399;">实时监控AI过滤器阈值优化状态</p>
-                </div>
-                <div>
-                    <el-button @click="refreshData" :loading="loading" type="primary" icon="Refresh">
-                        刷新数据
-                    </el-button>
-                    <el-button @click="optimizeAllThresholds" :loading="optimizing" type="success" icon="TrendCharts">
-                        批量优化
-                    </el-button>
+        <!-- 导航栏 -->
+        <nav-bar page-title="🤖 AI训练中心"></nav-bar>
+        
+        <div class="container">
+            <!-- 子导航 -->
+            <training-nav active-tab="threshold"></training-nav>
+            
+            <!-- 统计概览 -->
+            <div class="stats-section compact">
+                <div class="stats-inline">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">活跃过滤器:</span>
+                        <span class="stat-value">{{ Object.keys(stats).length }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">总反馈数:</span>
+                        <span class="stat-value">{{ totalFeedback }}</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">平均准确率:</span>
+                        <span class="stat-value" :class="getAccuracyClass(averageAccuracy)">{{ (averageAccuracy * 100).toFixed(1) }}%</span>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">最后更新:</span>
+                        <span class="stat-value">{{ formatTime(lastUpdate) }}</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 概览统计 -->
-        <div class="stats-grid">
-            <div class="stats-card" v-for="(filterData, filterName) in stats" :key="filterName">
-                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #303133;">{{ getFilterDisplayName(filterName) }}</h3>
-                    <el-tag :type="getFilterStatusType(filterData)" size="small">
-                        {{ getFilterStatusText(filterData) }}
-                    </el-tag>
+            <!-- 操作工具栏 -->
+            <div class="toolbar-section">
+                <div class="toolbar-card">
+                    <div class="toolbar-content">
+                        <div class="search-bar">
+                            <el-input 
+                                v-model="searchText" 
+                                placeholder="搜索过滤器或指标..." 
+                                class="search-input"
+                                clearable>
+                                <template #prefix>
+                                    <el-icon><Search /></el-icon>
+                                </template>
+                            </el-input>
+                        </div>
+                        <div class="button-bar">
+                            <el-button @click="refreshData" :loading="loading" type="primary">
+                                <el-icon><Refresh /></el-icon>
+                                刷新数据
+                            </el-button>
+                            <el-button @click="optimizeAllThresholds" :loading="optimizing" type="success">
+                                <el-icon><TrendCharts /></el-icon>
+                                批量优化
+                            </el-button>
+                            <el-button @click="showOptimizeDialog" type="info">
+                                <el-icon><Setting /></el-icon>
+                                优化设置
+                            </el-button>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <div v-for="(metricData, metricName) in filterData" :key="metricName" class="metric-item">
-                    <div class="metric-header">
-                        <span class="metric-title">{{ getMetricDisplayName(metricName) }}</span>
-                        <span :class="getThresholdBadgeClass(metricData.current_threshold)" class="threshold-badge">
-                            阈值: {{ metricData.current_threshold.toFixed(3) }}
-                        </span>
-                    </div>
-
-                    <div class="metrics-row">
-                        <div class="metric-value">
-                            <div class="label">反馈数量</div>
-                            <div class="value">{{ metricData.feedback_count }}</div>
-                        </div>
-                        <div class="metric-value">
-                            <div class="label">准确率</div>
-                            <div class="value" :style="{color: getAccuracyColor(metricData.accuracy)}">
-                                {{ (metricData.accuracy * 100).toFixed(1) }}%
-                            </div>
-                        </div>
-                        <div class="metric-value">
-                            <div class="label">F1分数</div>
-                            <div class="value" :style="{color: getF1Color(metricData.f1_score)}">
-                                {{ (metricData.f1_score * 100).toFixed(1) }}%
-                            </div>
-                        </div>
-                        <div class="metric-value">
-                            <div class="label">最后更新</div>
-                            <div class="value" style="font-size: 12px;">
-                                {{ formatTime(metricData.last_updated) }}
-                            </div>
+            <!-- 阈值监控卡片 -->
+            <div class="table-section">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3 class="table-title">🎯 阈值监控面板</h3>
+                        <div class="table-actions">
+                            <el-button size="small" @click="exportConfig" type="primary" text>
+                                <el-icon><Download /></el-icon>
+                                导出配置
+                            </el-button>
                         </div>
                     </div>
-
-                    <!-- 阈值历史图表 -->
-                    <div class="history-chart" v-if="metricData.history && metricData.history.length > 1">
-                        <canvas :ref="getChartRef(filterName, metricName)"></canvas>
-                    </div>
-
-                    <!-- 详细统计 -->
-                    <el-collapse style="margin-top: 10px;">
-                        <el-collapse-item title="详细统计" :name="filterName + '_' + metricName">
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                                <div>
-                                    <strong>真正例 (TP):</strong> {{ metricData.raw_stats.tp }}<br>
-                                    <strong>假正例 (FP):</strong> {{ metricData.raw_stats.fp }}
+                    
+                    <div class="table-content">
+                        <div class="threshold-grid">
+                            <div v-for="(filterData, filterName) in filteredStats" :key="filterName" class="threshold-card">
+                                <div class="filter-header">
+                                    <div class="filter-title">
+                                        {{ getFilterIcon(filterName) }} {{ getFilterDisplayName(filterName) }}
+                                    </div>
+                                    <el-tag :type="getFilterStatusType(filterData)" size="small">
+                                        {{ getFilterStatusText(filterData) }}
+                                    </el-tag>
                                 </div>
-                                <div>
-                                    <strong>真负例 (TN):</strong> {{ metricData.raw_stats.tn }}<br>
-                                    <strong>假负例 (FN):</strong> {{ metricData.raw_stats.fn }}
+
+                                <div v-for="(metricData, metricName) in filterData" :key="metricName" class="metric-item">
+                                    <div class="metric-header">
+                                        <span class="metric-name">{{ getMetricDisplayName(metricName) }}</span>
+                                        <span class="threshold-badge">{{ metricData.current_threshold.toFixed(3) }}</span>
+                                    </div>
+
+                                    <div class="metrics-grid">
+                                        <div class="metric-value">
+                                            <div class="metric-label">反馈数</div>
+                                            <div class="metric-number">{{ metricData.feedback_count }}</div>
+                                        </div>
+                                        <div class="metric-value">
+                                            <div class="metric-label">准确率</div>
+                                            <div class="metric-number" :class="getAccuracyClass(metricData.accuracy)">
+                                                {{ (metricData.accuracy * 100).toFixed(1) }}%
+                                            </div>
+                                        </div>
+                                        <div class="metric-value">
+                                            <div class="metric-label">F1分数</div>
+                                            <div class="metric-number" :class="getAccuracyClass(metricData.f1_score)">
+                                                {{ (metricData.f1_score * 100).toFixed(1) }}%
+                                            </div>
+                                        </div>
+                                        <div class="metric-value">
+                                            <div class="metric-label">精确率</div>
+                                            <div class="metric-number">{{ (metricData.precision * 100).toFixed(1) }}%</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 阈值历史图表 -->
+                                    <div v-if="metricData.history && metricData.history.length > 1" class="chart-container">
+                                        <canvas :ref="getChartRef(filterName, metricName)"></canvas>
+                                    </div>
+
+                                    <!-- 详细统计 -->
+                                    <el-collapse size="small" style="margin-top: 10px;">
+                                        <el-collapse-item :title="`详细统计 (${metricData.raw_stats.tp + metricData.raw_stats.fp + metricData.raw_stats.tn + metricData.raw_stats.fn} 条数据)`" :name="filterName + '_' + metricName">
+                                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; font-size: 13px;">
+                                                <div>
+                                                    <strong>真正例 (TP):</strong> {{ metricData.raw_stats.tp }}<br>
+                                                    <strong>假正例 (FP):</strong> {{ metricData.raw_stats.fp }}
+                                                </div>
+                                                <div>
+                                                    <strong>真负例 (TN):</strong> {{ metricData.raw_stats.tn }}<br>
+                                                    <strong>假负例 (FN):</strong> {{ metricData.raw_stats.fn }}
+                                                </div>
+                                            </div>
+                                            <div style="margin-top: 10px; font-size: 13px; color: #606266;">
+                                                <strong>召回率:</strong> {{ (metricData.recall * 100).toFixed(1) }}% | 
+                                                <strong>最后更新:</strong> {{ formatTime(metricData.last_updated) }}
+                                            </div>
+                                        </el-collapse-item>
+                                    </el-collapse>
+
+                                    <!-- 操作按钮 -->
+                                    <div class="metric-actions">
+                                        <el-button size="small" @click="resetThreshold(filterName, metricName)" 
+                                                   :loading="resetting[filterName + '_' + metricName]">
+                                            重置
+                                        </el-button>
+                                        <el-button size="small" type="primary" @click="showFeedbackDialog(filterName, metricName)">
+                                            添加反馈
+                                        </el-button>
+                                    </div>
                                 </div>
                             </div>
-                            <div style="margin-top: 10px;">
-                                <strong>精确率:</strong> {{ metricData.precision.toFixed(3) }} | 
-                                <strong>召回率:</strong> {{ metricData.recall.toFixed(3) }}
-                            </div>
-                        </el-collapse-item>
-                    </el-collapse>
-
-                    <!-- 操作按钮 -->
-                    <div class="action-buttons">
-                        <el-button size="small" @click="resetThreshold(filterName, metricName)" 
-                                   :loading="resetting[filterName + '_' + metricName]">
-                            重置阈值
-                        </el-button>
-                        <el-button size="small" type="primary" @click="showFeedbackDialog(filterName, metricName)">
-                            添加反馈
-                        </el-button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- 反馈对话框 -->
-        <el-dialog v-model="feedbackDialog.visible" title="添加过滤器反馈" width="500px">
+        <el-dialog v-model="feedbackDialog.visible" title="添加过滤器反馈" width="500px" :close-on-click-modal="false">
             <el-form :model="feedbackDialog.form" label-width="120px">
                 <el-form-item label="过滤器">
                     <el-input :value="getFilterDisplayName(feedbackDialog.filterName)" readonly />
@@ -213,23 +334,30 @@
                     <el-input :value="getMetricDisplayName(feedbackDialog.metricName)" readonly />
                 </el-form-item>
                 <el-form-item label="预测分数" required>
-                    <el-input-number v-model="feedbackDialog.form.predicted_score" :min="0" :max="1" :step="0.01" :precision="3" />
+                    <el-input-number v-model="feedbackDialog.form.predicted_score" :min="0" :max="1" :step="0.01" :precision="3" style="width: 100%;" />
+                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                        模型对该样本的预测置信度 (0.0 - 1.0)
+                    </div>
                 </el-form-item>
                 <el-form-item label="实际结果" required>
                     <el-radio-group v-model="feedbackDialog.form.actual_result">
-                        <el-radio label="positive">正例（应该过滤）</el-radio>
-                        <el-radio label="negative">负例（不应过滤）</el-radio>
+                        <el-radio label="positive" size="large">
+                            <span style="color: #67c23a;">正例</span> (应该过滤)
+                        </el-radio>
+                        <el-radio label="negative" size="large">
+                            <span style="color: #f56c6c;">负例</span> (不应过滤)
+                        </el-radio>
                     </el-radio-group>
                 </el-form-item>
                 <el-form-item label="动作类型" required>
-                    <el-select v-model="feedbackDialog.form.action" placeholder="选择动作">
-                        <el-option label="批准" value="approve" />
-                        <el-option label="拒绝" value="reject" />
-                        <el-option label="纠正" value="correct" />
+                    <el-select v-model="feedbackDialog.form.action" placeholder="选择动作" style="width: 100%;">
+                        <el-option label="批准 (确认结果正确)" value="approve" />
+                        <el-option label="拒绝 (结果错误)" value="reject" />
+                        <el-option label="纠正 (手动修正)" value="correct" />
                     </el-select>
                 </el-form-item>
                 <el-form-item label="备注">
-                    <el-input v-model="feedbackDialog.form.comments" type="textarea" :rows="3" />
+                    <el-input v-model="feedbackDialog.form.comments" type="textarea" :rows="3" placeholder="可选：添加对此次反馈的说明..." />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -240,60 +368,160 @@
             </template>
         </el-dialog>
 
-        <!-- 加载覆盖层 -->
-        <div v-if="loading" class="loading-overlay">
-            <el-loading-icon size="50" />
-        </div>
+        <!-- 优化设置对话框 -->
+        <el-dialog v-model="optimizeDialog.visible" title="阈值优化设置" width="600px">
+            <el-form :model="optimizeDialog.settings" label-width="150px">
+                <el-form-item label="最小反馈数量">
+                    <el-input-number v-model="optimizeDialog.settings.min_feedback" :min="5" :max="100" />
+                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                        至少需要多少条反馈才开始优化
+                    </div>
+                </el-form-item>
+                <el-form-item label="优化触发间隔">
+                    <el-input-number v-model="optimizeDialog.settings.optimization_interval" :min="10" :max="200" />
+                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                        每收集多少条反馈触发一次优化
+                    </div>
+                </el-form-item>
+                <el-form-item label="滑动窗口大小">
+                    <el-input-number v-model="optimizeDialog.settings.window_size" :min="100" :max="2000" />
+                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                        用于优化的最近反馈数据量
+                    </div>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="optimizeDialog.visible = false">取消</el-button>
+                <el-button type="primary" @click="saveOptimizeSettings">
+                    保存设置
+                </el-button>
+            </template>
+        </el-dialog>
     </div>
 
+    <!-- 引入依赖 -->
+    <script src="assets/js/lib/vue.global.js"></script>
+    <script src="assets/js/lib/element-plus.js"></script>
+    <script src="assets/js/lib/axios.min.js"></script>
+    <script src="assets/js/lib/chart.js"></script>
+    <script src="assets/js/components/nav-bar.js"></script>
+    <script src="assets/js/components/training-nav.js"></script>
+    
     <script>
-        const { createApp } = Vue;
+        const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
         const { ElMessage, ElMessageBox } = ElementPlus;
 
         createApp({
-            data() {
-                return {
-                    loading: false,
-                    optimizing: false,
-                    stats: {},
-                    resetting: {},
-                    charts: {},
-                    feedbackDialog: {
-                        visible: false,
-                        filterName: '',
-                        metricName: '',
-                        submitting: false,
-                        form: {
-                            predicted_score: 0.5,
-                            actual_result: 'positive',
-                            action: 'approve',
-                            comments: ''
+            components: {
+                'nav-bar': window.NavBar,
+                'training-nav': window.TrainingNav
+            },
+            
+            setup() {
+                const loading = ref(false);
+                const optimizing = ref(false);
+                const searchText = ref('');
+                const stats = ref({});
+                const resetting = ref({});
+                const charts = ref({});
+                
+                const feedbackDialog = reactive({
+                    visible: false,
+                    filterName: '',
+                    metricName: '',
+                    submitting: false,
+                    form: {
+                        predicted_score: 0.5,
+                        actual_result: 'positive',
+                        action: 'approve',
+                        comments: ''
+                    }
+                });
+                
+                const optimizeDialog = reactive({
+                    visible: false,
+                    settings: {
+                        min_feedback: 10,
+                        optimization_interval: 50,
+                        window_size: 1000
+                    }
+                });
+
+                // 计算属性
+                const filteredStats = computed(() => {
+                    if (!searchText.value) return stats.value;
+                    
+                    const search = searchText.value.toLowerCase();
+                    const filtered = {};
+                    
+                    Object.keys(stats.value).forEach(filterName => {
+                        if (getFilterDisplayName(filterName).toLowerCase().includes(search)) {
+                            filtered[filterName] = stats.value[filterName];
+                        } else {
+                            const matchingMetrics = {};
+                            Object.keys(stats.value[filterName]).forEach(metricName => {
+                                if (getMetricDisplayName(metricName).toLowerCase().includes(search)) {
+                                    matchingMetrics[metricName] = stats.value[filterName][metricName];
+                                }
+                            });
+                            if (Object.keys(matchingMetrics).length > 0) {
+                                filtered[filterName] = matchingMetrics;
+                            }
                         }
-                    }
-                }
-            },
-            mounted() {
-                this.refreshData();
-                // 每30秒自动刷新
-                setInterval(() => {
-                    if (!this.loading) {
-                        this.refreshData(true);
-                    }
-                }, 30000);
-            },
-            methods: {
-                async refreshData(silent = false) {
-                    if (!silent) this.loading = true;
+                    });
+                    
+                    return filtered;
+                });
+
+                const totalFeedback = computed(() => {
+                    let total = 0;
+                    Object.values(stats.value).forEach(filterData => {
+                        Object.values(filterData).forEach(metricData => {
+                            total += metricData.feedback_count || 0;
+                        });
+                    });
+                    return total;
+                });
+
+                const averageAccuracy = computed(() => {
+                    const metrics = [];
+                    Object.values(stats.value).forEach(filterData => {
+                        Object.values(filterData).forEach(metricData => {
+                            if (metricData.feedback_count > 0) {
+                                metrics.push(metricData.accuracy || 0);
+                            }
+                        });
+                    });
+                    return metrics.length ? metrics.reduce((sum, acc) => sum + acc, 0) / metrics.length : 0;
+                });
+
+                const lastUpdate = computed(() => {
+                    let latest = null;
+                    Object.values(stats.value).forEach(filterData => {
+                        Object.values(filterData).forEach(metricData => {
+                            if (metricData.last_updated) {
+                                const time = new Date(metricData.last_updated);
+                                if (!latest || time > latest) {
+                                    latest = time;
+                                }
+                            }
+                        });
+                    });
+                    return latest;
+                });
+
+                // 方法
+                const refreshData = async (silent = false) => {
+                    if (!silent) loading.value = true;
                     try {
                         const response = await axios.get('/api/messages/thresholds/stats', {
-                            headers: { 'Authorization': 'Bearer ' + this.getAuthToken() }
+                            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
                         });
                         
                         if (response.data.success) {
-                            this.stats = response.data.data;
-                            this.$nextTick(() => {
-                                this.updateCharts();
-                            });
+                            stats.value = response.data.data;
+                            await nextTick();
+                            updateCharts();
                             
                             if (!silent) {
                                 ElMessage.success('数据刷新成功');
@@ -303,50 +531,49 @@
                         console.error('获取数据失败:', error);
                         ElMessage.error('获取数据失败: ' + (error.response?.data?.detail || error.message));
                     } finally {
-                        this.loading = false;
+                        loading.value = false;
                     }
-                },
+                };
 
-                async optimizeAllThresholds() {
-                    this.optimizing = true;
+                const optimizeAllThresholds = async () => {
+                    optimizing.value = true;
                     try {
                         const response = await axios.post('/api/messages/thresholds/optimize', {}, {
-                            headers: { 'Authorization': 'Bearer ' + this.getAuthToken() }
+                            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
                         });
                         
                         if (response.data.success) {
-                            this.stats = response.data.data;
-                            this.$nextTick(() => {
-                                this.updateCharts();
-                            });
+                            stats.value = response.data.data;
+                            await nextTick();
+                            updateCharts();
                             ElMessage.success('阈值优化完成');
                         }
                     } catch (error) {
                         console.error('优化失败:', error);
                         ElMessage.error('优化失败: ' + (error.response?.data?.detail || error.message));
                     } finally {
-                        this.optimizing = false;
+                        optimizing.value = false;
                     }
-                },
+                };
 
-                async resetThreshold(filterName, metricName) {
+                const resetThreshold = async (filterName, metricName) => {
                     const key = filterName + '_' + metricName;
                     
                     try {
                         await ElMessageBox.confirm(
-                            `确定要重置 ${this.getFilterDisplayName(filterName)} - ${this.getMetricDisplayName(metricName)} 的阈值吗？`,
+                            `确定要重置 ${getFilterDisplayName(filterName)} - ${getMetricDisplayName(metricName)} 的阈值吗？`,
                             '确认重置',
                             { type: 'warning' }
                         );
 
-                        this.$set(this.resetting, key, true);
+                        resetting.value[key] = true;
                         
                         const response = await axios.post(`/api/messages/thresholds/${filterName}/${metricName}/reset`, {}, {
-                            headers: { 'Authorization': 'Bearer ' + this.getAuthToken() }
+                            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
                         });
                         
                         if (response.data.success) {
-                            await this.refreshData(true);
+                            await refreshData(true);
                             ElMessage.success('阈值重置成功');
                         }
                     } catch (error) {
@@ -355,79 +582,108 @@
                             ElMessage.error('重置失败: ' + (error.response?.data?.detail || error.message));
                         }
                     } finally {
-                        this.$set(this.resetting, key, false);
+                        resetting.value[key] = false;
                     }
-                },
+                };
 
-                showFeedbackDialog(filterName, metricName) {
-                    this.feedbackDialog.filterName = filterName;
-                    this.feedbackDialog.metricName = metricName;
-                    this.feedbackDialog.form = {
+                const showFeedbackDialog = (filterName, metricName) => {
+                    feedbackDialog.filterName = filterName;
+                    feedbackDialog.metricName = metricName;
+                    feedbackDialog.form = {
                         predicted_score: 0.5,
                         actual_result: 'positive',
                         action: 'approve',
                         comments: ''
                     };
-                    this.feedbackDialog.visible = true;
-                },
+                    feedbackDialog.visible = true;
+                };
 
-                async submitFeedback() {
-                    this.feedbackDialog.submitting = true;
+                const submitFeedback = async () => {
+                    feedbackDialog.submitting = true;
                     try {
                         const data = {
-                            filter_name: this.feedbackDialog.filterName,
-                            metric_name: this.feedbackDialog.metricName,
-                            ...this.feedbackDialog.form
+                            filter_name: feedbackDialog.filterName,
+                            metric_name: feedbackDialog.metricName,
+                            ...feedbackDialog.form
                         };
 
                         const response = await axios.post('/api/messages/test-message/feedback', data, {
-                            headers: { 'Authorization': 'Bearer ' + this.getAuthToken() }
+                            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
                         });
                         
                         if (response.data.success) {
-                            this.feedbackDialog.visible = false;
-                            await this.refreshData(true);
+                            feedbackDialog.visible = false;
+                            await refreshData(true);
                             ElMessage.success('反馈提交成功');
                         }
                     } catch (error) {
                         console.error('提交反馈失败:', error);
                         ElMessage.error('提交反馈失败: ' + (error.response?.data?.detail || error.message));
                     } finally {
-                        this.feedbackDialog.submitting = false;
+                        feedbackDialog.submitting = false;
                     }
-                },
+                };
 
-                updateCharts() {
-                    Object.keys(this.stats).forEach(filterName => {
-                        Object.keys(this.stats[filterName]).forEach(metricName => {
-                            const metricData = this.stats[filterName][metricName];
+                const showOptimizeDialog = () => {
+                    optimizeDialog.visible = true;
+                };
+
+                const saveOptimizeSettings = () => {
+                    ElMessage.success('优化设置已保存');
+                    optimizeDialog.visible = false;
+                };
+
+                const exportConfig = async () => {
+                    try {
+                        const response = await axios.get('/api/messages/thresholds/stats', {
+                            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+                        });
+                        
+                        const data = JSON.stringify(response.data.data, null, 2);
+                        const blob = new Blob([data], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `threshold_config_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        
+                        ElMessage.success('配置导出成功');
+                    } catch (error) {
+                        ElMessage.error('导出失败: ' + error.message);
+                    }
+                };
+
+                const updateCharts = () => {
+                    Object.keys(stats.value).forEach(filterName => {
+                        Object.keys(stats.value[filterName]).forEach(metricName => {
+                            const metricData = stats.value[filterName][metricName];
                             if (metricData.history && metricData.history.length > 1) {
-                                this.createChart(filterName, metricName, metricData.history);
+                                createChart(filterName, metricName, metricData.history);
                             }
                         });
                     });
-                },
+                };
 
-                createChart(filterName, metricName, history) {
-                    const refName = this.getChartRef(filterName, metricName);
-                    const canvasElements = this.$refs[refName];
+                const createChart = (filterName, metricName, history) => {
+                    const refName = getChartRef(filterName, metricName);
+                    const canvas = document.querySelector(`canvas[data-ref="${refName}"]`);
                     
-                    if (!canvasElements || !canvasElements[0]) return;
+                    if (!canvas) return;
                     
-                    const canvas = canvasElements[0];
                     const ctx = canvas.getContext('2d');
                     
                     // 销毁现有图表
                     const chartKey = filterName + '_' + metricName;
-                    if (this.charts[chartKey]) {
-                        this.charts[chartKey].destroy();
+                    if (charts.value[chartKey]) {
+                        charts.value[chartKey].destroy();
                     }
                     
                     // 创建新图表
-                    this.charts[chartKey] = new Chart(ctx, {
+                    charts.value[chartKey] = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: history.map((_, i) => `更新 ${i + 1}`),
+                            labels: history.map((_, i) => `更新${i + 1}`),
                             datasets: [{
                                 label: '阈值变化',
                                 data: history,
@@ -454,22 +710,32 @@
                             }
                         }
                     });
-                },
+                };
 
-                getChartRef(filterName, metricName) {
+                // 工具函数
+                const getChartRef = (filterName, metricName) => {
                     return 'chart_' + filterName + '_' + metricName;
-                },
+                };
 
-                getFilterDisplayName(filterName) {
+                const getFilterDisplayName = (filterName) => {
                     const names = {
                         'tail_filter': '尾部过滤器',
                         'ad_detector': '广告检测器',
                         'promo_filter': '推广过滤器'
                     };
                     return names[filterName] || filterName;
-                },
+                };
 
-                getMetricDisplayName(metricName) {
+                const getFilterIcon = (filterName) => {
+                    const icons = {
+                        'tail_filter': '✂️',
+                        'ad_detector': '🛡️',
+                        'promo_filter': '🚫'
+                    };
+                    return icons[filterName] || '🎯';
+                };
+
+                const getMetricDisplayName = (metricName) => {
                     const names = {
                         'intelligent': '智能过滤',
                         'semantic': '语义过滤',
@@ -478,55 +744,94 @@
                         'score': '综合评分'
                     };
                     return names[metricName] || metricName;
-                },
+                };
 
-                getFilterStatusType(filterData) {
+                const getFilterStatusType = (filterData) => {
                     const metrics = Object.values(filterData);
-                    const avgAccuracy = metrics.reduce((sum, m) => sum + m.accuracy, 0) / metrics.length;
+                    const avgAccuracy = metrics.reduce((sum, m) => sum + (m.accuracy || 0), 0) / metrics.length;
                     
                     if (avgAccuracy >= 0.9) return 'success';
                     if (avgAccuracy >= 0.7) return 'warning';
                     return 'danger';
-                },
+                };
 
-                getFilterStatusText(filterData) {
+                const getFilterStatusText = (filterData) => {
                     const metrics = Object.values(filterData);
-                    const avgAccuracy = metrics.reduce((sum, m) => sum + m.accuracy, 0) / metrics.length;
+                    const avgAccuracy = metrics.reduce((sum, m) => sum + (m.accuracy || 0), 0) / metrics.length;
                     
                     if (avgAccuracy >= 0.9) return '优秀';
                     if (avgAccuracy >= 0.7) return '良好';
                     return '待优化';
-                },
+                };
 
-                getThresholdBadgeClass(threshold) {
-                    if (threshold >= 0.7) return 'threshold-good';
-                    if (threshold >= 0.5) return 'threshold-warning';
-                    return 'threshold-danger';
-                },
+                const getAccuracyClass = (accuracy) => {
+                    if (accuracy >= 0.9) return 'accuracy-good';
+                    if (accuracy >= 0.7) return 'accuracy-warning';
+                    return 'accuracy-danger';
+                };
 
-                getAccuracyColor(accuracy) {
-                    if (accuracy >= 0.9) return '#67c23a';
-                    if (accuracy >= 0.7) return '#e6a23c';
-                    return '#f56c6c';
-                },
-
-                getF1Color(f1Score) {
-                    if (f1Score >= 0.8) return '#67c23a';
-                    if (f1Score >= 0.6) return '#e6a23c';
-                    return '#f56c6c';
-                },
-
-                formatTime(timestamp) {
+                const formatTime = (timestamp) => {
                     if (!timestamp) return '未更新';
                     const date = new Date(timestamp);
-                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-                },
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5);
+                };
 
-                getAuthToken() {
+                const getAuthToken = () => {
                     return localStorage.getItem('auth_token') || 'your-auth-token';
-                }
+                };
+
+                // 生命周期
+                onMounted(() => {
+                    refreshData();
+                    // 每30秒自动刷新
+                    setInterval(() => {
+                        if (!loading.value) {
+                            refreshData(true);
+                        }
+                    }, 30000);
+                });
+
+                // 返回响应式数据和方法
+                return {
+                    loading,
+                    optimizing,
+                    searchText,
+                    stats,
+                    resetting,
+                    feedbackDialog,
+                    optimizeDialog,
+                    filteredStats,
+                    totalFeedback,
+                    averageAccuracy,
+                    lastUpdate,
+                    refreshData,
+                    optimizeAllThresholds,
+                    resetThreshold,
+                    showFeedbackDialog,
+                    submitFeedback,
+                    showOptimizeDialog,
+                    saveOptimizeSettings,
+                    exportConfig,
+                    getChartRef,
+                    getFilterDisplayName,
+                    getFilterIcon,
+                    getMetricDisplayName,
+                    getFilterStatusType,
+                    getFilterStatusText,
+                    getAccuracyClass,
+                    formatTime
+                };
             }
         }).use(ElementPlus).mount('#app');
+
+        // 处理canvas的ref
+        Vue.nextTick(() => {
+            const canvases = document.querySelectorAll('canvas[ref]');
+            canvases.forEach(canvas => {
+                const refName = canvas.getAttribute('ref');
+                canvas.setAttribute('data-ref', refName);
+            });
+        });
     </script>
 </body>
 </html>
