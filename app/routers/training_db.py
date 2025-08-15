@@ -772,23 +772,111 @@ async def clean_orphaned_files():
 
 @router.get("/media-files/duplicates")
 async def get_duplicate_files():
-    """获取重复文件"""
+    """检测视觉重复的媒体文件"""
     try:
-        # 简单实现：返回空的重复文件列表
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        media_dir = Path("data/ad_training_data")
+        
+        if not media_metadata_file.exists():
+            return {"success": True, "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or "media_files" not in data:
+            return {"success": True, "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
+        
+        # 尝试导入视觉相似度检测器，如果不可用则使用简单的哈希比较
+        try:
+            from app.services.visual_similarity import VisualSimilarityDetector
+            visual_detector = VisualSimilarityDetector()
+            use_visual_detection = True
+        except ImportError:
+            logger.warning("VisualSimilarityDetector不可用，使用文件名哈希比较")
+            visual_detector = None
+            use_visual_detection = False
+        
+        duplicate_groups = []
+        processed = set()
+        
+        # 遍历所有媒体文件，查找重复的组
+        for file_hash1, file_info1 in data["media_files"].items():
+            if file_hash1 in processed:
+                continue
+            
+            current_group = [file_info1]
+            processed.add(file_hash1)
+            
+            # 查找与当前文件相似的其他文件
+            for file_hash2, file_info2 in data["media_files"].items():
+                if file_hash2 == file_hash1 or file_hash2 in processed:
+                    continue
+                
+                is_duplicate = False
+                
+                if use_visual_detection and "visual_hashes" in file_info1 and "visual_hashes" in file_info2:
+                    # 使用视觉哈希比较
+                    try:
+                        is_similar, similarity_score = visual_detector.is_visually_similar(
+                            file_info1["visual_hashes"],
+                            file_info2["visual_hashes"]
+                        )
+                        
+                        # 检查是否有足够高的相似度（85%阈值）
+                        if is_similar and similarity_score >= 85.0:
+                            is_duplicate = True
+                    except Exception as e:
+                        logger.warning(f"视觉哈希比较失败: {e}")
+                
+                if not is_duplicate:
+                    # 简单的文件名哈希比较作为备用
+                    path1 = file_info1.get("path", "")
+                    path2 = file_info2.get("path", "")
+                    if path1 and path2:
+                        # 提取文件名中的哈希部分进行比较
+                        name1 = Path(path1).stem
+                        name2 = Path(path2).stem
+                        hash1 = name1.split('_')[-1] if '_' in name1 else name1
+                        hash2 = name2.split('_')[-1] if '_' in name2 else name2
+                        
+                        # 如果哈希相同或文件大小相同且名称相似，认为是重复
+                        if (hash1 == hash2 or 
+                            (file_info1.get("file_size") == file_info2.get("file_size") and 
+                             len(set(name1.split('_')) & set(name2.split('_'))) >= 2)):
+                            is_duplicate = True
+                
+                if is_duplicate:
+                    current_group.append(file_info2)
+                    processed.add(file_hash2)
+            
+            # 如果组内有多个文件，添加到重复组列表
+            if len(current_group) > 1:
+                # 计算可节省的空间
+                sizes = [f.get("file_size", 0) for f in current_group]
+                saved_space = sum(sizes) - min(sizes)  # 保留最小的文件
+                
+                duplicate_groups.append({
+                    "files": current_group,
+                    "count": len(current_group),
+                    "total_size": sum(sizes),
+                    "saved_space": saved_space,
+                    "message_ids": list(set(sum([f.get("message_ids", []) for f in current_group], [])))
+                })
+        
+        # 统计信息
+        stats = {
+            "groups": len(duplicate_groups),
+            "total_duplicates": sum(g["count"] - 1 for g in duplicate_groups),  # 每组减1（保留一个）
+            "total_saved_space": sum(g["saved_space"] for g in duplicate_groups)
+        }
+        
         return {
             "success": True,
-            "duplicates": [],
-            "totalSizeMb": 0,
-            "canSaveMb": 0
+            "duplicates": duplicate_groups,
+            "stats": stats
         }
+        
     except Exception as e:
-        logger.error(f"获取重复文件失败: {e}")
-        return {
-            "success": False,
-            "duplicates": [],
-            "totalSizeMb": 0,
-            "canSaveMb": 0
-        }
+        logger.error(f"检测重复媒体文件失败: {e}")
+        return {"success": False, "error": str(e), "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
 
 @router.get("/media-files/export")
 async def export_media_files():
