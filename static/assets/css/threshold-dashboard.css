@@ -101,29 +101,8 @@
 }
 
 .metric-actions .el-button {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    color: #495057;
-    padding: 4px 8px;
-    font-size: 12px;
-    border-radius: 4px;
-    transition: all 0.2s;
-}
-
-.metric-actions .el-button:hover {
-    background: #e9ecef;
-    border-color: #adb5bd;
-}
-
-.metric-actions .el-button--primary {
-    background: #007bff;
-    border-color: #007bff;
-    color: white;
-}
-
-.metric-actions .el-button--primary:hover {
-    background: #0056b3;
-    border-color: #004085;
+    margin: 0 !important;
+    font-size: 12px !important;
 }
 
 /* 状态颜色类 */
@@ -235,31 +214,40 @@
 }
 
 /* 工具栏样式 */
-.toolbar-card {
-    background: white;
-    border: 1px solid #e4e7ed;
-    border-radius: 8px;
+.toolbar-section {
     margin-bottom: 20px;
 }
 
+.toolbar-card {
+    background: white !important;
+    border: 1px solid #e4e7ed !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
 .toolbar-content {
-    padding: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
+    padding: 20px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 20px !important;
 }
 
 .search-bar {
-    flex: 1;
-    max-width: 300px;
+    flex: 1 !important;
+    max-width: 300px !important;
 }
 
 .search-input {
-    width: 100%;
+    width: 100% !important;
 }
 
 .button-bar {
-    display: flex;
-    gap: 10px;
+    display: flex !important;
+    gap: 10px !important;
+    align-items: center !important;
+}
+
+.button-bar .el-button {
+    margin: 0 !important;
 }
