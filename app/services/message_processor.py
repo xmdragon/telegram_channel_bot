@@ -372,9 +372,18 @@ class MessageProcessor:
     async def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:
         """获取单条消息"""
         try:
-            return self.redis_store.get_message(channel_id, message_id)
+            logger.debug(f"MessageProcessor获取消息: {channel_id}:{message_id}")
+            message = self.redis_store.get_message(channel_id, message_id)
+            
+            if message is None:
+                logger.warning(f"MessageProcessor: 消息不存在 {channel_id}:{message_id}")
+                return None
+            
+            logger.debug(f"MessageProcessor: 成功获取消息 {channel_id}:{message_id}, 状态: {message.get('status', 'unknown')}")
+            return message
+            
         except Exception as e:
-            logger.error(f"获取消息失败 {channel_id}:{message_id}: {e}")
+            logger.error(f"MessageProcessor获取消息失败 {channel_id}:{message_id}: {e}", exc_info=True)
             return None
     
     async def update_message_status(self, channel_id: str, message_id: int, 

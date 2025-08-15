@@ -13299,6 +13299,142 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "dc87829151eb",
+      "image_hash": "c1d41e9141a667e9",
+      "image_path": "temp_media/2023_20250815_140721_photo.jpg",
+      "ocr_texts": [
+        "eXress"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:07:30",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "840ad3adb240",
+      "image_hash": "d4adc18ccc666028",
+      "image_path": "temp_media/12931_20250815_140822_photo.jpg",
+      "ocr_texts": [
+        "1.35",
+        "s来了之后直接让俣安把人背走了",
+        "13.55"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:08:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9d704ec37f34",
+      "image_hash": "c739ffb41b386a71",
+      "image_path": "temp_media/12932_20250815_140824_photo.jpg",
+      "ocr_texts": [
+        "代理照片",
+        "17。"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:08:26",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "368f72c77bc2",
+      "image_hash": "a72f36911cc1bdb5",
+      "image_path": "temp_media/12934_20250815_140826_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:08:29",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b14a74381a1f",
+      "image_hash": "3edbb2557601f97a",
+      "image_path": "temp_media/12935_20250815_140829_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:08:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d8133139ea1d",
+      "image_hash": "60f5f1ebee4bf414",
+      "image_path": "temp_media/9925_20250815_141228_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:12:38",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e8301f4997ed",
+      "image_hash": "57fc076484649305",
+      "image_path": "temp_media/9928_20250815_141239_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:12:46",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f211ed603007",
+      "image_hash": "dd4535517204a33d",
+      "image_path": "temp_media/9935_20250815_141247_photo.jpg",
+      "ocr_texts": [
+        "13;25",
+        "东风园区昨天晚上C区宿舍搂3搂314有人上吊死掉了",
+        "物业来了之后直接让保宏把人背走了",
+        "瘐用的插排的那个线上吊的。吊的人全身发紫'岌青",
+        "公司究竟对他做了什么才会有勇气去上吊?",
+        "~二十穸岁的人就这"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 14:12:48",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -13355,12 +13491,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 546,
+    "total_samples": 554,
     "ad_samples": 214,
-    "non_ad_samples": 332,
+    "non_ad_samples": 340,
     "auto_rejected_samples": 3,
     "high_score_samples": 106,
-    "last_updated": "2025-08-15 13:04:46",
+    "last_updated": "2025-08-15 14:12:48",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",

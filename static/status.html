@@ -29,15 +29,24 @@
                     <h2>🔧 服务状态</h2>
                 </div>
                 <div class="card-content">
-                    <div class="list-item" v-for="service in services" :key="service.name">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div class="list-item-title">{{ service.name }}</div>
-                                <div class="list-item-subtitle">{{ service.description }}</div>
+                    <div class="service-grid">
+                        <div class="service-item" v-for="service in services" :key="service.name" 
+                             :class="{ 'service-running': service.status === 'running', 'service-stopped': service.status !== 'running' }">
+                            <div class="service-header">
+                                <div class="service-icon">
+                                    <i :class="getServiceIcon(service.name)"></i>
+                                </div>
+                                <div class="service-info">
+                                    <div class="service-name">{{ service.name }}</div>
+                                    <div class="service-description">{{ service.description }}</div>
+                                </div>
+                                <div class="service-status">
+                                    <el-tag :type="service.status === 'running' ? 'success' : 'danger'" size="large" effect="dark">
+                                        <i :class="service.status === 'running' ? 'el-icon-check' : 'el-icon-close'"></i>
+                                        {{ service.status === 'running' ? '运行中' : '已停止' }}
+                                    </el-tag>
+                                </div>
                             </div>
-                            <el-tag :type="service.status === 'running' ? 'success' : 'danger'" size="large">
-                                {{ service.status === 'running' ? '运行中' : '已停止' }}
-                            </el-tag>
                         </div>
                     </div>
                 </div>

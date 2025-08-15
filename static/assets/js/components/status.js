@@ -80,6 +80,16 @@ const app = createApp({
     },
     
     methods: {
+        getServiceIcon(serviceName) {
+            const iconMap = {
+                'Telegram客户端': 'el-icon-message',
+                '消息处理器': 'el-icon-cpu',
+                '调度器': 'el-icon-timer',
+                'Redis存储': 'el-icon-coin'
+            };
+            return iconMap[serviceName] || 'el-icon-service';
+        },
+        
         async loadSystemStatus() {
             try {
                 const response = await axios.get('/api/system/status');

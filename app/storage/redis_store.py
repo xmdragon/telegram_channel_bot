@@ -114,12 +114,16 @@ class RedisMessageStore(RedisStore):
     
     def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:
         """获取单条消息"""
+        msg_key = f"msg:{channel_id}:{message_id}"
         try:
-            msg_key = f"msg:{channel_id}:{message_id}"
+            logger.debug(f"获取消息: {msg_key}")
             data = self.redis.hgetall(msg_key)
             
             if not data:
+                logger.warning(f"消息不存在于Redis: {msg_key}")
                 return None
+            
+            logger.debug(f"Redis原始数据字段: {list(data.keys())}")
             
             # 反序列化JSON字段
             json_fields = ['entities', 'removed_hidden_links', 'combined_messages', 
@@ -127,7 +131,12 @@ class RedisMessageStore(RedisStore):
             
             for field in json_fields:
                 if field in data:
-                    data[field] = self._deserialize_json(data[field])
+                    try:
+                        data[field] = self._deserialize_json(data[field])
+                        logger.debug(f"成功反序列化JSON字段: {field}")
+                    except Exception as e:
+                        logger.warning(f"反序列化JSON字段 {field} 失败: {e}, 将设为空值")
+                        data[field] = [] if field in ['entities', 'removed_hidden_links', 'combined_messages', 'media_group', 'qr_codes'] else {}
             
             # 转换数值字段
             int_fields = ['message_id', 'review_message_id', 'target_message_id', 'ocr_ad_score']
@@ -135,19 +144,55 @@ class RedisMessageStore(RedisStore):
                 if field in data and data[field]:
                     try:
                         data[field] = int(data[field])
-                    except (ValueError, TypeError):
-                        pass
+                        logger.debug(f"成功转换数值字段: {field} = {data[field]}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"转换数值字段 {field} 失败: {e}, 原值: {data[field]}")
+                        # 保持原值，不进行转换
             
             # 转换布尔字段
             bool_fields = ['is_combined', 'is_ad', 'ocr_processed']
             for field in bool_fields:
                 if field in data:
-                    data[field] = data[field].lower() == 'true' if data[field] else False
+                    try:
+                        if isinstance(data[field], bytes):
+                            data[field] = data[field].decode('utf-8')
+                        data[field] = data[field].lower() == 'true' if data[field] else False
+                        logger.debug(f"成功转换布尔字段: {field} = {data[field]}")
+                    except Exception as e:
+                        logger.warning(f"转换布尔字段 {field} 失败: {e}, 原值: {data[field]}")
+                        data[field] = False
             
+            # 确保关键字段存在
+            if 'source_channel' not in data:
+                data['source_channel'] = channel_id
+            if 'message_id' not in data:
+                data['message_id'] = message_id
+            
+            logger.debug(f"成功获取并处理消息: {msg_key}")
             return data
             
         except Exception as e:
-            logger.error(f"获取消息失败 {channel_id}:{message_id}: {e}")
+            logger.error(f"获取消息失败 {msg_key}: {e}", exc_info=True)
+            # 尝试提供基本的消息数据
+            try:
+                basic_data = self.redis.hgetall(msg_key)
+                if basic_data:
+                    logger.info(f"返回基本消息数据: {msg_key}")
+                    return {
+                        'source_channel': channel_id,
+                        'message_id': message_id,
+                        'content': basic_data.get('content', ''),
+                        'filtered_content': basic_data.get('filtered_content', ''),
+                        'status': basic_data.get('status', 'pending'),
+                        'created_at': basic_data.get('created_at', ''),
+                        'is_ad': False,
+                        'is_combined': False,
+                        'entities': [],
+                        'removed_hidden_links': []
+                    }
+            except Exception as basic_e:
+                logger.error(f"连基本数据也无法获取: {basic_e}")
+            
             return None
     
     def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:

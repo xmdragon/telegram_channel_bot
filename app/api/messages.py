@@ -658,42 +658,67 @@ async def edit_and_publish_message(
 ):
     """编辑消息内容"""
     try:
-        logger.info(f"编辑消息请求: message_id={message_id}, request={request}")
+        logger.info(f"编辑消息请求: message_id={message_id}, user={user.get('username', 'unknown')}")
+        logger.debug(f"请求内容: {request}")
         
         # 解析消息ID
         if ':' in message_id:
             channel_id, msg_id = message_id.split(':', 1)
             logger.debug(f"解析消息ID: channel_id={channel_id}, msg_id={msg_id}")
         else:
-            logger.error(f"不支持的消息ID格式: {message_id}")
-            raise HTTPException(status_code=400, detail=f"不支持的消息ID格式: {message_id}")
+            error_msg = f"不支持的消息ID格式: {message_id}"
+            logger.error(error_msg)
+            raise HTTPException(status_code=400, detail=error_msg)
         
         # 验证解析后的ID
         if not channel_id or not msg_id or msg_id == 'None':
-            logger.error(f"无效的消息ID组件: channel_id={channel_id}, msg_id={msg_id}")
+            error_msg = f"无效的消息ID组件: channel_id='{channel_id}', msg_id='{msg_id}'"
+            logger.error(error_msg)
             raise HTTPException(status_code=400, detail=f"无效的消息ID: {message_id}")
         
-        # 获取消息
+        # 转换消息ID为整数
         try:
             msg_id_int = int(msg_id)
-        except ValueError:
-            logger.error(f"消息ID不是有效数字: {msg_id}")
+            logger.debug(f"消息ID转换成功: {msg_id_int}")
+        except ValueError as e:
+            error_msg = f"消息ID不是有效数字: '{msg_id}' - {str(e)}"
+            logger.error(error_msg)
             raise HTTPException(status_code=400, detail=f"消息ID必须是数字: {msg_id}")
-            
+        
+        # 获取消息
+        logger.info(f"正在获取消息: {channel_id}:{msg_id_int}")
         msg_data = await message_processor.get_message(channel_id, msg_id_int)
+        
         if not msg_data:
-            logger.error(f"消息不存在: {channel_id}:{msg_id_int}")
-            raise HTTPException(status_code=404, detail=f"消息不存在: {channel_id}:{msg_id_int}")
+            # 尝试直接从Redis再次获取以获得更多信息
+            redis_store = get_redis_message_store()
+            raw_data = redis_store.redis.hgetall(f"msg:{channel_id}:{msg_id_int}")
+            
+            if raw_data:
+                logger.error(f"消息存在于Redis但get_message返回None: {channel_id}:{msg_id_int}")
+                logger.debug(f"Redis原始数据字段: {list(raw_data.keys())}")
+                error_msg = f"消息数据损坏，无法编辑: {channel_id}:{msg_id_int}"
+            else:
+                logger.error(f"消息在Redis中不存在: {channel_id}:{msg_id_int}")
+                error_msg = f"消息不存在: {channel_id}:{msg_id_int}"
+            
+            raise HTTPException(status_code=404, detail=error_msg)
+        
+        logger.info(f"成功获取消息: {channel_id}:{msg_id_int}, 状态: {msg_data.get('status', 'unknown')}")
         
         # 更新消息内容
         new_content = request.get("content", "").strip()
+        logger.debug(f"新内容长度: {len(new_content)}")
         
         # 检查是否有媒体文件
         has_media = bool(msg_data.get('media_type') and msg_data.get('media_url')) or bool(msg_data.get('is_combined') and msg_data.get('media_group'))
+        logger.debug(f"是否有媒体: {has_media}")
         
         # 如果没有媒体文件且内容为空，返回错误
         if not new_content and not has_media:
-            return {"success": False, "message": "纯文本消息内容不能为空"}
+            error_msg = "纯文本消息内容不能为空"
+            logger.warning(error_msg)
+            return {"success": False, "message": error_msg}
         
         # 更新Redis中的数据
         redis_store = get_redis_message_store()
@@ -702,9 +727,13 @@ async def edit_and_publish_message(
             'filtered_content': new_content,
             'updated_at': get_current_time().isoformat()
         }
-        redis_store.redis.hset(msg_key, mapping=update_data)
         
-        logger.info(f"消息 {message_id} 内容已更新")
+        try:
+            redis_store.redis.hset(msg_key, mapping=update_data)
+            logger.info(f"成功更新Redis消息内容: {message_id}")
+        except Exception as redis_e:
+            logger.error(f"更新Redis失败: {redis_e}")
+            raise HTTPException(status_code=500, detail=f"数据库更新失败: {str(redis_e)}")
         
         # 尝试更新审核群消息（如果存在）
         review_message_id = msg_data.get('review_message_id')
@@ -716,17 +745,20 @@ async def edit_and_publish_message(
                     updated_msg_data = dict(msg_data)
                     updated_msg_data['filtered_content'] = new_content
                     await telegram_bot.update_review_message(updated_msg_data)
-                    logger.info(f"已更新消息 {message_id} 到审核群")
+                    logger.info(f"已更新审核群消息: {message_id}")
+                else:
+                    logger.warning("Telegram客户端未连接，跳过审核群消息更新")
             except Exception as e:
                 logger.warning(f"更新审核群消息失败，但不影响编辑: {e}")
         
+        logger.info(f"消息编辑完成: {message_id}")
         return {"success": True, "message": "消息已编辑", "content": new_content}
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"编辑消息 {message_id} 失败: {e}", exc_info=True)
-        return {"success": False, "message": f"编辑失败: {str(e)}"}
+        logger.error(f"编辑消息 {message_id} 时发生未预期错误: {e}", exc_info=True)
+        return {"success": False, "message": f"编辑失败: 系统内部错误"}
 
 
 @router.get("/stats/overview")
