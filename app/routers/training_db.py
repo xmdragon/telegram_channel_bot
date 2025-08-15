@@ -603,6 +603,45 @@ async def add_tail_filter_sample(request: dict):
         logger.error(f"添加尾部过滤训练样本失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.put("/tail-filter-samples/{sample_id}")
+async def update_tail_filter_sample(sample_id: int, request: dict):
+    """更新尾部过滤训练样本"""
+    try:
+        # 验证参数
+        if 'tail_content' not in request:
+            return {"success": False, "message": "缺少tail_content参数"}
+        
+        tail_content = request.get('tail_content', '').strip()
+        if not tail_content:
+            return {"success": False, "message": "tail_content不能为空"}
+        
+        # 加载样本
+        samples = load_tail_filter_samples()
+        
+        # 查找样本并更新
+        sample_found = False
+        for sample in samples:
+            if sample.get('id') == sample_id:
+                # 更新样本数据
+                sample['tail_content'] = tail_content
+                sample['updated_at'] = datetime.now().isoformat()
+                sample_found = True
+                break
+        
+        if not sample_found:
+            return {"success": False, "message": "样本不存在"}
+        
+        # 保存更新后的数据
+        save_tail_filter_samples(samples)
+        
+        logger.info(f"成功更新尾部过滤样本: {sample_id}")
+        return {"success": True, "message": "样本已更新"}
+        
+    except Exception as e:
+        logger.error(f"更新尾部过滤样本失败: {e}")
+        return {"success": False, "message": str(e)}
+
+
 @router.delete("/tail-filter-samples/{sample_id}")
 async def delete_tail_filter_sample(sample_id: int):
     """删除尾部过滤训练样本"""
@@ -623,6 +662,157 @@ async def delete_tail_filter_sample(sample_id: int):
     except Exception as e:
         logger.error(f"删除尾部过滤训练样本失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tail-filter-samples/detect-duplicates")
+async def detect_tail_filter_duplicates():
+    """检测尾部过滤样本中的重复项"""
+    try:
+        logger.info("开始检测尾部过滤样本重复项...")
+        
+        # 加载所有样本
+        samples = load_tail_filter_samples()
+        logger.info(f"加载了 {len(samples)} 个尾部过滤样本进行重复检测")
+        
+        if len(samples) == 0:
+            logger.info("没有样本数据，跳过重复检测")
+            return {
+                "success": True,
+                "groups": [],
+                "total_duplicates": 0,
+                "total_groups": 0
+            }
+        
+        # 检测重复 - 基于尾部内容相似度
+        duplicate_groups = []
+        processed = set()
+        
+        for i, sample1 in enumerate(samples):
+            try:
+                sample1_id = sample1.get('id', i + 1)
+                
+                if sample1_id in processed:
+                    continue
+                    
+                group = [sample1]
+                # 优先使用 tail_content，如果为空则使用 tail_part
+                content1 = str(sample1.get('tail_content', '') or sample1.get('tail_part', '')).lower().strip()
+                
+                # 只有内容不为空才进行比较
+                if not content1:
+                    continue
+                
+                logger.debug(f"检查样本 {sample1_id}: '{content1[:50]}...'")  # 调试输出
+                
+                for j, sample2 in enumerate(samples[i+1:], i+1):
+                    sample2_id = sample2.get('id', j + 1)
+                    
+                    if sample2_id in processed:
+                        continue
+                        
+                    # 优先使用 tail_content，如果为空则使用 tail_part
+                    content2 = str(sample2.get('tail_content', '') or sample2.get('tail_part', '')).lower().strip()
+                    
+                    # 只有内容不为空才进行比较
+                    if not content2:
+                        continue
+                    
+                    logger.debug(f"比较样本 {sample1_id} vs {sample2_id}: '{content1[:30]}...' vs '{content2[:30]}...'")
+                    
+                    # 简单的相似度检测：内容完全相同或包含关系
+                    is_duplicate = False
+                    if content1 == content2:
+                        is_duplicate = True
+                        logger.info(f"发现完全匹配: {sample1_id} vs {sample2_id}")  # 调试输出
+                    elif len(content1) > 20 and len(content2) > 20:
+                        # 对于长文本，检查包含关系
+                        if content1 in content2 or content2 in content1:
+                            is_duplicate = True
+                        # 检查高相似度（简单字符匹配）
+                        similarity = len(set(content1) & set(content2)) / len(set(content1) | set(content2))
+                        if similarity > 0.8:
+                            is_duplicate = True
+                    
+                    if is_duplicate:
+                        group.append(sample2)
+                        processed.add(sample2_id)
+                
+                if len(group) > 1:
+                    # 计算相似度百分比
+                    similarity_percentage = 100  # 默认完全匹配
+                    if len(group) > 1:
+                        # 简单计算组内平均相似度
+                        content1 = str(group[0].get('tail_content', '') or group[0].get('tail_part', '')).lower().strip()
+                        content2 = str(group[1].get('tail_content', '') or group[1].get('tail_part', '')).lower().strip()
+                        if content1 != content2 and content1 and content2:
+                            similarity_percentage = int(len(set(content1) & set(content2)) / len(set(content1) | set(content2)) * 100)
+                    
+                    duplicate_groups.append({
+                        "similarity": similarity_percentage,
+                        "samples": group,
+                        "count": len(group)
+                    })
+                    for sample in group:
+                        sample_id = sample.get('id', samples.index(sample) + 1 if sample in samples else 'unknown')
+                        processed.add(sample_id)
+                        
+            except Exception as sample_error:
+                logger.error(f"处理样本 {i} 时出错: {sample_error}")
+                continue
+        
+        total_duplicates = sum(len(group['samples']) - 1 for group in duplicate_groups)
+        
+        logger.info(f"重复检测完成: 发现 {len(duplicate_groups)} 组重复，总计 {total_duplicates} 个重复样本")
+        
+        return {
+            "success": True,
+            "groups": duplicate_groups,
+            "total_duplicates": total_duplicates,
+            "total_groups": len(duplicate_groups)
+        }
+    except Exception as e:
+        logger.error(f"检测重复尾部过滤样本失败: {e}", exc_info=True)
+        return {
+            "success": False,
+            "groups": [],
+            "total_duplicates": 0,
+            "total_groups": 0,
+            "error": str(e)
+        }
+
+
+@router.post("/tail-filter-samples/deduplicate")
+async def deduplicate_tail_filter_samples(request: dict):
+    """去重尾部过滤样本"""
+    try:
+        # 获取要删除的样本ID
+        remove_ids = request.get("remove_ids", [])
+        
+        if not remove_ids:
+            return {"success": False, "message": "没有指定要删除的重复样本"}
+        
+        # 加载所有样本
+        samples = load_tail_filter_samples()
+        
+        # 删除指定的样本
+        original_count = len(samples)
+        samples = [s for s in samples if s.get('id') not in remove_ids]
+        deleted_count = original_count - len(samples)
+        
+        if deleted_count > 0:
+            # 保存更新后的数据
+            save_tail_filter_samples(samples)
+            logger.info(f"成功去重，删除了 {deleted_count} 个重复样本")
+        
+        return {
+            "success": True,
+            "message": f"去重完成，删除了 {deleted_count} 个重复样本",
+            "removed_count": deleted_count
+        }
+    except Exception as e:
+        logger.error(f"去重尾部过滤样本失败: {e}")
+        return {"success": False, "message": str(e)}
+
 
 # 媒体文件管理端点
 @router.get("/media-files")

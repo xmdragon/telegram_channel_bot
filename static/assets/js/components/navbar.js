@@ -22,7 +22,7 @@ const NavBar = {
                 <div class="navbar-links">
                     <a href="./index.html" :class="['nav-link', isActive('/index.html') ? 'active' : '']">🏠 主控制台</a>
                     <a href="./config.html" :class="['nav-link', isActive('/config.html') ? 'active' : '']">⚙️ 系统配置</a>
-                    <a href="./train.html" :class="['nav-link', isActive('/train.html') ? 'active' : '']">🤖 AI训练</a>
+                    <a href="./tail_filter_manager.html" :class="['nav-link', isActive('/tail_filter_manager.html') ? 'active' : '']">🤖 AI训练</a>
                     <a href="./status.html" :class="['nav-link', isActive('/status.html') ? 'active' : '']">📊 系统状态</a>
                     <a href="./logs.html" :class="['nav-link', isActive('/logs.html') ? 'active' : '']">📋 系统日志</a>
                     <a href="./admin_manage.html" :class="['nav-link', isActive('/admin_manage.html') ? 'active' : '']">👥 管理员</a>

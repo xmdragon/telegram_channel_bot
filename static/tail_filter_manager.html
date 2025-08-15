@@ -58,6 +58,54 @@
             font-size: 12px;
             color: #999;
         }
+        
+        /* 重复检测样式 */
+        .duplicate-group {
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .group-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: 500;
+        }
+        
+        .group-samples {
+            padding: 16px;
+        }
+        
+        .duplicate-sample {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .duplicate-sample:last-child {
+            border-bottom: none;
+        }
+        
+        .sample-id {
+            margin: 0 12px;
+            font-weight: 500;
+            color: #666;
+            min-width: 60px;
+        }
+        
+        .sample-preview {
+            flex: 1;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -109,6 +157,10 @@
                                         <el-icon><Plus /></el-icon>
                                         前往添加样本
                                     </el-button>
+                                    <el-button @click="showDuplicates" type="warning" class="btn-warning">
+                                        <el-icon><CopyDocument /></el-icon>
+                                        检测重复
+                                    </el-button>
                                     <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
                                         <el-icon><Delete /></el-icon>
                                         批量删除 ({{ selectedSamples.length }})
@@ -156,8 +208,11 @@
                         </template>
                     </el-table-column>
                     
-                    <el-table-column label="操作" width="100">
+                    <el-table-column label="操作" width="160">
                         <template #default="scope">
+                            <el-button type="primary" size="small" @click="editSample(scope.row)" style="margin-right: 8px;">
+                                编辑
+                            </el-button>
                             <el-button type="danger" size="small" class="btn-danger" @click="deleteSample(scope.row)">
                                 删除
                             </el-button>
@@ -193,6 +248,59 @@
                     <el-divider></el-divider>
                     <h4>完整尾部内容：</h4>
                     <div class="detail-content" style="white-space: pre-line; background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #409EFF; font-family: 'Consolas', 'Monaco', monospace;">{{ currentSample.tail_content }}</div>
+                </div>
+            </div>
+        </el-dialog>
+
+        <!-- 编辑对话框 -->
+        <el-dialog v-model="editDialog" title="编辑尾部过滤样本" width="60%">
+            <el-form v-if="editingSample" :model="editingSample" label-width="120px">
+                <el-form-item label="尾部内容" required>
+                    <el-input
+                        v-model="editingSample.tail_content"
+                        type="textarea"
+                        :rows="8"
+                        placeholder="编辑尾部内容..."
+                    ></el-input>
+                    <div class="char-count">{{ editingSample.tail_content ? editingSample.tail_content.length : 0 }} 字符</div>
+                </el-form-item>
+            </el-form>
+            
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="editDialog = false">取消</el-button>
+                    <el-button type="primary" @click="saveEdit" :loading="submitting">
+                        保存
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- 重复检测对话框 -->
+        <el-dialog v-model="duplicateDialog" title="重复样本检测" width="80%">
+            <div v-loading="duplicateLoading">
+                <el-alert v-if="duplicateGroups.length" type="warning" :closable="false" class="mb-4">
+                    发现 {{ duplicateGroups.length }} 组重复/相似样本，共 {{ duplicateSamplesCount }} 个样本
+                </el-alert>
+                
+                <div v-for="(group, idx) in duplicateGroups" :key="idx" class="duplicate-group">
+                    <div class="group-header">
+                        <span>相似组 #{{ idx + 1 }} (相似度: {{ group.similarity }}%)</span>
+                        <el-button type="danger" size="small" @click="mergeGroup(group)">
+                            合并为一个
+                        </el-button>
+                    </div>
+                    <div class="group-samples">
+                        <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
+                            <el-checkbox v-model="sample.keep">保留</el-checkbox>
+                            <span class="sample-id">ID: {{ sample.id }}</span>
+                            <span class="sample-preview">{{ truncateText(sample.tail_content, 50) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="duplicateGroups.length" class="text-center mt-4">
+                    <el-button type="primary" @click="applyDeduplicate">应用去重</el-button>
                 </div>
             </div>
         </el-dialog>

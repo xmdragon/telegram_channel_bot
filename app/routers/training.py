@@ -1816,6 +1816,55 @@ async def add_tail_filter_sample(
         return {"success": False, "message": str(e)}
 
 
+@router.put("/tail-filter-samples/{sample_id}")
+async def update_tail_filter_sample(sample_id: int, request: dict):
+    """更新尾部过滤训练样本"""
+    try:
+        # 验证参数
+        if 'tail_content' not in request:
+            return {"success": False, "message": "缺少tail_content参数"}
+        
+        tail_content = request.get('tail_content', '').strip()
+        if not tail_content:
+            return {"success": False, "message": "tail_content不能为空"}
+        
+        # 加载样本
+        if not TAIL_FILTER_SAMPLES_FILE.exists():
+            return {"success": False, "message": "样本文件不存在"}
+        
+        with open(TAIL_FILTER_SAMPLES_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            samples = data.get("samples", [])
+        
+        # 查找样本
+        sample_found = False
+        for sample in samples:
+            if sample.get('id') == sample_id:
+                # 更新样本数据
+                sample['tail_content'] = tail_content
+                sample['updated_at'] = datetime.now().isoformat()
+                sample_found = True
+                break
+        
+        if not sample_found:
+            return {"success": False, "message": "样本不存在"}
+        
+        # 保存文件
+        if not SafeFileOperation.write_json_safe(TAIL_FILTER_SAMPLES_FILE, {
+            "samples": samples,
+            "updated_at": datetime.now().isoformat(),
+            "description": "尾部过滤训练样本 - 只保留尾部数据"
+        }):
+            return {"success": False, "message": "保存数据失败"}
+        
+        logger.info(f"成功更新尾部过滤样本: {sample_id}")
+        return {"success": True, "message": "样本已更新"}
+        
+    except Exception as e:
+        logger.error(f"更新尾部过滤样本失败: {e}")
+        return {"success": False, "message": str(e)}
+
+
 @router.delete("/tail-filter-samples/{sample_id}")
 async def delete_tail_filter_sample(sample_id: int):
     """删除尾部过滤训练样本"""

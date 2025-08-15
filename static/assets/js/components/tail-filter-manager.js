@@ -24,7 +24,18 @@ const app = createApp({
             
             // 对话框
             detailDialog: false,
-            currentSample: null
+            currentSample: null,
+            
+            // 编辑对话框
+            editDialog: false,
+            editingSample: null,
+            submitting: false,
+            
+            // 重复检测对话框
+            duplicateDialog: false,
+            duplicateLoading: false,
+            duplicateGroups: [],
+            duplicateSamplesCount: 0
         }
     },
     
@@ -194,6 +205,45 @@ const app = createApp({
             }
         },
         
+        // 编辑样本
+        editSample(sample) {
+            console.log('✏️ 编辑样本:', sample);
+            this.editingSample = {
+                id: sample.id,
+                tail_content: sample.tail_content
+            };
+            this.editDialog = true;
+        },
+        
+        // 保存编辑
+        async saveEdit() {
+            if (!this.editingSample || !this.editingSample.tail_content.trim()) {
+                ElMessage.warning('请输入尾部内容');
+                return;
+            }
+            
+            this.submitting = true;
+            try {
+                const response = await axios.put(`/api/training/tail-filter-samples/${this.editingSample.id}`, {
+                    tail_content: this.editingSample.tail_content.trim()
+                });
+                
+                if (response.data.success) {
+                    ElMessage.success('保存成功');
+                    this.editDialog = false;
+                    this.editingSample = null;
+                    await this.loadSamples();
+                } else {
+                    ElMessage.error(response.data.message || '保存失败');
+                }
+            } catch (error) {
+                console.error('保存编辑失败:', error);
+                ElMessage.error('保存失败');
+            } finally {
+                this.submitting = false;
+            }
+        },
+        
         // 批量删除
         async deleteSelected() {
             if (!this.selectedSamples.length) return;
@@ -229,6 +279,90 @@ const app = createApp({
                 if (error !== 'cancel') {
                     // console.error('批量删除失败:', error);
                     ElMessage.error('批量删除失败');
+                }
+            }
+        },
+        
+        // 显示重复检测
+        async showDuplicates() {
+            this.duplicateDialog = true;
+            this.duplicateLoading = true;
+            
+            try {
+                const response = await axios.post('/api/training/tail-filter-samples/detect-duplicates');
+                
+                // 检查API响应是否成功
+                if (response.data.success) {
+                    this.duplicateGroups = response.data.groups || [];
+                    this.duplicateSamplesCount = response.data.total_duplicates || 0;
+                    
+                    if (!this.duplicateGroups.length) {
+                        ElMessage.info('没有发现重复的样本');
+                        this.duplicateDialog = false;
+                    }
+                } else {
+                    ElMessage.error('检测重复失败: ' + (response.data.error || '未知错误'));
+                    this.duplicateDialog = false;
+                }
+            } catch (error) {
+                console.error('检测重复失败:', error);
+                ElMessage.error('检测重复失败: ' + (error.response?.data?.message || error.message));
+                this.duplicateDialog = false;
+            } finally {
+                this.duplicateLoading = false;
+            }
+        },
+        
+        // 合并重复组
+        mergeGroup(group) {
+            // 默认保留第一个，删除其他
+            group.samples.forEach((sample, idx) => {
+                sample.keep = idx === 0;
+            });
+        },
+        
+        // 应用去重
+        async applyDeduplicate() {
+            try {
+                // 收集要删除的样本ID
+                const toDelete = [];
+                this.duplicateGroups.forEach(group => {
+                    group.samples.forEach(sample => {
+                        if (!sample.keep) {
+                            const sampleId = sample.id;
+                            if (sampleId) {
+                                toDelete.push(sampleId);
+                            }
+                        }
+                    });
+                });
+                
+                if (!toDelete.length) {
+                    ElMessage.warning('没有选择要删除的样本');
+                    return;
+                }
+                
+                await ElMessageBox.confirm(
+                    `将删除 ${toDelete.length} 个重复样本，是否继续？`,
+                    '去重确认',
+                    {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                    }
+                );
+                
+                const response = await axios.post('/api/training/tail-filter-samples/deduplicate', {
+                    remove_ids: toDelete
+                });
+                
+                ElMessage.success(response.data.message);
+                this.duplicateDialog = false;
+                await this.loadSamples();
+            } catch (error) {
+                if (error !== 'cancel') {
+                    console.error('去重失败:', error);
+                    ElMessage.error('去重失败');
                 }
             }
         },
