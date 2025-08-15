@@ -90,32 +90,61 @@ class TelegramLinkResolver:
             # 使用Telethon的方法解析邀请链接
             from telethon.tl.functions.messages import CheckChatInviteRequest
             from telethon.tl.functions.messages import ImportChatInviteRequest
+            from telethon.errors import InviteHashExpiredError, InviteHashInvalidError
+            
+            logger.debug(f"开始解析邀请链接: {invite_hash}")
             
             # 首先检查邀请链接信息
-            result = await auth_manager.client(CheckChatInviteRequest(invite_hash))
+            try:
+                result = await auth_manager.client(CheckChatInviteRequest(invite_hash))
+            except (InviteHashExpiredError, InviteHashInvalidError) as e:
+                logger.warning(f"邀请链接无效或已过期: {e}")
+                return None
             
             if hasattr(result, 'chat'):
                 # 如果已经加入了群组，直接返回ID
                 chat_id = result.chat.id
+                logger.info(f"已加入群组，直接获取ID: {chat_id}")
+                
                 if hasattr(result.chat, 'megagroup') and result.chat.megagroup:
                     # 超级群组需要添加-100前缀
-                    return int(f"-100{chat_id}")
+                    resolved_id = int(f"-100{chat_id}")
+                elif hasattr(result.chat, 'broadcast') and result.chat.broadcast:
+                    # 频道也需要添加-100前缀
+                    resolved_id = int(f"-100{chat_id}")
                 else:
-                    return -chat_id if chat_id > 0 else chat_id
+                    resolved_id = -chat_id if chat_id > 0 else chat_id
+                
+                logger.info(f"邀请链接解析成功: {invite_hash} -> {resolved_id}")
+                return resolved_id
             
             elif hasattr(result, 'title'):
                 # 如果还没加入，需要先加入才能获取ID
-                logger.info(f"需要加入群组: {result.title}")
-                import_result = await auth_manager.client(ImportChatInviteRequest(invite_hash))
+                # 注意：这会让机器人加入群组
+                logger.info(f"需要加入群组才能获取ID: {result.title}")
                 
-                if hasattr(import_result, 'chats') and import_result.chats:
-                    chat = import_result.chats[0]
-                    chat_id = chat.id
-                    if hasattr(chat, 'megagroup') and chat.megagroup:
-                        return int(f"-100{chat_id}")
-                    else:
-                        return -chat_id if chat_id > 0 else chat_id
+                try:
+                    import_result = await auth_manager.client(ImportChatInviteRequest(invite_hash))
+                    
+                    if hasattr(import_result, 'chats') and import_result.chats:
+                        chat = import_result.chats[0]
+                        chat_id = chat.id
+                        logger.info(f"成功加入群组并获取ID: {chat_id}")
+                        
+                        if hasattr(chat, 'megagroup') and chat.megagroup:
+                            resolved_id = int(f"-100{chat_id}")
+                        elif hasattr(chat, 'broadcast') and chat.broadcast:
+                            resolved_id = int(f"-100{chat_id}")
+                        else:
+                            resolved_id = -chat_id if chat_id > 0 else chat_id
+                        
+                        logger.info(f"邀请链接解析成功: {invite_hash} -> {resolved_id}")
+                        return resolved_id
+                except Exception as join_error:
+                    logger.error(f"加入群组失败: {join_error}")
+                    return None
             
+            logger.warning(f"无法解析邀请链接: {invite_hash}")
             return None
             
         except Exception as e:
@@ -154,34 +183,54 @@ class TelegramLinkResolver:
         如果是链接，解析获取ID并缓存；如果已经是ID，直接返回
         """
         try:
+            if not review_group_config or not review_group_config.strip():
+                logger.warning("群组配置为空")
+                return None
+                
+            review_group_config = review_group_config.strip()
+            logger.debug(f"开始解析群组配置: {review_group_config}")
+            
             # 检查是否已经是数字ID
             if review_group_config.lstrip('-').isdigit():
-                return int(review_group_config)
+                resolved_id = int(review_group_config)
+                logger.info(f"检测到数字ID格式: {resolved_id}")
+                return resolved_id
             
             # 检查是否是用户名格式
             if review_group_config.startswith('@') and not self.is_telegram_link(review_group_config):
-                entity = await auth_manager.client.get_entity(review_group_config)
-                if hasattr(entity, 'id'):
-                    chat_id = entity.id
-                    if hasattr(entity, 'megagroup') and entity.megagroup:
-                        resolved_id = int(f"-100{chat_id}")
-                    elif hasattr(entity, 'broadcast') and entity.broadcast:
-                        resolved_id = int(f"-100{chat_id}")
-                    else:
-                        resolved_id = -chat_id if chat_id > 0 else chat_id
-                    
-                    # 缓存解析结果
-                    await self._cache_resolved_id(review_group_config, resolved_id)
-                    return resolved_id
+                logger.info(f"检测到用户名格式: {review_group_config}")
+                try:
+                    entity = await auth_manager.client.get_entity(review_group_config)
+                    if hasattr(entity, 'id'):
+                        chat_id = entity.id
+                        if hasattr(entity, 'megagroup') and entity.megagroup:
+                            resolved_id = int(f"-100{chat_id}")
+                        elif hasattr(entity, 'broadcast') and entity.broadcast:
+                            resolved_id = int(f"-100{chat_id}")
+                        else:
+                            resolved_id = -chat_id if chat_id > 0 else chat_id
+                        
+                        # 缓存解析结果
+                        await self._cache_resolved_id(review_group_config, resolved_id)
+                        logger.info(f"用户名解析成功: {review_group_config} -> {resolved_id}")
+                        return resolved_id
+                except Exception as e:
+                    logger.error(f"解析用户名失败: {e}")
+                    return None
             
             # 如果是Telegram链接，解析获取ID
             if self.is_telegram_link(review_group_config):
+                logger.info(f"检测到Telegram链接: {review_group_config}")
                 resolved_id = await self.resolve_group_id(review_group_config)
                 if resolved_id:
                     # 缓存解析结果
                     await self._cache_resolved_id(review_group_config, resolved_id)
+                    logger.info(f"链接解析成功: {review_group_config} -> {resolved_id}")
                     return resolved_id
+                else:
+                    logger.warning(f"链接解析失败: {review_group_config}")
             
+            logger.warning(f"无法识别的群组配置格式: {review_group_config}")
             return None
             
         except Exception as e:
@@ -191,9 +240,18 @@ class TelegramLinkResolver:
     async def _cache_resolved_id(self, original_config: str, resolved_id: int):
         """缓存解析的群组ID"""
         try:
-            # 将解析的ID缓存到配置中
+            # 将解析的ID缓存到专门的缓存字段
             await config_manager.set_config('channels.review_group_id_cached', str(resolved_id))
             logger.info(f"已缓存审核群ID: {original_config} -> {resolved_id}")
+            
+            # 同时更新Redis缓存
+            try:
+                from app.services.channel_cache import channel_cache
+                await channel_cache._ensure_redis()
+                await channel_cache.redis_store.redis.set('cache:review_group_id', str(resolved_id))
+                logger.debug(f"已同步更新Redis缓存: {resolved_id}")
+            except Exception as redis_error:
+                logger.warning(f"更新Redis缓存失败: {redis_error}")
         except Exception as e:
             logger.error(f"缓存群组ID失败: {e}")
     
@@ -217,13 +275,21 @@ class TelegramLinkResolver:
             # 首先尝试获取缓存的ID
             cached_id = await self.get_cached_group_id()
             if cached_id:
+                logger.debug(f"使用缓存的群组ID: {cached_id}")
                 return cached_id
             
             # 如果没有缓存，获取配置的审核群设置
-            review_group_config = await config_manager.get_config('channels.review_group_id', '')
+            # 先尝试优先使用review_group配置
+            review_group_config = await config_manager.get_config('channels.review_group', '')
             if not review_group_config:
+                # 如果没有，再尝试使用review_group_id配置
+                review_group_config = await config_manager.get_config('channels.review_group_id', '')
+            
+            if not review_group_config:
+                logger.info("未配置审核群")
                 return None
             
+            logger.debug(f"尝试解析审核群配置: {review_group_config}")
             # 解析并缓存
             return await self.resolve_and_cache_group_id(review_group_config)
             

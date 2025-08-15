@@ -509,13 +509,15 @@ class MessageGrouper:
         try:
             redis_store = get_redis_message_store()
             
-            # 查询指定频道的所有消息
-            messages = redis_store.get_messages_by_channel(channel_id)
+            # 改进：使用组合消息的索引来查找，而不是遍历所有消息
+            # 查询指定频道最近的消息（限制数量）
+            messages = redis_store.get_messages_by_channel(channel_id, limit=100)
             
             # 查找已存在的组合消息
             for message in messages:
                 if (message.get('grouped_id') == grouped_id and 
                     message.get('is_combined') == True):
+                    logger.debug(f"找到现有组合消息: grouped_id={grouped_id}")
                     return message
                     
             return None
@@ -529,12 +531,20 @@ class MessageGrouper:
         try:
             redis_store = get_redis_message_store()
             
-            # 查询指定频道的所有消息
-            messages = redis_store.get_messages_by_channel(channel_id)
+            # 直接尝试获取消息，避免遍历（静默模式，避免产生不必要的警告）
+            # 首先尝试根据message_id直接查找
+            existing_message = redis_store.get_message(channel_id, message_id, silent=True)
+            if existing_message and existing_message.get('telegram_message_id') == message_id:
+                logger.debug(f"找到现有单独消息: message_id={message_id}")
+                return existing_message
+            
+            # 如果直接查找失败，再查询最近的消息（限制数量）
+            messages = redis_store.get_messages_by_channel(channel_id, limit=100)
             
             # 查找已存在的单独消息
             for message in messages:
                 if message.get('telegram_message_id') == message_id:
+                    logger.debug(f"在最近消息中找到现有单独消息: message_id={message_id}")
                     return message
                     
             return None

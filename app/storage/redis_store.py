@@ -113,15 +113,22 @@ class RedisMessageStore(RedisStore):
             logger.error(f"保存消息失败 {channel_id}:{message_id}: {e}")
             return False
     
-    def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:
-        """获取单条消息"""
+    def get_message(self, channel_id: str, message_id: int, silent: bool = False) -> Optional[Dict[str, Any]]:
+        """获取单条消息
+        
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID  
+            silent: 静默模式，不输出"消息不存在"的警告（用于存在性检查）
+        """
         msg_key = f"msg:{channel_id}:{message_id}"
         try:
             logger.debug(f"获取消息: {msg_key}")
             data = self.redis.hgetall(msg_key)
             
             if not data:
-                logger.warning(f"消息不存在于Redis: {msg_key}")
+                if not silent:
+                    logger.warning(f"消息不存在于Redis: {msg_key}")
                 return None
             
             logger.debug(f"Redis原始数据字段: {list(data.keys())}")
@@ -203,10 +210,23 @@ class RedisMessageStore(RedisStore):
             msg_ids = self.redis.zrevrange(f"msg:idx:{channel_id}", offset, offset + limit - 1)
             
             messages = []
+            invalid_ids = []  # 记录无效的消息ID
+            
             for msg_id in msg_ids:
-                msg_data = self.get_message(channel_id, int(msg_id))
+                msg_data = self.get_message(channel_id, int(msg_id), silent=True)
                 if msg_data:
                     messages.append(msg_data)
+                else:
+                    # 记录无效ID，但不立即清理（避免在遍历时修改索引）
+                    invalid_ids.append(msg_id)
+            
+            # 批量清理无效的索引条目
+            if invalid_ids:
+                logger.info(f"清理频道 {channel_id} 中 {len(invalid_ids)} 个无效的索引条目")
+                pipe = self.redis.pipeline()
+                for invalid_id in invalid_ids:
+                    pipe.zrem(f"msg:idx:{channel_id}", invalid_id)
+                pipe.execute()
             
             return messages
             
@@ -221,11 +241,27 @@ class RedisMessageStore(RedisStore):
             pending_keys = self.redis.zrevrange("msg:idx:pending", 0, limit - 1)
             
             messages = []
+            invalid_keys = []
+            
             for key in pending_keys:
-                channel_id, message_id = key.split(':', 1)
-                msg_data = self.get_message(channel_id, int(message_id))
-                if msg_data:
-                    messages.append(msg_data)
+                try:
+                    channel_id, message_id = key.split(':', 1)
+                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
+                    if msg_data:
+                        messages.append(msg_data)
+                    else:
+                        invalid_keys.append(key)
+                except Exception as e:
+                    logger.debug(f"处理待审核消息键失败 {key}: {e}")
+                    invalid_keys.append(key)
+            
+            # 清理无效的待审核索引条目
+            if invalid_keys:
+                logger.info(f"清理 {len(invalid_keys)} 个无效的待审核消息索引条目")
+                pipe = self.redis.pipeline()
+                for invalid_key in invalid_keys:
+                    pipe.zrem("msg:idx:pending", invalid_key)
+                pipe.execute()
             
             return messages
             
@@ -243,7 +279,7 @@ class RedisMessageStore(RedisStore):
             for key in status_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
-                    msg_data = self.get_message(channel_id, int(message_id))
+                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
                     if msg_data:
                         messages.append(msg_data)
             
@@ -288,7 +324,7 @@ class RedisMessageStore(RedisStore):
                 parts = key.split(':')
                 if len(parts) == 3:  # msg:channel_id:message_id
                     channel_id, message_id = parts[1], parts[2]
-                    msg_data = self.get_message(channel_id, int(message_id))
+                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
                     if msg_data:
                         messages.append(msg_data)
             
@@ -518,6 +554,77 @@ class RedisMessageStore(RedisStore):
             
         except Exception as e:
             logger.error(f"索引清理失败: {e}")
+            
+    def cleanup_invalid_indexes(self):
+        """清理无效的索引条目（指向不存在消息的索引）"""
+        try:
+            logger.info("开始清理无效的索引条目...")
+            cleaned_count = 0
+            
+            # 获取所有频道索引
+            channel_indexes = self.redis.keys("msg:idx:-*")
+            
+            for index_key in channel_indexes:
+                try:
+                    # 获取频道ID
+                    channel_id = index_key.decode('utf-8').replace("msg:idx:", "")
+                    
+                    # 获取该频道索引中的所有消息ID
+                    msg_ids = self.redis.zrange(index_key, 0, -1)
+                    invalid_ids = []
+                    
+                    # 检查每个消息是否存在
+                    for msg_id in msg_ids:
+                        msg_key = f"msg:{channel_id}:{msg_id.decode('utf-8')}"
+                        if not self.redis.exists(msg_key):
+                            invalid_ids.append(msg_id)
+                    
+                    # 批量删除无效索引
+                    if invalid_ids:
+                        pipe = self.redis.pipeline()
+                        for invalid_id in invalid_ids:
+                            pipe.zrem(index_key, invalid_id)
+                        pipe.execute()
+                        cleaned_count += len(invalid_ids)
+                        logger.debug(f"从 {channel_id} 清理了 {len(invalid_ids)} 个无效索引")
+                        
+                except Exception as e:
+                    logger.warning(f"清理索引 {index_key} 时出错: {e}")
+                    continue
+            
+            # 清理状态索引
+            for status in ['pending', 'approved', 'rejected', 'auto_forwarded']:
+                try:
+                    status_keys = self.redis.zrange(f"msg:idx:{status}", 0, -1)
+                    invalid_keys = []
+                    
+                    for key in status_keys:
+                        try:
+                            channel_id, message_id = key.decode('utf-8').split(':', 1)
+                            msg_key = f"msg:{channel_id}:{message_id}"
+                            if not self.redis.exists(msg_key):
+                                invalid_keys.append(key)
+                        except ValueError:
+                            invalid_keys.append(key)  # 格式错误的键也删除
+                    
+                    if invalid_keys:
+                        pipe = self.redis.pipeline()
+                        for invalid_key in invalid_keys:
+                            pipe.zrem(f"msg:idx:{status}", invalid_key)
+                        pipe.execute()
+                        cleaned_count += len(invalid_keys)
+                        logger.debug(f"从状态索引 {status} 清理了 {len(invalid_keys)} 个无效条目")
+                        
+                except Exception as e:
+                    logger.warning(f"清理状态索引 {status} 时出错: {e}")
+            
+            if cleaned_count > 0:
+                logger.info(f"索引清理完成，共清理了 {cleaned_count} 个无效条目")
+            else:
+                logger.debug("没有发现需要清理的无效索引条目")
+                
+        except Exception as e:
+            logger.error(f"清理无效索引失败: {e}")
     
     async def get_old_messages_for_cleanup(self, cutoff_time):
         """获取需要清理的旧消息"""
@@ -534,7 +641,7 @@ class RedisMessageStore(RedisStore):
                         continue
                     
                     channel_id, message_id = key.split(':', 1)
-                    msg_data = self.get_message(channel_id, int(message_id))
+                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
                     
                     if not msg_data:
                         continue

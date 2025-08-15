@@ -584,6 +584,39 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
         await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled)
         await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay)
         
+        # 尝试解析并缓存私有链接的ID
+        target_resolved_id = None
+        review_resolved_id = None
+        
+        # 处理审核群私有链接
+        if request.review_group and ('https://t.me/+' in request.review_group or 't.me/+' in request.review_group):
+            try:
+                from app.services.telegram_link_resolver import link_resolver
+                resolved_id = await link_resolver.resolve_group_id(request.review_group)
+                if resolved_id:
+                    # 保存解析后的ID到专门的缓存字段
+                    await config_manager.set_config('channels.review_group_id_cached', str(resolved_id))
+                    review_resolved_id = str(resolved_id)
+                    logger.info(f"审核群私有链接已解析: {request.review_group} -> {resolved_id}")
+                else:
+                    logger.warning(f"审核群私有链接解析失败: {request.review_group}")
+            except Exception as e:
+                logger.error(f"解析审核群私有链接时出错: {e}")
+        
+        # 处理目标频道私有链接
+        if request.target_channel and ('https://t.me/+' in request.target_channel or 't.me/+' in request.target_channel):
+            try:
+                from app.services.telegram_link_resolver import link_resolver
+                resolved_id = await link_resolver.resolve_group_id(request.target_channel)
+                if resolved_id:
+                    await config_manager.set_config('channels.target_channel_id_cached', str(resolved_id))
+                    target_resolved_id = str(resolved_id)
+                    logger.info(f"目标频道私有链接已解析: {request.target_channel} -> {resolved_id}")
+                else:
+                    logger.warning(f"目标频道私有链接解析失败: {request.target_channel}")
+            except Exception as e:
+                logger.error(f"解析目标频道私有链接时出错: {e}")
+        
         # 刷新Redis缓存并获取解析结果
         from app.services.channel_cache import channel_cache
         target_result = await channel_cache.refresh_target_channel_cache()
@@ -591,12 +624,17 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
         
         # 构建详细的返回消息
         messages = ["转发配置已保存"]
-        if target_result:
+        
+        if target_resolved_id:
+            messages.append(f"目标频道私有链接已解析: {target_resolved_id}")
+        elif target_result:
             messages.append(f"目标频道解析成功: {target_result}")
         else:
             messages.append("目标频道暂未解析（需要Telegram连接）")
             
-        if review_result:
+        if review_resolved_id:
+            messages.append(f"审核群私有链接已解析: {review_resolved_id}")
+        elif review_result:
             messages.append(f"审核群解析成功: {review_result}")
         else:
             messages.append("审核群暂未解析（需要Telegram连接）")
@@ -604,8 +642,12 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
         return {
             "success": True,
             "message": "，".join(messages),
-            "target_resolved": target_result,
-            "review_resolved": review_result
+            "target_resolved": target_result or target_resolved_id,
+            "review_resolved": review_result or review_resolved_id,
+            "private_links_resolved": {
+                "target_channel": target_resolved_id,
+                "review_group": review_resolved_id
+            }
         }
         
     except Exception as e:

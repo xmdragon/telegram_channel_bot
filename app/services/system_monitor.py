@@ -184,9 +184,18 @@ class SystemMonitor:
             
             # 获取目标频道和审核群配置（从系统配置表）
             from app.services.config_manager import config_manager
-            target_channel_id = await config_manager.get_config('channels.target_channel_id')
+            
+            # 优先使用缓存的ID（针对私有链接）
+            target_channel_id = await config_manager.get_config('channels.target_channel_id_cached')
+            if not target_channel_id:
+                target_channel_id = await config_manager.get_config('channels.target_channel_id')
+            
+            review_group_id = await config_manager.get_config('channels.review_group_id_cached')
+            if not review_group_id:
+                review_group_id = await config_manager.get_config('channels.review_group_id')
+            
+            # 获取显示用的原始配置
             target_channel = await config_manager.get_config('channels.target_channel')
-            review_group_id = await config_manager.get_config('channels.review_group_id')
             review_group = await config_manager.get_config('channels.review_group')
                     
             # 验证必要配置
@@ -203,14 +212,17 @@ class SystemMonitor:
                 else:
                     warnings.append("未配置审核群")
                 
-            # 如果有认证，验证频道可访问性
+            # 验证频道可访问性（只验证ID，不验证私有链接）
             auth_status = await auth_manager.get_auth_status()
             if auth_manager.client and auth_status.get('authorized', False):
                 channels_to_verify = source_channels.copy()
-                if target_channel:
-                    channels_to_verify.append(target_channel)
-                if review_group:
-                    channels_to_verify.append(review_group)
+                
+                # 只添加已解析的ID进行验证
+                if target_channel_id and target_channel_id.startswith('-100'):
+                    channels_to_verify.append(target_channel_id)
+                if review_group_id and review_group_id.startswith('-100'):
+                    channels_to_verify.append(review_group_id)
+                
                 await self._verify_channel_access(channels_to_verify)
                 
         except Exception as e:
@@ -232,12 +244,34 @@ class SystemMonitor:
         for channel_id in channel_ids:
             try:
                 # 处理不同格式的频道ID
-                if channel_id.startswith('@'):
+                if channel_id.startswith('https://t.me/+') or channel_id.startswith('t.me/+'):
+                    # 私有邀请链接格式，需要特殊处理
+                    # 这种链接只能通过加入来验证，不能直接get_entity
+                    # 为了避免意外加入群组，我们跳过这种链接的验证
+                    logger.debug(f"跳过私有邀请链接验证: {channel_id}")
+                    continue
+                elif channel_id.startswith('@'):
                     # 用户名格式，直接使用
                     entity = await auth_manager.client.get_entity(channel_id)
                 elif channel_id.startswith('-'):
                     # 数字ID格式，转换为整数
                     entity = await auth_manager.client.get_entity(int(channel_id))
+                elif channel_id.startswith('https://t.me/'):
+                    # 公开链接格式，提取用户名部分
+                    username = channel_id.replace('https://t.me/', '')
+                    if not username.startswith('+'):  # 确保不是私有链接
+                        entity = await auth_manager.client.get_entity(username)
+                    else:
+                        logger.debug(f"跳过私有链接验证: {channel_id}")
+                        continue
+                elif channel_id.startswith('t.me/'):
+                    # t.me链接格式，提取用户名部分
+                    username = channel_id.replace('t.me/', '')
+                    if not username.startswith('+'):  # 确保不是私有链接
+                        entity = await auth_manager.client.get_entity(username)
+                    else:
+                        logger.debug(f"跳过私有链接验证: {channel_id}")
+                        continue
                 else:
                     # 尝试作为整数处理
                     try:
@@ -248,7 +282,11 @@ class SystemMonitor:
                         
                 logger.debug(f"频道 {channel_id} 可访问: {entity.title}")
             except Exception as e:
-                logger.warning(f"频道 {channel_id} 不可访问: {e}")
+                # 对于私有邀请链接，不记录为错误，因为无法直接验证
+                if 'https://t.me/+' in channel_id or 't.me/+' in channel_id:
+                    logger.debug(f"私有邀请链接无法验证访问性: {channel_id}")
+                else:
+                    logger.warning(f"频道 {channel_id} 不可访问: {e}")
                 
     async def _check_last_message(self) -> Optional[datetime]:
         """检查最近消息时间"""

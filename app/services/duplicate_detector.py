@@ -309,9 +309,17 @@ class DuplicateDetector:
                     if message_id is not None and dup_message_id == message_id:
                         continue
                     
-                    # 获取重复消息的详细信息
-                    dup_msg_data = self.redis_store.get_message(channel_id, dup_message_id)
+                    # 获取重复消息的详细信息（静默模式，避免产生不必要的警告）
+                    dup_msg_data = self.redis_store.get_message(channel_id, dup_message_id, silent=True)
                     if not dup_msg_data:
+                        # 消息不存在，从哈希索引中清理这个无效引用
+                        logger.debug(f"清理无效哈希索引引用: {dup_key}")
+                        pipe = self.redis_store.redis.pipeline()
+                        if media_hash:
+                            pipe.srem(f"msg:hash:media:{media_hash}", dup_key)
+                        if combined_media_hash:
+                            pipe.srem(f"msg:hash:media:{combined_media_hash}", dup_key)
+                        pipe.execute()
                         continue
                     
                     # 检查状态（不考虑已拒绝的消息）
@@ -507,7 +515,7 @@ class DuplicateDetector:
                         continue
                     
                     channel_id, message_id = dup_key.split(':', 1)
-                    msg_data = self.redis_store.get_message(channel_id, int(message_id))
+                    msg_data = self.redis_store.get_message(channel_id, int(message_id), silent=True)
                     
                     if msg_data and msg_data.get('status') != 'rejected':
                         msg = MessageCompat(msg_data)
@@ -546,7 +554,7 @@ class DuplicateDetector:
             original_message_id: 原始消息的ID
         """
         try:
-            # 获取消息数据
+            # 获取消息数据（非静默模式，这里需要明确的错误信息）
             msg_data = self.redis_store.get_message(channel_id, message_id)
             if not msg_data:
                 logger.warning(f"消息不存在: {channel_id}:{message_id}")
@@ -578,13 +586,17 @@ class DuplicateDetector:
         try:
             messages = []
             
-            # 获取所有频道
-            all_channels = self.redis_store.get_all_channels()
+            # 获取所有频道 - 使用正确的服务
+            from app.services.unified_channel_service import unified_channel_service
+            channel_configs = await unified_channel_service.get_all_channels(active_only=True)
             
-            for channel_id in all_channels:
+            for channel_config in channel_configs:
+                channel_id = channel_config.get('channel_id')
+                if not channel_id:
+                    continue
                 try:
-                    # 获取该频道的所有消息
-                    channel_messages = self.redis_store.get_messages_by_channel(channel_id)
+                    # 获取该频道最近的消息（限制数量以提高性能）
+                    channel_messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
                     
                     for msg_data in channel_messages:
                         try:
@@ -640,7 +652,7 @@ class DuplicateDetector:
                     
                     for msg_id in recent_msg_ids:
                         try:
-                            msg_data = self.redis_store.get_message(channel_id, int(msg_id))
+                            msg_data = self.redis_store.get_message(channel_id, int(msg_id), silent=True)
                             if not msg_data:
                                 continue
                             

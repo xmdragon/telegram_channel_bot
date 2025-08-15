@@ -146,8 +146,8 @@ class HistoryCollector:
                     if message.id and message.id > latest_message_id:
                         latest_message_id = message.id
                         
-                    # 检查消息是否已存在
-                    existing_message = message_store.get_message(channel_id, message.id)
+                    # 检查消息是否已存在（静默模式，避免产生不必要的警告）
+                    existing_message = message_store.get_message(channel_id, message.id, silent=True)
                     if existing_message:
                         logger.debug(f"消息ID {message.id} 已存在，跳过")
                         continue  # 消息已存在，跳过
