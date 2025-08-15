@@ -393,8 +393,9 @@ class MessageGrouper:
                     if media_item.get('visual_hashes'):
                         combined_visual_hashes.append(media_item['visual_hashes'])
             
-            # 如果有视觉哈希，存储为字符串
-            visual_hash = str(combined_visual_hashes) if combined_visual_hashes else None
+            # 如果有视觉哈希，存储为JSON字符串
+            import json
+            visual_hash = json.dumps(combined_visual_hashes) if combined_visual_hashes else None
             
             # 计算组合媒体哈希
             combined_media_hash = None

@@ -907,7 +907,7 @@ async def refetch_media(
                     'media_url': media_info["file_path"],
                     'media_type': media_info.get("media_type", msg_data.get('media_type')),
                     'media_hash': media_info.get("hash", ''),
-                    'visual_hash': str(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else '',
+                    'visual_hash': json.dumps(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else '',
                     'updated_at': get_current_time().isoformat()
                 }
                 redis_store.redis.hset(msg_key, mapping=update_data)

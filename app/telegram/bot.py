@@ -739,7 +739,8 @@ class TelegramBot:
                 
                 # 优先使用已经计算好的视觉哈希
                 if original_media_info and original_media_info.get('visual_hashes'):
-                    visual_hash = str(original_media_info['visual_hashes'])
+                    import json
+                    visual_hash = json.dumps(original_media_info['visual_hashes'])
                     logger.info(f"📊 使用已计算的视觉哈希")
                 # 如果没有，则重新计算视觉哈希（仅对图片）
                 elif message_data.get('media_type') in ['photo', 'animation']:
@@ -749,7 +750,8 @@ class TelegramBot:
                             with open(message_data['media_url'], 'rb') as f:
                                 image_data = f.read()
                             visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
-                            visual_hash = str(visual_hashes)
+                            import json
+                            visual_hash = json.dumps(visual_hashes)
                             logger.info(f"📊 重新计算单个媒体视觉哈希完成")
                     except Exception as e:
                         logger.debug(f"计算视觉哈希失败: {e}")
@@ -807,9 +809,10 @@ class TelegramBot:
                 else:
                     logger.warning("📊 没有有效的媒体文件用于计算组合哈希")
                 
-                # 组合视觉哈希列表为字符串
+                # 组合视觉哈希列表为JSON字符串
                 if combined_visual_hashes:
-                    visual_hash = str(combined_visual_hashes)
+                    import json
+                    visual_hash = json.dumps(combined_visual_hashes)
                     logger.info(f"📊 组合媒体包含 {len(combined_visual_hashes)} 个视觉哈希")
             
             # 使用整合的重复检测器（历史消息和实时消息都需要检测重复）
@@ -820,8 +823,16 @@ class TelegramBot:
             visual_hashes_dict = None
             if visual_hash:
                 try:
-                    # 尝试解析视觉哈希字符串
-                    visual_hashes_dict = eval(visual_hash) if isinstance(visual_hash, str) else visual_hash
+                    # 尝试解析视觉哈希字符串 - 优先使用JSON解析
+                    import json
+                    if isinstance(visual_hash, str):
+                        try:
+                            visual_hashes_dict = json.loads(visual_hash)
+                        except json.JSONDecodeError:
+                            # 兼容旧的Python dict格式
+                            visual_hashes_dict = eval(visual_hash)
+                    else:
+                        visual_hashes_dict = visual_hash
                     # 如果是列表（组合媒体），取第一个
                     if isinstance(visual_hashes_dict, list) and visual_hashes_dict:
                         visual_hashes_dict = visual_hashes_dict[0]

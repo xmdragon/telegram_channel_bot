@@ -219,7 +219,12 @@ class VisualSimilarityDetector:
                 visual_hash = msg.get('visual_hash')
                 if visual_hash:
                     try:
-                        stored_hashes = eval(visual_hash)  # 存储为字符串形式的字典
+                        # 优先使用JSON解析，兼容旧的Python dict格式
+                        import json
+                        try:
+                            stored_hashes = json.loads(visual_hash)
+                        except json.JSONDecodeError:
+                            stored_hashes = eval(visual_hash)  # 兼容旧格式
                         is_similar, similarity = self.is_visually_similar(current_hashes, stored_hashes)
                         if is_similar:
                             msg_id = msg.get('message_id')
@@ -263,8 +268,9 @@ class VisualSimilarityDetector:
             message = redis_store.get_message(channel_id, message_id)
             if message:
                 # 更新视觉哈希
+                import json
                 update_data = {
-                    'visual_hash': str(hashes)
+                    'visual_hash': json.dumps(hashes)
                 }
                 
                 # 如果还没有媒体哈希，也存储SHA256

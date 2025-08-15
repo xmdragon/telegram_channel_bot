@@ -468,14 +468,16 @@ class UnifiedMessageProcessor:
                 if hashes:
                     combined_media_hash = hashlib.sha256(''.join(sorted(hashes)).encode()).hexdigest()
                 if visual_hashes:
-                    visual_hash = str(visual_hashes)
+                    import json
+                    visual_hash = json.dumps(visual_hashes)
         else:
             # 单独消息的哈希
             media_info = processed_data.get('media_info')
             if media_info:
                 media_hash = media_info.get('hash')
                 if media_info.get('visual_hashes'):
-                    visual_hash = str(media_info['visual_hashes'])
+                    import json
+                    visual_hash = json.dumps(media_info['visual_hashes'])
         
         # 处理时间戳，确保是无时区的UTC datetime
         created_at = parse_telegram_time(message_data.get('date'))
@@ -575,7 +577,12 @@ class UnifiedMessageProcessor:
             visual_hashes = None
             if save_data.get('visual_hash'):
                 try:
-                    visual_hashes = eval(save_data['visual_hash'])
+                    # 优先使用JSON解析，兼容旧的Python dict格式
+                    import json
+                    try:
+                        visual_hashes = json.loads(save_data['visual_hash'])
+                    except json.JSONDecodeError:
+                        visual_hashes = eval(save_data['visual_hash'])  # 兼容旧格式
                     if isinstance(visual_hashes, list) and visual_hashes:
                         visual_hashes = visual_hashes[0]
                 except:
