@@ -46,7 +46,8 @@ class TailVectorManager:
             logger.info("✅ 向量管理器AI模型加载成功")
         except Exception as e:
             logger.error(f"❌ AI模型加载失败: {e}")
-            raise RuntimeError("无法加载AI模型，请检查sentence-transformers安装")
+            self.model = None
+            # 不抛出异常，允许程序继续运行
     
     def _load_vectors(self):
         """从文件加载向量数据"""

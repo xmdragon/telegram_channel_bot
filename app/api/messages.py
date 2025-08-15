@@ -1044,12 +1044,42 @@ async def filter_message_tail(
                 "message": "消息没有内容可以过滤"
             }
         
-        # 执行尾部过滤（传递channel_id用于AI模式匹配）
-        from app.services.smart_tail_filter import smart_tail_filter
-        filtered_content, has_tail, removed_tail = smart_tail_filter.filter_tail_ads(
-            original_content, 
-            channel_id=channel_id
+        # 执行尾部过滤 - 使用新的FilterPipeline架构
+        from app.services.filters.tail_filter import TailFilter
+        from app.services.filters.base import FilterContext
+        from datetime import datetime
+        
+        # 创建过滤器上下文
+        context = FilterContext(
+            message_id=int(msg_id),
+            channel_id=int(channel_id),
+            timestamp=datetime.now().timestamp(),
+            message_type=msg_data.get('media_type', 'text')
         )
+        
+        # 添加元数据
+        context.add_metadata('is_history', False)
+        context.add_metadata('message_obj', msg_data)
+        
+        # 初始化尾部过滤器
+        tail_filter = TailFilter({
+            'intelligent_threshold': 0.6,
+            'semantic_threshold': 0.45,  # 稍微降低阈值以提高检测敏感度
+            'enable_intelligent': True,
+            'enable_semantic': True
+        })
+        
+        # 执行过滤
+        filter_result = await tail_filter.filter(original_content, context)
+        
+        # 提取结果
+        filtered_content = filter_result.filtered_content
+        has_tail = not filter_result.passed or len(filtered_content) < len(original_content)
+        removed_tail = filter_result.details.get('removed_tail', '')
+        
+        # 如果没有移除内容，计算移除的部分
+        if not removed_tail and has_tail:
+            removed_tail = original_content[len(filtered_content):].strip()
         
         # 更新过滤后的内容
         if has_tail:
@@ -1106,22 +1136,48 @@ async def filter_message_tail(
             except Exception as e:
                 logger.debug(f"广播消息更新失败: {e}")
             
-            logger.info(f"消息 {message_id} 尾部过滤成功，移除了 {len(removed_tail)} 个字符" if removed_tail else f"消息 {message_id} 尾部过滤成功")
+            # 获取过滤器详细信息
+            filter_method = filter_result.details.get('filter_method', 'unknown')
+            confidence = filter_result.confidence
+            processing_time = filter_result.processing_time_ms
+            
+            logger.info(f"消息 {message_id} 尾部过滤成功，方法: {filter_method}, 置信度: {confidence:.3f}, "
+                       f"移除了 {len(removed_tail)} 个字符, 处理时间: {processing_time:.1f}ms")
             
             return {
                 "success": True,
-                "message": "尾部过滤成功",
+                "message": f"尾部过滤成功 ({filter_method})",
                 "original_length": len(original_content),
                 "filtered_length": len(filtered_content),
                 "removed_length": len(removed_tail) if removed_tail else 0,
                 "filtered_content": filtered_content,
-                "removed_tail": removed_tail
+                "removed_tail": removed_tail,
+                "filter_method": filter_method,
+                "confidence": confidence,
+                "processing_time_ms": processing_time,
+                "filter_details": filter_result.details
             }
         else:
+            # 获取过滤器详细信息（即使没有过滤）
+            filter_method = filter_result.details.get('filter_method', 'none')
+            confidence = filter_result.confidence
+            processing_time = filter_result.processing_time_ms
+            
+            logger.info(f"消息 {message_id} 未检测到尾部内容，方法: {filter_method}, "
+                       f"置信度: {confidence:.3f}, 处理时间: {processing_time:.1f}ms")
+            
             return {
                 "success": True,
-                "message": "未检测到需要过滤的尾部内容",
-                "filtered_content": original_content
+                "message": f"未检测到需要过滤的尾部内容 ({filter_method})",
+                "original_length": len(original_content),
+                "filtered_length": len(original_content),
+                "removed_length": 0,
+                "filtered_content": original_content,
+                "removed_tail": "",
+                "filter_method": filter_method,
+                "confidence": confidence,
+                "processing_time_ms": processing_time,
+                "filter_details": filter_result.details
             }
             
     except HTTPException:
@@ -1129,6 +1185,176 @@ async def filter_message_tail(
     except Exception as e:
         logger.error(f"尾部过滤失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{message_id}/feedback")
+async def record_filter_feedback(
+    message_id: str,
+    feedback_data: Dict[str, Any],
+    user: Dict[str, Any] = Depends(check_permission("filter.feedback")),
+):
+    """
+    记录过滤器反馈
+    
+    Request body:
+    {
+        "filter_name": "tail_filter",
+        "metric_name": "intelligent", 
+        "action": "approve|reject|correct",
+        "predicted_score": 0.65,
+        "actual_result": "positive|negative",
+        "threshold_used": 0.6,
+        "comments": "用户备注"
+    }
+    """
+    try:
+        # 验证必需参数
+        required_fields = ['filter_name', 'metric_name', 'action', 'predicted_score', 'actual_result']
+        for field in required_fields:
+            if field not in feedback_data:
+                raise HTTPException(status_code=400, detail=f"缺少必需字段: {field}")
+        
+        # 导入阈值管理器
+        from app.core.threshold_manager import threshold_manager
+        
+        filter_name = feedback_data['filter_name']
+        metric_name = feedback_data['metric_name']
+        predicted_score = float(feedback_data['predicted_score'])
+        actual_result = feedback_data['actual_result']
+        threshold_used = feedback_data.get('threshold_used')
+        action = feedback_data['action']
+        comments = feedback_data.get('comments', '')
+        
+        # 验证数值范围
+        if not 0.0 <= predicted_score <= 1.0:
+            raise HTTPException(status_code=400, detail="predicted_score必须在0.0-1.0之间")
+        
+        if actual_result not in ['positive', 'negative']:
+            raise HTTPException(status_code=400, detail="actual_result必须是'positive'或'negative'")
+        
+        if action not in ['approve', 'reject', 'correct']:
+            raise HTTPException(status_code=400, detail="action必须是'approve'、'reject'或'correct'")
+        
+        # 记录反馈
+        threshold_manager.record_feedback(
+            filter_name=filter_name,
+            metric_name=metric_name,
+            predicted_score=predicted_score,
+            actual_result=actual_result,
+            threshold_used=threshold_used
+        )
+        
+        # 记录审核日志
+        logger.info(f"📝 过滤器反馈 - 用户: {user.get('name', 'unknown')}, "
+                   f"过滤器: {filter_name}.{metric_name}, 动作: {action}, "
+                   f"分数: {predicted_score:.3f}, 结果: {actual_result}")
+        
+        # 获取更新后的统计
+        stats = threshold_manager.get_all_stats()
+        current_config = stats.get(filter_name, {}).get(metric_name, {})
+        
+        return {
+            "success": True,
+            "message": "反馈记录成功",
+            "data": {
+                "message_id": message_id,
+                "feedback_recorded": True,
+                "current_threshold": current_config.get('current_threshold', 0.5),
+                "feedback_count": current_config.get('feedback_count', 0),
+                "accuracy": current_config.get('accuracy', 0.0),
+                "f1_score": current_config.get('f1_score', 0.0)
+            }
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"参数格式错误: {str(e)}")
+    except Exception as e:
+        logger.error(f"❌ 记录反馈失败: {e}")
+        raise HTTPException(status_code=500, detail=f"记录反馈失败: {str(e)}")
+
+
+@router.get("/thresholds/stats")
+async def get_threshold_stats(
+    user: Dict[str, Any] = Depends(check_permission("filter.view"))
+):
+    """获取所有阈值统计信息"""
+    try:
+        from app.core.threshold_manager import threshold_manager
+        
+        stats = threshold_manager.get_all_stats()
+        
+        return {
+            "success": True,
+            "data": stats,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ 获取阈值统计失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取统计失败: {str(e)}")
+
+
+@router.post("/thresholds/optimize")
+async def optimize_thresholds(
+    user: Dict[str, Any] = Depends(check_permission("filter.admin"))
+):
+    """手动触发阈值优化"""
+    try:
+        from app.core.threshold_manager import threshold_manager
+        
+        # 执行批量优化
+        threshold_manager.batch_optimize()
+        
+        # 获取优化后的统计
+        stats = threshold_manager.get_all_stats()
+        
+        logger.info(f"🎯 阈值优化完成 - 用户: {user.get('name', 'unknown')}")
+        
+        return {
+            "success": True,
+            "message": "阈值优化完成",
+            "data": stats,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ 阈值优化失败: {e}")
+        raise HTTPException(status_code=500, detail=f"优化失败: {str(e)}")
+
+
+@router.post("/thresholds/{filter_name}/{metric_name}/reset")
+async def reset_threshold(
+    filter_name: str,
+    metric_name: str,
+    user: Dict[str, Any] = Depends(check_permission("filter.admin"))
+):
+    """重置特定阈值"""
+    try:
+        from app.core.threshold_manager import threshold_manager
+        
+        # 重置阈值
+        threshold_manager.reset_threshold(filter_name, metric_name)
+        
+        # 获取重置后的配置
+        config = threshold_manager.get_threshold_config(filter_name, metric_name)
+        
+        logger.info(f"🔄 重置阈值 - 用户: {user.get('name', 'unknown')}, "
+                   f"过滤器: {filter_name}.{metric_name}")
+        
+        return {
+            "success": True,
+            "message": f"阈值 {filter_name}.{metric_name} 已重置",
+            "data": {
+                "filter_name": filter_name,
+                "metric_name": metric_name,
+                "new_threshold": config.get('current', 0.5),
+                "reset_at": datetime.now().isoformat()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ 重置阈值失败: {e}")
+        raise HTTPException(status_code=500, detail=f"重置失败: {str(e)}")
 
 @router.post("/test-broadcast")
 async def test_broadcast(

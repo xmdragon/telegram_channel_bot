@@ -62,9 +62,9 @@ class TailFilter(BaseFilter):
         """
         super().__init__("tail_filter", config)
         
-        # 配置参数
-        self.intelligent_threshold = self.config.get('intelligent_threshold', 0.6)
-        self.semantic_threshold = self.config.get('semantic_threshold', 0.5)
+        # 配置参数 - 使用动态阈值
+        self.intelligent_threshold = self.get_threshold('intelligent', 0.6)
+        self.semantic_threshold = self.get_threshold('semantic', 0.5)
         self.enable_intelligent = self.config.get('enable_intelligent', True) and INTELLIGENT_FILTER_AVAILABLE
         self.enable_semantic = self.config.get('enable_semantic', True) and SEMANTIC_FILTER_AVAILABLE
         
@@ -156,8 +156,12 @@ class TailFilter(BaseFilter):
                     # 调用智能过滤器
                     analysis = await intelligent_tail_filter.analyze_message(content, filter_context)
                     
+                    # 获取当前阈值（支持动态更新）
+                    current_intelligent_threshold = self.get_threshold('intelligent', self.intelligent_threshold)
+                    predicted_score = analysis.get('confidence', 0.0)
+                    
                     if (analysis.get('should_filter_tail', False) and 
-                        analysis.get('confidence', 0.0) >= self.intelligent_threshold):
+                        predicted_score >= current_intelligent_threshold):
                         
                         filtered_content = analysis['main_content']
                         removed_tail = analysis['tail_content']
@@ -172,14 +176,21 @@ class TailFilter(BaseFilter):
                             'filter_reason': analysis.get('tail_analysis', {}).get('filter_reason', '')
                         }
                         
+                        # 记录成功的反馈
+                        self.record_threshold_feedback('intelligent', predicted_score, 'positive', current_intelligent_threshold)
+                        
                         self._intelligent_success += 1
                         logger.info(f"✅ 智能尾部过滤成功 - 置信度: {confidence:.2f}, "
-                                   f"移除长度: {len(removed_tail)}")
+                                   f"移除长度: {len(removed_tail)}, 阈值: {current_intelligent_threshold:.2f}")
                         
                     else:
+                        # 记录未过滤的反馈（如果有预测分数）
+                        if predicted_score > 0:
+                            self.record_threshold_feedback('intelligent', predicted_score, 'negative', current_intelligent_threshold)
+                        
                         logger.debug(f"智能过滤器判定不需要过滤 - "
                                     f"should_filter: {analysis.get('should_filter_tail', False)}, "
-                                    f"confidence: {analysis.get('confidence', 0.0):.2f} < {self.intelligent_threshold}")
+                                    f"confidence: {predicted_score:.2f} < {current_intelligent_threshold:.2f}")
                         
                         analysis_details['intelligent_analysis'] = analysis
                         
@@ -202,25 +213,32 @@ class TailFilter(BaseFilter):
                     if filtered and semantic_tail:
                         # 语义过滤器找到了尾部
                         semantic_score = semantic_analysis.get('best_score', 0.0)
+                        current_semantic_threshold = self.get_threshold('semantic', self.semantic_threshold)
                         
-                        if semantic_score >= self.semantic_threshold:
+                        if semantic_score >= current_semantic_threshold:
                             filtered_content = semantic_filtered
                             removed_tail = semantic_tail
                             confidence = semantic_score
                             filter_method = "semantic"
                             
+                            # 记录成功的反馈
+                            self.record_threshold_feedback('semantic', semantic_score, 'positive', current_semantic_threshold)
+                            
                             analysis_details.update({
                                 'method': 'semantic',
                                 'semantic_score': semantic_score,
                                 'semantic_analysis': semantic_analysis,
-                                'filter_reason': f'语义得分: {semantic_score:.2f} >= {self.semantic_threshold}'
+                                'filter_reason': f'语义得分: {semantic_score:.2f} >= {current_semantic_threshold:.2f}'
                             })
                             
                             self._semantic_fallback += 1
                             logger.info(f"✅ 语义降级过滤成功 - 得分: {semantic_score:.2f}, "
-                                       f"移除长度: {len(removed_tail)}")
+                                       f"移除长度: {len(removed_tail)}, 阈值: {current_semantic_threshold:.2f}")
                         else:
-                            logger.debug(f"语义过滤器得分不足 - {semantic_score:.2f} < {self.semantic_threshold}")
+                            # 记录未过滤的反馈
+                            self.record_threshold_feedback('semantic', semantic_score, 'negative', current_semantic_threshold)
+                            
+                            logger.debug(f"语义过滤器得分不足 - {semantic_score:.2f} < {current_semantic_threshold:.2f}")
                             analysis_details['semantic_analysis'] = semantic_analysis
                     else:
                         logger.debug("语义过滤器判定不需要过滤")
@@ -356,10 +374,8 @@ class TailFilter(BaseFilter):
             return False
 
 
-# 创建默认实例
+# 创建默认实例（阈值将从阈值管理器动态获取）
 tail_filter = TailFilter({
-    'intelligent_threshold': 0.6,
-    'semantic_threshold': 0.5,
     'enable_intelligent': True,
     'enable_semantic': True
 })

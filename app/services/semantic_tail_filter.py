@@ -262,10 +262,11 @@ class SemanticTailFilter:
         if len(text) < 20:
             return False
         
-        # 基于得分的阈值判断
+        # 阈值判断现在由调用方（TailFilter）处理
+        # 这里只返回综合判断结果，不再硬编码阈值
         if semantic_score > 0.7:
             return True  # 高置信度
-        elif semantic_score > 0.5:
+        elif semantic_score > 0.3:  # 降低内部阈值，让外部阈值管理器决定
             # 中等置信度，需要额外检查
             # 检查是否有明确的联系方式
             has_contact = bool(re.search(r'@\w+|t\.me/', text))
@@ -386,10 +387,11 @@ class SemanticTailFilter:
                         analysis['extended_score'] = extended_score
                         logger.debug(f"扩展推广边界: {i} -> {extended_split} (得分: {extended_score:.3f})")
         
-        # 判断是否找到尾部（阈值0.5，提高识别敏感度）
+        # 判断是否找到尾部（阈值决策现在由TailFilter处理）
         logger.debug(f"扫描完成 - 最佳分割点: {best_split_point}, 最佳得分: {best_score:.3f}")
         
-        if best_split_point is not None and best_score > 0.5:
+        # 返回结果，不再在此处进行阈值判断
+        if best_split_point is not None and best_score > 0.0:
             filtered_content = '\n'.join(lines[:best_split_point]).strip()
             tail_content = '\n'.join(lines[best_split_point:]).strip()
             

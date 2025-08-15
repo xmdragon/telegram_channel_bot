@@ -23,8 +23,8 @@ class IntelligentTailFilter:
         self.feature_extractor = tail_feature_extractor
         self.vector_manager = tail_vector_manager
         
-        # 过滤配置
-        self.default_threshold = 0.7
+        # 过滤配置（硬编码阈值已移除，由阈值管理器动态管理）
+        # self.default_threshold = 0.7  # 已废弃
         self.similarity_threshold = 0.75
         self.confidence_threshold = 0.6
         
@@ -175,7 +175,9 @@ class IntelligentTailFilter:
             scores = self._apply_context_adjustment(scores, context, features)
         
         # 综合判断
-        should_filter = scores['overall_score'] >= self.default_threshold
+        # 阈值现在由阈值管理器动态管理，这里仅计算分数
+        # should_filter决策已移至TailFilter类中
+        should_filter = False  # 将由调用方决定
         confidence = self._calculate_confidence(scores, similar_samples, features)
         
         return {
