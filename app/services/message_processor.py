@@ -243,6 +243,23 @@ class MessageProcessor:
     async def get_message_stats(self) -> dict:
         """获取消息统计信息"""
         try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                except RuntimeError:
+                    logger.warning("Redis存储未初始化，返回默认统计")
+                    return {
+                        "total": 0,
+                        "pending": 0,
+                        "approved": 0,
+                        "rejected": 0,
+                        "auto_forwarded": 0,
+                        "ads": 0,
+                        "duplicates": 0,
+                        "channels": 0
+                    }
+            
             # 使用Redis计数器获取统计数据
             stats = {
                 "total": 0,

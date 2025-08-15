@@ -72,32 +72,51 @@ class HistoryCollector:
             
             # 获取Redis消息存储
             message_store = get_redis_message_store()
+            if not message_store:
+                logger.error(f"无法获取Redis消息存储，跳过频道 {channel_name}")
+                return
             
             # 检查现有消息数量
             existing_count = message_store.get_message_count(channel_id)
             logger.info(f"频道 {channel_name} 现有消息数量: {existing_count}")
             
-            # 获取最后采集的消息ID (从频道配置中获取)
-            last_collected_id = channel.get('last_collected_message_id', 0)
-            is_new_channel = last_collected_id == 0
+            # 获取最后采集的消息ID (优先从Redis checkpoint，否则使用历史消息采集数配置)
+            from app.storage.redis_store import get_redis_channel_store
+            from app.services.config_manager import config_manager
+            
+            redis_channel_store = get_redis_channel_store()
+            checkpoint_id = redis_channel_store.get_checkpoint(channel_id)
+            
+            # 优先使用Redis checkpoint
+            if checkpoint_id is not None:
+                last_collected_id = checkpoint_id
+                is_new_channel = False
+                logger.info(f"使用Redis采集点: {last_collected_id}")
+            else:
+                # 如果没有Redis采集点，按新频道处理，采集指定数量的历史消息
+                last_collected_id = 0
+                is_new_channel = True
+                logger.info(f"没有Redis采集点，将采集历史消息")
             
             if is_new_channel:
-                # 新频道：检查现有消息数量，采集指定数量的历史消息
-                if existing_count >= limit:
-                    logger.info(f"新频道 {channel_name} 已有 {existing_count} 条消息，跳过初始采集")
-                    # 获取最新的消息ID作为last_collected_message_id
+                # 没有Redis采集点的频道：根据配置采集指定数量的历史消息
+                history_limit = await config_manager.get_config('channels.history_message_limit', 50)
+                
+                if existing_count >= history_limit:
+                    logger.info(f"频道 {channel_name} 已有 {existing_count} 条消息，超过配置限制 {history_limit}，跳过历史采集")
+                    # 获取最新的消息ID并设置为Redis采集点
                     latest_messages = message_store.get_messages_by_channel(channel_id, limit=1)
                     if latest_messages:
                         max_message_id = latest_messages[0].get('message_id')
                         if max_message_id:
-                            # 更新频道配置中的last_collected_message_id
-                            await unified_channel_service.update_channel_last_collected_id(
-                                channel_id, max_message_id)
+                            # 设置Redis采集点
+                            redis_channel_store.set_checkpoint(channel_id, max_message_id)
+                            logger.info(f"设置Redis采集点: {channel_id} -> {max_message_id}")
                     return
                     
-                need_collect = limit - existing_count
-                logger.info(f"新频道 {channel_name} 需要采集 {need_collect} 条历史消息")
-                min_id = 0  # 新频道从最早的消息开始
+                need_collect = history_limit - existing_count
+                logger.info(f"频道 {channel_name} 需要采集 {need_collect} 条历史消息（配置限制: {history_limit}）")
+                min_id = 0  # 从最早的消息开始
             else:
                 # 已有频道：增量采集，从上次采集位置继续
                 logger.info(f"频道 {channel_name} 上次采集到消息ID: {last_collected_id}，开始增量采集")
@@ -128,7 +147,7 @@ class HistoryCollector:
                         latest_message_id = message.id
                         
                     # 检查消息是否已存在
-                    existing_message = await message_store.get_message(channel_id, message.id)
+                    existing_message = message_store.get_message(channel_id, message.id)
                     if existing_message:
                         logger.debug(f"消息ID {message.id} 已存在，跳过")
                         continue  # 消息已存在，跳过
@@ -150,10 +169,10 @@ class HistoryCollector:
                 else:
                     logger.info(f"频道 {channel_name} 没有新消息，已是最新")
                     
-                # 更新last_collected_message_id为最新值
+                # 更新Redis采集点为最新值
                 if latest_message_id > last_collected_id:
-                    await unified_channel_service.update_channel_last_collected_id(
-                        channel_id, latest_message_id)
+                    redis_channel_store.set_checkpoint(channel_id, latest_message_id)
+                    logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
                 return
             
             # 按时间顺序（旧的在前）处理消息，这样媒体组能正确组合
@@ -190,11 +209,10 @@ class HistoryCollector:
             # 等待一小段时间确保操作完成
             await asyncio.sleep(1)
             
-            # 更新最后采集的消息ID
+            # 更新Redis采集点
             if latest_message_id > last_collected_id:
-                await unified_channel_service.update_channel_last_collected_id(
-                    channel_id, latest_message_id)
-                logger.info(f"更新频道 {channel_name} 最后采集消息ID: {latest_message_id}")
+                redis_channel_store.set_checkpoint(channel_id, latest_message_id)
+                logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
             
             if is_new_channel:
                 logger.info(f"新频道 {channel_name} 历史消息采集完成，共处理 {collected} 条")

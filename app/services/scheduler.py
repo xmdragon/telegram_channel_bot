@@ -125,7 +125,7 @@ class MessageScheduler:
                                         media_files_to_delete.append(media_path)
                     
                     # 删除Redis中的消息记录
-                    if await message_store.delete_message(message.channel_id, message.message_id):
+                    if message_store.delete_message(message.channel_id, message.message_id):
                         deleted_count += 1
                 
                 # 删除媒体文件

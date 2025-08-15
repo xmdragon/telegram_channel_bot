@@ -446,7 +446,7 @@ class MessageGrouper:
             redis_store = get_redis_message_store()
             
             # 查询指定频道的所有消息
-            messages = await redis_store.get_messages_by_channel(channel_id)
+            messages = redis_store.get_messages_by_channel(channel_id)
             
             # 查找已存在的组合消息
             for message in messages:
@@ -466,7 +466,7 @@ class MessageGrouper:
             redis_store = get_redis_message_store()
             
             # 查询指定频道的所有消息
-            messages = await redis_store.get_messages_by_channel(channel_id)
+            messages = redis_store.get_messages_by_channel(channel_id)
             
             # 查找已存在的单独消息
             for message in messages:
@@ -491,7 +491,7 @@ class MessageGrouper:
             message_ids = [msg['message_id'] for msg in combined_message['combined_messages']]
             
             # 查询指定频道的所有消息
-            messages = await redis_store.get_messages_by_channel(channel_id)
+            messages = redis_store.get_messages_by_channel(channel_id)
             
             # 查找需要删除的单独消息
             messages_to_delete = []
@@ -505,7 +505,7 @@ class MessageGrouper:
             for msg in messages_to_delete:
                 msg_id = msg.get('message_id')
                 if msg_id:
-                    success = await redis_store.delete_message(channel_id, msg_id)
+                    success = redis_store.delete_message(channel_id, msg_id)
                     if success:
                         delete_count += 1
                         logger.info(f"删除已被组合的单独消息: Redis ID={msg_id}, telegram_id={msg.get('telegram_message_id')}")

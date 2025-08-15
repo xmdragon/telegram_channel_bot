@@ -177,13 +177,13 @@ class VisualSimilarityDetector:
             # 获取消息列表
             if channel_id:
                 # 只在指定频道内检查
-                all_messages = await redis_store.get_messages_by_channel(channel_id)
+                all_messages = redis_store.get_messages_by_channel(channel_id)
             else:
                 # 跨频道检查（获取所有消息）
                 all_messages = []
-                channels = await redis_store.get_all_channels()
+                channels = redis_store.get_all_channels()
                 for ch_id in channels:
-                    channel_messages = await redis_store.get_messages_by_channel(ch_id)
+                    channel_messages = redis_store.get_messages_by_channel(ch_id)
                     all_messages.extend(channel_messages)
             
             # 过滤符合条件的消息
@@ -260,7 +260,7 @@ class VisualSimilarityDetector:
             redis_store = get_redis_message_store()
             
             # 获取消息
-            message = await redis_store.get_message(channel_id, message_id)
+            message = redis_store.get_message(channel_id, message_id)
             if message:
                 # 更新视觉哈希
                 update_data = {

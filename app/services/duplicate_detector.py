@@ -579,12 +579,12 @@ class DuplicateDetector:
             messages = []
             
             # 获取所有频道
-            all_channels = await self.redis_store.get_all_channels()
+            all_channels = self.redis_store.get_all_channels()
             
             for channel_id in all_channels:
                 try:
                     # 获取该频道的所有消息
-                    channel_messages = await self.redis_store.get_messages_by_channel(channel_id)
+                    channel_messages = self.redis_store.get_messages_by_channel(channel_id)
                     
                     for msg_data in channel_messages:
                         try:

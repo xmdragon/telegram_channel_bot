@@ -32,10 +32,11 @@ class MessageForwarder:
                 logger.error("❌ 审核群未配置！为了安全起见，消息不会被转发")
                 # 更新消息状态为错误，防止自动转发
                 message_store = get_redis_message_store()
-                await message_store.update_message_status(
-                    message_data['channel_id'], message_data['message_id'], 
-                    'error', reject_reason='审核群未配置，消息被阻止'
-                )
+                if message_store:
+                    message_store.update_message_status(
+                        message_data['channel_id'], message_data['message_id'], 
+                        'error', reject_reason='审核群未配置，消息被阻止'
+                    )
                 raise ValueError("审核群未配置，消息转发被阻止。请先配置审核群！")
                 return
             
@@ -121,6 +122,10 @@ class MessageForwarder:
             if sent_message:
                 try:
                     message_store = get_redis_message_store()
+                    if not message_store:
+                        logger.error("无法获取Redis消息存储")
+                        return
+                    
                     review_message_id = None
                     if isinstance(sent_message, list):
                         # 组合消息返回列表，保存第一个消息的ID
@@ -263,6 +268,10 @@ class MessageForwarder:
                 if sent_message:
                     try:
                         message_store = get_redis_message_store()
+                        if not message_store:
+                            logger.error("无法获取Redis消息存储")
+                            return
+                        
                         review_message_id = None
                         if isinstance(sent_message, list):
                             # 组合消息返回列表，保存第一个消息的ID

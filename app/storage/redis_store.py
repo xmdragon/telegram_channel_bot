@@ -346,6 +346,34 @@ class RedisMessageStore(RedisStore):
             logger.error(f"更新消息字段失败 {channel_id}:{message_id}.{field}: {e}")
             return False
     
+    async def update_message(self, channel_id: str, message_id: int, update_data: dict) -> bool:
+        """更新消息的多个字段"""
+        try:
+            msg_key = f"msg:{channel_id}:{message_id}"
+            
+            # 检查消息是否存在
+            if not self.redis.exists(msg_key):
+                logger.warning(f"消息不存在: {channel_id}:{message_id}")
+                return False
+            
+            # 准备更新数据
+            redis_update_data = {}
+            for field, value in update_data.items():
+                if isinstance(value, (dict, list)):
+                    redis_update_data[field] = self._serialize_json(value)
+                else:
+                    redis_update_data[field] = str(value)
+            
+            # 添加更新时间
+            redis_update_data['updated_at'] = get_current_time().isoformat()
+            
+            self.redis.hset(msg_key, mapping=redis_update_data)
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新消息失败 {channel_id}:{message_id}: {e}")
+            return False
+    
     def delete_message(self, channel_id: str, message_id: int) -> bool:
         """删除消息"""
         try:

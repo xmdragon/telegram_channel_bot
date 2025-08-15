@@ -107,6 +107,46 @@ class ChannelManager:
         except Exception as e:
             logger.error(f"批量解析频道ID失败: {e}")
             return 0
+    
+    async def get_channel_info_for_display(self) -> Dict[str, Dict]:
+        """获取用于前端显示的频道信息映射"""
+        try:
+            channels = await unified_channel_service.get_all_channels(active_only=False)
+            channel_info = {}
+            
+            for channel in channels:
+                channel_id = channel.get('channel_id', '')
+                username = channel.get('username', '')
+                
+                # 创建显示用的频道信息
+                display_info = {
+                    'id': channel_id,
+                    'username': username,
+                    'title': channel.get('title', username),
+                    'type': channel.get('type', 'source'),
+                    'description': channel.get('description', ''),
+                    'active': channel.get('active', True),
+                    'last_collected_id': channel.get('last_collected_id'),
+                    'created_at': channel.get('created_at', ''),
+                    'updated_at': channel.get('updated_at', '')
+                }
+                
+                # 使用channel_id作为主键，username作为备选键
+                if channel_id:
+                    channel_info[channel_id] = display_info
+                if username:
+                    channel_info[username] = display_info
+                    # 如果username不是以@开头，也加上@版本
+                    if not username.startswith('@'):
+                        channel_info[f'@{username}'] = display_info
+                    else:
+                        # 如果是@开头，也加上去掉@的版本
+                        channel_info[username[1:]] = display_info
+            
+            return channel_info
+        except Exception as e:
+            logger.error(f"获取频道显示信息失败: {e}")
+            return {}
 
 # 创建全局实例
 channel_manager = ChannelManager()
