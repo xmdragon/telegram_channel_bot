@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - 文件分类识别（前端/后端/配置/文档/脚本等）
     - 规范化提交格式，包含emoji标识和时间戳
   - **使用方式**:
-    - `python3 auto_commit.py` - 智能自动分析并生成提交信息
+    - `python3 tools/git/auto_commit.py` - 智能自动分析并生成提交信息
     - `./commit.sh fix "描述"` - 快速提交bug修复
     - `./commit.sh feat "描述"` - 快速提交新功能
     - `./commit.sh` - 交互式提交模式
@@ -90,7 +90,7 @@ git status
 git diff --name-only
 
 # 2. 使用自动提交工具
-python3 auto_commit.py  # 智能分析并生成提交信息
+python3 tools/git/auto_commit.py  # 智能分析并生成提交信息
 # 或者
 ./commit.sh fix "修复描述"  # 快速修复提交
 ./commit.sh feat "功能描述"  # 快速功能提交
@@ -117,7 +117,7 @@ git log --oneline -1
 2. **完成任何代码修改后自动执行**：
    ```bash
    python3 .claude_commit_reminder.py  # 检查是否需要提交
-   python3 auto_commit.py              # 如有修改则自动提交
+   python3 tools/git/auto_commit.py              # 如有修改则自动提交
    ```
 
 3. **无需用户提醒**：Claude应主动检查和提交，不等待用户指示
@@ -125,7 +125,7 @@ git log --oneline -1
 #### 🎮 一键智能提交命令：
 ```bash
 # Claude专用：完成修改后立即运行
-python3 auto_commit.py && git status
+python3 tools/git/auto_commit.py && git status
 ```
 
 ## 重要提醒和常见错误
@@ -411,19 +411,19 @@ curl -X POST /api/config/set -d '{"key":"telegram.api_id","value":"123"}'
 ### 使用方法
 ```bash
 # 检查数据完整性（推荐定期执行）
-python3 recover_training_data.py --check
+python3 tools/data/recover_training_data.py --check
 
 # 自动恢复损坏的文件
-python3 recover_training_data.py --auto-recover
+python3 tools/data/recover_training_data.py --auto-recover
 
 # 从指定备份恢复
-python3 recover_training_data.py --restore backup_file.json --target both
+python3 tools/data/recover_training_data.py --restore backup_file.json --target both
 
 # 合并多个备份文件
-python3 recover_training_data.py --merge-backups
+python3 tools/data/recover_training_data.py --merge-backups
 
 # 紧急恢复模式（数据严重损坏时使用）
-python3 recover_training_data.py --emergency
+python3 tools/data/recover_training_data.py --emergency
 ```
 
 ### 使用场景
@@ -461,10 +461,10 @@ python3 recover_training_data.py --emergency
 ./commit.sh feat "新功能描述"
 
 # 智能自动分析（推荐）
-python3 auto_commit.py
+python3 tools/git/auto_commit.py
 
 # Claude Code自动调用（无交互）
-python3 auto_commit_claude.py auto
+python3 tools/git/auto_commit_claude.py auto
 
 # 交互式选择
 ./commit.sh

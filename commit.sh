@@ -34,7 +34,7 @@ echo -e "${GREEN}✨ 共 ${CHANGED_FILES} 个文件变更${NC}"
 # 自动分析变更类型
 if [[ "$1" == "auto" ]]; then
     # 调用Python脚本进行智能分析
-    python3 auto_commit.py auto "${@:2}"
+    python3 tools/git/auto_commit.py auto "${@:2}"
     exit $?
 fi
 
