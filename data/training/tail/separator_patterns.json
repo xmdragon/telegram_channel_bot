@@ -1,0 +1,33 @@
+{
+  "patterns": [
+    {
+      "regex": "━{10,}",
+      "description": "横线分隔符（10个以上）"
+    },
+    {
+      "regex": "═{10,}",
+      "description": "双线分隔符"
+    },
+    {
+      "regex": "─{10,}",
+      "description": "细线分隔符"
+    },
+    {
+      "regex": "▬{10,}",
+      "description": "粗线分隔符"
+    },
+    {
+      "regex": "-{10,}",
+      "description": "短横线（10个以上）"
+    },
+    {
+      "regex": "={20,}",
+      "description": "等号线"
+    },
+    {
+      "regex": "\\*{10,}",
+      "description": "星号线"
+    }
+  ],
+  "updated_at": "2025-08-15T20:08:08.194232"
+}

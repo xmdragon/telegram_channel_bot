@@ -222,16 +222,13 @@ app.add_websocket_route("/api/websocket", websocket_endpoint)  # 兼容性路由
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 临时媒体文件服务
-import os
-temp_media_dir = "./temp_media"
-if not os.path.exists(temp_media_dir):
-    os.makedirs(temp_media_dir)
-app.mount("/temp_media", StaticFiles(directory=temp_media_dir), name="temp_media")
+from app.core.path_config import PathConfig
+PathConfig.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
+app.mount("/temp_media", StaticFiles(directory=str(PathConfig.TEMP_MEDIA_DIR)), name="temp_media")
 
 # 挂载训练数据媒体文件
-training_media_dir = Path("data/ad_training_data")
-training_media_dir.mkdir(exist_ok=True)
-app.mount("/media/ad_training_data", StaticFiles(directory=str(training_media_dir)), name="training_media")
+PathConfig.AD_TRAINING_DIR.mkdir(exist_ok=True)
+app.mount("/media/ad_training_data", StaticFiles(directory=str(PathConfig.AD_TRAINING_DIR)), name="training_media")
 
 # 添加根路径重定向
 @app.get("/")

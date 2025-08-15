@@ -26,9 +26,10 @@ class AdImageDetector:
             'dhash': {},
             'ahash': {}
         }
-        self.training_data_dir = Path("data/ad_training_data")
-        self.index_file = self.training_data_dir / "ad_image_hashes.json"
-        self.metadata_file = self.training_data_dir / "media_metadata.json"
+        from app.core.path_config import PathConfig
+        self.training_data_dir = PathConfig.AD_TRAINING_DIR
+        self.index_file = PathConfig.AD_IMAGE_HASHES_FILE
+        self.metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
         
         # 相似度阈值（汉明距离）
         self.phash_threshold = 10  # pHash差异阈值

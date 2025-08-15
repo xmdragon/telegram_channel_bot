@@ -405,6 +405,72 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "6272e355f692",
+      "image_hash": "3d8984ae22595259",
+      "image_path": "temp_media/3001_20250815_201131_photo.jpg",
+      "ocr_texts": [
+        "9:18",
+        "Q 搜你想看的",
+        "搜索",
+        "正龙带谗",
+        "泰国副本",
+        "全屏观看",
+        "15",
+        "评论",
+        "收藏",
+        "@正龙带你看泰国",
+        "1月28",
+        "分享",
+        "泰国包打听。助你成就梦想#泰国生活 #泰国警察",
+        "#芭提雅 #2025就要passion @正龙带你做。",
+        "展开",
+        "作者声明:  拍摄于 2025-01-02 泰国 >",
+        "听抖音",
+        "善语结善缘;恶言伤人心"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 20:11:34",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "33625bd04043",
+      "image_hash": "3fb3e07762278f2c",
+      "image_path": "temp_media/7067_20250815_201248_photo.jpg",
+      "ocr_texts": [
+        "CI"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 20:12:53",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "7233401afeba",
+      "image_hash": "a81512baeaaebdf7",
+      "image_path": "temp_media/17357_20250815_201258_photo.jpg",
+      "ocr_texts": [],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 20:12:59",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -413,12 +479,12 @@
     "qr_code_patterns": []
   },
   "statistics": {
-    "total_samples": 16,
+    "total_samples": 19,
     "ad_samples": 0,
-    "non_ad_samples": 16,
+    "non_ad_samples": 19,
     "auto_rejected_samples": 0,
     "high_score_samples": 0,
-    "last_updated": "2025-08-15 18:51:20",
+    "last_updated": "2025-08-15 20:12:59",
     "created_at": "2025-08-15 17:57:02"
   },
   "version": "1.0"

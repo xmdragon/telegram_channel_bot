@@ -40,7 +40,7 @@ class BatchOCRCollector:
             
             # 读取媒体元数据
             media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-            media_dir = Path("data/ad_training_data")
+            media_dir = PathConfig.AD_TRAINING_DIR
             
             if not media_metadata_file.exists():
                 logger.error("媒体元数据文件不存在")

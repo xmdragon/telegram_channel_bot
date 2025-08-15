@@ -2176,7 +2176,7 @@ async def get_training_statistics(
                 stats["uniqueSamples"] = len(unique_contents)
         
         # 统计媒体文件
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         if media_dir.exists():
             total_size = 0
             file_count = 0
@@ -2486,7 +2486,7 @@ async def get_media_files(
     """获取所有媒体文件列表"""
     try:
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         files = []
         stats = {
@@ -2570,7 +2570,7 @@ async def delete_media_file(
     """删除指定的媒体文件"""
     try:
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             raise HTTPException(status_code=404, detail="媒体元数据文件不存在")
@@ -2610,7 +2610,7 @@ async def clean_orphaned_media(
     """清理未引用的媒体文件"""
     try:
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             return {"success": True, "deleted": 0}
@@ -2656,7 +2656,7 @@ async def find_duplicate_media(
         from app.services.training_media_manager import training_media_manager
         
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             return {"success": True, "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
@@ -2744,7 +2744,7 @@ async def deduplicate_media(
         import shutil
         
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             return {"success": True, "deleted": 0, "merged": 0}
@@ -2867,7 +2867,7 @@ async def rebuild_visual_hashes(
         import cv2
         
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             return {"success": True, "processed": 0, "skipped": 0}
@@ -2999,8 +2999,8 @@ async def optimize_storage(
                         if "media_files" in metadata:
                             # 查找并更新该视频的元数据
                             # 确保路径不包含ad_training_data前缀
-                            relative_video_path = str(video_file.relative_to(Path("data/ad_training_data")))
-                            relative_image_path = str(image_path.relative_to(Path("data/ad_training_data")))
+                            relative_video_path = str(video_file.relative_to(PathConfig.AD_TRAINING_DIR))
+                            relative_image_path = str(image_path.relative_to(PathConfig.AD_TRAINING_DIR))
                             
                             # 移除可能的ad_training_data前缀
                             if relative_video_path.startswith("ad_training_data/"):
@@ -3134,8 +3134,8 @@ async def optimize_storage_sse(
                         # 更新元数据
                         if "media_files" in metadata:
                             # 确保路径不包含ad_training_data前缀
-                            relative_video_path = str(video_file.relative_to(Path("data/ad_training_data")))
-                            relative_image_path = str(image_path.relative_to(Path("data/ad_training_data")))
+                            relative_video_path = str(video_file.relative_to(PathConfig.AD_TRAINING_DIR))
+                            relative_image_path = str(image_path.relative_to(PathConfig.AD_TRAINING_DIR))
                             
                             # 移除可能的ad_training_data前缀
                             if relative_video_path.startswith("ad_training_data/"):
@@ -3349,7 +3349,7 @@ async def get_media_file_ocr(
         
         # 获取文件信息
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             raise HTTPException(status_code=404, detail="媒体元数据文件不存在")

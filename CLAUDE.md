@@ -229,7 +229,7 @@ docker compose restart redis            # 重启Redis服务
   - 文件锁保护: 使用fcntl系统级文件锁确保并发安全
   - 版本控制: 支持Git跟踪配置变更
 - **文件存储**: 训练数据、日志、媒体文件
-  - 训练数据: `./data/ad_training_data/`
+  - 训练数据: `./data/training/` (使用PathConfig.AD_TRAINING_DIR)
   - 日志文件: `./logs/`
   - 临时媒体: `./temp_media/`
 
@@ -292,6 +292,116 @@ docker compose restart redis            # 重启Redis服务
 - 前端使用Vue3 + Element Plus + Axios
 - 配置统一通过Web界面管理，不使用配置文件
 - **禁止硬编码文件路径：所有文件路径必须从 app/core/path_config.py 的 PathConfig 类中引用**
+
+## 📁 项目结构管理规范
+
+### 根目录清洁原则 🧹
+**严格遵守根目录最小化原则，保持项目专业性！**
+
+#### 根目录禁止存放：
+❌ **测试文件** - 禁止在根目录创建test_*.py文件
+❌ **临时脚本** - 禁止在根目录创建临时性的Python脚本
+❌ **批量操作脚本** - 禁止在根目录创建一次性的批量处理脚本
+❌ **实验性文件** - 禁止在根目录创建实验或演示代码
+❌ **备份文件** - 禁止在根目录保留.bak、.old等备份文件
+❌ **会话文件** - 禁止在根目录保留.session等会话文件
+❌ **配置备份** - 禁止在根目录保留多余的.md文件（仅保留CLAUDE.md和README.md）
+
+#### 根目录允许的核心文件：
+✅ **应用入口**: main.py
+✅ **核心配置**: CLAUDE.md, README.md, requirements.txt, .gitignore
+✅ **容器配置**: docker-compose.yml, Dockerfile
+✅ **启动脚本**: dev.sh, start.sh, stop.sh, restart.sh
+✅ **核心目录**: app/, data/, docs/, logs/, static/, tools/, temp_media/, venv/
+
+### 工具文件分类管理 🔧
+
+#### tools/ 目录结构
+```
+tools/
+├── git/                    # Git相关工具
+│   ├── auto_commit.py      # 智能提交工具
+│   ├── auto_commit_claude.py  # Claude专用提交工具
+│   └── commit.sh           # 快速提交脚本
+├── admin/                  # 管理员工具
+│   ├── user_management.py  # 用户管理工具
+│   └── permission_tools.py # 权限管理工具
+├── batch/                  # 批量处理工具
+│   ├── batch_*.py          # 各种批量操作脚本
+│   └── data_migration.py   # 数据迁移工具
+├── debug/                  # 调试工具
+│   ├── debug_*.py          # 调试脚本
+│   └── profiling_tools.py  # 性能分析工具
+├── utils/                  # 通用工具
+│   ├── file_operations.py  # 文件操作工具
+│   └── system_helpers.py   # 系统辅助工具
+├── testing/                # 测试工具
+│   ├── test_*.py           # 测试脚本
+│   └── mock_data.py        # 模拟数据生成
+├── analysis/               # 分析工具
+│   ├── performance_*.py    # 性能分析
+│   └── data_analysis.py    # 数据分析工具
+└── maintenance/            # 维护工具
+    ├── cleanup_*.py        # 清理工具
+    └── backup_tools.py     # 备份工具
+```
+
+#### 工具创建指南
+1. **批量处理脚本** → `tools/batch/`
+2. **测试脚本** → `tools/testing/`
+3. **调试工具** → `tools/debug/`
+4. **数据分析** → `tools/analysis/`
+5. **系统维护** → `tools/maintenance/`
+6. **Git工具** → `tools/git/`
+7. **管理工具** → `tools/admin/`
+8. **通用工具** → `tools/utils/`
+
+#### 文件命名规范
+- **功能描述性命名**: `batch_user_export.py` 而不是 `export.py`
+- **类别前缀**: `test_api_endpoints.py`, `debug_redis_connection.py`
+- **版本管理**: 如需版本，使用Git而非文件后缀
+
+### scripts/ 目录使用规范
+仅用于**系统级配置脚本**，不用于功能性工具：
+- `json_validator.py` - JSON配置验证
+- `safe_json_edit.py` - 安全JSON编辑
+
+### 文件生命周期管理 🔄
+
+#### 临时文件处理
+1. **测试后立即删除** - 完成测试后必须删除测试文件
+2. **调试后清理** - 调试完成后移除或移动到tools/debug/
+3. **实验代码归档** - 实验性代码移动到tools/目录对应分类
+4. **定期清理** - 每次大版本发布前清理tools/目录
+
+#### 代码质量检查
+- **创建新工具前** 检查tools/目录是否已有类似功能
+- **重构时合并** 功能相近的工具脚本
+- **文档维护** 重要工具添加使用说明到相应目录的README
+
+### 强制执行规则 ⚡
+**Claude必须严格遵守以下规则：**
+
+1. **工具创建**：新建任何脚本都必须放在tools/对应子目录
+2. **测试文件**：测试文件必须在tools/testing/，完成后评估是否保留
+3. **临时文件**：任何临时性文件都不能放在根目录
+4. **批量操作**：批量处理脚本统一放在tools/batch/
+5. **根目录检查**：每次Session结束前检查根目录文件数量
+
+### 媒体文件路径管理 📸
+**重要：统一使用PathConfig避免硬编码路径！**
+
+#### 媒体路径配置
+- **训练媒体**: 使用 `PathConfig.AD_TRAINING_DIR` (data/training/ad/)
+- **临时媒体**: 使用 `PathConfig.TEMP_MEDIA_DIR` (temp_media/)
+- **API挂载**: `/media/ad_training_data` → `PathConfig.AD_TRAINING_DIR`
+- **静态访问**: `/temp_media` → `PathConfig.TEMP_MEDIA_DIR`
+
+#### 媒体路径注意事项
+1. **前端引用**: 所有媒体URL必须使用正确的API挂载路径
+2. **后端存储**: 统一使用PathConfig类中定义的路径常量
+3. **迁移兼容**: 路径变更时同时更新API挂载点
+4. **相对路径**: 数据库中存储相对于训练目录的路径
 
 ## 开发注意事项
 

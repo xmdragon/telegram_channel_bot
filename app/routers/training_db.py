@@ -965,7 +965,7 @@ async def get_duplicate_files():
     """检测视觉重复的媒体文件"""
     try:
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             return {"success": True, "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
@@ -1425,7 +1425,7 @@ async def get_media_file_ocr(
         
         # 获取文件信息
         media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
-        media_dir = Path("data/ad_training_data")
+        media_dir = PathConfig.AD_TRAINING_DIR
         
         if not media_metadata_file.exists():
             raise HTTPException(status_code=404, detail="媒体元数据文件不存在")
