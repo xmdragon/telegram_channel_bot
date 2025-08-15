@@ -162,7 +162,7 @@ async def resolve_target_channel():
         
         # 如果原来是用户名，保存到target_channel_name
         if target_channel.startswith('@'):
-            await config_manager.set_config('channels.target_channel_name', target_channel)
+            await config_manager.set_config('channels.target_channel', target_channel)
         
         # 获取频道信息
         channel_info = None
@@ -231,7 +231,7 @@ async def resolve_review_group():
         
         # 如果原来是用户名或链接，保存到review_group_name
         if review_group.startswith('@') or review_group.startswith('http'):
-            await config_manager.set_config('channels.review_group_name', review_group)
+            await config_manager.set_config('channels.review_group', review_group)
         
         # 获取群组信息
         group_info = None

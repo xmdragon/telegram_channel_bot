@@ -360,8 +360,8 @@ async def get_system_config():
     
     return {
         # 前端显示用（用户友好格式）
-        "target_channel": await config_manager.get_config('channels.target_channel_name', ''),
-        "review_group": await config_manager.get_config('channels.review_group_name', ''),
+        "target_channel": await config_manager.get_config('channels.target_channel', ''),
+        "review_group": await config_manager.get_config('channels.review_group', ''),
         
         # 其他配置
         "auto_forward_enabled": await config_manager.get_config('review.auto_forward_enabled', False),
@@ -579,8 +579,8 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
     """更新转发配置并刷新缓存"""
     try:
         # 保存用户输入的用户名/链接格式
-        await config_manager.set_config('channels.target_channel_name', request.target_channel)
-        await config_manager.set_config('channels.review_group_name', request.review_group)
+        await config_manager.set_config('channels.target_channel', request.target_channel)
+        await config_manager.set_config('channels.review_group', request.review_group)
         await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled)
         await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay)
         

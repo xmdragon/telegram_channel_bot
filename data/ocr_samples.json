@@ -14406,6 +14406,1218 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "6d90131736a6",
+      "image_hash": "a616a373306fae59",
+      "image_path": "temp_media/3056_20250815_153523_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:35:23",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1bc3da1f30f2",
+      "image_hash": "59f10c2d0b8b914c",
+      "image_path": "temp_media/7179_20250815_153605_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:36:05",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "777727901d2d",
+      "image_hash": "45892efe1a964de8",
+      "image_path": "temp_media/7191_20250815_153622_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:36:22",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "bc402e126315",
+      "image_hash": "37adf4e70260add5",
+      "image_path": "temp_media/7214_20250815_153632_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-15 15:36:33",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e2616e2a52a0",
+      "image_hash": "878678cc5cffbac0",
+      "image_path": "temp_media/3657_20250815_153749_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:37:50",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f36069b79911",
+      "image_hash": "f757341bdb0f9cea",
+      "image_path": "temp_media/3659_20250815_153751_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:37:54",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "04a412dd4444",
+      "image_hash": "fcbfe1e882d54839",
+      "image_path": "temp_media/3662_20250815_153800_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:38:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f26fcd47f902",
+      "image_hash": "29b1216f83983b76",
+      "image_path": "temp_media/3667_20250815_153808_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:38:08",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "2f1fee15e6ae",
+      "image_hash": "ed30b014a73238c4",
+      "image_path": "temp_media/3674_20250815_153812_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:38:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "49f95e051093",
+      "image_hash": "e2c5601a13e2f419",
+      "image_path": "temp_media/3677_20250815_153815_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:38:19",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d8753e265175",
+      "image_hash": "40eaf0ac83b84415",
+      "image_path": "temp_media/3681_20250815_153821_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:38:22",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d2dc69ea3b46",
+      "image_hash": "80fed6ea3f76813a",
+      "image_path": "temp_media/3683_20250815_153823_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:38:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "105cf761e9d1",
+      "image_hash": "1ecb009e04a3420f",
+      "image_path": "temp_media/3687_20250815_153832_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:38:33",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "087987aec7d1",
+      "image_hash": "2293fa619c7297ba",
+      "image_path": "temp_media/3691_20250815_153835_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 67.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 45分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:38:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "8169634bfa77",
+      "image_hash": "ff9c48c57ce7ac7a",
+      "image_path": "temp_media/3696_20250815_153839_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 60分"
+      ],
+      "created_at": "2025-08-15 15:38:41",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "2a6ebe9c6164",
+      "image_hash": "c64e8b346bf30288",
+      "image_path": "temp_media/3701_20250815_153926_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:39:29",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e6d1cae33fa6",
+      "image_hash": "303e103538770c85",
+      "image_path": "temp_media/2408_20250815_153935_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:39:36",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "3ad999153cca",
+      "image_hash": "0e2d9a93261d903d",
+      "image_path": "temp_media/2410_20250815_153937_photo.jpg",
+      "ocr_texts": [
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:39:37",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "74749dc4d7a5",
+      "image_hash": "e650d03e45266d0c",
+      "image_path": "temp_media/2412_20250815_153938_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:39:39",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "15d85c6fd8b3",
+      "image_hash": "3c167d409aac897c",
+      "image_path": "temp_media/2414_20250815_153939_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:39:40",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b732106fffb4",
+      "image_hash": "67aa08629305f86a",
+      "image_path": "temp_media/2420_20250815_153958_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:39:59",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "5d7e53061b26",
+      "image_hash": "1b0087c1dfe547df",
+      "image_path": "temp_media/2423_20250815_154001_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:40:04",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d30c652bf074",
+      "image_hash": "c823b7b6ef9a374a",
+      "image_path": "temp_media/2428_20250815_154006_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:40:08",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "b926dbb8a279",
+      "image_hash": "afecdc5eabbbd112",
+      "image_path": "temp_media/2439_20250815_154021_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:40:24",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "40d49db7717f",
+      "image_hash": "6f80f7fa2247f470",
+      "image_path": "temp_media/2440_20250815_154024_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:40:26",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "608ad2581fa8",
+      "image_hash": "674c6f464adb646f",
+      "image_path": "temp_media/2442_20250815_154028_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:40:29",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "e35efa7df55a",
+      "image_hash": "b2b1626ec0e75bff",
+      "image_path": "temp_media/2444_20250815_154029_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:40:29",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "deb53165d2b6",
+      "image_hash": "9a4bd3258407b84d",
+      "image_path": "temp_media/2446_20250815_154031_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:40:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "078acf23e786",
+      "image_hash": "9935907848ab6a2e",
+      "image_path": "temp_media/2451_20250815_154125_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:41:25",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "2335790c6028",
+      "image_hash": "52d5ba105f598bdc",
+      "image_path": "temp_media/1891_20250815_154158_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:41:59",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f7f8e8e3382a",
+      "image_hash": "d91b82868871eb24",
+      "image_path": "temp_media/1896_20250815_154200_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:00",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "801073bc4b3a",
+      "image_hash": "9fc1b9cc6944e9e4",
+      "image_path": "temp_media/1897_20250815_154200_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:42:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f3dbd0bd1255",
+      "image_hash": "e32d9969d383ae4c",
+      "image_path": "temp_media/1899_20250815_154202_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:42:02",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "6c6a002b6fdb",
+      "image_hash": "6bfd0b22d9b3c6c3",
+      "image_path": "temp_media/1900_20250815_154203_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:42:03",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "85298d09353c",
+      "image_hash": "a10f6098c0fa5aff",
+      "image_path": "temp_media/1907_20250815_154230_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:42:31",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d266b595f868",
+      "image_hash": "56add2a50e4e6ca6",
+      "image_path": "temp_media/1910_20250815_154243_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:44",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "540900c2b5c6",
+      "image_hash": "e74cd64e1f7b65ad",
+      "image_path": "temp_media/1912_20250815_154245_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:46",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "68d988205a1b",
+      "image_hash": "21200981c87fbd2f",
+      "image_path": "temp_media/1913_20250815_154246_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:46",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "4acf407a4f85",
+      "image_hash": "3dbc1620557246a0",
+      "image_path": "temp_media/1914_20250815_154247_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:47",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cef497483c3f",
+      "image_hash": "a8cd190bfbd26964",
+      "image_path": "temp_media/1915_20250815_154248_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:49",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "f38f07178f83",
+      "image_hash": "e9d418ce0faa73f2",
+      "image_path": "temp_media/1918_20250815_154250_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:50",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "90e1336bd132",
+      "image_hash": "a9b211c894b1b33d",
+      "image_path": "temp_media/1919_20250815_154250_photo.jpg",
+      "ocr_texts": [
+        "包含醒目黄色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:42:52",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9d6f5f2427cb",
+      "image_hash": "b24591fe148b9437",
+      "image_path": "temp_media/1921_20250815_154408_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:44:08",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "a0c752e2bd00",
+      "image_hash": "86fbea96c7580c9b",
+      "image_path": "temp_media/1922_20250815_154408_photo.jpg",
+      "ocr_texts": [
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:44:08",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "9d9b41f630c2",
+      "image_hash": "765afedb4dfc7215",
+      "image_path": "temp_media/1923_20250815_154409_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:44:09",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "ac90ae00bcf5",
+      "image_hash": "f387e0d73f017ea6",
+      "image_path": "temp_media/1924_20250815_154409_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:44:10",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "d346e9797823",
+      "image_hash": "642466342cef5d49",
+      "image_path": "temp_media/1925_20250815_154411_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:44:11",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "564f5153c013",
+      "image_hash": "6f482267848d4b92",
+      "image_path": "temp_media/1927_20250815_154412_photo.jpg",
+      "ocr_texts": [
+        "检测到多个圆形元素（疑似老虎机/筹码）"
+      ],
+      "qr_codes": [],
+      "ad_score": 0.0,
+      "is_ad": false,
+      "keywords_detected": [],
+      "created_at": "2025-08-15 15:44:12",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "faee9db3f66b",
+      "image_hash": "b1cecdca9a14a9e4",
+      "image_path": "temp_media/1928_20250815_154413_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:44:13",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "a33d4045737a",
+      "image_hash": "b81a82eec055eb01",
+      "image_path": "temp_media/1929_20250815_154414_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:44:14",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "5d112c04a71d",
+      "image_hash": "d454c49a729cc5b2",
+      "image_path": "temp_media/1930_20250815_154415_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:44:15",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1da759892d02",
+      "image_hash": "0c4eaa8bfb9f61fd",
+      "image_path": "temp_media/1933_20250815_154416_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:44:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cc8cc738bc3c",
+      "image_hash": "96eaa80be6f9396b",
+      "image_path": "temp_media/1934_20250815_154417_photo.jpg",
+      "ocr_texts": [
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:44:17",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "977b34136122",
+      "image_hash": "7d7c5d5013c6452a",
+      "image_path": "temp_media/1935_20250815_154418_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:44:18",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "cf9a61583a1f",
+      "image_hash": "832d7f7731c495ff",
+      "image_path": "temp_media/14128_20250815_154647_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:46:48",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "67d789e3eed5",
+      "image_hash": "ede438459897a146",
+      "image_path": "temp_media/14134_20250815_154649_photo.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "包含醒目红色文字",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 50.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 50分"
+      ],
+      "created_at": "2025-08-15 15:46:50",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
+    },
+    {
+      "id": "1bfb454963d5",
+      "image_hash": "9b57decf3340f6bf",
+      "image_path": "temp_media/14152_20250815_154701_photo.jpg",
+      "ocr_texts": [
+        "包含大量绿色元素",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 52.5,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 35分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-08-15 15:47:01",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "learned_patterns": {
@@ -14462,12 +15674,12 @@
     ]
   },
   "statistics": {
-    "total_samples": 606,
-    "ad_samples": 217,
-    "non_ad_samples": 389,
+    "total_samples": 663,
+    "ad_samples": 265,
+    "non_ad_samples": 398,
     "auto_rejected_samples": 3,
-    "high_score_samples": 109,
-    "last_updated": "2025-08-15 15:34:05",
+    "high_score_samples": 157,
+    "last_updated": "2025-08-15 15:47:01",
     "created_at": "2025-08-14 14:30:00"
   },
   "version": "1.0",

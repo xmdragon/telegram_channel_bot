@@ -90,7 +90,7 @@ class ChannelCache:
             logger.info("开始初始化频道ID缓存...")
             
             # 解析并缓存目标频道
-            target_channel = await self.config_manager.get_config('channels.target_channel_name', '')
+            target_channel = await self.config_manager.get_config('channels.target_channel', '')
             if target_channel:
                 resolved_id = await self.resolve_channel(target_channel)
                 if resolved_id:
@@ -98,7 +98,7 @@ class ChannelCache:
                     logger.info(f"目标频道ID已缓存: {target_channel} -> {resolved_id}")
             
             # 解析并缓存审核群
-            review_group = await self.config_manager.get_config('channels.review_group_name', '')
+            review_group = await self.config_manager.get_config('channels.review_group', '')
             if review_group:
                 resolved_id = await self.resolve_group(review_group)
                 if resolved_id:
@@ -161,7 +161,7 @@ class ChannelCache:
     async def refresh_target_channel_cache(self):
         """刷新目标频道缓存"""
         try:
-            target_channel = await self.config_manager.get_config('channels.target_channel_name', '')
+            target_channel = await self.config_manager.get_config('channels.target_channel', '')
             if target_channel:
                 resolved_id = await self.resolve_channel(target_channel)
                 if resolved_id:
@@ -177,7 +177,7 @@ class ChannelCache:
     async def refresh_review_group_cache(self):
         """刷新审核群缓存"""
         try:
-            review_group = await self.config_manager.get_config('channels.review_group_name', '')
+            review_group = await self.config_manager.get_config('channels.review_group', '')
             if review_group:
                 resolved_id = await self.resolve_group(review_group)
                 if resolved_id:

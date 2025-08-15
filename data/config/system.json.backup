@@ -7,7 +7,7 @@
     "updated_at": "2025-08-15T15:27:57.546743",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-15T07:46:19.502567",
+  "updated_at": "2025-08-15T07:44:51.920568",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
@@ -45,7 +45,7 @@
     "config_type": "string",
     "description": "缓存的审核群ID（由系统自动解析链接后设置）",
     "is_active": true,
-    "updated_at": "2025-08-15T15:46:19.502551",
+    "updated_at": "2025-08-15T15:44:51.920554",
     "created_at": "2025-08-14T22:53:30.663121"
   },
   "channels.target_channel_id": {
@@ -81,11 +81,11 @@
     "created_at": "2025-08-14T22:53:30.664377"
   },
   "review.auto_forward_enabled": {
-    "value": "False",
+    "value": "True",
     "config_type": "string",
     "description": "是否启用自动转发",
     "is_active": true,
-    "updated_at": "2025-08-15T15:46:19.130193",
+    "updated_at": "2025-08-15T15:44:50.859815",
     "created_at": "2025-08-14T22:53:30.664735"
   },
   "review.auto_forward_delay": {
@@ -93,7 +93,7 @@
     "config_type": "string",
     "description": "自动转发延迟(秒)",
     "is_active": true,
-    "updated_at": "2025-08-15T15:46:19.130515",
+    "updated_at": "2025-08-15T15:44:50.860181",
     "created_at": "2025-08-14T22:53:30.665092"
   },
   "channels.signature": {
@@ -126,6 +126,22 @@
     "description": "",
     "is_active": true,
     "updated_at": "2025-08-15T15:27:58.905210",
+    "created_at": "2025-08-15T00:00:20.971185"
+  },
+  "channels.target_channel_name": {
+    "value": "@test_channel",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-15T15:44:50.858687",
+    "created_at": "2025-08-14T23:46:07.015035"
+  },
+  "channels.review_group_name": {
+    "value": "https://t.me/+test",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-15T15:44:50.859408",
     "created_at": "2025-08-15T00:00:20.971185"
   }
 }

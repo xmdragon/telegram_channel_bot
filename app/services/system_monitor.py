@@ -185,9 +185,9 @@ class SystemMonitor:
             # 获取目标频道和审核群配置（从系统配置表）
             from app.services.config_manager import config_manager
             target_channel = await config_manager.get_config('channels.target_channel_id')
-            target_channel_name = await config_manager.get_config('channels.target_channel_name')
+            target_channel_name = await config_manager.get_config('channels.target_channel')
             review_group = await config_manager.get_config('channels.review_group_id')
-            review_group_name = await config_manager.get_config('channels.review_group_name')
+            review_group_name = await config_manager.get_config('channels.review_group')
                     
             # 验证必要配置
             if not source_channels:

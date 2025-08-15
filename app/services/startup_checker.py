@@ -261,7 +261,7 @@ class StartupChecker:
         try:
             # 获取目标频道配置
             target_channel = await self.config_manager.get_config('channels.target_channel_id')
-            target_channel_name = await self.config_manager.get_config('channels.target_channel_name')
+            target_channel_name = await self.config_manager.get_config('channels.target_channel')
             
             if not target_channel:
                 if target_channel_name:
@@ -292,7 +292,7 @@ class StartupChecker:
                         # 保存解析的ID，同时保存原始名称
                         await self.config_manager.set_config('channels.target_channel_id', resolved_id)
                         if target_channel.startswith('@'):
-                            await self.config_manager.set_config('channels.target_channel_name', target_channel)
+                            await self.config_manager.set_config('channels.target_channel', target_channel)
                         result['channel_id'] = resolved_id
                         result['resolved'] = f"目标频道 {target_channel} -> {resolved_id}"
                         logger.info(f"    ✅ 解析成功: {resolved_id}")
@@ -321,7 +321,7 @@ class StartupChecker:
         try:
             # 获取审核群配置
             review_group = await self.config_manager.get_config('channels.review_group_id')
-            review_group_name = await self.config_manager.get_config('channels.review_group_name')
+            review_group_name = await self.config_manager.get_config('channels.review_group')
             
             # 导入telegram_link_resolver来处理可能的邀请链接
             from app.services.telegram_link_resolver import link_resolver
@@ -359,7 +359,7 @@ class StartupChecker:
                     if resolved_id:
                         # 保存解析的ID
                         await self.config_manager.set_config('channels.review_group_id', str(resolved_id))
-                        await self.config_manager.set_config('channels.review_group_name', review_group)  # 保存原始链接
+                        await self.config_manager.set_config('channels.review_group', review_group)  # 保存原始链接
                         result['group_id'] = str(resolved_id)
                         result['resolved'] = f"审核群 {review_group} -> {resolved_id}"
                         logger.info(f"    ✅ 解析成功: {resolved_id}")
@@ -375,7 +375,7 @@ class StartupChecker:
                         # 保存解析的ID，同时保存原始名称
                         await self.config_manager.set_config('channels.review_group_id', str(resolved_id))
                         if review_group.startswith('@'):
-                            await self.config_manager.set_config('channels.review_group_name', review_group)
+                            await self.config_manager.set_config('channels.review_group', review_group)
                         result['group_id'] = str(resolved_id)
                         result['resolved'] = f"审核群 {review_group} -> {resolved_id}"
                         logger.info(f"    ✅ 解析成功: {resolved_id}")
