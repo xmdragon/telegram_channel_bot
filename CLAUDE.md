@@ -160,17 +160,15 @@ python3 tools/git/auto_commit.py
 
 ⚠️ **重要**: 不要手动执行`git commit`，使用自动提交工具确保规范性。
 
-## 🔐 数据恢复工具
+## 🔐 数据管理（紧急情况）
 
 ```bash
-# 检查数据完整性
-python3 recover_training_data.py --check
+# 配置导入导出（环境迁移）
+python3 tools/data/export_config.py
+python3 tools/data/import_config.py
 
-# 自动恢复
-python3 recover_training_data.py --auto-recover
-
-# 紧急恢复
-python3 recover_training_data.py --emergency
+# 数据恢复（系统故障时）
+python3 tools/data/recover_training_data.py --check
 ```
 
 ## 🚨 重要提醒

@@ -116,15 +116,9 @@ docker compose up -d redis
 ```
 
 ### 数据管理
-```bash
-# 配置导入导出
-python3 export_config.py
-python3 import_config.py
-
-# 数据恢复
-python3 recover_training_data.py --check
-python3 recover_training_data.py --auto-recover
-```
+- **Web界面**：通过配置页面进行系统配置
+- **自动备份**：系统自动备份重要数据
+- **紧急恢复**：`python3 tools/data/recover_training_data.py --check`
 
 ### 日志查看
 - 完整日志：`./logs/app.log`
