@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - **默认管理员**: 用户名`admin`，密码`admin123`
 - 2025-08-14: 添加自动Git提交工具系统 🤖
   - **新增工具**: auto_commit.py - 智能分析代码变更并生成规范提交信息
-  - **快速脚本**: commit.sh - 支持多种提交模式的Shell脚本
+  - **快速脚本**: tools/git/commit.sh - 支持多种提交模式的Shell脚本
   - **核心功能**:
     - 自动检测变更类型（fix/feat/docs/style/refactor等）
     - 智能生成提交描述和详细说明列表
@@ -34,9 +34,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - 规范化提交格式，包含emoji标识和时间戳
   - **使用方式**:
     - `python3 tools/git/auto_commit.py` - 智能自动分析并生成提交信息
-    - `./commit.sh fix "描述"` - 快速提交bug修复
-    - `./commit.sh feat "描述"` - 快速提交新功能
-    - `./commit.sh` - 交互式提交模式
+    - `./tools/git/commit.sh fix "描述"` - 快速提交bug修复
+    - `./tools/git/commit.sh feat "描述"` - 快速提交新功能
+    - `./tools/git/commit.sh` - 交互式提交模式
   - **特殊处理**: 支持非交互环境，自动处理EOFError异常
   - **文档**: docs/auto_commit_usage.md - 完整使用说明和最佳实践
 - 2025-08-10: OCR功能优化 - 改用基于图像处理的轻量级方案
@@ -92,8 +92,8 @@ git diff --name-only
 # 2. 使用自动提交工具
 python3 tools/git/auto_commit.py  # 智能分析并生成提交信息
 # 或者
-./commit.sh fix "修复描述"  # 快速修复提交
-./commit.sh feat "功能描述"  # 快速功能提交
+./tools/git/commit.sh fix "修复描述"  # 快速修复提交
+./tools/git/commit.sh feat "功能描述"  # 快速功能提交
 
 # 3. 验证提交成功
 git status
@@ -442,7 +442,7 @@ python3 tools/data/recover_training_data.py --emergency
 
 ### 核心工具
 - **auto_commit.py**: 智能分析工具，自动检测变更类型并生成规范提交信息
-- **commit.sh**: 快速提交脚本，支持多种提交模式
+- **tools/git/commit.sh**: 快速提交脚本，支持多种提交模式
 - **auto_commit_claude.py**: Claude Code专用无交互自动提交工具（Claude可以直接调用）
 
 ### 必须使用的场景
@@ -455,10 +455,10 @@ python3 tools/data/recover_training_data.py --emergency
 ### 快速使用指南
 ```bash
 # 修复bug后
-./commit.sh fix "修复具体问题描述"
+./tools/git/commit.sh fix "修复具体问题描述"
 
 # 添加功能后  
-./commit.sh feat "新功能描述"
+./tools/git/commit.sh feat "新功能描述"
 
 # 智能自动分析（推荐）
 python3 tools/git/auto_commit.py
@@ -467,7 +467,7 @@ python3 tools/git/auto_commit.py
 python3 tools/git/auto_commit_claude.py auto
 
 # 交互式选择
-./commit.sh
+./tools/git/commit.sh
 ```
 
 ### 提交信息规范

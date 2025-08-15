@@ -55,7 +55,7 @@ echo "📝 提示：修改代码后会自动重新加载"
 echo "📊 日志文件："
 echo "   - 完整日志: ./logs/app.log"
 echo "   - 错误日志: ./logs/error.log (仅WARNING和ERROR)"
-echo "   - 查看错误: ./view_errors.sh"
+echo "   - Web查看错误: http://localhost:8000/static/admin.html"
 echo
 
 # 检查是否安装了uvicorn
