@@ -1,6 +1,18 @@
-// 阈值监控组件
+// 阈值监控组件 - 简化版本用于调试
+console.log('Vue:', window.Vue);
+console.log('ElementPlus:', window.ElementPlus);
+
+if (!window.Vue) {
+    console.error('Vue 未加载!');
+}
+
+if (!window.ElementPlus) {
+    console.error('ElementPlus 未加载!');
+}
+
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
+// 尝试重新启用Element Plus
+const { ElMessage, ElMessageBox } = window.ElementPlus || {};
 
 const app = createApp({
     data() {
@@ -381,6 +393,11 @@ const app = createApp({
 // 注册组件
 app.component('nav-bar', NavBar);
 app.component('training-nav', TrainingNav);
+
+// 注册Element Plus组件
+if (window.ElementPlus) {
+    app.use(ElementPlus);
+}
 
 // 挂载应用
 app.mount('#app');
