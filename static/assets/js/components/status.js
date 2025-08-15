@@ -47,7 +47,7 @@ const app = createApp({
             
             // 系统统计
             systemStats: {
-                channels: { label: '监听频道', value: 0 },
+                channels: { label: '重复拒绝', value: 0 },
                 messages: { label: '处理消息', value: 0 },
                 pending: { label: '待审核', value: 0 },
                 forwarded: { label: '已转发', value: 0 }
