@@ -1073,20 +1073,75 @@ async def optimize_storage():
             # 处理视频文件（转换为缩略图以节省空间）
             video_dir = training_base_dir / "videos"
             if video_dir.exists():
-                for video_file in video_dir.glob("**/*.mp4"):
+                for video_file in video_dir.glob("**/*.[Mm][Pp]4"):
                     try:
                         # 获取文件大小
                         original_size = video_file.stat().st_size
                         
-                        # 简单的优化：删除超过30天的视频文件
-                        file_age = datetime.now() - datetime.fromtimestamp(video_file.stat().st_mtime)
-                        if file_age.days > 30:
-                            video_file.unlink()
-                            saved_space += original_size
-                            cleaned_files += 1
-                            logger.info(f"清理旧视频文件: {video_file.name}")
-                        else:
-                            processed_videos += 1
+                        # 提取视频的第一帧作为缩略图
+                        try:
+                            import cv2
+                            
+                            # 读取视频
+                            cap = cv2.VideoCapture(str(video_file))
+                            ret, frame = cap.read()
+                            cap.release()
+                            
+                            if ret:
+                                # 创建对应的图片目录
+                                image_dir = training_base_dir / "images" / video_file.parent.name
+                                image_dir.mkdir(parents=True, exist_ok=True)
+                                
+                                # 生成缩略图文件名（替换扩展名为.jpg）
+                                thumbnail_name = video_file.stem + "_thumb.jpg"
+                                thumbnail_path = image_dir / thumbnail_name
+                                
+                                # 保存缩略图
+                                cv2.imwrite(str(thumbnail_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                                thumbnail_size = thumbnail_path.stat().st_size
+                                
+                                # 更新metadata.json中的文件信息
+                                media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+                                if media_metadata_file.exists():
+                                    metadata = SafeFileOperation.read_json_safe(media_metadata_file)
+                                    
+                                    # 查找对应的视频记录
+                                    video_hash = None
+                                    for file_hash, file_info in metadata.get("media_files", {}).items():
+                                        if file_info.get("path", "").endswith(video_file.name):
+                                            video_hash = file_hash
+                                            break
+                                    
+                                    if video_hash:
+                                        # 更新文件信息为缩略图
+                                        metadata["media_files"][video_hash].update({
+                                            "type": "image",
+                                            "path": f"images/{video_file.parent.name}/{thumbnail_name}",
+                                            "size": thumbnail_size,
+                                            "original_type": "video",
+                                            "optimized_at": datetime.now().isoformat()
+                                        })
+                                        
+                                        # 保存更新的metadata
+                                        SafeFileOperation.write_json_safe(media_metadata_file, metadata)
+                                
+                                # 删除原视频文件
+                                video_file.unlink()
+                                
+                                # 统计节省的空间
+                                saved_space += (original_size - thumbnail_size)
+                                processed_videos += 1
+                                
+                                logger.info(f"视频转缩略图成功: {video_file.name} -> {thumbnail_name}, 节省 {(original_size - thumbnail_size) / 1024 / 1024:.2f} MB")
+                                
+                            else:
+                                logger.warning(f"无法从视频提取帧: {video_file.name}")
+                                
+                        except ImportError:
+                            logger.warning("OpenCV未安装，跳过视频处理")
+                            break
+                        except Exception as video_error:
+                            logger.warning(f"视频转缩略图失败 {video_file.name}: {video_error}")
                             
                     except Exception as e:
                         logger.warning(f"处理视频文件失败 {video_file}: {e}")

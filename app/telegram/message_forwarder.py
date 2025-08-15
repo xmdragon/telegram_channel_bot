@@ -117,21 +117,27 @@ class MessageForwarder:
                         message=message_text
                     )
             
-            # 更新数据库记录
+            # 更新Redis记录
             if sent_message:
-                async with AsyncSessionLocal() as db:
-                    result = await db.execute(
-                        select(Message).where(Message.id == db_message.id)
-                    )
-                    message = result.scalar_one()
+                try:
+                    message_store = get_redis_message_store()
+                    review_message_id = None
                     if isinstance(sent_message, list):
                         # 组合消息返回列表，保存第一个消息的ID
-                        message.review_message_id = sent_message[0].id
+                        review_message_id = sent_message[0].id
                     else:
-                        message.review_message_id = sent_message.id
-                    await db.commit()
+                        review_message_id = sent_message.id
                     
-                logger.info(f"消息已转发到审核群: {db_message.id} -> {message.review_message_id}")
+                    # 更新消息的review_message_id
+                    await message_store.update_message_review_id(
+                        message_data['channel_id'], 
+                        message_data['message_id'], 
+                        review_message_id
+                    )
+                    
+                    logger.info(f"消息已转发到审核群: {message_data['message_id']} -> {review_message_id}")
+                except Exception as e:
+                    logger.error(f"更新消息审核ID失败: {e}")
                 
         except Exception as e:
             logger.error(f"转发到审核群时出错: {e}")
@@ -253,22 +259,35 @@ class MessageForwarder:
                         message=updated_content
                     )
                 
-                # 3. 更新数据库中的review_message_id和filtered_content
+                # 3. 更新Redis中的review_message_id和filtered_content
                 if sent_message:
-                    async with AsyncSessionLocal() as db:
-                        result = await db.execute(
-                            select(Message).where(Message.id == message.id)
-                        )
-                        db_message = result.scalar_one()
+                    try:
+                        message_store = get_redis_message_store()
+                        review_message_id = None
                         if isinstance(sent_message, list):
                             # 组合消息返回列表，保存第一个消息的ID
-                            db_message.review_message_id = sent_message[0].id
+                            review_message_id = sent_message[0].id
                         else:
-                            db_message.review_message_id = sent_message.id
-                        # 确保filtered_content也被更新
-                        db_message.filtered_content = updated_content
-                        await db.commit()
-                        logger.info(f"已更新审核群消息ID和内容: {message.id} -> {db_message.review_message_id}")
+                            review_message_id = sent_message.id
+                        
+                        # 更新消息的review_message_id和filtered_content
+                        await message_store.update_message_review_id(
+                            message.get('channel_id') or message.source_channel, 
+                            message.get('message_id') or message.message_id, 
+                            review_message_id
+                        )
+                        
+                        # 更新filtered_content
+                        await message_store.update_message_field(
+                            message.get('channel_id') or message.source_channel,
+                            message.get('message_id') or message.message_id,
+                            'filtered_content',
+                            updated_content
+                        )
+                        
+                        logger.info(f"已更新审核群消息ID和内容: {message.get('id') or message.message_id} -> {review_message_id}")
+                    except Exception as e:
+                        logger.error(f"更新Redis记录失败: {e}")
             else:
                 # 纯文本消息，直接编辑
                 await client.edit_message(

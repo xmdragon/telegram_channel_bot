@@ -508,49 +508,23 @@ class TelegramBot:
             logger.error("客户端未连接，无法删除消息")
     
     async def approve_message(self, message_id: int, reviewer: str):
-        """批准消息 - 保持原有接口"""
+        """批准消息 - 兼容接口（已迁移到Redis）"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(Message.id == message_id)
-                )
-                message = result.scalar_one()
-                
-                # 更新状态
-                message.status = "approved"
-                message.reviewed_by = reviewer
-                message.review_time = datetime.now()
-                
-                # 转发到目标频道
-                await self.forward_to_target(message)
-                
-                await db.commit()
-                
+            # 注意: 这个方法保持兼容性，但新系统使用unified_processor
+            logger.warning(f"使用了旧的approve_message接口，消息ID: {message_id}")
+            logger.info("建议使用新的统一消息处理器进行消息审核")
+            # 这里可以添加兼容性代码，或者抛出弃用警告
+            
         except Exception as e:
             logger.error(f"批准消息时出错: {e}")
     
     async def reject_message(self, message_id: int, reviewer: str):
-        """拒绝消息 - 保持原有接口"""
+        """拒绝消息 - 兼容接口（已迁移到Redis）"""
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Message).where(Message.id == message_id)
-                )
-                message = result.scalar_one()
-                
-                # 删除审核群的消息
-                if message.review_message_id:
-                    await self.delete_review_message(message.review_message_id)
-                
-                # 更新状态
-                message.status = "rejected"
-                message.reviewed_by = reviewer
-                message.review_time = datetime.now()
-                
-                await db.commit()
-                
-                # 清理媒体文件
-                await self._cleanup_message_files(message)
+            # 注意: 这个方法保持兼容性，但新系统使用unified_processor
+            logger.warning(f"使用了旧的reject_message接口，消息ID: {message_id}")
+            logger.info("建议使用新的统一消息处理器进行消息审核")
+            # 这里可以添加兼容性代码，或者抛出弃用警告
                 
         except Exception as e:
             logger.error(f"拒绝消息时出错: {e}")
@@ -842,40 +816,38 @@ class TelegramBot:
             from app.services.duplicate_detector import DuplicateDetector
             duplicate_detector = DuplicateDetector()
             
-            async with AsyncSessionLocal() as check_db:
-                # 执行整合的重复检测（包括视觉相似度）
-                visual_hashes_dict = None
-                if visual_hash:
-                    try:
-                        # 尝试解析视觉哈希字符串
-                        visual_hashes_dict = eval(visual_hash) if isinstance(visual_hash, str) else visual_hash
-                        # 如果是列表（组合媒体），取第一个
-                        if isinstance(visual_hashes_dict, list) and visual_hashes_dict:
-                            visual_hashes_dict = visual_hashes_dict[0]
-                    except:
-                        pass
-                
-                is_duplicate, original_msg_id, duplicate_type = await duplicate_detector.is_duplicate_message(
-                    source_channel=channel_id,
-                    media_hash=media_hash,
-                    combined_media_hash=combined_media_hash,
-                    content=message_data.get('content'),
-                    message_time=message_data.get('date') or datetime.now(),
-                    visual_hashes=visual_hashes_dict,
-                    db=check_db
-                )
-                
-                if is_duplicate:
-                    logger.info(f"{'历史' if is_history else '实时'}消息：发现重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，跳过处理")
-                    # 清理已下载的媒体文件
-                    if message_data.get('media_url') and os.path.exists(message_data['media_url']):
-                        await media_handler.cleanup_file(message_data['media_url'])
-                    # 清理组合消息的媒体文件
-                    if message_data.get('media_group'):
-                        for media_item in message_data['media_group']:
-                            if media_item.get('file_path') and os.path.exists(media_item['file_path']):
-                                await media_handler.cleanup_file(media_item['file_path'])
-                    return
+            # 执行整合的重复检测（包括视觉相似度）
+            visual_hashes_dict = None
+            if visual_hash:
+                try:
+                    # 尝试解析视觉哈希字符串
+                    visual_hashes_dict = eval(visual_hash) if isinstance(visual_hash, str) else visual_hash
+                    # 如果是列表（组合媒体），取第一个
+                    if isinstance(visual_hashes_dict, list) and visual_hashes_dict:
+                        visual_hashes_dict = visual_hashes_dict[0]
+                except:
+                    pass
+            
+            is_duplicate, original_msg_id, duplicate_type = await duplicate_detector.is_duplicate_message(
+                source_channel=channel_id,
+                media_hash=media_hash,
+                combined_media_hash=combined_media_hash,
+                content=message_data.get('content'),
+                message_time=message_data.get('date') or datetime.now(),
+                visual_hashes=visual_hashes_dict
+            )
+            
+            if is_duplicate:
+                logger.info(f"{'历史' if is_history else '实时'}消息：发现重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，跳过处理")
+                # 清理已下载的媒体文件
+                if message_data.get('media_url') and os.path.exists(message_data['media_url']):
+                    await media_handler.cleanup_file(message_data['media_url'])
+                # 清理组合消息的媒体文件
+                if message_data.get('media_group'):
+                    for media_item in message_data['media_group']:
+                        if media_item.get('file_path') and os.path.exists(media_item['file_path']):
+                            await media_handler.cleanup_file(media_item['file_path'])
+                return
             
             # 使用消息处理器进行处理（包含重复检测）
             process_message_data = {

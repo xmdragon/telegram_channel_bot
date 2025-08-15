@@ -300,6 +300,52 @@ class RedisMessageStore(RedisStore):
             logger.error(f"更新消息状态失败 {channel_id}:{message_id}: {e}")
             return False
     
+    async def update_message_review_id(self, channel_id: str, message_id: int, review_message_id: int) -> bool:
+        """更新消息的审核消息ID"""
+        try:
+            msg_key = f"msg:{channel_id}:{message_id}"
+            
+            # 检查消息是否存在
+            if not self.redis.exists(msg_key):
+                logger.warning(f"消息不存在: {channel_id}:{message_id}")
+                return False
+            
+            # 更新review_message_id
+            update_data = {
+                'review_message_id': review_message_id,
+                'updated_at': get_current_time().isoformat()
+            }
+            
+            self.redis.hset(msg_key, mapping=update_data)
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新消息审核ID失败 {channel_id}:{message_id}: {e}")
+            return False
+    
+    async def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:
+        """更新消息的任意字段"""
+        try:
+            msg_key = f"msg:{channel_id}:{message_id}"
+            
+            # 检查消息是否存在
+            if not self.redis.exists(msg_key):
+                logger.warning(f"消息不存在: {channel_id}:{message_id}")
+                return False
+            
+            # 更新字段
+            update_data = {
+                field: self._serialize_json(value) if isinstance(value, (dict, list)) else str(value),
+                'updated_at': get_current_time().isoformat()
+            }
+            
+            self.redis.hset(msg_key, mapping=update_data)
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新消息字段失败 {channel_id}:{message_id}.{field}: {e}")
+            return False
+    
     def delete_message(self, channel_id: str, message_id: int) -> bool:
         """删除消息"""
         try:

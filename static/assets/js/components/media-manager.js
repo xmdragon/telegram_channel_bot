@@ -404,191 +404,46 @@ const app = createApp({
                     current: 0,
                     total: videoCount,
                     percent: 0,
-                    currentFile: '正在初始化...',
+                    currentFile: '正在优化...',
                     savedMb: 0,
                     errors: []
                 };
                 
-                // 使用fetch接收SSE进度（需要认证）
-                const response = await fetch('/api/training/optimize-storage-sse', {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'text/event-stream',
-                        ...authManager.getAuthHeaders()  // 添加Bearer Token
-                    }
-                });
+                // 调用优化存储API
+                const response = await axios.post('/api/training/optimize-storage');
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                
-                const processSSEMessage = (message) => {
-                    if (message.startsWith('data: ')) {
-                        const dataStr = message.substring(6);
-                        try {
-                            const data = JSON.parse(dataStr);
-                            
-                            switch(data.type) {
-                                case 'init':
-                                    this.optimizeProgress.currentFile = data.message;
-                                    break;
-                                    
-                                case 'stats':
-                                    this.optimizeProgress.total = data.total;
-                                    ElMessage({
-                                        message: `开始处理 ${data.total} 个视频文件（${data.total_size_mb} MB）`,
-                                        type: 'info',
-                                        offset: 20,
-                                        customClass: 'bottom-right-message'
-                                    });
-                                    break;
-                                    
-                                case 'progress':
-                                    this.optimizeProgress.current = data.current;
-                                    this.optimizeProgress.percent = data.percent;
-                                    this.optimizeProgress.currentFile = `正在处理: ${data.file}`;
-                                    break;
-                                    
-                                case 'file_done':
-                                    this.optimizeProgress.savedMb += data.saved_kb / 1024;
-                                    break;
-                                    
-                                case 'file_error':
-                                    if (!this.optimizeProgress.errors) {
-                                        this.optimizeProgress.errors = [];
-                                    }
-                                    this.optimizeProgress.errors.push(`${data.file}: ${data.error}`);
-                                    break;
-                                    
-                                case 'complete':
-                                    this.optimizing = false;
-                                    this.optimizeProgress.visible = false;
-                                    
-                                    if (data.processed > 0) {
-                                        ElMessage.success({
-                                            message: `优化完成！处理了 ${data.processed}/${data.total} 个视频，节省了 ${data.saved_mb} MB 空间`,
-                                            duration: 5000
-                                        });
-                                    }
-                                    
-                                    if (data.errors > 0) {
-                                        ElMessage({
-                                            message: `有 ${data.errors} 个文件处理失败`,
-                                            type: 'warning',
-                                            offset: 20,
-                                            customClass: 'bottom-right-message'
-                                        });
-                                    }
-                                    
-                                    // 重新加载文件列表
-                                    this.loadMediaFiles();
-                                    return true; // 标记完成
-                                    
-                                case 'error':
-                                    this.optimizing = false;
-                                    this.optimizeProgress.visible = false;
-                                    ElMessage({
-                                        message: data.message || '优化失败',
-                                        type: 'error',
-                                        offset: 20,
-                                        customClass: 'bottom-right-message'
-                                    });
-                                    return true; // 标记完成
-                            }
-                        } catch (e) {
-                            // console.error('解析SSE消息失败:', e, dataStr);
-                        }
-                    }
-                    return false; // 未完成
-                };
-                
-                // 读取流
-                let isCompleted = false;
-                try {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        
-                        if (done) {
-                            // console.log('SSE流正常结束');
-                            break;
-                        }
-                        
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        
-                        // 保留最后一行（可能不完整）
-                        buffer = lines.pop() || '';
-                        
-                        // 处理完整的行
-                        for (const line of lines) {
-                            if (line.trim()) {
-                                const shouldStop = processSSEMessage(line);
-                                if (shouldStop) {
-                                    // console.log('收到完成信号，停止读取');
-                                    isCompleted = true;
-                                    try {
-                                        await reader.cancel();
-                                    } catch (e) {
-                                        // 忽略取消错误
-                                    }
-                                    return;
-                                }
-                            }
-                        }
-                    }
+                if (response.data.success) {
+                    this.optimizeProgress.current = this.optimizeProgress.total;
+                    this.optimizeProgress.percent = 100;
+                    this.optimizeProgress.currentFile = '优化完成';
+                    this.optimizeProgress.savedMb = (response.data.saved_space || 0) / (1024 * 1024);
                     
-                    // 如果没有收到complete消息就结束了，可能是异常中断
-                    if (!isCompleted) {
-                        // console.warn('SSE流意外结束，未收到complete消息');
-                        this.optimizing = false;
-                        this.optimizeProgress.visible = false;
-                        // 重新加载文件列表以查看实际处理结果
-                        this.loadMediaFiles();
-                        ElMessage({
-                            message: '处理可能已完成，请检查结果',
-                            type: 'warning',
-                            offset: 20,
-                            customClass: 'bottom-right-message'
-                        });
-                    }
-                } catch (error) {
-                    // 如果是取消操作，不报错
-                    if (error.name === 'AbortError' || isCompleted) {
-                        // console.log('SSE流正常取消');
-                        return;
-                    }
-                    
-                    // console.error('读取SSE流错误:', error);
-                    this.optimizing = false;
-                    this.optimizeProgress.visible = false;
-                    
-                    // 重新加载文件列表以查看实际处理结果
+                    // 重新加载文件列表
                     this.loadMediaFiles();
+                    
                     ElMessage({
-                        message: '连接中断，请检查处理结果',
-                        type: 'warning',
+                        message: `优化完成：处理了 ${response.data.processed_videos || 0} 个视频，清理了 ${response.data.cleaned_files || 0} 个文件，节省空间 ${this.optimizeProgress.savedMb.toFixed(2)} MB`,
+                        type: 'success',
                         offset: 20,
-                        customClass: 'bottom-right-message'
+                        customClass: 'bottom-right-message',
+                        duration: 5000
                     });
+                } else {
+                    throw new Error(response.data.error || '优化失败');
                 }
                 
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('优化视频失败:', error);
                     ElMessage({
-                        message: '优化失败',
+                        message: error.message || '优化失败',
                         type: 'error',
                         offset: 20,
                         customClass: 'bottom-right-message'
                     });
-                    this.optimizing = false;
-                    this.optimizeProgress.visible = false;
                 }
+            } finally {
+                this.optimizing = false;
+                this.optimizeProgress.visible = false;
             }
         },
         

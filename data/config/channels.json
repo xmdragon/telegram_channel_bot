@@ -8,8 +8,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.319053",
-    "updated_at": "2025-08-14T16:21:37.614453",
-    "channel_title": "东南亚曝光 东南亚爆料 东南亚悬赏"
+    "updated_at": "2025-08-15T02:43:47.550448",
+    "channel_title": "东南亚曝光 东南亚爆料 东南亚悬赏",
+    "last_collected_message_id": 2016
   },
   "channel_2": {
     "id": 2,
@@ -20,8 +21,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.324062",
-    "updated_at": "2025-08-14T16:21:37.988636",
-    "channel_title": "东南亚曝光 柬埔寨大事件 东南亚大事件 东南亚新闻 柬埔寨曝光"
+    "updated_at": "2025-08-15T02:43:50.105745",
+    "channel_title": "东南亚曝光 柬埔寨大事件 东南亚大事件 东南亚新闻 柬埔寨曝光",
+    "last_collected_message_id": 4507
   },
   "channel_3": {
     "id": 3,
@@ -32,8 +34,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.325073",
-    "updated_at": "2025-08-14T16:21:38.403306",
-    "channel_title": "金三角大事件"
+    "updated_at": "2025-08-15T02:43:52.694117",
+    "channel_title": "金三角大事件",
+    "last_collected_message_id": 11639
   },
   "channel_4": {
     "id": 4,
@@ -44,8 +47,9 @@
     "config": {},
     "description": "手动添加",
     "created_at": "2025-08-14 10:06:40.326028",
-    "updated_at": "2025-08-14T16:21:39.213090",
-    "channel_title": "东南亚大事件曝光-聚焦时事"
+    "updated_at": "2025-08-15T02:44:13.463772",
+    "channel_title": "东南亚大事件曝光-聚焦时事",
+    "last_collected_message_id": 43073
   },
   "channel_5": {
     "id": 5,
@@ -56,8 +60,9 @@
     "config": {},
     "description": "手动添加",
     "created_at": "2025-08-14 10:06:40.326947",
-    "updated_at": "2025-08-14T16:21:39.529908",
-    "channel_title": "东南亚闯荡记"
+    "updated_at": "2025-08-15T02:44:15.862076",
+    "channel_title": "东南亚闯荡记",
+    "last_collected_message_id": 57519
   },
   "channel_6": {
     "id": 6,
@@ -68,8 +73,9 @@
     "config": {},
     "description": "手动添加",
     "created_at": "2025-08-14 10:06:40.327913",
-    "updated_at": "2025-08-14T16:21:39.946980",
-    "channel_title": "亚太新闻 ｜妙瓦低新闻 ｜东南亚新闻｜爆料 甩人"
+    "updated_at": "2025-08-15T02:44:18.289184",
+    "channel_title": "亚太新闻 ｜妙瓦低新闻 ｜东南亚新闻｜爆料 甩人",
+    "last_collected_message_id": 12924
   },
   "channel_8": {
     "id": 8,
@@ -80,8 +86,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.32966",
-    "updated_at": "2025-08-14T16:21:40.926399",
-    "channel_title": "亚太茶水间|亚太新闻|东南亚曝光"
+    "updated_at": "2025-08-15T02:44:20.735553",
+    "channel_title": "亚太茶水间|亚太新闻|东南亚曝光",
+    "last_collected_message_id": 13967
   },
   "channel_9": {
     "id": 9,
@@ -92,8 +99,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.330646",
-    "updated_at": "2025-08-14T16:21:41.294632",
-    "channel_title": "东南亚大事件/曝光@dj17"
+    "updated_at": "2025-08-15T02:44:23.161287",
+    "channel_title": "东南亚大事件/曝光@dj17",
+    "last_collected_message_id": 9917
   },
   "channel_10": {
     "id": 10,
@@ -104,8 +112,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.331623",
-    "updated_at": "2025-08-14T16:21:41.665617",
-    "channel_title": "缅甸大事件|妙瓦底曝光|亚太新闻"
+    "updated_at": "2025-08-15T02:44:25.618542",
+    "channel_title": "缅甸大事件|妙瓦底曝光|亚太新闻",
+    "last_collected_message_id": 11941
   },
   "channel_11": {
     "id": 11,
@@ -116,8 +125,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.332851",
-    "updated_at": "2025-08-14T16:21:42.033281",
-    "channel_title": "亚太新闻 亚太曝光 亚太吃瓜 亚太茶水间"
+    "updated_at": "2025-08-15T02:44:28.056432",
+    "channel_title": "亚太新闻 亚太曝光 亚太吃瓜 亚太茶水间",
+    "last_collected_message_id": 2966
   },
   "channel_12": {
     "id": 12,
@@ -128,8 +138,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.333818",
-    "updated_at": "2025-08-14T16:21:42.395766",
-    "channel_title": "东南亚/柬埔寨闯荡记【吃瓜】"
+    "updated_at": "2025-08-15T02:44:30.472545",
+    "channel_title": "东南亚/柬埔寨闯荡记【吃瓜】",
+    "last_collected_message_id": 8083
   },
   "channel_13": {
     "id": 13,
@@ -140,8 +151,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.334811",
-    "updated_at": "2025-08-14T16:21:42.753662",
-    "channel_title": "海外大事件🌏灰产新闻🌏曝光平台🌏投稿吃瓜"
+    "updated_at": "2025-08-15T02:44:32.878590",
+    "channel_title": "海外大事件🌏灰产新闻🌏曝光平台🌏投稿吃瓜",
+    "last_collected_message_id": 4620
   },
   "channel_14": {
     "id": 14,
@@ -152,8 +164,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.335837",
-    "updated_at": "2025-08-14T16:21:43.115197",
-    "channel_title": "金三角大事件/新闻曝光"
+    "updated_at": "2025-08-15T02:44:35.418710",
+    "channel_title": "金三角大事件/新闻曝光",
+    "last_collected_message_id": 7721
   },
   "channel_15": {
     "id": 15,
@@ -164,8 +177,9 @@
     "config": {},
     "description": "批量添加的频道: 缅甸❤️亚太茶水间-亚太大事件",
     "created_at": "2025-08-14 10:06:40.336761",
-    "updated_at": "2025-08-14T16:21:43.552077",
-    "channel_title": "缅甸❤️亚太茶水间-亚太大事件"
+    "updated_at": "2025-08-15T02:44:37.744989",
+    "channel_title": "缅甸❤️亚太茶水间-亚太大事件",
+    "last_collected_message_id": 186505
   },
   "channel_16": {
     "id": 16,
@@ -176,8 +190,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.33767",
-    "updated_at": "2025-08-14T16:21:43.903932",
-    "channel_title": "东南亚大事件📢"
+    "updated_at": "2025-08-15T02:44:40.153315",
+    "channel_title": "东南亚大事件📢",
+    "last_collected_message_id": 34602
   },
   "channel_17": {
     "id": 17,
@@ -188,8 +203,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.338774",
-    "updated_at": "2025-08-14T16:21:44.279877",
-    "channel_title": "柬埔寨大事件"
+    "updated_at": "2025-08-15T02:44:42.601315",
+    "channel_title": "柬埔寨大事件",
+    "last_collected_message_id": 7049
   },
   "channel_18": {
     "id": 18,

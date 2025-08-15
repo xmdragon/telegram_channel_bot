@@ -304,6 +304,39 @@ class UnifiedChannelService:
         except Exception as e:
             logger.error(f"刷新频道标题失败: {e}")
             return {"success": False, "message": f"刷新失败: {str(e)}", "updated": 0}
+    
+    async def update_channel_last_collected_id(self, channel_id: str, message_id: int) -> bool:
+        """
+        更新频道的最后采集消息ID
+        """
+        try:
+            channel_store = self._get_channel_store()
+            if not channel_store:
+                logger.error("存储服务未初始化")
+                return False
+            
+            # 查找频道
+            channel_data = await self._find_channel(channel_id)
+            if not channel_data:
+                logger.error(f"未找到频道: {channel_id}")
+                return False
+            
+            # 更新last_collected_message_id
+            channel_data['last_collected_message_id'] = message_id
+            channel_data['updated_at'] = get_current_time().isoformat()
+            
+            # 保存更新
+            success = channel_store.update_channel(channel_data)
+            if success:
+                logger.debug(f"成功更新频道 {channel_id} 的最后采集消息ID: {message_id}")
+            else:
+                logger.error(f"更新频道 {channel_id} 的最后采集消息ID失败")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"更新频道最后采集消息ID失败: {e}")
+            return False
 
 # 全局实例
 unified_channel_service = UnifiedChannelService()
