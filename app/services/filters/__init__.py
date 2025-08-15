@@ -31,6 +31,8 @@ from .filter_pipeline import (
 from .duplicate_detector import DuplicateDetectorFilter, duplicate_detector_filter
 from .ad_detector import AdDetectorFilter, ad_detector_filter
 from .tail_filter import TailFilter, tail_filter
+from .markdown_filter import MarkdownFilter
+from .promo_link_filter import PromoLinkFilter
 
 __all__ = [
     # 基础类和数据结构
@@ -47,6 +49,8 @@ __all__ = [
     'DuplicateDetectorFilter',
     'AdDetectorFilter',
     'TailFilter',
+    'MarkdownFilter',
+    'PromoLinkFilter',
     
     # 预配置的过滤器实例
     'duplicate_detector_filter',
@@ -89,7 +93,9 @@ SUPPORTED_FILTER_TYPES = {
     'ad_detector': '广告检测器', 
     'content_filter': '内容过滤器',
     'semantic_filter': '语义过滤器',
-    'tail_filter': '尾部过滤器'
+    'tail_filter': '尾部过滤器',
+    'markdown_filter': 'Markdown链接过滤器',
+    'promo_link_filter': '推广链接过滤器'
 }
 
 # 早停支持的过滤器
