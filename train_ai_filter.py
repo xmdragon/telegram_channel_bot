@@ -8,7 +8,7 @@ import logging
 import json
 from pathlib import Path
 from app.services.ai_filter import ai_filter
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def train_channel_tails():
     """训练频道的尾部模式 - 从训练数据文件学习"""
     # 加载手动训练数据
-    manual_training_file = TrainingDataConfig.MANUAL_TRAINING_FILE
+    manual_training_file = PathConfig.MANUAL_TRAINING_FILE
     if not manual_training_file.exists():
         logger.warning("手动训练数据文件不存在")
         return
@@ -78,7 +78,7 @@ async def train_channel_tails():
 async def train_ad_classifier():
     """训练广告分类器"""
     # 加载广告训练数据
-    ad_training_file = TrainingDataConfig.AD_TRAINING_FILE
+    ad_training_file = PathConfig.AD_TRAINING_FILE
     if ad_training_file.exists():
         with open(ad_training_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -153,7 +153,7 @@ async def main():
     
     # 保存模型
     logger.info("\n💾 步骤3: 保存训练结果")
-    ai_filter.save_patterns(str(TrainingDataConfig.AI_FILTER_PATTERNS_FILE))
+    ai_filter.save_patterns(str(PathConfig.AI_FILTER_PATTERNS_FILE))
     
     # 测试效果
     logger.info("\n🧪 步骤4: 测试AI过滤器")

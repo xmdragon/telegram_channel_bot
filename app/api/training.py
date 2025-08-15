@@ -10,18 +10,18 @@ from pathlib import Path
 import logging
 
 from app.services.adaptive_learning import adaptive_learning
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # 数据文件路径（使用集中配置）
-SEPARATOR_PATTERNS_FILE = TrainingDataConfig.SEPARATOR_PATTERNS_FILE
-TAIL_AD_SAMPLES_FILE = TrainingDataConfig.TAIL_AD_SAMPLES_FILE
+SEPARATOR_PATTERNS_FILE = PathConfig.SEPARATOR_PATTERNS_FILE
+TAIL_AD_SAMPLES_FILE = PathConfig.TAIL_AD_SAMPLES_FILE
 
 # 确保数据目录存在
-TrainingDataConfig.ensure_directories()
+PathConfig.ensure_directories()
 
 
 @router.get("/separator-patterns")
@@ -103,7 +103,7 @@ async def get_ad_samples(page: int = 1, size: int = 20, search: str = "", filter
         sample_id_counter = 1
         
         # 从ad_training_data.json获取样本
-        ad_data_file = TrainingDataConfig.AD_TRAINING_FILE
+        ad_data_file = PathConfig.AD_TRAINING_FILE
         if ad_data_file.exists():
             ad_data = SafeFileOperation.read_json_safe(ad_data_file)
             if ad_data:
@@ -190,7 +190,7 @@ async def get_ad_statistics():
     """获取广告训练统计信息"""
     try:
         # 从ad_training_data.json获取
-        ad_data_file = TrainingDataConfig.AD_TRAINING_FILE
+        ad_data_file = PathConfig.AD_TRAINING_FILE
         samples = []
         
         if ad_data_file.exists():
@@ -250,7 +250,7 @@ async def delete_ad_sample(sample_id: int):
         all_samples = []
         
         # 从ad_training_data.json获取所有样本
-        ad_data_file = TrainingDataConfig.AD_TRAINING_FILE
+        ad_data_file = PathConfig.AD_TRAINING_FILE
         ad_start_index = 0
         ad_data = None
         
@@ -322,7 +322,7 @@ async def delete_ad_samples_batch(request: dict):
         deleted_count = 0
         
         # 从ad_training_data.json批量删除
-        ad_data_file = TrainingDataConfig.AD_TRAINING_FILE
+        ad_data_file = PathConfig.AD_TRAINING_FILE
         if ad_data_file.exists():
             ad_data = SafeFileOperation.read_json_safe(ad_data_file)
             if ad_data:
@@ -369,7 +369,7 @@ async def detect_ad_duplicates():
         all_samples = []
         
         # 从ad_training_data.json获取
-        ad_data_file = TrainingDataConfig.AD_TRAINING_FILE
+        ad_data_file = PathConfig.AD_TRAINING_FILE
         if ad_data_file.exists():
             ad_data = SafeFileOperation.read_json_safe(ad_data_file)
             if ad_data:

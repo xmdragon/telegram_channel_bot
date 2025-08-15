@@ -118,11 +118,11 @@ class SmartTailFilter:
         """加载训练的尾部模式（主要用于向智能过滤器添加样本）"""
         import json
         import os
-        from app.core.training_config import TrainingDataConfig
+        from app.core.path_config import PathConfig
         
         try:
             # 加载尾部过滤样本
-            tail_file = str(TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE)
+            tail_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
             if os.path.exists(tail_file):
                 with open(tail_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -142,7 +142,7 @@ class SmartTailFilter:
                 logger.info(f"加载了 {tail_count} 个尾部模式到智能过滤器")
                 
             # 加载手动训练数据
-            manual_file = str(TrainingDataConfig.MANUAL_TRAINING_FILE)
+            manual_file = str(PathConfig.MANUAL_TRAINING_FILE)
             if os.path.exists(manual_file):
                 with open(manual_file, 'r', encoding='utf-8') as f:
                     manual_data = json.load(f)

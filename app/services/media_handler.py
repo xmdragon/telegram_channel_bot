@@ -28,7 +28,8 @@ class MediaHandler:
     """媒体文件处理器"""
     
     def __init__(self):
-        self.temp_dir = Path("./temp_media")
+        from app.core.path_config import PathConfig
+        self.temp_dir = PathConfig.TEMP_MEDIA_DIR
         self.temp_dir.mkdir(exist_ok=True)
         self.cleanup_interval = 7200  # 2小时清理一次
         self.file_ttl = 86400  # 文件保留24小时
@@ -236,7 +237,7 @@ class MediaHandler:
                 
             # 生成相对于temp_media目录的路径
             rel_path = os.path.relpath(file_path, self.temp_dir)
-            return f"/temp_media/{rel_path}"
+            return f"/{self.temp_dir.name}/{rel_path}"
             
         except Exception as e:
             logger.error(f"生成媒体URL失败: {e}")

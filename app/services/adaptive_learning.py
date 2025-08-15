@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 # 移除数据库依赖，改为基于文件的数据管理
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,9 @@ class AdaptiveLearningSystem:
     """自适应学习系统"""
     
     def __init__(self):
-        self.feedback_file = TrainingDataConfig.FEEDBACK_LEARNING_FILE
-        self.ad_samples_file = TrainingDataConfig.AD_TRAINING_FILE
-        self.normal_samples_file = TrainingDataConfig.NORMAL_TRAINING_FILE
+        self.feedback_file = PathConfig.FEEDBACK_LEARNING_FILE
+        self.ad_samples_file = PathConfig.AD_TRAINING_FILE
+        self.normal_samples_file = PathConfig.NORMAL_TRAINING_FILE
         self.learning_threshold = 50  # 累积多少反馈后触发学习
         self.feedback_buffer = []
         
@@ -260,14 +260,14 @@ class AdaptiveLearningSystem:
                     stats['ad_samples'] = len(data.get('samples', []))
             
             # 统计尾部样本
-            if TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE.exists():
-                with open(TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE, 'r', encoding='utf-8') as f:
+            if PathConfig.TAIL_FILTER_SAMPLES_FILE.exists():
+                with open(PathConfig.TAIL_FILTER_SAMPLES_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     stats['tail_samples'] = len(data.get('samples', []))
             
             # 统计分隔符模式
-            if TrainingDataConfig.SEPARATOR_PATTERNS_FILE.exists():
-                with open(TrainingDataConfig.SEPARATOR_PATTERNS_FILE, 'r', encoding='utf-8') as f:
+            if PathConfig.SEPARATOR_PATTERNS_FILE.exists():
+                with open(PathConfig.SEPARATOR_PATTERNS_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     stats['separator_patterns'] = len(data.get('patterns', []))
             

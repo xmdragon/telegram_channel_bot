@@ -11,7 +11,7 @@ from datetime import datetime
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
 from app.storage.redis_store import init_redis_stores, get_redis_message_store
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 
 async def collect_tail_samples():
     """从Redis存储收集所有已过滤消息的尾部样本"""
@@ -51,7 +51,7 @@ async def collect_tail_samples():
             return 0
         
         # 读取现有样本
-        tail_file = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
+        tail_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
         
         existing_samples = []
         if os.path.exists(tail_file):
@@ -196,7 +196,7 @@ async def collect_tail_samples():
 async def show_samples_stats():
     """显示现有样本统计"""
     try:
-        tail_file = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
+        tail_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
         
         if not os.path.exists(tail_file):
             print(f"⚠️ 样本文件不存在: {tail_file}")

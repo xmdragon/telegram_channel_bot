@@ -12,6 +12,7 @@ import sys
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
 from app.storage.json_store import init_json_stores, get_json_user_store
+from app.core.path_config import PathConfig
 
 async def backup_permissions_and_users():
     """备份权限和用户数据"""
@@ -31,7 +32,7 @@ async def backup_permissions_and_users():
     
     try:
         # 1. 备份权限定义文件
-        permissions_file = Path("data/permissions.json")
+        permissions_file = PathConfig.PERMISSIONS_CONFIG_FILE
         if permissions_file.exists():
             backup_perms_file = backup_dir / "permissions.json"
             shutil.copy2(permissions_file, backup_perms_file)
@@ -83,11 +84,12 @@ async def backup_permissions_and_users():
             print("⚠️  配置文件不存在")
         
         # 4. 备份训练数据文件
+        from app.core.path_config import PathConfig
         training_files = [
-            "data/tail_filter_samples.json",
-            "data/ocr_samples.json",
-            "data/feedback_learning.json",
-            "data/ad_training_data.json"
+            str(PathConfig.TAIL_FILTER_SAMPLES_FILE),
+            str(PathConfig.OCR_SAMPLES_FILE),
+            str(PathConfig.FEEDBACK_LEARNING_FILE),
+            str(PathConfig.AD_TRAINING_FILE)
         ]
         
         for training_file in training_files:
@@ -227,7 +229,7 @@ async def restore_from_backup(backup_path: str):
         # 恢复权限文件
         backup_perms = backup_dir / "permissions.json"
         if backup_perms.exists():
-            dest_perms = Path("data/permissions.json")
+            dest_perms = PathConfig.PERMISSIONS_CONFIG_FILE
             dest_perms.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(backup_perms, dest_perms)
             restored_files.append("permissions.json")
@@ -242,19 +244,19 @@ async def restore_from_backup(backup_path: str):
             print(f"✅ 恢复配置文件")
         
         # 恢复训练数据文件
+        from app.core.path_config import PathConfig
         training_files = [
-            "tail_filter_samples.json",
-            "ocr_samples.json", 
-            "feedback_learning.json",
-            "ad_training_data.json"
+            (PathConfig.TAIL_FILTER_SAMPLES_FILE.name, PathConfig.TAIL_FILTER_SAMPLES_FILE),
+            (PathConfig.OCR_SAMPLES_FILE.name, PathConfig.OCR_SAMPLES_FILE),
+            (PathConfig.FEEDBACK_LEARNING_FILE.name, PathConfig.FEEDBACK_LEARNING_FILE),
+            (PathConfig.AD_TRAINING_FILE.name, PathConfig.AD_TRAINING_FILE)
         ]
         
-        for file_name in training_files:
+        for file_name, dest_path in training_files:
             backup_file = backup_dir / file_name
             if backup_file.exists():
-                dest_file = Path("data") / file_name
-                dest_file.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(backup_file, dest_file)
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(backup_file, dest_path)
                 restored_files.append(file_name)
                 print(f"✅ 恢复训练数据: {file_name}")
         

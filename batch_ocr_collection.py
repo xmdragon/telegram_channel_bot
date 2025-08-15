@@ -16,7 +16,7 @@ sys.path.append('.')
 
 from app.services.ocr_service import ocr_service
 from app.services.ocr_sample_manager import ocr_sample_manager
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -39,7 +39,7 @@ class BatchOCRCollector:
             logger.info("🚀 开始批量OCR样本收集...")
             
             # 读取媒体元数据
-            media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+            media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
             media_dir = Path("data/ad_training_data")
             
             if not media_metadata_file.exists():

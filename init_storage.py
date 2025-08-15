@@ -239,7 +239,8 @@ def init_default_permissions():
         {"name": "admin.manage_permissions", "module": "admin", "action": "manage_permissions", "description": "管理权限"},
     ]
     
-    permissions_file = Path("data/permissions.json")
+    from app.core.path_config import PathConfig
+    permissions_file = PathConfig.PERMISSIONS_CONFIG_FILE
     permissions_file.parent.mkdir(parents=True, exist_ok=True)
     
     if permissions_file.exists():
@@ -266,55 +267,42 @@ def init_default_permissions():
 def init_directory_structure():
     """初始化目录结构"""
     
-    DIRECTORIES = [
-        "data",
-        "data/ad_training_data",
-        "data/ad_training_data/images",
-        "data/ad_training_data/videos", 
-        "data/ad_training_data/backups",
-        "logs",
-        "temp_media",
-        "static"
-    ]
+    # 使用PathConfig进行统一路径管理
+    from app.core.path_config import PathConfig
+    PathConfig.ensure_directories()
     
-    created_count = 0
-    for directory in DIRECTORIES:
-        dir_path = Path(directory)
-        if not dir_path.exists():
-            try:
-                dir_path.mkdir(parents=True, exist_ok=True)
-                created_count += 1
-                logger.debug(f"创建目录: {directory}")
-            except Exception as e:
-                logger.error(f"创建目录失败 {directory}: {e}")
-    
-    if created_count > 0:
-        logger.info(f"✅ 创建了 {created_count} 个目录")
-    else:
-        logger.info("ℹ️  目录结构已存在")
-    
-    return created_count
+    # 额外创建静态文件目录
+    try:
+        static_dir = Path("static")
+        static_dir.mkdir(exist_ok=True)
+        logger.info("✅ 目录结构初始化完成")
+        return 1
+    except Exception as e:
+        logger.error(f"创建静态目录失败: {e}")
+        return 0
 
 def init_default_data_files():
     """初始化默认数据文件"""
     
+    from app.core.path_config import PathConfig
+    
     DATA_FILES = {
-        "data/tail_filter_samples.json": {
+        str(PathConfig.TAIL_FILTER_SAMPLES_FILE): {
             "samples": [],
             "created_at": "2024-01-01T00:00:00",
             "total_count": 0
         },
-        "data/ocr_samples.json": {
+        str(PathConfig.OCR_SAMPLES_FILE): {
             "samples": [],
             "created_at": "2024-01-01T00:00:00", 
             "total_count": 0
         },
-        "data/feedback_learning.json": {
+        str(PathConfig.FEEDBACK_LEARNING_FILE): {
             "feedback_data": [],
             "created_at": "2024-01-01T00:00:00",
             "total_count": 0
         },
-        "data/ad_training_data.json": {
+        str(PathConfig.AD_TRAINING_FILE): {
             "positive_samples": [],
             "negative_samples": [],
             "created_at": "2024-01-01T00:00:00",
@@ -434,11 +422,11 @@ async def check_storage_status():
     
     # 检查数据文件
     data_files = [
-        "data/tail_filter_samples.json",
-        "data/ocr_samples.json", 
-        "data/feedback_learning.json",
-        "data/ad_training_data.json",
-        "data/permissions.json"
+        str(PathConfig.TAIL_FILTER_SAMPLES_FILE),
+        str(PathConfig.OCR_SAMPLES_FILE), 
+        str(PathConfig.FEEDBACK_LEARNING_FILE),
+        str(PathConfig.AD_TRAINING_FILE),
+        str(PathConfig.PERMISSIONS_CONFIG_FILE)
     ]
     
     existing_files = 0

@@ -10,7 +10,7 @@ import json
 import hashlib
 from pathlib import Path
 
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 from app.api.admin_auth import check_permission
 import os
@@ -21,12 +21,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training"])
 
 # 使用训练配置管理文件路径
-TRAINING_DATA_FILE = TrainingDataConfig.MANUAL_TRAINING_FILE
-TRAINING_HISTORY_FILE = TrainingDataConfig.TRAINING_HISTORY_FILE
-TAIL_FILTER_SAMPLES_FILE = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE  # 尾部过滤样本文件
+TRAINING_DATA_FILE = PathConfig.MANUAL_TRAINING_FILE
+TRAINING_HISTORY_FILE = PathConfig.TRAINING_HISTORY_FILE
+TAIL_FILTER_SAMPLES_FILE = PathConfig.TAIL_FILTER_SAMPLES_FILE  # 尾部过滤样本文件
 
 # 确保目录存在
-TrainingDataConfig.ensure_directories()
+PathConfig.ensure_directories()
 
 class TrainingSubmission(BaseModel):
     """训练数据提交模型"""
@@ -299,7 +299,7 @@ async def apply_training():
             save_training_data(samples)
             
             # 保存AI模式到文件
-            ai_filter.save_patterns(str(TrainingDataConfig.AI_FILTER_PATTERNS_FILE))
+            ai_filter.save_patterns(str(PathConfig.AI_FILTER_PATTERNS_FILE))
             
         except ImportError:
             logger.warning("AI过滤器模块未找到，跳过模式学习")
@@ -819,8 +819,8 @@ async def deduplicate_tail_filter_samples(request: dict):
 async def get_media_files():
     """获取媒体文件列表"""
     try:
-        media_dir = TrainingDataConfig.AD_MEDIA_DIR
-        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        media_dir = PathConfig.AD_MEDIA_DIR
+        media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
         media_files = []
         
         # 优先使用metadata.json中的信息
@@ -927,7 +927,7 @@ async def get_media_files():
 async def delete_media_file(file_hash: str):
     """删除媒体文件"""
     try:
-        media_dir = TrainingDataConfig.AD_MEDIA_DIR
+        media_dir = PathConfig.AD_MEDIA_DIR
         deleted = False
         
         # 查找并删除匹配的文件
@@ -964,7 +964,7 @@ async def clean_orphaned_files():
 async def get_duplicate_files():
     """检测视觉重复的媒体文件"""
     try:
-        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         if not media_metadata_file.exists():
@@ -1094,8 +1094,8 @@ async def deduplicate_media_files():
     try:
         import shutil
         
-        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
-        media_dir = TrainingDataConfig.AD_MEDIA_DIR
+        media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
+        media_dir = PathConfig.AD_MEDIA_DIR
         
         if not media_metadata_file.exists():
             return {"success": True, "deleted": 0, "merged": 0}
@@ -1257,7 +1257,7 @@ async def optimize_storage():
         cleaned_files = 0
         
         # 查找训练数据目录
-        training_base_dir = TrainingDataConfig.AD_MEDIA_DIR
+        training_base_dir = PathConfig.AD_MEDIA_DIR
         
         if training_base_dir.exists():
             # 处理视频文件（转换为缩略图以节省空间）
@@ -1291,7 +1291,7 @@ async def optimize_storage():
                                 thumbnail_size = thumbnail_path.stat().st_size
                                 
                                 # 更新metadata.json中的文件信息
-                                media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+                                media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
                                 if media_metadata_file.exists():
                                     metadata = SafeFileOperation.read_json_safe(media_metadata_file)
                                     
@@ -1424,7 +1424,7 @@ async def get_media_file_ocr(
         from app.services.ocr_service import ocr_service
         
         # 获取文件信息
-        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
         media_dir = Path("data/ad_training_data")
         
         if not media_metadata_file.exists():

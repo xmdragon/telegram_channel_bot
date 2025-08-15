@@ -75,7 +75,9 @@ class SafeFileOperation:
                 
                 # 备份原文件（如果存在且需要备份）
                 if backup and file_path.exists():
-                    backup_dir = file_path.parent / "backups"
+                    # 使用PathConfig统一的备份目录
+                    from app.core.path_config import PathConfig
+                    backup_dir = PathConfig.BACKUP_DIR
                     backup_dir.mkdir(exist_ok=True)
                     
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

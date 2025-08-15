@@ -3,12 +3,12 @@ import json
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
 from pathlib import Path
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 from datetime import datetime
 
 # 加载现有样本
-TAIL_FILTER_SAMPLES_FILE = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
+TAIL_FILTER_SAMPLES_FILE = PathConfig.TAIL_FILTER_SAMPLES_FILE
 data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
 samples = data.get("samples", []) if data else []
 

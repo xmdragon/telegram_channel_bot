@@ -40,8 +40,11 @@ class FilteredTimedRotatingFileHandler(TimedRotatingFileHandler):
         super().emit(record)
 
 # 创建按小时轮转的日志处理器
+# 在日志初始化前导入PathConfig
+from app.core.path_config import PathConfig
+
 file_handler = FilteredTimedRotatingFileHandler(
-    filename='./logs/app.log',
+    filename=str(PathConfig.APP_LOG_FILE),
     when='H',  # 按小时轮转
     interval=1,  # 每1小时
     backupCount=24*7,  # 保留7天的日志
@@ -51,7 +54,7 @@ file_handler.suffix = "%Y%m%d_%H"  # 文件名后缀格式
 
 # 创建错误日志处理器（只记录WARNING及以上级别）
 error_handler = TimedRotatingFileHandler(
-    filename='./logs/error.log',
+    filename=str(PathConfig.ERROR_LOG_FILE),
     when='D',  # 按天轮转
     interval=1,  # 每1天
     backupCount=30,  # 保留30天的日志
@@ -121,8 +124,7 @@ async def lifespan(app: FastAPI):
     logger.info("频道ID缓存已初始化")
     
     # 初始化训练数据目录和配置
-    from app.core.training_config import TrainingDataConfig
-    TrainingDataConfig.initialize()
+    PathConfig.ensure_directories()
     logger.info("训练数据目录已初始化")
     
     # 加载数据库配置

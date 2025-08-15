@@ -612,8 +612,11 @@ class TelegramBot:
             for media_item in db_message.media_group:
                 # 转换本地文件路径为web访问路径
                 file_path = media_item.get('file_path', '')
-                if file_path.startswith('./temp_media/'):
-                    web_path = file_path.replace('./temp_media/', '/temp_media/')
+                from app.core.path_config import PathConfig
+                temp_media_local = f"./{PathConfig.TEMP_MEDIA_DIR.name}/"
+                temp_media_web = f"/{PathConfig.TEMP_MEDIA_DIR.name}/"
+                if file_path.startswith(temp_media_local):
+                    web_path = file_path.replace(temp_media_local, temp_media_web)
                 else:
                     web_path = file_path
                     

@@ -114,11 +114,11 @@ class IntelligentTailFilter:
             if current_time - self._last_load_time < self._reload_interval:
                 return
         
-        from app.core.training_config import TrainingDataConfig
+        from app.core.path_config import PathConfig
         
         try:
             self._last_load_time = current_time
-            tail_file = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
+            tail_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
             if tail_file.exists():
                 with open(tail_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)

@@ -34,8 +34,12 @@ class OCRSample:
 class OCRSampleManager:
     """OCR样本管理器"""
     
-    def __init__(self, samples_file: str = "data/ocr_samples.json"):
-        self.samples_file = Path(samples_file)
+    def __init__(self, samples_file: str = None):
+        if samples_file is None:
+            from app.core.path_config import PathConfig
+            self.samples_file = PathConfig.OCR_SAMPLES_FILE
+        else:
+            self.samples_file = Path(samples_file)
         self.samples_file.parent.mkdir(parents=True, exist_ok=True)
         self._lock = asyncio.Lock()
         self._cache = None

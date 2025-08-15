@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-15T17:22:36.003173",
+    "updated_at": "2025-08-15T18:48:43.291649",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-15T09:22:37.217042",
+  "updated_at": "2025-08-15T11:10:24.092103",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-15T17:22:36.003904",
+    "updated_at": "2025-08-15T18:48:43.295492",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -53,7 +53,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-15T17:22:37.216352",
+    "updated_at": "2025-08-15T18:48:44.383013",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "channels.history_message_limit": {
@@ -117,7 +117,7 @@
     "config_type": "string",
     "description": "",
     "is_active": true,
-    "updated_at": "2025-08-15T17:22:37.217038",
+    "updated_at": "2025-08-15T18:48:44.385326",
     "created_at": "2025-08-14T23:46:07.015035"
   },
   "channels.review_group": {
@@ -127,5 +127,149 @@
     "is_active": true,
     "updated_at": "2025-08-15T15:27:58.905210",
     "created_at": "2025-08-15T00:00:20.971185"
+  },
+  "telegram.session_string": {
+    "value": "",
+    "config_type": "text",
+    "description": "Telegram Session String",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.228371",
+    "created_at": "2025-08-15T19:03:51.228374"
+  },
+  "telegram.bot_token": {
+    "value": "",
+    "config_type": "string",
+    "description": "Telegram Bot Token（可选）",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.229107",
+    "created_at": "2025-08-15T19:03:51.229110"
+  },
+  "channels.target_channels": {
+    "value": "\"[]\"",
+    "config_type": "json",
+    "description": "目标频道列表",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.229459",
+    "created_at": "2025-08-15T19:03:51.229460"
+  },
+  "channels.review_chat_id": {
+    "value": "",
+    "config_type": "string",
+    "description": "审核群组ID",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.229745",
+    "created_at": "2025-08-15T19:03:51.229746"
+  },
+  "filter.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用内容过滤",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230062",
+    "created_at": "2025-08-15T19:03:51.230063"
+  },
+  "filter.ad_keywords": {
+    "value": "\"[]\"",
+    "config_type": "json",
+    "description": "广告关键词列表",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230368",
+    "created_at": "2025-08-15T19:03:51.230369"
+  },
+  "filter.tail_filter_enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用尾部过滤",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230654",
+    "created_at": "2025-08-15T19:03:51.230655"
+  },
+  "filter.ocr_enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用OCR图片文字识别",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230933",
+    "created_at": "2025-08-15T19:03:51.230934"
+  },
+  "review.require_approval": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "需要人工审核",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.231268",
+    "created_at": "2025-08-15T19:03:51.231269"
+  },
+  "review.auto_reject_ads": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "自动拒绝广告消息",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.231614",
+    "created_at": "2025-08-15T19:03:51.231615"
+  },
+  "collection.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用消息采集",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.231937",
+    "created_at": "2025-08-15T19:03:51.231938"
+  },
+  "collection.interval": {
+    "value": "30",
+    "config_type": "integer",
+    "description": "采集间隔（秒）",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.232252",
+    "created_at": "2025-08-15T19:03:51.232253"
+  },
+  "collection.max_messages_per_batch": {
+    "value": "50",
+    "config_type": "integer",
+    "description": "每批最大消息数",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.232629",
+    "created_at": "2025-08-15T19:03:51.232630"
+  },
+  "system.log_level": {
+    "value": "INFO",
+    "config_type": "string",
+    "description": "日志级别",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.232961",
+    "created_at": "2025-08-15T19:03:51.232962"
+  },
+  "system.max_message_age_days": {
+    "value": "30",
+    "config_type": "integer",
+    "description": "消息最大保留天数",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.233354",
+    "created_at": "2025-08-15T19:03:51.233356"
+  },
+  "system.cleanup_enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用定期清理",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.233727",
+    "created_at": "2025-08-15T19:03:51.233727"
+  },
+  "web.page_size": {
+    "value": "20",
+    "config_type": "integer",
+    "description": "页面显示消息数",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.234113",
+    "created_at": "2025-08-15T19:03:51.234114"
+  },
+  "web.auto_refresh_interval": {
+    "value": "30",
+    "config_type": "integer",
+    "description": "自动刷新间隔（秒）",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.234554",
+    "created_at": "2025-08-15T19:03:51.234555"
   }
 }

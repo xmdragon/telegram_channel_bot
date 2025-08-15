@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List
 import cv2
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +20,10 @@ class TrainingMediaManager:
     """训练媒体文件管理器"""
     
     def __init__(self):
-        self.base_dir = TrainingDataConfig.AD_MEDIA_DIR
+        self.base_dir = PathConfig.AD_MEDIA_DIR
         self.images_dir = self.base_dir / "images"
         self.videos_dir = self.base_dir / "videos"
-        self.metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        self.metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
         
         # 确保目录存在
         self.ensure_directories()
@@ -279,14 +279,14 @@ class TrainingMediaManager:
                                 cap.release()
                     
                     if thumbnail_full_path.exists():
-                        # 保持与原文件路径格式一致，但要移除ad_training_data前缀
-                        thumbnail_path = str(thumbnail_full_path.relative_to(Path("data/ad_training_data")))
+                        # 保持与原文件路径格式一致，但要移除training/ad前缀
+                        thumbnail_path = str(thumbnail_full_path.relative_to(PathConfig.AD_TRAINING_DIR))
                 except Exception as e:
                     logger.warning(f"生成视频缩略图失败: {e}")
             
             # 更新元数据
-            # 确保路径不包含ad_training_data前缀
-            relative_path = str(target_path.relative_to(Path("data/ad_training_data")))
+            # 确保路径不包含training/ad前缀
+            relative_path = str(target_path.relative_to(PathConfig.AD_TRAINING_DIR))
             metadata_entry = {
                 "path": relative_path,
                 "message_ids": [message_id],

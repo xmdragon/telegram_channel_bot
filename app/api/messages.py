@@ -1065,10 +1065,10 @@ async def filter_message_tail(
             if removed_tail:
                 import json
                 from datetime import datetime
-                from app.core.training_config import TrainingDataConfig
+                from app.core.path_config import PathConfig
                 
                 # 加载现有数据
-                tail_file = str(TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE)
+                tail_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
                 try:
                     with open(tail_file, 'r', encoding='utf-8') as f:
                         data = json.load(f)

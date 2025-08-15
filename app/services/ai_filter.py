@@ -33,8 +33,8 @@ class IntelligentFilter:
         if self.initialized:
             try:
                 import os
-                from app.core.training_config import TrainingDataConfig
-                patterns_file = str(TrainingDataConfig.AI_FILTER_PATTERNS_FILE)
+                from app.core.path_config import PathConfig
+                patterns_file = str(PathConfig.AI_FILTER_PATTERNS_FILE)
                 if os.path.exists(patterns_file):
                     self.load_patterns(patterns_file)
                     logger.info(f"✅ 从 {patterns_file} 加载了AI过滤模式")

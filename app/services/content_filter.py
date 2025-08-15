@@ -153,11 +153,11 @@ class ContentFilter:
     def _load_trained_patterns(self):
         """加载训练的尾部过滤模式"""
         try:
-            from app.core.training_config import TrainingDataConfig
+            from app.core.path_config import PathConfig
             import json
             from pathlib import Path
             
-            tail_file = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
+            tail_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
             if tail_file.exists():
                 with open(tail_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)

@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from filelock import FileLock
+from app.utils.safe_file_ops import SafeFileOperation
 from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
@@ -27,55 +27,29 @@ class JSONStore:
         return self.data_dir / filename
     
     def _load_json(self, filename: str) -> Dict[str, Any]:
-        """加载JSON文件"""
+        """加载JSON文件（使用SafeFileOperation统一锁机制）"""
         file_path = self._get_file_path(filename)
         
-        if not file_path.exists():
-            return {}
-        
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+            # 使用SafeFileOperation统一的文件锁机制
+            data = SafeFileOperation.read_json_safe(file_path)
+            return data or {}
+            
+        except Exception as e:
             logger.error(f"加载JSON文件失败 {filename}: {e}")
             return {}
     
     def _save_json(self, filename: str, data: Dict[str, Any]) -> bool:
-        """保存JSON文件"""
+        """保存JSON文件（使用SafeFileOperation统一锁机制）"""
         file_path = self._get_file_path(filename)
-        lock_path = f"{file_path}.lock"
         
         try:
-            with FileLock(lock_path, timeout=10):
-                # 创建备份
-                if file_path.exists():
-                    backup_path = f"{file_path}.bak"
-                    file_path.rename(backup_path)
-                
-                try:
-                    # 原子写入
-                    temp_path = f"{file_path}.tmp"
-                    with open(temp_path, 'w', encoding='utf-8') as f:
-                        json.dump(data, f, ensure_ascii=False, indent=2, default=str)
-                    
-                    # 重命名为目标文件
-                    Path(temp_path).rename(file_path)
-                    
-                    # 删除备份
-                    backup_path = f"{file_path}.bak"
-                    if Path(backup_path).exists():
-                        Path(backup_path).unlink()
-                    
-                    logger.debug(f"JSON文件已保存: {filename}")
-                    return True
-                    
-                except Exception as e:
-                    # 恢复备份
-                    backup_path = f"{file_path}.bak"
-                    if Path(backup_path).exists():
-                        Path(backup_path).rename(file_path)
-                    raise e
-                    
+            # 使用SafeFileOperation统一的文件锁和备份机制
+            success = SafeFileOperation.write_json_safe(file_path, data, backup=True)
+            if success:
+                logger.debug(f"JSON文件已保存: {filename}")
+            return success
+            
         except Exception as e:
             logger.error(f"保存JSON文件失败 {filename}: {e}")
             return False

@@ -6,13 +6,13 @@
 import json
 from datetime import datetime
 from app.services.intelligent_tail_filter import intelligent_tail_filter
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 
 def save_learned_samples():
     """保存内存中学习的样本到文件"""
     
     # 读取现有文件数据
-    tail_file = TrainingDataConfig.TAIL_FILTER_SAMPLES_FILE
+    tail_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
     with open(tail_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
         existing_samples = data.get('samples', [])

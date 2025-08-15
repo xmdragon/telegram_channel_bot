@@ -13,10 +13,11 @@ import sys
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
 from app.storage.json_store import init_json_stores, get_json_user_store
+from app.core.path_config import PathConfig
 
 async def load_permissions():
     """加载权限定义"""
-    permissions_file = Path("data/permissions.json")
+    permissions_file = PathConfig.PERMISSIONS_CONFIG_FILE
     if not permissions_file.exists():
         print("❌ 权限文件不存在，请先运行 python3 init_storage.py")
         return []

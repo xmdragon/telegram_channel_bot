@@ -9,7 +9,7 @@ from typing import Tuple, List, Optional
 from pathlib import Path
 from datetime import datetime
 import asyncio
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class AdDetector:
         self.model = None
         self.ad_embeddings = []
         self.initialized = False
-        self.ad_samples_file = TrainingDataConfig.AD_TRAINING_FILE
+        self.ad_samples_file = PathConfig.AD_TRAINING_FILE
         
         # 初始化模型
         self._initialize()

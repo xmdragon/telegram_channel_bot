@@ -144,7 +144,7 @@ python3 auto_commit.py && git status
 ### 数据存储访问
 - **Redis数据**: 通过Redis CLI或系统API接口访问
 - **JSON配置**: 通过配置管理API或直接编辑data/config/目录下的JSON文件
-- **文件锁机制**: 所有JSON文件操作都使用FileLock确保数据一致性
+- **文件锁机制**: 所有JSON文件操作都使用fcntl系统级文件锁确保数据一致性
 - **管理员登录**: `http://localhost:8000/static/login.html` (用户名: admin, 密码: admin123)
 
 ## 常用命令
@@ -226,7 +226,7 @@ docker compose restart redis            # 重启Redis服务
   - 数据结构: Hash、Sorted Set、String with TTL
 - **JSON文件存储**: 系统配置、管理员数据、频道配置
   - 存储位置: `./data/config/` 
-  - 文件锁保护: 使用FileLock确保并发安全
+  - 文件锁保护: 使用fcntl系统级文件锁确保并发安全
   - 版本控制: 支持Git跟踪配置变更
 - **文件存储**: 训练数据、日志、媒体文件
   - 训练数据: `./data/ad_training_data/`
@@ -291,6 +291,7 @@ docker compose restart redis            # 重启Redis服务
 - 保持项目目录整洁，不保留临时文件
 - 前端使用Vue3 + Element Plus + Axios
 - 配置统一通过Web界面管理，不使用配置文件
+- **禁止硬编码文件路径：所有文件路径必须从 app/core/path_config.py 的 PathConfig 类中引用**
 
 ## 开发注意事项
 
@@ -360,7 +361,7 @@ curl -X POST /api/config/set -d '{"key":"telegram.api_id","value":"123"}'
 1. **优先使用API接口** 修改配置数据
 2. **直接编辑JSON文件时** 务必保持格式正确
 3. **修改前先备份** 重要的配置文件
-4. **使用文件锁机制** 避免并发修改冲突
+4. **使用fcntl文件锁机制** 避免并发修改冲突，不产生.lock文件
 
 ### 存储文件结构
 - **Redis Keys**: `message:*`, `session:*`, `channel:*`

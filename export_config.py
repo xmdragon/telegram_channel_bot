@@ -63,11 +63,11 @@ async def export_configs():
         # 导出训练数据
         print("正在导出训练数据...")
         training_files = {
-            'ad_training_data': 'data/ad_training_data.json',
-            'tail_filter_samples': 'data/tail_filter_samples.json',
-            'ocr_samples': 'data/ocr_samples.json',
-            'feedback_learning': 'data/feedback_learning.json',
-            'manual_training_data': 'data/manual_training_data.json'
+            'ad_training_data': 'data/training/ad/json/ad_training_data.json',
+            'tail_filter_samples': 'data/training/tail/tail_filter_samples.json',
+            'ocr_samples': 'data/training/other/ocr_samples.json',
+            'feedback_learning': 'data/training/other/feedback_learning.json',
+            'manual_training_data': 'data/training/other/manual_training_data.json'
         }
         
         for data_key, file_path in training_files.items():
@@ -83,9 +83,9 @@ async def export_configs():
         # 导出过滤模式
         print("正在导出过滤模式...")
         filter_files = {
-            'ai_filter_patterns': 'data/ai_filter_patterns.json',
-            'learned_patterns': 'data/learned_patterns.json',
-            'separator_patterns': 'data/separator_patterns.json'
+            'ai_filter_patterns': 'data/training/other/ai_filter_patterns.json',
+            'learned_patterns': 'data/training/other/learned_patterns.json',
+            'separator_patterns': 'data/training/tail/separator_patterns.json'
         }
         
         for pattern_key, file_path in filter_files.items():

@@ -7,7 +7,7 @@ import asyncio
 import logging
 from pathlib import Path
 from app.services.ai_filter import ai_filter
-from app.core.training_config import TrainingDataConfig
+from app.core.path_config import PathConfig
 from datetime import datetime, timedelta
 import json
 from collections import defaultdict
@@ -25,7 +25,7 @@ async def retrain_ai_filter():
     logger.info("✅ 已清理现有模式")
     
     # 从训练数据文件获取样本
-    training_file = TrainingDataConfig.MANUAL_TRAINING_FILE
+    training_file = PathConfig.MANUAL_TRAINING_FILE
     if not training_file.exists():
         logger.error("训练数据文件不存在")
         return
@@ -75,7 +75,7 @@ async def retrain_ai_filter():
     logger.info(f"  - 总频道数: {len(messages_by_channel)}")
     
     # 保存新的模式
-    patterns_file = TrainingDataConfig.AI_FILTER_PATTERNS_FILE
+    patterns_file = PathConfig.AI_FILTER_PATTERNS_FILE
     ai_filter.save_patterns(str(patterns_file))
     logger.info(f"💾 新模式已保存到 {patterns_file}")
     
