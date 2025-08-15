@@ -294,7 +294,7 @@
                         <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
                             <el-checkbox v-model="sample.keep">保留</el-checkbox>
                             <span class="sample-id">ID: {{ sample.id }}</span>
-                            <span class="sample-preview">{{ truncateText(sample.tail_content, 50) }}</span>
+                            <span class="sample-preview">{{ truncateText(sample.tail_content || sample.tail_part, 50) }}</span>
                         </div>
                     </div>
                 </div>
