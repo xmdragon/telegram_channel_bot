@@ -100,6 +100,32 @@
     margin-top: 12px;
 }
 
+.metric-actions .el-button {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.metric-actions .el-button:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.metric-actions .el-button--primary {
+    background: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.metric-actions .el-button--primary:hover {
+    background: #0056b3;
+    border-color: #004085;
+}
+
 /* 状态颜色类 */
 .accuracy-good { 
     color: #28a745; 
