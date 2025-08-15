@@ -900,18 +900,146 @@ async def export_media_files():
 
 @router.post("/media-files/deduplicate")
 async def deduplicate_media_files():
-    """去重媒体文件"""
+    """执行视觉去重"""
     try:
-        # 简单实现：返回去重完成状态
+        import shutil
+        
+        media_metadata_file = TrainingDataConfig.AD_MEDIA_METADATA_FILE
+        media_dir = TrainingDataConfig.AD_MEDIA_DIR
+        
+        if not media_metadata_file.exists():
+            return {"success": True, "deleted": 0, "merged": 0}
+        
+        # 备份元数据
+        backup_file = media_metadata_file.parent / f"media_metadata_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        shutil.copy2(media_metadata_file, backup_file)
+        logger.info(f"已备份元数据到: {backup_file}")
+        
+        data = SafeFileOperation.read_json_safe(media_metadata_file)
+        if not data or "media_files" not in data:
+            return {"success": True, "deleted": 0, "merged": 0}
+        
+        # 尝试导入视觉相似度检测器
+        try:
+            from app.services.visual_similarity import VisualSimilarityDetector
+            visual_detector = VisualSimilarityDetector()
+            use_visual_detection = True
+        except ImportError:
+            logger.warning("VisualSimilarityDetector不可用，使用文件名哈希去重")
+            visual_detector = None
+            use_visual_detection = False
+        
+        deleted_count = 0
+        merged_count = 0
+        processed = set()
+        
+        # 创建新的媒体文件字典（去重后的）
+        new_media_files = {}
+        
+        # 遍历所有媒体文件，查找相似的组
+        for file_hash, file_info in data["media_files"].items():
+            if file_hash in processed:
+                continue
+            
+            # 收集与当前文件相似的所有文件
+            similar_files = [(file_hash, file_info)]
+            processed.add(file_hash)
+            
+            for other_hash, other_info in data["media_files"].items():
+                if other_hash == file_hash or other_hash in processed:
+                    continue
+                
+                is_duplicate = False
+                
+                if use_visual_detection and "visual_hashes" in file_info and "visual_hashes" in other_info:
+                    # 使用视觉哈希比较
+                    try:
+                        is_similar, similarity_score = visual_detector.is_visually_similar(
+                            file_info["visual_hashes"],
+                            other_info["visual_hashes"]
+                        )
+                        
+                        if is_similar and similarity_score >= 85.0:
+                            is_duplicate = True
+                    except Exception as e:
+                        logger.warning(f"视觉哈希比较失败: {e}")
+                
+                if not is_duplicate:
+                    # 简单的文件名哈希比较作为备用
+                    path1 = file_info.get("path", "")
+                    path2 = other_info.get("path", "")
+                    if path1 and path2:
+                        name1 = Path(path1).stem
+                        name2 = Path(path2).stem
+                        hash1 = name1.split('_')[-1] if '_' in name1 else name1
+                        hash2 = name2.split('_')[-1] if '_' in name2 else name2
+                        
+                        # 如果哈希相同，认为是重复
+                        if hash1 == hash2:
+                            is_duplicate = True
+                
+                if is_duplicate:
+                    similar_files.append((other_hash, other_info))
+                    processed.add(other_hash)
+            
+            # 如果有多个相似文件，合并它们
+            if len(similar_files) > 1:
+                # 选择要保留的文件（优先保留引用最多的，其次是文件最小的）
+                best_file = max(similar_files, key=lambda x: (
+                    len(x[1].get("message_ids", [])),  # 引用数量
+                    -x[1].get("file_size", float('inf'))  # 文件大小（越小越好）
+                ))
+                
+                # 合并所有message_ids到保留的文件
+                all_message_ids = list(set(sum([f[1].get("message_ids", []) for f in similar_files], [])))
+                best_file[1]["message_ids"] = all_message_ids
+                
+                # 保留最佳文件
+                new_media_files[best_file[0]] = best_file[1]
+                
+                # 删除其他重复文件
+                for other_hash, other_info in similar_files:
+                    if other_hash != best_file[0]:
+                        file_path = media_dir / other_info["path"]
+                        if file_path.exists():
+                            try:
+                                file_path.unlink()
+                                deleted_count += 1
+                                logger.info(f"删除重复文件: {file_path}")
+                            except Exception as e:
+                                logger.error(f"删除文件失败 {file_path}: {e}")
+                
+                merged_count += len(similar_files) - 1
+            else:
+                # 没有重复，直接保留
+                new_media_files[file_hash] = file_info
+        
+        # 更新元数据
+        data["media_files"] = new_media_files
+        data["updated_at"] = datetime.now().isoformat()
+        data["deduplication_log"] = {
+            "timestamp": datetime.now().isoformat(),
+            "deleted": deleted_count,
+            "merged": merged_count,
+            "backup_file": str(backup_file.name)
+        }
+        
+        if not SafeFileOperation.write_json_safe(media_metadata_file, data):
+            logger.error("保存去重后的元数据失败")
+            return {"success": False, "error": "保存元数据失败"}
+        
+        logger.info(f"去重完成: 删除 {deleted_count} 个文件, 合并 {merged_count} 个引用")
+        
         return {
             "success": True,
-            "message": "去重完成",
-            "removedCount": 0,
-            "savedMb": 0
+            "deleted": deleted_count,
+            "merged": merged_count,
+            "backup_file": str(backup_file.name)
         }
+        
     except Exception as e:
-        logger.error(f"去重媒体文件失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"执行去重失败: {e}")
+        return {"success": False, "error": str(e)}
 
 @router.post("/media-files/rebuild-visual-hashes")
 async def rebuild_visual_hashes():
