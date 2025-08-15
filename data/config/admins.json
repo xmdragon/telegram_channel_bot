@@ -1,11 +1,11 @@
 {
   "1": {
     "username": "admin",
-    "password_hash": "ac9689e2272427085e35b9d3e3e8bed88cb3434828b43b86fc0596cad4c6e270",
+    "password_hash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
     "is_super_admin": true,
     "is_active": true,
     "created_at": "2025-08-14T19:18:31.538677",
-    "updated_at": "2025-08-15T03:16:42.034816",
-    "last_login": "2025-08-15T11:16:42.034444"
+    "updated_at": "2025-08-15T06:52:47.317381",
+    "last_login": "2025-08-15T14:52:47.317328"
   }
 }

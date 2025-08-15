@@ -375,6 +375,16 @@ class MessageProcessor:
         """获取单条消息"""
         try:
             logger.debug(f"MessageProcessor获取消息: {channel_id}:{message_id}")
+            
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                    logger.debug("MessageProcessor: redis_store初始化成功")
+                except RuntimeError as e:
+                    logger.error(f"MessageProcessor: redis_store初始化失败: {e}")
+                    return None
+            
             message = self.redis_store.get_message(channel_id, message_id)
             
             if message is None:

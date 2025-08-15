@@ -722,7 +722,7 @@ async def edit_and_publish_message(
         
         # 更新Redis中的数据
         redis_store = get_redis_message_store()
-        msg_key = f"msg:{channel_id}:{msg_id}"
+        msg_key = f"msg:{channel_id}:{msg_id_int}"
         update_data = {
             'filtered_content': new_content,
             'updated_at': get_current_time().isoformat()

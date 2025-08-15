@@ -24,6 +24,13 @@ class AuthManager {
     }
     
     /**
+     * 获取token
+     */
+    getToken() {
+        return this.token;
+    }
+    
+    /**
      * 检查是否已登录
      */
     isAuthenticated() {

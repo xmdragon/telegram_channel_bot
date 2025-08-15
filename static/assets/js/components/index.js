@@ -1219,6 +1219,7 @@ const MainApp = {
         // 保存编辑的消息
         async saveEditedMessage() {
             try {
+                // axios拦截器会自动添加认证头，无需手动设置
                 const response = await axios.post(`/api/messages/${this.editDialog.messageId}/edit-publish`, {
                     content: this.editDialog.content
                 });
