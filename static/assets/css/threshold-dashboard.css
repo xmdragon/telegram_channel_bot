@@ -1,0 +1,209 @@
+/* 阈值监控页面专用样式 */
+
+/* 主要布局样式 */
+.threshold-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.threshold-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e4e7ed;
+}
+
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ebeef5;
+}
+
+.filter-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.metric-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.metric-name {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+}
+
+.threshold-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.metric-value {
+    text-align: center;
+}
+
+.metric-label {
+    font-size: 11px;
+    color: #6c757d;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-number {
+    font-size: 16px;
+    font-weight: 700;
+    color: #212529;
+}
+
+.chart-container {
+    height: 200px;
+    margin: 15px 0;
+}
+
+.metric-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* 状态颜色类 */
+.accuracy-good { 
+    color: #28a745; 
+}
+
+.accuracy-warning { 
+    color: #ffc107; 
+}
+
+.accuracy-danger { 
+    color: #dc3545; 
+}
+
+/* 通用工具类 */
+.mt-10 {
+    margin-top: 10px;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* 统计详情样式 */
+.stats-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    font-size: 13px;
+}
+
+.stats-meta {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #606266;
+}
+
+/* 表单样式 */
+.form-help-text {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+}
+
+.form-control-full {
+    width: 100%;
+}
+
+/* 单选项颜色 */
+.radio-positive {
+    color: #67c23a;
+}
+
+.radio-negative {
+    color: #f56c6c;
+}
+
+/* 优化渐变背景（如果需要） */
+.optimize-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.optimize-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 20px;
+}
+
+.optimize-section p {
+    margin: 0 0 15px 0;
+    opacity: 0.9;
+}
+
+/* 概览统计样式 */
+.stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e4e7ed;
+}
+
+.summary-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: #409eff;
+    margin-bottom: 5px;
+}
+
+.summary-label {
+    color: #606266;
+    font-size: 14px;
+}

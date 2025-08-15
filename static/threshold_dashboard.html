@@ -11,157 +11,7 @@
     <link rel="stylesheet" href="assets/css/training-common.css">
     <link rel="stylesheet" href="assets/css/training-manager.css">
     <link rel="stylesheet" href="assets/css/training-nav.css">
-    <style>
-        /* 阈值监控特定样式 */
-        .threshold-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .threshold-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e4e7ed;
-        }
-        
-        .filter-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #ebeef5;
-        }
-        
-        .filter-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #303133;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .metric-item {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-        }
-        
-        .metric-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        
-        .metric-name {
-            font-weight: 600;
-            color: #495057;
-            font-size: 14px;
-        }
-        
-        .threshold-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-        
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-        
-        .metric-value {
-            text-align: center;
-        }
-        
-        .metric-label {
-            font-size: 11px;
-            color: #6c757d;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .metric-number {
-            font-size: 16px;
-            font-weight: 700;
-            color: #212529;
-        }
-        
-        .chart-container {
-            height: 200px;
-            margin: 15px 0;
-        }
-        
-        .metric-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }
-        
-        .optimize-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .optimize-section h3 {
-            margin: 0 0 10px 0;
-            font-size: 20px;
-        }
-        
-        .optimize-section p {
-            margin: 0 0 15px 0;
-            opacity: 0.9;
-        }
-        
-        .accuracy-good { color: #28a745; }
-        .accuracy-warning { color: #ffc107; }
-        .accuracy-danger { color: #dc3545; }
-        
-        .stats-summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .summary-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #e4e7ed;
-        }
-        
-        .summary-number {
-            font-size: 28px;
-            font-weight: 700;
-            color: #409eff;
-            margin-bottom: 5px;
-        }
-        
-        .summary-label {
-            color: #606266;
-            font-size: 14px;
-        }
-    </style>
+    <link rel="stylesheet" href="assets/css/threshold-dashboard.css">
 </head>
 <body>
     <div id="app">
@@ -287,9 +137,9 @@
                                     </div>
 
                                     <!-- 详细统计 -->
-                                    <el-collapse size="small" style="margin-top: 10px;">
+                                    <el-collapse size="small" class="mt-10">
                                         <el-collapse-item :title="`详细统计 (${metricData.raw_stats.tp + metricData.raw_stats.fp + metricData.raw_stats.tn + metricData.raw_stats.fn} 条数据)`" :name="filterName + '_' + metricName">
-                                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; font-size: 13px;">
+                                            <div class="stats-detail-grid">
                                                 <div>
                                                     <strong>真正例 (TP):</strong> {{ metricData.raw_stats.tp }}<br>
                                                     <strong>假正例 (FP):</strong> {{ metricData.raw_stats.fp }}
@@ -299,7 +149,7 @@
                                                     <strong>假负例 (FN):</strong> {{ metricData.raw_stats.fn }}
                                                 </div>
                                             </div>
-                                            <div style="margin-top: 10px; font-size: 13px; color: #606266;">
+                                            <div class="stats-meta">
                                                 <strong>召回率:</strong> {{ (metricData.recall * 100).toFixed(1) }}% | 
                                                 <strong>最后更新:</strong> {{ formatTime(metricData.last_updated) }}
                                             </div>
@@ -334,23 +184,23 @@
                     <el-input :value="getMetricDisplayName(feedbackDialog.metricName)" readonly />
                 </el-form-item>
                 <el-form-item label="预测分数" required>
-                    <el-input-number v-model="feedbackDialog.form.predicted_score" :min="0" :max="1" :step="0.01" :precision="3" style="width: 100%;" />
-                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                    <el-input-number v-model="feedbackDialog.form.predicted_score" :min="0" :max="1" :step="0.01" :precision="3" class="form-control-full" />
+                    <div class="form-help-text">
                         模型对该样本的预测置信度 (0.0 - 1.0)
                     </div>
                 </el-form-item>
                 <el-form-item label="实际结果" required>
                     <el-radio-group v-model="feedbackDialog.form.actual_result">
                         <el-radio label="positive" size="large">
-                            <span style="color: #67c23a;">正例</span> (应该过滤)
+                            <span class="radio-positive">正例</span> (应该过滤)
                         </el-radio>
                         <el-radio label="negative" size="large">
-                            <span style="color: #f56c6c;">负例</span> (不应过滤)
+                            <span class="radio-negative">负例</span> (不应过滤)
                         </el-radio>
                     </el-radio-group>
                 </el-form-item>
                 <el-form-item label="动作类型" required>
-                    <el-select v-model="feedbackDialog.form.action" placeholder="选择动作" style="width: 100%;">
+                    <el-select v-model="feedbackDialog.form.action" placeholder="选择动作" class="form-control-full">
                         <el-option label="批准 (确认结果正确)" value="approve" />
                         <el-option label="拒绝 (结果错误)" value="reject" />
                         <el-option label="纠正 (手动修正)" value="correct" />
@@ -373,19 +223,19 @@
             <el-form :model="optimizeDialog.settings" label-width="150px">
                 <el-form-item label="最小反馈数量">
                     <el-input-number v-model="optimizeDialog.settings.min_feedback" :min="5" :max="100" />
-                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                    <div class="form-help-text">
                         至少需要多少条反馈才开始优化
                     </div>
                 </el-form-item>
                 <el-form-item label="优化触发间隔">
                     <el-input-number v-model="optimizeDialog.settings.optimization_interval" :min="10" :max="200" />
-                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                    <div class="form-help-text">
                         每收集多少条反馈触发一次优化
                     </div>
                 </el-form-item>
                 <el-form-item label="滑动窗口大小">
                     <el-input-number v-model="optimizeDialog.settings.window_size" :min="100" :max="2000" />
-                    <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                    <div class="form-help-text">
                         用于优化的最近反馈数据量
                     </div>
                 </el-form-item>
