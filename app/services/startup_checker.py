@@ -2,7 +2,9 @@
 启动时的关键配置检查服务
 确保所有关键配置都正确设置和解析
 """
+import json
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional
 from app.services.config_manager import ConfigManager
 from app.services.channel_id_resolver import channel_id_resolver
@@ -20,6 +22,11 @@ class StartupChecker:
         self.errors = []
         self.warnings = []
         self.resolved_items = []
+        self.critical_json_files = [
+            "data/config/channels.json",
+            "data/config/system.json", 
+            "data/config/admins.json"
+        ]
         
     async def check_and_resolve_all_channels(self, client=None) -> Dict:
         """
@@ -29,6 +36,13 @@ class StartupChecker:
         logger.info("=" * 60)
         logger.info("🚀 开始启动配置检查...")
         logger.info("=" * 60)
+        
+        # 首先检查JSON文件完整性
+        json_check = self._check_json_integrity()
+        if not json_check['success']:
+            results['success'] = False
+            results['errors'].extend(json_check['errors'])
+            return results
         
         # 如果提供了客户端，临时设置到auth_manager
         original_client = None
@@ -447,6 +461,84 @@ class StartupChecker:
             logger.error(f"检查存储系统失败: {e}")
             result['errors'].append(f"存储系统检查失败: {str(e)}")
             return result
+
+    def _check_json_integrity(self) -> Dict:
+        """检查关键JSON文件的完整性"""
+        result = {
+            'success': True,
+            'errors': [],
+            'warnings': []
+        }
+        
+        logger.info("📋 检查JSON文件完整性...")
+        
+        for file_path in self.critical_json_files:
+            path = Path(file_path)
+            
+            if not path.exists():
+                error = f"关键配置文件不存在: {file_path}"
+                result['errors'].append(error)
+                result['success'] = False
+                logger.error(f"  - ❌ {error}")
+                continue
+            
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    json.load(f)
+                logger.info(f"  - ✅ {path.name} 格式正确")
+                
+            except json.JSONDecodeError as e:
+                error = f"{path.name} JSON格式错误: {e}"
+                result['errors'].append(error)
+                result['success'] = False
+                logger.error(f"  - ❌ {error}")
+                
+                # 尝试自动修复
+                logger.info(f"  - 🔧 尝试自动修复 {path.name}...")
+                if self._try_fix_json_file(path):
+                    logger.info(f"  - ✅ {path.name} 自动修复成功")
+                    result['warnings'].append(f"{path.name} 已自动修复")
+                    result['success'] = True  # 修复后继续
+                else:
+                    logger.error(f"  - ❌ {path.name} 自动修复失败")
+                    
+            except Exception as e:
+                error = f"读取 {path.name} 失败: {e}"
+                result['errors'].append(error)
+                result['success'] = False
+                logger.error(f"  - ❌ {error}")
+        
+        return result
+    
+    def _try_fix_json_file(self, file_path: Path) -> bool:
+        """尝试修复JSON文件的常见格式错误"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 修复trailing comma
+            import re
+            fixed_content = re.sub(r',(\s*})', r'\1', content)
+            fixed_content = re.sub(r',(\s*])', r'\1', fixed_content)
+            
+            # 验证修复后的JSON
+            data = json.loads(fixed_content)
+            
+            # 备份原文件
+            backup_path = file_path.with_suffix('.json.bak')
+            import shutil
+            shutil.copy2(file_path, backup_path)
+            
+            # 保存修复后的文件
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"  - 📦 已备份原文件到: {backup_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"  - 修复失败: {e}")
+            return False
 
 # 创建全局实例
 startup_checker = StartupChecker()
