@@ -580,6 +580,12 @@ const MainApp = {
         // 处理频道切换事件
         handleChannelChange() {
             console.log('频道切换事件触发，当前选择：', this.filters.source_channel);
+            
+            if (!this.filters.source_channel) {
+                console.log('清除频道选择，显示所有频道消息');
+                MessageManager.info('已清除频道筛选，显示所有频道的消息');
+            }
+            
             this.loadMessages();
         },
         
