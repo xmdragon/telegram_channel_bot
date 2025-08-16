@@ -54,11 +54,19 @@ fi
 # 数据库初始化已废弃（使用Redis+JSON存储）
 # 系统启动时会自动初始化配置
 
-# 启动应用
+# 启动应用（生产模式 - 服务分离架构）
 echo "🌟 启动应用..."
 echo "📊 日志文件："
-echo "   - 完整日志: ./logs/app.log"
+echo "   - Web服务: ./logs/app.log"
+echo "   - 采集服务: ./logs/telegram_collector.log"
+echo "   - 调度服务: ./logs/message_scheduler.log"
+echo "   - 管理器状态: ./logs/supervisor_status.json"
 echo "   - 错误日志: ./logs/error.log (仅WARNING和ERROR)"
 echo "   - Web查看错误: http://localhost:8000/static/admin.html"
 echo
-exec python3 main.py
+echo "💡 提示："
+echo "   - 使用 './stop.sh' 停止所有服务"
+echo "   - 使用 './dev.sh --status' 查看服务状态"
+echo "   - Web界面: http://localhost:8000"
+echo
+exec python3 dev_supervisor.py all
