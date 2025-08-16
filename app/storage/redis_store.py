@@ -866,3 +866,9 @@ def get_redis_store() -> RedisStore:
     if redis_message_store is None:
         raise RuntimeError("Redis存储层未初始化")
     return redis_message_store
+
+async def get_redis_client():
+    """获取Redis客户端（异步兼容）"""
+    if redis_message_store is None:
+        return None
+    return redis_message_store.redis

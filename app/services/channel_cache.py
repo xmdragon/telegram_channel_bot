@@ -99,7 +99,7 @@ class ChannelCache:
                         target_channel_id = resolved_id
             
             if target_channel_id:
-                await self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
+                self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
                 logger.info(f"目标频道ID已缓存: {target_channel_id}")
             
             # 解析并缓存审核群（优先使用已缓存的ID）
@@ -112,7 +112,7 @@ class ChannelCache:
                         review_group_id = resolved_id
             
             if review_group_id:
-                await self.redis_store.redis.set('cache:review_group_id', review_group_id)
+                self.redis_store.redis.set('cache:review_group_id', review_group_id)
                 logger.info(f"审核群ID已缓存: {review_group_id}")
             
             # 解析并缓存所有监听频道
@@ -175,7 +175,7 @@ class ChannelCache:
             target_channel_id = await self.config_manager.get_config('channels.target_channel_id_cached', '')
             if target_channel_id:
                 await self._ensure_redis()
-                await self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
+                self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
                 logger.info(f"目标频道缓存已刷新（使用缓存ID）: {target_channel_id}")
                 return target_channel_id
             
@@ -185,7 +185,7 @@ class ChannelCache:
                 resolved_id = await self.resolve_channel(target_channel)
                 if resolved_id:
                     await self._ensure_redis()
-                    await self.redis_store.redis.set('cache:target_channel_id', resolved_id)
+                    self.redis_store.redis.set('cache:target_channel_id', resolved_id)
                     logger.info(f"目标频道缓存已刷新: {target_channel} -> {resolved_id}")
                     return resolved_id
             return None
@@ -200,7 +200,7 @@ class ChannelCache:
             review_group_id = await self.config_manager.get_config('channels.review_group_id_cached', '')
             if review_group_id:
                 await self._ensure_redis()
-                await self.redis_store.redis.set('cache:review_group_id', review_group_id)
+                self.redis_store.redis.set('cache:review_group_id', review_group_id)
                 logger.info(f"审核群缓存已刷新（使用缓存ID）: {review_group_id}")
                 return review_group_id
             
@@ -210,7 +210,7 @@ class ChannelCache:
                 resolved_id = await self.resolve_group(review_group)
                 if resolved_id:
                     await self._ensure_redis()
-                    await self.redis_store.redis.set('cache:review_group_id', resolved_id)
+                    self.redis_store.redis.set('cache:review_group_id', resolved_id)
                     logger.info(f"审核群缓存已刷新: {review_group} -> {resolved_id}")
                     return resolved_id
             return None
