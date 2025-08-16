@@ -858,7 +858,7 @@ async def refetch_media(
 ):
     """
     重新抓取消息的媒体文件
-    用于补抓缺失或损坏的媒体
+    通过Redis任务队列委托给Telegram采集器处理
     """
     try:
         # 解析消息ID
@@ -879,7 +879,7 @@ async def refetch_media(
                 "message": "该消息没有媒体文件"
             }
         
-        # 检查媒体文件是否已存在
+        # 检查媒体文件是否已存在且完整
         media_url = msg_data.get('media_url')
         if media_url and os.path.exists(media_url):
             file_size = os.path.getsize(media_url)
@@ -892,111 +892,75 @@ async def refetch_media(
                     "skipped": True
                 }
         
-        # 检查Telegram客户端
-        from app.telegram.client_manager import client_manager
-        client = await client_manager.get_client()
+        # 通过任务队列提交补抓任务
+        from app.services.media_refetch_service import media_refetch_service
         
-        if not client or not client.is_connected():
-            return {
-                "success": False,
-                "message": "Telegram客户端未连接"
-            }
+        task_id = media_refetch_service.submit_task(message_id)
         
-        # 获取原始消息
-        try:
-            # 尝试从源频道获取消息
-            source_entity = await client.get_entity(int(msg_data['source_channel']))
-            original_msg = await client.get_messages(
-                entity=source_entity,
-                ids=int(msg_data['message_id'])
-            )
-            
-            if not original_msg or not original_msg.media:
-                return {
-                    "success": False,
-                    "message": "原始消息不存在或没有媒体"
-                }
-            
-            # 下载媒体文件
-            logger.info(f"开始补抓消息 #{message_id} 的媒体文件")
-            
-            from app.services.media_handler import media_handler
-            media_info = await media_handler.download_media(
-                client=client,
-                message=original_msg,
-                message_id=message.id,
-                timeout=120.0  # 给更长的超时时间
-            )
-            
-            if media_info and media_info.get("file_path"):
-                # 更新Redis记录
-                redis_store = get_redis_message_store()
-                msg_key = f"msg:{channel_id}:{msg_id}"
-                update_data = {
-                    'media_url': media_info["file_path"],
-                    'media_type': media_info.get("media_type", msg_data.get('media_type')),
-                    'media_hash': media_info.get("hash", ''),
-                    'visual_hash': json.dumps(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else '',
-                    'updated_at': get_current_time().isoformat()
-                }
-                redis_store.redis.hset(msg_key, mapping=update_data)
-                
-                logger.info(f"成功补抓媒体: {media_info['file_path']} ({media_info['file_size']} bytes)")
-                
-                # 如果是广告，自动保存到训练数据目录并更新图片索引
-                if msg_data.get('is_ad'):
-                    try:
-                        from app.services.training_media_manager import training_media_manager
-                        from app.services.ad_image_detector import ad_image_detector
-                        
-                        saved_path = await training_media_manager.save_training_media(
-                            source_path=media_info["file_path"],
-                            message_id=f"{channel_id}:{msg_id}",
-                            media_type=media_info["media_type"],
-                            channel_id=channel_id,
-                            is_ad=True
-                        )
-                        if saved_path:
-                            logger.info(f"广告媒体已保存到训练目录: {saved_path}")
-                            
-                            # 如果是图片，添加到广告图片索引
-                            if media_info["media_type"].startswith("image"):
-                                await ad_image_detector.add_ad_image(
-                                    saved_path,
-                                    metadata={
-                                        'message_id': f"{channel_id}:{msg_id}",
-                                        'channel_id': channel_id
-                                    }
-                                )
-                                logger.info(f"广告图片已添加到检测索引")
-                    except Exception as e:
-                        logger.error(f"保存到训练目录失败: {e}")
-                
-                return {
-                    "success": True,
-                    "message": "媒体补抓成功",
-                    "media_url": media_info["file_path"],
-                    "media_type": media_info["media_type"],
-                    "file_size": media_info["file_size"],
-                    "refetched": True
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "媒体下载失败"
-                }
-                
-        except Exception as e:
-            logger.error(f"补抓媒体失败: {e}")
-            return {
-                "success": False,
-                "message": f"补抓失败: {str(e)}"
-            }
+        logger.info(f"媒体补抓任务已提交: {task_id} for message {message_id}")
+        
+        return {
+            "success": True,
+            "message": "媒体补抓任务已提交，正在处理中...",
+            "task_id": task_id,
+            "status": "pending"
+        }
             
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"补抓媒体出错: {e}")
+        logger.error(f"提交媒体补抓任务失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/refetch-task/{task_id}")
+async def get_refetch_task_status(
+    task_id: str,
+    user: Dict[str, Any] = Depends(check_permission("channels.refetch"))
+):
+    """
+    查询媒体补抓任务状态
+    """
+    try:
+        from app.services.media_refetch_service import media_refetch_service
+        
+        task_status = media_refetch_service.get_task_status(task_id)
+        if not task_status:
+            raise HTTPException(status_code=404, detail="任务不存在")
+        
+        return {
+            "success": True,
+            "task": task_status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"查询任务状态失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/refetch-tasks")
+async def get_all_refetch_tasks(
+    limit: int = 50,
+    user: Dict[str, Any] = Depends(check_permission("channels.refetch"))
+):
+    """
+    获取所有媒体补抓任务
+    """
+    try:
+        from app.services.media_refetch_service import media_refetch_service
+        
+        tasks = media_refetch_service.get_all_tasks(limit)
+        
+        return {
+            "success": True,
+            "tasks": tasks,
+            "total": len(tasks)
+        }
+        
+    except Exception as e:
+        logger.error(f"获取任务列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
