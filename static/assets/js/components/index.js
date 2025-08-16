@@ -41,17 +41,20 @@ const MainApp = {
                 approved: { value: 0, label: '已批准' },
                 rejected: { value: 0, label: '已拒绝' },
                 ads: { value: 0, label: '广告消息' },
-                channels: { value: 0, label: '监听频道' }
+                duplicates: { value: 0, label: '重复消息' },
+                chats: { value: 0, label: '聊天消息' }
             },
             filters: {
                 status: 'pending',
                 is_ad: null,
-                source_channel: null  // 新增频道筛选
+                source_channel: '',  // 频道筛选，使用空字符串匹配HTML默认值
+                filter_reason: null    // 过滤原因筛选
             },
             currentPage: 1,
             pageSize: 20,
             hasMore: true,
             isLoadingMore: false,
+            isClearing: false,  // 专门的清空状态，确保DOM立即更新
             previousMessageIds: new Set(),  // 存储之前加载的消息ID
             editDialog: {
                 visible: false,
@@ -74,12 +77,40 @@ const MainApp = {
     },
     
     computed: {
+        // 去重的频道列表（只显示监听频道）
+        uniqueChannels() {
+            if (!this.channelInfo) return {};
+            
+            const uniqueChannels = {};
+            const seenChannels = new Set();
+            
+            // 遍历所有频道，去重并过滤
+            for (const [key, channelData] of Object.entries(this.channelInfo)) {
+                // 只处理source类型的频道（监听频道）
+                if (channelData.type !== 'source') {
+                    continue;
+                }
+                
+                // 使用ID作为唯一标识
+                const channelId = channelData.id;
+                if (seenChannels.has(channelId)) {
+                    continue;
+                }
+                
+                seenChannels.add(channelId);
+                uniqueChannels[channelId] = channelData;
+            }
+            
+            return uniqueChannels;
+        },
+        
         // 过滤后的消息列表
         filteredMessages() {
             if (!this.messages || !Array.isArray(this.messages)) {
                 return [];
             }
-            return this.messages;
+            // 确保返回新的数组引用，避免Vue缓存问题
+            return [...this.messages];
         },
         
         // 是否全选
@@ -350,9 +381,25 @@ const MainApp = {
             if (append) {
                 this.isLoadingMore = true;
             } else {
+                // 第一步：立即清空消息数据
+                this.messages = [];  
+                this.selectedMessages = [];  
+                this.previousMessageIds = new Set();  
+                this.currentPage = 1;
+                
+                // 第二步：设置清空状态，触发DOM显示"正在切换..."
+                this.isClearing = true;
+                
+                // 第三步：强制Vue渲染清空状态
+                await this.$nextTick();
+                
+                // 第四步：短暂延迟确保用户看到清空效果
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // 第五步：设置加载状态
+                this.isClearing = false;
                 this.loading = true;
                 this.loadingMessage = '正在加载消息数据...';
-                this.currentPage = 1;
             }
             
             try {
@@ -368,6 +415,11 @@ const MainApp = {
                     params.status = 'pending';
                 }
                 
+                // 过滤掉空字符串的source_channel参数
+                if (!params.source_channel || params.source_channel.trim() === '') {
+                    delete params.source_channel;
+                }
+                
                 // 添加搜索关键词参数
                 if (this.searchKeyword && this.searchKeyword.trim()) {
                     params.search = this.searchKeyword.trim();
@@ -376,8 +428,6 @@ const MainApp = {
                 const response = await axios.get('/api/messages/', {
                     params: params
                 });
-                
-                // console.log('API响应:', response.data);
                 
                 if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
                     const newMessages = response.data.messages;
@@ -405,12 +455,14 @@ const MainApp = {
                         this.messages = newMessages;
                     }
                     
-                    // 只有当有真正的新消息时才显示提示
-                    if (reallyNewMessages.length > 0) {
-                        // console.log('发现', reallyNewMessages.length, '条新消息');
+                    // 只有在追加模式且有真正新消息时才显示提示
+                    if (append && reallyNewMessages.length > 0) {
                         MessageManager.success(`收到 ${reallyNewMessages.length} 条新消息`);
-                    } else {
-                        // console.log('消息已是最新，共', this.messages.length, '条');
+                    } else if (!append && this.filters.source_channel) {
+                        // 频道切换时显示提示
+                        const channelInfo = this.uniqueChannels[this.filters.source_channel];
+                        const channelName = this.getChannelDisplayName(channelInfo);
+                        MessageManager.info(`已切换到「${channelName}」，共 ${newMessages.length} 条消息`);
                     }
                     
                     // 更新已知消息ID集合
@@ -477,7 +529,8 @@ const MainApp = {
                     this.stats.approved.value = stats.approved || 0;
                     this.stats.rejected.value = stats.rejected || 0;
                     this.stats.ads.value = stats.ads || 0;
-                    this.stats.channels.value = stats.channels || 0;
+                    this.stats.duplicates.value = stats.duplicates || 0;
+                    this.stats.chats.value = stats.chats || 0;
                 }
             } catch (error) {
                 // console.error('加载统计信息失败:', error);
@@ -490,6 +543,29 @@ const MainApp = {
                 return this.channelInfo[channel_id].title || this.channelInfo[channel_id].name || channel_id;
             }
             return channel_id;
+        },
+        
+        // 获取频道显示名称（用于下拉框）
+        getChannelDisplayName(channel) {
+            if (!channel) return '未知频道';
+            
+            // 优先使用title，其次name
+            let displayName = channel.title || channel.name || '未知频道';
+            
+            // 添加[@用户名]标识
+            const username = channel.username;
+            if (username) {
+                // 确保username以@开头
+                const formattedUsername = username.startsWith('@') ? username : '@' + username;
+                displayName += ` [${formattedUsername}]`;
+            }
+            
+            // 如果名称太长，截取前50个字符（增加长度以容纳用户名）
+            if (displayName.length > 50) {
+                return displayName.substring(0, 50) + '...';
+            }
+            
+            return displayName;
         },
         
         // 获取状态类型
@@ -573,19 +649,32 @@ const MainApp = {
             switch(statKey) {
                 case 'pending':
                     this.filters.status = 'pending';
+                    this.filters.filter_reason = null;
                     break;
                 case 'approved':
                     this.filters.status = 'approved';
+                    this.filters.filter_reason = null;
                     break;
                 case 'rejected':
                     this.filters.status = 'rejected';
+                    this.filters.filter_reason = null;
                     break;
                 case 'ads':
                     this.filters.is_ad = true;
+                    this.filters.filter_reason = null;
+                    break;
+                case 'duplicates':
+                    this.filters.status = 'rejected';
+                    this.filters.filter_reason = 'duplicate_detector';
+                    break;
+                case 'chats':
+                    this.filters.status = 'rejected';
+                    this.filters.filter_reason = 'chat_content_filter';
                     break;
                 default:
                     this.filters.status = '';
                     this.filters.is_ad = null;
+                    this.filters.filter_reason = null;
             }
             this.loadMessages();
         },
@@ -607,7 +696,7 @@ const MainApp = {
         
         // 清除频道筛选
         clearChannelFilter() {
-            this.filters.source_channel = null;
+            this.filters.source_channel = '';
             this.filters.status = 'pending';  // 恢复默认筛选
             this.currentPage = 1;
             this.hasMore = true;
@@ -894,8 +983,11 @@ const MainApp = {
                 };
             }
             
-            this.fileDetailsDialog.details = details;
-            this.fileDetailsDialog.visible = true;
+            // 确保响应式更新 - 重新赋值整个对象
+            this.fileDetailsDialog = {
+                visible: true,
+                details: { ...details }
+            };
             
             // 异步获取文件大小
             this.getFileSize(details.path);
