@@ -393,10 +393,11 @@ const MainApp = {
                 this.selectedMessages = [];  
                 this.previousMessageIds = new Set();  
                 this.currentPage = 1;
+                this.hasMore = true;  // 重置hasMore状态
                 this.loading = true;
                 this.loadingMessage = '正在加载消息数据...';
                 
-                console.log('频道切换：清空消息列表，开始加载新数据');
+                console.log('频道切换：清空消息列表，重置hasMore状态，开始加载新数据');
             }
             
             try {
@@ -435,6 +436,7 @@ const MainApp = {
                     
                     // 检查是否还有更多数据
                     this.hasMore = newMessages.length === this.pageSize;
+                    console.log(`hasMore状态更新：${this.hasMore} (收到${newMessages.length}条消息，期望${this.pageSize}条)`);
                     
                     // 计算真正的新消息
                     const currentMessageIds = new Set(newMessages.map(msg => msg.id));
@@ -472,6 +474,8 @@ const MainApp = {
                     // 强制Vue下一帧重新渲染，确保媒体URL被正确加载
                     this.$nextTick(() => {
                         // console.log('消息列表已更新，触发媒体重新加载');
+                        // 重新设置滚动监听器，确保DOM更新后正确绑定
+                        setTimeout(() => this.setupScrollListener(), 100);
                     });
                 } else {
                     this.messages = [];
@@ -1754,6 +1758,8 @@ const MainApp = {
         
         // 设置滚动监听
         setupScrollListener() {
+            console.log('开始设置滚动监听器...');
+            
             // 移除之前的所有滚动监听
             if (this.scrollHandler) {
                 window.removeEventListener('scroll', this.scrollHandler);
@@ -1763,7 +1769,12 @@ const MainApp = {
                 }
             }
             
-            const messageContainer = document.querySelector('.message-list');
+            // 尝试多种选择器找到消息容器
+            const messageContainer = document.querySelector('.message-list') || 
+                                   document.querySelector('[class*="message-list"]') ||
+                                   document.querySelector('.message-container');
+            
+            console.log('找到消息容器:', messageContainer ? '是' : '否', messageContainer);
             
             // 记录上次触发加载的时间戳
             let lastLoadTime = 0;
