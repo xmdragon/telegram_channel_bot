@@ -378,28 +378,20 @@ const MainApp = {
         },
         
         async loadMessages(append = false) {
+            console.log(`loadMessages调用：append=${append}, 当前频道=${this.filters.source_channel}`);
+            
             if (append) {
                 this.isLoadingMore = true;
             } else {
-                // 第一步：立即清空消息数据
+                // 立即清空消息数据和设置加载状态
                 this.messages = [];  
                 this.selectedMessages = [];  
                 this.previousMessageIds = new Set();  
                 this.currentPage = 1;
-                
-                // 第二步：设置清空状态，触发DOM显示"正在切换..."
-                this.isClearing = true;
-                
-                // 第三步：强制Vue渲染清空状态
-                await this.$nextTick();
-                
-                // 第四步：短暂延迟确保用户看到清空效果
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // 第五步：设置加载状态
-                this.isClearing = false;
                 this.loading = true;
                 this.loadingMessage = '正在加载消息数据...';
+                
+                console.log('频道切换：清空消息列表，开始加载新数据');
             }
             
             try {
@@ -425,9 +417,13 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
+                console.log('API请求参数：', params);
+                
                 const response = await axios.get('/api/messages/', {
                     params: params
                 });
+                
+                console.log('API响应：', response.data);
                 
                 if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
                     const newMessages = response.data.messages;
@@ -484,8 +480,12 @@ const MainApp = {
                 this.messages = [];
                 MessageManager.error('加载消息失败: ' + (error.response?.data?.detail || error.message));
             } finally {
-                this.loading = false;
-                this.isLoadingMore = false;
+                // 根据模式正确清理状态
+                if (append) {
+                    this.isLoadingMore = false;
+                } else {
+                    this.loading = false;
+                }
             }
         },
         
@@ -1785,8 +1785,8 @@ const MainApp = {
                         scrollPercentage = (scrollTop + clientHeight) / scrollHeight * 100;
                     }
                     
-                    // 只有滚动到95%以上才认为接近底部
-                    if (scrollPercentage > 95) {
+                    // 降低阈值：滚动到90%以上才认为接近底部
+                    if (scrollPercentage > 90) {
                         isNearBottom = true;
                     }
                 } else {
@@ -1800,8 +1800,8 @@ const MainApp = {
                         scrollPercentage = (scrollTop + windowHeight) / documentHeight * 100;
                     }
                     
-                    // 只有滚动到95%以上才认为接近底部
-                    if (scrollPercentage > 95) {
+                    // 降低阈值：滚动到90%以上才认为接近底部
+                    if (scrollPercentage > 90) {
                         isNearBottom = true;
                     }
                 }
@@ -1809,8 +1809,10 @@ const MainApp = {
                 // 只在真正接近底部时加载
                 if (isNearBottom && !this.isLoadingMore && this.hasMore) {
                     lastLoadTime = now;
-                    // console.log(`滚动到底部(${scrollPercentage.toFixed(1)}%)，触发加载更多`);
+                    console.log(`滚动到底部(${scrollPercentage.toFixed(1)}%)，触发加载更多`);
                     this.loadMore();
+                } else if (isNearBottom) {
+                    console.log(`滚动到底部但跳过加载：isLoadingMore=${this.isLoadingMore}, hasMore=${this.hasMore}`);
                 }
             };
             
