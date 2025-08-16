@@ -344,23 +344,26 @@ const AuthApp = {
                     has_session: data.has_session
                 };
                 
-                // 默认不显示已保存信息，让用户按步骤操作
-                this.showSavedInfo = false;
                 this.hasSavedSession = data.has_session || false;
                 
+                // 判断显示状态：
+                // 1. 如果有session且有效 -> 显示已保存的认证信息页
+                // 2. 如果session为空或无效 -> 显示步骤1（API配置页）
                 if (data.has_saved_auth && data.has_session) {
                     this.authStatus = '已认证';
-                } else if (data.has_saved_auth) {
-                    this.authStatus = '需要重新认证';
+                    this.showSavedInfo = true;
+                    this.currentStep = 5; // 设置为完成状态，但通过showSavedInfo控制显示
+                } else {
+                    // session为空或无效，显示步骤1
+                    this.authStatus = '未认证';
+                    this.showSavedInfo = false;
+                    this.currentStep = 1; // 默认显示第一阶段页面（API配置）
+                    
                     // 如果有保存的API凭据，自动填充到表单
                     if (data.api_id && data.api_hash) {
                         this.config.api_id = data.api_id;
                         this.config.api_hash = data.api_hash;
-                        // 保持在第一步，让用户手动提交
-                        this.currentStep = 1;
                     }
-                } else {
-                    this.authStatus = '未认证';
                 }
             },
             

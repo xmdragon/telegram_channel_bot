@@ -65,7 +65,7 @@ class MessageScheduler:
         try:
             # 检查是否启用自动转发
             from app.services.config_manager import config_manager
-            auto_forward_enabled = await config_manager.get_config("review.auto_forward_enabled", True)
+            auto_forward_enabled = await config_manager.get_config("review.auto_forward_enabled", False)
             
             if not auto_forward_enabled:
                 # 自动转发已禁用

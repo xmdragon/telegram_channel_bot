@@ -29,37 +29,45 @@
                 
                 <!-- 已保存的认证信息 -->
                 <div v-if="showSavedInfo" class="saved-auth-info">
-                    <h3 style="color: #5B63D3; margin-bottom: 20px;">已保存的认证信息</h3>
+                    <div style="text-align: center; margin-bottom: 32px;">
+                        <div style="font-size: 48px; color: var(--success-color); margin-bottom: 16px;">✅</div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 8px; font-size: 24px; font-weight: 700;">认证成功！</h3>
+                        <p style="color: var(--text-secondary); font-size: 16px;">Telegram 客户端已成功连接</p>
+                    </div>
+                    
                     <div class="auth-info-item">
                         <label>API ID:</label>
-                        <el-input 
-                            v-model="savedAuthInfo.api_id" 
-                            placeholder="请输入新的 API ID"
-                            style="width: 200px;">
-                        </el-input>
+                        <span>{{ savedAuthInfo.api_id }}</span>
                     </div>
                     <div class="auth-info-item">
                         <label>API Hash:</label>
-                        <el-input 
-                            v-model="savedAuthInfo.api_hash" 
-                            placeholder="请输入新的 API Hash"
-                            type="password"
-                            style="width: 300px;">
-                        </el-input>
+                        <span>{{ savedAuthInfo.api_hash ? '••••••••••••••••••••••••••••••••' : '未设置' }}</span>
                     </div>
-                    <div style="text-align: center; margin-top: 30px;">
+                    
+                    <div style="text-align: center; margin-top: 32px; display: flex; gap: 16px; justify-content: center;">
+                        <el-button 
+                            @click="goToMain"
+                            type="primary"
+                            size="large"
+                            style="min-width: 120px;">
+                            进入系统
+                        </el-button>
+                        <el-button 
+                            @click="startReAuth" 
+                            type="default"
+                            size="large"
+                            :loading="loading"
+                            style="min-width: 120px;">
+                            重新认证
+                        </el-button>
                         <el-button 
                             @click="clearAuthData" 
                             type="danger" 
                             :loading="loading"
-                            :disabled="!hasSavedSession">
-                            清除认证数据
-                        </el-button>
-                        <el-button 
-                            @click="startReAuth" 
-                            type="primary" 
-                            :loading="loading">
-                            重新认证
+                            :disabled="!hasSavedSession"
+                            size="large"
+                            style="min-width: 120px;">
+                            清除数据
                         </el-button>
                     </div>
                 </div>
@@ -170,14 +178,18 @@
 
                 <!-- 步骤5: 完成 -->
                 <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 5 }">
-                    <div style="text-align: center; margin: 30px 0;">
-                        <div style="font-size: 4em; color: #00ff41; margin-bottom: 20px;">✅</div>
-                        <h3 style="color: #00ff41; margin-bottom: 10px;">认证成功！</h3>
-                        <p style="color: #7fdbff;">Telegram 客户端已成功连接</p>
+                    <div style="text-align: center; margin: 32px 0;">
+                        <div style="font-size: 64px; color: var(--success-color); margin-bottom: 24px;">✅</div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 12px; font-size: 24px; font-weight: 700;">认证成功！</h3>
+                        <p style="color: var(--text-secondary); font-size: 16px;">Telegram 客户端已成功连接</p>
                     </div>
                     
-                    <div style="text-align: center; margin-top: 30px;">
-                        <el-button @click="goToMain" type="success">
+                    <div style="text-align: center; margin-top: 32px;">
+                        <el-button 
+                            @click="goToMain" 
+                            type="primary"
+                            size="large"
+                            style="min-width: 140px; height: 48px; font-size: 16px;">
                             进入系统
                         </el-button>
                     </div>

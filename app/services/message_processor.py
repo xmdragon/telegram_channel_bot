@@ -44,7 +44,7 @@ class MessageProcessor:
             config_manager = ConfigManager()
             auto_forward_delay = await config_manager.get_config('review.auto_forward_delay', 1800)  # 默认30分钟
             
-            cutoff_time = datetime.utcnow() - timedelta(seconds=auto_forward_delay)
+            cutoff_time = datetime.utcnow() - timedelta(seconds=int(auto_forward_delay))
             
             # 获取所有待审核消息
             pending_messages = self.redis_store.get_pending_messages(limit=500)

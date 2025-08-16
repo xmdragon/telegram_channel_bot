@@ -10,38 +10,40 @@
 
 .step {
     width: 60px;
-    height: 40px;
+    height: 60px;
     border-radius: 50%;
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
-    color: #00ff41;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 10px;
     font-size: 12px;
-    font-weight: bold;
-    transition: all 0.3s ease;
+    font-weight: 600;
+    transition: var(--transition);
     white-space: nowrap;
     overflow: hidden;
+    box-shadow: var(--shadow-sm);
 }
 
 .step.active {
-    background: #00ff41;
-    color: #000;
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-md);
 }
 
 .step.completed {
-    background: #2ed573;
-    border-color: #2ed573;
-    color: #000;
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
 }
 
 .step-line {
     width: 60px;
     height: 2px;
-    background: rgba(0, 255, 65, 0.3);
+    background: var(--border-color);
 }
 
 /* 表单步骤 - 重要：确保只有当前步骤显示 */
@@ -55,43 +57,46 @@
 
 /* 表单组 */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .form-label {
     display: block;
-    color: #7fdbff;
+    color: var(--text-secondary);
     margin-bottom: 8px;
-    font-weight: bold;
+    font-weight: 600;
+    font-size: 14px;
 }
 
 /* 表单容器 */
 .form-container {
     max-width: 500px;
     margin: 0 auto;
-    padding: 30px;
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+    padding: 32px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
 }
 
 .form-title {
     text-align: center;
-    color: #00ff41;
-    font-size: 1.5em;
-    margin-bottom: 30px;
-    font-weight: bold;
+    color: var(--text-primary);
+    font-size: 24px;
+    margin-bottom: 32px;
+    font-weight: 700;
 }
 
 /* 错误信息 */
 .error-message {
     margin-top: 20px;
-    padding: 15px;
-    background: rgba(255, 71, 87, 0.1);
-    border: 2px solid #ff4757;
-    border-radius: 5px;
-    color: #ff4757;
+    padding: 16px;
+    background: rgba(255, 77, 79, 0.1);
+    border: 1px solid var(--danger-color);
+    border-radius: var(--border-radius-sm);
+    color: var(--danger-color);
+    font-size: 14px;
+    font-weight: 500;
 }
 
 /* 加载遮罩 */
@@ -159,39 +164,39 @@
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* 输入框专门样式 - 覆盖Element Plus和其他样式 */
+/* 输入框样式 - 与整站保持一致 */
 .el-input {
     width: 100% !important;
 }
 
 .el-input .el-input__wrapper {
-    background: rgba(26, 26, 46, 0.95) !important;
-    border: 2px solid #00ff41 !important;
-    border-radius: 5px !important;
-    min-height: 40px !important;
-    padding: 8px 12px !important;
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--border-radius-sm) !important;
+    min-height: 48px !important;
+    padding: 12px 16px !important;
     box-shadow: none !important;
-    transition: all 0.3s ease !important;
+    transition: var(--transition) !important;
 }
 
 .el-input .el-input__wrapper:hover {
-    border-color: #00d4aa !important;
-    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
 .el-input .el-input__wrapper.is-focus {
-    border-color: #00d4aa !important;
-    box-shadow: 0 0 15px rgba(0, 255, 65, 0.5) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(91, 99, 211, 0.1) !important;
 }
 
 .el-input .el-input__inner,
 .el-input input {
-    color: #00ff41 !important;
+    color: var(--text-primary) !important;
     background: transparent !important;
     border: none !important;
-    font-family: 'Orbitron', monospace !important;
+    font-family: inherit !important;
     font-weight: 500 !important;
-    font-size: 14px !important;
+    font-size: 16px !important;
     height: auto !important;
     line-height: 1.5 !important;
     padding: 0 !important;
@@ -202,13 +207,13 @@
 
 .el-input .el-input__inner::placeholder,
 .el-input input::placeholder {
-    color: #7fdbff !important;
+    color: var(--text-tertiary) !important;
     opacity: 0.8 !important;
 }
 
 .el-input .el-input__inner:focus,
 .el-input input:focus {
-    color: #00ff41 !important;
+    color: var(--text-primary) !important;
     background: transparent !important;
     outline: none !important;
     box-shadow: none !important;
@@ -216,9 +221,9 @@
 
 /* 密码输入框特殊处理 */
 .el-input input[type="password"] {
-    color: #00ff41 !important;
+    color: var(--text-primary) !important;
     background: transparent !important;
-    font-family: 'Orbitron', monospace !important;
+    font-family: inherit !important;
 }
 
 /* 调试信息 */
@@ -281,38 +286,40 @@
 
 /* 已保存认证信息样式 */
 .saved-auth-info {
-    background: rgba(26, 26, 46, 0.95);
-    border: 2px solid #00ff41;
-    border-radius: 10px;
-    padding: 30px;
-    margin-bottom: 30px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-sm);
 }
 
 .auth-info-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid rgba(127, 219, 255, 0.2);
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
 }
 
 .auth-info-item:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
 }
 
 .auth-info-item label {
-    color: #7fdbff;
-    font-weight: bold;
-    min-width: 120px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 14px;
 }
 
 .auth-info-item span {
-    color: #00ff41;
-    font-family: 'Courier New', monospace;
-    background: rgba(0, 255, 65, 0.1);
-    padding: 5px 10px;
-    border-radius: 5px;
-    border: 1px solid rgba(0, 255, 65, 0.3);
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    background: var(--bg-secondary);
+    padding: 12px 16px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+    word-break: break-all;
 }
 
 /* 确认对话框样式 */
