@@ -15,6 +15,8 @@ from app.services.message_grouper import message_grouper
 from app.services.duplicate_detector import DuplicateDetector
 from app.services.message_processor import MessageProcessor
 from app.storage.redis_store import get_redis_message_store
+from app.services.filters.base import FilterContext
+from app.services.unified_filter_engine import unified_filter_engine
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ class UnifiedMessageProcessor:
         self.content_filter = ContentFilter()
         self.duplicate_detector = DuplicateDetector()
         self.message_processor = MessageProcessor()
+        self.filter_pipeline = unified_filter_engine.filter_pipeline
         
     async def process_telegram_message(
         self, 
@@ -115,55 +118,60 @@ class UnifiedMessageProcessor:
             # 确保原始内容被保留
             processed_data['original_content'] = original_content
             
-            # 步骤3: 组合消息检测
-            combined_message = await message_grouper.process_message(
+            # 🔧 修复：同时保存单独消息和组合消息
+            grouped_id = str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None
+            
+            # 步骤3a: 先保存单独消息（确保每条消息都被保存）
+            individual_save_data = await self._prepare_individual_save_data(
                 message, 
                 channel_id, 
-                processed_data.get('media_info'),
-                filtered_content=processed_data['filtered_content'],
-                is_ad=processed_data['is_ad'],
-                is_batch=is_history  # 历史消息使用批量模式
-            )
-            
-            # 如果返回None，说明消息正在等待组合
-            if combined_message is None:
-                logger.info(f"⏳ 消息 #{message.id} 正在等待组合")
-                return None
-            
-            # 步骤4: 准备保存数据
-            save_data = await self._prepare_save_data(
-                combined_message, 
-                channel_id, 
                 processed_data,
-                is_history
+                is_history,
+                grouped_id
             )
             
-            # 步骤5: 去重检测
-            duplicate_info = await self._check_duplicate_with_details(save_data, channel_id)
+            # 去重检测
+            duplicate_info = await self._check_duplicate_with_details(individual_save_data, channel_id)
             if duplicate_info:
-                logger.info(f"🔄 {'历史' if is_history else '实时'}消息被去重检测拒绝: {duplicate_info['reason']}")
-                # 保存被去重拒绝的消息到数据库，状态为rejected
-                save_data['status'] = 'rejected'
-                save_data['reject_reason'] = f"去重检测: {duplicate_info['reason']} (原消息ID: {duplicate_info.get('original_id', 'N/A')})"
-                save_data['filter_reason'] = duplicate_info['reason']
-                
-                # 保存到Redis存储
-                saved_message = await self.message_processor.process_new_message(save_data)
-                if saved_message:
-                    msg_id = saved_message.get('message_id', 'N/A')
-                    logger.info(f"❌ 最终处理结果: 消息 #{message.id} -> Redis {channel_id}:{msg_id} [状态: rejected] [原因: 去重检测]")
-                
-                # 清理媒体文件（如果不想保留的话）
-                # await self._cleanup_media_files(save_data)
-                return saved_message
+                logger.info(f"🔄 单独消息被去重检测拒绝: {duplicate_info['reason']}")
+                individual_save_data['status'] = 'rejected'
+                individual_save_data['reject_reason'] = f"去重检测: {duplicate_info['reason']}"
             
-            # 步骤6: 保存到Redis存储
-            saved_message = await self.message_processor.process_new_message(save_data)
+            # 保存单独消息到Redis
+            saved_individual = await self.message_processor.process_new_message(individual_save_data)
             
-            if not saved_message:
-                logger.info(f"💥 消息 #{message.id} 保存失败或被拒绝")
-                await self._cleanup_media_files(save_data)
+            if not saved_individual:
+                logger.error(f"💥 单独消息 #{message.id} 保存失败")
+                await self._cleanup_media_files(individual_save_data)
                 return None
+            
+            # 记录单独消息保存成功
+            msg_id = saved_individual.get('message_id', 'N/A')
+            status = saved_individual.get('status', 'unknown')
+            logger.info(f"✅ 单独消息已保存: #{message.id} -> Redis {channel_id}:{msg_id} [状态: {status}]")
+            
+            # 步骤3b: 如果有组ID，还要处理组合消息（用于组图展示）
+            if grouped_id:
+                # 组合消息检测（但不依赖它来保存数据）
+                combined_message = await message_grouper.process_message(
+                    message, 
+                    channel_id, 
+                    processed_data.get('media_info'),
+                    filtered_content=processed_data['filtered_content'],
+                    is_ad=processed_data['is_ad'],
+                    is_batch=is_history  # 历史消息使用批量模式
+                )
+                
+                # 如果组合消息完成，也保存它（作为组图展示用）
+                if combined_message:
+                    logger.info(f"📦 组合消息完成，将额外保存组合视图")
+                    # 这里可以选择保存组合消息，但单独消息已经保存了
+            
+            # 使用已保存的单独消息作为返回结果
+            combined_message = saved_individual
+            
+            # 消息已在步骤3a中保存，这里使用已保存的结果
+            saved_message = combined_message
             
             # 步骤7: 转发到审核群（根据配置决定）
             if await self._should_forward_to_review(is_history):
@@ -268,8 +276,22 @@ class UnifiedMessageProcessor:
             
             # 处理媒体
             media_info = None
+            media_type_info = None
             if message.media:
+                # 首先记录媒体类型信息（即使下载失败也要保留）
+                media_type_info = {
+                    'has_media': True,
+                    'media_type': self._get_media_type(message.media),
+                    'download_failed': False
+                }
+                
+                # 尝试下载媒体
                 media_info = await self._process_media(message, channel_id)
+                
+                # 如果下载失败，标记下载失败状态
+                if not media_info:
+                    media_type_info['download_failed'] = True
+                    logger.warning(f"媒体下载失败，但已记录媒体类型: {media_type_info['media_type']}")
             
             # 准备媒体文件列表用于OCR处理
             media_files = []
@@ -288,20 +310,31 @@ class UnifiedMessageProcessor:
             
             # 使用新的过滤器管道进行内容过滤
             filter_context = FilterContext(
-                message_id=str(message.id),
-                channel_id=channel_id,
-                is_history=is_history,
-                media_files=media_files,
-                message_obj=message  # 传递完整的消息对象
+                message_id=message.id,
+                channel_id=channel_id
             )
+            # 添加历史消息标记和媒体文件信息到元数据
+            filter_context.add_metadata('is_history', is_history)
+            filter_context.add_metadata('media_files', media_files)
+            filter_context.add_metadata('message_obj', message)
             
             # 执行过滤器管道
             pipeline_result = await self.filter_pipeline.process(content, filter_context)
             
             # 提取结果
-            is_ad = not pipeline_result.passed
+            # 🔧 修改广告判断逻辑：支持AI检测器的仅检测模式
+            ad_detection_result = filter_context.get_metadata('ad_detection_result')
+            is_ad = (not pipeline_result.passed) or (ad_detection_result and ad_detection_result.get('is_ad', False))
             filtered_content = pipeline_result.final_content
             filter_reason = pipeline_result.overall_reason or ""
+            
+            # 如果是AI检测到的广告，更新过滤原因
+            if ad_detection_result and ad_detection_result.get('is_ad', False):
+                ai_reason = ad_detection_result.get('main_reason', 'AI检测')
+                if not filter_reason:
+                    filter_reason = f"AI检测到疑似广告: {ai_reason}"
+                else:
+                    filter_reason += f" + AI检测: {ai_reason}"
             
             # 提取OCR结果（如果有）
             ocr_result = {}
@@ -359,6 +392,7 @@ class UnifiedMessageProcessor:
                         'is_ad': is_ad,
                         'filter_reason': filter_reason,
                         'media_info': media_info,
+                        'media_type_info': media_type_info,  # 🔧 新增：媒体类型信息
                         'ocr_result': ocr_result,
                         'entities': [],
                         'removed_hidden_links': []
@@ -383,6 +417,7 @@ class UnifiedMessageProcessor:
                             'is_ad': is_ad,
                             'filter_reason': filter_reason,
                             'media_info': media_info,
+                            'media_type_info': media_type_info,  # 🔧 新增：媒体类型信息
                             'ocr_result': ocr_result,
                             'entities': [],
                             'removed_hidden_links': []
@@ -407,6 +442,7 @@ class UnifiedMessageProcessor:
                 'is_ad': is_ad,
                 'filter_reason': filter_reason,
                 'media_info': media_info,
+                'media_type_info': media_type_info,  # 🔧 新增：媒体类型信息
                 'ocr_result': ocr_result,  # 包含OCR提取结果
                 'entities': entities,  # 所有实体信息
                 'removed_hidden_links': removed_hidden_links  # 被移除的隐藏链接
@@ -416,6 +452,42 @@ class UnifiedMessageProcessor:
             logger.error(f"通用消息处理失败: {e}")
             return None
     
+    def _get_media_type(self, media) -> str:
+        """获取媒体类型"""
+        try:
+            from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
+            from telethon.tl.types import DocumentAttributeVideo, DocumentAttributeAudio
+            from telethon.tl.types import DocumentAttributeAnimated, DocumentAttributeSticker
+            
+            if isinstance(media, MessageMediaPhoto):
+                return 'photo'
+            elif isinstance(media, MessageMediaDocument):
+                document = media.document
+                if document and hasattr(document, 'attributes'):
+                    for attr in document.attributes:
+                        if isinstance(attr, DocumentAttributeVideo):
+                            return 'animation' if attr.round_message else 'video'
+                        elif isinstance(attr, DocumentAttributeAnimated):
+                            return 'animation'
+                        elif isinstance(attr, DocumentAttributeAudio):
+                            return 'audio'
+                        elif isinstance(attr, DocumentAttributeSticker):
+                            return 'sticker'
+                    # 如果没有特殊属性，判断MIME类型
+                    if document.mime_type:
+                        if document.mime_type.startswith('video/'):
+                            return 'video'
+                        elif document.mime_type.startswith('audio/'):
+                            return 'audio'
+                        elif document.mime_type.startswith('image/'):
+                            return 'photo'
+                return 'document'
+            else:
+                return 'unknown'
+        except Exception as e:
+            logger.debug(f"获取媒体类型失败: {e}")
+            return 'unknown'
+
     async def _process_media(self, message: TLMessage, channel_id: str) -> Optional[Dict]:
         """处理媒体下载"""
         try:
@@ -455,6 +527,69 @@ class UnifiedMessageProcessor:
         except Exception as e:
             logger.error(f"媒体处理失败: {e}")
             return None
+    
+    async def _prepare_individual_save_data(
+        self,
+        message: TLMessage,
+        channel_id: str,
+        processed_data: dict,
+        is_history: bool,
+        grouped_id: Optional[str] = None
+    ) -> dict:
+        """准备单独消息的保存数据（确保每条消息都被保存）"""
+        # 处理媒体哈希
+        media_hash = None
+        visual_hash = None
+        
+        media_info = processed_data.get('media_info')
+        if media_info:
+            media_hash = media_info.get('hash')
+            if media_info.get('visual_hashes'):
+                import json
+                visual_hash = json.dumps(media_info['visual_hashes'])
+        
+        # 处理时间戳
+        created_at = parse_telegram_time(message.date)
+        
+        # 处理OCR结果
+        ocr_result = processed_data.get('ocr_result', {})
+        ocr_text = None
+        qr_codes = None
+        ocr_ad_score = 0
+        ocr_processed = False
+        
+        if ocr_result:
+            if ocr_result.get('texts'):
+                import json
+                ocr_text = json.dumps(ocr_result['texts'], ensure_ascii=False)
+            
+            if ocr_result.get('qr_codes'):
+                qr_codes = json.dumps(ocr_result['qr_codes'], ensure_ascii=False)
+            
+            ocr_ad_score = int(ocr_result.get('ad_score', 0))
+            ocr_processed = bool(ocr_result.get('processed_files', 0) > 0)
+        
+        return {
+            'source_channel': channel_id,
+            'message_id': message.id,
+            'content': processed_data.get('original_content', processed_data['content']),
+            'filtered_content': processed_data['filtered_content'],
+            'is_ad': processed_data['is_ad'],
+            'media_type': self._determine_media_type({}, processed_data),
+            'media_url': self._determine_media_url({}, processed_data),
+            'media_hash': media_hash,
+            'ocr_text': ocr_text,
+            'qr_codes': qr_codes,
+            'ocr_ad_score': ocr_ad_score,
+            'ocr_processed': ocr_processed,
+            'entities': processed_data.get('entities'),
+            'removed_hidden_links': processed_data.get('removed_hidden_links'),
+            'visual_hash': visual_hash,
+            'grouped_id': grouped_id,
+            'is_combined': False,  # 单独消息不是组合消息
+            'status': 'pending',
+            'created_at': created_at
+        }
     
     async def _prepare_save_data(
         self, 
@@ -523,8 +658,8 @@ class UnifiedMessageProcessor:
             'content': processed_data.get('original_content', message_data.get('content', processed_data['content'])),  # 优先使用原始内容
             'filtered_content': message_data.get('filtered_content', processed_data['filtered_content']),
             'is_ad': message_data.get('is_ad', processed_data['is_ad']),
-            'media_type': message_data.get('media_type'),
-            'media_url': message_data.get('media_url'),
+            'media_type': self._determine_media_type(message_data, processed_data),
+            'media_url': self._determine_media_url(message_data, processed_data),
             'media_hash': media_hash,
             # 新增OCR相关字段
             'ocr_text': ocr_text,
@@ -543,6 +678,53 @@ class UnifiedMessageProcessor:
             'status': 'pending',  # 所有消息都先设为pending状态，等待审核
             'created_at': created_at
         }
+    
+    def _determine_media_type(self, message_data: dict, processed_data: dict) -> Optional[str]:
+        """确定媒体类型（优先使用实际下载的，其次使用检测到的）"""
+        # 1. 优先使用实际下载的媒体信息
+        if message_data.get('media_type'):
+            return message_data.get('media_type')
+        
+        # 2. 检查处理数据中的媒体信息
+        media_info = processed_data.get('media_info')
+        if media_info and media_info.get('media_type'):
+            return media_info['media_type']
+        
+        # 3. 检查媒体类型信息（即使下载失败也有）
+        media_type_info = processed_data.get('media_type_info')
+        if media_type_info and media_type_info.get('media_type'):
+            return media_type_info['media_type']
+        
+        return None
+    
+    def _determine_media_url(self, message_data: dict, processed_data: dict) -> Optional[str]:
+        """确定媒体URL（如果下载失败，生成占位符）"""
+        # 1. 优先使用实际下载的媒体文件
+        if message_data.get('media_url'):
+            return message_data.get('media_url')
+        
+        # 2. 检查处理数据中的媒体信息
+        media_info = processed_data.get('media_info')
+        if media_info and media_info.get('file_path'):
+            return media_info['file_path']
+        
+        # 3. 如果有媒体但下载失败，生成占位符
+        media_type_info = processed_data.get('media_type_info')
+        if media_type_info and media_type_info.get('has_media') and media_type_info.get('download_failed'):
+            media_type = media_type_info.get('media_type', 'media')
+            media_type_name = {
+                'photo': '图片',
+                'video': '视频',
+                'document': '文件',
+                'animation': '动图',
+                'audio': '音频',
+                'sticker': '贴纸'
+            }.get(media_type, '媒体')
+            
+            # 返回占位符标识，前端可以识别并显示
+            return f"placeholder:{media_type_name}下载失败"
+        
+        return None
     
     async def _check_duplicate_with_details(self, save_data: dict, channel_id: str) -> Optional[dict]:
         """检查是否重复并返回详细信息"""

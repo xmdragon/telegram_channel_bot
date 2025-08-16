@@ -319,8 +319,42 @@ class MessageGrouper:
         else:
             main_media_type = 'mixed'
         
-        # 使用第一个消息的信息作为主消息
-        first_message = messages[0]
+        # 🔧 修复：查找有文字内容的消息作为主消息，如果没有则使用第一个
+        main_message = None
+        for msg in messages:
+            if msg.get('content') and msg.get('content').strip():
+                main_message = msg
+                break
+        
+        # 如果没有找到有文字的消息，使用第一个消息
+        if not main_message:
+            main_message = messages[0]
+        
+        # 为组合消息生成占位符说明
+        placeholder_text = ""
+        if media_group:
+            media_count_by_type = {}
+            for media in media_group:
+                media_type = media.get('media_type', 'unknown')
+                media_count_by_type[media_type] = media_count_by_type.get(media_type, 0) + 1
+            
+            # 生成媒体描述
+            media_descriptions = []
+            for media_type, count in media_count_by_type.items():
+                type_name = {
+                    'photo': '图片',
+                    'video': '视频', 
+                    'document': '文件',
+                    'animation': '动图',
+                    'audio': '音频'
+                }.get(media_type, media_type)
+                media_descriptions.append(f"{count}个{type_name}")
+            
+            placeholder_text = f"\n\n[组图包含: {', '.join(media_descriptions)}]"
+        
+        # 合并内容和占位符
+        final_content = combined_content + placeholder_text
+        final_filtered_content = combined_filtered_content + placeholder_text
         
         # 为组合消息保存主媒体文件路径
         main_media_url = None
@@ -328,13 +362,13 @@ class MessageGrouper:
             main_media_url = media_group[0]['file_path']
         
         return {
-            'message_id': first_message['message_id'],
-            'content': combined_content,
-            'filtered_content': combined_filtered_content,
+            'message_id': main_message['message_id'],
+            'content': final_content,
+            'filtered_content': final_filtered_content,
             'is_ad': is_ad,
             'media_type': main_media_type if media_group else None,
             'media_url': main_media_url,
-            'grouped_id': str(first_message['grouped_id']) if first_message.get('grouped_id') else None,
+            'grouped_id': str(main_message['grouped_id']) if main_message.get('grouped_id') else None,
             'is_combined': True,
             'combined_messages': [
                 {
@@ -345,7 +379,7 @@ class MessageGrouper:
                 for msg in messages
             ],
             'media_group': media_group if media_group else None,
-            'date': first_message['date']
+            'date': main_message['date']
         }
     
     async def _save_combined_message(self, combined_message: Dict, channel_id: str):
