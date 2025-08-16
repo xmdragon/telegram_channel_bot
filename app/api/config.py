@@ -579,7 +579,7 @@ async def update_channel_status(channel_id: str, request: ChannelStatusRequest, 
     try:
         from app.services.channel_manager import channel_manager
         
-        success = await channel_manager.update_channel(
+        success = await channel_manager.update_channel_status(
             channel_id, 
             is_active=request.enabled
         )
