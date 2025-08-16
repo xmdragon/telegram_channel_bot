@@ -108,12 +108,11 @@ class MediaRefetchService:
             if not redis:
                 return None
             
-            # 从队列获取任务ID
-            task_id = redis.brpop(self.TASK_QUEUE_KEY, timeout=1)
+            # 从队列获取任务ID (使用非阻塞方式)
+            task_id = redis.rpop(self.TASK_QUEUE_KEY)
             if not task_id:
                 return None
             
-            task_id = task_id[1]  # brpop返回(key, value)
             if isinstance(task_id, bytes):
                 task_id = task_id.decode()
             

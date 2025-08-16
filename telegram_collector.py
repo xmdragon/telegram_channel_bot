@@ -314,10 +314,17 @@ class TelegramCollectorService:
                 )
                 return
             
-            # 检查Telegram客户端
+            # 检查Telegram客户端，如果还没准备好则等待
+            max_retries = 10
+            retry_count = 0
+            while (not self.telegram_bot or not self.telegram_bot.client) and retry_count < max_retries:
+                logger.info(f"等待Telegram客户端连接... (尝试 {retry_count + 1}/{max_retries})")
+                await asyncio.sleep(2)
+                retry_count += 1
+            
             if not self.telegram_bot or not self.telegram_bot.client:
                 media_refetch_service.complete_task(
-                    task.task_id, False, error_message="Telegram客户端未连接"
+                    task.task_id, False, error_message="Telegram客户端未连接：超时等待"
                 )
                 return
             
@@ -348,7 +355,7 @@ class TelegramCollectorService:
                 
                 if media_info and media_info.get("file_path"):
                     # 更新Redis记录
-                    from app.utils.time_utils import get_current_time
+                    from datetime import datetime
                     import json
                     import os
                     
@@ -357,7 +364,7 @@ class TelegramCollectorService:
                         'media_type': media_info.get("media_type", msg_data.get('media_type')),
                         'media_hash': media_info.get("hash", ''),
                         'visual_hash': json.dumps(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else '',
-                        'updated_at': get_current_time().isoformat()
+                        'updated_at': datetime.now().isoformat()
                     }
                     redis_store.redis.hset(msg_key, mapping=update_data)
                     
