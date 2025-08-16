@@ -9,7 +9,12 @@ show_help() {
     echo "用法: $0 [OPTIONS]"
     echo ""
     echo "选项:"
-    echo "  --help, -h    显示此帮助信息"
+    echo "  --help, -h     显示此帮助信息"
+    echo "  --quick, -q    快速重启（跳过状态检查和等待）"
+    echo "  --force, -f    强制重启（强制停止进程）"
+    echo "  --keep-redis   重启时保持Redis服务不变"
+    echo "  --skip-logs    跳过日志统计显示"
+    echo "  --verbose, -v  显示详细重启信息"
     echo ""
     echo "功能:"
     echo "  • 安全停止所有服务"
@@ -40,11 +45,37 @@ show_help() {
 }
 
 # 解析命令行参数
+QUICK_MODE=false
+FORCE_RESTART=false
+KEEP_REDIS=false
+SKIP_LOGS=false
+VERBOSE=false
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h)
             show_help
             exit 0
+            ;;
+        --quick|-q)
+            QUICK_MODE=true
+            shift
+            ;;
+        --force|-f)
+            FORCE_RESTART=true
+            shift
+            ;;
+        --keep-redis)
+            KEEP_REDIS=true
+            shift
+            ;;
+        --skip-logs)
+            SKIP_LOGS=true
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            shift
             ;;
         *)
             echo "❌ 未知参数: $1"
@@ -59,11 +90,21 @@ echo
 
 # 步骤1：停止现有进程和服务
 echo "1️⃣ 停止所有服务..."
-./stop.sh > /dev/null 2>&1 || true
+STOP_ARGS=""
+[ "$FORCE_RESTART" = true ] && STOP_ARGS="$STOP_ARGS --force"
+[ "$KEEP_REDIS" = true ] && STOP_ARGS="$STOP_ARGS --keep-redis"
+[ "$VERBOSE" = true ] && STOP_ARGS="$STOP_ARGS --verbose" || STOP_ARGS="$STOP_ARGS --quiet"
+
+./stop.sh $STOP_ARGS || true
 
 # 等待进程完全停止，确保清理完成
-echo "⏳ 等待进程完全停止..."
-sleep 5
+if [ "$QUICK_MODE" = false ]; then
+    echo "⏳ 等待进程完全停止..."
+    sleep 5
+else
+    [ "$VERBOSE" = true ] && echo "⚡ 快速模式：跳过停止等待"
+    sleep 1
+fi
 
 # 二次确认所有进程已停止
 REMAINING_PROCESSES=$(ps aux | grep -E "(dev_supervisor|web_server|telegram_collector|message_scheduler)" | grep -v grep | wc -l)
@@ -80,58 +121,81 @@ echo "✅ 所有服务已停止"
 echo
 
 # 步骤2：重启Redis服务
-echo "2️⃣ 重启Redis服务..."
-docker compose restart redis > /dev/null 2>&1 || true
+if [ "$KEEP_REDIS" = false ]; then
+    echo "2️⃣ 重启Redis服务..."
+    docker compose restart redis > /dev/null 2>&1 || true
+else
+    [ "$VERBOSE" = true ] && echo "2️⃣ 保持Redis服务不变..."
+fi
 
 # 等待Redis就绪
-echo "⏳ 等待Redis就绪..."
-for i in {1..15}; do
-    if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
-        echo "✅ Redis已就绪"
-        break
-    fi
-    if [ $i -eq 15 ]; then
-        echo "❌ Redis启动超时，尝试继续启动服务..."
-        break
-    fi
-    sleep 1
-done
-
-echo
-
-# 步骤3：显示系统状态信息
-echo "3️⃣ 检查系统状态..."
-
-# 显示错误日志统计
-if [ -f "./logs/error.log" ]; then
-    ERROR_COUNT=$(grep -c "\[ERROR\]" "./logs/error.log" 2>/dev/null || echo "0")
-    WARNING_COUNT=$(grep -c "\[WARNING\]" "./logs/error.log" 2>/dev/null || echo "0")
-    
-    # 确保数值有效
-    ERROR_COUNT=${ERROR_COUNT:-0}
-    WARNING_COUNT=${WARNING_COUNT:-0}
-    
-    if [ "$ERROR_COUNT" -gt 0 ] || [ "$WARNING_COUNT" -gt 0 ]; then
-        echo "📊 历史日志统计: $WARNING_COUNT 个警告, $ERROR_COUNT 个错误"
-        echo "   Web查看详情: http://localhost:8000/static/admin.html"
-    else
-        echo "✅ 无历史错误记录"
-    fi
+if [ "$QUICK_MODE" = false ]; then
+    echo "⏳ 等待Redis就绪..."
+    max_wait=15
+    for i in $(seq 1 $max_wait); do
+        if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
+            echo "✅ Redis已就绪"
+            break
+        fi
+        if [ $i -eq $max_wait ]; then
+            echo "❌ Redis启动超时，尝试继续启动服务..."
+            break
+        fi
+        sleep 1
+    done
 else
-    echo "✅ 无错误日志文件"
+    [ "$VERBOSE" = true ] && echo "⚡ 快速模式：跳过Redis等待"
 fi
 
 echo
 
-# 步骤4：显示磁盘使用情况
-LOGS_SIZE=$(du -sh ./logs 2>/dev/null | cut -f1 || echo "未知")
-DATA_SIZE=$(du -sh ./data 2>/dev/null | cut -f1 || echo "未知")
-echo "💾 存储使用: 日志 $LOGS_SIZE, 数据 $DATA_SIZE"
+# 步骤3：显示系统状态信息
+if [ "$SKIP_LOGS" = false ] && [ "$QUICK_MODE" = false ]; then
+    echo "3️⃣ 检查系统状态..."
+    
+    # 显示错误日志统计
+    if [ -f "./logs/error.log" ]; then
+        ERROR_COUNT=$(grep -c "\[ERROR\]" "./logs/error.log" 2>/dev/null || echo "0")
+        WARNING_COUNT=$(grep -c "\[WARNING\]" "./logs/error.log" 2>/dev/null || echo "0")
+        
+        # 确保数值有效
+        ERROR_COUNT=${ERROR_COUNT:-0}
+        WARNING_COUNT=${WARNING_COUNT:-0}
+        
+        if [ "$ERROR_COUNT" -gt 0 ] || [ "$WARNING_COUNT" -gt 0 ]; then
+            echo "📊 历史日志统计: $WARNING_COUNT 个警告, $ERROR_COUNT 个错误"
+            echo "   Web查看详情: http://localhost:8000/static/admin.html"
+        else
+            echo "✅ 无历史错误记录"
+        fi
+    else
+        echo "✅ 无错误日志文件"
+    fi
+else
+    [ "$VERBOSE" = true ] && echo "3️⃣ 跳过系统状态检查..."
+fi
+
 echo
+
+# 步骤4：显示磁盘使用情况  
+if [ "$SKIP_LOGS" = false ] && [ "$QUICK_MODE" = false ]; then
+    LOGS_SIZE=$(du -sh ./logs 2>/dev/null | cut -f1 || echo "未知")
+    DATA_SIZE=$(du -sh ./data 2>/dev/null | cut -f1 || echo "未知")
+    echo "💾 存储使用: 日志 $LOGS_SIZE, 数据 $DATA_SIZE"
+    echo
+elif [ "$VERBOSE" = true ]; then
+    echo "💾 跳过磁盘使用检查"
+    echo
+fi
 
 # 步骤5：启动所有服务
 echo "4️⃣ 启动所有服务..."
 echo
 
+# 构建启动参数
+START_ARGS=""
+[ "$QUICK_MODE" = true ] && START_ARGS="$START_ARGS --quick"
+[ "$VERBOSE" = true ] && START_ARGS="$START_ARGS --verbose"
+
 # 静默启动，避免重复信息
-exec ./start.sh
+exec ./start.sh $START_ARGS

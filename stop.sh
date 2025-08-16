@@ -9,7 +9,12 @@ show_help() {
     echo "用法: $0 [OPTIONS]"
     echo ""
     echo "选项:"
-    echo "  --help, -h    显示此帮助信息"
+    echo "  --help, -h       显示此帮助信息"
+    echo "  --force, -f      强制停止（跳过优雅关闭）"
+    echo "  --keep-redis     保持Redis服务运行"
+    echo "  --timeout=SEC    设置停止超时时间（默认10秒）"
+    echo "  --verbose, -v    显示详细停止信息"
+    echo "  --quiet, -q      静默模式（减少输出）"
     echo ""
     echo "功能:"
     echo "  • 优雅停止所有服务进程"
@@ -38,11 +43,41 @@ show_help() {
 }
 
 # 解析命令行参数
+FORCE_STOP=false
+KEEP_REDIS=false
+TIMEOUT=10
+VERBOSE=false
+QUIET=false
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h)
             show_help
             exit 0
+            ;;
+        --force|-f)
+            FORCE_STOP=true
+            shift
+            ;;
+        --keep-redis)
+            KEEP_REDIS=true
+            shift
+            ;;
+        --timeout=*)
+            TIMEOUT="${1#*=}"
+            if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]]; then
+                echo "❌ 错误：超时时间必须是数字"
+                exit 1
+            fi
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --quiet|-q)
+            QUIET=true
+            shift
             ;;
         *)
             echo "❌ 未知参数: $1"
@@ -61,28 +96,40 @@ echo "📍 查找并停止所有服务进程..."
 stop_process() {
     local process_name="$1"
     local pattern="$2"
-    local timeout="${3:-10}"
+    local timeout="${3:-$TIMEOUT}"
     
-    echo "🔍 查找 $process_name 进程..."
+    [ "$QUIET" = false ] && echo "🔍 查找 $process_name 进程..."
     local pids=$(ps aux | grep "$pattern" | grep -v grep | awk '{print $2}')
     
     if [ -z "$pids" ]; then
-        echo "   ✅ 未找到 $process_name 进程"
+        [ "$VERBOSE" = true ] && echo "   ✅ 未找到 $process_name 进程"
         return 0
     fi
     
-    echo "   📍 找到 $process_name 进程: $pids"
+    [ "$QUIET" = false ] && echo "   📍 找到 $process_name 进程: $pids"
     
-    # 发送TERM信号进行优雅关闭
-    for pid in $pids; do
-        if kill -0 $pid 2>/dev/null; then
-            echo "   🛑 向进程 $pid 发送停止信号..."
-            kill -TERM $pid 2>/dev/null || true
-        fi
-    done
+    # 发送TERM信号进行优雅关闭或强制停止
+    if [ "$FORCE_STOP" = true ]; then
+        [ "$VERBOSE" = true ] && echo "   ⚡ 强制停止模式"
+        for pid in $pids; do
+            if kill -0 $pid 2>/dev/null; then
+                [ "$VERBOSE" = true ] && echo "   🛑 强制终止进程 $pid..."
+                kill -9 $pid 2>/dev/null || true
+            fi
+        done
+        [ "$QUIET" = false ] && echo "   ✅ $process_name 进程已强制停止"
+        return 0
+    else
+        for pid in $pids; do
+            if kill -0 $pid 2>/dev/null; then
+                [ "$VERBOSE" = true ] && echo "   🛑 向进程 $pid 发送停止信号..."
+                kill -TERM $pid 2>/dev/null || true
+            fi
+        done
+    fi
     
     # 等待进程优雅关闭
-    echo "   ⏳ 等待进程优雅关闭 (最多 ${timeout}秒)..."
+    [ "$QUIET" = false ] && echo "   ⏳ 等待进程优雅关闭 (最多 ${timeout}秒)..."
     for i in $(seq 1 $timeout); do
         local remaining_pids=""
         for pid in $pids; do
@@ -92,7 +139,7 @@ stop_process() {
         done
         
         if [ -z "$remaining_pids" ]; then
-            echo "   ✅ $process_name 进程已正常停止"
+            [ "$QUIET" = false ] && echo "   ✅ $process_name 进程已正常停止"
             return 0
         fi
         
@@ -102,13 +149,13 @@ stop_process() {
     # 如果还有进程，强制终止
     for pid in $pids; do
         if kill -0 $pid 2>/dev/null; then
-            echo "   ⚠️  强制终止进程 $pid..."
+            [ "$VERBOSE" = true ] && echo "   ⚠️  强制终止进程 $pid..."
             kill -9 $pid 2>/dev/null || true
         fi
     done
     
     sleep 1
-    echo "   ✅ $process_name 进程已强制停止"
+    [ "$QUIET" = false ] && echo "   ✅ $process_name 进程已强制停止"
 }
 
 # 按依赖顺序停止服务
@@ -143,7 +190,12 @@ fi
 
 echo "✅ 所有服务进程已停止"
 
-echo "🐳 停止Redis服务..."
-docker compose stop redis 2>/dev/null || true
+# 停止Redis服务
+if [ "$KEEP_REDIS" = false ]; then
+    [ "$QUIET" = false ] && echo "🐳 停止Redis服务..."
+    docker compose stop redis 2>/dev/null || true
+else
+    [ "$VERBOSE" = true ] && echo "⏭️ 保持Redis服务运行"
+fi
 
-echo "🔧 清理完成"
+[ "$QUIET" = false ] && echo "🔧 清理完成"

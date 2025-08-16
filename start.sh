@@ -11,7 +11,12 @@ show_help() {
     echo "用法: $0 [OPTIONS]"
     echo ""
     echo "选项:"
-    echo "  --help, -h    显示此帮助信息"
+    echo "  --help, -h         显示此帮助信息"
+    echo "  --no-redis         跳过Redis服务启动"
+    echo "  --skip-deps        跳过依赖检查和安装"
+    echo "  --force-reinstall  强制重新安装依赖"
+    echo "  --verbose, -v      显示详细启动信息"
+    echo "  --quick, -q        快速启动模式（跳过等待）"
     echo ""
     echo "功能:"
     echo "  • 自动检查并创建虚拟环境"
@@ -44,11 +49,37 @@ show_help() {
 }
 
 # 解析命令行参数
+SKIP_REDIS=false
+SKIP_DEPS=false
+FORCE_REINSTALL=false
+VERBOSE=false
+QUICK_MODE=false
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h)
             show_help
             exit 0
+            ;;
+        --no-redis)
+            SKIP_REDIS=true
+            shift
+            ;;
+        --skip-deps)
+            SKIP_DEPS=true
+            shift
+            ;;
+        --force-reinstall)
+            FORCE_REINSTALL=true
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --quick|-q)
+            QUICK_MODE=true
+            shift
             ;;
         *)
             echo "❌ 未知参数: $1"
@@ -71,10 +102,17 @@ echo "🔧 激活虚拟环境..."
 source venv/bin/activate
 
 # 检查依赖
-if [ ! -f "venv/installed.flag" ]; then
-    echo "📚 安装依赖..."
-    pip install -r requirements.txt
-    touch venv/installed.flag
+if [ "$SKIP_DEPS" = false ]; then
+    if [ "$FORCE_REINSTALL" = true ] || [ ! -f "venv/installed.flag" ]; then
+        echo "📚 $([ "$FORCE_REINSTALL" = true ] && echo "重新安装" || echo "安装")依赖..."
+        [ "$FORCE_REINSTALL" = true ] && rm -f venv/installed.flag
+        pip install -r requirements.txt
+        touch venv/installed.flag
+    elif [ "$VERBOSE" = true ]; then
+        echo "✅ 依赖已安装（跳过安装检查）"
+    fi
+else
+    [ "$VERBOSE" = true ] && echo "⏭️ 跳过依赖检查"
 fi
 
 # 创建必要的目录
@@ -84,25 +122,36 @@ mkdir -p logs data temp_media
 chmod 755 logs data temp_media
 
 # 检查并启动Redis服务（PostgreSQL已废弃）
-echo "🐳 检查Redis服务..."
-
-if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
-    echo "📦 启动Redis缓存..."
-    docker compose up -d redis
+if [ "$SKIP_REDIS" = false ]; then
+    echo "🐳 检查Redis服务..."
     
-    # 等待Redis就绪
-    echo "⏳ 等待Redis就绪..."
-    for i in {1..10}; do
-        if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
-            echo "✅ Redis已就绪"
-            break
+    if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
+        echo "📦 启动Redis缓存..."
+        docker compose up -d redis
+        
+        # 等待Redis就绪
+        if [ "$QUICK_MODE" = false ]; then
+            echo "⏳ 等待Redis就绪..."
+            max_wait=$([ "$QUICK_MODE" = true ] && echo 5 || echo 10)
+            for i in $(seq 1 $max_wait); do
+                if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
+                    echo "✅ Redis已就绪"
+                    break
+                fi
+                if [ $i -eq $max_wait ]; then
+                    echo "❌ Redis启动超时"
+                    exit 1
+                fi
+                sleep 1
+            done
+        else
+            [ "$VERBOSE" = true ] && echo "⚡ 快速模式：跳过Redis等待"
         fi
-        if [ $i -eq 10 ]; then
-            echo "❌ Redis启动超时"
-            exit 1
-        fi
-        sleep 1
-    done
+    else
+        [ "$VERBOSE" = true ] && echo "✅ Redis服务已运行"
+    fi
+else
+    [ "$VERBOSE" = true ] && echo "⏭️ 跳过Redis服务启动"
 fi
 
 # 数据库初始化已废弃（使用Redis+JSON存储）
