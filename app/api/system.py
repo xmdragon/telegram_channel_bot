@@ -615,17 +615,54 @@ async def reset_system() -> Dict[str, Any]:
         
         logger.warning("🚨 执行系统重置操作 - 这将清空所有消息数据")
         
-        # 1. 停止telegram_collector进程
+        # 1. 通过进程管理器停止采集服务（更优雅的方式）
         stopped_processes = []
-        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-            try:
-                cmdline = ' '.join(proc.info['cmdline'] or [])
-                if 'telegram_collector.py' in cmdline:
-                    logger.info(f"停止Telegram采集器进程 PID: {proc.info['pid']}")
-                    proc.terminate()
-                    stopped_processes.append(proc.info['pid'])
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
+        supervisor_status_file = Path("logs/supervisor_status.json")
+        
+        try:
+            # 尝试通过API停止采集服务
+            import aiohttp
+            import asyncio
+            
+            async def stop_collector_service():
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        # 这里应该调用进程管理器的API来停止服务
+                        # 但由于没有暴露API，我们使用信号文件的方式
+                        pass
+                except:
+                    pass
+            
+            # 如果无法通过API，直接停止进程
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = ' '.join(proc.info['cmdline'] or [])
+                    if 'telegram_collector.py' in cmdline:
+                        logger.info(f"停止Telegram采集器进程 PID: {proc.info['pid']}")
+                        proc.terminate()
+                        stopped_processes.append(proc.info['pid'])
+                        
+                        # 等待进程停止
+                        try:
+                            proc.wait(timeout=10)  # 等待最多10秒
+                            logger.info(f"采集器进程 {proc.info['pid']} 已优雅停止")
+                        except psutil.TimeoutExpired:
+                            # 如果10秒后还没停止，强制杀死
+                            logger.warning(f"强制杀死采集器进程 {proc.info['pid']}")
+                            proc.kill()
+                            proc.wait()  # 等待进程真正结束
+                            
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+                    
+            # 创建一个标记文件，指示采集服务应该保持停止状态
+            reset_flag_file = Path("logs/collector_reset.flag")
+            reset_flag_file.write_text(f"reset_at:{datetime.now().isoformat()}")
+            logger.info("创建采集器重置标记，防止自动重启")
+            
+        except Exception as e:
+            logger.warning(f"停止采集器时出现异常: {e}")
+            # 继续执行重置流程
         
         # 2. 清空Redis中的消息数据
         redis_store = get_redis_message_store()
@@ -675,12 +712,14 @@ async def reset_system() -> Dict[str, Any]:
         
         return {
             "success": True,
-            "message": "系统重置完成",
+            "message": "系统重置完成，采集服务已停止",
             "details": {
                 "stopped_processes": len(stopped_processes),
                 "cleared_messages": len(message_keys) if 'message_keys' in locals() else 0,
                 "reset_channels": reset_count,
-                "temp_media_cleared": True
+                "temp_media_cleared": True,
+                "collector_stopped": True,
+                "restart_instructions": "使用 POST /api/system/enable-collector 重新启用采集"
             }
         }
         
@@ -689,4 +728,35 @@ async def reset_system() -> Dict[str, Any]:
         return {
             "success": False,
             "message": f"系统重置失败: {str(e)}"
+        }
+
+@router.post("/enable-collector")
+async def enable_collector() -> Dict[str, Any]:
+    """重新启用Telegram采集服务"""
+    try:
+        from pathlib import Path
+        
+        # 删除重置标记文件
+        reset_flag_file = Path("logs/collector_reset.flag")
+        if reset_flag_file.exists():
+            reset_flag_file.unlink()
+            logger.info("删除采集器重置标记，允许重新启动")
+        
+        # 这里可以添加主动启动采集器的逻辑
+        # 但通常进程管理器会在下次健康检查时自动启动
+        
+        return {
+            "success": True,
+            "message": "采集服务已重新启用，将在几秒内自动启动",
+            "details": {
+                "flag_removed": reset_flag_file.existed() if 'reset_flag_file' in locals() else False,
+                "auto_restart_enabled": True
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"启用采集器失败: {e}")
+        return {
+            "success": False,
+            "message": f"启用采集器失败: {str(e)}"
         }

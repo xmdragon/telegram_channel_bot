@@ -258,8 +258,14 @@ class DevSupervisor:
                 for service in self.services.values():
                     if service.status == ServiceStatus.RUNNING:
                         if not service.check_health():
-                            # 服务异常，尝试重启
+                            # 服务异常，检查是否需要重启
                             if service.config.auto_restart:
+                                # 检查是否有重置标记文件（特别针对采集器）
+                                reset_flag_file = Path("logs/collector_reset.flag")
+                                if service.config.name == "collector" and reset_flag_file.exists():
+                                    logger.info("检测到采集器重置标记，跳过自动重启")
+                                    continue
+                                    
                                 service.restart_count += 1
                                 service.last_restart_time = datetime.now()
                                 logger.warning(f"服务 {service.config.name} 异常退出，尝试重启 (第{service.restart_count}次)")
