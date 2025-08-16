@@ -289,12 +289,19 @@
                                     class="btn btn-sm btn-danger">
                                 ❌ 拒绝
                             </button>
-                            <!-- AI训练按钮 -->
-                            <button v-if="buttonVisibility.markAsAd" 
+                            <!-- AI训练按钮 - 二选一显示 -->
+                            <button v-if="buttonVisibility.markAsAd && !message.is_ad" 
                                     @click="markAsAd(message)" 
                                     class="btn btn-sm btn-warning"
                                     title="将此消息标记为广告并加入训练样本">
                                 🚫 广告
+                            </button>
+                            <!-- 不是广告按钮 - 纠正AI误判 -->
+                            <button v-if="message.is_ad" 
+                                    @click="markAsNotAd(message)" 
+                                    class="btn btn-sm btn-success"
+                                    title="AI误判，此消息不是广告，恢复为待审核状态">
+                                ✅ 不是广告
                             </button>
                             <button v-if="buttonVisibility.markAsTail" 
                                     @click="trainTail(message)" 
@@ -336,6 +343,13 @@
                                     class="btn btn-sm btn-warning"
                                     title="将此消息标记为广告并加入训练样本">
                                 🚫 广告
+                            </button>
+                            <!-- 不是广告按钮 - 用于纠正AI误判 -->
+                            <button v-if="message.is_ad" 
+                                    @click="markAsNotAd(message)" 
+                                    class="btn btn-sm btn-success"
+                                    title="AI误判，此消息不是广告，恢复为待审核状态">
+                                ✅ 不是广告
                             </button>
                             <button v-if="buttonVisibility.markAsTail" 
                                     @click="trainTail(message)" 

@@ -22,6 +22,6 @@ api_router.include_router(auth_router, prefix="/auth", tags=["telegram-auth"])  
 api_router.include_router(admin_auth_router, prefix="/admin/auth", tags=["admin-auth"])  # 管理员认证，使用不同路径
 api_router.include_router(system_router, tags=["system"])
 api_router.include_router(lock_router, prefix="/lock", tags=["lock"])
-api_router.include_router(training_router, prefix="/training", tags=["training"])  # 修复后重新启用
+api_router.include_router(training_router, prefix="/training-db", tags=["training"])  # 修复后重新启用
 api_router.include_router(training_api_router, prefix="/training", tags=["training-api"])  # 训练API（尾部、分隔符、反馈）
 # api_router.include_router(channel_resolver_router, prefix="/channel-resolver", tags=["channel-resolver"])  # 暂时禁用

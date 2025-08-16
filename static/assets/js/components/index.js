@@ -1541,14 +1541,18 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post('/api/training/mark-ad', {
+                const response = await axios.post('/api/training-db/mark-ad-message', {
                     message_id: message.id
                 });
                 
                 if (response.data.success) {
-                    MessageManager.success('已标记为广告并加入训练样本');
-                    // 从消息列表中移除该消息
-                    this.messages = this.messages.filter(m => m.id !== message.id);
+                    const hasAutoRejected = response.data.auto_rejected;
+                    const successMsg = hasAutoRejected ? 
+                        '已标记为广告、自动拒绝并加入训练样本' : 
+                        '已标记为广告并加入训练样本';
+                    MessageManager.success(successMsg);
+                    // 重新加载消息列表以反映状态变化
+                    await this.loadMessages();
                     await this.loadStats();
                 } else {
                     MessageManager.error(response.data.message || '标记失败');
@@ -1556,6 +1560,29 @@ const MainApp = {
             } catch (error) {
                 // console.error('标记广告失败:', error);
                 MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 标记为"不是广告" - 纠正AI误判
+        async markAsNotAd(message) {
+            try {
+                if (!confirm('确定将此消息标记为"不是广告"吗？这将帮助AI减少误判。')) {
+                    return;
+                }
+                
+                const response = await axios.post(`/api/messages/${message.id}/not-ad`);
+                
+                if (response.data.success) {
+                    MessageManager.success('已标记为"不是广告"，消息状态已改为待审核');
+                    // 重新加载消息以获取最新的过滤内容
+                    // 因为后端已应用了尾部过滤和推广链接过滤
+                    await this.loadMessages();
+                    await this.loadStats();
+                } else {
+                    MessageManager.error(response.data.message || '操作失败');
+                }
+            } catch (error) {
+                MessageManager.error('操作失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         

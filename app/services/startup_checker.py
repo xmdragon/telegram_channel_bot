@@ -147,6 +147,10 @@ class StartupChecker:
         }
         
         try:
+            # 获取目标频道配置，用于过滤
+            target_channel_id = await self.config_manager.get_config('channels.target_channel_id')
+            target_channel = await self.config_manager.get_config('channels.target_channel')
+            
             # 从 JSON 存储获取所有活跃源频道
             channel_store = get_json_channel_store()
             channels = channel_store.get_channels_by_type('source')
@@ -156,12 +160,18 @@ class StartupChecker:
                 return result
             
             for channel in channels:
-                # 棆查是否为活跃状态
+                # 检查是否为活跃状态
                 if not channel.get('is_active', True):
                     continue
                     
                 channel_name = channel.get('channel_name', '')
                 channel_id = channel.get('channel_id', '')
+                
+                # 跳过目标频道（如果错误地出现在源频道列表中）
+                if channel_id == target_channel_id or channel_name == target_channel:
+                    logger.warning(f"发现目标频道错误地存在于源频道列表中，跳过处理: {channel_name} ({channel_id})")
+                    result['warnings'].append(f"目标频道 {channel_name} 错误地标记为源频道，已跳过")
+                    continue
                 
                 if not channel_id or channel_id.strip() == '':
                     # 需要解析ID
@@ -215,14 +225,23 @@ class StartupChecker:
             
         return result
     
-    async def _resolve_and_save_channel_id(self, channel_name: str) -> Optional[str]:
-        """解析并保存频道ID到JSON存储"""
+    async def _resolve_and_save_channel_id(self, channel_name: str, channel_type: str = 'source') -> Optional[str]:
+        """解析并保存频道ID到JSON存储（仅用于源频道）"""
         try:
+            # 检查是否为目标频道（目标频道不应该被添加到频道列表中）
+            target_channel_id = await self.config_manager.get_config('channels.target_channel_id')
+            target_channel = await self.config_manager.get_config('channels.target_channel')
+            
             # 使用频道ID解析器解析
             resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
             
             if resolved_id:
-                # 保存到JSON存储
+                # 如果解析的ID与目标频道相同，不应该添加到频道列表中
+                if resolved_id == target_channel_id or channel_name == target_channel:
+                    logger.warning(f"跳过添加目标频道到源频道列表: {channel_name} -> {resolved_id}")
+                    return resolved_id
+                
+                # 保存到JSON存储（仅非目标频道）
                 channel_store = get_json_channel_store()
                 
                 # 更新频道配置
@@ -235,7 +254,7 @@ class StartupChecker:
                     new_channel = {
                         'channel_name': channel_name,
                         'channel_id': resolved_id,
-                        'channel_type': 'source',
+                        'channel_type': channel_type,
                         'is_active': True
                     }
                     # 使用add_channel方法以确保一致的键格式和重复检查

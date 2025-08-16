@@ -46,14 +46,17 @@ class UnifiedFilterEngine:
         
         pipeline = FilterPipeline(config)
         
-        # 按顺序添加7个过滤器
-        pipeline.add_filter(DuplicateDetectorFilter())
-        pipeline.add_filter(AdDetectorFilter())
-        pipeline.add_filter(ChatContentFilter())  # 聊天内容检测
-        pipeline.add_filter(TailFilter())
-        pipeline.add_filter(FooterPromoFilter())  # 尾部推广链接过滤器
-        pipeline.add_filter(MarkdownFilter())
-        pipeline.add_filter(PromoLinkFilter())
+        # 按新顺序添加7个过滤器
+        # 1-4: 内容清理类过滤器（先清理推广内容）
+        pipeline.add_filter(TailFilter())                # 1. 尾部过滤
+        pipeline.add_filter(FooterPromoFilter())         # 2. 尾部推广链接过滤器
+        pipeline.add_filter(MarkdownFilter())            # 3. Markdown格式清理
+        pipeline.add_filter(PromoLinkFilter())           # 4. 推广链接过滤
+        
+        # 5-7: 内容检测类过滤器（清理后再检测，避免误判）
+        pipeline.add_filter(DuplicateDetectorFilter())   # 5. 去重检测
+        pipeline.add_filter(AdDetectorFilter())          # 6. 广告检测
+        pipeline.add_filter(ChatContentFilter())         # 7. 聊天内容检测
         
         return pipeline
         
@@ -229,10 +232,13 @@ class UnifiedFilterEngine:
             # 创建过滤器上下文
             filter_context = FilterContext(
                 message_id="temp",
-                channel_id=channel_id,
-                media_files=media_files,
-                message_obj=message_obj
+                channel_id=channel_id
             )
+            # 添加额外信息到元数据
+            if media_files:
+                filter_context.add_metadata('media_files', media_files)
+            if message_obj:
+                filter_context.add_metadata('message_obj', message_obj)
             
             # 执行过滤器管道
             pipeline_result = await self.filter_pipeline.process(content, filter_context)

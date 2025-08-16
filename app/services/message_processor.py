@@ -330,11 +330,54 @@ class MessageProcessor:
                 logger.warning(f"获取活跃频道数失败，使用消息频道数: {e}")
                 stats["channels"] = len(channel_set)
             
-            # 通过采样方式估算广告和重复数量（避免遍历所有消息）
-            sample_size = min(100, stats["total"])  # 最多采样100条
+            # 🔧 修复：通过采样方式估算广告、重复和聊天数量（避免遍历所有消息）
+            sample_size = min(500, stats["total"])  # 增加采样数量提高准确性
+            chat_count = 0
+            
             if sample_size > 0:
-                sample_messages = self.redis_store.get_pending_messages(limit=sample_size)
+                # 获取不同状态的消息样本进行分析
+                sample_messages = []
                 
+                # 从不同状态中采样
+                pending_sample = self.redis_store.get_pending_messages(limit=min(200, sample_size // 2))
+                sample_messages.extend(pending_sample)
+                
+                # 获取被拒绝的消息样本（包含聊天消息）
+                try:
+                    rejected_sample = self.redis_store.get_messages_by_status("rejected", limit=min(300, sample_size))
+                    sample_messages.extend(rejected_sample)
+                except:
+                    # 降级方案：直接查询rejected消息
+                    pattern = "msg:*"
+                    keys = self.redis_store.redis.keys(pattern)
+                    rejected_keys = []
+                    for key in keys[:500]:  # 限制检查数量
+                        try:
+                            msg_data = self.redis_store.redis.hgetall(key)
+                            if msg_data.get(b'status') == b'rejected':
+                                rejected_keys.append(key)
+                                if len(rejected_keys) >= 300:
+                                    break
+                        except:
+                            continue
+                    
+                    # 解析rejected消息
+                    for key in rejected_keys:
+                        try:
+                            msg_data = self.redis_store.redis.hgetall(key)
+                            # 转换为统一格式
+                            msg = {}
+                            for k, v in msg_data.items():
+                                if isinstance(k, bytes):
+                                    k = k.decode('utf-8')
+                                if isinstance(v, bytes):
+                                    v = v.decode('utf-8')
+                                msg[k] = v
+                            sample_messages.append(msg)
+                        except:
+                            continue
+                
+                # 分析样本消息
                 for msg in sample_messages:
                     # 检查广告标记
                     is_ad = msg.get('is_ad', False)
@@ -343,16 +386,30 @@ class MessageProcessor:
                     if is_ad:
                         ad_count += 1
                     
-                    # 检查重复标记（通过filtered_content判断）
-                    filtered_content = msg.get('filtered_content', '')
-                    if '重复消息' in filtered_content:
+                    # 检查重复标记
+                    filter_reason = msg.get('filter_reason', '')
+                    reject_reason = msg.get('reject_reason', '')
+                    all_reasons = f"{filter_reason} {reject_reason}".lower()
+                    
+                    if '重复' in all_reasons or 'duplicate' in all_reasons:
                         duplicate_count += 1
+                    
+                    # 🔧 新增：检查聊天内容标记
+                    if ('聊天内容' in all_reasons or 'chat' in all_reasons or 
+                        'chatcontentfilter' in all_reasons.replace('_', '').replace(' ', '') or
+                        '检测到聊天内容' in all_reasons):
+                        chat_count += 1
                 
                 # 按比例推算全局数量
-                if sample_size > 0:
-                    ratio = stats["total"] / sample_size
+                if len(sample_messages) > 0:
+                    ratio = stats["total"] / len(sample_messages)
                     stats["ads"] = int(ad_count * ratio)
                     stats["duplicates"] = int(duplicate_count * ratio)
+                    stats["chats"] = int(chat_count * ratio)
+                    
+                    logger.info(f"📊 消息统计采样: 样本{len(sample_messages)}条, 聊天{chat_count}条, 广告{ad_count}条, 重复{duplicate_count}条")
+                else:
+                    stats["chats"] = 0
             
             logger.debug(f"消息统计: {stats}")
             return stats
@@ -403,11 +460,27 @@ class MessageProcessor:
                                   new_status: str, reviewed_by: str = None) -> bool:
         """更新消息状态"""
         try:
-            return self.redis_store.update_message_status(
+            # 🔧 修复：确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                    logger.debug("MessageProcessor: redis_store初始化成功（状态更新）")
+                except RuntimeError as e:
+                    logger.error(f"MessageProcessor: redis_store初始化失败（状态更新）: {e}")
+                    return False
+            
+            result = self.redis_store.update_message_status(
                 channel_id, message_id, new_status, reviewed_by
             )
+            
+            if result:
+                logger.debug(f"✅ 状态更新成功: {channel_id}:{message_id} -> {new_status}")
+            else:
+                logger.warning(f"❌ 状态更新失败: {channel_id}:{message_id} -> {new_status}")
+                
+            return result
         except Exception as e:
-            logger.error(f"更新消息状态失败 {channel_id}:{message_id}: {e}")
+            logger.error(f"更新消息状态异常 {channel_id}:{message_id}: {e}", exc_info=True)
             return False
     
     async def delete_message(self, channel_id: str, message_id: int) -> bool:

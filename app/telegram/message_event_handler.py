@@ -38,11 +38,22 @@ class MessageEventHandler:
         
         # 构建监听列表（转换为整数格式）
         chats_to_monitor = []
-        for channel_id in source_channels:
+        for channel_data in source_channels:
             try:
-                chats_to_monitor.append(int(channel_id))
+                # 检查是否为字典格式（频道对象）
+                if isinstance(channel_data, dict):
+                    # 提取频道ID
+                    channel_id = channel_data.get('channel_id', '')
+                    if channel_id:
+                        chats_to_monitor.append(int(channel_id))
+                        logger.debug(f"添加监听频道: {channel_data.get('channel_name', 'Unknown')} -> {channel_id}")
+                    else:
+                        logger.warning(f"频道缺少channel_id: {channel_data.get('channel_name', 'Unknown')}")
+                else:
+                    # 假设是字符串格式的ID
+                    chats_to_monitor.append(int(channel_data))
             except (ValueError, TypeError):
-                logger.warning(f"无法转换频道ID: {channel_id}")
+                logger.warning(f"无法转换频道ID，跳过异常数据: {channel_data}")
         
         # 添加审核群
         if review_group_id:
@@ -79,6 +90,13 @@ class MessageEventHandler:
     async def _handle_new_message(self, event):
         """处理新消息事件"""
         try:
+            # 检查采集开关
+            from app.services.config_manager import config_manager
+            collection_enabled = await config_manager.get_config('collection.enabled', True)
+            if not collection_enabled:
+                logger.debug("采集已禁用，忽略新消息")
+                return
+            
             message = event.message
             if not message:
                 return

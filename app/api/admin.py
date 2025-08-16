@@ -369,7 +369,8 @@ async def get_system_config():
         "source_channels": await db_settings.get_source_channels(),
         "history_message_limit": await db_settings.get_history_message_limit(),
         "ad_keywords": await db_settings.get_ad_keywords_text(),
-        "channel_signature": await config_manager.get_config('channels.signature', '')
+        "channels.signature": await config_manager.get_config('channels.signature', ''),
+        "collection.enabled": await config_manager.get_config('collection.enabled', True)
     }
 
 @router.post("/restart")

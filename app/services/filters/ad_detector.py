@@ -155,11 +155,23 @@ class AdDetectorFilter(BaseFilter):
             final_score, is_ad, main_reason = self._evaluate_detection_results(detection_results)
             
             if is_ad:
-                result.passed = False
-                result.should_early_stop = True  # 关键：设置早停标志
+                # 🔧 重要修改：AI检测器只检测标记，不过滤消息
+                result.passed = True  # 让消息继续通过
+                # 不设置 should_early_stop，允许后续过滤器继续处理
                 result.confidence = final_score
-                result.reason = f"检测到广告内容: {main_reason}"
-                result.filtered_content = "[广告内容已过滤]"
+                result.reason = f"AI检测到疑似广告: {main_reason}"
+                # 保持原始内容不变，不过滤
+                result.filtered_content = content
+                
+                # 在context中记录广告检测结果，供后续处理使用
+                context.set_metadata('ad_detection_result', {
+                    'is_ad': True,
+                    'confidence': final_score,
+                    'main_reason': main_reason,
+                    'detection_results': detection_results,
+                    'threshold': self.final_threshold,
+                    'methods_used': list(detection_results.keys())
+                })
                 
                 # 记录详细判定依据
                 result.details = {
@@ -167,10 +179,11 @@ class AdDetectorFilter(BaseFilter):
                     'final_score': final_score,
                     'main_reason': main_reason,
                     'threshold': self.final_threshold,
-                    'methods_used': list(detection_results.keys())
+                    'methods_used': list(detection_results.keys()),
+                    'action': 'detected_only'  # 标记为仅检测
                 }
                 
-                logger.info(f"✅ 广告检测: 置信度 {final_score:.2f}, 原因: {main_reason}")
+                logger.info(f"🔍 AI广告检测（仅标记）: 置信度 {final_score:.2f}, 原因: {main_reason}")
             else:
                 result.details = {
                     'detection_results': detection_results,

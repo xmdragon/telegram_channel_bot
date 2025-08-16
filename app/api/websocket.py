@@ -1,6 +1,7 @@
 """
 WebSocket 实时消息推送
 """
+import asyncio
 import json
 import logging
 from typing import Dict, Set
@@ -101,11 +102,15 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket_manager.connect(websocket)
     try:
         while True:
-            # 保持连接活跃，接收客户端ping
-            data = await websocket.receive_text()
-            if data == "ping":
-                pong_response = json.dumps({"type": "pong", "timestamp": datetime.utcnow().isoformat()})
-                await websocket_manager.send_personal_message(pong_response, websocket)
+            # 保持连接活跃，接收客户端消息（可选）
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                if data == "ping":
+                    pong_response = json.dumps({"type": "pong", "timestamp": datetime.utcnow().isoformat()})
+                    await websocket_manager.send_personal_message(pong_response, websocket)
+            except asyncio.TimeoutError:
+                # 超时是正常的，继续保持连接
+                continue
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket)
     except Exception as e:

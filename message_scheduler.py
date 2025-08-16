@@ -170,6 +170,14 @@ class MessageSchedulerService:
             # 保持服务运行
             try:
                 while self.is_running:
+                    # 检查调度服务开关
+                    from app.services.config_manager import config_manager
+                    scheduler_enabled = await config_manager.get_config('scheduler.enabled', True)
+                    if not scheduler_enabled:
+                        logger.debug("调度服务已禁用，等待启用...")
+                        await asyncio.sleep(10)  # 暂停调度，等待启用
+                        continue
+                    
                     await asyncio.sleep(1)
             except KeyboardInterrupt:
                 logger.info("收到停止信号，正在关闭...")

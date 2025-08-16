@@ -178,8 +178,35 @@ class JSONChannelStore(JSONStore):
         try:
             channels = self._load_json(self.CHANNEL_FILE)
             
-            # 检查是否已存在相同channel_id的频道
+            # 验证频道数据
             channel_id = channel_data.get('channel_id')
+            channel_name = channel_data.get('channel_name')
+            channel_type = channel_data.get('channel_type', 'source')
+            
+            # 防止目标频道被添加为源频道
+            if channel_type == 'source' and channel_id:
+                try:
+                    # 获取目标频道配置进行比较
+                    from app.services.config_manager import config_manager
+                    import asyncio
+                    
+                    # 在同步方法中运行异步代码
+                    loop = None
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    
+                    target_channel_id = loop.run_until_complete(config_manager.get_config('channels.target_channel_id'))
+                    target_channel = loop.run_until_complete(config_manager.get_config('channels.target_channel'))
+                    
+                    if channel_id == target_channel_id or channel_name == target_channel:
+                        logger.error(f"拒绝添加目标频道为源频道: {channel_name} ({channel_id})")
+                        return False
+                except Exception as e:
+                    logger.warning(f"验证目标频道时出错，跳过验证: {e}")
+            
             if channel_id:
                 # 检查是否已存在
                 for existing_key, existing_data in channels.items():

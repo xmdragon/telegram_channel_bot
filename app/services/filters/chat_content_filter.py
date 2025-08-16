@@ -110,6 +110,17 @@ class ChatContentFilter(BaseFilter):
         """预检查：快速跳过明显不是聊天的内容"""
         content_length = len(content.strip())
         
+        # 🔧 修复：纯媒体消息（内容为空但有媒体）不是聊天
+        if content_length == 0:
+            # 检查是否为纯媒体消息
+            media_files = context.get_metadata('media_files', [])
+            message_obj = context.get_metadata('message_obj')
+            
+            # 如果有媒体文件或消息对象包含媒体，则不是聊天
+            if media_files or (message_obj and hasattr(message_obj, 'media') and message_obj.media):
+                logger.debug("跳过纯媒体消息的聊天检测")
+                return False
+        
         # 过长的消息通常不是聊天
         if content_length > self.max_chat_length:
             return False

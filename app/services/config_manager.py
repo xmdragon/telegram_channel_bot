@@ -350,6 +350,18 @@ DEFAULT_CONFIGS = {
         "config_type": "string"
     },
     
+    # 服务控制配置
+    "collection.enabled": {
+        "value": True,
+        "description": "启用Telegram消息采集",
+        "config_type": "boolean"
+    },
+    "scheduler.enabled": {
+        "value": True, 
+        "description": "启用消息调度服务（自动转发、清理）",
+        "config_type": "boolean"
+    },
+    
 }
 
 async def init_default_configs():

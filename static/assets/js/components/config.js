@@ -96,7 +96,8 @@ const ConfigApp = {
             // 系统设置
             systemConfig: {
                 history_message_limit: 50,
-                channel_signature: ''
+                channel_signature: '',
+                collection_enabled: true
             },
             
             // 过滤设置 - 系统自动管理
@@ -199,7 +200,8 @@ const ConfigApp = {
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
                         history_message_limit: response.data.history_message_limit || 50,
-                        channel_signature: response.data['channels.signature'] || ''
+                        channel_signature: response.data['channels.signature'] || '',
+                        collection_enabled: response.data['collection.enabled'] !== undefined ? response.data['collection.enabled'] : true
                     };
                 }
             } catch (error) {
@@ -398,7 +400,8 @@ const ConfigApp = {
                 // 准备保存的配置数据
                 const configData = {
                     'channels.history_message_limit': this.systemConfig.history_message_limit,
-                    'channels.signature': this.systemConfig.channel_signature
+                    'channels.signature': this.systemConfig.channel_signature,
+                    'collection.enabled': this.systemConfig.collection_enabled
                 };
                 
                 // 批量保存配置
@@ -418,7 +421,8 @@ const ConfigApp = {
         async resetSystemConfig() {
             this.systemConfig = {
                 history_message_limit: 50,
-                channel_signature: ''
+                channel_signature: '',
+                collection_enabled: true
             };
             MessageManager.success('系统配置已重置为默认值');
         },

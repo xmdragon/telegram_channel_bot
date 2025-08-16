@@ -321,38 +321,47 @@ async def batch_approve_messages(
         
         approved_count = sum(1 for success in update_results.values() if success)
         
-        # 批量转发到目标频道
+        # 🔧 修复：使用任务队列批量转发到目标频道，避免客户端锁冲突
         forwarded_count = 0
         try:
-            from app.telegram.bot import telegram_bot
-            if telegram_bot and telegram_bot.client:
-                from app.telegram.message_forwarder import message_forwarder
-                for msg_data in valid_messages:
-                    try:
-                        # 这里需要将Redis数据转换为适合message_forwarder的格式
-                        await message_forwarder.forward_to_target(telegram_bot.client, msg_data)
-                        forwarded_count += 1
-                    except Exception as e:
-                        msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
-                        logger.error(f"转发消息 {msg_key} 失败: {e}")
-                
-                # 记录用户反馈用于学习
+            from app.services.message_forward_queue import forward_queue
+            
+            # 提交所有转发任务到队列
+            task_ids = []
+            for msg_data in valid_messages:
                 try:
-                    from app.services.adaptive_learning import adaptive_learning
-                    for msg_data in valid_messages:
-                        msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                    msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                    task_id = await forward_queue.submit_forward_task(msg_key, "forward_to_target")
+                    task_ids.append((msg_key, task_id))
+                except Exception as e:
+                    logger.error(f"提交转发任务失败 {msg_key}: {e}")
+            
+            logger.info(f"批量批准：已提交 {len(task_ids)} 个转发任务到队列")
+            
+            # 等待所有任务完成（短暂等待，不阻塞用户响应）
+            import asyncio
+            await asyncio.sleep(2)  # 给队列处理时间
+            
+            # 检查已完成的任务
+            for msg_key, task_id in task_ids:
+                try:
+                    result = await forward_queue.get_task_result(msg_key, timeout=1)  # 快速检查
+                    if result and result.get('success'):
+                        forwarded_count += 1
+                        
+                        # 记录用户反馈用于学习
                         try:
+                            from app.services.adaptive_learning import adaptive_learning
                             await adaptive_learning.learn_from_user_action(msg_key, 'approved', reviewer_name)
                         except Exception as e:
                             logger.debug(f"记录学习反馈失败: {e}")
-                except ImportError:
-                    logger.debug("自适应学习模块未找到")
-                
-                logger.info(f"批量批准：{approved_count} 条消息已批准，{forwarded_count} 条已转发")
-            else:
-                logger.warning(f"批量批准：{approved_count} 条消息已批准但无法转发（Telegram客户端未连接）")
+                except Exception as e:
+                    logger.debug(f"检查转发结果失败 {msg_key}: {e}")
+            
+            logger.info(f"批量批准：{approved_count} 条消息已批准，{forwarded_count} 条已确认转发，其他任务在后台处理")
+            
         except Exception as e:
-            logger.error(f"批量转发消息失败: {e}")
+            logger.error(f"批量提交转发任务失败: {e}")
         
         # 广播批量状态更新到WebSocket客户端
         try:
@@ -546,14 +555,19 @@ async def approve_message(
         if not success:
             raise HTTPException(status_code=500, detail="更新消息状态失败")
         
-        # 转发到目标频道
+        # 🔧 修复：使用任务队列异步转发到目标频道，避免客户端锁冲突
         try:
-            logger.info(f"准备转发消息 {message_id} 到目标频道")
-            from app.telegram.bot import telegram_bot
+            logger.info(f"准备将消息 {message_id} 转发任务加入队列")
+            from app.services.message_forward_queue import forward_queue
             
-            if telegram_bot and telegram_bot.client:
-                from app.telegram.message_forwarder import message_forwarder
-                await message_forwarder.forward_to_target(telegram_bot.client, msg_data)
+            # 提交转发任务到队列
+            task_id = await forward_queue.submit_forward_task(message_id, "forward_to_target")
+            
+            # 等待任务完成（带超时）
+            result = await forward_queue.get_task_result(message_id, timeout=15)
+            
+            if result and result.get('success'):
+                logger.info(f"消息 {message_id} 已批准并成功转发到目标频道")
                 
                 # 记录用户反馈用于学习
                 try:
@@ -561,12 +575,14 @@ async def approve_message(
                     await adaptive_learning.learn_from_user_action(message_id, 'approved', reviewer_name)
                 except Exception as e:
                     logger.debug(f"记录学习反馈失败: {e}")
-                
-                logger.info(f"消息 {message_id} 已批准并转发到目标频道")
+                    
+            elif result and not result.get('success'):
+                logger.warning(f"消息 {message_id} 已批准但转发失败: {result.get('error_message')}")
             else:
-                logger.warning(f"消息 {message_id} 已批准但无法转发（Telegram客户端未连接）")
+                logger.warning(f"消息 {message_id} 已批准，转发任务已提交但超时未完成 (任务ID: {task_id})")
+                
         except Exception as e:
-            logger.error(f"转发消息 {message_id} 到目标频道失败: {e}", exc_info=True)
+            logger.error(f"提交转发任务失败 {message_id}: {e}", exc_info=True)
         
         # 广播状态更新到WebSocket客户端
         try:
@@ -850,6 +866,120 @@ async def delete_review_message(
         raise HTTPException(status_code=500, detail="删除审核群消息失败")
 
 
+async def apply_limited_filters(content: str, message_id: str) -> str:
+    """
+    对内容应用有限过滤器（仅尾部过滤 + 推广链接过滤）
+    用于"不是广告"功能中清理内容但保留主要信息
+    """
+    try:
+        from app.services.filters.base import FilterContext
+        from app.services.filters.tail_filter import TailFilter
+        from app.services.filters.promo_link_filter import PromoLinkFilter
+        
+        # 创建过滤上下文
+        context = FilterContext(content)
+        context.add_metadata('message_id', message_id)
+        context.add_metadata('limited_filtering', True)
+        
+        # 1. 应用尾部过滤
+        tail_filter = TailFilter()
+        tail_result = await tail_filter.filter(content, context)
+        filtered_content = tail_result.filtered_content if tail_result.passed else content
+        
+        logger.debug(f"尾部过滤结果: {len(content)} -> {len(filtered_content)} 字符")
+        
+        # 2. 应用推广链接过滤
+        promo_filter = PromoLinkFilter()
+        promo_result = await promo_filter.filter(filtered_content, context)
+        final_content = promo_result.filtered_content if promo_result.passed else filtered_content
+        
+        logger.debug(f"推广链接过滤结果: {len(filtered_content)} -> {len(final_content)} 字符")
+        
+        return final_content
+        
+    except Exception as e:
+        logger.error(f"有限过滤器应用失败: {e}")
+        # 失败时返回原始内容
+        return content
+
+
+@router.post("/{message_id}/not-ad")
+async def mark_not_ad(
+    message_id: str,
+    user: Dict[str, Any] = Depends(check_permission("messages.edit")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
+):
+    """标记消息为"不是广告"，将其状态改为待审核"""
+    try:
+        logger.info(f"收到'不是广告'标记请求: message_id={message_id}, user={user}")
+        
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        # 获取消息记录
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 检查是否为广告消息
+        if not msg_data.get('is_ad', False):
+            return {
+                "success": False,
+                "message": "该消息未被标记为广告"
+            }
+        
+        # 更新消息状态
+        redis_store = get_redis_message_store()
+        msg_key = f"msg:{channel_id}:{msg_id}"
+        
+        update_data = {
+            'is_ad': 'False',  # 标记为非广告
+            'status': 'pending',  # 状态改为待审核
+            'updated_at': datetime.now().isoformat(),
+            'reviewed_by': user.get('username', 'Web用户'),
+            'review_time': datetime.now().isoformat(),
+            'not_ad_reason': 'AI误判，人工纠正'
+        }
+        
+        # 对原始内容进行有限过滤（尾部过滤 + 推广链接过滤）
+        original_content = msg_data.get('content', '')
+        if original_content:
+            try:
+                # 应用尾部过滤和推广链接过滤
+                filtered_content = await apply_limited_filters(original_content, message_id)
+                update_data['filtered_content'] = filtered_content
+                logger.info(f"已对消息 {message_id} 应用有限过滤: {len(original_content)} -> {len(filtered_content)} 字符")
+            except Exception as e:
+                logger.error(f"应用有限过滤失败: {e}")
+                # 失败时使用原始内容
+                update_data['filtered_content'] = original_content
+        
+        redis_store.redis.hset(msg_key, mapping=update_data)
+        
+        # 记录用户反馈用于学习
+        try:
+            from app.services.adaptive_learning import adaptive_learning
+            await adaptive_learning.learn_from_user_action(message_id, 'not_ad', user.get('username', 'Web用户'))
+        except Exception as e:
+            logger.debug(f"记录学习反馈失败: {e}")
+        
+        logger.info(f"消息 {message_id} 已标记为'不是广告'，状态已改为待审核")
+        
+        return {
+            "success": True,
+            "message": "已标记为'不是广告'，消息状态已改为待审核"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"标记'不是广告'失败: {e}")
+        raise HTTPException(status_code=500, detail=f"操作失败: {str(e)}")
+
+
 @router.post("/{message_id}/refetch-media")
 async def refetch_media(
     message_id: str,
@@ -861,6 +991,7 @@ async def refetch_media(
     通过Redis任务队列委托给Telegram采集器处理
     """
     try:
+        logger.info(f"收到媒体补抓请求: message_id={message_id}, user={user}")
         # 解析消息ID
         if ':' in message_id:
             channel_id, msg_id = message_id.split(':', 1)

@@ -151,6 +151,35 @@ class MessageForwarder:
     async def forward_to_target(self, client: TelegramClient, message):
         """重新发布到目标频道"""
         try:
+            # 🔧 修复：统一处理字典和对象两种类型
+            # 如果传入的是字典，转换为兼容的访问方式
+            if isinstance(message, dict):
+                msg_data = message
+                
+                # 创建一个简单的对象包装器，提供属性访问
+                class MessageWrapper:
+                    def __init__(self, data):
+                        self.data = data
+                    
+                    def __getattr__(self, name):
+                        if name in self.data:
+                            return self.data[name]
+                        # 为缺失的属性提供默认值
+                        defaults = {
+                            'removed_hidden_links': [],
+                            'is_combined': False,
+                            'media_group': None,
+                            'target_message_id': None,
+                            'forwarded_time': None,
+                            'id': f"{self.data.get('source_channel')}:{self.data.get('message_id')}"
+                        }
+                        return defaults.get(name, None)
+                    
+                    def get(self, key, default=None):
+                        return self.data.get(key, default)
+                
+                message = MessageWrapper(msg_data)
+            
             # 获取目标频道ID（从Redis缓存）
             from app.services.channel_cache import channel_cache
             target_channel_id = await channel_cache.get_target_channel_id()
@@ -163,9 +192,10 @@ class MessageForwarder:
             clean_entities = None
             
             # 记录被移除的隐藏链接
-            if message.removed_hidden_links:
-                logger.info(f"转发时移除 {len(message.removed_hidden_links)} 个隐藏链接")
-                for link in message.removed_hidden_links:
+            removed_links = getattr(message, 'removed_hidden_links', []) or []
+            if removed_links:
+                logger.info(f"转发时移除 {len(removed_links)} 个隐藏链接")
+                for link in removed_links:
                     logger.debug(f"  移除: {link.get('text', '')} -> {link.get('url', '')}")
             # 转发时不包含任何MessageEntityTextUrl类型的实体
             clean_entities = []  # 空实体列表，确保不包含隐藏链接
@@ -173,30 +203,58 @@ class MessageForwarder:
             sent_message = None
             
             # 检查是否为组合消息
-            if message.is_combined and message.media_group:
+            is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False)
+            media_group = getattr(message, 'media_group', None) or message.get('media_group', None)
+            media_type = getattr(message, 'media_type', None) or message.get('media_type', None)
+            media_url = getattr(message, 'media_url', None) or message.get('media_url', None)
+            
+            if is_combined and media_group:
                 # 发送组合消息（媒体组）
                 sent_message = await self._send_combined_message(client, target_channel_id, message)
-            elif message.media_type and message.media_url and os.path.exists(message.media_url):
+            elif media_type and media_url and os.path.exists(media_url):
                 # 发送单个媒体消息
                 sent_message = await self._send_single_media_message(client, target_channel_id, message)
             else:
                 # 发送纯文本消息（不包含隐藏链接实体）
-                content_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
+                filtered_content = getattr(message, 'filtered_content', None) or message.get('filtered_content', None)
+                content = getattr(message, 'content', None) or message.get('content', '')
+                content_with_footer = await self._add_channel_footer(filtered_content or content)
                 sent_message = await client.send_message(
                     entity=int(target_channel_id),
                     message=content_with_footer,
                     formatting_entities=clean_entities  # 传递空实体列表，移除隐藏链接
                 )
             
-            # 更新数据库
+            # 更新数据库（如果是字典类型，需要更新Redis存储）
             if sent_message:
-                if isinstance(sent_message, list):
-                    message.target_message_id = sent_message[0].id
+                target_msg_id = sent_message[0].id if isinstance(sent_message, list) else sent_message.id
+                
+                # 如果是字典类型，更新Redis中的记录
+                if isinstance(message.data if hasattr(message, 'data') else message, dict):
+                    try:
+                        from app.storage.redis_store import get_redis_message_store
+                        redis_store = get_redis_message_store()
+                        if redis_store:
+                            channel_id = message.get('source_channel')
+                            message_id = message.get('message_id')
+                            if channel_id and message_id:
+                                # 更新target_message_id
+                                await redis_store.update_message_field(
+                                    channel_id, int(message_id), 'target_message_id', str(target_msg_id)
+                                )
+                                # 更新forwarded_time
+                                await redis_store.update_message_field(
+                                    channel_id, int(message_id), 'forwarded_time', datetime.now().isoformat()
+                                )
+                                logger.info(f"已更新Redis记录: {channel_id}:{message_id} -> 目标消息ID: {target_msg_id}")
+                    except Exception as e:
+                        logger.error(f"更新Redis记录失败: {e}")
                 else:
-                    message.target_message_id = sent_message.id
-            message.forwarded_time = datetime.now()
+                    # 对象类型，直接设置属性
+                    message.target_message_id = target_msg_id
+                    message.forwarded_time = datetime.now()
             
-            logger.info(f"消息重新发布成功: {message.id} -> {message.target_message_id}")
+            logger.info(f"消息重新发布成功: {getattr(message, 'id', 'unknown')} -> 目标频道: {target_channel_id}")
             
             # 清理本地文件
             await self._cleanup_message_files(message)
@@ -510,15 +568,20 @@ class MessageForwarder:
     async def _cleanup_message_files(self, message):
         """清理消息相关的媒体文件"""
         try:
-            if message.is_combined and message.media_group:
+            # 🔧 修复：兼容字典和对象两种类型
+            is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False) if hasattr(message, 'get') else False
+            media_group = getattr(message, 'media_group', None) or message.get('media_group', None) if hasattr(message, 'get') else None
+            media_url = getattr(message, 'media_url', None) or message.get('media_url', None) if hasattr(message, 'get') else None
+            
+            if is_combined and media_group:
                 # 清理组合消息的所有媒体文件
-                for media_item in message.media_group:
-                    file_path = media_item['file_path']
-                    if os.path.exists(file_path):
+                for media_item in media_group:
+                    file_path = media_item.get('file_path') if isinstance(media_item, dict) else media_item['file_path']
+                    if file_path and os.path.exists(file_path):
                         await media_handler.cleanup_file(file_path)
-            elif message.media_url and os.path.exists(message.media_url):
+            elif media_url and os.path.exists(media_url):
                 # 清理单个媒体文件
-                await media_handler.cleanup_file(message.media_url)
+                await media_handler.cleanup_file(media_url)
         except Exception as e:
             logger.error(f"清理消息文件时出错: {e}")
 

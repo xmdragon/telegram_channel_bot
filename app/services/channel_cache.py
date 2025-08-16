@@ -139,23 +139,45 @@ class ChannelCache:
             logger.error(f"初始化频道ID缓存失败: {e}", exc_info=True)
     
     async def get_target_channel_id(self) -> Optional[str]:
-        """获取目标频道ID（从Redis缓存）"""
+        """获取目标频道ID（从配置和缓存）"""
         try:
+            # 🔧 修复：直接从配置获取，避免async/sync问题
+            target_channel_id = await self.config_manager.get_config('channels.target_channel_id')
+            if target_channel_id:
+                logger.debug(f"从配置获取目标频道ID: {target_channel_id}")
+                return target_channel_id
+            
+            # 降级方案：尝试从缓存获取（同步调用）
             await self._ensure_redis()
-            cached_id = await self.redis_store.redis.get('cache:target_channel_id')
-            return cached_id.decode('utf-8') if cached_id else None
+            cached_id = self.redis_store.redis.get('cache:target_channel_id')
+            if cached_id:
+                return cached_id.decode('utf-8') if isinstance(cached_id, bytes) else cached_id
+            
+            logger.warning("未找到目标频道ID配置")
+            return None
         except Exception as e:
-            logger.error(f"获取目标频道ID缓存失败: {e}")
+            logger.error(f"获取目标频道ID失败: {e}")
             return None
     
     async def get_review_group_id(self) -> Optional[str]:
-        """获取审核群ID（从Redis缓存）"""
+        """获取审核群ID（从配置和缓存）"""
         try:
+            # 🔧 修复：直接从配置获取，避免async/sync问题
+            review_group_id = await self.config_manager.get_config('channels.review_group_id')
+            if review_group_id:
+                logger.debug(f"从配置获取审核群ID: {review_group_id}")
+                return review_group_id
+            
+            # 降级方案：尝试从缓存获取（同步调用）
             await self._ensure_redis()
-            cached_id = await self.redis_store.redis.get('cache:review_group_id')
-            return cached_id.decode('utf-8') if cached_id else None
+            cached_id = self.redis_store.redis.get('cache:review_group_id')
+            if cached_id:
+                return cached_id.decode('utf-8') if isinstance(cached_id, bytes) else cached_id
+            
+            logger.warning("未找到审核群ID配置")
+            return None
         except Exception as e:
-            logger.error(f"获取审核群ID缓存失败: {e}")
+            logger.error(f"获取审核群ID失败: {e}")
             return None
     
     async def get_source_channel_id(self, channel_name: str) -> Optional[str]:

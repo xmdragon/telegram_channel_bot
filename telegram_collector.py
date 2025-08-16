@@ -204,6 +204,14 @@ class TelegramCollectorService:
                 task_processor_task = asyncio.create_task(self.run_task_processor())
                 
                 while self.is_running:
+                    # 检查采集开关
+                    from app.services.config_manager import config_manager
+                    collection_enabled = await config_manager.get_config('collection.enabled', True)
+                    if not collection_enabled:
+                        logger.debug("采集已禁用，等待启用...")
+                        await asyncio.sleep(5)  # 暂停采集，等待启用
+                        continue
+                    
                     await asyncio.sleep(1)
                     
                 # 停止任务处理器
@@ -221,6 +229,14 @@ class TelegramCollectorService:
             # 在等待认证模式下运行
             try:
                 while True:
+                    # 检查采集开关
+                    from app.services.config_manager import config_manager
+                    collection_enabled = await config_manager.get_config('collection.enabled', True)
+                    if not collection_enabled:
+                        logger.debug("采集已禁用，等待启用...")
+                        await asyncio.sleep(10)
+                        continue
+                    
                     await asyncio.sleep(10)
                     # 定期检查认证状态
                     from app.telegram.auth import auth_manager
@@ -253,27 +269,105 @@ class TelegramCollectorService:
         logger.info("Telegram采集服务已关闭")
     
     async def run_task_processor(self):
-        """运行媒体补抓任务处理器"""
-        logger.info("🔧 启动媒体补抓任务处理器...")
+        """运行任务处理器（媒体补抓 + 消息转发）"""
+        logger.info("🔧 启动任务处理器（媒体补抓 + 消息转发）...")
         
         from app.services.media_refetch_service import media_refetch_service
+        from app.services.message_forward_queue import forward_queue
         
         while self.is_running:
             try:
-                # 获取待处理任务
-                task = media_refetch_service.get_pending_task()
-                if task:
-                    logger.info(f"处理媒体补抓任务: {task.task_id} for message {task.message_id}")
-                    await self.process_refetch_task(task)
-                else:
-                    # 没有任务时短暂休眠
+                processed_any = False
+                
+                # 🔧 新增：优先处理转发任务（实时性要求高）
+                try:
+                    forward_task = forward_queue.get_pending_task(timeout=1)
+                    if forward_task:
+                        logger.info(f"处理消息转发任务: {forward_task.task_id} for message {forward_task.message_id}")
+                        await self.process_forward_task(forward_task)
+                        processed_any = True
+                except Exception as e:
+                    logger.error(f"转发任务处理错误: {e}")
+                
+                # 处理媒体补抓任务
+                try:
+                    refetch_task = media_refetch_service.get_pending_task()
+                    if refetch_task:
+                        logger.info(f"处理媒体补抓任务: {refetch_task.task_id} for message {refetch_task.message_id}")
+                        await self.process_refetch_task(refetch_task)
+                        processed_any = True
+                except Exception as e:
+                    logger.error(f"媒体补抓任务处理错误: {e}")
+                
+                # 如果没有处理任何任务，短暂休眠
+                if not processed_any:
                     await asyncio.sleep(2)
                     
             except Exception as e:
                 logger.error(f"任务处理器错误: {e}")
                 await asyncio.sleep(5)
         
-        logger.info("媒体补抓任务处理器已停止")
+        logger.info("任务处理器已停止")
+    
+    async def process_forward_task(self, task):
+        """处理消息转发任务"""
+        from app.services.message_forward_queue import forward_queue
+        from app.services.message_processor import MessageProcessor
+        from app.telegram.message_forwarder import message_forwarder
+        
+        try:
+            message_processor = MessageProcessor()
+            
+            # 解析消息ID
+            message_id = task.message_id
+            if ':' not in message_id:
+                forward_queue.complete_task(
+                    task, False, error_message="无效的消息ID格式"
+                )
+                return
+            
+            channel_id, msg_id = message_id.split(':', 1)
+            
+            # 获取消息数据
+            msg_data = await message_processor.get_message(channel_id, int(msg_id))
+            if not msg_data:
+                forward_queue.complete_task(
+                    task, False, error_message="消息不存在"
+                )
+                return
+            
+            # 检查Telegram客户端（采集服务已有客户端连接）
+            if not self.telegram_bot or not self.telegram_bot.client:
+                forward_queue.complete_task(
+                    task, False, error_message="Telegram客户端未连接"
+                )
+                return
+            
+            # 执行转发
+            if task.action == "forward_to_target":
+                await message_forwarder.forward_to_target(self.telegram_bot.client, msg_data)
+                forward_queue.complete_task(
+                    task, True, result={"action": "forward_to_target", "message": "转发成功"}
+                )
+                logger.info(f"消息 {message_id} 成功转发到目标频道")
+                
+            elif task.action == "forward_to_review":
+                await message_forwarder.forward_to_review(self.telegram_bot.client, msg_data)
+                forward_queue.complete_task(
+                    task, True, result={"action": "forward_to_review", "message": "转发到审核群成功"}
+                )
+                logger.info(f"消息 {message_id} 成功转发到审核群")
+                
+            else:
+                forward_queue.complete_task(
+                    task, False, error_message=f"不支持的转发动作: {task.action}"
+                )
+            
+        except Exception as e:
+            logger.error(f"处理转发任务失败: {e}", exc_info=True)
+            forward_queue.complete_task(
+                task, False, error_message=str(e)
+            )
     
     async def process_refetch_task(self, task):
         """处理单个媒体补抓任务"""

@@ -1469,3 +1469,158 @@ async def get_media_file_ocr(
     except Exception as e:
         logger.error(f"获取媒体文件OCR结果失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mark-ad-test")
+async def mark_message_as_ad_test(request: dict):
+    """测试端点 - 基础功能"""
+    try:
+        message_id = request.get("message_id", "unknown")
+        return {
+            "success": True,
+            "message": f"测试成功，接收到消息ID: {message_id}",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.post("/mark-ad-message")
+async def mark_message_as_ad(request: dict):
+    """将消息标记为广告并加入训练样本"""
+    try:
+        message_id = request.get("message_id")
+        if not message_id:
+            raise HTTPException(status_code=400, detail="缺少消息ID")
+        
+        # 解析复合消息ID格式: 如 "#-1002062871756:43195" 或 "-1002062871756:43195"
+        if message_id.startswith('#'):
+            message_id = message_id[1:]  # 移除#前缀
+        
+        # 解析消息ID为 channel_id 和 msg_id
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+            try:
+                msg_id_int = int(msg_id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="消息ID格式错误")
+        else:
+            raise HTTPException(status_code=400, detail="消息ID格式错误，应为 channel_id:message_id")
+        
+        # 1. 首先拒绝消息（标记为已拒绝状态）
+        auto_rejected = False
+        try:
+            from app.services.message_processor import MessageProcessor
+            message_processor = MessageProcessor()
+            
+            # 获取消息数据
+            msg_data = await message_processor.get_message(channel_id, msg_id_int)
+            if msg_data and msg_data.get('status') == 'pending':
+                # 更新消息状态为已拒绝
+                msg_data['status'] = 'rejected'
+                msg_data['filter_reason'] = '用户手动标记为广告'
+                msg_data['is_ad'] = True
+                msg_data['updated_at'] = datetime.now().isoformat()
+                
+                # 保存消息更新
+                from app.storage.redis_store import get_redis_message_store
+                redis_store = get_redis_message_store()
+                redis_store.save_message(channel_id, msg_id_int, msg_data)
+                
+                auto_rejected = True
+                logger.info(f"消息 {message_id} 已自动拒绝（标记为广告）")
+            else:
+                logger.warning(f"消息 {message_id} 不存在或状态不是pending，跳过拒绝操作")
+        except Exception as e:
+            logger.warning(f"拒绝消息失败，但继续标记为广告: {e}")
+        
+        # 2. 然后加入训练样本
+        
+        # 加载现有的广告训练数据
+        ad_data_file = PathConfig.AD_TRAINING_FILE
+        if ad_data_file.exists():
+            ad_data = SafeFileOperation.read_json_safe(ad_data_file)
+            if not ad_data:
+                ad_data = {"version": "1.0", "samples": [], "metadata": {}}
+        else:
+            ad_data = {"version": "1.0", "samples": [], "metadata": {}}
+        
+        # 生成新样本ID
+        existing_ids = [s.get('id', 0) for s in ad_data.get('samples', [])]
+        new_id = max(existing_ids) + 1 if existing_ids else 1
+        
+        # 获取消息内容用于训练样本
+        sample_content = f"手动标记的广告消息 {message_id}"
+        sample_channel_id = ""
+        sample_channel_name = ""
+        
+        # 如果成功获取到消息数据，使用实际内容
+        try:
+            if 'msg_data' in locals() and msg_data:
+                sample_content = msg_data.get('content', '') or msg_data.get('filtered_content', '') or sample_content
+                sample_channel_id = msg_data.get('source_channel', '')
+                sample_channel_name = msg_data.get('source_channel_title', '')
+        except:
+            pass  # 使用默认内容
+        
+        # 创建新的广告样本
+        new_sample = {
+            "id": new_id,
+            "message_id": message_id,
+            "content": sample_content,
+            "is_ad": True,
+            "source": "manual_mark",
+            "description": "用户手动标记为广告",
+            "channel_id": sample_channel_id,
+            "channel_name": sample_channel_name,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        # 检查是否已存在相同的样本
+        existing_samples = ad_data.get('samples', [])
+        for sample in existing_samples:
+            if sample.get('message_id') == message_id:
+                return {
+                    "success": False,
+                    "message": "该消息已存在于训练样本中",
+                    "existing_sample_id": sample.get('id')
+                }
+        
+        # 添加新样本
+        ad_data['samples'].append(new_sample)
+        ad_data['updated_at'] = datetime.now().isoformat()
+        
+        # 更新元数据
+        if 'metadata' not in ad_data:
+            ad_data['metadata'] = {}
+        ad_data['metadata']['total_samples'] = len(ad_data['samples'])
+        ad_data['metadata']['last_added'] = datetime.now().isoformat()
+        
+        # 保存训练数据
+        if not SafeFileOperation.write_json_safe(ad_data_file, ad_data):
+            raise HTTPException(status_code=500, detail="保存训练数据失败")
+        
+        logger.info(f"消息 {message_id} 已标记为广告并添加到训练样本，样本ID: {new_id}")
+        
+        # 根据是否成功拒绝消息来生成返回消息
+        success_message = "消息已标记为广告并添加到训练样本"
+        if auto_rejected:
+            success_message = "消息已标记为广告、自动拒绝并添加到训练样本"
+        
+        return {
+            "success": True,
+            "message": success_message,
+            "sample_id": new_id,
+            "training_data": {
+                "content_length": len(new_sample['content']),
+                "channel": sample_channel_name or "手动标记",
+                "created_at": new_sample['created_at']
+            },
+            "auto_rejected": auto_rejected
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"标记消息为广告失败: {e}")
+        raise HTTPException(status_code=500, detail=f"标记失败: {str(e)}")
