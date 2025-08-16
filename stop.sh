@@ -2,6 +2,56 @@
 
 # Telegram 消息审核系统停止脚本
 
+# 显示帮助信息
+show_help() {
+    echo "🛑 Telegram消息采集审核系统 - 服务停止器"
+    echo ""
+    echo "用法: $0 [OPTIONS]"
+    echo ""
+    echo "选项:"
+    echo "  --help, -h    显示此帮助信息"
+    echo ""
+    echo "功能:"
+    echo "  • 优雅停止所有服务进程"
+    echo "  • 强制清理端口占用"
+    echo "  • 停止Redis缓存服务"
+    echo "  • 兼容传统模式和服务分离架构"
+    echo ""
+    echo "停止顺序:"
+    echo "  1. 进程管理器 (dev_supervisor.py)"
+    echo "  2. Web服务器 (web_server.py)"
+    echo "  3. Telegram采集服务 (telegram_collector.py)"
+    echo "  4. 消息调度服务 (message_scheduler.py)"
+    echo "  5. 传统模式进程 (main.py)"
+    echo "  6. Redis缓存服务"
+    echo ""
+    echo "超时处理:"
+    echo "  • 每个服务最多等待10秒优雅关闭"
+    echo "  • 超时后自动强制终止进程"
+    echo "  • 清理8000端口占用"
+    echo ""
+    echo "相关命令:"
+    echo "  ./start.sh            启动所有服务"
+    echo "  ./restart.sh          重启所有服务"
+    echo "  ./dev.sh --status     查看服务状态"
+    echo ""
+}
+
+# 解析命令行参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "❌ 未知参数: $1"
+            echo "使用 --help 查看帮助信息"
+            exit 1
+            ;;
+    esac
+done
+
 echo "🛑 停止 Telegram 消息审核系统..."
 
 # 停止服务分离架构的所有服务
