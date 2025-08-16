@@ -36,6 +36,16 @@ class MarkdownFilter(BaseFilter):
             '导航', '備用', '官方', '联系方式', '聯繫方式'
         ]
         
+        # 赌博推广关键词
+        self.gambling_keywords = [
+            '返水', '返利', '首存', '首充', '赠送', '優惠', '优惠', 'USDT',
+            '出款', '提款', '娱乐', '娛樂', '全网独家', '全網獨家', 
+            '最高', '无忧', '無憂', '千万', '千萬', '巨款', '实力', '實力',
+            '日出', '日赚', '日賺', '稳赚', '穩賺', '信誉保障', '信譽保障',
+            '全新起航', '全球娱乐', '全球娛樂', '充值', '存款', '无限IP', 
+            '不限IP', '666U', '1588U', '体验金', '體驗金'
+        ]
+        
         # 引导性文字
         self.guide_words = [
             '查看详情', '订阅频道', '订阅我们', '关注我们', '更多信息', 
@@ -44,6 +54,14 @@ class MarkdownFilter(BaseFilter):
         
         # Markdown链接正则
         self.markdown_pattern = re.compile(r'\[([^\]]*)\]\(([^\)]+)\)')
+        
+        # emoji+广告词+链接模式
+        self.emoji_ad_pattern = re.compile(
+            r'[\U0001F300-\U0001F9FF\s]{2,}\s*\[([^\]]*(?:' + 
+            '|'.join(self.gambling_keywords) + 
+            ')[^\]]*)\]\([^\)]+\)',
+            re.IGNORECASE
+        )
         
         # 统计信息
         self.stats = {
@@ -178,6 +196,13 @@ class MarkdownFilter(BaseFilter):
     
     def _process_line_with_links(self, line: str, channel_name: Optional[str]) -> str:
         """处理包含链接的行"""
+        original_line = line
+        
+        # 1. 首先检查是否为emoji+广告词+链接模式，如果是则整行删除
+        if self._is_emoji_gambling_pattern(line):
+            logger.info(f"检测到emoji+赌博广告模式，删除整行: {line[:50]}...")
+            return ''  # 整行删除
+        
         def replace_link(match):
             link_text = match.group(1)  # [文字]部分
             link_url = match.group(2)   # (链接)部分
@@ -202,13 +227,22 @@ class MarkdownFilter(BaseFilter):
                         logger.debug(f"检测到推广关键词 '{keyword}': {link_text}")
                         break
             
-            # 3. 检查是否是纯emoji或符号
+            # 3. 检查是否包含赌博关键词
+            if link_text:
+                for keyword in self.gambling_keywords:
+                    if keyword in link_text:
+                        should_remove_completely = True
+                        removal_reason = f"赌博关键词 '{keyword}': {link_text}"
+                        logger.debug(f"检测到赌博关键词 '{keyword}': {link_text}")
+                        break
+            
+            # 4. 检查是否是纯emoji或符号
             if link_text and re.match(r'^[^\w\u4e00-\u9fa5]+$', link_text):
                 should_remove_completely = True
                 removal_reason = f"纯符号链接: {link_text}"
                 logger.debug(f"检测到纯符号链接: {link_text}")
             
-            # 4. 检查链接是否指向t.me（高概率推广）
+            # 5. 检查链接是否指向t.me（高概率推广）
             if 't.me' in link_url.lower() or 'telegram' in link_url.lower():
                 should_remove_completely = True
                 removal_reason = f"Telegram链接: {link_url[:30]}"
@@ -266,6 +300,24 @@ class MarkdownFilter(BaseFilter):
             return False
         
         return True
+    
+    def _is_emoji_gambling_pattern(self, line: str) -> bool:
+        """检测是否为emoji+赌博广告模式"""
+        # 检查是否匹配emoji+广告词+链接模式
+        if self.emoji_ad_pattern.search(line):
+            return True
+        
+        # 检查连续emoji开头 + 包含赌博关键词 + 包含链接
+        emoji_start = re.match(r'^[\U0001F300-\U0001F9FF\s]{2,}', line)
+        if emoji_start:
+            has_gambling_keyword = any(keyword in line for keyword in self.gambling_keywords)
+            has_markdown_link = self.markdown_pattern.search(line)
+            
+            if has_gambling_keyword and has_markdown_link:
+                logger.debug(f"检测到emoji+赌博关键词+链接组合: {line[:50]}...")
+                return True
+        
+        return False
     
     def get_stats(self) -> Dict[str, Any]:
         """获取过滤器统计信息"""

@@ -47,6 +47,9 @@ class PromoLinkFilter(BaseFilter):
             r'[0-9]+[a-z]{1,2}\.[a-z]{2,3}$',  # 数字+字母域名
             r'y[0-9].*\.(gg|tv|me)$',  # y+数字的赌博域名
             r'[a-z]{1,2}[0-9]+\.(com|net|org)$',  # 字母+数字域名
+            r'[0-9]+\.(vip|top|xyz|club)$',  # 纯数字+新顶级域名
+            r'[a-z]{2,4}[0-9]+\.(vip|top|xyz|club)$',  # 字母+数字+新顶级域名
+            r'[a-z]+[0-9]+[a-z]*\.(vip|top|xyz|club)$',  # 混合域名模式
         ]
         
         # 推广关键词
@@ -217,8 +220,13 @@ class PromoLinkFilter(BaseFilter):
             for pattern in self.suspicious_domain_patterns:
                 if re.match(pattern, domain):
                     is_promo = True
-                    confidence = max(confidence, 0.7)
-                    reasons.append(f'可疑域名模式: {pattern}')
+                    # 对纯数字域名给更高置信度
+                    if re.match(r'[0-9]{3,}\.(vip|top|xyz|club|com)$', domain):
+                        confidence = max(confidence, 0.9)
+                        reasons.append(f'纯数字赌博域名: {domain}')
+                    else:
+                        confidence = max(confidence, 0.7)
+                        reasons.append(f'可疑域名模式: {pattern}')
                     link_type = 'suspicious'
                     self.stats['suspicious_links_detected'] += 1
                     break
