@@ -45,12 +45,15 @@ const app = createApp({
             autoRefresh: true,
             refreshInterval: null,
             
-            // 系统统计
+            // 系统统计 - 与主控制台保持一致
             systemStats: {
-                channels: { label: '重复拒绝', value: 0 },
-                messages: { label: '处理消息', value: 0 },
+                total: { label: '总消息', value: 0 },
                 pending: { label: '待审核', value: 0 },
-                forwarded: { label: '已转发', value: 0 }
+                approved: { label: '已批准', value: 0 },
+                rejected: { label: '已拒绝', value: 0 },
+                ads: { label: '广告消息', value: 0 },
+                duplicates: { label: '重复消息', value: 0 },
+                chats: { label: '聊天消息', value: 0 }
             },
             
             // 服务状态
@@ -92,9 +95,18 @@ const app = createApp({
         
         async loadSystemStatus() {
             try {
-                const response = await axios.get('/api/system/status');
-                if (response.data) {
-                    this.updateSystemStatus(response.data);
+                // 同时加载系统状态和消息统计
+                const [statusResponse, statsResponse] = await Promise.all([
+                    axios.get('/api/system/status'),
+                    axios.get('/api/messages/stats/overview')
+                ]);
+                
+                if (statusResponse.data) {
+                    this.updateSystemStatus(statusResponse.data);
+                }
+                
+                if (statsResponse.data) {
+                    this.updateMessageStats(statsResponse.data);
                 }
             } catch (error) {
                 // console.error('加载系统状态失败:', error);
@@ -103,13 +115,7 @@ const app = createApp({
         },
         
         updateSystemStatus(data) {
-            // 更新统计数据
-            if (data.stats) {
-                this.systemStats.channels.value = data.stats.source_channels || 0;
-                this.systemStats.messages.value = data.stats.total_messages || 0;
-                this.systemStats.pending.value = data.stats.pending_messages || 0;
-                this.systemStats.forwarded.value = data.stats.forwarded_messages || 0;
-            }
+            // 只更新服务状态和系统信息，统计数据由updateMessageStats处理
             
             // 更新服务状态
             if (data.services) {
@@ -124,6 +130,17 @@ const app = createApp({
                 this.systemInfo.uptime = this.formatUptime(data.system.uptime || 0);
                 this.systemInfo.lastUpdate = new Date().toLocaleString('zh-CN');
             }
+        },
+        
+        updateMessageStats(stats) {
+            // 更新消息统计数据
+            this.systemStats.total.value = stats.total || 0;
+            this.systemStats.pending.value = stats.pending || 0;
+            this.systemStats.approved.value = stats.approved || 0;
+            this.systemStats.rejected.value = stats.rejected || 0;
+            this.systemStats.ads.value = stats.ads || 0;
+            this.systemStats.duplicates.value = stats.duplicates || 0;
+            this.systemStats.chats.value = stats.chats || 0;
         },
         
         formatUptime(seconds) {
@@ -194,6 +211,50 @@ const app = createApp({
                 if (error !== 'cancel') {
                     // console.error('重启服务失败:', error);
                     MessageManager.error('重启服务失败');
+                }
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async resetMessages() {
+            try {
+                await ElMessageBox.confirm(
+                    '⚠️ 警告：此操作将执行以下危险操作：\n\n' +
+                    '• 停止Telegram消息采集器\n' +
+                    '• 清空所有消息数据\n' +
+                    '• 清空临时媒体文件\n' +
+                    '• 重置所有频道采集点为0\n\n' +
+                    '此操作不可逆转！确定要继续吗？',
+                    '🚨 消息重置确认',
+                    {
+                        confirmButtonText: '确定重置',
+                        cancelButtonText: '取消',
+                        type: 'error',
+                        dangerouslyUseHTMLString: true
+                    }
+                );
+                
+                this.loading = true;
+                this.loadingMessage = '正在重置系统...';
+                
+                const response = await axios.post('/api/system/reset');
+                if (response.data.success) {
+                    MessageManager.success(
+                        `重置完成：清空${response.data.details.cleared_messages}条消息，` +
+                        `重置${response.data.details.reset_channels}个频道`
+                    );
+                    // 等待几秒后刷新状态
+                    setTimeout(() => {
+                        this.loadSystemStatus();
+                    }, 2000);
+                } else {
+                    MessageManager.error(response.data.message || '重置失败');
+                }
+            } catch (error) {
+                if (error !== 'cancel') {
+                    // console.error('重置系统失败:', error);
+                    MessageManager.error('重置系统失败');
                 }
             } finally {
                 this.loading = false;

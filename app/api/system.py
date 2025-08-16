@@ -52,14 +52,51 @@ async def get_system_status() -> Dict[str, Any]:
         all_channels = channel_store.get_all_channels()
         source_channels = len([ch for ch in all_channels if ch.get('channel_type') == 'source'])
         
-        # 获取服务状态
+        # 从健康监控获取服务状态
         telegram_connected = False
-        if auth_manager and auth_manager.client:
+        web_server_running = True  # Web服务器显然在运行
+        scheduler_running = True   # 默认假设调度器在运行
+        
+        logger.info("开始检查服务状态...")
+        
+        try:
+            # 直接从Redis检查telegram_collector状态
+            import redis
+            import json
+            r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+            health_data = r.get('service_health:telegram_collector')
+            if health_data:
+                health_obj = json.loads(health_data)
+                telegram_connected = (
+                    health_obj.get('status') == 'healthy' and
+                    health_obj.get('metadata', {}).get('telegram_authenticated', False)
+                )
+                logger.info(f"Telegram状态: {health_obj.get('status')}, 认证: {health_obj.get('metadata', {}).get('telegram_authenticated')}")
+            
+            # 检查其他服务
+            scheduler_data = r.get('service_health:message_scheduler')
+            if scheduler_data:
+                scheduler_obj = json.loads(scheduler_data)
+                scheduler_running = scheduler_obj.get('status') == 'healthy'
+                
+        except Exception as e:
+            logger.warning(f"健康监控检查失败，使用进程检查: {e}")
+            
+        # 如果健康监控失败，降级到进程检查
+        if not telegram_connected:
             try:
-                await auth_manager.client.get_me()
-                telegram_connected = True
-            except:
-                pass
+                import psutil
+                for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    try:
+                        cmdline = ' '.join(proc.info['cmdline'] or [])
+                        if 'telegram_collector.py' in cmdline:
+                            telegram_connected = True
+                            logger.info(f"检测到telegram_collector进程: PID {proc.info['pid']}")
+                            break
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+            except Exception as proc_e:
+                logger.warning(f"进程检查也失败: {proc_e}")
         
         return {
             "stats": {
@@ -70,8 +107,8 @@ async def get_system_status() -> Dict[str, Any]:
             },
             "services": {
                 "telegram_client": telegram_connected,
-                "message_processor": True,  # 始终运行
-                "scheduler": True,  # 始终运行
+                "message_processor": web_server_running,
+                "scheduler": scheduler_running,
                 "redis": True  # Redis 存储服务
             },
             "system": {
@@ -566,3 +603,90 @@ def extract_message(log_line: str) -> str:
         return log_line.strip()
     except:
         return log_line.strip()
+
+@router.post("/reset")
+async def reset_system() -> Dict[str, Any]:
+    """重置消息系统 - 清空所有消息数据和媒体文件"""
+    try:
+        import psutil
+        import shutil
+        from pathlib import Path
+        from app.core.path_config import PathConfig
+        
+        logger.warning("🚨 执行系统重置操作 - 这将清空所有消息数据")
+        
+        # 1. 停止telegram_collector进程
+        stopped_processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = ' '.join(proc.info['cmdline'] or [])
+                if 'telegram_collector.py' in cmdline:
+                    logger.info(f"停止Telegram采集器进程 PID: {proc.info['pid']}")
+                    proc.terminate()
+                    stopped_processes.append(proc.info['pid'])
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        
+        # 2. 清空Redis中的消息数据
+        redis_store = get_redis_message_store()
+        if redis_store and redis_store.redis:
+            # 删除所有消息键
+            message_keys = redis_store.redis.keys("msg:*")
+            if message_keys:
+                redis_store.redis.delete(*message_keys)
+                logger.info(f"清空了 {len(message_keys)} 条Redis消息")
+            
+            # 删除其他消息相关的键
+            pending_keys = redis_store.redis.keys("pending_messages")
+            if pending_keys:
+                redis_store.redis.delete(*pending_keys)
+            
+            # 清空WebSocket连接信息
+            ws_keys = redis_store.redis.keys("websocket:*")
+            if ws_keys:
+                redis_store.redis.delete(*ws_keys)
+        
+        # 3. 清空temp_media目录
+        temp_media_dir = Path(PathConfig.TEMP_MEDIA_DIR)
+        if temp_media_dir.exists():
+            # 删除目录内容但保留目录
+            for item in temp_media_dir.iterdir():
+                try:
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+                except Exception as e:
+                    logger.warning(f"删除媒体文件失败 {item}: {e}")
+            logger.info(f"清空临时媒体目录: {temp_media_dir}")
+        
+        # 4. 重置所有频道的last_message_id
+        channel_store = get_json_channel_store()
+        all_channels = channel_store.get_all_channels()
+        reset_count = 0
+        
+        for channel in all_channels:
+            if channel.get('channel_type') == 'source':
+                old_id = channel.get('last_message_id', 0)
+                channel['last_message_id'] = 0
+                channel_store.update_channel(channel['channel_id'], channel)
+                reset_count += 1
+                logger.info(f"重置频道 {channel.get('title', channel['channel_id'])} 采集点: {old_id} -> 0")
+        
+        return {
+            "success": True,
+            "message": "系统重置完成",
+            "details": {
+                "stopped_processes": len(stopped_processes),
+                "cleared_messages": len(message_keys) if 'message_keys' in locals() else 0,
+                "reset_channels": reset_count,
+                "temp_media_cleared": True
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"系统重置失败: {e}")
+        return {
+            "success": False,
+            "message": f"系统重置失败: {str(e)}"
+        }
