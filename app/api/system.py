@@ -669,7 +669,7 @@ async def reset_system() -> Dict[str, Any]:
             if channel.get('channel_type') == 'source':
                 old_id = channel.get('last_message_id', 0)
                 channel['last_message_id'] = 0
-                channel_store.update_channel(channel['channel_id'], channel)
+                channel_store.update_channel(channel)
                 reset_count += 1
                 logger.info(f"重置频道 {channel.get('title', channel['channel_id'])} 采集点: {old_id} -> 0")
         
