@@ -82,6 +82,7 @@ async def get_messages(
     status: Optional[str] = Query(None, description="消息状态过滤"),
     source_channel: Optional[str] = Query(None, description="源频道过滤"),
     is_ad: Optional[bool] = Query(None, description="是否为广告"),
+    filter_reason: Optional[str] = Query(None, description="过滤原因"),
     search: Optional[str] = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -95,24 +96,40 @@ async def get_messages(
         
         # 实现完整的消息查询功能
         if source_channel:
-            # 从指定频道获取消息
+            # 从指定频道获取消息，实现真正的分页
+            offset = (page - 1) * size
+            
+            if status:
+                # 有状态筛选时，多获取一些消息以确保有足够的过滤结果
+                fetch_limit = size * 3  # 从50倍降到3倍，减少数据传输
+                fetch_offset = offset * 2  # 相应调整offset
+            else:
+                # 无状态筛选，直接分页
+                fetch_limit = size
+                fetch_offset = offset
+            
             all_messages = redis_store.get_messages_by_channel(
                 source_channel, 
-                limit=size * 20  # 获取更多数据用于过滤和分页
+                limit=fetch_limit,
+                offset=fetch_offset  # 传递offset实现真正的分页
             )
+            logger.info(f"频道筛选: {source_channel}, offset: {fetch_offset}, 获取了 {len(all_messages)} 条消息，状态筛选: {status}")
         else:
-            # 根据状态获取消息
+            # 根据状态获取消息，同样实现分页优化
+            offset = (page - 1) * size
+            fetch_limit = size * 5  # 从20倍降到5倍，减少数据传输
+            
             if status == "pending":
-                all_messages = redis_store.get_pending_messages(limit=size * 20)
+                all_messages = redis_store.get_pending_messages(limit=fetch_limit, offset=offset)
             elif status == "approved":
-                all_messages = redis_store.get_messages_by_status("approved", limit=size * 20)
+                all_messages = redis_store.get_messages_by_status("approved", limit=fetch_limit, offset=offset)
             elif status == "rejected":
-                all_messages = redis_store.get_messages_by_status("rejected", limit=size * 20)
+                all_messages = redis_store.get_messages_by_status("rejected", limit=fetch_limit, offset=offset)
             elif status == "auto_forwarded":
-                all_messages = redis_store.get_messages_by_status("auto_forwarded", limit=size * 20)
+                all_messages = redis_store.get_messages_by_status("auto_forwarded", limit=fetch_limit, offset=offset)
             else:
                 # 无状态过滤或其他状态，获取所有消息
-                all_messages = redis_store.get_all_messages(limit=size * 20)
+                all_messages = redis_store.get_all_messages(limit=fetch_limit, offset=offset)
         
         # 应用过滤条件
         filtered_messages = []
@@ -129,6 +146,12 @@ async def get_messages(
                 if msg_is_ad != is_ad:
                     continue
             
+            # 过滤原因过滤
+            if filter_reason:
+                msg_filter_reason = msg.get('filter_reason', '')
+                if filter_reason not in msg_filter_reason:
+                    continue
+            
             # 搜索过滤
             if search:
                 content = msg.get('content', '')
@@ -139,10 +162,16 @@ async def get_messages(
             
             filtered_messages.append(msg)
         
+        # 记录过滤结果
+        if source_channel:
+            logger.info(f"频道 {source_channel} 过滤后得到 {len(filtered_messages)} 条消息")
+        
         # 分页处理
         start_idx = (page - 1) * size
         end_idx = start_idx + size
         page_messages = filtered_messages[start_idx:end_idx]
+        
+        logger.info(f"返回第 {page} 页，共 {len(page_messages)} 条消息")
         
         # 获取频道信息映射
         channel_info = await channel_manager.get_channel_info_for_display()

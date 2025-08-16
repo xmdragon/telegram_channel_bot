@@ -263,5 +263,5 @@ if __name__ == "__main__":
         "web_server:app",
         host="0.0.0.0",
         port=8000,
-        reload=True  # 开发模式支持热重载
+        reload=False  # 暂时禁用热重载，解决死循环问题
     )

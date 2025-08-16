@@ -234,11 +234,11 @@ class RedisMessageStore(RedisStore):
             logger.error(f"获取频道消息失败 {channel_id}: {e}")
             return []
     
-    def get_pending_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_pending_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取待审核消息"""
         try:
-            # 从待审核索引获取消息
-            pending_keys = self.redis.zrevrange("msg:idx:pending", 0, limit - 1)
+            # 从待审核索引获取消息，支持分页
+            pending_keys = self.redis.zrevrange("msg:idx:pending", offset, offset + limit - 1)
             
             messages = []
             invalid_keys = []
@@ -269,11 +269,11 @@ class RedisMessageStore(RedisStore):
             logger.error(f"获取待审核消息失败: {e}")
             return []
     
-    def get_messages_by_status(self, status: str, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_messages_by_status(self, status: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """按状态获取消息列表"""
         try:
-            # 从状态索引获取消息
-            status_keys = self.redis.zrevrange(f"msg:idx:{status}", 0, limit - 1)
+            # 从状态索引获取消息，支持分页
+            status_keys = self.redis.zrevrange(f"msg:idx:{status}", offset, offset + limit - 1)
             
             messages = []
             for key in status_keys:
@@ -289,10 +289,10 @@ class RedisMessageStore(RedisStore):
             logger.error(f"按状态获取消息失败 {status}: {e}")
             return []
     
-    def get_all_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_all_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取所有消息列表"""
         try:
-            # 获取所有消息key
+            # 获取所有消息key，支持分页
             all_msg_keys = self.redis.keys("msg:*:*")
             # 过滤出索引和计数器key，只保留消息数据key
             msg_keys = [key for key in all_msg_keys 
@@ -315,8 +315,8 @@ class RedisMessageStore(RedisStore):
             # 按时间倒序排列
             msg_with_time.sort(key=lambda x: x[1], reverse=True)
             
-            # 只取需要的数量
-            selected_keys = [item[0] for item in msg_with_time[:limit]]
+            # 支持分页：跳过offset，取limit数量
+            selected_keys = [item[0] for item in msg_with_time[offset:offset + limit]]
             
             messages = []
             for key in selected_keys:

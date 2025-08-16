@@ -78,6 +78,16 @@ class ThresholdManager:
                     "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
                     "last_updated": None
                 }
+            },
+            "chat_filter": {
+                "detection": {
+                    "current": 0.5,
+                    "min": 0.3,
+                    "max": 0.8,
+                    "history": [0.5],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                }
             }
         }
         

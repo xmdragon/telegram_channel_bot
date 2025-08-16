@@ -239,6 +239,18 @@
     "updated_at": "2025-08-15T02:47:43.546027",
     "channel_title": "海外大事件"
   },
+  "channel_22": {
+    "id": 22,
+    "channel_id": "-1002693789874",
+    "channel_name": "@sucain7",
+    "channel_type": "source",
+    "is_active": true,
+    "config": {},
+    "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
+    "created_at": "2025-08-14 10:06:40.343486",
+    "updated_at": "2025-08-15T02:47:45.887360",
+    "channel_title": "东南亚大事件|東南亞大事件|缅甸大事件|柬埔寨大事件"
+  },
   "channel_23": {
     "id": 23,
     "channel_id": "-1002829999238",

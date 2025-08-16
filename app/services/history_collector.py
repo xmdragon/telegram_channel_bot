@@ -19,6 +19,7 @@ from app.services.filters.ad_detector import AdDetectorFilter
 from app.services.filters.tail_filter import TailFilter
 from app.services.filters.markdown_filter import MarkdownFilter
 from app.services.filters.promo_link_filter import PromoLinkFilter
+from app.services.filters.chat_content_filter import ChatContentFilter
 from app.services.channel_manager import ChannelManager
 # 移除这行，改为在需要时导入telegram_bot
 
@@ -49,16 +50,17 @@ class HistoryCollector:
         """初始化过滤器管道"""
         config = PipelineConfig(
             enable_early_stopping=True,
-            early_stop_filters={'duplicate_detector', 'ad_detector'},
+            early_stop_filters={'duplicate_detector', 'ad_detector', 'chat_content_filter'},
             filter_timeout=30.0,
             pipeline_timeout=60.0
         )
         
         pipeline = FilterPipeline(config)
         
-        # 按顺序添加5个过滤器
+        # 按顺序添加6个过滤器
         pipeline.add_filter(DuplicateDetectorFilter())
         pipeline.add_filter(AdDetectorFilter())
+        pipeline.add_filter(ChatContentFilter())  # 聊天内容检测
         pipeline.add_filter(TailFilter())
         pipeline.add_filter(MarkdownFilter())
         pipeline.add_filter(PromoLinkFilter())

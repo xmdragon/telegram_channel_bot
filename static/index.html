@@ -58,7 +58,7 @@
                     </select>
                     
                     <!-- 频道筛选 -->
-                    <select v-model="filters.source_channel" @change="loadMessages" class="form-select">
+                    <select v-model="filters.source_channel" @change="handleChannelChange" class="form-select">
                         <option value="">监听频道</option>
                         <option v-for="(channel, channelId) in uniqueChannels" 
                                 :key="channelId" 

@@ -297,6 +297,7 @@ class MessageProcessor:
                 "auto_forwarded": self.redis_store.get_message_count(status="auto_forwarded"),
                 "ads": 0,
                 "duplicates": 0,
+                "chats": 0,
                 "channels": 0
             }
             
@@ -366,6 +367,7 @@ class MessageProcessor:
                 "rejected": 0,
                 "ads": 0,
                 "duplicates": 0,
+                "chats": 0,
                 "channels": 0,
                 "auto_forwarded": 0
             }

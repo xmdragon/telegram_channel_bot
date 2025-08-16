@@ -137,6 +137,11 @@ const MainApp = {
             if (newVal === null) {
                 this.filters.status = 'pending';
             }
+        },
+        'filters.source_channel': function(newVal, oldVal) {
+            console.log(`频道选择变化：${oldVal} -> ${newVal}`);
+            // 频道变化时自动加载消息
+            this.loadMessages();
         }
     },
     
@@ -566,6 +571,12 @@ const MainApp = {
             }
             
             return displayName;
+        },
+        
+        // 处理频道切换事件
+        handleChannelChange() {
+            console.log('频道切换事件触发，当前选择：', this.filters.source_channel);
+            this.loadMessages();
         },
         
         // 获取状态类型
