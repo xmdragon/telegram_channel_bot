@@ -119,8 +119,8 @@ class MessageGrouper:
         self.pending_groups[group_key].append(message_data)
         logger.debug(f"批量模式：消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
         
-        # 批量模式下返回None，等待超时后处理
-        return None
+        # 🔧 修复：批量模式也返回单独消息，确保每条消息都被保存
+        return await self._create_single_message(message_data, channel_id)
     
     async def _process_batch_group_after_timeout(self, group_key: str, channel_id: str, timeout: float):
         """批量模式下的超时处理"""
@@ -185,8 +185,8 @@ class MessageGrouper:
         
         logger.info(f"消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
         
-        # 暂时返回None，等待超时后处理
-        return None
+        # 🔧 修复：同时返回单独消息，确保每条消息都被保存
+        return await self._create_single_message(message_data, channel_id)
     
     async def _process_group_after_timeout(self, group_key: str, channel_id: str):
         """超时后处理消息组"""
@@ -350,7 +350,9 @@ class MessageGrouper:
                 }.get(media_type, media_type)
                 media_descriptions.append(f"{count}个{type_name}")
             
-            placeholder_text = f"\n\n[组图包含: {', '.join(media_descriptions)}]"
+            # 🔧 添加消息ID列表，方便查找关联消息
+            message_ids = [str(msg['message_id']) for msg in messages]
+            placeholder_text = f"\n\n[组图包含: {', '.join(media_descriptions)} - {', '.join(message_ids)}]"
         
         # 合并内容和占位符
         final_content = combined_content + placeholder_text
@@ -366,7 +368,7 @@ class MessageGrouper:
             'content': final_content,
             'filtered_content': final_filtered_content,
             'is_ad': is_ad,
-            'media_type': main_media_type if media_group else None,
+            'media_type': 'grouped_media' if media_group else main_media_type,  # 🔧 明确标记为组合媒体
             'media_url': main_media_url,
             'grouped_id': str(main_message['grouped_id']) if main_message.get('grouped_id') else None,
             'is_combined': True,
@@ -401,8 +403,8 @@ class MessageGrouper:
             is_ad = combined_message.get('is_ad', False)
             filtered_content = combined_message.get('filtered_content', combined_message['content'])
             
-            # 首先删除已经单独保存的组内消息（如果有的话）
-            await self._cleanup_individual_messages(channel_id, combined_message)
+            # 🔧 修复：不再删除单独消息，保持数据完整性
+            # await self._cleanup_individual_messages(channel_id, combined_message)  # 已禁用
             
             # 处理JSON序列化 - 清理包含datetime的对象
             def serialize_for_json(obj):

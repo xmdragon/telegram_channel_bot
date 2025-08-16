@@ -150,10 +150,11 @@ class UnifiedMessageProcessor:
             status = saved_individual.get('status', 'unknown')
             logger.info(f"✅ 单独消息已保存: #{message.id} -> Redis {channel_id}:{msg_id} [状态: {status}]")
             
-            # 步骤3b: 如果有组ID，还要处理组合消息（用于组图展示）
+            # 步骤3b: 如果有组ID，处理组合消息（用于组图展示）
             if grouped_id:
-                # 组合消息检测（但不依赖它来保存数据）
-                combined_message = await message_grouper.process_message(
+                # 🔧 修复后：只需要注册消息到组合器，不需要再次保存单独消息
+                # message_grouper 将返回单独消息（已在步骤3a保存）和可能的组合消息
+                grouper_result = await message_grouper.process_message(
                     message, 
                     channel_id, 
                     processed_data.get('media_info'),
@@ -162,20 +163,18 @@ class UnifiedMessageProcessor:
                     is_batch=is_history  # 历史消息使用批量模式
                 )
                 
-                # 如果组合消息完成，也保存它（作为组图展示用）
-                if combined_message:
-                    logger.info(f"📦 组合消息完成，将额外保存组合视图")
-                    # 这里可以选择保存组合消息，但单独消息已经保存了
+                # grouper_result 现在始终返回单独消息，无需重复处理
+                logger.debug(f"📦 消息已注册到组合器，单独消息已保存")
             
-            # 使用已保存的单独消息作为返回结果
-            combined_message = saved_individual
-            
-            # 消息已在步骤3a中保存，这里使用已保存的结果
-            saved_message = combined_message
+            # 使用已保存的单独消息作为最终结果
+            saved_message = saved_individual
             
             # 步骤7: 转发到审核群（根据配置决定）
             if await self._should_forward_to_review(is_history):
                 await self._forward_to_review(saved_message)
+            
+            # 记录成功处理
+            logger.info(f"✅ 消息处理完成: #{message.id} -> {channel_id}:{saved_message.get('message_id')} [组ID: {grouped_id or 'N/A'}]")
             
             # 步骤8: 广播到WebSocket（所有新消息都广播，让web端能看到）
             # 不再区分是否历史消息，所有成功保存的消息都广播到web端
@@ -198,11 +197,12 @@ class UnifiedMessageProcessor:
             return saved_message
             
         except Exception as e:
-            logger.error(f"统一消息处理失败: {e}")
+            logger.error(f"统一消息处理失败 #{message.id}: {e}")
             # 清理可能已下载的媒体
             if 'processed_data' in locals() and processed_data:
                 media_info = processed_data.get('media_info')
                 if media_info and media_info.get('file_path'):
+                    from app.services.media_handler import media_handler
                     await media_handler.cleanup_file(media_info['file_path'])
             return None
     
