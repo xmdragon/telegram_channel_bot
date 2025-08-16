@@ -383,8 +383,6 @@ const MainApp = {
         },
         
         async loadMessages(append = false) {
-            console.log(`loadMessages调用：append=${append}, 当前频道=${this.filters.source_channel}`);
-            
             if (append) {
                 this.isLoadingMore = true;
             } else {
@@ -396,8 +394,6 @@ const MainApp = {
                 this.hasMore = true;  // 重置hasMore状态
                 this.loading = true;
                 this.loadingMessage = '正在加载消息数据...';
-                
-                console.log('频道切换：清空消息列表，重置hasMore状态，开始加载新数据');
             }
             
             try {
@@ -423,20 +419,15 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
-                console.log('API请求参数：', params);
-                
                 const response = await axios.get('/api/messages/', {
                     params: params
                 });
-                
-                console.log('API响应：', response.data);
                 
                 if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
                     const newMessages = response.data.messages;
                     
                     // 检查是否还有更多数据
                     this.hasMore = newMessages.length === this.pageSize;
-                    console.log(`hasMore状态更新：${this.hasMore} (收到${newMessages.length}条消息，期望${this.pageSize}条)`);
                     
                     // 计算真正的新消息
                     const currentMessageIds = new Set(newMessages.map(msg => msg.id));
@@ -579,10 +570,7 @@ const MainApp = {
         
         // 处理频道切换事件
         handleChannelChange() {
-            console.log('频道切换事件触发，当前选择：', this.filters.source_channel);
-            
             if (!this.filters.source_channel) {
-                console.log('清除频道选择，显示所有频道消息');
                 MessageManager.info('已清除频道筛选，显示所有频道的消息');
             }
             
@@ -708,7 +696,6 @@ const MainApp = {
                     this.filters.filter_reason = null;
             }
             
-            console.log(`点击标签页「${statKey}」，已清除频道选择，当前筛选:`, this.filters);
             MessageManager.info(`已切换到「${this.getStatLabel(statKey)}」并清除频道筛选`);
             this.loadMessages();
         },
@@ -1791,8 +1778,6 @@ const MainApp = {
         
         // 设置滚动监听
         setupScrollListener() {
-            console.log('开始设置滚动监听器...');
-            
             // 移除之前的所有滚动监听
             if (this.scrollHandler) {
                 window.removeEventListener('scroll', this.scrollHandler);
@@ -1802,23 +1787,9 @@ const MainApp = {
                 }
             }
             
-            // 检查页面布局，判断使用哪种滚动模式
-            const messageContainer = document.querySelector('.message-list');
-            const bodyHeight = document.body.scrollHeight;
-            const windowHeight = window.innerHeight;
-            
-            console.log('页面滚动检查:', {
-                messageContainer: messageContainer ? '找到' : '未找到',
-                bodyHeight,
-                windowHeight,
-                hasBodyScroll: bodyHeight > windowHeight
-            });
-            
             // 记录上次触发加载的时间戳
             let lastLoadTime = 0;
-            let lastLogTime = 0;
-            const minLoadInterval = 2000; // 最少间隔2秒才能再次加载  
-            const minLogInterval = 500; // 最少间隔0.5秒才能打印日志
+            const minLoadInterval = 2000; // 最少间隔2秒才能再次加载
             
             // 创建新的滚动处理函数
             this.scrollHandler = () => {
@@ -1861,32 +1832,16 @@ const MainApp = {
                     isNearBottom = true;
                 }
                 
-                // 实时日志：限制打印频率，避免日志刷屏
-                if (now - lastLogTime > minLogInterval) {
-                    console.log(`📊 滚动监控[页面] - 位置: ${scrollPercentage.toFixed(1)}%, 剩余: ${scrollInfo.remaining}px, 阈值: ${scrollPercentage > 90 ? '✅达到' : '❌未达到'}`);
-                    lastLogTime = now;
-                }
-                
                 
                 // 只在真正接近底部时加载
                 if (isNearBottom && !this.isLoadingMore && this.hasMore) {
                     lastLoadTime = now;
-                    console.log(`滚动到底部(${scrollPercentage.toFixed(1)}%)，触发加载更多`);
                     this.loadMore();
-                } else if (isNearBottom) {
-                    console.log(`滚动到底部但跳过加载：isLoadingMore=${this.isLoadingMore}, hasMore=${this.hasMore}`);
                 }
             };
             
             // 只使用窗口滚动监听，因为页面使用body滚动模式
             window.addEventListener('scroll', this.scrollHandler, { passive: true });
-            console.log('✅ 页面滚动监听器已绑定');
-            
-            // 立即测试一次滚动状态
-            setTimeout(() => {
-                console.log('🧪 测试滚动监听器...');
-                this.scrollHandler();
-            }, 100);
         }
     }
 };
