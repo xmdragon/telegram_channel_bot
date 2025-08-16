@@ -1769,12 +1769,17 @@ const MainApp = {
                 }
             }
             
-            // 尝试多种选择器找到消息容器
-            const messageContainer = document.querySelector('.message-list') || 
-                                   document.querySelector('[class*="message-list"]') ||
-                                   document.querySelector('.message-container');
+            // 检查页面布局，判断使用哪种滚动模式
+            const messageContainer = document.querySelector('.message-list');
+            const bodyHeight = document.body.scrollHeight;
+            const windowHeight = window.innerHeight;
             
-            console.log('找到消息容器:', messageContainer ? '是' : '否', messageContainer);
+            console.log('页面滚动检查:', {
+                messageContainer: messageContainer ? '找到' : '未找到',
+                bodyHeight,
+                windowHeight,
+                hasBodyScroll: bodyHeight > windowHeight
+            });
             
             // 记录上次触发加载的时间戳
             let lastLoadTime = 0;
@@ -1799,66 +1804,36 @@ const MainApp = {
                 let isNearBottom = false;
                 let scrollInfo = {};
                 
-                // 优先检查消息容器
-                if (messageContainer) {
-                    const scrollTop = messageContainer.scrollTop;
-                    const scrollHeight = messageContainer.scrollHeight;
-                    const clientHeight = messageContainer.clientHeight;
-                    
-                    scrollInfo = {
-                        type: '消息容器',
-                        scrollTop,
-                        scrollHeight,
-                        clientHeight,
-                        remaining: scrollHeight - (scrollTop + clientHeight)
-                    };
-                    
-                    // 计算滚动百分比
-                    if (scrollHeight > clientHeight) {
-                        scrollPercentage = (scrollTop + clientHeight) / scrollHeight * 100;
-                    }
-                    
-                    // 降低阈值：滚动到90%以上才认为接近底部
-                    if (scrollPercentage > 90) {
-                        isNearBottom = true;
-                    }
-                    
-                    // 实时日志：限制打印频率，避免日志刷屏
-                    if (now - lastLogTime > minLogInterval) {
-                        console.log(`📊 滚动监控[容器] - 位置: ${scrollPercentage.toFixed(1)}%, 剩余: ${scrollInfo.remaining}px, 阈值: ${scrollPercentage > 90 ? '✅达到' : '❌未达到'}`);
-                        lastLogTime = now;
-                    }
-                    
-                } else {
-                    // 检查窗口滚动（备用方案）
-                    const windowHeight = window.innerHeight;
-                    const documentHeight = document.documentElement.scrollHeight;
-                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                    
-                    scrollInfo = {
-                        type: '窗口滚动',
-                        scrollTop,
-                        documentHeight,
-                        windowHeight,
-                        remaining: documentHeight - (scrollTop + windowHeight)
-                    };
-                    
-                    // 计算滚动百分比
-                    if (documentHeight > windowHeight) {
-                        scrollPercentage = (scrollTop + windowHeight) / documentHeight * 100;
-                    }
-                    
-                    // 降低阈值：滚动到90%以上才认为接近底部
-                    if (scrollPercentage > 90) {
-                        isNearBottom = true;
-                    }
-                    
-                    // 实时日志：限制打印频率，避免日志刷屏
-                    if (now - lastLogTime > minLogInterval) {
-                        console.log(`📊 滚动监控[窗口] - 位置: ${scrollPercentage.toFixed(1)}%, 剩余: ${scrollInfo.remaining}px, 阈值: ${scrollPercentage > 90 ? '✅达到' : '❌未达到'}`);
-                        lastLogTime = now;
-                    }
+                // 由于页面使用body滚动，直接检查窗口滚动
+                // 不再尝试容器滚动，因为.message-list是grid布局没有自己的滚动
+                const windowHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                
+                scrollInfo = {
+                    type: '页面滚动',
+                    scrollTop,
+                    documentHeight,
+                    windowHeight,
+                    remaining: documentHeight - (scrollTop + windowHeight)
+                };
+                
+                // 计算滚动百分比
+                if (documentHeight > windowHeight) {
+                    scrollPercentage = (scrollTop + windowHeight) / documentHeight * 100;
                 }
+                
+                // 降低阈值：滚动到90%以上才认为接近底部
+                if (scrollPercentage > 90) {
+                    isNearBottom = true;
+                }
+                
+                // 实时日志：限制打印频率，避免日志刷屏
+                if (now - lastLogTime > minLogInterval) {
+                    console.log(`📊 滚动监控[页面] - 位置: ${scrollPercentage.toFixed(1)}%, 剩余: ${scrollInfo.remaining}px, 阈值: ${scrollPercentage > 90 ? '✅达到' : '❌未达到'}`);
+                    lastLogTime = now;
+                }
+                
                 
                 // 只在真正接近底部时加载
                 if (isNearBottom && !this.isLoadingMore && this.hasMore) {
@@ -1870,25 +1845,15 @@ const MainApp = {
                 }
             };
             
-            // 添加滚动监听（不使用防抖，而是用时间间隔控制）
-            if (messageContainer) {
-                messageContainer.addEventListener('scroll', this.scrollHandler, { passive: true });
-                console.log('✅ 消息容器滚动监听器已绑定');
-            }
+            // 只使用窗口滚动监听，因为页面使用body滚动模式
             window.addEventListener('scroll', this.scrollHandler, { passive: true });
-            console.log('✅ 窗口滚动监听器已绑定');
+            console.log('✅ 页面滚动监听器已绑定');
             
             // 立即测试一次滚动状态
             setTimeout(() => {
                 console.log('🧪 测试滚动监听器...');
                 this.scrollHandler();
             }, 100);
-            
-            // 如果没有找到容器，稍后重试
-            if (!messageContainer) {
-                console.log('⚠️ 未找到消息容器，500ms后重试...');
-                setTimeout(() => this.setupScrollListener(), 500);
-            }
         }
     }
 };
