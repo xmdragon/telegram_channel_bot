@@ -200,6 +200,78 @@
                             </div>
                         </el-card>
                     </div>
+                    
+                    <!-- 推广链接训练表单 -->
+                    <div class="config-section" v-if="trainingMode === 'promo'">
+                        <el-card class="training-form-card">
+                            <template #header>
+                                <div class="card-header">
+                                    <span>🔗 推广链接训练</span>
+                                </div>
+                            </template>
+                            
+                            <el-form :model="promoTrainingForm" label-width="120px" label-position="top">
+                                <el-form-item label="完整消息内容" required>
+                                    <el-input
+                                        v-model="promoTrainingForm.full_content"
+                                        type="textarea"
+                                        :rows="10"
+                                        placeholder="粘贴包含尾部推广链接的完整消息内容...">
+                                    </el-input>
+                                    <div class="char-count">{{ promoTrainingForm.full_content.length }} 字符</div>
+                                </el-form-item>
+                                
+                                <el-form-item label="推广链接部分" required>
+                                    <el-input
+                                        v-model="promoTrainingForm.promo_section"
+                                        type="textarea"
+                                        :rows="6"
+                                        placeholder="标记需要过滤的推广链接部分，例如：
+🔔 订阅📡东南亚曝光台
+🔗  t.me/dny9527
+☎️ 投稿曝料：@stan0505">
+                                    </el-input>
+                                    <div class="char-count">{{ promoTrainingForm.promo_section.length }} 字符</div>
+                                </el-form-item>
+                                
+                                <el-form-item label="分隔符类型">
+                                    <el-select v-model="promoTrainingForm.separator_type" placeholder="选择分隔符类型">
+                                        <el-option label="横线类 (━━━)" value="line_separator"></el-option>
+                                        <el-option label="等号类 (===)" value="equal_separator"></el-option>
+                                        <el-option label="加号类 (+++)" value="plus_separator"></el-option>
+                                        <el-option label="Emoji分隔" value="emoji_separator"></el-option>
+                                        <el-option label="无明显分隔符" value="no_separator"></el-option>
+                                    </el-select>
+                                </el-form-item>
+                                
+                                <el-form-item label="推广特征" required>
+                                    <el-checkbox-group v-model="promoTrainingForm.promo_features">
+                                        <el-checkbox label="订阅频道">订阅频道链接</el-checkbox>
+                                        <el-checkbox label="投稿爆料">投稿爆料联系</el-checkbox>
+                                        <el-checkbox label="商务合作">商务合作联系</el-checkbox>
+                                        <el-checkbox label="多个@用户名">多个@用户名</el-checkbox>
+                                        <el-checkbox label="Markdown链接">Markdown格式链接</el-checkbox>
+                                        <el-checkbox label="直接链接">直接URL链接</el-checkbox>
+                                    </el-checkbox-group>
+                                </el-form-item>
+                                
+                                <!-- 预览区域 -->
+                                <el-form-item label="过滤后预览" v-if="promoFilteredPreview">
+                                    <div class="preview-box">
+                                        <pre>{{ promoFilteredPreview }}</pre>
+                                    </div>
+                                </el-form-item>
+                                
+                                <el-form-item>
+                                    <el-button @click="clearPromoForm">清空</el-button>
+                                    <el-button type="primary" @click="submitPromoTraining" :loading="submitting">
+                                        提交推广链接训练样本
+                                    </el-button>
+                                    <el-button @click="previewPromoFilter">预览过滤效果</el-button>
+                                </el-form-item>
+                            </el-form>
+                        </el-card>
+                    </div>
                 </el-tab-pane>
                 
                 <!-- 训练历史 -->

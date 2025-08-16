@@ -69,6 +69,24 @@ class ThresholdManager:
                     "last_updated": None
                 }
             },
+            "footer_promo_filter": {
+                "separator_confidence": {
+                    "current": 0.6,
+                    "min": 0.3,
+                    "max": 0.9,
+                    "history": [0.6],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                },
+                "semantic_score": {
+                    "current": 0.5,
+                    "min": 0.2,
+                    "max": 0.8,
+                    "history": [0.5],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                }
+            },
             "promo_filter": {
                 "score": {
                     "current": 0.65,

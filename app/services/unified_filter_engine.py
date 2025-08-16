@@ -16,6 +16,7 @@ from app.services.filters.base import FilterContext
 from app.services.filters.duplicate_detector import DuplicateDetectorFilter
 from app.services.filters.ad_detector import AdDetectorFilter  
 from app.services.filters.tail_filter import TailFilter
+from app.services.filters.footer_promo_filter import FooterPromoFilter
 from app.services.filters.markdown_filter import MarkdownFilter
 from app.services.filters.promo_link_filter import PromoLinkFilter
 from app.services.filters.chat_content_filter import ChatContentFilter
@@ -45,11 +46,12 @@ class UnifiedFilterEngine:
         
         pipeline = FilterPipeline(config)
         
-        # 按顺序添加6个过滤器
+        # 按顺序添加7个过滤器
         pipeline.add_filter(DuplicateDetectorFilter())
         pipeline.add_filter(AdDetectorFilter())
         pipeline.add_filter(ChatContentFilter())  # 聊天内容检测
         pipeline.add_filter(TailFilter())
+        pipeline.add_filter(FooterPromoFilter())  # 尾部推广链接过滤器
         pipeline.add_filter(MarkdownFilter())
         pipeline.add_filter(PromoLinkFilter())
         

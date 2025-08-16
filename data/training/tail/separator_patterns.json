@@ -1,33 +1,105 @@
 {
   "patterns": [
     {
-      "regex": "━{10,}",
-      "description": "横线分隔符（10个以上）"
+      "regex": "━{5,}",
+      "description": "横线分隔符（5个以上）",
+      "weight": 0.9
     },
     {
-      "regex": "═{10,}",
-      "description": "双线分隔符"
+      "regex": "═{5,}",
+      "description": "双线分隔符",
+      "weight": 0.9
     },
     {
-      "regex": "─{10,}",
-      "description": "细线分隔符"
+      "regex": "─{5,}",
+      "description": "细线分隔符",
+      "weight": 0.8
     },
     {
-      "regex": "▬{10,}",
-      "description": "粗线分隔符"
+      "regex": "▬{5,}",
+      "description": "粗线分隔符",
+      "weight": 0.8
     },
     {
-      "regex": "-{10,}",
-      "description": "短横线（10个以上）"
+      "regex": "-{8,}",
+      "description": "短横线（8个以上）",
+      "weight": 0.7
     },
     {
-      "regex": "={20,}",
-      "description": "等号线"
+      "regex": "={8,}",
+      "description": "等号线",
+      "weight": 0.7
     },
     {
-      "regex": "\\*{10,}",
-      "description": "星号线"
+      "regex": "\\*{8,}",
+      "description": "星号线",
+      "weight": 0.6
+    },
+    {
+      "regex": "\\+{3,}",
+      "description": "加号分隔符（3个以上）",
+      "weight": 0.8
+    },
+    {
+      "regex": "<{3,}",
+      "description": "小于号分隔符",
+      "weight": 0.6
+    },
+    {
+      "regex": ">{3,}",
+      "description": "大于号分隔符",
+      "weight": 0.6
+    },
+    {
+      "regex": "~{5,}",
+      "description": "波浪号分隔符",
+      "weight": 0.5
+    },
+    {
+      "regex": "_{5,}",
+      "description": "下划线分隔符",
+      "weight": 0.7
+    },
+    {
+      "regex": "\\|{3,}",
+      "description": "竖线分隔符",
+      "weight": 0.6
+    },
+    {
+      "regex": "🔜{2,}",
+      "description": "🔜emoji分隔符",
+      "weight": 0.8
+    },
+    {
+      "regex": "😉{2,}",
+      "description": "😉emoji分隔符",
+      "weight": 0.7
+    },
+    {
+      "regex": "[📢📣🔔📻📡]{2,}",
+      "description": "通知类emoji分隔符",
+      "weight": 0.9
+    },
+    {
+      "regex": "[⚡🔥💥⭐]{3,}",
+      "description": "强调类emoji分隔符",
+      "weight": 0.7
+    },
+    {
+      "regex": "[👉👇👆👈]{2,}",
+      "description": "指向类emoji分隔符",
+      "weight": 0.8
+    },
+    {
+      "regex": "\\.\\.\\.*",
+      "description": "省略号分隔符（3个以上点）",
+      "weight": 0.5
+    },
+    {
+      "regex": "[-=*_]{3,}\\s*[-=*_]{3,}",
+      "description": "混合分隔符模式",
+      "weight": 0.8
     }
   ],
-  "updated_at": "2025-08-15T20:08:08.194232"
+  "updated_at": "2025-08-16T14:45:00.000000"
 }

@@ -39,11 +39,20 @@ const TrainApp = {
                 description: ''
             },
             
+            // 推广链接训练表单
+            promoTrainingForm: {
+                full_content: '',
+                promo_section: '',
+                separator_type: '',
+                promo_features: []
+            },
+            
             // 分隔符配置
             separatorPatterns: [],
             
             // 预览
             filteredPreview: '',
+            promoFilteredPreview: '',
             
             // 统计信息
             stats: {
@@ -94,6 +103,8 @@ const TrainApp = {
                     this.trainingMode = 'ad';
                 } else if (mode === 'tail') {
                     this.trainingMode = 'tail';
+                } else if (mode === 'promo') {
+                    this.trainingMode = 'promo';
                 } else if (mode === 'separator') {
                     this.trainingMode = 'separator';
                 } else if (mode === 'data') {
@@ -314,6 +325,78 @@ const TrainApp = {
                 ElMessage.error('提交失败: ' + error.message);
             } finally {
                 this.submitting = false;
+            }
+        },
+        
+        // 推广链接训练相关方法
+        async submitPromoTraining() {
+            if (!this.promoTrainingForm.full_content) {
+                ElMessage.warning('请输入完整消息内容');
+                return;
+            }
+            
+            if (!this.promoTrainingForm.promo_section) {
+                ElMessage.warning('请输入推广链接部分');
+                return;
+            }
+            
+            if (this.promoTrainingForm.promo_features.length === 0) {
+                ElMessage.warning('请选择至少一个推广特征');
+                return;
+            }
+            
+            this.submitting = true;
+            try {
+                const response = await axios.post('/api/training/promo-samples', {
+                    full_content: this.promoTrainingForm.full_content,
+                    promo_section: this.promoTrainingForm.promo_section,
+                    separator_type: this.promoTrainingForm.separator_type,
+                    promo_features: this.promoTrainingForm.promo_features
+                });
+                
+                if (response.data.success) {
+                    ElMessage.success('推广链接训练样本已添加');
+                    this.clearPromoForm();
+                    await this.loadStats();
+                } else {
+                    ElMessage.error(response.data.message || '添加失败');
+                }
+            } catch (error) {
+                ElMessage.error('提交失败: ' + error.message);
+            } finally {
+                this.submitting = false;
+            }
+        },
+        
+        clearPromoForm() {
+            this.promoTrainingForm = {
+                full_content: '',
+                promo_section: '',
+                separator_type: '',
+                promo_features: []
+            };
+            this.promoFilteredPreview = '';
+        },
+        
+        async previewPromoFilter() {
+            if (!this.promoTrainingForm.full_content) {
+                ElMessage.warning('请先输入完整消息内容');
+                return;
+            }
+            
+            try {
+                const response = await axios.post('/api/training/preview-promo-filter', {
+                    content: this.promoTrainingForm.full_content,
+                    separator_type: this.promoTrainingForm.separator_type
+                });
+                
+                if (response.data.success) {
+                    this.promoFilteredPreview = response.data.filtered_content;
+                } else {
+                    ElMessage.error('预览失败: ' + response.data.message);
+                }
+            } catch (error) {
+                ElMessage.error('预览失败: ' + error.message);
             }
         },
         

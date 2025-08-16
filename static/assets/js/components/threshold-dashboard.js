@@ -323,6 +323,7 @@ const app = createApp({
             const names = {
                 'tail_filter': '尾部过滤器',
                 'ad_detector': '广告检测器',
+                'footer_promo_filter': '推广链接过滤器',
                 'promo_filter': '推广过滤器',
                 'chat_filter': '聊天检测器'
             };
@@ -333,6 +334,7 @@ const app = createApp({
             const icons = {
                 'tail_filter': '✂️',
                 'ad_detector': '🛡️',
+                'footer_promo_filter': '🔗',
                 'promo_filter': '🚫',
                 'chat_filter': '💬'
             };
@@ -343,6 +345,8 @@ const app = createApp({
             const names = {
                 'intelligent': '智能过滤',
                 'semantic': '语义过滤',
+                'separator_confidence': '分隔符置信度',
+                'semantic_score': '语义分析',
                 'classifier': '分类器',
                 'keywords': '关键词',
                 'score': '综合评分',
