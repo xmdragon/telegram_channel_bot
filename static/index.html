@@ -57,20 +57,20 @@
                         <option :value="false">正常消息</option>
                     </select>
                     
+                    <!-- 频道筛选 -->
+                    <select v-model="filters.source_channel" @change="loadMessages" class="form-select">
+                        <option value="">监听频道</option>
+                        <option v-for="(channel, channelId) in uniqueChannels" 
+                                :key="channelId" 
+                                :value="channelId">
+                            {{ getChannelDisplayName(channel) }}
+                        </option>
+                    </select>
+                    
                     <!-- 刷新按钮 -->
                     <button @click="loadMessages" class="btn btn-secondary">
                         🔄 刷新
                     </button>
-                    
-                    <!-- 频道筛选状态 -->
-                    <div v-if="filters.source_channel" class="channel-filter-status">
-                        <span class="filter-label">
-                            📡 筛选频道: {{ getChannelName(filters.source_channel) }}
-                        </span>
-                        <button @click="clearChannelFilter" class="btn btn-sm btn-outline" title="清除频道筛选">
-                            ✕ 清除
-                        </button>
-                    </div>
                 </div>
             </div>
             
@@ -89,7 +89,7 @@
             ></batch-operation-panel>
 
             <!-- 消息列表 -->
-            <div class="message-list" v-if="useVirtualScroll && filteredMessages.length > virtualScrollThreshold">
+            <div class="message-list" v-if="useVirtualScroll && filteredMessages.length > virtualScrollThreshold && !isClearing">
                 <!-- 虚拟滚动列表 -->
                 <virtual-list
                     :items="filteredMessages"
@@ -111,9 +111,14 @@
                 </virtual-list>
             </div>
             
-            <!-- 传统列表（少量消息时使用） -->
+            <!-- 传统列表（少量消息时使用，或正在清空时） -->
             <div v-else class="message-list">
-                <div v-if="loading" class="loading">
+                <div v-if="isClearing" class="loading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">正在切换...</div>
+                </div>
+                
+                <div v-else-if="loading" class="loading">
                     <div class="spinner"></div>
                     <div class="loading-text">加载中...</div>
                 </div>
@@ -124,9 +129,11 @@
                     <div class="empty-description">当前筛选条件下没有消息</div>
                 </div>
                 
-                <div v-else v-for="message in filteredMessages" :key="message.id" 
-                     class="message-item"
-                     :class="{ 'selected': isSelected(message.id) }">
+                <!-- 消息列表，使用template标签包裹v-for -->
+                <template v-else>
+                    <div v-for="message in filteredMessages" :key="message.id" 
+                         class="message-item"
+                         :class="{ 'selected': isSelected(message.id) }">
                     
                     <!-- 消息头部 -->
                     <div class="message-header">
@@ -373,6 +380,7 @@
                         </button>
                     </div>
                 </div>
+                </template>
                 
                 <!-- 加载更多指示器 -->
                 <div v-if="isLoadingMore" class="loading-more">
@@ -420,7 +428,7 @@
         </div>
         
         <!-- 文件详情对话框 -->
-        <div v-if="fileDetailsDialog && fileDetailsDialog.visible" 
+        <div v-if="fileDetailsDialog && fileDetailsDialog.visible && fileDetailsDialog.details" 
              class="modal-overlay" 
              @click.self="fileDetailsDialog.visible = false">
             <div class="file-details-modal">
@@ -432,23 +440,23 @@
                     <table class="file-details-table">
                         <tr>
                             <td class="detail-label">文件名</td>
-                            <td class="detail-value">{{ fileDetailsDialog.details.fileName }}</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.fileName || '未知' }}</td>
                         </tr>
-                        <tr v-if="fileDetailsDialog.details.originalFileName !== fileDetailsDialog.details.fileName">
+                        <tr v-if="fileDetailsDialog.details.originalFileName && fileDetailsDialog.details.originalFileName !== fileDetailsDialog.details.fileName">
                             <td class="detail-label">原始文件名</td>
                             <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.originalFileName }}</td>
                         </tr>
                         <tr>
                             <td class="detail-label">路径</td>
-                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.path }}</td>
+                            <td class="detail-value detail-value-small">{{ fileDetailsDialog.details.path || '未知' }}</td>
                         </tr>
                         <tr>
                             <td class="detail-label">类型</td>
-                            <td class="detail-value">{{ fileDetailsDialog.details.type }}</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.type || '未知' }}</td>
                         </tr>
                         <tr>
                             <td class="detail-label">大小</td>
-                            <td class="detail-value">{{ fileDetailsDialog.details.size }}</td>
+                            <td class="detail-value">{{ fileDetailsDialog.details.size || '未知' }}</td>
                         </tr>
                         <tr v-if="fileDetailsDialog.details.hash">
                             <td class="detail-label">哈希</td>
@@ -470,7 +478,7 @@
                     <button @click="fileDetailsDialog.visible = false" class="btn btn-secondary">
                         关闭
                     </button>
-                    <a :href="fileDetailsDialog.details.path" download class="btn btn-primary">
+                    <a v-if="fileDetailsDialog.details.path" :href="fileDetailsDialog.details.path" download class="btn btn-primary">
                         下载文件
                     </a>
                 </div>
