@@ -1649,36 +1649,87 @@ const MainApp = {
                     return;
                 }
                 
+                // 提交补抓任务
                 const response = await axios.post(`/api/messages/${message.id}/refetch-media`);
                 
                 if (response.data.success) {
-                    if (response.data.skipped) {
-                        MessageManager.info('媒体文件已存在，无需重新下载');
-                    } else {
-                        MessageManager.success('媒体补抓成功');
-                        
-                        // 更新消息的媒体URL
-                        message.media_url = response.data.media_url;
-                        
-                        // 重新生成显示URL
-                        if (response.data.media_url) {
-                            const fileName = response.data.media_url.split('/').pop();
-                            message.display_url = `/media/${fileName}`;
-                        }
-                        
-                        // 触发视图更新
-                        this.messages = [...this.messages];
-                    }
+                    const taskId = response.data.task_id;
+                    MessageManager.success('媒体补抓任务已提交，正在处理中...');
+                    
+                    // 轮询任务状态
+                    await this.pollRefetchTaskStatus(taskId, message);
                 } else {
                     MessageManager.error(response.data.message || '补抓失败');
+                    delete this.refetchingMedia[message.id];
                 }
             } catch (error) {
-                // console.error('补抓媒体失败:', error);
+                console.error('补抓媒体失败:', error);
                 MessageManager.error('补抓失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                // 清除加载状态
                 delete this.refetchingMedia[message.id];
             }
+        },
+
+        // 轮询补抓任务状态
+        async pollRefetchTaskStatus(taskId, message, maxAttempts = 30) {
+            let attempts = 0;
+            
+            const poll = async () => {
+                try {
+                    attempts++;
+                    
+                    const response = await axios.get(`/api/refetch-task/${taskId}`);
+                    const taskData = response.data.data;
+                    
+                    if (taskData.status === 'completed') {
+                        // 任务完成，更新媒体URL
+                        if (taskData.result && taskData.result.media_url) {
+                            message.media_url = taskData.result.media_url;
+                            
+                            // 重新生成显示URL
+                            const fileName = taskData.result.media_url.split('/').pop();
+                            message.display_url = `/media/${fileName}`;
+                            
+                            // 触发视图更新
+                            this.messages = [...this.messages];
+                            
+                            MessageManager.success('媒体补抓成功');
+                        } else {
+                            MessageManager.warning('任务完成但未获取到媒体文件');
+                        }
+                        
+                        delete this.refetchingMedia[message.id];
+                        return;
+                        
+                    } else if (taskData.status === 'failed') {
+                        // 任务失败
+                        const errorMsg = taskData.error_message || '未知错误';
+                        MessageManager.error(`媒体补抓失败: ${errorMsg}`);
+                        delete this.refetchingMedia[message.id];
+                        return;
+                        
+                    } else if (taskData.status === 'processing' || taskData.status === 'pending') {
+                        // 任务仍在处理中，继续轮询
+                        if (attempts < maxAttempts) {
+                            setTimeout(poll, 2000); // 2秒后再次检查
+                        } else {
+                            MessageManager.warning('任务处理超时，请稍后手动检查结果');
+                            delete this.refetchingMedia[message.id];
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('检查任务状态失败:', error);
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, 2000);
+                    } else {
+                        MessageManager.error('无法获取任务状态');
+                        delete this.refetchingMedia[message.id];
+                    }
+                }
+            };
+            
+            // 开始轮询
+            setTimeout(poll, 1000); // 1秒后开始第一次检查
         },
         
         // 处理状态更新

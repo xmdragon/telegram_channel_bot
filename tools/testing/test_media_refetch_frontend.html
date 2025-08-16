@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>媒体补抓前端测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .message { background: #f5f5f5; padding: 10px; margin: 10px 0; }
+        .loading { color: #666; }
+        .success { color: green; }
+        .error { color: red; }
+        button { margin: 5px; padding: 8px 16px; }
+        .result { margin: 10px 0; padding: 10px; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>媒体补抓前端功能测试</h1>
+    
+    <div class="test-section">
+        <h2>测试场景：模拟媒体补抓流程</h2>
+        <div id="testMessage" class="message">
+            <p><strong>消息ID:</strong> test_channel:123</p>
+            <p><strong>媒体状态:</strong> <span id="mediaStatus">缺失</span></p>
+            <p><strong>媒体URL:</strong> <span id="mediaUrl">无</span></p>
+            <div id="mediaPreview">📷 媒体占位符</div>
+        </div>
+        
+        <button onclick="testRefetchMedia()" id="refetchBtn">补抓媒体</button>
+        <button onclick="clearTest()">重置测试</button>
+        
+        <div id="testResults" class="result"></div>
+    </div>
+
+    <script>
+        // 模拟消息对象
+        let testMessage = {
+            id: 'test_channel:123',
+            media_url: null,
+            display_url: null,
+            media_type: 'image'
+        };
+
+        let isRefetching = false;
+
+        // 更新显示
+        function updateDisplay() {
+            document.getElementById('mediaStatus').textContent = testMessage.media_url ? '已下载' : '缺失';
+            document.getElementById('mediaUrl').textContent = testMessage.media_url || '无';
+            
+            const preview = document.getElementById('mediaPreview');
+            if (testMessage.display_url) {
+                preview.innerHTML = `<img src="${testMessage.display_url}" alt="媒体预览" style="max-width: 200px;">`;
+            } else {
+                preview.innerHTML = '📷 媒体占位符';
+            }
+        }
+
+        // 模拟API调用
+        async function mockApiCall(url, options = {}) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    if (url.includes('/refetch-media')) {
+                        // 模拟提交任务的响应
+                        resolve({
+                            data: {
+                                success: true,
+                                task_id: 'task-' + Date.now(),
+                                message: '媒体补抓任务已提交，正在处理中...'
+                            }
+                        });
+                    } else if (url.includes('/refetch-task/')) {
+                        // 模拟任务状态查询
+                        const random = Math.random();
+                        if (random < 0.3) {
+                            // 30% 概率返回 pending
+                            resolve({
+                                data: {
+                                    data: { status: 'pending' }
+                                }
+                            });
+                        } else if (random < 0.6) {
+                            // 30% 概率返回 processing
+                            resolve({
+                                data: {
+                                    data: { status: 'processing' }
+                                }
+                            });
+                        } else {
+                            // 40% 概率返回 completed
+                            resolve({
+                                data: {
+                                    data: {
+                                        status: 'completed',
+                                        result: {
+                                            media_url: 'temp_media/test_image_' + Date.now() + '.jpg',
+                                            media_type: 'image',
+                                            file_size: 1024000
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }, 500 + Math.random() * 1000); // 模拟网络延迟
+            });
+        }
+
+        // 添加日志函数
+        function addLog(message, className = '') {
+            const results = document.getElementById('testResults');
+            const time = new Date().toLocaleTimeString();
+            results.innerHTML += `<div class="${className}">[${time}] ${message}</div>`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        // 模拟前端的补抓媒体逻辑
+        async function testRefetchMedia() {
+            if (isRefetching) {
+                addLog('补抓任务正在进行中...', 'loading');
+                return;
+            }
+
+            try {
+                isRefetching = true;
+                document.getElementById('refetchBtn').disabled = true;
+                document.getElementById('refetchBtn').textContent = '补抓中...';
+                
+                addLog('开始补抓媒体文件...', 'loading');
+                
+                // 提交补抓任务
+                const response = await mockApiCall(`/api/messages/${testMessage.id}/refetch-media`, {
+                    method: 'POST'
+                });
+                
+                if (response.data.success) {
+                    const taskId = response.data.task_id;
+                    addLog(`任务已提交，任务ID: ${taskId}`, 'success');
+                    
+                    // 轮询任务状态
+                    await pollTaskStatus(taskId);
+                } else {
+                    addLog('任务提交失败', 'error');
+                }
+            } catch (error) {
+                addLog(`补抓失败: ${error.message}`, 'error');
+            } finally {
+                isRefetching = false;
+                document.getElementById('refetchBtn').disabled = false;
+                document.getElementById('refetchBtn').textContent = '补抓媒体';
+            }
+        }
+
+        // 轮询任务状态
+        async function pollTaskStatus(taskId, maxAttempts = 10) {
+            let attempts = 0;
+            
+            const poll = async () => {
+                try {
+                    attempts++;
+                    addLog(`检查任务状态... (尝试 ${attempts}/${maxAttempts})`, 'loading');
+                    
+                    const response = await mockApiCall(`/api/refetch-task/${taskId}`);
+                    const taskData = response.data.data;
+                    
+                    if (taskData.status === 'completed') {
+                        // 任务完成，更新媒体URL
+                        if (taskData.result && taskData.result.media_url) {
+                            testMessage.media_url = taskData.result.media_url;
+                            
+                            // 重新生成显示URL
+                            const fileName = taskData.result.media_url.split('/').pop();
+                            testMessage.display_url = `/media/${fileName}`;
+                            
+                            updateDisplay();
+                            
+                            addLog('✅ 媒体补抓成功！', 'success');
+                            addLog(`文件路径: ${taskData.result.media_url}`, 'success');
+                        } else {
+                            addLog('⚠️ 任务完成但未获取到媒体文件', 'error');
+                        }
+                        return;
+                        
+                    } else if (taskData.status === 'failed') {
+                        const errorMsg = taskData.error_message || '未知错误';
+                        addLog(`❌ 媒体补抓失败: ${errorMsg}`, 'error');
+                        return;
+                        
+                    } else if (taskData.status === 'processing' || taskData.status === 'pending') {
+                        // 任务仍在处理中，继续轮询
+                        if (attempts < maxAttempts) {
+                            setTimeout(poll, 2000); // 2秒后再次检查
+                        } else {
+                            addLog('⏰ 任务处理超时，请稍后手动检查结果', 'error');
+                        }
+                    }
+                    
+                } catch (error) {
+                    addLog(`检查任务状态失败: ${error.message}`, 'error');
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, 2000);
+                    }
+                }
+            };
+            
+            // 开始轮询
+            setTimeout(poll, 1000); // 1秒后开始第一次检查
+        }
+
+        // 重置测试
+        function clearTest() {
+            testMessage = {
+                id: 'test_channel:123',
+                media_url: null,
+                display_url: null,
+                media_type: 'image'
+            };
+            updateDisplay();
+            document.getElementById('testResults').innerHTML = '';
+            addLog('测试已重置', 'success');
+        }
+
+        // 初始化
+        updateDisplay();
+        addLog('媒体补抓前端功能测试已准备就绪', 'success');
+    </script>
+</body>
+</html>
