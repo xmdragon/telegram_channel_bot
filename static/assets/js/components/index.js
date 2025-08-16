@@ -667,37 +667,64 @@ const MainApp = {
         
         // 统计面板点击事件
         handleStatClick(statKey) {
+            // 点击标签页时，清除频道选择并设置对应的筛选条件
+            this.filters.source_channel = '';  // 清除频道选择
+            
             switch(statKey) {
                 case 'pending':
                     this.filters.status = 'pending';
+                    this.filters.is_ad = null;
                     this.filters.filter_reason = null;
                     break;
                 case 'approved':
                     this.filters.status = 'approved';
+                    this.filters.is_ad = null;
                     this.filters.filter_reason = null;
                     break;
                 case 'rejected':
                     this.filters.status = 'rejected';
+                    this.filters.is_ad = null;
                     this.filters.filter_reason = null;
                     break;
                 case 'ads':
+                    this.filters.status = '';
                     this.filters.is_ad = true;
                     this.filters.filter_reason = null;
                     break;
                 case 'duplicates':
                     this.filters.status = 'rejected';
+                    this.filters.is_ad = null;
                     this.filters.filter_reason = 'duplicate_detector';
                     break;
                 case 'chats':
                     this.filters.status = 'rejected';
+                    this.filters.is_ad = null;
                     this.filters.filter_reason = 'chat_content_filter';
                     break;
                 default:
+                    // 总消息：清除所有筛选条件
                     this.filters.status = '';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
             }
+            
+            console.log(`点击标签页「${statKey}」，已清除频道选择，当前筛选:`, this.filters);
+            MessageManager.info(`已切换到「${this.getStatLabel(statKey)}」并清除频道筛选`);
             this.loadMessages();
+        },
+        
+        // 获取统计标签的显示名称
+        getStatLabel(statKey) {
+            const labelMap = {
+                'total': '总消息',
+                'pending': '待审核',
+                'approved': '已批准', 
+                'rejected': '已拒绝',
+                'ads': '广告消息',
+                'duplicates': '重复消息',
+                'chats': '聊天消息'
+            };
+            return labelMap[statKey] || '总消息';
         },
         
         // 点击频道名称筛选该频道的消息
