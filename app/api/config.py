@@ -9,6 +9,7 @@ import logging
 
 from app.services.config_manager import config_manager
 from app.services.auth_service import get_auth_service
+from app.core.route_config import ROUTES
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ async def check_config_permission(user: Dict[str, Any] = Depends(require_auth)) 
         logger.error(f"检查配置权限失败: {e}")
         raise HTTPException(status_code=500, detail="权限检查失败")
 
-@router.get("/")
+@router.get(ROUTES.config.base)
 async def get_all_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取所有配置项"""
     try:
@@ -76,7 +77,7 @@ async def get_all_configs(user: Dict[str, Any] = Depends(check_config_permission
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取配置失败: {str(e)}")
 
-@router.get("/{config_key}")
+@router.get(ROUTES.config.by_key)
 async def get_config(config_key: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """获取单个配置项"""
     try:
@@ -94,7 +95,7 @@ async def get_config(config_key: str, user: Dict[str, Any] = Depends(check_confi
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取配置失败: {str(e)}")
 
-@router.post("/")
+@router.post(ROUTES.config.base)
 async def create_config(config: ConfigItem, user: Dict[str, Any] = Depends(check_config_permission)):
     """创建新配置项"""
     try:
@@ -113,7 +114,7 @@ async def create_config(config: ConfigItem, user: Dict[str, Any] = Depends(check
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建配置失败: {str(e)}")
 
-@router.post("/{config_key}")
+@router.post(ROUTES.config.by_key)
 async def set_config(config_key: str, config_update: ConfigUpdate, user: Dict[str, Any] = Depends(check_config_permission)):
     """设置配置（创建或更新）"""
     try:
@@ -148,7 +149,7 @@ async def set_config(config_key: str, config_update: ConfigUpdate, user: Dict[st
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"设置配置失败: {str(e)}")
 
-@router.put("/{config_key}")
+@router.put(ROUTES.config.by_key)
 async def update_config(config_key: str, config_update: ConfigUpdate, user: Dict[str, Any] = Depends(check_config_permission)):
     """更新配置项"""
     try:
@@ -181,7 +182,7 @@ async def update_config(config_key: str, config_update: ConfigUpdate, user: Dict
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
 
-@router.delete("/{config_key}")
+@router.delete(ROUTES.config.by_key)
 async def delete_config(config_key: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """删除配置项"""
     try:
@@ -195,7 +196,7 @@ async def delete_config(config_key: str, user: Dict[str, Any] = Depends(check_co
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除配置失败: {str(e)}")
 
-@router.post("/reload")
+@router.post(ROUTES.config.reload)
 async def reload_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """重新加载配置缓存"""
     try:
@@ -208,7 +209,7 @@ async def reload_configs(user: Dict[str, Any] = Depends(check_config_permission)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"重新加载配置失败: {str(e)}")
 
-@router.get("/resolve-group-id")
+@router.get(ROUTES.config.resolve_group_id)
 async def resolve_group_id(group_link: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """解析群组ID"""
     try:
@@ -234,7 +235,7 @@ async def resolve_group_id(group_link: str, user: Dict[str, Any] = Depends(check
             "message": f"解析失败: {str(e)}"
         }
 
-@router.post("/resolve-target-channel")
+@router.post(ROUTES.config.resolve_target_channel)
 async def resolve_target_channel(request: TargetChannelResolveRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """解析目标频道ID"""
     try:
@@ -292,7 +293,7 @@ async def resolve_target_channel(request: TargetChannelResolveRequest, user: Dic
             "message": f"解析失败: {str(e)}"
         }
 
-@router.get("/categories/telegram")
+@router.get(ROUTES.config.categories_telegram)
 async def get_telegram_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取Telegram相关配置"""
     try:
@@ -309,7 +310,7 @@ async def get_telegram_configs(user: Dict[str, Any] = Depends(check_config_permi
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取Telegram配置失败: {str(e)}")
 
-@router.get("/categories/channels")
+@router.get(ROUTES.config.categories_channels)
 async def get_channel_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取频道相关配置"""
     try:
@@ -326,7 +327,7 @@ async def get_channel_configs(user: Dict[str, Any] = Depends(check_config_permis
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取频道配置失败: {str(e)}")
 
-@router.get("/categories/filter")
+@router.get(ROUTES.config.categories_filter)
 async def get_filter_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取过滤相关配置"""
     try:
@@ -344,7 +345,7 @@ async def get_filter_configs(user: Dict[str, Any] = Depends(check_config_permiss
         raise HTTPException(status_code=500, detail=f"获取过滤配置失败: {str(e)}")
 
 
-@router.get("/categories/review")
+@router.get(ROUTES.config.categories_review)
 async def get_review_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取审核相关配置"""
     try:
@@ -361,7 +362,7 @@ async def get_review_configs(user: Dict[str, Any] = Depends(check_config_permiss
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取审核配置失败: {str(e)}")
 
-@router.post("/batch")
+@router.post(ROUTES.config.batch)
 async def batch_set_configs(configs: List[ConfigItem], user: Dict[str, Any] = Depends(check_config_permission)):
     """批量设置配置"""
     try:
@@ -414,7 +415,7 @@ async def batch_set_configs(configs: List[ConfigItem], user: Dict[str, Any] = De
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量设置配置失败: {str(e)}")
 
-@router.post("/batch-update")
+@router.post(ROUTES.config.batch_update)
 async def batch_update_configs(configs: List[ConfigItem], user: Dict[str, Any] = Depends(check_config_permission)):
     """批量更新配置"""
     try:
@@ -467,7 +468,7 @@ async def batch_update_configs(configs: List[ConfigItem], user: Dict[str, Any] =
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量更新配置失败: {str(e)}")
 
-@router.post("/reset-defaults")
+@router.post(ROUTES.config.reset_defaults)
 async def reset_default_configs(user: Dict[str, Any] = Depends(check_config_permission)):
     """重置为默认配置"""
     try:
@@ -529,7 +530,7 @@ class ChannelAddRequest(BaseModel):
     channel_title: str = ""
     description: str = ""
 
-@router.post("/channels/add")
+@router.post(ROUTES.config.channels_add)
 async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """添加监听频道"""
     try:
@@ -552,7 +553,7 @@ async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
 
-@router.delete("/channels/{channel_id}")
+@router.delete(ROUTES.config.channels_by_id)
 async def remove_channel(channel_id: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """移除监听频道"""
     try:
@@ -573,7 +574,7 @@ async def remove_channel(channel_id: str, user: Dict[str, Any] = Depends(check_c
 class ChannelStatusRequest(BaseModel):
     enabled: bool
 
-@router.put("/channels/{channel_id}/status")
+@router.put(ROUTES.config.channels_status)
 async def update_channel_status(channel_id: str, request: ChannelStatusRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """更新频道监听状态"""
     try:
@@ -594,7 +595,7 @@ async def update_channel_status(channel_id: str, request: ChannelStatusRequest, 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新频道状态失败: {str(e)}")
 
-@router.get("/channels/")
+@router.get(ROUTES.config.channels_list)
 async def get_channels(user: Dict[str, Any] = Depends(check_config_permission)):
     """获取所有频道"""
     try:
@@ -613,7 +614,7 @@ async def get_channels(user: Dict[str, Any] = Depends(check_config_permission)):
 class ChannelBatchAddRequest(BaseModel):
     channels: str  # 多行文本，每行一个频道
 
-@router.post("/channels/batch-add")
+@router.post(ROUTES.config.channels_batch_add)
 async def batch_add_channels(request: ChannelBatchAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """批量添加频道"""
     try:
@@ -763,7 +764,7 @@ async def batch_add_channels(request: ChannelBatchAddRequest, user: Dict[str, An
             "message": f"批量添加频道失败: {str(e)}"
         }
 
-@router.get("/channels/{channel_id}")
+@router.get(ROUTES.config.channels_by_id)
 async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(check_config_permission)):
     """获取单个频道信息"""
     try:
