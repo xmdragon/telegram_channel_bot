@@ -611,4 +611,235 @@
 
 .original-link {
     color: #666;
+}
+
+/* 双栏内容对比显示样式 */
+.message-content-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 12px 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.content-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 80px;
+}
+
+.content-column-header {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    text-align: center;
+}
+
+.content-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.content-column-body {
+    padding: 12px;
+    flex: 1;
+    background: #ffffff;
+}
+
+/* 过滤后内容栏样式（绿色系） */
+.content-filtered .content-column-header {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.content-filtered .content-column-body {
+    border-left: 3px solid #10b981;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+}
+
+/* 原始内容栏样式（蓝灰色系） */
+.content-original .content-column-header {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    color: white;
+}
+
+.content-original .content-column-body {
+    border-left: 3px solid #6b7280;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+/* 内容为空时的样式 */
+.content-empty {
+    color: #9ca3af;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 4px;
+    border: 1px dashed #d1d5db;
+}
+
+/* 双栏内的消息文本样式 */
+.content-column-body .message-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.6;
+    color: #374151;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* 响应式设计 - 移动端改为上下布局 */
+@media (max-width: 768px) {
+    .message-content-comparison {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+    
+    .content-column-header {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    .content-column-body {
+        padding: 10px;
+    }
+    
+    .content-column-body .message-text {
+        font-size: 13px;
+    }
+}
+
+/* 小屏幕进一步优化 */
+@media (max-width: 480px) {
+    .message-content-comparison {
+        gap: 8px;
+        margin: 8px 0;
+    }
+    
+    .content-column-body {
+        padding: 8px;
+    }
+    
+    .content-empty {
+        padding: 15px;
+        font-size: 13px;
+    }
+}
+
+/* 双栏内媒体区域样式 */
+.column-media-section {
+    margin-bottom: 12px;
+}
+
+/* 双栏内的紧凑媒体样式 */
+.media-compact {
+    max-width: 100%;
+    max-height: 150px;
+    height: auto;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.media-compact:hover {
+    transform: scale(1.02);
+}
+
+/* 双栏内的媒体网格紧凑版本 */
+.media-grid-compact {
+    display: grid;
+    gap: 3px;
+    max-width: 100%;
+}
+
+.media-grid-compact.media-grid-single {
+    grid-template-columns: 1fr;
+}
+
+.media-grid-compact.media-grid-double {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.media-grid-compact.media-grid-triple {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* 双栏内的媒体组项目 */
+.media-grid-compact .media-group-item {
+    width: 100%;
+    height: 80px;
+    max-height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* 双栏内的媒体占位符 */
+.media-placeholder.media-compact {
+    padding: 20px 10px;
+    background: #f8fafc;
+    border: 1px dashed #d1d5db;
+    border-radius: 6px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 13px;
+    max-height: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.media-grid-compact .media-group-other {
+    padding: 15px 8px;
+    background: #f5f5f5;
+    text-align: center;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #666;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 响应式调整双栏媒体 */
+@media (max-width: 768px) {
+    .media-compact {
+        max-height: 120px;
+    }
+    
+    .media-grid-compact .media-group-item {
+        height: 60px;
+        max-height: 60px;
+    }
+    
+    .media-grid-compact .media-group-other {
+        height: 60px;
+        padding: 10px 6px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .media-compact {
+        max-height: 100px;
+    }
+    
+    .media-grid-compact .media-group-item {
+        height: 50px;
+        max-height: 50px;
+    }
+    
+    .media-grid-compact .media-group-other {
+        height: 50px;
+        padding: 8px 4px;
+        font-size: 10px;
+    }
 } 
