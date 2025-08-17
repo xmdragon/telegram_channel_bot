@@ -379,7 +379,7 @@ async def export_training_data():
         logger.error(f"导出训练数据失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/auto_learn/{channel_id}")
+@router.post("/auto-learn/{channel_id}")
 async def auto_learn_from_history(channel_id: str):
     """从现有训练样本自动学习频道模式"""
     try:
