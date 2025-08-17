@@ -330,16 +330,41 @@ class MessageGrouper:
         if not main_message:
             main_message = messages[0]
         
-        # 为组合消息生成占位符说明
+        # 🔧 改进组合消息的占位符说明，更清晰且保持顺序
         placeholder_text = ""
         if media_group:
+            # 按原始顺序生成媒体描述
+            media_descriptions = []
+            for i, media in enumerate(media_group, 1):
+                media_type = media.get('media_type', 'unknown')
+                type_name = {
+                    'photo': '图片',
+                    'video': '视频', 
+                    'document': '文件',
+                    'animation': '动图',
+                    'audio': '音频'
+                }.get(media_type, media_type)
+                
+                # 添加下载状态信息
+                status_info = ""
+                if media.get('download_failed'):
+                    status_info = "[下载失败]"
+                elif not media.get('file_path'):
+                    status_info = "[无文件]"
+                
+                media_descriptions.append(f"{type_name}{i}{status_info}")
+            
+            # 生成统计信息
             media_count_by_type = {}
+            available_count = 0
             for media in media_group:
                 media_type = media.get('media_type', 'unknown')
                 media_count_by_type[media_type] = media_count_by_type.get(media_type, 0) + 1
+                if not media.get('download_failed') and media.get('file_path'):
+                    available_count += 1
             
-            # 生成媒体描述
-            media_descriptions = []
+            # 生成摘要描述
+            summary_parts = []
             for media_type, count in media_count_by_type.items():
                 type_name = {
                     'photo': '图片',
@@ -348,11 +373,10 @@ class MessageGrouper:
                     'animation': '动图',
                     'audio': '音频'
                 }.get(media_type, media_type)
-                media_descriptions.append(f"{count}个{type_name}")
+                summary_parts.append(f"{count}个{type_name}")
             
-            # 🔧 添加消息ID列表，方便查找关联消息
             message_ids = [str(msg['message_id']) for msg in messages]
-            placeholder_text = f"\n\n[组图包含: {', '.join(media_descriptions)} - {', '.join(message_ids)}]"
+            placeholder_text = f"\n\n[📎 媒体组: {' + '.join(summary_parts)} | 可用: {available_count}/{len(media_group)} | ID: {', '.join(message_ids)}]"
         
         # 合并内容和占位符
         final_content = combined_content + placeholder_text

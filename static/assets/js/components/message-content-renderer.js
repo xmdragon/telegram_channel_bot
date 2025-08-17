@@ -194,29 +194,52 @@ const MessageContentRenderer = {
                 <!-- 媒体内容 -->
                 <div v-if="message.media_type" class="message-media">
                     <!-- 组合消息的媒体组 -->
-                    <div v-if="isCombinedMessage" 
-                         class="media-grid"
-                         :class="mediaGridClass">
-                        <div v-for="(media, index) in message.media_group_display" :key="index">
-                            <!-- 组合消息中的图片 -->
-                            <img v-if="media.media_type === 'photo' && media.display_url" 
-                                 :src="media.display_url"
-                                 class="media-image media-group-item"
-                                 loading="lazy"
-                                 @click.stop="openMediaPreview(media.display_url)"
-                                 @error="handleMediaError">
-                            
-                            <!-- 组合消息中的视频 -->
-                            <video v-else-if="media.media_type === 'video' && media.display_url"
-                                   :src="media.display_url"
-                                   class="media-video media-group-item"
-                                   controls
-                                   preload="none">
-                            </video>
-                            
-                            <!-- 其他媒体类型 -->
-                            <div v-else class="media-placeholder media-group-other">
-                                {{ media.media_type }}
+                    <div v-if="isCombinedMessage" class="combined-message-container">
+                        <!-- 🔧 组合消息头部标识 -->
+                        <div class="combined-message-header">
+                            <span class="combined-message-label">
+                                📎 媒体组 ({{ message.media_group_display.length }}项)
+                            </span>
+                            <span v-if="message.grouped_id" class="grouped-id">
+                                组ID: {{ message.grouped_id }}
+                            </span>
+                        </div>
+                        
+                        <!-- 媒体网格 -->
+                        <div class="media-grid" :class="mediaGridClass">
+                            <div v-for="(media, index) in message.media_group_display" 
+                                 :key="index"
+                                 class="media-grid-item">
+                                <!-- 媒体序号标识 -->
+                                <div class="media-index">{{ index + 1 }}</div>
+                                
+                                <!-- 组合消息中的图片 -->
+                                <img v-if="media.media_type === 'photo' && media.display_url" 
+                                     :src="media.display_url"
+                                     class="media-image media-group-item"
+                                     loading="lazy"
+                                     @click.stop="openMediaPreview(media.display_url)"
+                                     @error="handleMediaError">
+                                
+                                <!-- 组合消息中的视频 -->
+                                <video v-else-if="media.media_type === 'video' && media.display_url"
+                                       :src="media.display_url"
+                                       class="media-video media-group-item"
+                                       controls
+                                       preload="none">
+                                </video>
+                                
+                                <!-- 其他媒体类型或加载失败 -->
+                                <div v-else class="media-placeholder media-group-other">
+                                    <div class="media-type-icon">
+                                        {{ media.media_type === 'photo' ? '📷' :
+                                           media.media_type === 'video' ? '🎬' :
+                                           media.media_type === 'document' ? '📄' :
+                                           '❓' }}
+                                    </div>
+                                    <div class="media-type-name">{{ media.media_type }}</div>
+                                    <div v-if="!media.display_url" class="media-missing">文件缺失</div>
+                                </div>
                             </div>
                         </div>
                     </div>

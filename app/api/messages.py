@@ -131,9 +131,22 @@ async def get_messages(
                 # 无状态过滤或其他状态，获取所有消息
                 all_messages = redis_store.get_all_messages(limit=fetch_limit, offset=offset)
         
+        # 🔧 第一步：收集所有已组合的grouped_id，避免显示重复的单独消息
+        combined_group_ids = set()
+        for msg in all_messages:
+            if msg.get('is_combined') and msg.get('grouped_id'):
+                combined_group_ids.add(msg['grouped_id'])
+        
         # 应用过滤条件
         filtered_messages = []
         for msg in all_messages:
+            # 🔧 组消息去重：如果是单独消息且其grouped_id已有组合消息，则跳过
+            if (not msg.get('is_combined') and 
+                msg.get('grouped_id') and 
+                msg.get('grouped_id') in combined_group_ids):
+                logger.debug(f"跳过已组合的单独消息: {msg.get('grouped_id')}")
+                continue
+            
             # 状态过滤
             if status and msg.get('status') != status:
                 continue
@@ -164,7 +177,9 @@ async def get_messages(
         
         # 记录过滤结果
         if source_channel:
-            logger.info(f"频道 {source_channel} 过滤后得到 {len(filtered_messages)} 条消息")
+            logger.info(f"频道 {source_channel} 过滤后得到 {len(filtered_messages)} 条消息，隐藏了 {len(combined_group_ids)} 个组的单独消息")
+        elif combined_group_ids:
+            logger.info(f"全局消息过滤后得到 {len(filtered_messages)} 条消息，隐藏了 {len(combined_group_ids)} 个组的单独消息")
         
         # 分页处理
         start_idx = (page - 1) * size
@@ -286,9 +301,10 @@ async def batch_approve_messages(
         redis_store = get_redis_message_store()
         reviewer_name = user.get('username', 'Web用户')
         
-        # 解析消息ID（从复合ID中提取channel_id和message_id）
+        # 🔧 解析消息ID并收集相关的组合消息
         message_tuples = []
         valid_messages = []
+        processed_group_ids = set()  # 避免重复处理组合消息
         
         for msg_id in message_ids:
             try:
@@ -305,6 +321,26 @@ async def batch_approve_messages(
                 # 检查消息是否存在且为待审核状态
                 msg_data = redis_store.get_message(channel_id, int(message_id))
                 if msg_data and msg_data.get('status') == 'pending':
+                    # 🔧 检查是否为组合消息，如果是，需要同时处理整个组
+                    if msg_data.get('is_combined') and msg_data.get('grouped_id'):
+                        grouped_id = msg_data.get('grouped_id')
+                        if grouped_id not in processed_group_ids:
+                            processed_group_ids.add(grouped_id)
+                            # 查找同组的所有单独消息，一起批准
+                            group_messages = redis_store.get_messages_by_channel(channel_id, limit=100)
+                            for group_msg in group_messages:
+                                if (group_msg.get('grouped_id') == grouped_id and 
+                                    group_msg.get('status') == 'pending' and
+                                    not group_msg.get('is_combined')):  # 只处理单独消息
+                                    valid_messages.append(group_msg)
+                                    # 添加到message_tuples用于状态更新
+                                    group_tuple = (channel_id, group_msg.get('message_id'))
+                                    if group_tuple not in message_tuples:
+                                        message_tuples.append(group_tuple)
+                            
+                            logger.info(f"检测到组合消息，将同时处理组 {grouped_id} 的所有消息")
+                    
+                    # 添加主消息
                     valid_messages.append(msg_data)
                 
             except (ValueError, IndexError) as e:
@@ -394,9 +430,10 @@ async def batch_reject_messages(
         redis_store = get_redis_message_store()
         reviewer_name = user.get('username', 'Web用户')
         
-        # 解析消息ID（从复合ID中提取channel_id和message_id）
+        # 🔧 解析消息ID并收集相关的组合消息
         message_tuples = []
         valid_messages = []
+        processed_group_ids = set()  # 避免重复处理组合消息
         
         for msg_id in message_ids:
             try:
@@ -410,6 +447,26 @@ async def batch_reject_messages(
                 # 检查消息是否存在且为待审核状态
                 msg_data = redis_store.get_message(channel_id, int(message_id))
                 if msg_data and msg_data.get('status') == 'pending':
+                    # 🔧 检查是否为组合消息，如果是，需要同时处理整个组
+                    if msg_data.get('is_combined') and msg_data.get('grouped_id'):
+                        grouped_id = msg_data.get('grouped_id')
+                        if grouped_id not in processed_group_ids:
+                            processed_group_ids.add(grouped_id)
+                            # 查找同组的所有单独消息，一起拒绝
+                            group_messages = redis_store.get_messages_by_channel(channel_id, limit=100)
+                            for group_msg in group_messages:
+                                if (group_msg.get('grouped_id') == grouped_id and 
+                                    group_msg.get('status') == 'pending' and
+                                    not group_msg.get('is_combined')):  # 只处理单独消息
+                                    valid_messages.append(group_msg)
+                                    # 添加到message_tuples用于状态更新
+                                    group_tuple = (channel_id, group_msg.get('message_id'))
+                                    if group_tuple not in message_tuples:
+                                        message_tuples.append(group_tuple)
+                            
+                            logger.info(f"检测到组合消息，将同时拒绝组 {grouped_id} 的所有消息")
+                    
+                    # 添加主消息
                     valid_messages.append(msg_data)
                 
             except (ValueError, IndexError) as e:
