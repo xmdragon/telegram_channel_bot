@@ -98,19 +98,16 @@
 | filters/markdown_filter.py | Markdown过滤 | ✅ 使用中 |
 | filters/promo_link_filter.py | 推广链接过滤 | ✅ 使用中 |
 
-#### 尾部过滤器（存在大量冗余）
+#### 尾部过滤器（已完成整合）
 | 模块 | 状态 | 说明 |
 |-----|------|------|
-| smart_tail_filter.py | ❌ 冗余 | 被semantic_tail_filter取代 |
-| intelligent_tail_filter.py | ⚠️ 部分使用 | 智能尾部过滤 |
-| semantic_tail_filter.py | ✅ 主要使用 | 语义尾部过滤 |
-| hybrid_tail_filter.py | ❌ 冗余 | 混合方案，已被整合 |
+| intelligent_tail_filter.py | ✅ 使用中 | 智能尾部过滤 |
+| semantic_tail_filter.py | ✅ 主要使用 | 语义尾部过滤（已整合hybrid算法） |
 
-#### 重复检测（存在冗余）
+#### 重复检测（已完成整合）
 | 模块 | 状态 | 说明 |
 |-----|------|------|
-| duplicate_detector.py | ✅ 主要使用 | 主重复检测器 |
-| message_deduplicator.py | ❌ 冗余 | 旧版本，功能重复 |
+| filters/duplicate_detector.py | ✅ 主要使用 | 基于BaseFilter的新架构重复检测器 |
 
 #### 其他服务
 - **channel_manager.py**: 频道管理
@@ -162,13 +159,13 @@ app/telegram/bot_backup.py (54KB，完全备份)
 app/services/content_filter_new.py (与content_filter.py功能重复)
 ```
 
-### 3.2 中优先级删除（需确认后删除）
+### 3.2 已完成删除（2025-08-17重构完成）
 
-#### 冗余的过滤器实现
+#### 已删除的冗余过滤器实现
 ```
-app/services/smart_tail_filter.py (被semantic_tail_filter取代)
-app/services/hybrid_tail_filter.py (功能已整合到unified_filter_engine)
-app/services/message_deduplicator.py (被duplicate_detector取代)
+app/services/smart_tail_filter.py (已删除，功能迁移到semantic_tail_filter)
+app/services/hybrid_tail_filter.py (已删除，多维度算法整合到semantic_tail_filter)
+app/services/message_deduplicator.py (已删除，功能替换为filters/duplicate_detector)
 ```
 
 #### 过时的工具脚本
@@ -236,12 +233,12 @@ message_scheduler.py
 
 ## 六、关键指标
 
-- **Python文件总数**: 约150个
+- **Python文件总数**: 约147个（已删除3个冗余文件）
 - **测试文件**: 39个（26%）
-- **冗余文件**: 约15个（10%）
+- **冗余文件**: 约12个（8%，减少3个）
 - **核心服务文件**: 3个
 - **API路由**: 11个
-- **服务模块**: 45个
+- **服务模块**: 42个（优化后）
 
 ## 七、删除影响评估
 
