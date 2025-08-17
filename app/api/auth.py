@@ -8,6 +8,7 @@ import json
 import asyncio
 
 from app.telegram.auth import auth_manager
+from app.core.route_config import ROUTES
 
 router = APIRouter()
 
@@ -280,7 +281,7 @@ async def websocket_auth(websocket: WebSocket):
         manager.disconnect(websocket)
 
 # 保留原有的 REST API 端点用于兼容性
-@router.post("/init")
+@router.post(ROUTES.auth.init)
 async def init_auth(request: AuthRequest):
     """初始化认证"""
     try:
@@ -307,7 +308,7 @@ async def init_auth(request: AuthRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"初始化失败: {str(e)}")
 
-@router.post("/send-code")
+@router.post(ROUTES.auth.send_code)
 async def send_code(request: PhoneRequest):
     """发送验证码"""
     try:
@@ -317,7 +318,7 @@ async def send_code(request: PhoneRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"发送验证码失败: {str(e)}")
 
-@router.post("/verify-code")
+@router.post(ROUTES.auth.verify_code)
 async def verify_code(request: CodeRequest):
     """验证验证码"""
     try:
@@ -327,7 +328,7 @@ async def verify_code(request: CodeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"验证码验证失败: {str(e)}")
 
-@router.post("/verify-password")
+@router.post(ROUTES.auth.verify_password)
 async def verify_password(request: PasswordRequest):
     """验证两步验证密码"""
     try:
@@ -337,7 +338,7 @@ async def verify_password(request: PasswordRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"两步验证失败: {str(e)}")
 
-@router.post("/resend-code")
+@router.post(ROUTES.auth.resend_code)
 async def resend_code():
     """重新发送验证码"""
     try:
@@ -347,7 +348,7 @@ async def resend_code():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"重新发送验证码失败: {str(e)}")
 
-@router.get("/status")
+@router.get(ROUTES.auth.status)
 async def get_auth_status():
     """获取认证状态"""
     try:
@@ -357,7 +358,7 @@ async def get_auth_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
 
-@router.post("/disconnect")
+@router.post(ROUTES.auth.disconnect)
 async def disconnect():
     """断开连接"""
     try:
@@ -370,7 +371,7 @@ async def disconnect():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"断开连接失败: {str(e)}")
 
-@router.post("/clear")
+@router.post(ROUTES.auth.clear)
 async def clear_auth():
     """清除认证数据"""
     try:
@@ -380,7 +381,7 @@ async def clear_auth():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"清除认证数据失败: {str(e)}")
 
-@router.get("/info")
+@router.get(ROUTES.auth.info)
 async def get_auth_info():
     """获取认证信息"""
     try:

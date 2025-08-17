@@ -14,6 +14,7 @@ from app.storage.redis_store import get_redis_message_store
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.core.api_paths import api_paths
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -105,7 +106,7 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
     
     return message_tuples, valid_messages
 
-@router.post("/batch/approve")
+@router.post(ROUTES.messages.batch_approve)
 @check_permission("messages.approve")
 async def batch_approve_messages(
     request: dict,
@@ -185,7 +186,7 @@ async def batch_approve_messages(
         logger.error(f"批量批准消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量批准消息失败: {str(e)}")
 
-@router.post("/batch/reject")
+@router.post(ROUTES.messages.batch_reject)
 @check_permission("messages.reject")
 async def batch_reject_messages(
     request: dict,
@@ -257,7 +258,7 @@ async def batch_reject_messages(
         logger.error(f"批量拒绝消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量拒绝消息失败: {str(e)}")
 
-@router.post("/batch/refetch-media")
+@router.post(ROUTES.messages.batch_refetch_media)
 @check_permission("messages.refetch")
 async def batch_refetch_media(
     request: dict,
@@ -311,7 +312,7 @@ async def batch_refetch_media(
         logger.error(f"批量重新获取媒体失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量重新获取媒体失败: {str(e)}")
 
-@router.post("/batch/delete")
+@router.post(ROUTES.messages.batch_delete)
 @check_permission("messages.delete")
 async def batch_delete_messages(
     request: dict,
