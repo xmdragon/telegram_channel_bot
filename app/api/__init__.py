@@ -18,13 +18,13 @@ from app.routers.training_db import router as training_router  # 使用修复后
 
 api_router = APIRouter()
 
-# 新的模块化消息API路由
+# 主要消息API路由（确保基础路径正确）
 api_router.include_router(messages_crud_router, prefix="/messages", tags=["messages-crud"])
 api_router.include_router(messages_batch_router, prefix="/messages", tags=["messages-batch"])  
 api_router.include_router(messages_filter_router, prefix="/messages", tags=["messages-filter"])
-api_router.include_router(messages_stats_router, prefix="/stats", tags=["messages-stats"])
+api_router.include_router(messages_stats_router, prefix="/messages", tags=["messages-stats"])  # 修复：应在/messages下
 
-# 保留原有消息路由（逐步迁移）
+# 保留原有消息路由作为备用
 api_router.include_router(messages_router, prefix="/messages/legacy", tags=["messages-legacy"])
 
 # 其他API路由
