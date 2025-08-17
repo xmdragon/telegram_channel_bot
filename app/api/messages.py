@@ -73,6 +73,95 @@ def check_permission(permission_name: str):
     
     return permission_checker
 
+def _merge_grouped_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    合并组消息
+    
+    Args:
+        messages: 原始消息列表
+        
+    Returns:
+        合并后的消息列表
+    """
+    if not messages:
+        return messages
+        
+    # 按grouped_id分组
+    groups = {}
+    single_messages = []
+    
+    for message in messages:
+        grouped_id = message.get('grouped_id')
+        if grouped_id and grouped_id != '':
+            if grouped_id not in groups:
+                groups[grouped_id] = []
+            groups[grouped_id].append(message)
+        else:
+            single_messages.append(message)
+    
+    # 处理组消息
+    merged_messages = []
+    for group_id, group_messages in groups.items():
+        if len(group_messages) == 1:
+            # 只有一个消息，不需要合并
+            single_messages.append(group_messages[0])
+        else:
+            # 多个消息需要合并
+            # 按message_id排序，确保顺序一致
+            group_messages.sort(key=lambda x: int(x.get('message_id', 0)))
+            
+            # 使用第一个消息作为基础
+            base_message = group_messages[0].copy()
+            
+            # 设置组合消息标识
+            base_message['is_combined'] = True
+            base_message['combined_message_ids'] = [msg['id'] for msg in group_messages]
+            
+            # 收集所有媒体信息，构建media_group_display
+            media_group_display = []
+            all_contents = []
+            
+            for msg in group_messages:
+                # 收集媒体信息
+                if msg.get('media_type'):
+                    media_item = {
+                        'message_id': msg.get('message_id'),
+                        'media_type': msg.get('media_type', 'unknown'),
+                        'display_url': msg.get('media_display_url', ''),
+                        'media_url': msg.get('media_url', ''),
+                        'media_hash': msg.get('media_hash', ''),
+                        'visual_hash': msg.get('visual_hash'),
+                        'ocr_text': msg.get('ocr_text', ''),
+                        'ocr_ad_score': msg.get('ocr_ad_score', 0)
+                    }
+                    media_group_display.append(media_item)
+                
+                # 收集文字内容
+                content = msg.get('filtered_content') or msg.get('content', '')
+                if content and content.strip():
+                    all_contents.append(content.strip())
+            
+            # 设置media_group_display
+            base_message['media_group_display'] = media_group_display
+            
+            # 使用第一个非空内容作为主要内容
+            if all_contents:
+                base_message['content'] = all_contents[0]
+                base_message['filtered_content'] = all_contents[0]
+            
+            # 添加组合消息计数
+            base_message['combined_count'] = len(group_messages)
+            
+            merged_messages.append(base_message)
+    
+    # 合并单个消息和组消息，按created_at排序
+    all_messages = single_messages + merged_messages
+    all_messages.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    
+    logger.debug(f"组消息合并完成: 原始{len(messages)}条 -> 合并后{len(all_messages)}条")
+    
+    return all_messages
+
 # 导入媒体处理器
 from app.services.media_handler import media_handler
 from app.telegram.bot import telegram_bot
@@ -266,8 +355,11 @@ async def get_messages(
             }
             processed_messages.append(processed_message)
         
+        # 🔧 组消息合并处理
+        merged_messages = _merge_grouped_messages(processed_messages)
+        
         return {
-            "messages": processed_messages,
+            "messages": merged_messages,
             "page": page,
             "size": size,
             "total": len(filtered_messages)
@@ -615,24 +707,77 @@ async def approve_message(
         
         reviewer_name = user.get('username', 'Web用户')
         
-        # 更新状态
-        success = await message_processor.update_message_status(
-            channel_id, int(msg_id), "approved", reviewer_name
-        )
+        # 🔧 检查是否为组消息，如果是则批准整个组
+        grouped_id = msg_data.get('grouped_id')
+        messages_to_approve = []
         
-        if not success:
+        if grouped_id and grouped_id != '':
+            # 获取组内所有消息
+            try:
+                redis_store = get_redis_message_store()
+                group_message_ids = redis_store.redis.smembers(f"msg:group:{grouped_id}")
+                
+                logger.info(f"发现组消息，组ID: {grouped_id}, 包含 {len(group_message_ids)} 条消息")
+                
+                for msg_id_str in group_message_ids:
+                    msg_id_str = msg_id_str.decode('utf-8') if isinstance(msg_id_str, bytes) else str(msg_id_str)
+                    if ':' in msg_id_str:
+                        msg_channel_id, msg_message_id = msg_id_str.split(':', 1)
+                        # 检查消息状态
+                        group_msg_data = await message_processor.get_message(msg_channel_id, int(msg_message_id))
+                        if group_msg_data and group_msg_data.get('status') == 'pending':
+                            messages_to_approve.append((msg_channel_id, int(msg_message_id)))
+                        
+                logger.info(f"组内待批准消息数量: {len(messages_to_approve)}")
+                        
+            except Exception as e:
+                logger.error(f"获取组消息失败: {e}")
+                # 如果获取组消息失败，继续单个消息处理
+                messages_to_approve = [(channel_id, int(msg_id))]
+        else:
+            # 单个消息
+            messages_to_approve = [(channel_id, int(msg_id))]
+        
+        # 批量更新状态
+        success_count = 0
+        total_count = len(messages_to_approve)
+        
+        for msg_channel_id, msg_message_id in messages_to_approve:
+            success = await message_processor.update_message_status(
+                msg_channel_id, msg_message_id, "approved", reviewer_name
+            )
+            if success:
+                success_count += 1
+            else:
+                logger.error(f"批准消息失败: {msg_channel_id}:{msg_message_id}")
+        
+        if success_count == 0:
             raise HTTPException(status_code=500, detail="更新消息状态失败")
+        elif success_count < total_count:
+            logger.warning(f"部分消息批准失败: {success_count}/{total_count}")
         
-        # 🔧 修复：使用任务队列异步转发到目标频道，避免客户端锁冲突
+        logger.info(f"批准完成: {success_count}/{total_count} 条消息")
+        
+        # 🔧 使用任务队列异步转发到目标频道，处理组消息转发
         try:
-            logger.info(f"准备将消息 {message_id} 转发任务加入队列")
             from app.services.message_forward_queue import forward_queue
             
-            # 提交转发任务到队列
-            task_id = await forward_queue.submit_forward_task(message_id, "forward_to_target")
-            
-            # 等待任务完成（带超时）
-            result = await forward_queue.get_task_result(message_id, timeout=15)
+            if grouped_id and len(messages_to_approve) > 1:
+                # 组消息转发：转发组内第一个消息（转发器会自动处理组）
+                first_message_id = f"{messages_to_approve[0][0]}:{messages_to_approve[0][1]}"
+                logger.info(f"准备将组消息转发任务加入队列，组ID: {grouped_id}, 主消息: {first_message_id}")
+                task_id = await forward_queue.submit_forward_task(first_message_id, "forward_to_target")
+                result = await forward_queue.get_task_result(first_message_id, timeout=15)
+                
+                if result and result.get('success'):
+                    logger.info(f"组消息 {grouped_id} 已批准并成功转发到目标频道 ({len(messages_to_approve)} 条消息)")
+                else:
+                    logger.warning(f"组消息 {grouped_id} 已批准但转发可能失败")
+            else:
+                # 单个消息转发
+                logger.info(f"准备将消息 {message_id} 转发任务加入队列")
+                task_id = await forward_queue.submit_forward_task(message_id, "forward_to_target")
+                result = await forward_queue.get_task_result(message_id, timeout=15)
             
             if result and result.get('success'):
                 logger.info(f"消息 {message_id} 已批准并成功转发到目标频道")

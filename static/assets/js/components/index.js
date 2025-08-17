@@ -1,11 +1,10 @@
 // 主页面 JavaScript 组件
 
 // 确保API配置可用，延迟解析避免加载时错误
-let API, createApp, ElMessage;
+let createApp, ElMessage;
 
 // 延迟初始化函数
 function initializeGlobals() {
-    if (!API) API = window.API;
     if (!createApp && window.Vue) createApp = window.Vue.createApp;
     if (!ElMessage && window.ElementPlus) ElMessage = window.ElementPlus.ElMessage;
 }
@@ -296,7 +295,7 @@ const MainApp = {
         async initializePermissions() {
             try {
                 // 获取当前用户信息
-                const response = await axios.get(API.adminAuth.current);
+                const response = await axios.get(window.API.adminAuth.current);
                 const adminInfo = response.data;
                 
                 // 检查权限检查器是否存在
@@ -414,7 +413,7 @@ const MainApp = {
         
         async loadChannelInfo() {
             try {
-                const response = await axios.get(API.messages.channelInfo);
+                const response = await axios.get(window.API.messages.channelInfo);
                 if (response.data.success) {
                     this.channelInfo = response.data.data;
                 }
@@ -422,6 +421,7 @@ const MainApp = {
                 // console.error('加载频道信息失败:', error);
             }
         },
+        
         
         async loadMessages(append = false) {
             if (append) {
@@ -462,7 +462,7 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
-                const response = await axios.get(API.messages.list, {
+                const response = await axios.get(window.API.messages.list, {
                     params: params
                 });
                 
@@ -1978,7 +1978,6 @@ window.MainApp = MainApp;
 
 // 初始化Vue应用的函数
 function initializeVueApp() {
-    console.log('Initializing Vue app...');
     
     // 首先初始化全局变量
     initializeGlobals();
@@ -2076,7 +2075,6 @@ function initializeVueApp() {
         }
         
         app.mount('#app');
-        console.log('Vue app mounted successfully');
     } catch (error) {
         console.error('Failed to mount Vue app:', error);
         // 提供更友好的错误界面
