@@ -432,6 +432,17 @@
                                         暂无过滤后内容
                                     </div>
                                 </div>
+                                
+                                <!-- 显示被移除的隐藏链接信息 -->
+                                <div v-if="message.removed_hidden_links && message.removed_hidden_links.length > 0" 
+                                     class="hidden-links-info">
+                                    <div class="hidden-links-title">
+                                        ⚠️ 检测到 {{ message.removed_hidden_links.length }} 个隐藏链接（已移除）：
+                                    </div>
+                                    <div v-for="(link, index) in message.removed_hidden_links" :key="index" class="hidden-link-item">
+                                        • "{{ link.text }}" → <span class="hidden-link-url">{{ link.url }}</span>
+                                    </div>
+                                </div>
                             </div>
                             
                             <!-- 右栏：原始内容（包含媒体） -->
@@ -516,16 +527,6 @@
                             {{ message.filtered_content }}
                         </div>
                         
-                        <!-- 显示被移除的隐藏链接信息 -->
-                        <div v-if="message.removed_hidden_links && message.removed_hidden_links.length > 0" 
-                             class="hidden-links-info">
-                            <div class="hidden-links-title">
-                                ⚠️ 检测到 {{ message.removed_hidden_links.length }} 个隐藏链接（已移除）：
-                            </div>
-                            <div v-for="(link, index) in message.removed_hidden_links" :key="index" class="hidden-link-item">
-                                • "{{ link.text }}" → <span class="hidden-link-url">{{ link.url }}</span>
-                            </div>
-                        </div>
                         
                         <!-- 消息ID和原频道链接 -->
                         <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer">
