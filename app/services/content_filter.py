@@ -896,10 +896,10 @@ class ContentFilter:
         
         # 2. 智能尾部过滤（移除频道标识，不算广告）
         try:
-            from app.services.smart_tail_filter import smart_tail_filter
-            clean_content, has_tail_ad, ad_part = smart_tail_filter.filter_tail_ads(
+            from app.services.semantic_tail_filter import semantic_tail_filter
+            clean_content, has_tail_ad, ad_part, _ = semantic_tail_filter.filter_message(
                 filtered_content,
-                channel_id=channel_id  # 传递频道ID用于AI模式匹配
+                has_media=bool(image_files)  # 传递媒体信息
             )
             if has_tail_ad:
                 filtered_content = clean_content

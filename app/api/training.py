@@ -64,8 +64,8 @@ async def save_separator_patterns(request: dict):
             }, f, ensure_ascii=False, indent=2)
         
         # 更新smart_tail_filter的模式
-        from app.services.smart_tail_filter import smart_tail_filter
-        smart_tail_filter.separator_patterns = [p['regex'] for p in patterns if p.get('regex')]
+        from app.services.semantic_tail_filter import semantic_tail_filter
+        # 注意：semantic_tail_filter不使用separator_patterns，而是使用更智能的语义分析
         
         logger.info(f"保存了 {len(patterns)} 个分隔符模式")
         return {"success": True, "message": "分隔符模式已保存"}
