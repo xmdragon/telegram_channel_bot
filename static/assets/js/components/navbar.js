@@ -2,8 +2,10 @@
  * 导航栏组件
  */
 
-// 确保API配置可用
-const API = window.API;
+// 延迟获取API配置，避免加载时错误
+function getAPI() {
+    return window.API || {};
+}
 
 const NavBar = {
     props: {
@@ -53,7 +55,7 @@ const NavBar = {
         },
         async handleLogout() {
             try {
-                await axios.post(API.adminAuth.logout);
+                await axios.post(getAPI().adminAuth?.logout || '/api/admin/auth/logout');
                 // 清除本地存储的token
                 localStorage.removeItem('admin_token');
                 // 跳转到登录页

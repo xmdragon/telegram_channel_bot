@@ -30,8 +30,19 @@ window.MessageManager = {
         this.cleanup();
         
         // 显示消息
+        let messageComponent = null;
+        
+        // 尝试从多个位置获取消息组件
         if (typeof ElMessage !== 'undefined') {
-            ElMessage[type]({
+            messageComponent = ElMessage;
+        } else if (typeof ElementPlus !== 'undefined' && ElementPlus.ElMessage) {
+            messageComponent = ElementPlus.ElMessage;
+        } else if (typeof window !== 'undefined' && window.ElementPlus && window.ElementPlus.ElMessage) {
+            messageComponent = window.ElementPlus.ElMessage;
+        }
+        
+        if (messageComponent && typeof messageComponent[type] === 'function') {
+            messageComponent[type]({
                 message,
                 duration,
                 offset: 20,
@@ -41,8 +52,15 @@ window.MessageManager = {
                 ...options
             });
         } else {
-            // 降级处理，如果Element Plus不可用则使用console
-            // console.log(`[${type.toUpperCase()}] ${message}`);
+            // 降级处理，如果Element Plus不可用则使用原生alert
+            if (type === 'error') {
+                console.error(`[错误] ${message}`);
+                alert(`错误: ${message}`);
+            } else if (type === 'warning') {
+                console.warn(`[警告] ${message}`);
+            } else {
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
         }
     },
     

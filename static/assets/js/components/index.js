@@ -1,10 +1,14 @@
 // 主页面 JavaScript 组件
 
-// 确保API配置可用
-const API = window.API;
+// 确保API配置可用，延迟解析避免加载时错误
+let API, createApp, ElMessage;
 
-const { createApp } = Vue;
-const { ElMessage } = ElementPlus;
+// 延迟初始化函数
+function initializeGlobals() {
+    if (!API) API = window.API;
+    if (!createApp && window.Vue) createApp = window.Vue.createApp;
+    if (!ElMessage && window.ElementPlus) ElMessage = window.ElementPlus.ElMessage;
+}
 
 // 主应用组件
 const MainApp = {
@@ -1975,6 +1979,9 @@ window.MainApp = MainApp;
 // 初始化Vue应用的函数
 function initializeVueApp() {
     console.log('Initializing Vue app...');
+    
+    // 首先初始化全局变量
+    initializeGlobals();
     
     // 检查必要的依赖
     const missingDeps = [];
