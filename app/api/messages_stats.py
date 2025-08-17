@@ -13,6 +13,7 @@ from app.storage.redis_store import get_redis_message_store
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -55,7 +56,7 @@ def check_permission(permission_name: str):
         return wrapper
     return decorator
 
-@router.get("/stats/overview")
+@router.get(ROUTES.messages.stats_overview)
 async def get_message_stats(
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
@@ -90,7 +91,7 @@ async def get_message_stats(
             "timestamp": format_for_api(get_current_time())
         }
 
-@router.get("/stats/channel/{channel_id}")
+@router.get(ROUTES.messages.stats_channel)
 async def get_channel_stats(
     channel_id: str,
     days: int = Query(7, ge=1, le=90, description="统计天数"),
@@ -129,7 +130,7 @@ async def get_channel_stats(
         logger.error(f"获取频道统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取频道统计失败: {str(e)}")
 
-@router.get("/stats/performance")
+@router.get(ROUTES.messages.stats_performance)
 @check_permission("stats.performance")
 async def get_performance_stats(
     hours: int = Query(24, ge=1, le=168, description="统计小时数"),
@@ -166,7 +167,7 @@ async def get_performance_stats(
         logger.error(f"获取性能统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取性能统计失败: {str(e)}")
 
-@router.get("/stats/filters")
+@router.get(ROUTES.messages.stats_filters)
 @check_permission("stats.filters")
 async def get_filter_stats(
     days: int = Query(7, ge=1, le=30, description="统计天数"),
@@ -203,7 +204,7 @@ async def get_filter_stats(
         logger.error(f"获取过滤器统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取过滤器统计失败: {str(e)}")
 
-@router.get("/stats/trending")
+@router.get(ROUTES.messages.stats_trending)
 async def get_trending_stats(
     hours: int = Query(24, ge=1, le=72, description="趋势统计小时数"),
     user: Dict[str, Any] = Depends(require_auth),
@@ -239,7 +240,7 @@ async def get_trending_stats(
         logger.error(f"获取趋势统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取趋势统计失败: {str(e)}")
 
-@router.get("/health-check")
+@router.get(ROUTES.messages.health_check)
 async def get_system_health():
     """
     获取系统健康状态
@@ -296,7 +297,7 @@ async def get_system_health():
             "timestamp": format_for_api(get_current_time())
         }
 
-@router.get("/metrics")
+@router.get(ROUTES.messages.metrics)
 @check_permission("stats.metrics")
 async def get_system_metrics(
     metric_type: str = Query("all", description="指标类型"),
@@ -352,7 +353,7 @@ async def get_system_metrics(
         logger.error(f"获取系统指标失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取系统指标失败: {str(e)}")
 
-@router.post("/reports/generate")
+@router.post(ROUTES.messages.reports_generate)
 @check_permission("stats.reports")
 async def generate_report(
     request: dict,
