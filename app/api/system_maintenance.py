@@ -13,11 +13,12 @@ from app.storage.redis_store import get_redis_message_store
 from app.storage.json_store import get_json_channel_store
 from app.services.system_monitor import system_monitor
 from app.telegram.auth import auth_manager
+from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system", tags=["system-maintenance"])
 
-@router.post("/restart")
+@router.post(ROUTES.system.restart)
 async def restart_services() -> Dict[str, Any]:
     """重启服务"""
     try:
@@ -48,7 +49,7 @@ async def restart_services() -> Dict[str, Any]:
             "message": f"重启失败: {str(e)}"
         }
 
-@router.post("/reset")
+@router.post(ROUTES.system.reset)
 async def reset_system() -> Dict[str, Any]:
     """重置消息系统 - 清空所有消息数据和媒体文件"""
     try:

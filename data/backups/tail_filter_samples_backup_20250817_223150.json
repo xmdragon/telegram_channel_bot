@@ -1,6 +1,29 @@
 {
   "samples": [
     {
+      "id": 1,
+      "tail_part": "测试编辑的尾部内容",
+      "characteristics": {
+        "promotion_score": 0.0,
+        "commercial_score": 0.0,
+        "relevance_score": 0.1
+      },
+      "auto_features": {
+        "has_telegram_link": false,
+        "has_contact": false,
+        "action_words": [],
+        "business_words": [],
+        "link_count": 0,
+        "emoji_count": 0,
+        "text_length": 9,
+        "word_count": 1
+      },
+      "vector_index": 0,
+      "created_at": "2025-08-09T23:14:37.251795",
+      "updated_at": "2025-08-15T17:22:21.898139",
+      "migrated_at": "2025-08-15T21:10:35.309769"
+    },
+    {
       "id": 2,
       "tail_part": "🔔订阅东南亚大事件曝光-聚焦时事",
       "characteristics": {
@@ -1540,11 +1563,23 @@
       "migrated_at": "2025-08-15T21:10:36.227718"
     },
     {
+      "id": 76,
+      "channel_id": "general",
+      "channel_name": "通用训练样本",
+      "content": "8月14日，广东19岁小伙被前女友10万元卖到边境，因完成不了任务经历长达5个月的毒打，关小黑屋强制性敲键盘诈骗，一天16到20个小时，最终家人赔付35万元将其赎回，“现已将前女友起诉等待开庭\n\n**—————————————————\n❗️关注亚太大事件！了解亚太最新资讯❗️\n👑亚太大事件/茶水间曝光频道：****@YT798****\n🍉亚太茶水间交流群：****@yatai123123****\n💌商务/投稿/澄清：****@xiaoyaya6**",
+      "tail_content": "**—————————————————\n❗️关注亚太大事件！了解亚太最新资讯❗️\n👑亚太大事件/茶水间曝光频道：****@YT798****\n🍉亚太茶水间交流群：****@yatai123123****\n💌商务/投稿/澄清：****@xiaoyaya6**",
+      "separator": "**—————————————————",
+      "normal_part": "8月14日，广东19岁小伙被前女友10万元卖到边境，因完成不了任务经历长达5个月的毒打，关小黑屋强制性敲键盘诈骗，一天16到20个小时，最终家人赔付35万元将其赎回，“现已将前女友起诉等待开庭",
+      "content_hash": "98d1ca48753268d5abf72b1e02fcd31f",
+      "is_applied": true,
+      "created_by": "manual",
+      "created_at": "2025-08-15T23:55:07.673080",
+      "message_id": "-1002335000498:186673"
+    },
+    {
       "id": 59,
       "tail_part": "🔔订阅东南亚大事件曝光-聚焦时事\n🔗 https://t.me/dongnanya0027\n☎️ 投稿澄清爆料：@DNW8888",
       "created_at": "2025-08-17T00:25:19.766682"
     }
-  ],
-  "updated_at": "2025-08-17T22:32:01.912885",
-  "total_count": 57
+  ]
 }

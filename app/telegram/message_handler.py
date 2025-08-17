@@ -48,13 +48,27 @@ class MessageHandler:
             else:
                 channel_id = str(raw_chat_id)
             
-            # 使用统一处理器
-            from app.services.unified_message_processor import unified_processor
-            db_message = await unified_processor.process_telegram_message(
-                message, 
-                channel_id, 
+            # 使用新的处理器管道
+            from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageStorageProcessor
+            from app.services.processors.base import MessageContext
+            
+            # 创建处理上下文
+            context = MessageContext(
+                telegram_message=message,
+                channel_id=channel_id,
                 is_history=False
             )
+            
+            # 创建处理管道
+            pipeline = MessagePipeline([
+                MessageReceiver(),
+                MessageFilterProcessor(), 
+                MessageStorageProcessor()
+            ])
+            
+            # 执行处理
+            result = await pipeline.process(context)
+            db_message = result.data if result.success else None
             
             if not db_message:
                 logger.debug(f"消息 {message.id} 处理完成（被过滤或等待组合）")
@@ -87,13 +101,27 @@ class MessageHandler:
     async def process_and_save_message(self, message, channel_id: str, is_history: bool = False):
         """处理并保存消息（用于历史消息采集）"""
         try:
-            # 使用统一处理器
-            from app.services.unified_message_processor import unified_processor
-            db_message = await unified_processor.process_telegram_message(
-                message, 
-                channel_id, 
+            # 使用新的处理器管道
+            from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageStorageProcessor
+            from app.services.processors.base import MessageContext
+            
+            # 创建处理上下文
+            context = MessageContext(
+                telegram_message=message,
+                channel_id=channel_id,
                 is_history=True
             )
+            
+            # 创建处理管道
+            pipeline = MessagePipeline([
+                MessageReceiver(),
+                MessageFilterProcessor(), 
+                MessageStorageProcessor()
+            ])
+            
+            # 执行处理
+            result = await pipeline.process(context)
+            db_message = result.data if result.success else None
             
             if not db_message:
                 logger.debug(f"历史消息 {message.id} 处理完成（被过滤或等待组合）")

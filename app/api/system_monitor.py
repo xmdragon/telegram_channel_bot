@@ -8,11 +8,12 @@ import logging
 from datetime import datetime, timedelta
 from app.services.history_collector import history_collector
 from app.storage.redis_store import get_redis_message_store
+from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system", tags=["system-monitor"])
 
-@router.get("/history-collection/progress")
+@router.get(ROUTES.system.history_progress)
 async def get_collection_progress() -> Dict[str, Any]:
     """获取历史消息采集进度"""
     try:
@@ -43,7 +44,7 @@ async def get_collection_progress() -> Dict[str, Any]:
         logger.error(f"获取历史采集进度失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/history-collection/start/{channel_id}")
+@router.post(ROUTES.system.history_start)
 async def start_history_collection(channel_id: str, limit: int = 100) -> Dict[str, Any]:
     """开始历史消息采集"""
     try:
@@ -63,7 +64,7 @@ async def start_history_collection(channel_id: str, limit: int = 100) -> Dict[st
         logger.error(f"启动历史消息采集失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/history-collection/stop/{channel_id}")
+@router.post(ROUTES.system.history_stop)
 async def stop_history_collection(channel_id: str) -> Dict[str, Any]:
     """停止历史消息采集"""
     try:
@@ -83,7 +84,7 @@ async def stop_history_collection(channel_id: str) -> Dict[str, Any]:
         logger.error(f"停止历史消息采集失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/logs/realtime")  
+@router.get(ROUTES.system.logs_realtime)  
 async def get_realtime_logs(since: str = None) -> Dict[str, Any]:
     """获取实时日志更新"""
     try:

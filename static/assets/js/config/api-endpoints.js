@@ -24,11 +24,11 @@ const API_ENDPOINTS = {
         thresholdsReset: (filterName, metricName) => `/api/messages/thresholds/${filterName}/${metricName}/reset`, // POST - 重置阈值
         testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
-        getById: (id) => `/api/messages/${id}`,                    // GET - 根据ID获取单个消息
-        updateById: (id) => `/api/messages/${id}`,                 // PUT - 更新消息内容
-        deleteById: (id) => `/api/messages/${id}`,                 // DELETE - 删除单个消息
-        approveById: (id) => `/api/messages/${id}/approve`,        // POST - 审核通过单个消息
-        rejectById: (id) => `/api/messages/${id}/reject`,          // POST - 拒绝单个消息
+        getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
+        updateById: (id) => `/api/messages/detail/${id}`,          // PUT - 更新消息内容
+        deleteById: (id) => `/api/messages/detail/${id}`,          // DELETE - 删除单个消息
+        approveById: (id) => `/api/messages/detail/${id}/approve`, // POST - 审核通过单个消息
+        rejectById: (id) => `/api/messages/detail/${id}/reject`,   // POST - 拒绝单个消息
         deleteReviewById: (id) => `/api/messages/${id}/review-message`, // DELETE - 删除审核消息
         resendById: (id) => `/api/messages/resend/${id}`,          // POST - 重新发送已批准消息到目标频道
         batchApprove: '/api/messages/batch-approve',               // POST - 批量审核通过消息

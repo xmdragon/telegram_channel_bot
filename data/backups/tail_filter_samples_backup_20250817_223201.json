@@ -1,6 +1,29 @@
 {
   "samples": [
     {
+      "id": 1,
+      "tail_part": "测试编辑的尾部内容",
+      "characteristics": {
+        "promotion_score": 0.0,
+        "commercial_score": 0.0,
+        "relevance_score": 0.1
+      },
+      "auto_features": {
+        "has_telegram_link": false,
+        "has_contact": false,
+        "action_words": [],
+        "business_words": [],
+        "link_count": 0,
+        "emoji_count": 0,
+        "text_length": 9,
+        "word_count": 1
+      },
+      "vector_index": 0,
+      "created_at": "2025-08-09T23:14:37.251795",
+      "updated_at": "2025-08-15T17:22:21.898139",
+      "migrated_at": "2025-08-15T21:10:35.309769"
+    },
+    {
       "id": 2,
       "tail_part": "🔔订阅东南亚大事件曝光-聚焦时事",
       "characteristics": {
@@ -1545,6 +1568,6 @@
       "created_at": "2025-08-17T00:25:19.766682"
     }
   ],
-  "updated_at": "2025-08-17T22:32:01.912885",
-  "total_count": 57
+  "updated_at": "2025-08-17T22:31:50.621246",
+  "total_count": 58
 }

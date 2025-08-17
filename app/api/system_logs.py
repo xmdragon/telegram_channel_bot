@@ -8,11 +8,12 @@ import logging
 import os
 import glob
 from datetime import datetime
+from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system", tags=["system-logs"])
 
-@router.get("/logs")
+@router.get(ROUTES.system.logs)
 async def get_system_logs(limit: int = 100) -> Dict[str, Any]:
     """获取系统日志"""
     try:

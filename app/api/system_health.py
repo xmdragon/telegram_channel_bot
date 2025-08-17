@@ -13,6 +13,7 @@ from app.services.system_monitor import system_monitor
 from app.storage.redis_store import get_redis_message_store
 from app.storage.json_store import get_json_channel_store
 from app.telegram.auth import auth_manager
+from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system", tags=["system-health"])
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/system", tags=["system-health"])
 # 记录启动时间
 START_TIME = datetime.now()
 
-@router.get("/status")
+@router.get(ROUTES.system.status)
 async def get_system_status() -> Dict[str, Any]:
     """获取系统状态"""
     try:
@@ -133,7 +134,7 @@ async def get_system_status() -> Dict[str, Any]:
             }
         }
 
-@router.get("/status/detailed")
+@router.get(ROUTES.system.status_detailed)
 async def get_detailed_status() -> Dict[str, Any]:
     """获取详细系统状态"""
     try:
@@ -230,7 +231,7 @@ async def get_detailed_status() -> Dict[str, Any]:
         logger.error(f"获取详细系统状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/health")
+@router.get(ROUTES.system.health)
 async def health_check() -> Dict[str, Any]:
     """健康检查"""
     try:

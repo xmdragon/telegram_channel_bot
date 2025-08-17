@@ -15,6 +15,7 @@ from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
 from app.core.api_paths import api_paths
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -57,7 +58,7 @@ def check_permission(permission_name: str):
         return wrapper
     return decorator
 
-@router.get("/")
+@router.get(ROUTES.messages.list)
 async def get_messages(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -181,7 +182,43 @@ async def get_messages(
         logger.error(f"获取消息列表失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取消息列表失败: {str(e)}")
 
-@router.get("/{message_id}")
+@router.get(ROUTES.messages.channel_info)
+async def get_channel_info(
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    获取频道信息
+    """
+    try:
+        from app.storage.json_store import get_json_channel_store
+        
+        # 获取频道配置
+        channel_store = get_json_channel_store()
+        all_channels = channel_store.get_all_channels()
+        
+        # 转换为频道信息格式
+        channels = []
+        for channel in all_channels:
+            if isinstance(channel, dict):
+                channels.append({
+                    "channel_id": channel.get('channel_id', ''),
+                    "title": channel.get('title', f'频道 {channel.get("channel_id", "")}'),
+                    "username": channel.get('username', ''),
+                    "enabled": channel.get('enabled', True),
+                    "channel_type": channel.get('channel_type', 'source')
+                })
+        
+        return {
+            "success": True,
+            "data": channels,
+            "timestamp": format_for_api(get_current_time())
+        }
+        
+    except Exception as e:
+        logger.error(f"获取频道信息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
+
+@router.get(ROUTES.messages.detail)
 async def get_message(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth)
@@ -221,7 +258,7 @@ async def get_message(
         logger.error(f"获取消息详情失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取消息详情失败: {str(e)}")
 
-@router.post("/{message_id}/approve")
+@router.post(ROUTES.messages.approve)
 @check_permission("message.approve")
 async def approve_message(
     message_id: str,
@@ -253,7 +290,7 @@ async def approve_message(
         logger.error(f"批准消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"批准消息失败: {str(e)}")
 
-@router.post("/{message_id}/reject")
+@router.post(ROUTES.messages.reject)
 @check_permission("message.reject")
 async def reject_message(
     message_id: str,
@@ -286,7 +323,7 @@ async def reject_message(
         logger.error(f"拒绝消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"拒绝消息失败: {str(e)}")
 
-@router.delete("/{message_id}")
+@router.delete(ROUTES.messages.delete)
 @check_permission("message.delete")
 async def delete_message(
     message_id: str,
@@ -317,38 +354,3 @@ async def delete_message(
     except Exception as e:
         logger.error(f"删除消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"删除消息失败: {str(e)}")
-
-@router.get("/channel-info")
-async def get_channel_info(
-    user: Dict[str, Any] = Depends(require_auth)
-):
-    """
-    获取频道信息
-    """
-    try:
-        from app.services.config_manager import ConfigManager
-        config_manager = ConfigManager()
-        
-        # 获取频道配置
-        channels_config = await config_manager.get_config('channels', {})
-        
-        # 转换为频道信息格式
-        channels = []
-        for channel_id, channel_data in channels_config.items():
-            if isinstance(channel_data, dict):
-                channels.append({
-                    "channel_id": channel_id,
-                    "title": channel_data.get('title', f'频道 {channel_id}'),
-                    "username": channel_data.get('username', ''),
-                    "enabled": channel_data.get('enabled', True)
-                })
-        
-        return {
-            "success": True,
-            "data": channels,
-            "timestamp": format_for_api(get_current_time())
-        }
-        
-    except Exception as e:
-        logger.error(f"获取频道信息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")

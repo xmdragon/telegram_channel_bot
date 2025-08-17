@@ -7,11 +7,12 @@ from typing import Dict, Any
 import logging
 import json
 from pathlib import Path
+from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system", tags=["system-admin"])
 
-@router.post("/services/{service_name}/start")
+@router.post(ROUTES.system.service_start)
 async def start_service(service_name: str) -> Dict[str, Any]:
     """启动服务（通过配置）"""
     try:
@@ -30,7 +31,7 @@ async def start_service(service_name: str) -> Dict[str, Any]:
         logger.error(f"启动服务失败: {e}")
         return {"success": False, "message": f"启动服务失败: {str(e)}"}
 
-@router.post("/services/{service_name}/stop")
+@router.post(ROUTES.system.service_stop)
 async def stop_service(service_name: str) -> Dict[str, Any]:
     """停止服务（通过配置）"""
     try:
@@ -49,7 +50,7 @@ async def stop_service(service_name: str) -> Dict[str, Any]:
         logger.error(f"停止服务失败: {e}")
         return {"success": False, "message": f"停止服务失败: {str(e)}"}
 
-@router.post("/services/{service_name}/restart")
+@router.post(ROUTES.system.service_restart)
 async def restart_service(service_name: str) -> Dict[str, Any]:
     """重启服务（先停止再启动）"""
     try:
@@ -77,7 +78,7 @@ async def restart_service(service_name: str) -> Dict[str, Any]:
         logger.error(f"重启服务失败: {e}")
         return {"success": False, "message": f"重启服务失败: {str(e)}"}
 
-@router.get("/services/{service_name}/status")
+@router.get(ROUTES.system.service_status)
 async def get_service_status(service_name: str) -> Dict[str, Any]:
     """获取服务状态"""
     try:
@@ -137,7 +138,7 @@ async def get_service_status(service_name: str) -> Dict[str, Any]:
         logger.error(f"获取服务状态失败: {e}")
         return {"success": False, "message": f"获取服务状态失败: {str(e)}"}
 
-@router.get("/services")
+@router.get(ROUTES.system.services)
 async def get_all_services_status() -> Dict[str, Any]:
     """获取所有服务状态"""
     try:
