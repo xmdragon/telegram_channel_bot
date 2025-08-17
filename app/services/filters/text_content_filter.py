@@ -302,138 +302,135 @@ class TextContentFilter(BaseFilter):
         return content
     
     def _remove_markdown_links(self, content: str, context: FilterContext) -> str:
-        """
-        移除所有Markdown格式的链接，智能处理标签
-        """
+        """移除所有Markdown格式的链接，智能处理标签"""
         if not content:
             return content
         
-        # 获取频道名称（用于判断标签相关性）
-        channel_name = None
-        channel_id = context.get_metadata('channel_id')
-        if channel_id:
-            # 提取频道关键词
-            if isinstance(channel_id, str):
-                if channel_id.startswith('@'):
-                    channel_name = channel_id[1:].lower()
-                elif channel_id.startswith('-100'):
-                    # 使用已知映射
-                    known_channels = {
-                        '-1001153220419': 'dny185',
-                        '-1001875033283': 'dubai0',
-                    }
-                    channel_name = known_channels.get(channel_id, '').lower()
-                else:
-                    channel_name = channel_id.lower()
-        
-        # Markdown链接正则
-        markdown_pattern = r'\[([^\]]*)\]\(([^\)]+)\)'
-        
+        channel_name = self._extract_channel_name(context)
         lines = content.split('\n')
         filtered_lines = []
         
         for line in lines:
-            if not re.search(markdown_pattern, line):
-                # 没有Markdown链接，直接保留
-                filtered_lines.append(line)
+            processed_line = self._process_markdown_line(line, channel_name)
+            if processed_line is None:
                 continue
             
-            original_line = line
-            
-            # 处理每个Markdown链接
-            def replace_link(match):
-                link_text = match.group(1)  # [文字]部分
-                link_url = match.group(2)   # (链接)部分
-                
-                # 判断是否应该完全移除
-                should_remove_completely = False
-                
-                # 1. 检查是否包含频道相关标签
-                if channel_name and link_text:
-                    # 检查链接文字中是否包含频道名
-                    if channel_name in link_text.lower():
-                        should_remove_completely = True
-                        logger.debug(f"检测到频道相关标签: {link_text}")
-                
-                # 2. 检查是否包含推广关键词
-                promo_keywords = ['订阅', '订閱', '关注', '關注', '加入', 
-                                 '投稿', '商务', '商務', '联系', '聯繫',
-                                 '频道', '頻道', 'channel', 'group', '失联', 
-                                 '导航', '備用', '官方']
-                if link_text:
-                    for keyword in promo_keywords:
-                        if keyword in link_text.lower():
-                            should_remove_completely = True
-                            logger.debug(f"检测到推广关键词 '{keyword}': {link_text}")
-                            break
-                
-                # 3. 检查是否是纯emoji或符号
-                if link_text and re.match(r'^[^\w\u4e00-\u9fa5]+$', link_text):
-                    should_remove_completely = True
-                    logger.debug(f"检测到纯符号链接: {link_text}")
-                
-                # 4. 检查链接是否指向t.me（高概率推广）
-                if 't.me' in link_url.lower() or 'telegram' in link_url.lower():
-                    # Telegram链接几乎都是推广，直接移除
-                    should_remove_completely = True
-                    logger.debug(f"检测到Telegram链接: {link_url[:30]}")
-                
-                # 返回处理结果
-                if should_remove_completely:
-                    return ''  # 完全移除
-                else:
-                    # 对于非Telegram链接，可以保留文字部分
-                    return link_text.strip() if link_text else ''
-            
-            # 替换所有Markdown链接
-            processed_line = re.sub(markdown_pattern, replace_link, line)
-            
-            # 清理多余空格、标点和分隔符
-            processed_line = re.sub(r'\s+', ' ', processed_line).strip()
-            processed_line = re.sub(r'^[:：]\s*', '', processed_line)  # 移除行首的冒号
-            processed_line = re.sub(r'^\|\s*|\s*\|$', '', processed_line)  # 移除行首行尾的 |
-            processed_line = re.sub(r'\|\s*\|', '|', processed_line)  # 合并多个 |
-            
-            # 如果行首是emoji+文字+冒号但后面没有实质内容，删除整行
-            if re.match(r'^[^a-zA-Z]*[^:：]*[:：]\s*$', processed_line) and len(processed_line) < 30:
-                logger.info(f"删除只含标题的行: '{original_line[:50]}...'")
-                continue
-            
-            # 如果是引导性文字+冒号但后面没有内容，删除整行
-            guide_words = ['查看详情', '订阅频道', '订阅我们', '关注我们', '更多信息', 
-                          '查看更多', '点击查看', '了解更多', '商务合作', '投稿爆料']
-            for word in guide_words:
-                if processed_line.startswith(word) and re.match(f'^{re.escape(word)}[:：]?\\s*$', processed_line):
-                    logger.info(f"删除只含引导词的行: '{original_line[:50]}...'")
-                    processed_line = ''
-                    break
-            
-            if not processed_line:
-                continue
-            
-            # 如果只剩下分隔符或很少的内容，跳过该行
-            if processed_line in ['|', '||', ''] or len(processed_line.strip('| ')) < 3:
-                logger.info(f"删除只含分隔符的行: '{original_line[:50]}...'")
-                continue
-            
-            # 记录处理效果
-            if processed_line != original_line.strip():
-                logger.info(f"处理Markdown链接: '{original_line[:50]}...' -> '{processed_line[:50] if processed_line else '(已删除)'}'")
-            
-            # 如果处理后还有内容，保留该行
+            # 后处理：清理和过滤无用行
+            processed_line = self._post_process_line(processed_line, line)
             if processed_line:
                 filtered_lines.append(processed_line)
         
-        # 组合结果
-        result = '\n'.join(filtered_lines)
+        return '\n'.join(filtered_lines)
+    
+    def _extract_channel_name(self, context: FilterContext) -> str:
+        """提取频道名称"""
+        channel_id = context.get_metadata('channel_id')
+        if not channel_id or not isinstance(channel_id, str):
+            return None
         
-        # 清理多余空行
-        result = re.sub(r'\n{3,}', '\n\n', result).strip()
+        if channel_id.startswith('@'):
+            return channel_id[1:].lower()
         
-        if len(result) < len(content):
-            logger.info(f"移除Markdown链接: {len(content)} -> {len(result)} 字符")
+        if channel_id.startswith('-100'):
+            known_channels = {
+                '-1001153220419': 'dny185',
+                '-1001875033283': 'dubai0',
+            }
+            return known_channels.get(channel_id, '').lower()
         
-        return result
+        return channel_id.lower()
+    
+    def _process_markdown_line(self, line: str, channel_name: str) -> str:
+        """处理包含Markdown链接的行"""
+        markdown_pattern = r'\[([^\]]*)\]\(([^\)]+)\)'
+        
+        if not re.search(markdown_pattern, line):
+            return line
+        
+        def replace_link(match):
+            return self._process_single_link(match.group(1), match.group(2), channel_name)
+        
+        return re.sub(markdown_pattern, replace_link, line)
+    
+    def _process_single_link(self, link_text: str, link_url: str, channel_name: str) -> str:
+        """处理单个链接 - Linus风格：纯函数，无嵌套"""
+        # 检查移除条件
+        if self._should_remove_link(link_text, link_url, channel_name):
+            return ''
+        
+        # 保留文字部分
+        return link_text.strip() if link_text else ''
+    
+    def _should_remove_link(self, link_text: str, link_url: str, channel_name: str) -> bool:
+        """判断是否应该移除链接 - 统一决策逻辑"""
+        # 1. 频道相关标签
+        if channel_name and link_text and channel_name in link_text.lower():
+            logger.debug(f"检测到频道相关标签: {link_text}")
+            return True
+        
+        # 2. 推广关键词
+        promo_keywords = [
+            '订阅', '订閱', '关注', '關注', '加入', '投稿', 
+            '商务', '商務', '联系', '聯繫', '频道', '頻道', 
+            'channel', 'group', '失联', '导航', '備用', '官方'
+        ]
+        
+        if link_text:
+            for keyword in promo_keywords:
+                if keyword in link_text.lower():
+                    logger.debug(f"检测到推广关键词 '{keyword}': {link_text}")
+                    return True
+        
+        # 3. 纯符号链接
+        if link_text and re.match(r'^[^\w\u4e00-\u9fa5]+$', link_text):
+            logger.debug(f"检测到纯符号链接: {link_text}")
+            return True
+        
+        # 4. Telegram链接
+        if 't.me' in link_url.lower() or 'telegram' in link_url.lower():
+            logger.debug(f"检测到Telegram链接: {link_url[:30]}")
+            return True
+        
+        return False
+    
+    def _post_process_line(self, processed_line: str, original_line: str) -> str:
+        """后处理行：清理格式和过滤无用内容"""
+        # 基础清理
+        processed_line = re.sub(r'\s+', ' ', processed_line).strip()
+        processed_line = re.sub(r'^[:：]\s*', '', processed_line)
+        processed_line = re.sub(r'^\|\s*|\s*\|$', '', processed_line)
+        processed_line = re.sub(r'\|\s*\|', '|', processed_line)
+        
+        # 过滤无用行
+        if self._is_useless_line(processed_line, original_line):
+            return None
+        
+        return processed_line if processed_line else None
+    
+    def _is_useless_line(self, processed_line: str, original_line: str) -> bool:
+        """判断是否为无用行"""
+        # 只含标题的行
+        if re.match(r'^[^a-zA-Z]*[^:：]*[:：]\s*$', processed_line) and len(processed_line) < 30:
+            logger.info(f"删除只含标题的行: '{original_line[:50]}...'")
+            return True
+        
+        # 引导词行
+        guide_words = [
+            '查看详情', '订阅频道', '订阅我们', '关注我们', '更多信息',
+            '查看更多', '点击查看', '了解更多', '商务合作', '投稿爆料'
+        ]
+        
+        for word in guide_words:
+            if processed_line.startswith(word) and re.match(f'^{re.escape(word)}[:：]?\\s*$', processed_line):
+                logger.info(f"删除只含引导词的行: '{original_line[:50]}...'")
+                return True
+        
+        # 分隔符行
+        if processed_line in ['|', '||', ''] or len(processed_line.strip('| ')) < 3:
+            logger.info(f"删除只含分隔符的行: '{original_line[:50]}...'")
+            return True
+        
+        return False
     
     def _smart_rule_filter(self, content: str) -> str:
         """

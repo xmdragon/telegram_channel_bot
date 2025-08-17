@@ -1,10 +1,10 @@
 """
-Telegram消息转发器
+Telegram消息转发器 - Linus标准修复版本
 专门负责消息转发相关的所有功能
 """
 import logging
 import os
-from typing import Optional
+from typing import Optional, Union, Dict, Any
 from datetime import datetime
 from telethon import TelegramClient
 
@@ -18,6 +18,44 @@ from app.services.unified_filter_engine import filter_engine_compat
 from app.services.media_handler import media_handler
 
 logger = logging.getLogger(__name__)
+
+
+class StandardMessage:
+    """统一消息类 - 消除MessageWrapper灾难"""
+    
+    def __init__(self, data: Union[Dict, Any]):
+        """接受字典或对象，提供统一接口"""
+        if isinstance(data, dict):
+            self._data = data
+            self._is_dict = True
+        else:
+            self._data = data
+            self._is_dict = False
+    
+    def __getattr__(self, name: str) -> Any:
+        """统一属性访问"""
+        if self._is_dict:
+            if name in self._data:
+                return self._data[name]
+            # 提供标准默认值
+            defaults = {
+                'removed_hidden_links': [],
+                'is_combined': False,
+                'media_group': None,
+                'target_message_id': None,
+                'forwarded_time': None,
+                'id': f"{self._data.get('source_channel')}:{self._data.get('message_id')}"
+            }
+            return defaults.get(name)
+        else:
+            return getattr(self._data, name, None)
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """字典式访问"""
+        if self._is_dict:
+            return self._data.get(key, default)
+        else:
+            return getattr(self._data, key, default)
 
 class MessageForwarder:
     """消息转发器 - 专门处理消息转发逻辑"""
@@ -155,34 +193,8 @@ class MessageForwarder:
     async def forward_to_target(self, client: TelegramClient, message):
         """重新发布到目标频道"""
         try:
-            # 🔧 修复：统一处理字典和对象两种类型
-            # 如果传入的是字典，转换为兼容的访问方式
-            if isinstance(message, dict):
-                msg_data = message
-                
-                # 创建一个简单的对象包装器，提供属性访问
-                class MessageWrapper:
-                    def __init__(self, data):
-                        self.data = data
-                    
-                    def __getattr__(self, name):
-                        if name in self.data:
-                            return self.data[name]
-                        # 为缺失的属性提供默认值
-                        defaults = {
-                            'removed_hidden_links': [],
-                            'is_combined': False,
-                            'media_group': None,
-                            'target_message_id': None,
-                            'forwarded_time': None,
-                            'id': f"{self.data.get('source_channel')}:{self.data.get('message_id')}"
-                        }
-                        return defaults.get(name, None)
-                    
-                    def get(self, key, default=None):
-                        return self.data.get(key, default)
-                
-                message = MessageWrapper(msg_data)
+            # ✅ Linus修复：使用统一消息类，消除运行时类定义
+            message = StandardMessage(message)
             
             # 获取目标频道ID（从Redis缓存）
             from app.services.channel_cache import channel_cache
