@@ -3,10 +3,11 @@
 """
 from fastapi import APIRouter, HTTPException
 from app.telegram.process_lock import telegram_lock
+from app.core.routes import ROUTES
 
 router = APIRouter()
 
-@router.get("/lock/status")
+@router.get(ROUTES.lock.status)
 async def get_lock_status():
     """获取进程锁状态"""
     try:
@@ -32,7 +33,7 @@ async def get_lock_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取锁状态失败: {str(e)}")
 
-@router.post("/lock/force-release")
+@router.post(ROUTES.lock.force_release)
 async def force_release_lock():
     """强制释放锁（仅紧急情况使用）"""
     try:

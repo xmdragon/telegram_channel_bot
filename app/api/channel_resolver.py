@@ -10,6 +10,7 @@ import logging
 from app.services.config_manager import ConfigManager
 from app.services.channel_id_resolver import channel_id_resolver
 from app.telegram.auth import auth_manager
+from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["channel-resolver"])
@@ -21,7 +22,7 @@ class ResolveRequest(BaseModel):
     channel_input: str  # 频道用户名、链接或ID
     save_as: Optional[str] = None  # 保存到的配置项名称
 
-@router.post("/resolve")
+@router.post(ROUTES.channel_resolver.resolve)
 async def resolve_channel(request: ResolveRequest):
     """
     解析频道ID
@@ -85,7 +86,7 @@ async def resolve_channel(request: ResolveRequest):
             "message": f"解析失败: {str(e)}"
         }
 
-@router.post("/resolve-all")
+@router.post(ROUTES.channel_resolver.resolve_all)
 async def resolve_all_channels():
     """
     解析所有未解析的频道ID
@@ -121,7 +122,7 @@ async def resolve_all_channels():
             "message": f"批量解析失败: {str(e)}"
         }
 
-@router.post("/resolve-target")
+@router.post(ROUTES.channel_resolver.resolve_target)
 async def resolve_target_channel():
     """
     专门解析目标频道
@@ -190,7 +191,7 @@ async def resolve_target_channel():
             "message": f"解析失败: {str(e)}"
         }
 
-@router.post("/resolve-review")
+@router.post(ROUTES.channel_resolver.resolve_review)
 async def resolve_review_group():
     """
     专门解析审核群

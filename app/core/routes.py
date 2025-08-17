@@ -55,3 +55,15 @@ class ROUTES:
         """训练数据模块路由（示例，根据需要扩展）"""
         ad_samples = "/training-db/ad-samples"
         normal_samples = "/training-db/normal-samples"
+        
+    class channel_resolver:
+        """频道解析模块路由"""
+        resolve = "/resolve"
+        resolve_all = "/resolve-all"
+        resolve_target = "/resolve-target"
+        resolve_review = "/resolve-review"
+        
+    class lock:
+        """进程锁模块路由"""
+        status = "/lock/status"
+        force_release = "/lock/force-release"
