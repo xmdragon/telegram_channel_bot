@@ -88,7 +88,7 @@ const app = createApp({
         async loadMediaFiles() {
             this.loading = true;
             try {
-                const response = await axios.get('/api/training/media-files');
+                const response = await axios.get('/api/training-db/media-files');
                 this.mediaFiles = response.data.files || [];
                 this.stats = response.data.stats || this.stats;
                 
@@ -137,7 +137,7 @@ const app = createApp({
                 this.currentFile.ocrLoading = true;
                 this.currentFile.ocrError = null;
                 
-                const response = await axios.get(`/api/training/media-files/${fileHash}/ocr`);
+                const response = await axios.get(`/api/training-db/media-files/${fileHash}/ocr`);
                 
                 if (response.data.success) {
                     this.currentFile.ocrResult = response.data.ocr_result;
@@ -174,7 +174,7 @@ const app = createApp({
                     }
                 );
                 
-                const response = await axios.delete(`/api/training/media-files/${file.hash}`);
+                const response = await axios.delete(`/api/training-db/media-files/${file.hash}`);
                 
                 if (response.data.success) {
                     // 删除成功后不显示提示，直接刷新列表
@@ -341,7 +341,7 @@ const app = createApp({
                     }
                 );
                 
-                const response = await axios.post('/api/training/media-files/clean-orphaned');
+                const response = await axios.post('/api/training-db/media-files/clean-orphaned');
                 
                 if (response.data.success) {
                     ElMessage({
@@ -457,7 +457,7 @@ const app = createApp({
                     customClass: 'bottom-right-message'
                 });
                 
-                const response = await axios.get('/api/training/media-files/export', {
+                const response = await axios.get('/api/training-db/media-files/export', {
                     responseType: 'blob'
                 });
                 
@@ -491,7 +491,7 @@ const app = createApp({
         async checkDuplicates() {
             try {
                 this.loading = true;
-                const response = await axios.get('/api/training/media-files/duplicates');
+                const response = await axios.get('/api/training-db/media-files/duplicates');
                 
                 if (response.data.success) {
                     const stats = response.data.stats;
@@ -542,7 +542,7 @@ const app = createApp({
         async deduplicateMedia() {
             try {
                 // 先检测重复
-                const checkResponse = await axios.get('/api/training/media-files/duplicates');
+                const checkResponse = await axios.get('/api/training-db/media-files/duplicates');
                 if (!checkResponse.data.success || checkResponse.data.stats.groups === 0) {
                     ElMessage({
                         message: '没有需要去重的文件',
@@ -574,7 +574,7 @@ const app = createApp({
                 );
                 
                 this.loading = true;
-                const response = await axios.post('/api/training/media-files/deduplicate');
+                const response = await axios.post('/api/training-db/media-files/deduplicate');
                 
                 if (response.data.success) {
                     ElMessage({
@@ -619,7 +619,7 @@ const app = createApp({
                 );
                 
                 this.loading = true;
-                const response = await axios.post('/api/training/media-files/rebuild-visual-hashes');
+                const response = await axios.post('/api/training-db/media-files/rebuild-visual-hashes');
                 
                 if (response.data.success) {
                     ElMessage({
