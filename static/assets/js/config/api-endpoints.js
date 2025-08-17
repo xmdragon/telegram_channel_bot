@@ -132,13 +132,35 @@ const API_ENDPOINTS = {
 
     // 系统状态模块 - /api/system
     system: {
-        status: '/api/status',                                     // GET - 系统状态
-        systemStatus: '/api/system/status',                        // GET - 详细系统状态
-        health: '/api/health',                                     // GET - 健康检查
+        // 系统健康检查
+        status: '/api/status',                                     // GET - 系统基本状态
+        systemStatus: '/api/system/status',                        // GET - 系统详细状态
+        statusDetailed: '/api/system/status/detailed',             // GET - 系统详细状态信息
+        health: '/api/health',                                     // GET - 简单健康检查
+        systemHealth: '/api/system/health',                        // GET - 详细健康检查
+        
+        // 系统日志管理
         logs: '/api/system/logs',                                  // GET - 系统日志
-        clearCache: '/api/system/clear-cache',                    // POST - 清理缓存
-        restart: '/api/system/restart',                           // POST - 重启系统
-        reset: '/api/system/reset'                                // POST - 重置系统
+        logsRealtime: '/api/system/logs/realtime',                 // GET - 实时日志更新
+        
+        // 历史消息采集监控
+        historyProgress: '/api/system/history-collection/progress', // GET - 历史消息采集进度
+        historyStart: (channelId) => `/api/system/history-collection/start/${channelId}`, // POST - 开始历史消息采集
+        historyStop: (channelId) => `/api/system/history-collection/stop/${channelId}`,   // POST - 停止历史消息采集
+        
+        // 系统维护操作
+        restart: '/api/system/restart',                            // POST - 重启系统服务
+        reset: '/api/system/reset',                                // POST - 重置系统数据
+        
+        // 服务管理
+        services: '/api/system/services',                          // GET - 获取所有服务状态
+        serviceStatus: (serviceName) => `/api/system/services/${serviceName}/status`,   // GET - 获取单个服务状态
+        serviceStart: (serviceName) => `/api/system/services/${serviceName}/start`,     // POST - 启动服务
+        serviceStop: (serviceName) => `/api/system/services/${serviceName}/stop`,       // POST - 停止服务
+        serviceRestart: (serviceName) => `/api/system/services/${serviceName}/restart`, // POST - 重启服务
+        
+        // 已废弃或重复的端点（保留向后兼容）
+        clearCache: '/api/system/clear-cache',                     // POST - 清理缓存（已废弃）
     },
 
     // 管理功能模块 - /api/admin
