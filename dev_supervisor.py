@@ -87,7 +87,6 @@ class ServiceProcess:
         if self.config.name == "web":
             # Web服务需要等待HTTP端点可用
             import urllib.request
-            import asyncio
             
             for attempt in range(30):  # 最多等待30秒
                 try:
@@ -108,6 +107,7 @@ class ServiceProcess:
             return False
         else:
             # 其他服务只需要检查进程存在
+            import asyncio
             await asyncio.sleep(2)
             return self.process.poll() is None
     

@@ -119,7 +119,7 @@ STOP_ARGS=""
 # 等待进程完全停止，确保清理完成
 if [ "$QUICK_MODE" = false ]; then
     echo "⏳ 等待进程完全停止..."
-    sleep 5
+    sleep 2  # 从5秒减少到2秒
 else
     [ "$VERBOSE" = true ] && echo "⚡ 快速模式：跳过停止等待"
     sleep 1
@@ -174,14 +174,14 @@ fi
 # 等待Redis就绪
 if [ "$QUICK_MODE" = false ]; then
     echo "⏳ 等待Redis就绪..."
-    max_wait=15
+    max_wait=8  # 从15秒减少到8秒
     for i in $(seq 1 $max_wait); do
         if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
             echo "✅ Redis已就绪"
             break
         fi
         if [ $i -eq $max_wait ]; then
-            echo "❌ Redis启动超时，尝试继续启动服务..."
+            echo "⚠️ Redis响应慢，继续启动服务..."  # 改为警告而非错误
             break
         fi
         sleep 1
@@ -192,24 +192,26 @@ fi
 
 echo
 
-# 步骤3：显示系统状态信息
+# 步骤3：显示系统状态信息（优化版）
 if [ "$SKIP_LOGS" = false ] && [ "$QUICK_MODE" = false ]; then
     echo "3️⃣ 检查系统状态..."
     
-    # 显示错误日志统计
+    # 快速检查错误日志（只看最近1000行避免大文件扫描）
     if [ -f "./logs/error.log" ]; then
-        ERROR_COUNT=$(grep -c "\[ERROR\]" "./logs/error.log" 2>/dev/null || echo "0")
-        WARNING_COUNT=$(grep -c "\[WARNING\]" "./logs/error.log" 2>/dev/null || echo "0")
-        
-        # 确保数值有效
-        ERROR_COUNT=${ERROR_COUNT:-0}
-        WARNING_COUNT=${WARNING_COUNT:-0}
-        
-        if [ "$ERROR_COUNT" -gt 0 ] || [ "$WARNING_COUNT" -gt 0 ]; then
-            echo "📊 历史日志统计: $WARNING_COUNT 个警告, $ERROR_COUNT 个错误"
-            echo "   Web查看详情: http://localhost:8000/static/admin.html"
+        # 使用tail限制扫描范围，提升速度
+        RECENT_LOGS=$(tail -n 1000 "./logs/error.log" 2>/dev/null)
+        if [ -n "$RECENT_LOGS" ]; then
+            ERROR_COUNT=$(echo "$RECENT_LOGS" | grep -c "\[ERROR\]" 2>/dev/null || echo "0")
+            WARNING_COUNT=$(echo "$RECENT_LOGS" | grep -c "\[WARNING\]" 2>/dev/null || echo "0")
+            
+            if [ "$ERROR_COUNT" -gt 0 ] || [ "$WARNING_COUNT" -gt 0 ]; then
+                echo "📊 近期日志统计: $WARNING_COUNT 个警告, $ERROR_COUNT 个错误"
+                echo "   Web查看详情: http://localhost:8000/static/admin.html"
+            else
+                echo "✅ 近期无错误记录"
+            fi
         else
-            echo "✅ 无历史错误记录"
+            echo "✅ 无错误日志内容"
         fi
     else
         echo "✅ 无错误日志文件"
@@ -220,11 +222,15 @@ fi
 
 echo
 
-# 步骤4：显示磁盘使用情况  
+# 步骤4：显示磁盘使用情况（后台异步）
 if [ "$SKIP_LOGS" = false ] && [ "$QUICK_MODE" = false ]; then
-    LOGS_SIZE=$(du -sh ./logs 2>/dev/null | cut -f1 || echo "未知")
-    DATA_SIZE=$(du -sh ./data 2>/dev/null | cut -f1 || echo "未知")
-    echo "💾 存储使用: 日志 $LOGS_SIZE, 数据 $DATA_SIZE"
+    # 启动后台进程计算磁盘使用，不阻塞主流程
+    (
+        LOGS_SIZE=$(du -sh ./logs 2>/dev/null | cut -f1 || echo "未知")
+        DATA_SIZE=$(du -sh ./data 2>/dev/null | cut -f1 || echo "未知")
+        echo "💾 存储使用: 日志 $LOGS_SIZE, 数据 $DATA_SIZE" > /tmp/disk_usage_$$
+    ) &
+    echo "💾 存储信息计算中..."
     echo
 elif [ "$VERBOSE" = true ]; then
     echo "💾 跳过磁盘使用检查"

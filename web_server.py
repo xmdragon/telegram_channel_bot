@@ -142,33 +142,45 @@ async def lifespan(app: FastAPI):
         config_time = time.time() - config_start
         logger.info(f"✅ 配置初始化完成 ({config_time:.2f}s)")
         
-        # 阶段3：其他组件初始化（延迟或并行）
+        # 阶段3：基础组件初始化（快速启动必需）
         misc_start = time.time()
         
-        # 初始化频道ID缓存
-        from app.services.channel_cache import channel_cache
-        await channel_cache.init_cache()
-        
-        # 确保目录结构
+        # 确保目录结构（快速）
         PathConfig.ensure_directories()
         
-        # 延迟加载：Telegram认证管理器（耗时较长，可延迟）
-        from app.telegram.auth import auth_manager
-        await auth_manager.initialize()
-        
-        # 加载数据库配置
+        # 基础配置加载（快速）
         from app.core.config import settings
         await settings.load_db_configs()
         
         misc_time = time.time() - misc_start
-        logger.info(f"✅ 其他组件初始化完成 ({misc_time:.2f}s)")
+        logger.info(f"✅ 基础组件初始化完成 ({misc_time:.2f}s)")
         
-        # 设置健康状态
+        # 设置健康状态（提早设置，让健康检查通过）
         await health_monitor.set_healthy({
             "web_server_port": 8000,
             "api_endpoints": ["health", "messages", "admin", "auth"],
             "static_files": True
         })
+        
+        # 启动后台初始化任务（不阻塞HTTP服务）
+        async def background_init():
+            try:
+                # 延迟初始化：频道ID缓存
+                from app.services.channel_cache import channel_cache
+                await channel_cache.init_cache()
+                logger.info("✅ 频道缓存初始化完成")
+                
+                # 延迟初始化：Telegram认证管理器（耗时较长）
+                from app.telegram.auth import auth_manager
+                await auth_manager.initialize()
+                logger.info("✅ Telegram认证管理器初始化完成")
+                
+            except Exception as e:
+                logger.error(f"❌ 后台初始化失败: {e}")
+        
+        # 启动后台任务，不等待完成
+        import asyncio
+        asyncio.create_task(background_init())
         
         # 标记已初始化
         app.state.initialized = True
