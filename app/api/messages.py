@@ -119,7 +119,8 @@ def _merge_grouped_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, An
             
             # 收集所有媒体信息，构建media_group_display
             media_group_display = []
-            all_contents = []
+            all_original_contents = []
+            all_filtered_contents = []
             
             for msg in group_messages:
                 # 收集媒体信息
@@ -136,18 +137,23 @@ def _merge_grouped_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, An
                     }
                     media_group_display.append(media_item)
                 
-                # 收集文字内容
-                content = msg.get('filtered_content') or msg.get('content', '')
-                if content and content.strip():
-                    all_contents.append(content.strip())
+                # 分别收集原始内容和过滤内容
+                original_content = msg.get('content', '')
+                if original_content and original_content.strip():
+                    all_original_contents.append(original_content.strip())
+                
+                filtered_content = msg.get('filtered_content', '')
+                if filtered_content and filtered_content.strip():
+                    all_filtered_contents.append(filtered_content.strip())
             
             # 设置media_group_display
             base_message['media_group_display'] = media_group_display
             
-            # 使用第一个非空内容作为主要内容
-            if all_contents:
-                base_message['content'] = all_contents[0]
-                base_message['filtered_content'] = all_contents[0]
+            # 分别设置原始内容和过滤内容
+            if all_original_contents:
+                base_message['content'] = all_original_contents[0]  # 保持原始内容
+            if all_filtered_contents:
+                base_message['filtered_content'] = all_filtered_contents[0]  # 过滤内容
             
             # 添加组合消息计数
             base_message['combined_count'] = len(group_messages)
