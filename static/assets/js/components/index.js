@@ -1497,7 +1497,7 @@ const MainApp = {
             try {
                 MessageManager.info('正在重新发送消息到目标频道...');
                 
-                const response = await axios.post(`/api/messages/${message.id}/resend`);
+                const response = await axios.post(window.API.messages.resendById(message.id));
                 
                 if (response.data.success) {
                     MessageManager.success('消息已重新发送到目标频道');

@@ -30,6 +30,7 @@ const API_ENDPOINTS = {
         approveById: (id) => `/api/messages/${id}/approve`,        // POST - 审核通过单个消息
         rejectById: (id) => `/api/messages/${id}/reject`,          // POST - 拒绝单个消息
         deleteReviewById: (id) => `/api/messages/${id}/review-message`, // DELETE - 删除审核消息
+        resendById: (id) => `/api/messages/resend/${id}`,          // POST - 重新发送已批准消息到目标频道
         batchApprove: '/api/messages/batch-approve',               // POST - 批量审核通过消息
         batchReject: '/api/messages/batch-reject',                 // POST - 批量拒绝消息
         batchDelete: '/api/messages/batch-delete',                 // POST - 批量删除消息
@@ -212,13 +213,7 @@ Object.freeze(API_ENDPOINTS);
 // 导出为全局变量（兼容旧代码）
 if (typeof window !== 'undefined') {
     window.API = API_ENDPOINTS;
-    // 添加调试信息
-    console.log('✅ API端点配置已加载', {
-        模块数量: Object.keys(API_ENDPOINTS).length - 1, // 排除utils
-        版本: '1.0.0',
-        更新时间: '2025-08-17'
-    });
 }
 
-// ES6模块导出
-export default API_ENDPOINTS;
+// 兼容传统script标签引入方式，注释掉ES6导出
+// export default API_ENDPOINTS;
