@@ -14,6 +14,7 @@ import logging
 
 from app.storage.json_store import get_json_channel_store
 from app.core.config import settings
+from app.core.route_config import ROUTES
 from app.services.config_manager import config_manager
 from app.services.scheduler import MessageScheduler
 from app.services.unified_channel_service import unified_channel_service
@@ -36,7 +37,7 @@ class ChannelUpdateRequest(BaseModel):
     config: Optional[dict] = None
 
 
-@router.get("/channels")
+@router.get(ROUTES.admin.channels)
 async def get_channels(
     search: Optional[str] = Query(None, description="搜索关键词，支持名称精准匹配或标题模糊匹配")
 ):
@@ -80,7 +81,7 @@ async def get_channels(
         ]
     }
 
-@router.post("/channels")
+@router.post(ROUTES.admin.channels)
 async def add_channel(
     request: ChannelCreateRequest
 ):
@@ -158,7 +159,7 @@ async def add_channel(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
 
-@router.put("/channels/{channel_name}")
+@router.put(ROUTES.admin.channels_by_name)
 async def update_channel(
     channel_name: str,
     request: ChannelUpdateRequest
@@ -201,7 +202,7 @@ async def update_channel(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新频道失败: {str(e)}")
 
-@router.delete("/channels/{channel_name}")
+@router.delete(ROUTES.admin.channels_by_name)
 async def delete_channel(
     channel_name: str
 ):
@@ -231,7 +232,7 @@ async def delete_channel(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除频道失败: {str(e)}")
 
-@router.post("/channels/refresh-titles")
+@router.post(ROUTES.admin.channels_refresh_titles)
 async def refresh_channel_titles():
     """刷新所有频道的真实标题"""
     try:
@@ -242,7 +243,7 @@ async def refresh_channel_titles():
         raise HTTPException(status_code=500, detail=f"刷新频道标题失败: {str(e)}")
 
 
-@router.get("/search-channels")
+@router.get(ROUTES.admin.search_channels)
 async def search_channels(
     query: str = Query(..., description="搜索关键词")
 ):
@@ -291,7 +292,7 @@ async def search_channels(
             "channels": []
         }
 
-@router.post("/collect-history/{channel_id}")
+@router.post(ROUTES.admin.collect_history)
 async def collect_channel_history(
     channel_id: str,
     limit: int = Query(default=100, description="采集消息数量限制")
@@ -313,7 +314,7 @@ async def collect_channel_history(
             detail="启动历史消息采集失败，请检查频道ID或是否已在采集中"
         )
 
-@router.get("/collect-history/progress")
+@router.get(ROUTES.admin.collect_history_progress)
 async def get_collection_progress():
     """获取所有历史消息采集进度"""
     from app.services.history_collector import history_collector
@@ -335,7 +336,7 @@ async def get_collection_progress():
     
     return result
 
-@router.post("/collect-history/{channel_id}/stop")
+@router.post(ROUTES.admin.collect_history_stop)
 async def stop_collection(channel_id: str):
     """停止频道历史消息采集"""
     from app.services.history_collector import history_collector
@@ -353,7 +354,7 @@ async def stop_collection(channel_id: str):
             "message": f"频道 {channel_id} 当前没有在采集中"
         }
 
-@router.get("/config")
+@router.get(ROUTES.admin.config)
 async def get_system_config():
     """获取系统配置"""
     from app.core.config import db_settings
@@ -373,7 +374,7 @@ async def get_system_config():
         "collection.enabled": await config_manager.get_config('collection.enabled', True)
     }
 
-@router.post("/restart")
+@router.post(ROUTES.admin.restart)
 async def restart_system():
     """重启系统"""
     try:
@@ -383,7 +384,7 @@ async def restart_system():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"系统重启失败: {str(e)}")
 
-@router.post("/backup")
+@router.post(ROUTES.admin.backup)
 async def backup_data():
     """备份数据"""
     try:
@@ -423,7 +424,7 @@ async def backup_data():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"数据备份失败: {str(e)}")
 
-@router.post("/clear-cache")
+@router.post(ROUTES.admin.clear_cache)
 async def clear_cache():
     """清理缓存"""
     try:
@@ -437,7 +438,7 @@ async def clear_cache():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"缓存清理失败: {str(e)}")
 
-@router.post("/export-logs")
+@router.post(ROUTES.admin.export_logs)
 async def export_logs():
     """导出日志"""
     try:
@@ -478,7 +479,7 @@ async def export_logs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"日志导出失败: {str(e)}")
 
-@router.get("/health")
+@router.get(ROUTES.admin.health)
 async def health_check():
     """系统健康检查"""
     try:
@@ -510,7 +511,7 @@ class ConfigUpdateRequest(BaseModel):
     value: str
     config_type: str = "string"
 
-@router.post("/config")
+@router.post(ROUTES.admin.config)
 async def update_config(request: ConfigUpdateRequest):
     """更新单个配置项"""
     try:
@@ -528,7 +529,7 @@ async def update_config(request: ConfigUpdateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
 
-@router.post("/config/batch")
+@router.post(ROUTES.admin.config_batch)
 async def update_config_batch(configs: Dict[str, Any]):
     """批量更新配置项"""
     try:
@@ -575,7 +576,7 @@ class ForwardingConfigRequest(BaseModel):
     auto_forward_enabled: bool = False
     auto_forward_delay: int = 1800
 
-@router.post("/config/forwarding")
+@router.post(ROUTES.admin.config_forwarding)
 async def update_forwarding_config(request: ForwardingConfigRequest):
     """更新转发配置并刷新缓存"""
     try:
@@ -658,7 +659,7 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
 class ReviewGroupResolveRequest(BaseModel):
     review_group_config: str
 
-@router.post("/resolve-review-group")
+@router.post(ROUTES.admin.resolve_review_group)
 async def resolve_review_group(request: ReviewGroupResolveRequest):
     """解析审核群链接并缓存ID"""
     try:
@@ -682,7 +683,7 @@ async def resolve_review_group(request: ReviewGroupResolveRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"解析审核群链接失败: {str(e)}")
 
-@router.get("/review-group-status")
+@router.get(ROUTES.admin.review_group_status)
 async def get_review_group_status():
     """获取审核群状态信息"""
     try:
@@ -703,7 +704,7 @@ async def get_review_group_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取审核群状态失败: {str(e)}")
 
-@router.post("/resolve-channel-ids")
+@router.post(ROUTES.admin.resolve_channel_ids)
 async def resolve_channel_ids():
     """解析所有缺失的频道ID"""
     try:
@@ -738,7 +739,7 @@ async def resolve_channel_ids():
 class ChannelResolveRequest(BaseModel):
     channel_name: str
 
-@router.post("/resolve-channel-id")
+@router.post(ROUTES.admin.resolve_channel_id)
 async def resolve_single_channel_id(request: ChannelResolveRequest):
     """解析单个频道的ID"""
     try:
