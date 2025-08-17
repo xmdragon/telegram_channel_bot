@@ -410,7 +410,7 @@ const app = createApp({
                 };
                 
                 // 调用优化存储API
-                const response = await axios.post('/api/training/optimize-storage');
+                const response = await axios.post('/api/training-db/optimize-storage');
                 
                 if (response.data.success) {
                     this.optimizeProgress.current = this.optimizeProgress.total;

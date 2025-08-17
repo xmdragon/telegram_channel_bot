@@ -282,7 +282,7 @@ const app = createApp({
                 );
                 
                 ElMessage.info('正在优化存储，请稍候...');
-                const response = await axios.post('/api/training/optimize-storage');
+                const response = await axios.post('/api/training-db/optimize-storage');
                 
                 ElMessage.success(`优化完成！节省空间: ${this.formatSize(response.data.saved_space)}`);
                 await this.loadStatistics();

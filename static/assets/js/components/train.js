@@ -402,7 +402,7 @@ const TrainApp = {
         
         async loadChannels() {
             try {
-                const response = await axios.get('/api/training/channels');
+                const response = await axios.get('/api/training-db/channels');
                 this.channels = response.data.channels || [];
             } catch (error) {
                 // console.error('加载频道失败:', error);
@@ -418,7 +418,7 @@ const TrainApp = {
         async loadStats() {
             try {
                 // 只获取统计数据，不获取完整样本列表
-                const response = await axios.get('/api/training/tail-filter-statistics');
+                const response = await axios.get('/api/training-db/tail-filter-statistics');
                 
                 // 直接使用返回的统计数据
                 if (response.data.success) {
@@ -450,7 +450,7 @@ const TrainApp = {
             
             try {
                 // 获取最近的历史记录（限制数量）
-                const response = await axios.get('/api/training/tail-filter-history', {
+                const response = await axios.get('/api/training-db/tail-filter-history', {
                     params: { limit: 20 }
                 });
                 
@@ -544,14 +544,14 @@ const TrainApp = {
                 };
                 
                 console.log('📡 发送API请求:', {
-                    url: '/api/training/tail-filter-samples',
+                    url: '/api/training-db/tail-filter-samples',
                     method: 'POST',
                     dataKeys: Object.keys(postData),
                     contentLength: postData.content.length,
                     tailPartLength: postData.tailPart.length
                 });
                 
-                const response = await axios.post('/api/training/tail-filter-samples', postData);
+                const response = await axios.post('/api/training-db/tail-filter-samples', postData);
                 
                 console.log('📥 收到API响应:', {
                     status: response.status,
@@ -630,7 +630,7 @@ const TrainApp = {
                 );
                 
                 // 统一删除tail-filter-samples中的记录
-                const response = await axios.delete(`/api/training/tail-filter-samples/${id}`);
+                const response = await axios.delete(`/api/training-db/tail-filter-samples/${id}`);
                 if (response.data.success) {
                     ElMessage({
                         message: '删除成功',
@@ -675,7 +675,7 @@ const TrainApp = {
         // 加载训练数据统计
         async loadTrainingDataStats() {
             try {
-                const response = await axios.get('/api/training/stats');
+                const response = await axios.get('/api/training-db/stats');
                 // 适配API返回的数据结构
                 this.trainingDataStats = {
                     totalSamples: response.data.totalSamples || 0,
