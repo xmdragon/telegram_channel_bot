@@ -45,8 +45,8 @@ const app = createApp({
             console.log('🔄 开始加载尾部过滤样本数据...');
             this.loading = true;
             try {
-                console.log('📡 发送API请求: GET /api/training/tail-filter-samples');
-                const response = await axios.get('/api/training/tail-filter-samples');
+                console.log('📡 发送API请求: GET /api/training-db/tail-filter-samples');
+                const response = await axios.get('/api/training-db/tail-filter-samples');
                 console.log('📥 收到API响应:', {
                     status: response.status,
                     dataKeys: Object.keys(response.data || {}),
@@ -189,7 +189,7 @@ const app = createApp({
                     }
                 );
                 
-                const response = await axios.delete(`/api/training/tail-filter-samples/${sample.id}`);
+                const response = await axios.delete(`/api/training-db/tail-filter-samples/${sample.id}`);
                 
                 if (response.data.success) {
                     ElMessage.success('删除成功');
@@ -224,7 +224,7 @@ const app = createApp({
             
             this.submitting = true;
             try {
-                const response = await axios.put(`/api/training/tail-filter-samples/${this.editingSample.id}`, {
+                const response = await axios.put(`/api/training-db/tail-filter-samples/${this.editingSample.id}`, {
                     tail_part: this.editingSample.tail_part.trim()
                 });
                 
@@ -265,7 +265,7 @@ const app = createApp({
                 let successCount = 0;
                 for (const id of ids) {
                     try {
-                        await axios.delete(`/api/training/tail-filter-samples/${id}`);
+                        await axios.delete(`/api/training-db/tail-filter-samples/${id}`);
                         successCount++;
                     } catch (e) {
                         // console.error(`删除样本 ${id} 失败:`, e);
@@ -289,7 +289,7 @@ const app = createApp({
             this.duplicateLoading = true;
             
             try {
-                const response = await axios.post('/api/training/tail-filter-samples/detect-duplicates');
+                const response = await axios.post('/api/training-db/tail-filter-samples/detect-duplicates');
                 
                 // 检查API响应是否成功
                 if (response.data.success) {
@@ -352,7 +352,7 @@ const app = createApp({
                     }
                 );
                 
-                const response = await axios.post('/api/training/tail-filter-samples/deduplicate', {
+                const response = await axios.post('/api/training-db/tail-filter-samples/deduplicate', {
                     remove_ids: toDelete
                 });
                 
