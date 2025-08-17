@@ -298,3 +298,106 @@ class UnifiedFilterEngine:
 
 # 全局实例
 unified_filter_engine = UnifiedFilterEngine()
+
+# ========== 兼容层接口 ==========
+# 为了支持从旧的content_filter平滑迁移到新架构
+
+class FilterEngineCompat:
+    """
+    统一过滤引擎的兼容层接口
+    提供与旧content_filter相同的接口，但使用新的FilterPipeline架构
+    """
+    
+    def __init__(self):
+        self.engine = unified_filter_engine
+    
+    def filter_message_sync(self, content: str, channel_id: str = None, message_obj: Any = None) -> Tuple[bool, str, str]:
+        """
+        同步版本的消息过滤方法（兼容旧接口）
+        完全替代content_filter.filter_message_sync
+        """
+        try:
+            return self.engine.detect_advertisement_sync(content, channel_id, message_obj)
+        except Exception as e:
+            logger.error(f"兼容层过滤失败: {e}")
+            # 降级到高风险检测
+            is_high_risk, _ = self.engine.is_high_risk_ad(content)
+            return is_high_risk, content if not is_high_risk else "", "高风险广告" if is_high_risk else ""
+    
+    async def filter_message(self, content: str, channel_id: str = None, message_obj: Any = None, media_files: List[str] = None) -> Tuple[bool, str, str, dict]:
+        """
+        异步版本的消息过滤方法（兼容旧接口）
+        完全替代content_filter.filter_message
+        """
+        try:
+            is_ad, filtered_content, filter_reason = await self.engine.detect_advertisement(
+                content, channel_id, message_obj, media_files
+            )
+            # 兼容返回格式：添加空的OCR结果
+            ocr_result = {}
+            return is_ad, filtered_content, filter_reason, ocr_result
+        except Exception as e:
+            logger.error(f"兼容层异步过滤失败: {e}")
+            # 降级处理
+            is_high_risk, _ = self.engine.is_high_risk_ad(content)
+            return is_high_risk, content if not is_high_risk else "", "高风险广告" if is_high_risk else "", {}
+    
+    def is_meaningless_content(self, content: str) -> bool:
+        """
+        检测内容是否无意义（兼容旧接口）
+        """
+        if not content or not content.strip():
+            return True
+        
+        # 移除所有空白字符
+        clean_content = ''.join(content.split())
+        
+        # 如果内容太短，可能无意义
+        if len(clean_content) < 5:
+            import unicodedata
+            meaningful_chars = 0
+            for char in clean_content:
+                cat = unicodedata.category(char)
+                if cat[0] in ('L', 'N'):
+                    meaningful_chars += 1
+            
+            if meaningful_chars < len(clean_content) * 0.2:
+                return True
+        
+        return False
+    
+    async def is_pure_advertisement_ai(self, content: str) -> bool:
+        """
+        使用AI判断是否为广告内容（兼容旧接口）
+        """
+        try:
+            is_ad, _, _ = await self.engine.detect_advertisement(content)
+            return is_ad
+        except Exception as e:
+            logger.error(f"AI广告检测失败: {e}")
+            return False
+    
+    def is_pure_advertisement(self, content: str) -> bool:
+        """
+        判断是否纯广告内容（兼容旧接口）
+        """
+        try:
+            is_ad, _, _ = self.engine.detect_advertisement_sync(content)
+            return is_ad
+        except Exception as e:
+            logger.error(f"广告检测失败: {e}")
+            return False
+    
+    def add_channel_signature(self, content: str, channel_name: str) -> str:
+        """
+        添加频道签名（兼容旧接口）
+        """
+        if not content:
+            return content
+        
+        # 添加频道标识
+        signature = f"\n\n【来源：{channel_name}】"
+        return content + signature
+
+# 创建兼容层实例
+filter_engine_compat = FilterEngineCompat()

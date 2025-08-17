@@ -11,7 +11,10 @@ from app.utils.timezone import format_for_api
 from telethon.tl.types import Message as TLMessage
 from app.storage.redis_store import get_redis_message_store
 from app.services.message_processor import MessageProcessor
-from app.services.content_filter import ContentFilter
+# 新架构：使用统一过滤引擎的兼容层
+from app.services.unified_filter_engine import filter_engine_compat
+# 保持向后兼容：如果需要旧的ContentFilter
+# from app.services.content_filter import ContentFilter
 from app.services.system_monitor import system_monitor
 from app.services.media_handler import media_handler
 from app.services.message_grouper import message_grouper
@@ -34,7 +37,8 @@ class TelegramBot:
         # 保持原有属性以确保向后兼容
         self.client = None
         self.message_processor = MessageProcessor()
-        self.content_filter = ContentFilter()
+        # 使用新的统一过滤引擎兼容层（替代旧的ContentFilter）
+        self.content_filter = filter_engine_compat
         self.is_running = False
         self.monitor_task = None
         self.auto_collection_done = False

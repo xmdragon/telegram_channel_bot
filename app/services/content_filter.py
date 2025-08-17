@@ -771,7 +771,7 @@ class ContentFilter:
     
     async def filter_message(self, content: str, channel_id: str = None, message_obj: Any = None, media_files: List[str] = None) -> Tuple[bool, str, str, dict]:
         """
-        过滤消息内容 - 使用统一过滤引擎
+        过滤消息内容 - 使用原始内容过滤方法（避免循环依赖）
         
         Args:
             content: 消息内容
@@ -785,25 +785,8 @@ class ContentFilter:
         if not content:
             content = ""
         
-        # 使用统一过滤引擎
-        try:
-            from app.services.unified_filter_engine import unified_filter_engine
-            is_ad, filtered_content, filter_reason = await unified_filter_engine.detect_advertisement(
-                content, channel_id, message_obj, media_files
-            )
-            
-            # 统一过滤引擎已经包含了语义尾部过滤，无需再次进行推广过滤
-            # 这避免了对已经被语义过滤保护的正常内容进行二次过滤
-            
-            # OCR结果处理（如果需要）
-            ocr_result = await self._process_ocr_if_needed(media_files, filtered_content, is_ad)
-            
-            return is_ad, filtered_content, filter_reason, ocr_result
-            
-        except Exception as e:
-            logger.error(f"统一过滤引擎调用失败，使用原始方法: {e}")
-            # 降级到原始方法
-            return await self._original_filter_message(content, channel_id, message_obj, media_files)
+        # 使用原始过滤方法（避免与unified_filter_engine的循环依赖）
+        return await self._original_filter_message(content, channel_id, message_obj, media_files)
     
     async def _process_ocr_if_needed(self, media_files, filtered_content, is_ad):
         """处理OCR结果"""
@@ -1041,31 +1024,12 @@ class ContentFilter:
         if not content:
             return False, content, ""
         
-        # 使用统一过滤引擎
-        try:
-            from app.services.unified_filter_engine import unified_filter_engine
-            is_ad, filtered_content, filter_reason = unified_filter_engine.detect_advertisement_sync(
-                content, channel_id, message_obj
-            )
-            
-            # 如果统一引擎没有检测到，再用本地的推广内容过滤
-            if not is_ad and filtered_content:
-                final_filtered = self.filter_promotional_content(filtered_content, channel_id)
-                if final_filtered != filtered_content:
-                    filtered_content = final_filtered
-                    is_ad = True
-                    filter_reason = "推广内容"
-            
-            return is_ad, filtered_content, filter_reason
-            
-        except Exception as e:
-            logger.error(f"统一过滤引擎调用失败，降级到基本过滤: {e}")
-            # 降级到基本过滤
-            return self._basic_filter(content, channel_id)
+        # 使用基本过滤方法（避免与unified_filter_engine的循环依赖）
+        return self._basic_filter(content, channel_id)
     
     def _basic_filter(self, content: str, channel_id: str = None) -> Tuple[bool, str, str]:
         """
-        基本过滤（降级方案）
+        基本过滤（主要方法，不依赖unified_filter_engine）
         """
         if not content:
             return False, content, ""
@@ -1074,18 +1038,39 @@ class ContentFilter:
         is_ad = False
         reasons = []
         
-        # 推广内容过滤
-        final_filtered = self.filter_promotional_content(filtered_content, channel_id)
-        if final_filtered != filtered_content:
-            filtered_content = final_filtered
-            is_ad = True
-            reasons.append("推广内容")
-        
-        # 高风险广告检测
+        # 1. 高风险广告检测（最高优先级）
         if self.is_high_risk_ad(content):
             is_ad = True
             filtered_content = ""
             reasons.append("高风险广告")
+            logger.warning(f"检测到高风险广告，内容已清空")
+            return is_ad, filtered_content, " | ".join(reasons)
+        
+        # 2. AI广告检测
+        if self.ai_filter and self.ai_filter.initialized and filtered_content:
+            is_ad_by_ai, ai_confidence = self.ai_filter.is_advertisement(filtered_content)
+            if is_ad_by_ai and ai_confidence > 0.85:
+                is_ad = True
+                reasons.append(f"AI检测(置信度:{ai_confidence:.2f})")
+                logger.info(f"AI检测到广告内容，置信度: {ai_confidence:.2f}")
+                if ai_confidence > 0.95:
+                    filtered_content = ""
+        
+        # 3. 商业广告检测
+        if filtered_content and self.is_commercial_ad(filtered_content):
+            is_ad = True
+            reasons.append("商业广告")
+            # 进行推广内容过滤
+            filtered_content = self.filter_promotional_content(filtered_content, channel_id)
+        
+        # 4. 推广内容过滤（最后的保险）
+        if filtered_content:
+            final_filtered = self.filter_promotional_content(filtered_content, channel_id)
+            if final_filtered != filtered_content:
+                filtered_content = final_filtered
+                if not is_ad:
+                    is_ad = True
+                    reasons.append("推广内容")
         
         filter_reason = " | ".join(reasons) if reasons else ""
         return is_ad, filtered_content, filter_reason

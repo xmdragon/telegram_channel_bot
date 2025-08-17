@@ -11,7 +11,10 @@ from telethon import TelegramClient
 from app.storage.redis_store import get_redis_message_store
 from app.storage.json_store import get_json_channel_store
 from app.services.telegram_link_resolver import link_resolver
-from app.services.content_filter import ContentFilter
+# 新架构：使用统一过滤引擎的兼容层
+from app.services.unified_filter_engine import filter_engine_compat
+# 保持向后兼容：如果需要旧的ContentFilter
+# from app.services.content_filter import ContentFilter
 from app.services.media_handler import media_handler
 
 logger = logging.getLogger(__name__)
@@ -20,7 +23,8 @@ class MessageForwarder:
     """消息转发器 - 专门处理消息转发逻辑"""
     
     def __init__(self):
-        self.content_filter = ContentFilter()
+        # 使用新的统一过滤引擎兼容层（替代旧的ContentFilter）
+        self.content_filter = filter_engine_compat
         
     async def forward_to_review(self, client: TelegramClient, message_data: dict):
         """转发消息到审核群（包含媒体）"""
