@@ -1492,6 +1492,26 @@ const MainApp = {
             }
         },
         
+        // 重新发送消息到目标频道
+        async resendMessage(message) {
+            try {
+                MessageManager.info('正在重新发送消息到目标频道...');
+                
+                const response = await axios.post(`/api/messages/${message.id}/resend`);
+                
+                if (response.data.success) {
+                    MessageManager.success('消息已重新发送到目标频道');
+                    this.loadMessages(); // 刷新消息列表
+                } else {
+                    MessageManager.error('重新发送失败: ' + response.data.message);
+                }
+            } catch (error) {
+                const errorMsg = error.response?.data?.detail || error.message || '重新发送失败';
+                MessageManager.error('重新发送失败: ' + errorMsg);
+                console.error('重新发送消息错误:', error);
+            }
+        },
+        
         // 重置消息状态 - 用于误判恢复
         async resetMessage(message) {
             try {

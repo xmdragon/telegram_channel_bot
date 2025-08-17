@@ -640,6 +640,11 @@
                                     class="btn btn-sm btn-secondary">
                                 ✏️ 编辑
                             </button>
+                            <button @click="resendMessage(message)" 
+                                    class="btn btn-sm btn-primary"
+                                    title="重新发送到目标频道">
+                                🔄 重新发送
+                            </button>
                             <button v-if="buttonVisibility.reject" 
                                     @click="selectedMessages = [message.id]; rejectMessages()" 
                                     class="btn btn-sm btn-danger"

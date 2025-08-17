@@ -1907,6 +1907,59 @@ async def reset_message(
         logger.error(f"重置消息失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"重置消息失败: {str(e)}")
 
+@router.post("/{message_id}/resend")
+async def resend_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(check_permission("messages.approve")),
+    message_processor: MessageProcessor = Depends(get_message_processor)
+):
+    """重新发送已批准的消息到目标频道"""
+    try:
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        # 获取消息
+        msg_data = await message_processor.get_message(channel_id, int(msg_id))
+        if not msg_data:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 检查消息是否已批准
+        if msg_data.get('status') != "approved":
+            raise HTTPException(status_code=400, detail="只能重新发送已批准的消息")
+        
+        # 提交转发任务到队列
+        from app.services.message_forward_queue import forward_queue
+        task_id = await forward_queue.submit_forward_task(message_id, "forward_to_target")
+        
+        logger.info(f"重新发送任务已提交: {task_id} (消息: {message_id})")
+        
+        # 快速检查任务结果（1秒超时）
+        try:
+            result = await forward_queue.get_task_result(message_id, timeout=1)
+            if result and result.get('success'):
+                return {
+                    "success": True,
+                    "message": "消息已成功重新发送到目标频道",
+                    "task_id": task_id
+                }
+        except Exception:
+            pass  # 超时或其他错误，继续返回任务提交成功
+        
+        return {
+            "success": True,
+            "message": "重新发送任务已提交，正在后台处理",
+            "task_id": task_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"重新发送消息失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"重新发送失败: {str(e)}")
+
 
 # 🔧 新增：辅助函数用于获取原始消息信息
 async def _get_original_message(original_id: str) -> Optional[Dict[str, Any]]:
