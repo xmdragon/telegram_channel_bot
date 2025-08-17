@@ -169,10 +169,10 @@ class HealthCheckService:
                 if value:
                     try:
                         # 从键中提取服务名
-                        service_name = key.decode().replace("service_health:", "")
+                        service_name = key.replace("service_health:", "")
                         
                         # 解析JSON数据
-                        data = json.loads(value.decode())
+                        data = json.loads(value)
                         health = ServiceHealth.from_dict(data)
                         
                         # 检查是否超时（超过2分钟无心跳视为异常）

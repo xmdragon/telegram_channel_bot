@@ -11,8 +11,8 @@
       ],
       "feedback_stats": {
         "tp": 0,
-        "fp": 277,
-        "tn": 8,
+        "fp": 296,
+        "tn": 19,
         "fn": 0
       },
       "last_updated": null
@@ -27,9 +27,9 @@
         0.45
       ],
       "feedback_stats": {
-        "tp": 342,
+        "tp": 438,
         "fp": 0,
-        "tn": 0,
+        "tn": 1,
         "fn": 0
       },
       "last_updated": null

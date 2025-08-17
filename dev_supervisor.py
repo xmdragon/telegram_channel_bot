@@ -82,6 +82,35 @@ class ServiceProcess:
         except Exception:
             return True  # 假设可用
     
+    async def _wait_for_service_ready(self) -> bool:
+        """等待服务真正就绪"""
+        if self.config.name == "web":
+            # Web服务需要等待HTTP端点可用
+            import urllib.request
+            import asyncio
+            
+            for attempt in range(30):  # 最多等待30秒
+                try:
+                    # 使用asyncio.to_thread来包装同步的urllib.request
+                    def check_health():
+                        req = urllib.request.Request('http://localhost:8000/api/health')
+                        response = urllib.request.urlopen(req, timeout=1)
+                        return response.getcode() == 200
+                    
+                    if await asyncio.to_thread(check_health):
+                        logger.info(f"✅ Web服务健康检查通过 (尝试第{attempt + 1}次)")
+                        return True
+                except:
+                    pass
+                await asyncio.sleep(1)
+            
+            logger.error("❌ Web服务健康检查超时")
+            return False
+        else:
+            # 其他服务只需要检查进程存在
+            await asyncio.sleep(2)
+            return self.process.poll() is None
+    
     async def start(self) -> bool:
         """启动服务"""
         if self.status in [ServiceStatus.STARTING, ServiceStatus.RUNNING]:
@@ -108,20 +137,20 @@ class ServiceProcess:
                 env=None
             )
             
-            # 等待一小段时间检查进程是否正常启动
-            await asyncio.sleep(2)
-            
-            if self.process.poll() is None:
-                # 进程正在运行
+            # 等待服务真正就绪（包含健康检查）
+            if await self._wait_for_service_ready():
                 self.status = ServiceStatus.RUNNING
                 self.start_time = datetime.now()
                 logger.info(f"✅ 服务 {self.config.name} 启动成功 (PID: {self.process.pid})")
                 return True
             else:
-                # 进程已退出
+                # 服务未就绪
                 self.status = ServiceStatus.FAILED
-                returncode = self.process.returncode
-                logger.error(f"❌ 服务 {self.config.name} 启动失败 (退出码: {returncode})")
+                if self.process.poll() is not None:
+                    returncode = self.process.returncode
+                    logger.error(f"❌ 服务 {self.config.name} 进程已退出 (退出码: {returncode})")
+                else:
+                    logger.error(f"❌ 服务 {self.config.name} 健康检查失败")
                 return False
                 
         except Exception as e:
