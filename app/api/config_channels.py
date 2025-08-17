@@ -1,0 +1,163 @@
+"""
+频道配置管理API
+包括：频道添加、删除、状态更新、获取频道信息
+"""
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Dict, Any, Optional
+from pydantic import BaseModel
+import logging
+
+from app.services.config_manager import config_manager
+from app.services.auth_service import get_auth_service
+from app.core.route_config import ROUTES
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+security = HTTPBearer(auto_error=False)
+
+# 认证中间件
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> Optional[Dict[str, Any]]:
+    """获取当前用户"""
+    if not credentials:
+        return None
+    
+    try:
+        auth_service = get_auth_service()
+        return await auth_service.get_current_user(credentials.credentials)
+    except Exception as e:
+        logger.error(f"获取当前用户失败: {e}")
+        return None
+
+async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
+    """要求用户认证"""
+    if not user:
+        raise HTTPException(status_code=401, detail="未授权访问")
+    return user
+
+async def check_config_permission(user: Dict[str, Any] = Depends(require_auth)) -> Dict[str, Any]:
+    """检查配置管理权限"""
+    try:
+        # 简化权限检查：超级管理员可以管理配置
+        # 在实际项目中，可以根据需要添加更细粒度的权限控制
+        if user.get('is_super_admin'):
+            return user
+        else:
+            # 暂时只允许超级管理员访问配置管理
+            raise HTTPException(status_code=403, detail="权限不足")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"检查配置权限失败: {e}")
+        raise HTTPException(status_code=500, detail="权限检查失败")
+
+# 频道管理相关API
+class ChannelAddRequest(BaseModel):
+    channel_id: str
+    channel_name: str = ""
+    channel_title: str = ""
+    description: str = ""
+
+@router.post(ROUTES.config.channels_add)
+async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
+    """添加监听频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        success = await channel_manager.add_channel(
+            channel_id=request.channel_id,
+            channel_name=request.channel_name,
+            description=request.description,
+            channel_type="source"
+        )
+        
+        if success:
+            return {"success": True, "message": f"频道 {request.channel_id} 添加成功"}
+        else:
+            raise HTTPException(status_code=400, detail="频道已存在或添加失败")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
+
+@router.delete(ROUTES.config.channels_by_id)
+async def remove_channel(channel_id: str, user: Dict[str, Any] = Depends(check_config_permission)):
+    """移除监听频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        success = await channel_manager.delete_channel(channel_id)
+        
+        if success:
+            return {"success": True, "message": f"频道 {channel_id} 移除成功"}
+        else:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"移除频道失败: {str(e)}")
+
+class ChannelStatusRequest(BaseModel):
+    enabled: bool
+
+@router.put(ROUTES.config.channels_status)
+async def update_channel_status(channel_id: str, request: ChannelStatusRequest, user: Dict[str, Any] = Depends(check_config_permission)):
+    """更新频道监听状态"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        success = await channel_manager.update_channel_status(
+            channel_id, 
+            is_active=request.enabled
+        )
+        
+        if success:
+            return {"success": True, "message": f"频道 {channel_id} 状态更新成功"}
+        else:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新频道状态失败: {str(e)}")
+
+@router.get(ROUTES.config.channels_list)
+async def get_channels(user: Dict[str, Any] = Depends(check_config_permission)):
+    """获取所有频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        channels = await channel_manager.get_source_channels()
+        
+        return {
+            "success": True,
+            "channels": channels
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取频道列表失败: {str(e)}")
+
+@router.get(ROUTES.config.channels_by_id)
+async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(check_config_permission)):
+    """获取单个频道信息"""
+    try:
+        from app.services.channel_manager import channel_manager
+        
+        channel = await channel_manager.get_channel_by_id(channel_id)
+        
+        if channel:
+            return {
+                "success": True,
+                "channel": channel
+            }
+        else:
+            raise HTTPException(status_code=404, detail="频道不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
