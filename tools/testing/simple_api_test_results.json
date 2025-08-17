@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-08-17T20:14:00.834730",
+  "summary": {
+    "total": 5,
+    "successful": 0,
+    "failed": 5,
+    "success_rate": 0.0
+  },
+  "results": [
+    {
+      "name": "训练统计",
+      "url": "/api/training-db/stats",
+      "error": "连接失败",
+      "success": false
+    },
+    {
+      "name": "广告样本列表",
+      "url": "/api/training-db/ad-samples",
+      "error": "连接失败",
+      "success": false
+    },
+    {
+      "name": "频道列表",
+      "url": "/api/training-db/channels",
+      "error": "连接失败",
+      "success": false
+    },
+    {
+      "name": "训练历史",
+      "url": "/api/training-db/history",
+      "error": "连接失败",
+      "success": false
+    },
+    {
+      "name": "尾部过滤统计",
+      "url": "/api/training-db/tail-filter-statistics",
+      "error": "连接失败",
+      "success": false
+    }
+  ]
+}

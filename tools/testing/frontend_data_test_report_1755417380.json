@@ -1,0 +1,181 @@
+{
+  "timestamp": "2025-08-17T15:56:20.582803",
+  "authentication_successful": true,
+  "summary": {
+    "total_tests": 25,
+    "passed_tests": 22,
+    "failed_tests": 3,
+    "success_rate": 88.0,
+    "page_issues": 1,
+    "api_issues": 0,
+    "auth_issues": 0,
+    "other_issues": 2
+  },
+  "results": {
+    "🔐 认证系统": {
+      "登录页面访问": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.929706",
+        "details": "页面加载成功 (包含Vue.js) (包含Element Plus)",
+        "data": null
+      },
+      "管理员登录API": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.934294",
+        "details": "登录成功，用户: admin",
+        "data": null
+      },
+      "认证状态检查": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.936112",
+        "details": "认证状态正常",
+        "data": null
+      }
+    },
+    "📄 静态页面": {
+      "消息管理主页": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.937768",
+        "details": "页面加载成功 (包含Vue.js) (包含Element Plus)",
+        "data": null
+      },
+      "尾部过滤管理": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.938945",
+        "details": "页面加载成功 (包含Vue.js) (包含Element Plus)",
+        "data": null
+      },
+      "媒体管理页面": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.940080",
+        "details": "页面加载成功 (包含Vue.js) (包含Element Plus)",
+        "data": null
+      },
+      "系统配置页面": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.941286",
+        "details": "页面加载成功 (包含Vue.js) (包含Element Plus)",
+        "data": null
+      },
+      "阈值监控页面": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.942266",
+        "details": "页面加载成功 (包含Vue.js) (包含Element Plus)",
+        "data": null
+      },
+      "训练数据管理": {
+        "success": false,
+        "timestamp": "2025-08-17T15:56:16.943099",
+        "details": "访问失败: HTTP Error 404: Not Found",
+        "data": null
+      }
+    },
+    "🔌 API集成": {
+      "健康检查API": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:16.944876",
+        "details": "API正常 (服务数: 0)",
+        "data": null
+      },
+      "系统状态API": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.099372",
+        "details": "API正常 (服务数: 4)",
+        "data": null
+      },
+      "消息列表API": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.178221",
+        "details": "API正常 (消息数: 20)",
+        "data": null
+      },
+      "训练数据统计": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.179136",
+        "details": "API正常",
+        "data": null
+      },
+      "广告样本API": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.180436",
+        "details": "API正常 (样本数: 20)",
+        "data": null
+      },
+      "尾部过滤样本": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.181861",
+        "details": "API正常 (样本数: 59)",
+        "data": null
+      },
+      "媒体文件列表": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.184252",
+        "details": "API正常 (文件数: 90)",
+        "data": null
+      }
+    },
+    "📊 数据显示": {
+      "消息数据结构": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.258887",
+        "details": "消息数: 20, 分页信息完整: False",
+        "data": null
+      },
+      "消息字段完整性": {
+        "success": false,
+        "timestamp": "2025-08-17T15:56:17.258894",
+        "details": "缺失字段: ['channel_title']",
+        "data": null
+      },
+      "广告样本数据": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.260373",
+        "details": "广告样本: 20 条",
+        "data": null
+      },
+      "样本数据结构": {
+        "success": false,
+        "timestamp": "2025-08-17T15:56:17.260377",
+        "details": "样本缺少必要字段",
+        "data": null
+      },
+      "媒体文件数据": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.262747",
+        "details": "媒体文件: 90 个",
+        "data": null
+      },
+      "文件信息结构": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:17.262750",
+        "details": "文件信息包含必要字段",
+        "data": null
+      }
+    },
+    "🔄 实时更新": {
+      "系统状态更新": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:19.566558",
+        "details": "状态持续可用: 4→4 个服务",
+        "data": null
+      },
+      "健康检查响应": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:19.568519",
+        "details": "响应时间: 2.0ms",
+        "data": null
+      },
+      "训练数据刷新": {
+        "success": true,
+        "timestamp": "2025-08-17T15:56:20.582418",
+        "details": "训练数据统计可正常刷新",
+        "data": null
+      }
+    }
+  },
+  "errors": [
+    "[📄 静态页面] 训练数据管理: 访问失败: HTTP Error 404: Not Found",
+    "[📊 数据显示] 消息字段完整性: 缺失字段: ['channel_title']",
+    "[📊 数据显示] 样本数据结构: 样本缺少必要字段"
+  ]
+}

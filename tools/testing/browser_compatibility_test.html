@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript浏览器兼容性测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+        }
+        .pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        
+        .api-test {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        
+        .console-output {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: #28a745;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 JavaScript代码兼容性和运行时测试</h1>
+        <p>此页面用于测试前端JavaScript代码的浏览器兼容性和运行时错误检测。</p>
+        
+        <div class="test-section">
+            <h2>🌐 浏览器环境检测</h2>
+            <div id="browserInfo"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📚 依赖库加载测试</h2>
+            <div id="dependencyTests"></div>
+            <button onclick="testDependencies()">重新检测依赖</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>🚀 ES6+ 特性兼容性测试</h2>
+            <div id="es6Tests"></div>
+            <button onclick="testES6Compatibility()">运行ES6测试</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔗 API配置测试</h2>
+            <div id="apiTests"></div>
+            <button onclick="testAPIConfiguration()">测试API配置</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>⚡ 异步操作测试</h2>
+            <div id="asyncTests"></div>
+            <button onclick="testAsyncOperations()">测试异步操作</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔧 模拟API调用测试</h2>
+            <div id="mockApiTests"></div>
+            <button onclick="testMockAPICalls()">测试模拟API</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>📊 测试进度</h2>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+            </div>
+            <div id="progressText">等待开始测试...</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📋 控制台输出</h2>
+            <div class="console-output" id="consoleOutput"></div>
+            <button onclick="clearConsole()">清空输出</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>🎯 一键运行所有测试</h2>
+            <button onclick="runAllTests()" id="runAllBtn">🚀 运行完整测试套件</button>
+            <button onclick="generateReport()">📄 生成测试报告</button>
+        </div>
+    </div>
+
+    <!-- 加载核心依赖 -->
+    <script src="/static/assets/js/axios.js"></script>
+    <script src="/static/assets/js/vue.js"></script>
+    <script src="/static/assets/js/element-plus.js"></script>
+    <script src="/static/assets/js/config/api-endpoints.js"></script>
+    <script src="/static/assets/js/auth.js"></script>
+
+    <script>
+        // 测试结果存储
+        let testResults = {
+            browser: {},
+            dependencies: {},
+            es6: {},
+            api: {},
+            async: {},
+            mock: {}
+        };
+        
+        let totalTests = 0;
+        let passedTests = 0;
+        
+        // 重写console方法以捕获输出
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info
+        };
+        
+        function logToConsole(type, ...args) {
+            const output = document.getElementById('consoleOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            output.innerHTML += `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+            
+            // 调用原始console方法
+            originalConsole[type](...args);
+        }
+        
+        // 重写console方法
+        console.log = (...args) => logToConsole('log', ...args);
+        console.error = (...args) => logToConsole('error', ...args);
+        console.warn = (...args) => logToConsole('warn', ...args);
+        console.info = (...args) => logToConsole('info', ...args);
+        
+        function clearConsole() {
+            document.getElementById('consoleOutput').innerHTML = '';
+        }
+        
+        function updateProgress() {
+            const percentage = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = 
+                `已完成 ${passedTests}/${totalTests} 个测试 (${percentage.toFixed(1)}%)`;
+        }
+        
+        function addTestResult(category, name, passed, message) {
+            testResults[category][name] = { passed, message };
+            totalTests++;
+            if (passed) passedTests++;
+            updateProgress();
+            
+            console.log(`[${category.toUpperCase()}] ${name}: ${passed ? '✅ PASS' : '❌ FAIL'} - ${message}`);
+        }
+        
+        function displayResult(containerId, title, passed, message) {
+            const container = document.getElementById(containerId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            resultDiv.innerHTML = `<strong>${title}:</strong> ${message}`;
+            container.appendChild(resultDiv);
+        }
+        
+        // 浏览器环境检测
+        function detectBrowserEnvironment() {
+            console.log('🌐 开始浏览器环境检测...');
+            
+            const container = document.getElementById('browserInfo');
+            container.innerHTML = '';
+            
+            // 检测浏览器信息
+            const userAgent = navigator.userAgent;
+            const browserInfo = {
+                userAgent: userAgent,
+                language: navigator.language,
+                platform: navigator.platform,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                screenResolution: `${screen.width}x${screen.height}`,
+                viewport: `${window.innerWidth}x${window.innerHeight}`
+            };
+            
+            // 检测浏览器类型
+            let browserName = 'Unknown';
+            if (userAgent.includes('Chrome')) browserName = 'Chrome';
+            else if (userAgent.includes('Firefox')) browserName = 'Firefox';
+            else if (userAgent.includes('Safari')) browserName = 'Safari';
+            else if (userAgent.includes('Edge')) browserName = 'Edge';
+            
+            addTestResult('browser', 'detection', true, `检测到浏览器: ${browserName}`);
+            addTestResult('browser', 'javascript', typeof window.eval === 'function', 'JavaScript引擎可用');
+            addTestResult('browser', 'localStorage', typeof Storage !== 'undefined', 'localStorage支持');
+            addTestResult('browser', 'sessionStorage', typeof sessionStorage !== 'undefined', 'sessionStorage支持');
+            addTestResult('browser', 'fetch', typeof fetch !== 'undefined', 'Fetch API支持');
+            addTestResult('browser', 'promises', typeof Promise !== 'undefined', 'Promise支持');
+            addTestResult('browser', 'webSocket', typeof WebSocket !== 'undefined', 'WebSocket支持');
+            
+            // 显示浏览器信息
+            container.innerHTML = `
+                <div class="info">
+                    <strong>浏览器:</strong> ${browserName}<br>
+                    <strong>用户代理:</strong> ${userAgent}<br>
+                    <strong>语言:</strong> ${browserInfo.language}<br>
+                    <strong>平台:</strong> ${browserInfo.platform}<br>
+                    <strong>屏幕分辨率:</strong> ${browserInfo.screenResolution}<br>
+                    <strong>视口大小:</strong> ${browserInfo.viewport}<br>
+                    <strong>在线状态:</strong> ${browserInfo.onLine ? '在线' : '离线'}
+                </div>
+            `;
+        }
+        
+        // 依赖库测试
+        function testDependencies() {
+            console.log('📚 开始依赖库加载测试...');
+            
+            const container = document.getElementById('dependencyTests');
+            container.innerHTML = '';
+            
+            const dependencies = [
+                { name: 'Vue', check: () => typeof Vue !== 'undefined' && Vue.createApp },
+                { name: 'ElementPlus', check: () => typeof ElementPlus !== 'undefined' },
+                { name: 'axios', check: () => typeof axios !== 'undefined' },
+                { name: 'API配置', check: () => typeof API !== 'undefined' && API.messages },
+                { name: 'authManager', check: () => typeof authManager !== 'undefined' }
+            ];
+            
+            dependencies.forEach(dep => {
+                try {
+                    const available = dep.check();
+                    addTestResult('dependencies', dep.name, available, 
+                        available ? `${dep.name} 加载成功` : `${dep.name} 未加载`);
+                    displayResult('dependencyTests', dep.name, available, 
+                        available ? '✅ 已加载' : '❌ 未加载');
+                } catch (error) {
+                    addTestResult('dependencies', dep.name, false, `${dep.name} 检测失败: ${error.message}`);
+                    displayResult('dependencyTests', dep.name, false, `❌ 检测失败: ${error.message}`);
+                }
+            });
+        }
+        
+        // ES6兼容性测试
+        function testES6Compatibility() {
+            console.log('🚀 开始ES6+特性兼容性测试...');
+            
+            const container = document.getElementById('es6Tests');
+            container.innerHTML = '';
+            
+            const es6Tests = [
+                {
+                    name: 'const/let声明',
+                    test: () => {
+                        const testConst = 'test';
+                        let testLet = 'test';
+                        return testConst === 'test' && testLet === 'test';
+                    }
+                },
+                {
+                    name: '箭头函数',
+                    test: () => {
+                        const arrow = () => 'test';
+                        return arrow() === 'test';
+                    }
+                },
+                {
+                    name: '模板字符串',
+                    test: () => {
+                        const name = 'world';
+                        return `hello ${name}` === 'hello world';
+                    }
+                },
+                {
+                    name: '解构赋值',
+                    test: () => {
+                        const [a, b] = [1, 2];
+                        const {x, y} = {x: 1, y: 2};
+                        return a === 1 && b === 2 && x === 1 && y === 2;
+                    }
+                },
+                {
+                    name: '扩展操作符',
+                    test: () => {
+                        const arr1 = [1, 2];
+                        const arr2 = [...arr1, 3];
+                        return arr2.length === 3 && arr2[2] === 3;
+                    }
+                },
+                {
+                    name: 'Promise',
+                    test: () => {
+                        return typeof Promise !== 'undefined' && 
+                               typeof Promise.resolve === 'function';
+                    }
+                },
+                {
+                    name: 'async/await',
+                    test: async () => {
+                        try {
+                            const asyncFunc = async () => 'test';
+                            const result = await asyncFunc();
+                            return result === 'test';
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+                },
+                {
+                    name: 'Map/Set',
+                    test: () => {
+                        const map = new Map();
+                        const set = new Set();
+                        map.set('key', 'value');
+                        set.add('item');
+                        return map.get('key') === 'value' && set.has('item');
+                    }
+                },
+                {
+                    name: '可选链操作符',
+                    test: () => {
+                        try {
+                            const obj = { a: { b: 'test' } };
+                            return obj?.a?.b === 'test' && obj?.x?.y === undefined;
+                        } catch (e) {
+                            return false; // 不支持可选链
+                        }
+                    }
+                },
+                {
+                    name: '空值合并操作符',
+                    test: () => {
+                        try {
+                            return (null ?? 'default') === 'default' && 
+                                   (undefined ?? 'default') === 'default' &&
+                                   (0 ?? 'default') === 0;
+                        } catch (e) {
+                            return false; // 不支持空值合并
+                        }
+                    }
+                }
+            ];
+            
+            // 异步执行测试
+            (async () => {
+                for (const test of es6Tests) {
+                    try {
+                        const result = await test.test();
+                        addTestResult('es6', test.name, result, 
+                            result ? `${test.name} 支持` : `${test.name} 不支持`);
+                        displayResult('es6Tests', test.name, result, 
+                            result ? '✅ 支持' : '⚠️ 不支持');
+                    } catch (error) {
+                        addTestResult('es6', test.name, false, `${test.name} 测试失败: ${error.message}`);
+                        displayResult('es6Tests', test.name, false, `❌ 测试失败: ${error.message}`);
+                    }
+                }
+            })();
+        }
+        
+        // API配置测试
+        function testAPIConfiguration() {
+            console.log('🔗 开始API配置测试...');
+            
+            const container = document.getElementById('apiTests');
+            container.innerHTML = '';
+            
+            try {
+                // 检查API对象是否存在
+                if (typeof API === 'undefined') {
+                    addTestResult('api', 'availability', false, 'API配置未加载');
+                    displayResult('apiTests', 'API可用性', false, '❌ API配置未加载');
+                    return;
+                }
+                
+                addTestResult('api', 'availability', true, 'API配置已加载');
+                displayResult('apiTests', 'API可用性', true, '✅ API配置已加载');
+                
+                // 检查主要模块
+                const modules = ['messages', 'adminAuth', 'telegramAuth', 'training', 'config', 'system'];
+                modules.forEach(module => {
+                    const exists = API[module] && typeof API[module] === 'object';
+                    addTestResult('api', `module_${module}`, exists, 
+                        exists ? `${module}模块存在` : `${module}模块缺失`);
+                    displayResult('apiTests', `${module}模块`, exists, 
+                        exists ? '✅ 存在' : '❌ 缺失');
+                });
+                
+                // 检查关键端点
+                const criticalEndpoints = [
+                    { path: 'API.messages.list', value: API.messages?.list },
+                    { path: 'API.messages.thresholdsStats', value: API.messages?.thresholdsStats },
+                    { path: 'API.adminAuth.login', value: API.adminAuth?.login },
+                    { path: 'API.system.health', value: API.system?.health }
+                ];
+                
+                criticalEndpoints.forEach(endpoint => {
+                    const exists = typeof endpoint.value === 'string';
+                    addTestResult('api', `endpoint_${endpoint.path}`, exists,
+                        exists ? `端点 ${endpoint.path} 存在` : `端点 ${endpoint.path} 缺失`);
+                    displayResult('apiTests', endpoint.path, exists,
+                        exists ? `✅ ${endpoint.value}` : '❌ 缺失');
+                });
+                
+                // 检查工具函数
+                const utilsExists = API.utils && typeof API.utils === 'object';
+                addTestResult('api', 'utils', utilsExists, 
+                    utilsExists ? 'API工具函数存在' : 'API工具函数缺失');
+                displayResult('apiTests', 'API工具函数', utilsExists,
+                    utilsExists ? '✅ 存在' : '❌ 缺失');
+                
+            } catch (error) {
+                addTestResult('api', 'configuration', false, `API配置测试失败: ${error.message}`);
+                displayResult('apiTests', 'API配置', false, `❌ 测试失败: ${error.message}`);
+            }
+        }
+        
+        // 异步操作测试
+        function testAsyncOperations() {
+            console.log('⚡ 开始异步操作测试...');
+            
+            const container = document.getElementById('asyncTests');
+            container.innerHTML = '';
+            
+            // Promise基础测试
+            Promise.resolve('test')
+                .then(result => {
+                    addTestResult('async', 'promise_resolve', result === 'test', 'Promise.resolve测试');
+                    displayResult('asyncTests', 'Promise.resolve', result === 'test', '✅ 正常');
+                })
+                .catch(error => {
+                    addTestResult('async', 'promise_resolve', false, `Promise.resolve失败: ${error.message}`);
+                    displayResult('asyncTests', 'Promise.resolve', false, `❌ 失败: ${error.message}`);
+                });
+            
+            // async/await测试
+            (async () => {
+                try {
+                    const asyncTest = async () => {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        return 'async_test_success';
+                    };
+                    
+                    const result = await asyncTest();
+                    addTestResult('async', 'async_await', result === 'async_test_success', 'async/await测试');
+                    displayResult('asyncTests', 'async/await', result === 'async_test_success', '✅ 正常');
+                } catch (error) {
+                    addTestResult('async', 'async_await', false, `async/await失败: ${error.message}`);
+                    displayResult('asyncTests', 'async/await', false, `❌ 失败: ${error.message}`);
+                }
+            })();
+            
+            // 错误处理测试
+            Promise.reject(new Error('测试错误'))
+                .catch(error => {
+                    const handled = error.message === '测试错误';
+                    addTestResult('async', 'error_handling', handled, 'Promise错误处理');
+                    displayResult('asyncTests', 'Promise错误处理', handled, '✅ 正常');
+                });
+        }
+        
+        // 模拟API调用测试
+        function testMockAPICalls() {
+            console.log('🔧 开始模拟API调用测试...');
+            
+            const container = document.getElementById('mockApiTests');
+            container.innerHTML = '';
+            
+            // 检查axios是否可用
+            if (typeof axios === 'undefined') {
+                addTestResult('mock', 'axios_availability', false, 'axios未加载');
+                displayResult('mockApiTests', 'axios可用性', false, '❌ axios未加载');
+                return;
+            }
+            
+            addTestResult('mock', 'axios_availability', true, 'axios已加载');
+            displayResult('mockApiTests', 'axios可用性', true, '✅ axios已加载');
+            
+            // 测试系统健康检查API
+            axios.get('/api/health')
+                .then(response => {
+                    const success = response.status === 200;
+                    addTestResult('mock', 'health_check', success, `健康检查API: ${response.status}`);
+                    displayResult('mockApiTests', '健康检查API', success, 
+                        `✅ 状态码: ${response.status}`);
+                    
+                    // 显示响应数据
+                    if (response.data) {
+                        const dataDiv = document.createElement('div');
+                        dataDiv.className = 'api-test';
+                        dataDiv.innerHTML = `<strong>响应数据:</strong><br><pre>${JSON.stringify(response.data, null, 2)}</pre>`;
+                        container.appendChild(dataDiv);
+                    }
+                })
+                .catch(error => {
+                    const message = error.response ? 
+                        `HTTP ${error.response.status}: ${error.response.statusText}` : 
+                        error.message;
+                    addTestResult('mock', 'health_check', false, `健康检查API失败: ${message}`);
+                    displayResult('mockApiTests', '健康检查API', false, `❌ ${message}`);
+                });
+            
+            // 测试认证状态API
+            if (typeof authManager !== 'undefined' && authManager.getAuthHeaders) {
+                const headers = authManager.getAuthHeaders();
+                const hasAuth = Object.keys(headers).length > 0;
+                
+                addTestResult('mock', 'auth_headers', hasAuth, '认证头信息');
+                displayResult('mockApiTests', '认证头信息', hasAuth, 
+                    hasAuth ? '✅ 已配置' : '⚠️ 未配置');
+                
+                if (hasAuth) {
+                    // 测试带认证的API调用
+                    axios.get('/api/status', { headers })
+                        .then(response => {
+                            addTestResult('mock', 'auth_api', true, `认证API调用成功: ${response.status}`);
+                            displayResult('mockApiTests', '认证API调用', true, 
+                                `✅ 状态码: ${response.status}`);
+                        })
+                        .catch(error => {
+                            const message = error.response ? 
+                                `HTTP ${error.response.status}` : error.message;
+                            addTestResult('mock', 'auth_api', false, `认证API调用失败: ${message}`);
+                            displayResult('mockApiTests', '认证API调用', false, `❌ ${message}`);
+                        });
+                }
+            } else {
+                addTestResult('mock', 'auth_manager', false, 'authManager未加载');
+                displayResult('mockApiTests', 'authManager', false, '❌ 未加载');
+            }
+        }
+        
+        // 运行所有测试
+        async function runAllTests() {
+            console.log('🚀 开始运行完整测试套件...');
+            
+            const btn = document.getElementById('runAllBtn');
+            btn.disabled = true;
+            btn.textContent = '正在运行测试...';
+            
+            // 重置计数器
+            totalTests = 0;
+            passedTests = 0;
+            testResults = {
+                browser: {},
+                dependencies: {},
+                es6: {},
+                api: {},
+                async: {},
+                mock: {}
+            };
+            
+            try {
+                detectBrowserEnvironment();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                testDependencies();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                testES6Compatibility();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                testAPIConfiguration();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                testAsyncOperations();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                testMockAPICalls();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                console.log('✅ 所有测试已完成');
+                
+            } catch (error) {
+                console.error('❌ 测试套件执行失败:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 运行完整测试套件';
+            }
+        }
+        
+        // 生成测试报告
+        function generateReport() {
+            console.log('📄 生成测试报告...');
+            
+            const report = {
+                timestamp: new Date().toISOString(),
+                browser: navigator.userAgent,
+                summary: {
+                    total: totalTests,
+                    passed: passedTests,
+                    failed: totalTests - passedTests,
+                    passRate: totalTests > 0 ? ((passedTests / totalTests) * 100).toFixed(2) + '%' : '0%'
+                },
+                results: testResults
+            };
+            
+            const reportJson = JSON.stringify(report, null, 2);
+            
+            // 创建下载链接
+            const blob = new Blob([reportJson], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `javascript_test_report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('📄 测试报告已生成并下载');
+            console.log('报告摘要:', report.summary);
+        }
+        
+        // 页面加载完成后自动开始检测
+        window.addEventListener('load', () => {
+            console.log('🎯 页面加载完成，开始初始检测...');
+            detectBrowserEnvironment();
+            testDependencies();
+        });
+        
+        // 监听错误
+        window.addEventListener('error', (event) => {
+            console.error('🚨 JavaScript运行时错误:', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error
+            });
+        });
+        
+        // 监听未处理的Promise拒绝
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('🚨 未处理的Promise拒绝:', event.reason);
+        });
+        
+    </script>
+</body>
+</html>
