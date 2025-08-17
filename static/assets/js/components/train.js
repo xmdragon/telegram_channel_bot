@@ -700,12 +700,12 @@ const TrainApp = {
             // 根据类型跳转到不同的独立页面
             let url;
             if (type === 'tail') {
-                url = '/static/tail_filter_manager.html';
+                url = '/static/tail-filter-manager.html';
             } else if (type === 'ad') {
-                url = '/static/ad_training_manager.html';
+                url = '/static/ad-training-manager.html';
             } else {
                 // 默认跳转到广告管理页面
-                url = '/static/ad_training_manager.html';
+                url = '/static/ad-training-manager.html';
             }
             // console.log('Navigating to:', url);
             // 在当前页面打开，而不是新窗口
