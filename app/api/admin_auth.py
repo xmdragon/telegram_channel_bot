@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.services.auth_service import get_auth_service, AuthService
 from app.storage.json_store import get_json_admin_store
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -100,7 +101,7 @@ def check_permission(permission_name: str):
     return permission_checker
 
 
-@router.post("/login")
+@router.post(ROUTES.admin_auth.login)
 async def login(
     request: Request,
     login_req: LoginRequest
@@ -138,7 +139,7 @@ async def login(
     }
 
 
-@router.post("/logout")
+@router.post(ROUTES.admin_auth.logout)
 async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
@@ -155,7 +156,7 @@ async def logout(
     return {"success": success, "message": "已成功登出"}
 
 
-@router.get("/current")
+@router.get(ROUTES.admin_auth.current)
 async def get_current_admin_info(
     admin: dict = Depends(require_admin),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -177,7 +178,7 @@ async def get_current_admin_info(
     }
 
 
-@router.post("/change-password")
+@router.post(ROUTES.admin_auth.change_password)
 async def change_password(
     req: ChangePasswordRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -202,7 +203,7 @@ async def change_password(
     return {"success": True, "message": "密码修改成功，请重新登录"}
 
 
-@router.get("/check-auth")
+@router.get(ROUTES.admin_auth.check_auth)
 async def check_auth(admin: Optional[dict] = Depends(get_current_admin)) -> dict:
     """检查认证状态"""
     return {
@@ -229,7 +230,7 @@ class UpdateAdminRequest(BaseModel):
     password: Optional[str] = None
 
 
-@router.get("/admins")
+@router.get(ROUTES.admin_auth.admins)
 async def get_admins(
     admin: dict = Depends(require_super_admin)
 ) -> dict:
@@ -262,7 +263,7 @@ async def get_admins(
     return {"success": True, "admins": admin_list}
 
 
-@router.post("/admins")
+@router.post(ROUTES.admin_auth.admins)
 async def create_admin(
     req: CreateAdminRequest,
     admin: dict = Depends(require_super_admin)
@@ -297,7 +298,7 @@ async def create_admin(
     }
 
 
-@router.put("/admins/{admin_id}")
+@router.put(ROUTES.admin_auth.admin_by_id)
 async def update_admin(
     admin_id: int,
     req: UpdateAdminRequest,
@@ -343,7 +344,7 @@ async def update_admin(
     return {"success": True, "message": "管理员信息更新成功"}
 
 
-@router.delete("/admins/{admin_id}")
+@router.delete(ROUTES.admin_auth.admin_by_id)
 async def delete_admin(
     admin_id: int,
     admin: dict = Depends(require_super_admin)
@@ -377,7 +378,7 @@ async def delete_admin(
     return {"success": True, "message": "管理员删除成功"}
 
 
-@router.get("/permissions")
+@router.get(ROUTES.admin_auth.permissions)
 async def get_permissions(
     admin: dict = Depends(require_super_admin)
 ) -> dict:
@@ -405,7 +406,7 @@ async def get_permissions(
 
 # ==================== 会话管理功能 ====================
 
-@router.get("/sessions")
+@router.get(ROUTES.admin_auth.sessions)
 async def get_active_sessions(
     admin: dict = Depends(require_super_admin)
 ) -> dict:
@@ -415,7 +416,7 @@ async def get_active_sessions(
     return {"success": True, "sessions": sessions}
 
 
-@router.delete("/sessions/{token}")
+@router.delete(ROUTES.admin_auth.session_by_token)
 async def revoke_session(
     token: str,
     admin: dict = Depends(require_super_admin)
@@ -430,7 +431,7 @@ async def revoke_session(
         return {"success": False, "message": "会话不存在或撤销失败"}
 
 
-@router.get("/me")
+@router.get(ROUTES.admin_auth.me)
 async def get_me(
     admin: dict = Depends(require_admin),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -439,7 +440,7 @@ async def get_me(
     return await get_current_admin_info(admin, credentials)
 
 
-@router.get("/permissions/me")
+@router.get(ROUTES.admin_auth.permissions_me)
 async def get_my_permissions(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
