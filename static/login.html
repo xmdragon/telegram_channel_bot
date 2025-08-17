@@ -205,7 +205,11 @@
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/element-plus-icons.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/config/api-endpoints.js"></script>
     <script>
+        // 确保API配置可用
+        const API = window.API;
+        
         const { createApp } = Vue;
         const { ElMessage } = ElementPlus;
         const { User, Lock } = ElementPlusIconsVue;
@@ -242,7 +246,7 @@
                     const token = localStorage.getItem('admin_token');
                     if (token) {
                         try {
-                            const response = await axios.get('/api/admin/auth/check-auth', {
+                            const response = await axios.get(API.adminAuth.checkAuth, {
                                 headers: {
                                     'Authorization': `Bearer ${token}`
                                 }
@@ -267,7 +271,7 @@
                         this.errorMessage = '';
                         
                         try {
-                            const response = await axios.post('/api/admin/auth/login', this.loginData);
+                            const response = await axios.post(API.adminAuth.login, this.loginData);
                             
                             if (response.data.success) {
                                 // 保存token和用户信息

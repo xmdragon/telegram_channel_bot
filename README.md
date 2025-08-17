@@ -198,6 +198,25 @@ telegram_channel_bot/
 - 遵循项目结构管理规范
 - 工具脚本放在`tools/`对应子目录
 - 禁止硬编码文件路径，使用PathConfig
+- **API端点管理**：严格禁止硬编码API路径，必须使用`static/assets/js/config/api-endpoints.js`配置
+
+### API端点管理
+为避免API端点冗余和硬编码问题，项目采用集中配置管理：
+
+```javascript
+// 正确方式 - 从配置文件引用API端点
+import API from './config/api-endpoints.js';
+const response = await axios.get(API.messages.list);
+
+// 错误方式 - 禁止硬编码
+const response = await axios.get('/api/messages/');
+```
+
+**核心原则**：
+- 所有API端点都必须在`api-endpoints.js`中定义
+- 开发时先检查配置文件，避免重复端点
+- 前端代码严禁硬编码API路径
+- 新增端点需同步更新配置文件
 
 ### Git提交
 使用自动提交工具：

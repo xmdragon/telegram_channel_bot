@@ -2,6 +2,9 @@
  * 管理员认证工具
  */
 
+// 确保API配置可用
+const API = window.API;
+
 class AuthManager {
     constructor() {
         this.token = localStorage.getItem('admin_token');
@@ -97,7 +100,7 @@ class AuthManager {
         }
         
         try {
-            const response = await axios.get('/api/admin/auth/current');
+            const response = await axios.get(API.adminAuth.current);
             // 更新本地存储的管理员信息
             localStorage.setItem('admin_info', JSON.stringify(response.data));
             this.adminInfo = response.data;
@@ -120,7 +123,7 @@ class AuthManager {
     async logout() {
         if (this.token) {
             try {
-                await axios.post('/api/admin/auth/logout');
+                await axios.post(API.adminAuth.logout);
             } catch (e) {
                 // 忽略错误
             }

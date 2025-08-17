@@ -2,6 +2,10 @@
  * 权限检查工具类
  * 用于前端权限控制
  */
+
+// 确保API配置可用
+const API = window.API;
+
 class PermissionChecker {
     constructor() {
         this.permissions = new Set();
@@ -17,7 +21,7 @@ class PermissionChecker {
         if (!adminInfo) {
             // 尝试从API获取当前用户信息
             try {
-                const response = await axios.get('/api/admin/auth/current');
+                const response = await axios.get(API.adminAuth.current);
                 adminInfo = response.data;
             } catch (error) {
                 // 获取用户权限信息失败

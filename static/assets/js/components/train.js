@@ -1,6 +1,10 @@
 /**
  * AI训练页面组件
  */
+
+// 确保API配置可用
+const API = window.API;
+
 const { createApp } = Vue;
 const { ElMessage, ElMessageBox } = ElementPlus;
 
@@ -243,7 +247,7 @@ const TrainApp = {
         // 加载分隔符模式
         async loadSeparatorPatterns() {
             try {
-                const response = await axios.get('/api/training/separator-patterns');
+                const response = await axios.get(API.training.separatorPatterns);
                 this.separatorPatterns = response.data.patterns || [];
             } catch (error) {
                 // console.error('加载分隔符模式失败:', error);
@@ -258,7 +262,7 @@ const TrainApp = {
         // 保存分隔符模式
         async saveSeparatorPatterns() {
             try {
-                const response = await axios.post('/api/training/separator-patterns', {
+                const response = await axios.post(API.training.separatorPatterns, {
                     patterns: this.separatorPatterns
                 });
                 
@@ -285,7 +289,7 @@ const TrainApp = {
         // 加载广告样本
         async loadAdSamples() {
             try {
-                const response = await axios.get('/api/training/tail-ad-samples');
+                const response = await axios.get(API.training.tailAdSamples);
                 // 处理广告样本数据
                 // console.log('广告样本:', response.data);
             } catch (error) {
@@ -302,7 +306,7 @@ const TrainApp = {
             
             this.submitting = true;
             try {
-                const response = await axios.post('/api/training/tail-ad-samples', {
+                const response = await axios.post(API.training.tailAdSamples, {
                     content: this.adTrainingForm.content,
                     description: this.adTrainingForm.description,
                     separator: '',  // 广告样本暂时不需要分隔符
@@ -347,7 +351,7 @@ const TrainApp = {
             
             this.submitting = true;
             try {
-                const response = await axios.post('/api/training/promo-samples', {
+                const response = await axios.post(API.training.promoSamples, {
                     full_content: this.promoTrainingForm.full_content,
                     promo_section: this.promoTrainingForm.promo_section,
                     separator_type: this.promoTrainingForm.separator_type,
@@ -385,7 +389,7 @@ const TrainApp = {
             }
             
             try {
-                const response = await axios.post('/api/training/preview-promo-filter', {
+                const response = await axios.post(API.training.previewPromoFilter, {
                     content: this.promoTrainingForm.full_content,
                     separator_type: this.promoTrainingForm.separator_type
                 });
@@ -402,7 +406,7 @@ const TrainApp = {
         
         async loadChannels() {
             try {
-                const response = await axios.get('/api/training-db/channels');
+                const response = await axios.get(API.training.channels);
                 this.channels = response.data.channels || [];
             } catch (error) {
                 // console.error('加载频道失败:', error);
@@ -418,7 +422,7 @@ const TrainApp = {
         async loadStats() {
             try {
                 // 只获取统计数据，不获取完整样本列表
-                const response = await axios.get('/api/training-db/tail-filter-statistics');
+                const response = await axios.get(API.training.tailFilterStatistics);
                 
                 // 直接使用返回的统计数据
                 if (response.data.success) {
@@ -450,7 +454,7 @@ const TrainApp = {
             
             try {
                 // 获取最近的历史记录（限制数量）
-                const response = await axios.get('/api/training-db/tail-filter-history', {
+                const response = await axios.get(API.training.tailFilterHistory, {
                     params: { limit: 20 }
                 });
                 
@@ -544,14 +548,14 @@ const TrainApp = {
                 };
                 
                 console.log('📡 发送API请求:', {
-                    url: '/api/training-db/tail-filter-samples',
+                    url: API.training.tailFilterSamples,
                     method: 'POST',
                     dataKeys: Object.keys(postData),
                     contentLength: postData.content.length,
                     tailPartLength: postData.tailPart.length
                 });
                 
-                const response = await axios.post('/api/training-db/tail-filter-samples', postData);
+                const response = await axios.post(API.training.tailFilterSamples, postData);
                 
                 console.log('📥 收到API响应:', {
                     status: response.status,
@@ -675,7 +679,7 @@ const TrainApp = {
         // 加载训练数据统计
         async loadTrainingDataStats() {
             try {
-                const response = await axios.get('/api/training-db/stats');
+                const response = await axios.get(API.training.stats);
                 // 适配API返回的数据结构
                 this.trainingDataStats = {
                     totalSamples: response.data.totalSamples || 0,

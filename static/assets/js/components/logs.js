@@ -1,3 +1,6 @@
+// 确保API配置可用
+const API = window.API;
+
 const { createApp } = Vue;
 const { ElMessage, ElMessageBox } = ElementPlus;
 
@@ -62,7 +65,7 @@ const app = createApp({
     methods: {
         async loadLogs() {
             try {
-                const response = await axios.get('/api/system/logs', {
+                const response = await axios.get(API.system.logs, {
                     params: { limit: 100 }
                 });
                 

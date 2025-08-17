@@ -1,5 +1,8 @@
 // Telegram 认证页面 JavaScript
 
+// 确保API配置可用
+const API = window.API;
+
 // 检查依赖是否加载
 // console.log('Vue loaded:', typeof Vue !== 'undefined');
 // console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
@@ -128,26 +131,26 @@ const AuthApp = {
                     
                     switch (action) {
                         case 'init_auth':
-                            url = '/api/auth/init';
+                            url = API.telegramAuth.init;
                             payload = {
                                 api_id: parseInt(data.api_id),
                                 api_hash: data.api_hash
                             };
                             break;
                         case 'send_phone':
-                            url = '/api/auth/send-code';
+                            url = API.telegramAuth.sendCode;
                             payload = { phone: data.phone };
                             break;
                         case 'verify_code':
-                            url = '/api/auth/verify-code';
+                            url = API.telegramAuth.verifyCode;
                             payload = { code: data.code };
                             break;
                         case 'verify_password':
-                            url = '/api/auth/verify-password';
+                            url = API.telegramAuth.verifyPassword;
                             payload = { password: data.password };
                             break;
                         case 'disconnect':
-                            url = '/api/auth/disconnect';
+                            url = API.telegramAuth.disconnect;
                             method = 'POST';
                             break;
                         default:
@@ -235,7 +238,7 @@ const AuthApp = {
             
             async checkAuthStatus() {
                 try {
-                    const response = await axios.get('/api/auth/status');
+                    const response = await axios.get(API.telegramAuth.status);
                     if (response.data.authorized) {
                         this.authStatus = '已认证';
                         this.currentStep = 5;
@@ -328,7 +331,7 @@ const AuthApp = {
             
             async loadSavedAuthInfo() {
                 try {
-                    const response = await axios.get('/api/auth/info');
+                    const response = await axios.get(API.telegramAuth.info);
                     this.handleAuthInfo(response.data);
                 } catch (error) {
                     // console.log('获取认证信息失败:', error);
@@ -397,7 +400,7 @@ const AuthApp = {
                     this.loading = true;
                     this.loadingMessage = '正在清除认证数据...';
                     
-                    const response = await axios.post('/api/auth/clear');
+                    const response = await axios.post(API.telegramAuth.clear);
                     if (response.data.success) {
                         this.handleAuthCleared(response.data.message);
                     } else {

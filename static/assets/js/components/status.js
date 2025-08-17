@@ -1,3 +1,6 @@
+// 确保API配置可用
+const API = window.API;
+
 const { createApp } = Vue;
 const { ElMessage, ElMessageBox } = ElementPlus;
 
@@ -97,8 +100,8 @@ const app = createApp({
             try {
                 // 同时加载系统状态和消息统计
                 const [statusResponse, statsResponse] = await Promise.all([
-                    axios.get('/api/system/status'),
-                    axios.get('/api/messages/stats/overview')
+                    axios.get(API.system.systemStatus),
+                    axios.get(API.messages.statsOverview)
                 ]);
                 
                 if (statusResponse.data) {
@@ -197,7 +200,7 @@ const app = createApp({
                 this.loading = true;
                 this.loadingMessage = '正在重启服务...';
                 
-                const response = await axios.post('/api/system/restart');
+                const response = await axios.post(API.system.restart);
                 if (response.data.success) {
                     MessageManager.success('服务重启成功');
                     // 等待几秒后刷新状态
@@ -238,7 +241,7 @@ const app = createApp({
                 this.loading = true;
                 this.loadingMessage = '正在重置系统...';
                 
-                const response = await axios.post('/api/system/reset');
+                const response = await axios.post(API.system.reset);
                 if (response.data.success) {
                     MessageManager.success(
                         `重置完成：清空${response.data.details.cleared_messages}条消息，` +

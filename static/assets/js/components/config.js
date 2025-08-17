@@ -1,5 +1,8 @@
 // 配置页面 JavaScript 组件
 
+// 确保API配置可用
+const API = window.API;
+
 // 检查依赖是否加载
 // console.log('Vue loaded:', typeof Vue !== 'undefined');
 // console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
@@ -161,7 +164,7 @@ const ConfigApp = {
         
         async loadChannels() {
             try {
-                const response = await axios.get('/api/admin/channels');
+                const response = await axios.get(API.admin.channels);
                 if (response.data.success) {
                     this.channels = response.data.channels;
                 }
@@ -177,7 +180,7 @@ const ConfigApp = {
         
         async loadForwardingConfig() {
             try {
-                const response = await axios.get('/api/admin/config');
+                const response = await axios.get(API.admin.config);
                 if (response.data) {
                     // 直接赋值，无需任何判断
                     this.forwardingConfig = {
@@ -195,7 +198,7 @@ const ConfigApp = {
         
         async loadSystemConfig() {
             try {
-                const response = await axios.get('/api/admin/config');
+                const response = await axios.get(API.admin.config);
                 if (response.data) {
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
@@ -226,7 +229,7 @@ const ConfigApp = {
                 this.loading = true;
                 this.loadingMessage = '正在解析频道信息...';
                 
-                const response = await axios.post('/api/admin/channels', {
+                const response = await axios.post(API.admin.channels, {
                     channel_id: "",  // 自动解析
                     channel_name: channelName,
                     channel_title: "",  // 自动解析
@@ -274,7 +277,7 @@ const ConfigApp = {
                 this.loading = true;
                 this.loadingMessage = '正在解析频道ID...';
                 
-                const response = await axios.post('/api/admin/resolve-channel-ids');
+                const response = await axios.post(API.admin.resolveChannelIds);
                 
                 if (response.data.success) {
                     MessageManager.success(`频道ID解析完成：${response.data.message}`);
@@ -299,7 +302,7 @@ const ConfigApp = {
             this.batchChannel.results = null;
             
             try {
-                const response = await axios.post('/api/config/channels/batch-add', {
+                const response = await axios.post(API.config.channelsBatchAdd, {
                     channels: this.batchChannel.channels
                 });
                 
@@ -333,7 +336,7 @@ const ConfigApp = {
         
         async resolveChannelId(channelName) {
             try {
-                const response = await axios.post('/api/admin/resolve-channel-id', {
+                const response = await axios.post(API.admin.resolveChannelId, {
                     channel_name: channelName
                 });
                 
@@ -377,7 +380,7 @@ const ConfigApp = {
         async saveForwardingConfig() {
             try {
                 // 直接发送原始值到新的API端点
-                const response = await axios.post('/api/admin/config/forwarding', {
+                const response = await axios.post(API.admin.configForwarding, {
                     target_channel: this.forwardingConfig.target_channel.trim(),
                     review_group: this.forwardingConfig.review_group.trim(),
                     auto_forward_enabled: this.forwardingConfig.enabled,
@@ -405,7 +408,7 @@ const ConfigApp = {
                 };
                 
                 // 批量保存配置
-                const response = await axios.post('/api/admin/config/batch', configData);
+                const response = await axios.post(API.admin.configBatch, configData);
                 
                 if (response.data.success) {
                     MessageManager.success('系统配置保存成功');
@@ -476,7 +479,7 @@ const ConfigApp = {
             if (this.forwardingConfig.review_group) {
                 try {
                     // 使用admin API解析审核群ID
-                    const response = await axios.post('/api/admin/resolve-review-group', {
+                    const response = await axios.post(API.admin.resolveReviewGroup, {
                         review_group_config: this.forwardingConfig.review_group
                     });
                     if (response.data.success && response.data.resolved_id) {
@@ -498,7 +501,7 @@ const ConfigApp = {
             
             try {
                 this.loading = true;
-                const response = await axios.post('/api/admin/resolve-channel-id', {
+                const response = await axios.post(API.admin.resolveChannelId, {
                     channel_name: this.forwardingConfig.target_channel
                 });
                 
@@ -528,7 +531,7 @@ const ConfigApp = {
             
             try {
                 this.loading = true;
-                const response = await axios.post('/api/admin/resolve-review-group', {
+                const response = await axios.post(API.admin.resolveReviewGroup, {
                     review_group_config: this.forwardingConfig.review_group
                 });
                 
@@ -555,7 +558,7 @@ const ConfigApp = {
                 this.loading = true;
                 this.loadingMessage = '正在解析所有频道ID...';
                 
-                const response = await axios.post('/api/admin/resolve-channel-ids');
+                const response = await axios.post(API.admin.resolveChannelIds);
                 
                 if (response.data.success) {
                     MessageManager.success(`频道解析完成: ${response.data.message}`);
@@ -579,7 +582,7 @@ const ConfigApp = {
             if (this.forwardingConfig.target_channel) {
                 try {
                     // 使用admin API解析频道ID
-                    const response = await axios.post('/api/admin/resolve-channel-id', {
+                    const response = await axios.post(API.admin.resolveChannelId, {
                         channel_name: this.forwardingConfig.target_channel
                     });
                     if (response.data.success && response.data.resolved_id) {
@@ -604,7 +607,7 @@ const ConfigApp = {
             this.searchForm.searched = false;
             
             try {
-                const response = await axios.get('/api/admin/search-channels', {
+                const response = await axios.get(API.admin.searchChannels, {
                     params: { query: this.searchForm.query }
                 });
                 
@@ -638,7 +641,7 @@ const ConfigApp = {
                     channel_id: channel.id.toString()
                 };
                 
-                const response = await axios.post('/api/admin/add-channel', channelData);
+                const response = await axios.post(API.admin.addChannel, channelData);
                 
                 if (response.data.success) {
                     MessageManager.success('频道添加成功');

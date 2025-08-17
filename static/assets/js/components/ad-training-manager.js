@@ -1,4 +1,8 @@
 // 广告检测数据管理组件
+
+// 确保API配置可用
+const API = window.API;
+
 const { createApp } = Vue;
 const { ElMessage, ElMessageBox } = ElementPlus;
 
@@ -59,7 +63,7 @@ const app = createApp({
                     filter: this.filterType
                 };
                 
-                const response = await axios.get('/api/training/ad-samples', { params });
+                const response = await axios.get(API.training.adSamples, { params });
                 this.samples = response.data.samples || [];
                 this.totalCount = response.data.total || this.samples.length;
                 
@@ -83,7 +87,7 @@ const app = createApp({
         // 加载统计信息
         async loadStatistics() {
             try {
-                const response = await axios.get('/api/training/ad-statistics');
+                const response = await axios.get(API.training.adStatistics);
                 if (response.data.success) {
                     this.stats = {
                         totalSamples: response.data.total_samples,
@@ -135,7 +139,7 @@ const app = createApp({
                     }
                 );
                 
-                const response = await axios.delete(`/api/training/ad-samples/${sampleId}`);
+                const response = await axios.delete(`/api/training-db/ad-samples/${sampleId}`);
                 
                 if (response.data.success) {
                     ElMessage.success('删除成功');
@@ -171,7 +175,7 @@ const app = createApp({
                     ElMessage.error('所选样本ID缺失，无法删除');
                     return;
                 }
-                await axios.delete('/api/training/ad-samples/batch', { data: { ids } });
+                await axios.delete(API.training.adSamplesBatch, { data: { ids } });
                 
                 ElMessage.success('批量删除成功');
                 await this.loadSamples();
@@ -189,7 +193,7 @@ const app = createApp({
             this.duplicateLoading = true;
             
             try {
-                const response = await axios.post('/api/training/ad-samples/detect-duplicates');
+                const response = await axios.post(API.training.adSamplesDetectDuplicates);
                 
                 // 检查API响应是否成功
                 if (response.data.success) {
@@ -252,7 +256,7 @@ const app = createApp({
                     }
                 );
                 
-                const response = await axios.post('/api/training/ad-samples/deduplicate', {
+                const response = await axios.post(API.training.adSamplesDeduplicate, {
                     remove_ids: toDelete
                 });
                 
@@ -282,7 +286,7 @@ const app = createApp({
                 );
                 
                 ElMessage.info('正在优化存储，请稍候...');
-                const response = await axios.post('/api/training-db/optimize-storage');
+                const response = await axios.post(API.training.optimizeStorage);
                 
                 ElMessage.success(`优化完成！节省空间: ${this.formatSize(response.data.saved_space)}`);
                 await this.loadStatistics();

@@ -23,7 +23,11 @@
     
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/config/api-endpoints.js"></script>
     <script>
+        // 确保API配置可用
+        const API = window.API;
+        
         const { createApp } = Vue;
         
         createApp({
@@ -41,7 +45,7 @@
                         // 获取认证token
                         const token = localStorage.getItem('admin_token');
                         
-                        const response = await axios.get('/api/messages/', {
+                        const response = await axios.get(API.messages.list, {
                             params: { status: 'pending', page: 1, size: 20 },
                             headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                         });
@@ -62,7 +66,7 @@
                 async loadStats() {
                     try {
                         const token = localStorage.getItem('admin_token');
-                        const response = await axios.get('/api/messages/stats', {
+                        const response = await axios.get(API.messages.stats, {
                             headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                         });
                         this.stats = response.data;

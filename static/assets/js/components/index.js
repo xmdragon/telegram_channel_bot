@@ -1,5 +1,8 @@
 // 主页面 JavaScript 组件
 
+// 确保API配置可用
+const API = window.API;
+
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
 
@@ -48,7 +51,8 @@ const MainApp = {
                 status: 'pending',
                 is_ad: null,
                 source_channel: '',  // 频道筛选，使用空字符串匹配HTML默认值
-                filter_reason: null    // 过滤原因筛选
+                filter_reason: null,    // 过滤原因筛选
+                _show_duplicates: false  // 🔧 新增：重复消息对比显示标识
             },
             currentPage: 1,
             pageSize: 20,
@@ -109,6 +113,39 @@ const MainApp = {
             if (!this.messages || !Array.isArray(this.messages)) {
                 return [];
             }
+            
+            // 🔧 特殊处理：重复消息模式下只显示有重复信息的消息
+            if (this.filters._show_duplicates) {
+                const duplicateMessages = this.messages.filter(msg => {
+                    const hasDuplicateId = !!(msg.duplicate_original_id);
+                    const hasDuplicateInfo = !!(msg.duplicate_info);
+                    const hasFilterReason = !!(msg.filter_reason && msg.filter_reason.toLowerCase().includes('duplicate'));
+                    const hasRejectReason = !!(msg.reject_reason && (
+                        msg.reject_reason.includes('重复') || 
+                        msg.reject_reason.toLowerCase().includes('duplicate')
+                    ));
+                    
+                    const isDuplicate = hasDuplicateId || hasDuplicateInfo || hasFilterReason || hasRejectReason;
+                    
+                    if (isDuplicate) {
+                        console.log(`找到重复消息: ${msg.source_channel}:${msg.message_id}`, {
+                            hasDuplicateId,
+                            hasDuplicateInfo,
+                            hasFilterReason,
+                            hasRejectReason,
+                            filter_reason: msg.filter_reason,
+                            reject_reason: msg.reject_reason,
+                            duplicate_original_id: msg.duplicate_original_id
+                        });
+                    }
+                    
+                    return isDuplicate;
+                });
+                
+                console.log(`重复消息模式：从${this.messages.length}条消息中筛选出${duplicateMessages.length}条重复消息`);
+                return [...duplicateMessages];
+            }
+            
             // 确保返回新的数组引用，避免Vue缓存问题
             return [...this.messages];
         },
@@ -255,7 +292,7 @@ const MainApp = {
         async initializePermissions() {
             try {
                 // 获取当前用户信息
-                const response = await axios.get('/api/admin/auth/current');
+                const response = await axios.get(API.adminAuth.current);
                 const adminInfo = response.data;
                 
                 // 检查权限检查器是否存在
@@ -373,7 +410,7 @@ const MainApp = {
         
         async loadChannelInfo() {
             try {
-                const response = await axios.get('/api/messages/channel-info');
+                const response = await axios.get(API.messages.channelInfo);
                 if (response.data.success) {
                     this.channelInfo = response.data.data;
                 }
@@ -397,11 +434,13 @@ const MainApp = {
             }
             
             try {
-                // 准备请求参数
+                // 准备请求参数（过滤掉前端专用参数）
+                const { _show_duplicates, ...apiFilters } = this.filters;
                 const params = {
-                    ...this.filters,
+                    ...apiFilters,
                     page: this.currentPage,
-                    size: this.pageSize
+                    // 🔧 重复消息模式下增加页面大小，确保获取足够多的消息进行筛选
+                    size: _show_duplicates ? Math.max(this.pageSize * 3, 50) : this.pageSize
                 };
                 
                 // 只有当status为null或undefined时才使用默认值，空字符串应该被保留
@@ -419,7 +458,7 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
-                const response = await axios.get('/api/messages/', {
+                const response = await axios.get(API.messages.list, {
                     params: params
                 });
                 
@@ -663,26 +702,32 @@ const MainApp = {
                     this.filters.status = 'pending';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
+                    this.filters._show_duplicates = false;
                     break;
                 case 'approved':
                     this.filters.status = 'approved';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
+                    this.filters._show_duplicates = false;
                     break;
                 case 'rejected':
                     this.filters.status = 'rejected';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
+                    this.filters._show_duplicates = false;
                     break;
                 case 'ads':
                     this.filters.status = '';
                     this.filters.is_ad = true;
                     this.filters.filter_reason = null;
+                    this.filters._show_duplicates = false;
                     break;
                 case 'duplicates':
-                    this.filters.status = 'rejected';
+                    this.filters.status = '';  // 不限制状态，因为重复消息可能有不同状态
                     this.filters.is_ad = null;
-                    this.filters.filter_reason = 'duplicate_detector';
+                    this.filters.filter_reason = null;  // 不通过filter_reason筛选
+                    // 🔧 新增：设置特殊标识来显示重复消息对比
+                    this.filters._show_duplicates = true;
                     break;
                 case 'chats':
                     this.filters.status = 'rejected';

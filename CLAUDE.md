@@ -148,7 +148,54 @@ curl localhost:8000/api/health  # API健康检查
 - `/api/admin` - 管理员功能
 - `/api/config` - 配置管理
 - `/api/auth` - Telegram认证
-- `/api/training` - AI训练数据
+- `/api/training-db` - AI训练数据
+
+## 🌐 API端点管理规范
+
+### 集中配置原则
+**严格禁止硬编码API端点！所有API端点必须统一管理**
+
+#### 核心配置文件
+- **API配置**：`static/assets/js/config/api-endpoints.js`
+- **版本控制**：配置文件纳入版本管理
+- **引用方式**：所有前端代码必须从配置文件引用API端点
+
+#### 使用规范
+```javascript
+// ✅ 正确方式 - 从配置文件引用
+import API from './config/api-endpoints.js';
+const response = await axios.get(API.messages.list);
+const response = await axios.delete(API.messages.deleteById(messageId));
+
+// ❌ 错误方式 - 硬编码
+const response = await axios.get('/api/messages/');
+```
+
+#### API端点分类
+```javascript
+API_ENDPOINTS = {
+    messages: {},        // 消息管理模块
+    adminAuth: {},       // 管理员认证模块
+    telegramAuth: {},    // Telegram认证模块
+    training: {},        // 训练数据模块
+    config: {},          // 配置管理模块
+    system: {},          // 系统状态模块
+    admin: {},           // 管理功能模块
+    websocket: {}        // WebSocket端点
+}
+```
+
+#### 开发和调试规范
+1. **查找端点**：开发时先检查`api-endpoints.js`文件
+2. **添加端点**：新增API端点必须先在配置文件中定义
+3. **路由同步**：确保前端配置与后端路由一致
+4. **命名规范**：API路径使用kebab-case（如`/batch-approve`）
+
+#### 防止冗余端点
+- 新增端点前检查是否已存在
+- 调查Git历史确认端点变更
+- 避免重复实现相同功能的端点
+- 定期审查和清理无用端点
 
 ### 重要配置
 - 管理员登录：`http://localhost:8000/static/login.html` (admin/admin123)
@@ -369,6 +416,7 @@ python3 tools/maintenance/cleanup_redundant_files.py --analyze  # 分析冗余
 ```
 
 ### 文件位置速查
+- API端点配置：`static/assets/js/config/api-endpoints.js`
 - 系统架构文档：`docs/SYSTEM_ARCHITECTURE.md`
 - 命名规范文档：`docs/NAMING_CONVENTIONS.md`
 - 清理工具：`tools/maintenance/cleanup_redundant_files.py`
@@ -384,14 +432,18 @@ python3 tools/maintenance/cleanup_redundant_files.py --analyze  # 分析冗余
 5. 重启服务：`./restart.sh`
 
 ### API端点速查
-- 消息列表：`GET /api/messages`
-- 批量审核：`POST /api/messages/batch-approve`
-- 频道配置：`GET /api/channel-config`
-- 系统健康：`GET /api/health`
-- WebSocket：`ws://localhost:8000/ws`
+**所有API端点请查看：`static/assets/js/config/api-endpoints.js`**
+
+常用端点示例：
+- 消息列表：`API.messages.list` → `GET /api/messages/`
+- 批量审核：`API.messages.batchApprove` → `POST /api/messages/batch-approve`
+- 训练数据：`API.training.adSamples` → `GET /api/training-db/ad-samples`
+- 系统健康：`API.system.health` → `GET /api/health`
+- WebSocket：`API.websocket.main` → `ws://localhost:8000/ws`
 
 ## 🚨 重要提醒
 
+- **API端点管理**：严格禁止硬编码API路径，必须使用`api-endpoints.js`配置
 - Redis和JSON双层存储，禁止删除整个数据库
 - 文件锁机制确保数据一致性
 - 优先使用API接口修改配置

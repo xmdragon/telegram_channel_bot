@@ -2,6 +2,9 @@
  * 广告分隔符训练页面
  */
 
+// 确保API配置可用
+const API = window.API;
+
 const { createApp } = Vue;
 const { ElMessage, ElMessageBox } = ElementPlus;
 
@@ -46,7 +49,7 @@ createApp({
         // 加载分隔符模式
         async loadPatterns() {
             try {
-                const response = await axios.get('/api/training/separator-patterns');
+                const response = await axios.get(API.training.separatorPatterns);
                 if (response.data.patterns) {
                     this.separatorPatterns = response.data.patterns;
                 }
@@ -58,7 +61,7 @@ createApp({
         // 保存分隔符模式
         async savePatterns() {
             try {
-                const response = await axios.post('/api/training/separator-patterns', {
+                const response = await axios.post(API.training.separatorPatterns, {
                     patterns: this.separatorPatterns
                 });
                 
@@ -148,7 +151,7 @@ createApp({
         // 加载训练样本
         async loadSamples() {
             try {
-                const response = await axios.get('/api/training-db/tail-filter-samples');
+                const response = await axios.get(API.training.tailFilterSamples);
                 this.trainingSamples = response.data.samples || [];
             } catch (error) {
                 // console.error('加载样本失败:', error);
@@ -173,7 +176,7 @@ createApp({
                 const normalPart = this.newSample.fullContent.substring(0, separatorIndex).trim();
                 const adPart = this.newSample.fullContent.substring(separatorIndex).trim();
                 
-                const response = await axios.post('/api/training-db/tail-filter-samples', {
+                const response = await axios.post(API.training.tailFilterSamples, {
                     description: this.newSample.description,
                     content: this.newSample.fullContent,
                     separator: this.newSample.separator,

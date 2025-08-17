@@ -10,7 +10,6 @@ from .system import router as system_router
 from .lock import router as lock_router
 from .admin_auth import router as admin_auth_router
 from app.routers.training_db import router as training_router  # 使用修复后的基于JSON的训练路由
-from .training import router as training_api_router  # 训练API（尾部、分隔符、反馈）
 # from app.api.channel_resolver import router as channel_resolver_router  # 暂时禁用，包含数据库依赖
 
 api_router = APIRouter()
@@ -23,5 +22,4 @@ api_router.include_router(admin_auth_router, prefix="/admin/auth", tags=["admin-
 api_router.include_router(system_router, tags=["system"])
 api_router.include_router(lock_router, prefix="/lock", tags=["lock"])
 api_router.include_router(training_router, prefix="/training-db", tags=["training"])  # 修复后重新启用
-api_router.include_router(training_api_router, prefix="/training", tags=["training-api"])  # 训练API（尾部、分隔符、反馈）
 # api_router.include_router(channel_resolver_router, prefix="/channel-resolver", tags=["channel-resolver"])  # 暂时禁用

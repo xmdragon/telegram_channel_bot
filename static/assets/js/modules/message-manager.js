@@ -3,6 +3,9 @@
  * 处理消息的增删改查操作
  */
 
+// 确保API配置可用
+const API = window.API;
+
 const MessageModule = {
     // 加载消息列表
     async loadMessages(filters = {}, append = false) {
@@ -21,7 +24,7 @@ const MessageModule = {
                 params.search = filters.searchKeyword.trim();
             }
             
-            const response = await axios.get('/api/messages/', { params });
+            const response = await axios.get(API.messages.list, { params });
             
             // API直接返回数据，不包装在success字段中
             if (response.data && response.data.messages) {
@@ -56,7 +59,7 @@ const MessageModule = {
         }
         
         try {
-            const response = await axios.post('/api/messages/batch-approve', {
+            const response = await axios.post(API.messages.batchApprove, {
                 message_ids: messageIds
             });
             
@@ -82,7 +85,7 @@ const MessageModule = {
         }
         
         try {
-            const response = await axios.post('/api/messages/batch-reject', {
+            const response = await axios.post(API.messages.batchReject, {
                 message_ids: messageIds
             });
             
@@ -112,7 +115,7 @@ const MessageModule = {
         }
         
         try {
-            const response = await axios.post('/api/messages/batch-delete', {
+            const response = await axios.post(API.messages.batchDelete, {
                 message_ids: messageIds
             });
             
@@ -154,7 +157,7 @@ const MessageModule = {
     // 标记为广告
     async markAsAd(messageId) {
         try {
-            const response = await axios.post('/api/training/mark-ad', {
+            const response = await axios.post(API.training.markAdMessage, {
                 message_id: messageId
             });
             
