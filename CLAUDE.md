@@ -4,6 +4,7 @@ Claude Code 工作指导文档。
 
 ## 重大变更历史
 
+- 2025-08-17: 📚 **开发规范完善** - 添加命名规范、代码组织、清理工具指南
 - 2025-08-16 (v4.0): 🚀 **服务分离架构重构** - 解决开发体验痛点，性能大幅提升
 - 2025-08-15: 🧹 根目录整理，工具分类管理（tools/目录结构化）
 - 2025-08-14 (v3.0): 🚀 Redis+JSON存储架构，性能提升300%+
@@ -154,13 +155,32 @@ curl localhost:8000/api/health  # API健康检查
 - 静态文件路径：`/static/xxx.html`
 - macOS tail命令：`tail -n 20 file.log`
 
+## 🏗️ 系统架构概览
+
+### 核心服务说明
+- **web_server.py**: Web API服务器，提供REST API、WebSocket和静态文件服务
+- **telegram_collector.py**: Telegram消息采集服务，负责实时监听和历史消息采集
+- **message_scheduler.py**: 后台调度服务，处理自动转发和数据清理任务
+
+### 关键模块
+- **app/api/**: API路由层，处理所有HTTP请求
+- **app/services/**: 业务逻辑层，包含消息处理和过滤引擎
+- **app/telegram/**: Telegram相关功能，包括Bot和认证
+- **app/storage/**: 存储层，管理Redis和JSON数据
+
+### 架构文档
+完整的系统架构说明请查看：`docs/SYSTEM_ARCHITECTURE.md`
+
 ## 🛠️ 开发规范
 
+### 基础要求
 - Python虚拟环境本地开发，生产环境用Docker
 - 使用`python3`而不是`python`
 - 使用`docker compose`而不是`docker-compose`
 - 前端Vue3 + Element Plus + Axios
 - 中文简短回复
+
+### 强制规范
 - **禁止硬编码文件路径**：必须从PathConfig类引用
 - **无需向后兼容**：始终选择最优方案，不考虑兼容性约束
 - **自适应阈值**：AI检测阈值动态优化，禁止硬编码阈值参数
@@ -171,6 +191,117 @@ curl localhost:8000/api/health  # API健康检查
   - ✅ JS代码必须放在独立的`.js`文件中
   - ✅ CSS样式必须放在独立的`.css`文件中
   - ✅ 实现HTML、CSS、JavaScript完全分离
+
+### 命名规范要求
+- **必须遵循PEP 8命名规范**
+- **API路径必须使用kebab-case**
+- **前端代码遵循Vue.js规范**
+- **测试文件只能放在tools/test或tools/testing**
+- **禁止在根目录创建任何临时文件**
+
+## 📋 代码组织规范
+
+### 文件命名标准
+- Python文件：使用`snake_case`（如`message_processor.py`）
+- 类名：使用`PascalCase`（如`MessageProcessor`）
+- 函数/方法：使用`snake_case`（如`process_message()`）
+- 常量：使用`UPPER_SNAKE_CASE`（如`MAX_RETRY_COUNT`）
+
+### 目录结构规范
+```
+app/
+├── api/           # API路由层（所有路由端点）
+├── core/          # 核心配置和工具
+├── services/      # 业务逻辑层
+│   └── filters/   # 过滤器子模块
+├── storage/       # 存储层
+├── telegram/      # Telegram相关
+└── utils/         # 工具函数
+```
+
+### 模块依赖原则
+1. 上层模块可以依赖下层模块
+2. 同层模块尽量避免相互依赖
+3. 避免循环依赖
+4. 依赖注入优于直接导入
+
+### 测试文件管理
+- **禁止在根目录创建测试文件**
+- 所有测试文件必须放在`tools/testing/`
+- 测试完成后评估是否保留
+- 使用描述性的测试文件名
+
+详细的命名规范请查看：`docs/NAMING_CONVENTIONS.md`
+
+## 📐 命名规范速查
+
+### Python规范（PEP 8）
+| 类型 | 规范 | 示例 |
+|-----|------|------|
+| 文件名 | snake_case | `message_processor.py` |
+| 类名 | PascalCase | `MessageProcessor` |
+| 函数/方法 | snake_case | `process_message()` |
+| 变量 | snake_case | `message_count` |
+| 常量 | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT` |
+| 私有成员 | 前缀`_` | `_private_method()` |
+
+### API规范
+| 类型 | 规范 | 示例 |
+|-----|------|------|
+| 路径 | kebab-case | `/api/batch-approve` |
+| 查询参数 | snake_case | `?page_size=20` |
+| JSON字段 | snake_case | `{"message_id": "123"}` |
+
+### 前端规范（Vue.js）
+| 类型 | 规范 | 示例 |
+|-----|------|------|
+| HTML文件 | snake_case/kebab-case | `message_manager.html` |
+| Vue组件 | PascalCase | `MessageRenderer` |
+| CSS类 | kebab-case | `.message-card` |
+| JS变量 | camelCase | `messageList` |
+| JS常量 | UPPER_SNAKE_CASE | `API_BASE_URL` |
+
+### 存储规范
+| 类型 | 规范 | 示例 |
+|-----|------|------|
+| Redis键 | 冒号分隔 | `telegram:messages:123` |
+| JSON字段 | snake_case | `"channel_id"` |
+| 配置键 | snake_case | `"max_retry_count"` |
+
+## 🧹 代码清理规范
+
+### 定期清理任务
+1. **每周清理测试文件**
+   - 检查`tools/testing/`目录
+   - 删除已完成的测试脚本
+   - 归档重要的测试用例
+
+2. **使用清理工具**
+   ```bash
+   # 分析冗余文件
+   python3 tools/maintenance/cleanup_redundant_files.py --analyze
+   
+   # 清理测试文件（带备份）
+   python3 tools/maintenance/cleanup_redundant_files.py --clean-tests
+   
+   # 清理冗余模块（需确认）
+   python3 tools/maintenance/cleanup_redundant_files.py --clean-redundant
+   ```
+
+3. **备份和恢复**
+   - 清理前自动创建备份
+   - 备份保存在`backups/`目录
+   - 可通过备份恢复误删文件
+
+### 清理优先级
+- **高优先级**：测试文件、示例文件、临时脚本
+- **中优先级**：备份文件、冗余模块
+- **低优先级**：可能还在使用的旧模块
+
+### 清理前检查
+- 确认服务正常运行
+- 检查模块依赖关系
+- 备份重要数据
 
 ## 🔧 配置导入导出
 
@@ -215,6 +346,50 @@ python3 tools/data/import_config.py
 python3 tools/data/recover_training_data.py --check
 ```
 
+## 📚 快速参考
+
+### 常用命令列表
+```bash
+# 开发相关
+./dev.sh                    # 启动开发环境
+./dev.sh --status          # 查看服务状态
+./dev.sh web               # 仅启动Web服务
+
+# 系统管理
+./start.sh                 # 启动生产环境
+./stop.sh                  # 停止所有服务
+./restart.sh               # 重启系统
+
+# Git操作
+python3 tools/git/auto_commit.py  # 自动提交
+./tools/git/commit.sh fix "xxx"   # 快速修复提交
+
+# 清理维护
+python3 tools/maintenance/cleanup_redundant_files.py --analyze  # 分析冗余
+```
+
+### 文件位置速查
+- 系统架构文档：`docs/SYSTEM_ARCHITECTURE.md`
+- 命名规范文档：`docs/NAMING_CONVENTIONS.md`
+- 清理工具：`tools/maintenance/cleanup_redundant_files.py`
+- 配置文件：`data/config/`
+- 日志文件：`logs/`
+- 测试脚本：`tools/testing/`
+
+### 故障排查步骤
+1. 检查服务状态：`./dev.sh --status`
+2. 查看日志：`tail -n 50 logs/app.log`
+3. 检查Redis：`redis-cli ping`
+4. 验证配置：`cat data/config/system.json`
+5. 重启服务：`./restart.sh`
+
+### API端点速查
+- 消息列表：`GET /api/messages`
+- 批量审核：`POST /api/messages/batch-approve`
+- 频道配置：`GET /api/channel-config`
+- 系统健康：`GET /api/health`
+- WebSocket：`ws://localhost:8000/ws`
+
 ## 🚨 重要提醒
 
 - Redis和JSON双层存储，禁止删除整个数据库
@@ -222,3 +397,6 @@ python3 tools/data/recover_training_data.py --check
 - 优先使用API接口修改配置
 - 任何批量数据操作需要用户明确授权
 - 存储结构修改时必须同步更新相关代码
+- 测试文件必须放在tools/testing/目录
+- 遵循PEP 8和项目命名规范
+- 定期执行代码清理和优化
