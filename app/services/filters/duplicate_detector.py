@@ -281,37 +281,50 @@ class DuplicateDetectorFilter(BaseFilter):
             
             # 检查每个历史消息的视觉相似度
             for msg_data in messages_to_check:
-                try:
-                    # 获取存储的视觉哈希
-                    stored_visual_hash = msg_data.get('visual_hash')
-                    if not stored_visual_hash:
-                        continue
-                    
-                    # 解析视觉哈希
-                    if isinstance(stored_visual_hash, str):
-                        try:
-                            stored_hashes = json.loads(stored_visual_hash)
-                        except:
-                            stored_hashes = eval(stored_visual_hash)  # 兼容旧格式
-                    else:
-                        stored_hashes = stored_visual_hash
-                    
-                    # 比较视觉相似度
-                    is_similar, similarity = visual_detector.is_visually_similar(visual_hashes, stored_hashes)
-                    if is_similar:
-                        orig_msg_id = msg_data.get('message_id')
-                        logger.info(f"发现视觉相似图片，消息ID: {orig_msg_id}, 相似度: {similarity:.1f}%")
-                        return True, orig_msg_id, similarity
-                        
-                except Exception as e:
-                    logger.debug(f"比较视觉哈希时出错: {e}")
-                    continue
+                result = self._check_single_visual_similarity(msg_data, visual_hashes)
+                if result[0]:  # is_similar
+                    return result
             
             return False, None, 0.0
             
         except Exception as e:
             logger.error(f"检查视觉重复时出错: {e}")
             return False, None, 0.0
+    
+    def _check_single_visual_similarity(self, msg_data: dict, visual_hashes: dict) -> Tuple[bool, Optional[int], float]:
+        """检查单个消息的视觉相似度 - 消除嵌套的辅助方法"""
+        try:
+            stored_visual_hash = msg_data.get('visual_hash')
+            if not stored_visual_hash:
+                return False, None, 0.0
+            
+            stored_hashes = self._parse_visual_hash(stored_visual_hash)
+            if not stored_hashes:
+                return False, None, 0.0
+            
+            is_similar, similarity = visual_detector.is_visually_similar(visual_hashes, stored_hashes)
+            if is_similar:
+                orig_msg_id = msg_data.get('message_id')
+                logger.info(f"发现视觉相似图片，消息ID: {orig_msg_id}, 相似度: {similarity:.1f}%")
+                return True, orig_msg_id, similarity
+            
+            return False, None, 0.0
+                        
+        except Exception as e:
+            logger.debug(f"比较视觉哈希时出错: {e}")
+            return False, None, 0.0
+    
+    def _parse_visual_hash(self, stored_visual_hash) -> Optional[dict]:
+        """解析存储的视觉哈希 - 简化嵌套逻辑"""
+        if isinstance(stored_visual_hash, str):
+            try:
+                return json.loads(stored_visual_hash)
+            except:
+                try:
+                    return eval(stored_visual_hash)  # 兼容旧格式
+                except:
+                    return None
+        return stored_visual_hash
     
     async def _check_media_duplicate(self, media_hash: Optional[str], 
                                     combined_media_hash: Optional[str],
@@ -344,49 +357,66 @@ class DuplicateDetectorFilter(BaseFilter):
             
             # 检查重复消息是否在时间窗口内且不是被拒绝的
             for dup_key in duplicate_keys:
-                try:
-                    if ':' not in dup_key:
-                        continue
-                    
-                    channel_id, dup_message_id = dup_key.split(':', 1)
-                    dup_message_id = int(dup_message_id)
-                    
-                    # 排除当前消息本身
-                    if message_id is not None and dup_message_id == message_id:
-                        continue
-                    
-                    # 获取重复消息的详细信息（静默模式，避免产生不必要的警告）
-                    dup_msg_data = self.redis_store.get_message(channel_id, dup_message_id, silent=True)
-                    if not dup_msg_data:
-                        # 消息不存在，从哈希索引中清理这个无效引用
-                        logger.debug(f"清理无效哈希索引引用: {dup_key}")
-                        pipe = self.redis_store.redis.pipeline()
-                        if media_hash:
-                            pipe.srem(f"msg:hash:media:{media_hash}", dup_key)
-                        if combined_media_hash:
-                            pipe.srem(f"msg:hash:media:{combined_media_hash}", dup_key)
-                        pipe.execute()
-                        continue
-                    
-                    # 检查状态（不考虑已拒绝的消息）
-                    if dup_msg_data.get('status') == 'rejected':
-                        continue
-                    
-                    # 检查时间是否在窗口内
-                    dup_msg = MessageCompat(dup_msg_data)
-                    if dup_msg.created_at >= time_threshold:
-                        logger.info(f"检测到媒体重复: 与消息ID {dup_message_id} 的媒体相同")
-                        return True, dup_message_id
-                        
-                except Exception as e:
-                    logger.debug(f"解析重复消息失败: {e}")
-                    continue
+                result = self._check_single_media_duplicate(
+                    dup_key, message_id, time_threshold, media_hash, combined_media_hash
+                )
+                if result[0]:  # is_duplicate
+                    return result
                 
             return False, None
             
         except Exception as e:
             logger.error(f"检查媒体重复时出错: {e}")
             return False, None
+    
+    def _check_single_media_duplicate(self, dup_key: str, message_id: Optional[int], 
+                                     time_threshold: datetime, media_hash: Optional[str], 
+                                     combined_media_hash: Optional[str]) -> Tuple[bool, Optional[int]]:
+        """检查单个媒体重复 - 消除嵌套的辅助方法"""
+        try:
+            if ':' not in dup_key:
+                return False, None
+            
+            channel_id, dup_message_id = dup_key.split(':', 1)
+            dup_message_id = int(dup_message_id)
+            
+            # 排除当前消息本身
+            if message_id is not None and dup_message_id == message_id:
+                return False, None
+            
+            # 获取重复消息的详细信息（静默模式，避免产生不必要的警告）
+            dup_msg_data = self.redis_store.get_message(channel_id, dup_message_id, silent=True)
+            if not dup_msg_data:
+                # 消息不存在，从哈希索引中清理这个无效引用
+                self._cleanup_invalid_hash_reference(dup_key, media_hash, combined_media_hash)
+                return False, None
+            
+            # 检查状态（不考虑已拒绝的消息）
+            if dup_msg_data.get('status') == 'rejected':
+                return False, None
+            
+            # 检查时间是否在窗口内
+            dup_msg = MessageCompat(dup_msg_data)
+            if dup_msg.created_at >= time_threshold:
+                logger.info(f"检测到媒体重复: 与消息ID {dup_message_id} 的媒体相同")
+                return True, dup_message_id
+            
+            return False, None
+                        
+        except Exception as e:
+            logger.debug(f"解析重复消息失败: {e}")
+            return False, None
+    
+    def _cleanup_invalid_hash_reference(self, dup_key: str, media_hash: Optional[str], 
+                                       combined_media_hash: Optional[str]):
+        """清理无效哈希索引引用 - 分离清理逻辑"""
+        logger.debug(f"清理无效哈希索引引用: {dup_key}")
+        pipe = self.redis_store.redis.pipeline()
+        if media_hash:
+            pipe.srem(f"msg:hash:media:{media_hash}", dup_key)
+        if combined_media_hash:
+            pipe.srem(f"msg:hash:media:{combined_media_hash}", dup_key)
+        pipe.execute()
     
     async def _check_text_duplicate(self, content: str, source_channel: Optional[str],
                                    message_time: datetime,
@@ -525,44 +555,62 @@ class DuplicateDetectorFilter(BaseFilter):
                 channel_id = channel_config.get('channel_id')
                 if not channel_id:
                     continue
-                try:
-                    # 获取该频道最近的消息（限制数量以提高性能）
-                    channel_messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
-                    
-                    for msg_data in channel_messages:
-                        try:
-                            # 检查是否有视觉哈希
-                            if not msg_data.get('visual_hash'):
-                                continue
-                            
-                            # 检查状态
-                            if msg_data.get('status') == 'rejected':
-                                continue
-                            
-                            # 检查时间
-                            msg = MessageCompat(msg_data)
-                            if msg.created_at < time_threshold:
-                                continue
-                            
-                            # 排除当前消息
-                            if exclude_message_id and msg_data.get('telegram_message_id') == exclude_message_id:
-                                continue
-                            
-                            messages.append(msg_data)
-                            
-                        except Exception as e:
-                            logger.debug(f"处理消息失败: {e}")
-                            continue
-                            
-                except Exception as e:
-                    logger.debug(f"处理频道 {channel_id} 失败: {e}")
-                    continue
+                
+                channel_messages = self._get_channel_visual_messages(
+                    channel_id, time_threshold, exclude_message_id
+                )
+                messages.extend(channel_messages)
             
             return messages
             
         except Exception as e:
             logger.error(f"获取视觉哈希消息失败: {e}")
             return []
+    
+    def _get_channel_visual_messages(self, channel_id: str, time_threshold: datetime, 
+                                    exclude_message_id: Optional[int]) -> List[Dict]:
+        """获取单个频道的视觉哈希消息 - 消除嵌套的辅助方法"""
+        try:
+            # 获取该频道最近的消息（限制数量以提高性能）
+            channel_messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
+            messages = []
+            
+            for msg_data in channel_messages:
+                if self._is_valid_visual_message(msg_data, time_threshold, exclude_message_id):
+                    messages.append(msg_data)
+            
+            return messages
+                            
+        except Exception as e:
+            logger.debug(f"处理频道 {channel_id} 失败: {e}")
+            return []
+    
+    def _is_valid_visual_message(self, msg_data: dict, time_threshold: datetime, 
+                                exclude_message_id: Optional[int]) -> bool:
+        """检查消息是否符合视觉检测条件 - 简化条件判断"""
+        try:
+            # 检查是否有视觉哈希
+            if not msg_data.get('visual_hash'):
+                return False
+            
+            # 检查状态
+            if msg_data.get('status') == 'rejected':
+                return False
+            
+            # 检查时间
+            msg = MessageCompat(msg_data)
+            if msg.created_at < time_threshold:
+                return False
+            
+            # 排除当前消息
+            if exclude_message_id and msg_data.get('telegram_message_id') == exclude_message_id:
+                return False
+            
+            return True
+                            
+        except Exception as e:
+            logger.debug(f"处理消息失败: {e}")
+            return False
     
     async def _get_recent_messages_with_content(self, time_start: datetime, time_end: datetime,
                                                exclude_message_id: Optional[int] = None) -> List[Dict]:
@@ -574,47 +622,75 @@ class DuplicateDetectorFilter(BaseFilter):
             all_channels = self.redis_store.redis.keys("msg:idx:*")
             
             for channel_key in all_channels:
-                if channel_key.startswith('msg:idx:') and not ':' in channel_key.split(':', 2)[2]:
-                    # 这是频道索引
-                    channel_id = channel_key.split(':', 2)[2]
+                if not self._is_valid_channel_key(channel_key):
+                    continue
                     
-                    # 获取最近200条消息（覆盖更大时间范围）
-                    recent_msg_ids = self.redis_store.redis.zrevrange(channel_key, 0, 199)
-                    
-                    for msg_id in recent_msg_ids:
-                        try:
-                            msg_data = self.redis_store.get_message(channel_id, int(msg_id), silent=True)
-                            if not msg_data:
-                                continue
-                            
-                            # 检查是否有文本内容
-                            if not msg_data.get('content'):
-                                continue
-                            
-                            # 检查状态
-                            if msg_data.get('status') == 'rejected':
-                                continue
-                            
-                            # 检查时间范围
-                            msg = MessageCompat(msg_data)
-                            if not (time_start <= msg.created_at <= time_end):
-                                continue
-                            
-                            # 排除当前消息
-                            if exclude_message_id and msg_data.get('message_id') == exclude_message_id:
-                                continue
-                            
-                            messages.append(msg_data)
-                            
-                        except Exception as e:
-                            logger.debug(f"处理消息失败: {e}")
-                            continue
+                channel_id = channel_key.split(':', 2)[2]
+                channel_messages = self._get_channel_content_messages(
+                    channel_key, channel_id, time_start, time_end, exclude_message_id
+                )
+                messages.extend(channel_messages)
             
             return messages
             
         except Exception as e:
             logger.error(f"获取文本消息失败: {e}")
             return []
+    
+    def _is_valid_channel_key(self, channel_key: str) -> bool:
+        """检查是否是有效的频道键 - 消除特殊情况判断"""
+        return (channel_key.startswith('msg:idx:') and 
+                not ':' in channel_key.split(':', 2)[2])
+    
+    def _get_channel_content_messages(self, channel_key: str, channel_id: str,
+                                     time_start: datetime, time_end: datetime,
+                                     exclude_message_id: Optional[int]) -> List[Dict]:
+        """获取单个频道的文本消息 - 消除嵌套的辅助方法"""
+        messages = []
+        
+        # 获取最近200条消息（覆盖更大时间范围）
+        recent_msg_ids = self.redis_store.redis.zrevrange(channel_key, 0, 199)
+        
+        for msg_id in recent_msg_ids:
+            msg_data = self._get_and_validate_content_message(
+                channel_id, int(msg_id), time_start, time_end, exclude_message_id
+            )
+            if msg_data:
+                messages.append(msg_data)
+        
+        return messages
+    
+    def _get_and_validate_content_message(self, channel_id: str, msg_id: int,
+                                         time_start: datetime, time_end: datetime,
+                                         exclude_message_id: Optional[int]) -> Optional[Dict]:
+        """获取并验证单个文本消息 - 简化验证逻辑"""
+        try:
+            msg_data = self.redis_store.get_message(channel_id, msg_id, silent=True)
+            if not msg_data:
+                return None
+            
+            # 检查是否有文本内容
+            if not msg_data.get('content'):
+                return None
+            
+            # 检查状态
+            if msg_data.get('status') == 'rejected':
+                return None
+            
+            # 检查时间范围
+            msg = MessageCompat(msg_data)
+            if not (time_start <= msg.created_at <= time_end):
+                return None
+            
+            # 排除当前消息
+            if exclude_message_id and msg_data.get('message_id') == exclude_message_id:
+                return None
+            
+            return msg_data
+                            
+        except Exception as e:
+            logger.debug(f"处理消息失败: {e}")
+            return None
     
     def _get_detection_method_details(self, duplicate_type: str) -> Dict[str, any]:
         """获取检测方法的详细信息"""
