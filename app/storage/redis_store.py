@@ -1,872 +1,65 @@
 """
-Redis数据存储层
+Redis数据存储层 - 重构后的统一入口点
 处理消息、会话、缓存等数据的存储
+
+本模块经过重构，将原有的903行代码拆分为专门化的模块：
+- redis_client.py: Redis客户端连接和基础操作
+- message_store.py: 消息数据存储操作
+- session_store.py: 会话存储操作
+- channel_store.py: 频道状态管理
+- cache_store.py: 缓存操作
+- lock_manager.py: 分布式锁管理
+
+该文件保持向后兼容性，提供统一的API接口
 """
-import json
 import logging
-import redis
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
-from app.utils.timezone import get_current_time
+
+# 导入重构后的专门化模块
+from .redis_client import get_redis_client, RedisBaseStore
+from .message_store import RedisMessageStore
+from .session_store import RedisSessionStore
+from .channel_store import RedisChannelStore
+from .cache_store import RedisCacheStore
+from .lock_manager import RedisLockManager
 
 logger = logging.getLogger(__name__)
 
-# 全局Redis连接池，避免重复创建连接
-_redis_pool = None
-_redis_client = None
+# 保持向后兼容的类名映射
+class RedisStore(RedisBaseStore):
+    """Redis存储基类 - 向后兼容"""
+    pass
 
-def get_redis_client(redis_url: str = "redis://localhost:6379"):
-    """获取Redis客户端，使用连接池模式"""
-    global _redis_pool, _redis_client
-    
-    if _redis_client is None:
-        try:
-            # 创建连接池
-            _redis_pool = redis.ConnectionPool.from_url(
-                redis_url, 
-                decode_responses=True,
-                max_connections=20,  # 最大连接数
-                retry_on_timeout=True
-            )
-            _redis_client = redis.Redis(connection_pool=_redis_pool)
-            
-            # 测试连接
-            _redis_client.ping()
-            logger.info("Redis连接池初始化成功")
-            
-        except Exception as e:
-            logger.error(f"Redis连接池初始化失败: {e}")
-            raise
-    
-    return _redis_client
-
-class RedisStore:
-    """Redis存储基类"""
-    
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
-        # 使用共享的Redis连接池
-        self.redis = get_redis_client(redis_url)
-        logger.debug(f"Redis存储实例已创建: {self.__class__.__name__}")
-    
-    def _serialize_json(self, data: Any) -> str:
-        """序列化JSON数据"""
-        if isinstance(data, (dict, list)):
-            return json.dumps(data, ensure_ascii=False, default=str)
-        return str(data)
-    
-    def _deserialize_json(self, data: str) -> Any:
-        """反序列化JSON数据"""
-        if not data:
-            return None
-        try:
-            return json.loads(data)
-        except (json.JSONDecodeError, TypeError):
-            # 如果不是JSON，返回原始数据
-            return data
-
-class RedisMessageStore(RedisStore):
-    """消息存储管理"""
-    
-    # 过期时间配置
-    MESSAGE_TTL = 30 * 24 * 3600  # 30天
-    INDEX_TTL = 90 * 24 * 3600    # 索引保留90天
-    
-    def save_message(self, channel_id: str, message_id: int, data: Dict[str, Any]) -> bool:
-        """保存消息"""
-        try:
-            msg_key = f"msg:{channel_id}:{message_id}"
-            
-            # 准备存储数据
-            redis_data = {}
-            for key, value in data.items():
-                if isinstance(value, (dict, list)):
-                    redis_data[key] = self._serialize_json(value)
-                elif value is not None:
-                    redis_data[key] = str(value)
-            
-            # 添加时间戳
-            now = get_current_time()
-            timestamp = now.timestamp()
-            redis_data['created_at'] = now.isoformat()
-            redis_data['updated_at'] = now.isoformat()
-            
-            # 使用pipeline进行原子操作
-            pipe = self.redis.pipeline()
-            
-            # 存储消息数据
-            pipe.hset(msg_key, mapping=redis_data)
-            pipe.expire(msg_key, self.MESSAGE_TTL)
-            
-            # 添加到各种索引
-            pipe.zadd(f"msg:idx:{channel_id}", {str(message_id): timestamp})
-            
-            # 根据状态添加到相应索引
-            status = data.get('status', 'pending')
-            if status == 'pending':
-                pipe.zadd("msg:idx:pending", {f"{channel_id}:{message_id}": timestamp})
-            elif status == 'approved':
-                pipe.zadd("msg:idx:approved", {f"{channel_id}:{message_id}": timestamp})
-            elif status == 'rejected':
-                pipe.zadd("msg:idx:rejected", {f"{channel_id}:{message_id}": timestamp})
-            elif status == 'auto_forwarded':
-                pipe.zadd("msg:idx:auto_forwarded", {f"{channel_id}:{message_id}": timestamp})
-            
-            # 更新计数器
-            pipe.incr(f"msg:count:{channel_id}:total")
-            pipe.incr(f"msg:count:{channel_id}:{status}")
-            pipe.incr("msg:count:global:today")
-            
-            # 如果有媒体哈希，添加到哈希索引
-            if data.get('media_hash'):
-                pipe.sadd(f"msg:hash:media:{data['media_hash']}", f"{channel_id}:{message_id}")
-            
-            if data.get('visual_hash'):
-                pipe.sadd(f"msg:hash:visual:{data['visual_hash']}", f"{channel_id}:{message_id}")
-            
-            # 如果是组合消息，添加到组合索引
-            if data.get('grouped_id'):
-                pipe.sadd(f"msg:group:{data['grouped_id']}", f"{channel_id}:{message_id}")
-            
-            # 执行pipeline
-            pipe.execute()
-            
-            logger.debug(f"消息已保存: {channel_id}:{message_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"保存消息失败 {channel_id}:{message_id}: {e}")
-            return False
-    
-    def get_message(self, channel_id: str, message_id: int, silent: bool = False) -> Optional[Dict[str, Any]]:
-        """获取单条消息
-        
-        Args:
-            channel_id: 频道ID
-            message_id: 消息ID  
-            silent: 静默模式，不输出"消息不存在"的警告（用于存在性检查）
-        """
-        msg_key = f"msg:{channel_id}:{message_id}"
-        try:
-            logger.debug(f"获取消息: {msg_key}")
-            data = self.redis.hgetall(msg_key)
-            
-            if not data:
-                if not silent:
-                    logger.warning(f"消息不存在于Redis: {msg_key}")
-                return None
-            
-            logger.debug(f"Redis原始数据字段: {list(data.keys())}")
-            
-            # 反序列化JSON字段
-            json_fields = ['entities', 'removed_hidden_links', 'combined_messages', 
-                          'media_group', 'visual_hash', 'ocr_text', 'qr_codes']
-            
-            for field in json_fields:
-                if field in data:
-                    try:
-                        data[field] = self._deserialize_json(data[field])
-                        logger.debug(f"成功反序列化JSON字段: {field}")
-                    except Exception as e:
-                        logger.warning(f"反序列化JSON字段 {field} 失败: {e}, 将设为空值")
-                        data[field] = [] if field in ['entities', 'removed_hidden_links', 'combined_messages', 'media_group', 'qr_codes'] else {}
-            
-            # 转换数值字段
-            int_fields = ['message_id', 'review_message_id', 'target_message_id', 'ocr_ad_score']
-            for field in int_fields:
-                if field in data and data[field]:
-                    try:
-                        data[field] = int(data[field])
-                        logger.debug(f"成功转换数值字段: {field} = {data[field]}")
-                    except (ValueError, TypeError) as e:
-                        logger.warning(f"转换数值字段 {field} 失败: {e}, 原值: {data[field]}")
-                        # 保持原值，不进行转换
-            
-            # 转换布尔字段
-            bool_fields = ['is_combined', 'is_ad', 'ocr_processed']
-            for field in bool_fields:
-                if field in data:
-                    try:
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8')
-                        data[field] = data[field].lower() == 'true' if data[field] else False
-                        logger.debug(f"成功转换布尔字段: {field} = {data[field]}")
-                    except Exception as e:
-                        logger.warning(f"转换布尔字段 {field} 失败: {e}, 原值: {data[field]}")
-                        data[field] = False
-            
-            # 确保关键字段存在
-            if 'source_channel' not in data:
-                data['source_channel'] = channel_id
-            if 'message_id' not in data:
-                data['message_id'] = message_id
-            
-            logger.debug(f"成功获取并处理消息: {msg_key}")
-            return data
-            
-        except Exception as e:
-            logger.error(f"获取消息失败 {msg_key}: {e}", exc_info=True)
-            # 尝试提供基本的消息数据
-            try:
-                basic_data = self.redis.hgetall(msg_key)
-                if basic_data:
-                    logger.info(f"返回基本消息数据: {msg_key}")
-                    return {
-                        'source_channel': channel_id,
-                        'message_id': message_id,
-                        'content': basic_data.get('content', ''),
-                        'filtered_content': basic_data.get('filtered_content', ''),
-                        'status': basic_data.get('status', 'pending'),
-                        'created_at': basic_data.get('created_at', ''),
-                        'is_ad': False,
-                        'is_combined': False,
-                        'entities': [],
-                        'removed_hidden_links': []
-                    }
-            except Exception as basic_e:
-                logger.error(f"连基本数据也无法获取: {basic_e}")
-            
-            return None
-    
-    def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取频道消息列表"""
-        try:
-            # 从索引获取消息ID列表（按时间倒序）
-            msg_ids = self.redis.zrevrange(f"msg:idx:{channel_id}", offset, offset + limit - 1)
-            
-            messages = []
-            invalid_ids = []  # 记录无效的消息ID
-            
-            for msg_id in msg_ids:
-                msg_data = self.get_message(channel_id, int(msg_id), silent=True)
-                if msg_data:
-                    messages.append(msg_data)
-                else:
-                    # 记录无效ID，但不立即清理（避免在遍历时修改索引）
-                    invalid_ids.append(msg_id)
-            
-            # 批量清理无效的索引条目
-            if invalid_ids:
-                logger.info(f"清理频道 {channel_id} 中 {len(invalid_ids)} 个无效的索引条目")
-                pipe = self.redis.pipeline()
-                for invalid_id in invalid_ids:
-                    pipe.zrem(f"msg:idx:{channel_id}", invalid_id)
-                pipe.execute()
-            
-            return messages
-            
-        except Exception as e:
-            logger.error(f"获取频道消息失败 {channel_id}: {e}")
-            return []
-    
-    def get_pending_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取待审核消息"""
-        try:
-            # 从待审核索引获取消息，支持分页
-            pending_keys = self.redis.zrevrange("msg:idx:pending", offset, offset + limit - 1)
-            
-            messages = []
-            invalid_keys = []
-            
-            for key in pending_keys:
-                try:
-                    channel_id, message_id = key.split(':', 1)
-                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
-                    if msg_data:
-                        messages.append(msg_data)
-                    else:
-                        invalid_keys.append(key)
-                except Exception as e:
-                    logger.debug(f"处理待审核消息键失败 {key}: {e}")
-                    invalid_keys.append(key)
-            
-            # 清理无效的待审核索引条目
-            if invalid_keys:
-                logger.info(f"清理 {len(invalid_keys)} 个无效的待审核消息索引条目")
-                pipe = self.redis.pipeline()
-                for invalid_key in invalid_keys:
-                    pipe.zrem("msg:idx:pending", invalid_key)
-                pipe.execute()
-            
-            return messages
-            
-        except Exception as e:
-            logger.error(f"获取待审核消息失败: {e}")
-            return []
-    
-    def get_messages_by_status(self, status: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """按状态获取消息列表"""
-        try:
-            # 从状态索引获取消息，支持分页
-            status_keys = self.redis.zrevrange(f"msg:idx:{status}", offset, offset + limit - 1)
-            
-            messages = []
-            for key in status_keys:
-                if ':' in key:
-                    channel_id, message_id = key.split(':', 1)
-                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
-                    if msg_data:
-                        messages.append(msg_data)
-            
-            return messages
-            
-        except Exception as e:
-            logger.error(f"按状态获取消息失败 {status}: {e}")
-            return []
-    
-    def get_all_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取所有消息列表"""
-        try:
-            # 获取所有消息key，支持分页
-            all_msg_keys = self.redis.keys("msg:*:*")
-            # 过滤出索引和计数器key，只保留消息数据key
-            msg_keys = [key for key in all_msg_keys 
-                       if not key.startswith('msg:idx:') 
-                       and not key.startswith('msg:count:') 
-                       and not key.startswith('msg:hash:') 
-                       and not key.startswith('msg:group:')]
-            
-            # 按时间排序（获取创建时间并排序）
-            msg_with_time = []
-            for key in msg_keys:
-                created_at = self.redis.hget(key, 'created_at')
-                if created_at:
-                    try:
-                        timestamp = datetime.fromisoformat(created_at.replace('Z', '+00:00')).timestamp()
-                        msg_with_time.append((key, timestamp))
-                    except:
-                        msg_with_time.append((key, 0))  # 默认时间
-            
-            # 按时间倒序排列
-            msg_with_time.sort(key=lambda x: x[1], reverse=True)
-            
-            # 支持分页：跳过offset，取limit数量
-            selected_keys = [item[0] for item in msg_with_time[offset:offset + limit]]
-            
-            messages = []
-            for key in selected_keys:
-                # 从 key 中提取 channel_id 和 message_id
-                parts = key.split(':')
-                if len(parts) == 3:  # msg:channel_id:message_id
-                    channel_id, message_id = parts[1], parts[2]
-                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
-                    if msg_data:
-                        messages.append(msg_data)
-            
-            return messages
-            
-        except Exception as e:
-            logger.error(f"获取所有消息失败: {e}")
-            return []
-    
-    def update_message_status(self, channel_id: str, message_id: int, new_status: str, 
-                            reviewed_by: str = None) -> bool:
-        """更新消息状态"""
-        try:
-            msg_key = f"msg:{channel_id}:{message_id}"
-            
-            # 检查消息是否存在
-            if not self.redis.exists(msg_key):
-                logger.warning(f"消息不存在: {channel_id}:{message_id}")
-                return False
-            
-            # 获取当前状态
-            old_status = self.redis.hget(msg_key, 'status') or 'pending'
-            
-            pipe = self.redis.pipeline()
-            
-            # 更新消息数据
-            update_data = {
-                'status': new_status,
-                'updated_at': get_current_time().isoformat()
-            }
-            
-            if reviewed_by:
-                update_data['reviewed_by'] = reviewed_by
-                update_data['review_time'] = get_current_time().isoformat()
-            
-            pipe.hset(msg_key, mapping=update_data)
-            
-            # 更新索引
-            timestamp = datetime.now().timestamp()
-            key = f"{channel_id}:{message_id}"
-            
-            # 从旧状态索引移除
-            pipe.zrem(f"msg:idx:{old_status}", key)
-            
-            # 添加到新状态索引
-            pipe.zadd(f"msg:idx:{new_status}", {key: timestamp})
-            
-            # 更新计数器
-            if old_status != new_status:
-                pipe.decr(f"msg:count:{channel_id}:{old_status}")
-                pipe.incr(f"msg:count:{channel_id}:{new_status}")
-            
-            pipe.execute()
-            
-            logger.debug(f"消息状态已更新: {channel_id}:{message_id} {old_status} -> {new_status}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"更新消息状态失败 {channel_id}:{message_id}: {e}")
-            return False
-    
-    async def update_message_review_id(self, channel_id: str, message_id: int, review_message_id: int) -> bool:
-        """更新消息的审核消息ID"""
-        try:
-            msg_key = f"msg:{channel_id}:{message_id}"
-            
-            # 检查消息是否存在
-            if not self.redis.exists(msg_key):
-                logger.warning(f"消息不存在: {channel_id}:{message_id}")
-                return False
-            
-            # 更新review_message_id
-            update_data = {
-                'review_message_id': review_message_id,
-                'updated_at': get_current_time().isoformat()
-            }
-            
-            self.redis.hset(msg_key, mapping=update_data)
-            return True
-            
-        except Exception as e:
-            logger.error(f"更新消息审核ID失败 {channel_id}:{message_id}: {e}")
-            return False
-    
-    async def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:
-        """更新消息的任意字段"""
-        try:
-            msg_key = f"msg:{channel_id}:{message_id}"
-            
-            # 检查消息是否存在
-            if not self.redis.exists(msg_key):
-                logger.warning(f"消息不存在: {channel_id}:{message_id}")
-                return False
-            
-            # 更新字段
-            update_data = {
-                field: self._serialize_json(value) if isinstance(value, (dict, list)) else str(value),
-                'updated_at': get_current_time().isoformat()
-            }
-            
-            self.redis.hset(msg_key, mapping=update_data)
-            return True
-            
-        except Exception as e:
-            logger.error(f"更新消息字段失败 {channel_id}:{message_id}.{field}: {e}")
-            return False
-    
-    async def update_message(self, channel_id: str, message_id: int, update_data: dict) -> bool:
-        """更新消息的多个字段"""
-        try:
-            msg_key = f"msg:{channel_id}:{message_id}"
-            
-            # 检查消息是否存在
-            if not self.redis.exists(msg_key):
-                logger.warning(f"消息不存在: {channel_id}:{message_id}")
-                return False
-            
-            # 准备更新数据
-            redis_update_data = {}
-            for field, value in update_data.items():
-                if isinstance(value, (dict, list)):
-                    redis_update_data[field] = self._serialize_json(value)
-                else:
-                    redis_update_data[field] = str(value)
-            
-            # 添加更新时间
-            redis_update_data['updated_at'] = get_current_time().isoformat()
-            
-            self.redis.hset(msg_key, mapping=redis_update_data)
-            return True
-            
-        except Exception as e:
-            logger.error(f"更新消息失败 {channel_id}:{message_id}: {e}")
-            return False
-    
-    def delete_message(self, channel_id: str, message_id: int) -> bool:
-        """删除消息"""
-        try:
-            msg_key = f"msg:{channel_id}:{message_id}"
-            
-            # 获取消息数据用于清理索引
-            msg_data = self.get_message(channel_id, message_id)
-            if not msg_data:
-                return False
-            
-            pipe = self.redis.pipeline()
-            
-            # 删除消息数据
-            pipe.delete(msg_key)
-            
-            # 从各种索引中移除
-            pipe.zrem(f"msg:idx:{channel_id}", str(message_id))
-            
-            status = msg_data.get('status', 'pending')
-            pipe.zrem(f"msg:idx:{status}", f"{channel_id}:{message_id}")
-            
-            # 更新计数器
-            pipe.decr(f"msg:count:{channel_id}:total")
-            pipe.decr(f"msg:count:{channel_id}:{status}")
-            
-            # 清理哈希索引
-            if msg_data.get('media_hash'):
-                pipe.srem(f"msg:hash:media:{msg_data['media_hash']}", f"{channel_id}:{message_id}")
-            
-            # 清理组合消息索引
-            if msg_data.get('grouped_id'):
-                pipe.srem(f"msg:group:{msg_data['grouped_id']}", f"{channel_id}:{message_id}")
-            
-            pipe.execute()
-            
-            logger.debug(f"消息已删除: {channel_id}:{message_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"删除消息失败 {channel_id}:{message_id}: {e}")
-            return False
-    
-    def get_message_count(self, channel_id: str = None, status: str = None) -> int:
-        """获取消息计数"""
-        try:
-            if channel_id and status:
-                key = f"msg:count:{channel_id}:{status}"
-            elif channel_id:
-                key = f"msg:count:{channel_id}:total"
-            elif status:
-                # 全局状态计数需要遍历所有频道
-                pattern = f"msg:count:*:{status}"
-                keys = self.redis.keys(pattern)
-                total = 0
-                for key in keys:
-                    count = self.redis.get(key)
-                    if count:
-                        total += int(count)
-                return total
-            else:
-                key = "msg:count:global:today"
-            
-            count = self.redis.get(key)
-            return int(count) if count else 0
-            
-        except Exception as e:
-            logger.error(f"获取消息计数失败: {e}")
-            return 0
-    
-    def find_duplicate_by_hash(self, media_hash: str) -> List[str]:
-        """根据媒体哈希查找重复消息"""
-        try:
-            return list(self.redis.smembers(f"msg:hash:media:{media_hash}"))
-        except Exception as e:
-            logger.error(f"查找重复消息失败: {e}")
-            return []
-    
-    def cleanup_expired_indexes(self):
-        """清理过期的索引"""
-        try:
-            # 清理今日计数器
-            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
-            self.redis.delete(f"msg:count:global:today:{yesterday}")
-            
-            # 清理过期的状态索引（保留最近30天）
-            cutoff_time = (datetime.now() - timedelta(days=30)).timestamp()
-            
-            for status in ['pending', 'approved', 'rejected']:
-                self.redis.zremrangebyscore(f"msg:idx:{status}", 0, cutoff_time)
-            
-            logger.debug("索引清理完成")
-            
-        except Exception as e:
-            logger.error(f"索引清理失败: {e}")
-            
-    def cleanup_invalid_indexes(self):
-        """清理无效的索引条目（指向不存在消息的索引）"""
-        try:
-            logger.info("开始清理无效的索引条目...")
-            cleaned_count = 0
-            
-            # 获取所有频道索引
-            channel_indexes = self.redis.keys("msg:idx:-*")
-            
-            for index_key in channel_indexes:
-                try:
-                    # 获取频道ID
-                    channel_id = index_key.decode('utf-8').replace("msg:idx:", "")
-                    
-                    # 获取该频道索引中的所有消息ID
-                    msg_ids = self.redis.zrange(index_key, 0, -1)
-                    invalid_ids = []
-                    
-                    # 检查每个消息是否存在
-                    for msg_id in msg_ids:
-                        msg_key = f"msg:{channel_id}:{msg_id.decode('utf-8')}"
-                        if not self.redis.exists(msg_key):
-                            invalid_ids.append(msg_id)
-                    
-                    # 批量删除无效索引
-                    if invalid_ids:
-                        pipe = self.redis.pipeline()
-                        for invalid_id in invalid_ids:
-                            pipe.zrem(index_key, invalid_id)
-                        pipe.execute()
-                        cleaned_count += len(invalid_ids)
-                        logger.debug(f"从 {channel_id} 清理了 {len(invalid_ids)} 个无效索引")
-                        
-                except Exception as e:
-                    logger.warning(f"清理索引 {index_key} 时出错: {e}")
-                    continue
-            
-            # 清理状态索引
-            for status in ['pending', 'approved', 'rejected', 'auto_forwarded']:
-                try:
-                    status_keys = self.redis.zrange(f"msg:idx:{status}", 0, -1)
-                    invalid_keys = []
-                    
-                    for key in status_keys:
-                        try:
-                            channel_id, message_id = key.decode('utf-8').split(':', 1)
-                            msg_key = f"msg:{channel_id}:{message_id}"
-                            if not self.redis.exists(msg_key):
-                                invalid_keys.append(key)
-                        except ValueError:
-                            invalid_keys.append(key)  # 格式错误的键也删除
-                    
-                    if invalid_keys:
-                        pipe = self.redis.pipeline()
-                        for invalid_key in invalid_keys:
-                            pipe.zrem(f"msg:idx:{status}", invalid_key)
-                        pipe.execute()
-                        cleaned_count += len(invalid_keys)
-                        logger.debug(f"从状态索引 {status} 清理了 {len(invalid_keys)} 个无效条目")
-                        
-                except Exception as e:
-                    logger.warning(f"清理状态索引 {status} 时出错: {e}")
-            
-            if cleaned_count > 0:
-                logger.info(f"索引清理完成，共清理了 {cleaned_count} 个无效条目")
-            else:
-                logger.debug("没有发现需要清理的无效索引条目")
-                
-        except Exception as e:
-            logger.error(f"清理无效索引失败: {e}")
-    
-    async def get_old_messages_for_cleanup(self, cutoff_time):
-        """获取需要清理的旧消息"""
-        try:
-            # 获取所有已完成状态的消息
-            old_messages = []
-            
-            for status in ['approved', 'rejected', 'auto_forwarded']:
-                # 获取指定状态的所有消息
-                message_keys = self.redis.zrange(f"msg:idx:{status}", 0, -1)
-                
-                for key in message_keys:
-                    if ':' not in key:
-                        continue
-                    
-                    channel_id, message_id = key.split(':', 1)
-                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
-                    
-                    if not msg_data:
-                        continue
-                    
-                    # 检查消息是否足够旧
-                    created_at = msg_data.get('created_at')
-                    review_time = msg_data.get('review_time') 
-                    forwarded_time = msg_data.get('forwarded_time')
-                    
-                    # 解析时间字符串
-                    times_to_check = []
-                    for time_str in [created_at, review_time, forwarded_time]:
-                        if time_str:
-                            try:
-                                time_obj = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-                                times_to_check.append(time_obj)
-                            except:
-                                continue
-                    
-                    # 如果任何时间早于cutoff_time，则加入清理列表
-                    if times_to_check and any(t < cutoff_time for t in times_to_check):
-                        # 构造消息对象以兼容原有清理逻辑
-                        message_obj = type('Message', (), {
-                            'channel_id': channel_id,
-                            'message_id': int(message_id),
-                            'status': msg_data.get('status'),
-                            'media_url': msg_data.get('media_url'),
-                            'created_at': created_at,
-                            'review_time': review_time,
-                            'forwarded_time': forwarded_time
-                        })()
-                        old_messages.append(message_obj)
-            
-            return old_messages
-            
-        except Exception as e:
-            logger.error(f"获取旧消息失败: {e}")
-            return []
-
-class RedisSessionStore(RedisStore):
-    """会话管理存储"""
-    
-    def save_session(self, token: str, session_data: Dict[str, Any], expire_seconds: int = 3600) -> bool:
-        """保存会话"""
-        try:
-            session_key = f"session:{token}"
-            session_json = self._serialize_json(session_data)
-            
-            # 设置会话数据和过期时间
-            self.redis.setex(session_key, expire_seconds, session_json)
-            
-            # 更新最后活动时间
-            self.redis.hset(f"session:activity", token, get_current_time().isoformat())
-            
-            logger.debug(f"会话已保存: {token}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"保存会话失败 {token}: {e}")
-            return False
-    
-    def get_session(self, token: str) -> Optional[Dict[str, Any]]:
-        """获取会话"""
-        try:
-            session_key = f"session:{token}"
-            session_data = self.redis.get(session_key)
-            
-            if not session_data:
-                return None
-            
-            # 更新最后活动时间
-            self.redis.hset(f"session:activity", token, get_current_time().isoformat())
-            
-            return self._deserialize_json(session_data)
-            
-        except Exception as e:
-            logger.error(f"获取会话失败 {token}: {e}")
-            return None
-    
-    def delete_session(self, token: str) -> bool:
-        """删除会话"""
-        try:
-            session_key = f"session:{token}"
-            self.redis.delete(session_key)
-            self.redis.hdel("session:activity", token)
-            
-            logger.debug(f"会话已删除: {token}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"删除会话失败 {token}: {e}")
-            return False
-    
-    def get_active_sessions(self) -> List[str]:
-        """获取所有活跃会话"""
-        try:
-            return [key.replace('session:', '') for key in self.redis.keys('session:*') 
-                   if ':' in key and not key.endswith(':activity')]
-        except Exception as e:
-            logger.error(f"获取活跃会话失败: {e}")
-            return []
-
-class RedisChannelStore(RedisStore):
-    """频道状态管理"""
-    
-    def set_checkpoint(self, channel_id: str, last_message_id: int) -> bool:
-        """设置频道采集点"""
-        try:
-            self.redis.hset(f"channel:checkpoint", channel_id, str(last_message_id))
-            self.redis.hset(f"channel:checkpoint:time", channel_id, get_current_time().isoformat())
-            
-            logger.debug(f"采集点已更新: {channel_id} -> {last_message_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"设置采集点失败 {channel_id}: {e}")
-            return False
-    
-    def get_checkpoint(self, channel_id: str) -> Optional[int]:
-        """获取频道采集点"""
-        try:
-            checkpoint = self.redis.hget("channel:checkpoint", channel_id)
-            return int(checkpoint) if checkpoint else None
-            
-        except Exception as e:
-            logger.error(f"获取采集点失败 {channel_id}: {e}")
-            return None
-    
-    def get_all_checkpoints(self) -> Dict[str, int]:
-        """获取所有频道采集点"""
-        try:
-            checkpoints = self.redis.hgetall("channel:checkpoint")
-            return {k: int(v) for k, v in checkpoints.items()}
-            
-        except Exception as e:
-            logger.error(f"获取所有采集点失败: {e}")
-            return {}
-    
-    def delete_checkpoint(self, channel_id: str) -> bool:
-        """删除频道采集点"""
-        try:
-            self.redis.hdel("channel:checkpoint", channel_id)
-            self.redis.hdel("channel:checkpoint:time", channel_id)
-            logger.debug(f"已删除频道采集点: {channel_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"删除采集点失败 {channel_id}: {e}")
-            return False
-    
-    def get_checkpoint_time(self, channel_id: str) -> Optional[str]:
-        """获取频道采集点更新时间"""
-        try:
-            checkpoint_time = self.redis.hget("channel:checkpoint:time", channel_id)
-            if checkpoint_time:
-                # 如果是bytes类型需要decode，如果是字符串直接返回
-                return checkpoint_time.decode() if isinstance(checkpoint_time, bytes) else checkpoint_time
-            return None
-            
-        except Exception as e:
-            logger.error(f"获取采集点时间失败 {channel_id}: {e}")
-            return None
-    
-    def get_checkpoint_info(self, channel_id: str) -> Dict[str, any]:
-        """获取频道采集点完整信息"""
-        try:
-            checkpoint = self.get_checkpoint(channel_id)
-            checkpoint_time = self.get_checkpoint_time(channel_id)
-            
-            return {
-                'channel_id': channel_id,
-                'checkpoint': checkpoint,
-                'updated_at': checkpoint_time,
-                'exists': checkpoint is not None
-            }
-            
-        except Exception as e:
-            logger.error(f"获取采集点信息失败 {channel_id}: {e}")
-            return {'channel_id': channel_id, 'checkpoint': None, 'updated_at': None, 'exists': False}
-
-# 全局实例
+# 全局实例变量（保持原有API）
 redis_message_store = None
 redis_session_store = None 
 redis_channel_store = None
+redis_cache_store = None
+redis_lock_manager = None
 
 def init_redis_stores(redis_url: str = "redis://localhost:6379"):
-    """初始化Redis存储实例 - 单例模式，避免重复初始化"""
+    """初始化Redis存储实例 - 单例模式，避免重复初始化
+    
+    这个函数保持与原有API完全兼容
+    """
     global redis_message_store, redis_session_store, redis_channel_store
+    global redis_cache_store, redis_lock_manager
     
     # 检查是否已经初始化
-    if redis_message_store is not None and redis_session_store is not None and redis_channel_store is not None:
+    if (redis_message_store is not None and redis_session_store is not None and 
+        redis_channel_store is not None):
         logger.debug("Redis存储层已经初始化，跳过重复初始化")
         return True
     
     try:
-        # 创建3个存储实例（共享连接池）
+        # 创建专门化的存储实例（共享连接池）
         redis_message_store = RedisMessageStore(redis_url)
         redis_session_store = RedisSessionStore(redis_url)
         redis_channel_store = RedisChannelStore(redis_url)
+        redis_cache_store = RedisCacheStore(redis_url)
+        redis_lock_manager = RedisLockManager(redis_url)
         
-        logger.info("Redis存储层初始化成功 (消息、会话、频道存储)")
+        logger.info("Redis存储层初始化成功 (消息、会话、频道、缓存、锁管理)")
         return True
         
     except Exception as e:
@@ -891,8 +84,20 @@ def get_redis_channel_store() -> RedisChannelStore:
         raise RuntimeError("Redis存储层未初始化")
     return redis_channel_store
 
+def get_redis_cache_store() -> RedisCacheStore:
+    """获取缓存存储实例"""
+    if redis_cache_store is None:
+        raise RuntimeError("Redis存储层未初始化")
+    return redis_cache_store
+
+def get_redis_lock_manager() -> RedisLockManager:
+    """获取锁管理器实例"""
+    if redis_lock_manager is None:
+        raise RuntimeError("Redis存储层未初始化")
+    return redis_lock_manager
+
 def get_redis_store() -> RedisStore:
-    """获取基础Redis存储实例"""
+    """获取基础Redis存储实例 - 向后兼容"""
     if redis_message_store is None:
         raise RuntimeError("Redis存储层未初始化")
     return redis_message_store
@@ -902,3 +107,283 @@ async def get_async_redis_client():
     if redis_message_store is None:
         return None
     return redis_message_store.redis
+
+# ============================================================================
+# 向后兼容的API - 保持原有接口不变
+# ============================================================================
+
+# 为了完全向后兼容，我们需要重新暴露所有原有的类
+# 但现在它们指向重构后的专门化类
+
+# 将原有的类重新导出，保持API兼容性
+RedisMessageStore = RedisMessageStore
+RedisSessionStore = RedisSessionStore  
+RedisChannelStore = RedisChannelStore
+
+# 同时提供一个统一的兼容接口
+class UnifiedRedisStore(RedisStore):
+    """统一的Redis存储接口 - 向后兼容
+    
+    这个类提供了一个统一的接口来访问所有重构后的模块
+    保持与原有代码的完全兼容性
+    """
+    
+    def __init__(self, redis_url: str = "redis://localhost:6379"):
+        super().__init__(redis_url)
+        
+        # 初始化所有专门化模块
+        self.message_store = RedisMessageStore(redis_url)
+        self.session_store = RedisSessionStore(redis_url)
+        self.channel_store = RedisChannelStore(redis_url)
+        self.cache_store = RedisCacheStore(redis_url)
+        self.lock_manager = RedisLockManager(redis_url)
+    
+    # ========= 消息存储方法代理 =========
+    def save_message(self, channel_id: str, message_id: int, data: Dict[str, Any]) -> bool:
+        return self.message_store.save_message(channel_id, message_id, data)
+    
+    def get_message(self, channel_id: str, message_id: int, silent: bool = False) -> Optional[Dict[str, Any]]:
+        return self.message_store.get_message(channel_id, message_id, silent)
+    
+    def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        return self.message_store.get_messages_by_channel(channel_id, limit, offset)
+    
+    def get_pending_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        return self.message_store.get_pending_messages(limit, offset)
+    
+    def get_messages_by_status(self, status: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        return self.message_store.get_messages_by_status(status, limit, offset)
+    
+    def get_all_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        return self.message_store.get_all_messages(limit, offset)
+    
+    def update_message_status(self, channel_id: str, message_id: int, new_status: str, reviewed_by: str = None) -> bool:
+        return self.message_store.update_message_status(channel_id, message_id, new_status, reviewed_by)
+    
+    async def update_message_review_id(self, channel_id: str, message_id: int, review_message_id: int) -> bool:
+        return await self.message_store.update_message_review_id(channel_id, message_id, review_message_id)
+    
+    async def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:
+        return await self.message_store.update_message_field(channel_id, message_id, field, value)
+    
+    async def update_message(self, channel_id: str, message_id: int, update_data: dict) -> bool:
+        return await self.message_store.update_message(channel_id, message_id, update_data)
+    
+    def delete_message(self, channel_id: str, message_id: int) -> bool:
+        return self.message_store.delete_message(channel_id, message_id)
+    
+    def get_message_count(self, channel_id: str = None, status: str = None) -> int:
+        return self.message_store.get_message_count(channel_id, status)
+    
+    def find_duplicate_by_hash(self, media_hash: str) -> List[str]:
+        return self.message_store.find_duplicate_by_hash(media_hash)
+    
+    def cleanup_expired_indexes(self):
+        return self.message_store.cleanup_expired_indexes()
+        
+    def cleanup_invalid_indexes(self):
+        return self.message_store.cleanup_invalid_indexes()
+    
+    async def get_old_messages_for_cleanup(self, cutoff_time):
+        return await self.message_store.get_old_messages_for_cleanup(cutoff_time)
+    
+    # ========= 会话存储方法代理 =========
+    def save_session(self, token: str, session_data: Dict[str, Any], expire_seconds: int = 3600) -> bool:
+        return self.session_store.save_session(token, session_data, expire_seconds)
+    
+    def get_session(self, token: str) -> Optional[Dict[str, Any]]:
+        return self.session_store.get_session(token)
+    
+    def delete_session(self, token: str) -> bool:
+        return self.session_store.delete_session(token)
+    
+    def get_active_sessions(self) -> List[str]:
+        return self.session_store.get_active_sessions()
+    
+    # ========= 频道存储方法代理 =========
+    def set_checkpoint(self, channel_id: str, last_message_id: int) -> bool:
+        return self.channel_store.set_checkpoint(channel_id, last_message_id)
+    
+    def get_checkpoint(self, channel_id: str) -> Optional[int]:
+        return self.channel_store.get_checkpoint(channel_id)
+    
+    def get_all_checkpoints(self) -> Dict[str, int]:
+        return self.channel_store.get_all_checkpoints()
+    
+    def delete_checkpoint(self, channel_id: str) -> bool:
+        return self.channel_store.delete_checkpoint(channel_id)
+    
+    def get_checkpoint_time(self, channel_id: str) -> Optional[str]:
+        return self.channel_store.get_checkpoint_time(channel_id)
+    
+    def get_checkpoint_info(self, channel_id: str) -> Dict[str, any]:
+        return self.channel_store.get_checkpoint_info(channel_id)
+    
+    # ========= 缓存方法代理 =========
+    def set_cache(self, key: str, value: Any, ttl: int = None) -> bool:
+        return self.cache_store.set_cache(key, value, ttl)
+    
+    def get_cache(self, key: str) -> Any:
+        return self.cache_store.get_cache(key)
+    
+    def delete_cache(self, key: str) -> bool:
+        return self.cache_store.delete_cache(key)
+    
+    # ========= 锁管理方法代理 =========
+    def acquire_lock(self, lock_name: str, timeout: int = None, retry_delay: float = 0.1, max_retries: int = 10) -> Optional[str]:
+        return self.lock_manager.acquire_lock(lock_name, timeout, retry_delay, max_retries)
+    
+    def release_lock(self, lock_name: str, lock_token: str) -> bool:
+        return self.lock_manager.release_lock(lock_name, lock_token)
+    
+    def is_locked(self, lock_name: str) -> bool:
+        return self.lock_manager.is_locked(lock_name)
+
+# 为了完全向后兼容，提供原有的实例创建方式
+def create_unified_store(redis_url: str = "redis://localhost:6379") -> UnifiedRedisStore:
+    """创建统一的Redis存储实例 - 向后兼容"""
+    return UnifiedRedisStore(redis_url)
+
+# ============================================================================
+# 系统状态和管理API
+# ============================================================================
+
+def get_storage_health() -> Dict[str, Any]:
+    """获取存储系统健康状态"""
+    try:
+        health = {
+            'status': 'healthy',
+            'modules': {},
+            'connections': {},
+            'errors': []
+        }
+        
+        # 检查各个模块的状态
+        modules_to_check = [
+            ('message_store', redis_message_store),
+            ('session_store', redis_session_store),
+            ('channel_store', redis_channel_store),
+            ('cache_store', redis_cache_store),
+            ('lock_manager', redis_lock_manager)
+        ]
+        
+        for module_name, module_instance in modules_to_check:
+            if module_instance is None:
+                health['modules'][module_name] = 'not_initialized'
+                health['errors'].append(f"{module_name} not initialized")
+            else:
+                try:
+                    # 测试连接
+                    if hasattr(module_instance, 'ping') and module_instance.ping():
+                        health['modules'][module_name] = 'healthy'
+                    else:
+                        health['modules'][module_name] = 'unhealthy'
+                        health['errors'].append(f"{module_name} ping failed")
+                except Exception as e:
+                    health['modules'][module_name] = 'error'
+                    health['errors'].append(f"{module_name} error: {str(e)}")
+        
+        # 获取连接信息
+        if redis_message_store:
+            try:
+                health['connections']['redis'] = redis_message_store.get_connection_info()
+                health['connections']['memory'] = redis_message_store.get_memory_usage()
+                health['connections']['db_size'] = redis_message_store.get_db_size()
+            except Exception as e:
+                health['errors'].append(f"Connection info error: {str(e)}")
+        
+        # 确定整体状态
+        if health['errors']:
+            health['status'] = 'degraded' if any(status == 'healthy' for status in health['modules'].values()) else 'unhealthy'
+        
+        return health
+        
+    except Exception as e:
+        logger.error(f"获取存储健康状态失败: {e}")
+        return {
+            'status': 'error',
+            'error': str(e),
+            'modules': {},
+            'connections': {}
+        }
+
+def get_storage_stats() -> Dict[str, Any]:
+    """获取存储系统统计信息"""
+    try:
+        stats = {
+            'message_stats': {},
+            'session_stats': {},
+            'cache_stats': {},
+            'lock_stats': {}
+        }
+        
+        # 消息统计
+        if redis_message_store:
+            try:
+                stats['message_stats'] = {
+                    'pending_count': redis_message_store.get_message_count(status='pending'),
+                    'approved_count': redis_message_store.get_message_count(status='approved'),
+                    'rejected_count': redis_message_store.get_message_count(status='rejected'),
+                    'total_today': redis_message_store.get_message_count()
+                }
+            except Exception as e:
+                stats['message_stats'] = {'error': str(e)}
+        
+        # 会话统计
+        if redis_session_store:
+            try:
+                stats['session_stats'] = redis_session_store.get_session_stats()
+            except Exception as e:
+                stats['session_stats'] = {'error': str(e)}
+        
+        # 缓存统计
+        if redis_cache_store:
+            try:
+                stats['cache_stats'] = redis_cache_store.get_cache_stats()
+            except Exception as e:
+                stats['cache_stats'] = {'error': str(e)}
+        
+        # 锁统计
+        if redis_lock_manager:
+            try:
+                stats['lock_stats'] = redis_lock_manager.get_lock_stats()
+            except Exception as e:
+                stats['lock_stats'] = {'error': str(e)}
+        
+        return stats
+        
+    except Exception as e:
+        logger.error(f"获取存储统计失败: {e}")
+        return {'error': str(e)}
+
+# ============================================================================
+# 向后兼容性保证
+# ============================================================================
+
+# 确保所有原有的导入都能正常工作
+__all__ = [
+    # 原有的类和函数
+    'RedisStore',
+    'RedisMessageStore', 
+    'RedisSessionStore',
+    'RedisChannelStore',
+    'get_redis_client',
+    'init_redis_stores',
+    'get_redis_message_store',
+    'get_redis_session_store', 
+    'get_redis_channel_store',
+    'get_redis_store',
+    'get_async_redis_client',
+    
+    # 新增的类和函数
+    'RedisCacheStore',
+    'RedisLockManager', 
+    'UnifiedRedisStore',
+    'get_redis_cache_store',
+    'get_redis_lock_manager',
+    'create_unified_store',
+    'get_storage_health',
+    'get_storage_stats'
+]
+
+logger.info("Redis存储层重构完成 - 所有模块已加载，保持向后兼容性")
