@@ -247,7 +247,7 @@
                 <div v-if="currentSample.tail_part">
                     <el-divider></el-divider>
                     <h4>完整尾部内容：</h4>
-                    <div class="detail-content" style="white-space: pre-line; background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #409EFF; font-family: 'Consolas', 'Monaco', monospace;">{{ currentSample.tail_part }}</div>
+                    <div class="detail-content">{{ currentSample.tail_part }}</div>
                 </div>
             </div>
         </el-dialog>
@@ -310,6 +310,7 @@
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/config/api-endpoints.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/components/training-nav.js"></script>

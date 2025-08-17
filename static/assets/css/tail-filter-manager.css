@@ -2,6 +2,16 @@
 
 /* 容器样式已在 training-common.css 中统一定义 */
 
+/* 详情内容样式 */
+.detail-content {
+    white-space: pre-line;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #409EFF;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
 /* 统计信息栏 */
 .stats-bar {
     display: flex;

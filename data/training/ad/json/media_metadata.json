@@ -1477,7 +1477,7 @@
       }
     },
     "9aa9634ea95fa1d5d18e0ecf0a5d3c4c2e2460c3883adfd590194d0182c794d7": {
-      "path": "videos/2025-08/-1002062871756:43142_20250816_184422_9aa9634e.MP4",
+      "path": "images/2025-08/-1002062871756:43142_20250816_184422_9aa9634e_thumb.jpg",
       "message_ids": [
         "-1002062871756:43142"
       ],
@@ -1497,7 +1497,11 @@
         "whash": "13187effffc30100",
         "colorhash": "03210008000",
         "sha256": "90cffa6a7549d2bcdc1a610aab12441279d78a7099979ff32965946be2a36bb0"
-      }
+      },
+      "type": "image",
+      "size": 48410,
+      "original_type": "video",
+      "optimized_at": "2025-08-17T13:57:15.787860"
     },
     "7dbff76e1e53dbfd0f7f1f6c46c2cd6faec3753fcc79f95472143c8809eeede1": {
       "path": "images/2025-08/-1002062871756:43138_20250816_185406_7dbff76e.jpg",
@@ -1520,9 +1524,31 @@
         "colorhash": "0a401008080",
         "sha256": "7dbff76e1e53dbfd0f7f1f6c46c2cd6faec3753fcc79f95472143c8809eeede1"
       }
+    },
+    "61ecc988da696c5a9cca48f43416bd30aa0c25c9eed6a91c848e9b9dc4fa6157": {
+      "path": "images/2025-08/-1001956665373:57731_20250817_135011_61ecc988.jpg",
+      "message_ids": [
+        "-1001956665373:57731"
+      ],
+      "channel_id": "-1001956665373",
+      "media_type": "photo",
+      "is_ad": true,
+      "file_size": 58909,
+      "saved_at": "2025-08-17T13:50:11.716432",
+      "original_name": "57731_20250817_135011_photo.jpg",
+      "file_hash": "61ecc988da696c5a9cca48f43416bd30aa0c25c9eed6a91c848e9b9dc4fa6157",
+      "display_path": "images/2025-08/-1001956665373:57731_20250817_135011_61ecc988.jpg",
+      "visual_hashes": {
+        "phash": "b69fcbc10f653032",
+        "dhash": "61090d060f8c8dad",
+        "ahash": "ffff878387c7e000",
+        "whash": "bfbf878387c76000",
+        "colorhash": "06e00000000",
+        "sha256": "61ecc988da696c5a9cca48f43416bd30aa0c25c9eed6a91c848e9b9dc4fa6157"
+      }
     }
   },
-  "updated_at": "2025-08-16T18:54:06.807494",
+  "updated_at": "2025-08-17T13:50:11.716439",
   "deduplication_log": {
     "timestamp": "2025-08-15T10:00:26.516475",
     "deleted": 4,

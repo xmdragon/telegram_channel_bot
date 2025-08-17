@@ -136,6 +136,9 @@ class UnifiedMessageProcessor:
                 logger.info(f"🔄 单独消息被去重检测拒绝: {duplicate_info['reason']}")
                 individual_save_data['status'] = 'rejected'
                 individual_save_data['reject_reason'] = f"去重检测: {duplicate_info['reason']}"
+                # 🔧 新增：保存重复信息供前端对比显示
+                individual_save_data['duplicate_original_id'] = duplicate_info['original_id']
+                individual_save_data['duplicate_type'] = duplicate_info['type']
             
             # 保存单独消息到Redis
             saved_individual = await self.message_processor.process_new_message(individual_save_data)

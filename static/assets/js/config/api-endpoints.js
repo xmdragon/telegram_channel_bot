@@ -21,6 +21,9 @@ const API_ENDPOINTS = {
         getById: (id) => `/api/messages/${id}`,                    // GET - 根据ID获取单个消息
         updateById: (id) => `/api/messages/${id}`,                 // PUT - 更新消息内容
         deleteById: (id) => `/api/messages/${id}`,                 // DELETE - 删除单个消息
+        approveById: (id) => `/api/messages/${id}/approve`,        // POST - 审核通过单个消息
+        rejectById: (id) => `/api/messages/${id}/reject`,          // POST - 拒绝单个消息
+        deleteReviewById: (id) => `/api/messages/${id}/review-message`, // DELETE - 删除审核消息
         batchApprove: '/api/messages/batch-approve',               // POST - 批量审核通过消息
         batchReject: '/api/messages/batch-reject',                 // POST - 批量拒绝消息
         batchDelete: '/api/messages/batch-delete',                 // POST - 批量删除消息

@@ -944,4 +944,314 @@
         height: 18px;
         font-size: 10px;
     }
+}
+
+/* 🔧 新增：重复消息对比布局样式 */
+.duplicate-comparison-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 12px 0;
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.comparison-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+}
+
+.comparison-column-header {
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.comparison-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 600;
+}
+
+.duplicate-type-tag {
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.comparison-column-body {
+    padding: 14px;
+    flex: 1;
+    background: #ffffff;
+}
+
+/* 被拒绝消息栏样式（红色系） */
+.duplicate-column .comparison-column-header {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: white;
+}
+
+.duplicate-column .comparison-column-body {
+    border-left: 4px solid #dc2626;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+/* 原始消息栏样式（绿色系） */
+.original-column .comparison-column-header {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: white;
+}
+
+.original-column .comparison-column-body {
+    border-left: 4px solid #16a34a;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+/* 重复消息对比内的媒体区域 */
+.comparison-media-section {
+    margin-bottom: 12px;
+}
+
+/* 重复消息对比内的媒体样式 */
+.media-comparison {
+    max-width: 100%;
+    max-height: 140px;
+    height: auto;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    border: 1px solid #e5e7eb;
+}
+
+.media-comparison:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 重复消息对比内的媒体网格 */
+.media-grid-comparison {
+    display: grid;
+    gap: 4px;
+    max-width: 100%;
+}
+
+.media-grid-comparison.media-grid-single {
+    grid-template-columns: 1fr;
+}
+
+.media-grid-comparison.media-grid-double {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.media-grid-comparison.media-grid-triple {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* 重复消息对比内的媒体组项目 */
+.media-comparison-item {
+    width: 100%;
+    height: 70px;
+    max-height: 70px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    border: 1px solid #d1d5db;
+}
+
+.media-comparison-item:hover {
+    transform: scale(1.05);
+}
+
+/* 重复消息对比内的文本样式 */
+.comparison-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.6;
+    color: #374151;
+    font-size: 14px;
+    margin: 0 0 12px 0;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* 重复消息对比内的占位符 */
+.media-placeholder.media-comparison {
+    padding: 15px 10px;
+    background: #f8fafc;
+    border: 1px dashed #d1d5db;
+    border-radius: 6px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 12px;
+    max-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.media-comparison-other {
+    padding: 12px 8px;
+    background: #f5f5f5;
+    text-align: center;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #666;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d1d5db;
+}
+
+/* 重复消息信息区域 */
+.duplicate-message-info {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-label {
+    color: #6b7280;
+    font-weight: 500;
+    min-width: 60px;
+}
+
+.info-value {
+    color: #374151;
+    font-weight: 400;
+    text-align: right;
+    word-break: break-word;
+}
+
+.info-value.status-tag {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 响应式设计 - 移动端改为上下布局 */
+@media (max-width: 768px) {
+    .duplicate-comparison-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+        gap: 12px;
+    }
+    
+    .comparison-column-header {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    
+    .comparison-column-body {
+        padding: 12px;
+    }
+    
+    .comparison-text {
+        font-size: 13px;
+        padding: 6px;
+    }
+    
+    .media-comparison {
+        max-height: 120px;
+    }
+    
+    .media-comparison-item {
+        height: 60px;
+        max-height: 60px;
+    }
+    
+    .media-comparison-other {
+        height: 60px;
+        padding: 10px 6px;
+        font-size: 10px;
+    }
+    
+    .info-row {
+        font-size: 11px;
+    }
+}
+
+/* 小屏幕进一步优化 */
+@media (max-width: 480px) {
+    .duplicate-comparison-layout {
+        gap: 8px;
+        margin: 8px 0;
+        border-width: 1px;
+    }
+    
+    .comparison-column-body {
+        padding: 10px;
+    }
+    
+    .comparison-text {
+        font-size: 12px;
+        padding: 5px;
+    }
+    
+    .media-comparison {
+        max-height: 100px;
+    }
+    
+    .media-comparison-item {
+        height: 50px;
+        max-height: 50px;
+    }
+    
+    .media-comparison-other {
+        height: 50px;
+        padding: 8px 4px;
+        font-size: 9px;
+    }
+    
+    .duplicate-message-info {
+        padding: 6px;
+        margin-top: 6px;
+    }
+    
+    .info-row {
+        font-size: 10px;
+    }
+    
+    .duplicate-type-tag {
+        font-size: 9px;
+        padding: 1px 6px;
+    }
 } 

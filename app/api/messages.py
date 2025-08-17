@@ -230,7 +230,13 @@ async def get_messages(
                     media_group_display.append(item_copy)
             
             source_channel_key = msg.get('source_channel', '')
-            processed_messages.append({
+            
+            # 🔧 新增：处理重复消息的原始消息数据
+            duplicate_info = None
+            if msg.get('duplicate_original_id'):
+                duplicate_info = await _get_original_message(msg.get('duplicate_original_id'))
+            
+            processed_message = {
                 "id": msg_id,  # 使用复合ID
                 "source_channel": source_channel_key,
                 "source_channel_title": channel_info.get(source_channel_key, {}).get('title', '未知频道'),
@@ -252,8 +258,13 @@ async def get_messages(
                 "review_time": msg.get('review_time'),
                 "reviewed_by": msg.get('reviewed_by'),
                 "filter_reason": msg.get('filter_reason'),
-                "removed_hidden_links": msg.get('removed_hidden_links')
-            })
+                "removed_hidden_links": msg.get('removed_hidden_links'),
+                # 🔧 新增：重复消息相关字段
+                "duplicate_original_id": msg.get('duplicate_original_id'),
+                "duplicate_type": msg.get('duplicate_type'),
+                "duplicate_info": duplicate_info
+            }
+            processed_messages.append(processed_message)
         
         return {
             "messages": processed_messages,
@@ -1744,3 +1755,92 @@ async def reset_message(
     except Exception as e:
         logger.error(f"重置消息失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"重置消息失败: {str(e)}")
+
+
+# 🔧 新增：辅助函数用于获取原始消息信息
+async def _get_original_message(original_id: str) -> Optional[Dict[str, Any]]:
+    """获取重复消息的原始消息信息"""
+    try:
+        from app.storage.redis_store import get_redis_message_store
+        
+        redis_store = get_redis_message_store()
+        if not redis_store:
+            return None
+        
+        # 解析消息ID格式：channel_id:message_id
+        if ':' not in original_id:
+            return None
+        
+        channel_id, msg_id = original_id.split(':', 1)
+        
+        # 从Redis获取原始消息
+        msg_key = f"msg:{channel_id}:{msg_id}"
+        msg_data = redis_store.redis.hgetall(msg_key)
+        
+        if not msg_data:
+            return None
+        
+        # 转换字节数据
+        msg_data = {k.decode() if isinstance(k, bytes) else k: 
+                   v.decode() if isinstance(v, bytes) else v 
+                   for k, v in msg_data.items()}
+        
+        # 检查媒体文件是否存在
+        media_display_url = None
+        if msg_data.get('media_url'):
+            media_path = msg_data['media_url']
+            if os.path.exists(media_path):
+                media_display_url = f"/temp_media/{os.path.basename(media_path)}"
+        
+        # 处理组合消息的媒体组
+        media_group_display = None
+        if msg_data.get('media_group'):
+            import json
+            try:
+                media_group = json.loads(msg_data['media_group']) if isinstance(msg_data['media_group'], str) else msg_data['media_group']
+                media_group_display = []
+                for media_item in media_group:
+                    item_copy = dict(media_item)
+                    if media_item.get('file_path'):
+                        if os.path.exists(media_item['file_path']):
+                            item_copy['display_url'] = f"/temp_media/{os.path.basename(media_item['file_path'])}"
+                        else:
+                            item_copy['display_url'] = None
+                    else:
+                        item_copy['display_url'] = None
+                    media_group_display.append(item_copy)
+            except Exception as e:
+                logger.error(f"解析媒体组数据失败: {e}")
+        
+        # 获取频道信息
+        from app.services.channel_manager import channel_manager
+        channel_info = await channel_manager.get_channel_info_for_display()
+        
+        # 构建原始消息对象
+        original_message = {
+            "id": original_id,
+            "source_channel": channel_id,
+            "source_channel_title": channel_info.get(channel_id, {}).get('title', '未知频道'),
+            "source_channel_link_prefix": channel_info.get(channel_id, {}).get('link_prefix', ''),
+            "content": msg_data.get('content', ''),
+            "filtered_content": msg_data.get('filtered_content', ''),
+            "message_id": msg_data.get('message_id'),
+            "media_type": msg_data.get('media_type'),
+            "media_url": msg_data.get('media_url'),
+            "media_display_url": media_display_url,
+            "grouped_id": msg_data.get('grouped_id'),
+            "is_combined": msg_data.get('is_combined', False),
+            "media_group_display": media_group_display,
+            "status": msg_data.get('status', 'pending'),
+            "is_ad": msg_data.get('is_ad', False),
+            "created_at": msg_data.get('created_at'),
+            "review_time": msg_data.get('review_time'),
+            "reviewed_by": msg_data.get('reviewed_by'),
+            "filter_reason": msg_data.get('filter_reason'),
+        }
+        
+        return original_message
+        
+    except Exception as e:
+        logger.error(f"获取原始消息失败: {e}")
+        return None
