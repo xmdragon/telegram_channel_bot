@@ -1,0 +1,401 @@
+/* Telegram风格媒体网格系统 */
+
+/* 媒体组合消息容器 */
+.telegram-media-container {
+    width: 100%;
+    max-width: 380px; /* 调整为更紧凑的宽度 */
+    margin: 6px 0;
+    border-radius: 18px; /* 增加圆角 */
+    overflow: hidden;
+    background: #000;
+    position: relative;
+}
+
+/* 基础媒体网格 */
+.telegram-media-grid {
+    display: grid;
+    gap: 1px; /* 减少间距，更紧密 */
+    width: 100%;
+    background: #000;
+}
+
+/* === 单张图片 === */
+.telegram-media-grid.count-1 {
+    grid-template-columns: 1fr;
+}
+
+.telegram-media-grid.count-1 .media-item {
+    max-height: 320px; /* 适当提高单张图片显示高度 */
+    min-height: 180px; /* 确保最小高度 */
+    aspect-ratio: auto;
+}
+
+/* === 两张图片 === */
+.telegram-media-grid.count-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.telegram-media-grid.count-2 .media-item {
+    aspect-ratio: 1;
+    height: 140px; /* 减小高度 */
+}
+
+/* === 三张图片 === */
+.telegram-media-grid.count-3 {
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 200px; /* 减小整体高度 */
+}
+
+.telegram-media-grid.count-3 .media-item:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1 / 3;
+}
+
+.telegram-media-grid.count-3 .media-item:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.telegram-media-grid.count-3 .media-item:nth-child(3) {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+/* === 四张图片 === */
+.telegram-media-grid.count-4 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.telegram-media-grid.count-4 .media-item {
+    aspect-ratio: 1;
+    height: 100px; /* 减小高度 */
+}
+
+/* === 五张图片 === */
+.telegram-media-grid.count-5 {
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 170px; /* 减小高度 */
+}
+
+.telegram-media-grid.count-5 .media-item:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1 / 3;
+}
+
+.telegram-media-grid.count-5 .media-item:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.telegram-media-grid.count-5 .media-item:nth-child(3) {
+    grid-column: 3;
+    grid-row: 1;
+}
+
+.telegram-media-grid.count-5 .media-item:nth-child(4) {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+.telegram-media-grid.count-5 .media-item:nth-child(5) {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+/* === 六张图片 === */
+.telegram-media-grid.count-6 {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.telegram-media-grid.count-6 .media-item {
+    aspect-ratio: 1;
+    height: 85px; /* 减小高度 */
+}
+
+/* === 七张图片 (3+2+2布局) === */
+.telegram-media-grid.count-7 {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    height: 180px;
+}
+
+.telegram-media-grid.count-7 .media-item {
+    aspect-ratio: 1;
+    height: 55px;
+}
+
+/* 第一排3张 */
+.telegram-media-grid.count-7 .media-item:nth-child(1),
+.telegram-media-grid.count-7 .media-item:nth-child(2),
+.telegram-media-grid.count-7 .media-item:nth-child(3) {
+    grid-row: 1;
+}
+
+/* 第二排2张（居中） */
+.telegram-media-grid.count-7 .media-item:nth-child(4) {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.telegram-media-grid.count-7 .media-item:nth-child(5) {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+/* 第三排2张（居中） */
+.telegram-media-grid.count-7 .media-item:nth-child(6) {
+    grid-column: 1;
+    grid-row: 3;
+}
+
+.telegram-media-grid.count-7 .media-item:nth-child(7) {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+/* === 八张图片 (3+3+2布局) === */
+.telegram-media-grid.count-8 {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    height: 180px;
+}
+
+.telegram-media-grid.count-8 .media-item {
+    aspect-ratio: 1;
+    height: 55px;
+}
+
+/* 第一排3张 */
+.telegram-media-grid.count-8 .media-item:nth-child(1),
+.telegram-media-grid.count-8 .media-item:nth-child(2),
+.telegram-media-grid.count-8 .media-item:nth-child(3) {
+    grid-row: 1;
+}
+
+/* 第二排3张 */
+.telegram-media-grid.count-8 .media-item:nth-child(4),
+.telegram-media-grid.count-8 .media-item:nth-child(5),
+.telegram-media-grid.count-8 .media-item:nth-child(6) {
+    grid-row: 2;
+}
+
+/* 第三排2张（居中） */
+.telegram-media-grid.count-8 .media-item:nth-child(7) {
+    grid-column: 1;
+    grid-row: 3;
+}
+
+.telegram-media-grid.count-8 .media-item:nth-child(8) {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+/* === 九张图片 (3x3网格) === */
+.telegram-media-grid.count-9 {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+}
+
+.telegram-media-grid.count-9 .media-item {
+    aspect-ratio: 1;
+    height: 75px;
+}
+
+/* === 十张及以上图片 === */
+.telegram-media-grid.count-10plus {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+}
+
+.telegram-media-grid.count-10plus .media-item {
+    aspect-ratio: 1;
+    height: 65px; /* 减小高度 */
+}
+
+/* 媒体项基础样式 */
+.telegram-media-grid .media-item {
+    position: relative;
+    overflow: hidden;
+    background: #1a1a1a;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0; /* 媒体项内部不需要圆角，由容器控制 */
+}
+
+/* 媒体内容样式 */
+.telegram-media-grid .media-content {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+}
+
+.telegram-media-grid .media-content:hover {
+    opacity: 0.9;
+}
+
+/* 视频样式 */
+.telegram-media-grid .media-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #000;
+}
+
+/* 媒体索引标识 */
+.telegram-media-grid .media-index {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    z-index: 2;
+    font-weight: 600;
+}
+
+/* 剩余媒体计数 */
+.telegram-media-grid .remaining-count {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 3;
+    border-radius: inherit;
+}
+
+/* 不同尺寸下的覆盖层字体调整 */
+.telegram-media-grid.count-7 .remaining-count,
+.telegram-media-grid.count-8 .remaining-count {
+    font-size: 14px;
+}
+
+.telegram-media-grid.count-10plus .remaining-count {
+    font-size: 12px;
+}
+
+/* 媒体占位符 */
+.telegram-media-grid .media-placeholder {
+    background: #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 12px;
+    width: 100%;
+    height: 100%;
+}
+
+.telegram-media-grid .media-placeholder .icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+/* 优化紧凑型布局 */
+.telegram-media-container.compact {
+    max-width: 320px;
+    border-radius: 16px;
+}
+
+.telegram-media-container.compact .telegram-media-grid {
+    gap: 0.5px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .telegram-media-container {
+        max-width: 100%;
+        margin: 6px 0;
+        border-radius: 16px; /* 移动端稍小圆角 */
+    }
+    
+    .telegram-media-grid.count-3 {
+        height: 180px; /* 进一步减小 */
+    }
+    
+    .telegram-media-grid.count-5 {
+        height: 150px;
+    }
+    
+    .telegram-media-grid.count-2 .media-item {
+        height: 120px;
+    }
+    
+    .telegram-media-grid.count-4 .media-item {
+        height: 85px;
+    }
+    
+    .telegram-media-grid.count-6 .media-item {
+        height: 70px;
+    }
+    
+    .telegram-media-grid.count-7 .media-item,
+    .telegram-media-grid.count-8 .media-item {
+        height: 45px;
+    }
+    
+    .telegram-media-grid.count-7,
+    .telegram-media-grid.count-8 {
+        height: 150px;
+    }
+    
+    .telegram-media-grid.count-9 .media-item {
+        height: 60px;
+    }
+}
+
+@media (max-width: 480px) {
+    .telegram-media-container {
+        border-radius: 14px; /* 更小设备更小圆角 */
+    }
+    
+    .telegram-media-grid.count-3 {
+        height: 140px;
+    }
+    
+    .telegram-media-grid.count-5 {
+        height: 120px;
+    }
+    
+    .telegram-media-grid.count-7,
+    .telegram-media-grid.count-8 {
+        height: 130px;
+    }
+    
+    .telegram-media-grid.count-2 .media-item {
+        height: 100px;
+    }
+    
+    .telegram-media-grid.count-4 .media-item {
+        height: 70px;
+    }
+    
+    .telegram-media-grid.count-6 .media-item {
+        height: 50px;
+    }
+    
+    .telegram-media-grid.count-7 .media-item,
+    .telegram-media-grid.count-8 .media-item {
+        height: 35px;
+    }
+}

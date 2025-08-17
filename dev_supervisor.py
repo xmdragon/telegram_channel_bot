@@ -71,11 +71,29 @@ class ServiceProcess:
         else:
             return f"{seconds}s"
     
+    def _check_port_available(self, port: int) -> bool:
+        """检查端口是否可用"""
+        import socket
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(1)
+                result = sock.connect_ex(('localhost', port))
+                return result != 0  # 0表示连接成功，即端口被占用
+        except Exception:
+            return True  # 假设可用
+    
     async def start(self) -> bool:
         """启动服务"""
         if self.status in [ServiceStatus.STARTING, ServiceStatus.RUNNING]:
             logger.warning(f"服务 {self.config.name} 已在运行中")
             return True
+        
+        # Web服务启动前检查端口
+        if self.config.name == "web" and not self._check_port_available(8000):
+            logger.error("端口 8000 已被占用，无法启动Web服务")
+            logger.error("请检查是否有其他实例正在运行，或使用 ./stop.sh 停止现有服务")
+            self.status = ServiceStatus.FAILED
+            return False
             
         logger.info(f"启动服务: {self.config.name}")
         self.status = ServiceStatus.STARTING

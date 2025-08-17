@@ -9,7 +9,8 @@
     border-radius: 12px;
     overflow: hidden;
     background: #000;
-    max-width: 450px;
+    max-width: 600px; /* 增加最大宽度 */
+    width: 100%;
 }
 
 /* 根据媒体数量自动调整网格布局 */
@@ -23,9 +24,9 @@
 
 /* 3张图片：左侧两张竖图上下排列，右侧一张大图 */
 .media-group-container[data-count="3"] {
-    grid-template-columns: 150px 1fr;
+    grid-template-columns: 180px 1fr; /* 增加左侧宽度 */
     grid-template-rows: 1fr 1fr;
-    height: 280px;
+    height: 320px; /* 增加高度 */
 }
 
 /* 3张图片的特殊布局定位 */

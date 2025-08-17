@@ -89,6 +89,21 @@ fi
 
 echo "🚀 启动开发模式..."
 
+# 加载进程管理工具
+if [[ -f "tools/utils/process_manager.sh" ]]; then
+    source tools/utils/process_manager.sh
+else
+    echo "⚠️  进程管理工具未找到，使用基础模式"
+fi
+
+# 启动前检查（智能冲突处理）
+if [[ $(type -t smart_startup_check) == function ]]; then
+    if ! smart_startup_check "开发环境"; then
+        echo "❌ 启动前检查失败，已取消启动"
+        exit 1
+    fi
+fi
+
 # 检查虚拟环境
 if [ ! -d "venv" ]; then
     echo "📦 创建虚拟环境..."
@@ -119,17 +134,31 @@ if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
     
     # 等待Redis就绪
     echo "⏳ 等待Redis就绪..."
-    for i in {1..10}; do
+    for i in {1..15}; do
         if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
             echo "✅ Redis已就绪"
             break
         fi
-        if [ $i -eq 10 ]; then
+        if [ $i -eq 15 ]; then
             echo "❌ Redis启动超时"
             exit 1
         fi
-        sleep 1
+        echo "   等待中... ($i/15)"
+        sleep 2
     done
+else
+    echo "✅ Redis已在运行中"
+    # 验证Redis连接
+    if ! docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
+        echo "❌ Redis连接异常，重启Redis..."
+        docker compose restart redis
+        sleep 3
+        if ! docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
+            echo "❌ Redis重启失败"
+            exit 1
+        fi
+        echo "✅ Redis重启成功"
+    fi
 fi
 
 
@@ -171,4 +200,23 @@ echo "   - Web界面: http://localhost:8000"
 echo ""
 
 # 启动进程管理器
-exec python3 dev_supervisor.py "${SERVICES[@]}"
+echo "🎯 启动进程管理器..."
+
+# 创建PID文件记录
+if [[ $(type -t create_pid_file) == function ]]; then
+    # 在后台启动进程管理器，获取PID
+    python3 dev_supervisor.py "${SERVICES[@]}" &
+    SUPERVISOR_PID=$!
+    
+    # 创建PID文件
+    create_pid_file "dev_supervisor" "$SUPERVISOR_PID"
+    
+    # 设置退出陷阱，确保清理PID文件
+    trap 'cleanup_pid_file "dev_supervisor"; kill -TERM $SUPERVISOR_PID 2>/dev/null || true' EXIT INT TERM
+    
+    # 等待进程管理器
+    wait $SUPERVISOR_PID
+else
+    # 降级为直接启动
+    exec python3 dev_supervisor.py "${SERVICES[@]}"
+fi

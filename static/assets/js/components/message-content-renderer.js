@@ -42,15 +42,45 @@ const MessageContentRenderer = {
                    Array.isArray(this.message.media_group_display);
         },
         
-        // 媒体网格类
-        mediaGridClass() {
+        // Telegram风格媒体网格类
+        telegramMediaGridClass() {
             if (!this.isCombinedMessage) return '';
             
             const count = this.message.media_group_display.length;
-            if (count === 1) return 'media-grid-single';
-            if (count === 2) return 'media-grid-double';
-            if (count >= 3) return 'media-grid-triple';
-            return '';
+            if (count >= 10) return 'count-10plus';
+            return `count-${count}`;
+        },
+        
+        // 显示的媒体项（最多显示9个，第9个显示剩余数量）
+        displayMediaItems() {
+            if (!this.isCombinedMessage) return [];
+            
+            const items = this.message.media_group_display;
+            const maxDisplay = 9;
+            
+            if (items.length <= maxDisplay) {
+                return items.map((item, index) => ({
+                    ...item,
+                    index: index + 1,
+                    isLast: false
+                }));
+            }
+            
+            // 如果超过9个，显示前8个和第9个带计数
+            const displayItems = items.slice(0, maxDisplay - 1).map((item, index) => ({
+                ...item,
+                index: index + 1,
+                isLast: false
+            }));
+            
+            displayItems.push({
+                ...items[maxDisplay - 1],
+                index: maxDisplay,
+                isLast: true,
+                remainingCount: items.length - maxDisplay
+            });
+            
+            return displayItems;
         }
     },
     
@@ -193,86 +223,89 @@ const MessageContentRenderer = {
             <div class="message-content">
                 <!-- 媒体内容 -->
                 <div v-if="message.media_type" class="message-media">
-                    <!-- 组合消息的媒体组 -->
-                    <div v-if="isCombinedMessage" class="combined-message-container">
-                        <!-- 🔧 组合消息头部标识 -->
-                        <div class="combined-message-header">
-                            <span class="combined-message-label">
-                                📎 媒体组 ({{ message.media_group_display.length }}项)
-                            </span>
-                            <span v-if="message.grouped_id" class="grouped-id">
-                                组ID: {{ message.grouped_id }}
-                            </span>
-                        </div>
-                        
+                    <!-- Telegram风格组合消息媒体组 -->
+                    <div v-if="isCombinedMessage" class="telegram-media-container">
                         <!-- 媒体网格 -->
-                        <div class="media-grid" :class="mediaGridClass">
-                            <div v-for="(media, index) in message.media_group_display" 
+                        <div class="telegram-media-grid" :class="telegramMediaGridClass">
+                            <div v-for="(media, index) in displayMediaItems" 
                                  :key="index"
-                                 class="media-grid-item">
-                                <!-- 媒体序号标识 -->
-                                <div class="media-index">{{ index + 1 }}</div>
+                                 class="media-item">
                                 
-                                <!-- 组合消息中的图片 -->
+                                <!-- 图片 -->
                                 <img v-if="media.media_type === 'photo' && media.display_url" 
                                      :src="media.display_url"
-                                     class="media-image media-group-item"
+                                     class="media-content"
                                      loading="lazy"
                                      @click.stop="openMediaPreview(media.display_url)"
                                      @error="handleMediaError">
                                 
-                                <!-- 组合消息中的视频 -->
+                                <!-- 视频 -->
                                 <video v-else-if="media.media_type === 'video' && media.display_url"
                                        :src="media.display_url"
-                                       class="media-video media-group-item"
+                                       class="media-content media-video"
                                        controls
                                        preload="none">
                                 </video>
                                 
                                 <!-- 其他媒体类型或加载失败 -->
-                                <div v-else class="media-placeholder media-group-other">
-                                    <div class="media-type-icon">
+                                <div v-else class="media-placeholder">
+                                    <div class="icon">
                                         {{ media.media_type === 'photo' ? '📷' :
                                            media.media_type === 'video' ? '🎬' :
                                            media.media_type === 'document' ? '📄' :
                                            '❓' }}
                                     </div>
-                                    <div class="media-type-name">{{ media.media_type }}</div>
-                                    <div v-if="!media.display_url" class="media-missing">文件缺失</div>
+                                    <div>{{ media.media_type }}</div>
+                                    <div v-if="!media.display_url" style="color: #ff6b6b; font-size: 10px;">缺失</div>
+                                </div>
+                                
+                                <!-- 剩余媒体计数覆盖层 -->
+                                <div v-if="media.isLast && media.remainingCount > 0" 
+                                     class="remaining-count"
+                                     @click.stop="openMediaPreview(media.display_url)">
+                                    +{{ media.remainingCount }}
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- 单个媒体（非组合消息） -->
-                    <template v-else>
-                        <!-- 图片 -->
-                        <img v-if="message.media_type === 'photo' && message.media_display_url && !mediaLoadError" 
-                             :src="message.media_display_url"
-                             class="media-image"
-                             loading="lazy"
-                             @click.stop="openMediaPreview(message.media_display_url)"
-                             @error="handleMediaError">
-                        
-                        <!-- 视频 -->
-                        <video v-else-if="message.media_type === 'video' && message.media_display_url"
-                               :src="message.media_display_url"
-                               class="media-video"
-                               controls
-                               preload="none">
-                        </video>
-                        
-                        <!-- 媒体加载失败或其他媒体类型 -->
-                        <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
-                             class="media-placeholder">
-                            <div>
-                                📷 {{ message.media_type === 'photo' ? '图片' : 
-                                      message.media_type === 'video' ? '视频' : 
-                                      message.media_type }}
-                                <div class="media-missing-text">媒体文件缺失</div>
+                    <div v-else class="telegram-media-container">
+                        <div class="telegram-media-grid count-1">
+                            <div class="media-item">
+                                <!-- 图片 -->
+                                <img v-if="message.media_type === 'photo' && message.media_display_url && !mediaLoadError" 
+                                     :src="message.media_display_url"
+                                     class="media-content"
+                                     loading="lazy"
+                                     @click.stop="openMediaPreview(message.media_display_url)"
+                                     @error="handleMediaError">
+                                
+                                <!-- 视频 -->
+                                <video v-else-if="message.media_type === 'video' && message.media_display_url"
+                                       :src="message.media_display_url"
+                                       class="media-content media-video"
+                                       controls
+                                       preload="none">
+                                </video>
+                                
+                                <!-- 媒体加载失败或其他媒体类型 -->
+                                <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
+                                     class="media-placeholder">
+                                    <div class="icon">
+                                        {{ message.media_type === 'photo' ? '📷' : 
+                                          message.media_type === 'video' ? '🎬' : 
+                                          message.media_type === 'document' ? '📄' :
+                                          '❓' }}
+                                    </div>
+                                    <div>{{ message.media_type === 'photo' ? '图片' : 
+                                           message.media_type === 'video' ? '视频' : 
+                                           message.media_type }}</div>
+                                    <div style="color: #ff6b6b; font-size: 10px;">媒体文件缺失</div>
+                                </div>
                             </div>
                         </div>
-                    </template>
+                    </div>
                 </div>
                 
                 <!-- 文本内容 -->

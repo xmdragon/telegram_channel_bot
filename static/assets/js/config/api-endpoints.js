@@ -172,6 +172,24 @@ const API_ENDPOINTS = {
     websocket: {
         main: '/ws',                                               // WebSocket - 主要连接
         notifications: '/ws/notifications'                         // WebSocket - 通知连接
+    },
+
+    // 媒体和静态文件路径
+    media: {
+        tempMedia: '/temp_media',                                  // 临时媒体文件路径
+        adTrainingData: '/media/ad_training_data',                 // 广告训练数据媒体路径
+        static: '/static'                                          // 静态文件路径
+    },
+
+    // 页面路径配置
+    pages: {
+        index: '/static/index.html',                               // 主页
+        admin: '/static/admin.html',                               // 管理页面
+        config: '/static/config.html',                             // 配置页面
+        auth: '/static/auth.html',                                 // 认证页面
+        status: '/static/status.html',                             // 状态页面
+        train: '/static/train.html',                               // 训练页面
+        login: '/static/login.html'                                // 登录页面
     }
 };
 

@@ -11,18 +11,42 @@ from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
+# 全局Redis连接池，避免重复创建连接
+_redis_pool = None
+_redis_client = None
+
+def get_redis_client(redis_url: str = "redis://localhost:6379"):
+    """获取Redis客户端，使用连接池模式"""
+    global _redis_pool, _redis_client
+    
+    if _redis_client is None:
+        try:
+            # 创建连接池
+            _redis_pool = redis.ConnectionPool.from_url(
+                redis_url, 
+                decode_responses=True,
+                max_connections=20,  # 最大连接数
+                retry_on_timeout=True
+            )
+            _redis_client = redis.Redis(connection_pool=_redis_pool)
+            
+            # 测试连接
+            _redis_client.ping()
+            logger.info("Redis连接池初始化成功")
+            
+        except Exception as e:
+            logger.error(f"Redis连接池初始化失败: {e}")
+            raise
+    
+    return _redis_client
+
 class RedisStore:
     """Redis存储基类"""
     
     def __init__(self, redis_url: str = "redis://localhost:6379"):
-        try:
-            self.redis = redis.from_url(redis_url, decode_responses=True)
-            # 测试连接
-            self.redis.ping()
-            logger.info("Redis连接成功")
-        except Exception as e:
-            logger.error(f"Redis连接失败: {e}")
-            raise
+        # 使用共享的Redis连接池
+        self.redis = get_redis_client(redis_url)
+        logger.debug(f"Redis存储实例已创建: {self.__class__.__name__}")
     
     def _serialize_json(self, data: Any) -> str:
         """序列化JSON数据"""
@@ -837,11 +861,12 @@ def init_redis_stores(redis_url: str = "redis://localhost:6379"):
         return True
     
     try:
+        # 创建3个存储实例（共享连接池）
         redis_message_store = RedisMessageStore(redis_url)
         redis_session_store = RedisSessionStore(redis_url)
         redis_channel_store = RedisChannelStore(redis_url)
         
-        logger.info("Redis存储层初始化成功")
+        logger.info("Redis存储层初始化成功 (消息、会话、频道存储)")
         return True
         
     except Exception as e:
@@ -872,7 +897,7 @@ def get_redis_store() -> RedisStore:
         raise RuntimeError("Redis存储层未初始化")
     return redis_message_store
 
-async def get_redis_client():
+async def get_async_redis_client():
     """获取Redis客户端（异步兼容）"""
     if redis_message_store is None:
         return None

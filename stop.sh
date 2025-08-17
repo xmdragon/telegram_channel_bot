@@ -212,4 +212,11 @@ else
     [ "$VERBOSE" = true ] && echo "⏭️ 保持Redis服务运行"
 fi
 
+# 清理PID文件
+if [[ -d "./logs/pids" ]]; then
+    [ "$VERBOSE" = true ] && echo "🗂️ 清理PID文件..."
+    rm -f ./logs/pids/*.pid 2>/dev/null || true
+    [ "$VERBOSE" = true ] && echo "✅ PID文件已清理"
+fi
+
 [ "$QUIET" = false ] && echo "🔧 清理完成"

@@ -13,6 +13,7 @@ from app.storage.redis_store import get_redis_message_store
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
+from app.core.api_paths import api_paths
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -305,7 +306,7 @@ async def get_messages(
             if msg.get('media_url'):
                 media_path = msg['media_url']
                 if os.path.exists(media_path):
-                    media_display_url = f"/temp_media/{os.path.basename(media_path)}"
+                    media_display_url = api_paths.get_temp_media_url(os.path.basename(media_path))
                 else:
                     media_display_url = None
             
@@ -317,7 +318,7 @@ async def get_messages(
                     item_copy = dict(media_item)
                     if media_item.get('file_path'):
                         if os.path.exists(media_item['file_path']):
-                            item_copy['display_url'] = f"/temp_media/{os.path.basename(media_item['file_path'])}"
+                            item_copy['display_url'] = api_paths.get_temp_media_url(os.path.basename(media_item['file_path']))
                         else:
                             item_copy['display_url'] = None
                     else:
@@ -1907,7 +1908,7 @@ async def reset_message(
         logger.error(f"重置消息失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"重置消息失败: {str(e)}")
 
-@router.post("/{message_id}/resend")
+@router.post("/resend/{message_id:path}")
 async def resend_message(
     message_id: str,
     user: Dict[str, Any] = Depends(check_permission("messages.approve")),
@@ -1994,7 +1995,7 @@ async def _get_original_message(original_id: str) -> Optional[Dict[str, Any]]:
         if msg_data.get('media_url'):
             media_path = msg_data['media_url']
             if os.path.exists(media_path):
-                media_display_url = f"/temp_media/{os.path.basename(media_path)}"
+                media_display_url = api_paths.get_temp_media_url(os.path.basename(media_path))
         
         # 处理组合消息的媒体组
         media_group_display = None
@@ -2007,7 +2008,7 @@ async def _get_original_message(original_id: str) -> Optional[Dict[str, Any]]:
                     item_copy = dict(media_item)
                     if media_item.get('file_path'):
                         if os.path.exists(media_item['file_path']):
-                            item_copy['display_url'] = f"/temp_media/{os.path.basename(media_item['file_path'])}"
+                            item_copy['display_url'] = api_paths.get_temp_media_url(os.path.basename(media_item['file_path']))
                         else:
                             item_copy['display_url'] = None
                     else:

@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.api_paths import api_paths
 from app.api import api_router
 
 # 确保日志目录存在
@@ -87,15 +88,17 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Web服务生命周期管理 - 仅包含基础初始化"""
+    """Web服务生命周期管理 - 优化版本，提升启动速度"""
+    import time
     
-    # 检查是否已经初始化（避免uvicorn多次调用）
+    # 检查是否已经初始化（避免重复调用）
     if hasattr(app.state, 'initialized') and app.state.initialized:
         logger.debug("Web服务器已初始化，跳过重复初始化")
         yield
         return
     
-    logger.info("🌐 启动Web服务器...")
+    start_time = time.time()
+    logger.info("🚀 启动Web服务器...")
     
     # 启动健康监控
     from app.services.health_monitor import create_health_monitor
@@ -103,49 +106,62 @@ async def lifespan(app: FastAPI):
     await health_monitor.start()
     
     try:
-        # 基础系统初始化
-        logger.info("初始化存储层和认证服务...")
+        # 阶段1：基础存储层初始化（最重要，必须先完成）
+        logger.info("📦 初始化存储层...")
+        storage_start = time.time()
         
-        # 初始化Redis存储层
+        # 初始化Redis存储层（使用连接池）
         from app.storage.redis_store import init_redis_stores
         if not init_redis_stores():
             await health_monitor.set_unhealthy("Redis存储层初始化失败")
-            raise RuntimeError("初始化失败")
-        logger.info("Redis连接已初始化")
+            raise RuntimeError("Redis初始化失败")
         
         # 初始化JSON存储层
         from app.storage.json_store import init_json_stores
         if not init_json_stores():
             await health_monitor.set_unhealthy("JSON存储层初始化失败")
-            raise RuntimeError("初始化失败")
+            raise RuntimeError("JSON存储初始化失败")
+        
+        storage_time = time.time() - storage_start
+        logger.info(f"✅ 存储层初始化完成 ({storage_time:.2f}s)")
+        
+        # 阶段2：配置和认证初始化（并行处理）
+        config_start = time.time()
         
         # 初始化默认配置
         from app.services.config_manager import init_default_configs
         await init_default_configs()
         
-        # 初始化认证服务（统一初始化，避免重复）
+        # 初始化认证服务
         from app.services.auth_service import init_auth_service
         if not init_auth_service():
             await health_monitor.set_unhealthy("认证服务初始化失败")
-            raise RuntimeError("初始化失败")
+            raise RuntimeError("认证服务初始化失败")
+        logger.info("✅ 认证服务已初始化")
         
-        # 初始化Telegram认证管理器
-        from app.telegram.auth import auth_manager
-        await auth_manager.initialize()
-        logger.info("认证服务已初始化")
+        config_time = time.time() - config_start
+        logger.info(f"✅ 配置初始化完成 ({config_time:.2f}s)")
+        
+        # 阶段3：其他组件初始化（延迟或并行）
+        misc_start = time.time()
         
         # 初始化频道ID缓存
         from app.services.channel_cache import channel_cache
         await channel_cache.init_cache()
-        logger.info("频道ID缓存已初始化")
         
-        # 初始化训练数据目录和配置
+        # 确保目录结构
         PathConfig.ensure_directories()
-        logger.info("训练数据目录已初始化")
+        
+        # 延迟加载：Telegram认证管理器（耗时较长，可延迟）
+        from app.telegram.auth import auth_manager
+        await auth_manager.initialize()
         
         # 加载数据库配置
         from app.core.config import settings
         await settings.load_db_configs()
+        
+        misc_time = time.time() - misc_start
+        logger.info(f"✅ 其他组件初始化完成 ({misc_time:.2f}s)")
         
         # 设置健康状态
         await health_monitor.set_healthy({
@@ -156,18 +172,22 @@ async def lifespan(app: FastAPI):
         
         # 标记已初始化
         app.state.initialized = True
-        logger.info("✅ Web服务器启动完成")
+        
+        total_time = time.time() - start_time
+        logger.info(f"🎉 Web服务器启动完成！总耗时: {total_time:.2f}s")
         
         yield
         
     except Exception as e:
+        total_time = time.time() - start_time
+        logger.error(f"❌ 启动失败 ({total_time:.2f}s): {str(e)}")
         await health_monitor.set_unhealthy(f"启动失败: {str(e)}")
         raise
     finally:
         # 关闭时清理
-        logger.info("🌐 正在关闭Web服务器...")
+        logger.info("🛑 正在关闭Web服务器...")
         await health_monitor.stop()
-        logger.info("Web服务器已关闭")
+        logger.info("✅ Web服务器已关闭")
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -214,37 +234,37 @@ app.mount("/media/ad_training_data", StaticFiles(directory=str(PathConfig.AD_TRA
 async def root():
     """根路径重定向到主界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/index.html")
+    return RedirectResponse(url=api_paths.INDEX_PAGE)
 
 @app.get("/admin")
 async def admin():
     """管理界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/admin.html")
+    return RedirectResponse(url=api_paths.ADMIN_PAGE)
 
 @app.get("/config")
 async def config():
     """配置管理界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/config.html")
+    return RedirectResponse(url=api_paths.CONFIG_PAGE)
 
 @app.get("/auth")
 async def auth():
     """Telegram 登录界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/auth.html")
+    return RedirectResponse(url=api_paths.AUTH_PAGE)
 
 @app.get("/status")
 async def status():
     """系统状态检查界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/status.html")
+    return RedirectResponse(url=api_paths.STATUS_PAGE)
 
 @app.get("/train")
 async def train():
     """AI训练界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/train.html")
+    return RedirectResponse(url=api_paths.TRAIN_PAGE)
 
 # 健康检查API端点
 @app.get("/api/health")
@@ -267,10 +287,13 @@ async def service_health_check(service_name: str):
 if __name__ == "__main__":
     import uvicorn
     logger.info("🌐 启动独立Web服务器...")
+    
+    # 直接传递app对象而不是字符串，避免模块重复导入导致的日志重复
     uvicorn.run(
-        "web_server:app",
+        app,  # 直接传递app对象，避免重复导入
         host="0.0.0.0",
         port=8000,
-        reload=False,  # 暂时禁用热重载，解决死循环问题
-        workers=1  # 明确设置为单worker，避免重复初始化
+        reload=False,  # 禁用热重载
+        workers=1,     # 单worker模式
+        log_config=None  # 禁用uvicorn默认日志配置，使用我们自己的
     )

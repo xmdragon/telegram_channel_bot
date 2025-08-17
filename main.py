@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.api_paths import api_paths
 from app.api import api_router
 from app.telegram.bot import TelegramBot
 from app.services.scheduler import MessageScheduler
@@ -235,38 +236,38 @@ app.mount("/media/ad_training_data", StaticFiles(directory=str(PathConfig.AD_TRA
 async def root():
     """根路径重定向到主界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/index.html")
+    return RedirectResponse(url=api_paths.INDEX_PAGE)
 
 @app.get("/admin")
 async def admin():
     """管理界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/admin.html")
+    return RedirectResponse(url=api_paths.ADMIN_PAGE)
 
 @app.get("/config")
 async def config():
     """配置管理界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/config.html")
+    return RedirectResponse(url=api_paths.CONFIG_PAGE)
 
 @app.get("/auth")
 async def auth():
     """Telegram 登录界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/auth.html")
+    return RedirectResponse(url=api_paths.AUTH_PAGE)
 
 @app.get("/status")
 async def status():
     """系统状态检查界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/status.html")
+    return RedirectResponse(url=api_paths.STATUS_PAGE)
 
 
 @app.get("/train")
 async def train():
     """AI训练界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/train.html")
+    return RedirectResponse(url=api_paths.TRAIN_PAGE)
 
 if __name__ == "__main__":
     import uvicorn

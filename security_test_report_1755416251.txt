@@ -1,0 +1,29 @@
+认证安全测试报告 - 2025-08-17T15:37:31.318824
+============================================================
+❌ FAIL [HIGH] 未认证访问拒绝 - /api/admin/current: 未认证访问未被拒绝，状态码: 404
+❌ FAIL [HIGH] 未认证访问拒绝 - /api/admin/admins: 未认证访问未被拒绝，状态码: 404
+❌ FAIL [HIGH] 无效token拒绝 - invalid_to: 无效token未被拒绝，状态码: 404
+❌ FAIL [HIGH] 无效token拒绝 - Bearer inv: 无效token未被拒绝，状态码: 404
+❌ FAIL [HIGH] 无效token拒绝 - empty: 无效token未被拒绝，状态码: 404
+❌ FAIL [HIGH] 无效token拒绝 - null: 无效token未被拒绝，状态码: 404
+❌ FAIL [HIGH] 登出后token失效测试: 登出后token仍然有效，状态码: 404
+⚠️ WARNING [MEDIUM] 有效token访问 - /api/admin/current: 意外状态码: 404
+⚠️ WARNING [MEDIUM] 有效token访问 - /api/admin/admins: 意外状态码: 404
+⚠️ WARNING [MEDIUM] 暴力破解防护: 连续5次失败登录未触发速率限制
+✅ PASS [INFO] 正确登录测试: 管理员登录成功，获得token: _AmoeF-l...
+✅ PASS [INFO] 错误密码拒绝测试: 错误密码被正确拒绝
+✅ PASS [INFO] 不存在用户拒绝测试: 不存在用户被正确拒绝
+✅ PASS [INFO] 未认证访问拒绝 - /api/messages: 未认证访问被正确拒绝
+✅ PASS [INFO] 有效token访问 - /api/messages: 有效token访问成功
+✅ PASS [INFO] 未认证访问拒绝 - /api/config: 未认证访问被正确拒绝
+✅ PASS [INFO] 有效token访问 - /api/config: 有效token访问成功
+✅ PASS [INFO] Token长度检查: Token长度足够: 43字符
+✅ PASS [INFO] 会话状态检查: 会话状态检查正常
+✅ PASS [INFO] 登出功能测试: 登出功能正常
+✅ PASS [INFO] SQL注入防护 - admin'; DROP TABLE a...: SQL注入payload被正确拒绝
+✅ PASS [INFO] SQL注入防护 - admin' OR '1'='1...: SQL注入payload被正确拒绝
+✅ PASS [INFO] SQL注入防护 - admin' UNION SELECT ...: SQL注入payload被正确拒绝
+✅ PASS [INFO] XSS防护 - <script>alert('XSS')...: XSS payload被正确处理
+✅ PASS [INFO] XSS防护 - javascript:alert('XS...: XSS payload被正确处理
+✅ PASS [INFO] XSS防护 - <img src=x onerror=a...: XSS payload被正确处理
+✅ PASS [INFO] 密码哈希验证: 密码使用SHA-256哈希存储

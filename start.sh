@@ -104,6 +104,24 @@ done
 
 echo "🚀 启动 Telegram 消息审核系统..."
 
+# 加载进程管理工具
+if [[ -f "tools/utils/process_manager.sh" ]]; then
+    source tools/utils/process_manager.sh
+    [ "$VERBOSE" = true ] && echo "✅ 已加载进程管理工具"
+else
+    echo "⚠️  进程管理工具未找到，使用基础模式"
+fi
+
+# 生产环境启动前检查
+if [[ $(type -t smart_startup_check) == function ]]; then
+    if ! smart_startup_check "生产环境"; then
+        echo "❌ 启动前检查失败，已取消启动"
+        exit 1
+    fi
+elif [ "$VERBOSE" = true ]; then
+    echo "⚠️  未启用智能冲突检测"
+fi
+
 # 检查虚拟环境
 if [ ! -d "venv" ]; then
     echo "📦 创建虚拟环境..."
@@ -185,4 +203,35 @@ echo "   - 使用 './stop.sh' 停止所有服务"
 echo "   - 使用 './dev.sh --status' 查看服务状态"
 echo "   - Web界面: http://localhost:8000"
 echo
-exec python3 dev_supervisor.py all
+# 启动进程管理器（生产模式）
+echo "🌟 启动应用进程管理器..."
+
+# 创建PID文件记录
+if [[ $(type -t create_pid_file) == function ]]; then
+    # 在后台启动进程管理器，获取PID
+    python3 dev_supervisor.py all &
+    SUPERVISOR_PID=$!
+    
+    # 创建PID文件
+    create_pid_file "dev_supervisor" "$SUPERVISOR_PID"
+    
+    # 设置退出陷阱，确保清理PID文件
+    trap 'cleanup_pid_file "dev_supervisor"; kill -TERM $SUPERVISOR_PID 2>/dev/null || true' EXIT INT TERM
+    
+    # 报告启动状态
+    sleep 2
+    if kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
+        print_success "进程管理器启动成功 (PID: $SUPERVISOR_PID)"
+        [ "$VERBOSE" = true ] && echo "📄 PID文件: ./logs/pids/dev_supervisor.pid"
+    else
+        print_error "进程管理器启动失败"
+        cleanup_pid_file "dev_supervisor"
+        exit 1
+    fi
+    
+    # 等待进程管理器
+    wait $SUPERVISOR_PID
+else
+    # 降级为直接启动
+    exec python3 dev_supervisor.py all
+fi

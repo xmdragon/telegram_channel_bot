@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.services.message_processor import MessageProcessor
+from app.core.api_paths import api_paths
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +109,9 @@ class MessageScheduler:
                     # 检查是否有媒体文件
                     if message.media_url:
                         # 媒体URL格式通常是 /temp_media/xxxxx 或本地路径
-                        if message.media_url.startswith('/temp_media/'):
+                        if message.media_url.startswith(api_paths.TEMP_MEDIA_PATH):
                             # 转换为本地文件路径
-                            media_path = Path('temp_media') / message.media_url.replace('/temp_media/', '')
+                            media_path = Path('temp_media') / message.media_url.replace(api_paths.TEMP_MEDIA_PATH + '/', '')
                             if media_path.exists():
                                 media_files_to_delete.append(media_path)
                     
