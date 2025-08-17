@@ -318,8 +318,14 @@ class AuthService:
 auth_service = None
 
 def init_auth_service():
-    """初始化认证服务"""
+    """初始化认证服务 - 单例模式，避免重复初始化"""
     global auth_service
+    
+    # 检查是否已经初始化
+    if auth_service is not None:
+        logger.debug("认证服务已经初始化，跳过重复初始化")
+        return True
+    
     try:
         auth_service = AuthService()
         logger.info("认证服务初始化成功")

@@ -828,8 +828,13 @@ redis_session_store = None
 redis_channel_store = None
 
 def init_redis_stores(redis_url: str = "redis://localhost:6379"):
-    """初始化Redis存储实例"""
+    """初始化Redis存储实例 - 单例模式，避免重复初始化"""
     global redis_message_store, redis_session_store, redis_channel_store
+    
+    # 检查是否已经初始化
+    if redis_message_store is not None and redis_session_store is not None and redis_channel_store is not None:
+        logger.debug("Redis存储层已经初始化，跳过重复初始化")
+        return True
     
     try:
         redis_message_store = RedisMessageStore(redis_url)

@@ -511,8 +511,13 @@ json_channel_store = None
 json_admin_store = None
 
 def init_json_stores(data_dir: str = None):
-    """初始化JSON存储实例"""
+    """初始化JSON存储实例 - 单例模式，避免重复初始化"""
     global json_config_store, json_channel_store, json_admin_store
+    
+    # 检查是否已经初始化
+    if json_config_store is not None and json_channel_store is not None and json_admin_store is not None:
+        logger.debug("JSON存储层已经初始化，跳过重复初始化")
+        return True
     
     try:
         json_config_store = JSONConfigStore(data_dir)

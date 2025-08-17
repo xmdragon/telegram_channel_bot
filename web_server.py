@@ -88,6 +88,13 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Web服务生命周期管理 - 仅包含基础初始化"""
+    
+    # 检查是否已经初始化（避免uvicorn多次调用）
+    if hasattr(app.state, 'initialized') and app.state.initialized:
+        logger.debug("Web服务器已初始化，跳过重复初始化")
+        yield
+        return
+    
     logger.info("🌐 启动Web服务器...")
     
     # 启动健康监控
@@ -116,11 +123,15 @@ async def lifespan(app: FastAPI):
         from app.services.config_manager import init_default_configs
         await init_default_configs()
         
-        # 初始化认证服务
+        # 初始化认证服务（统一初始化，避免重复）
         from app.services.auth_service import init_auth_service
         if not init_auth_service():
             await health_monitor.set_unhealthy("认证服务初始化失败")
             raise RuntimeError("初始化失败")
+        
+        # 初始化Telegram认证管理器
+        from app.telegram.auth import auth_manager
+        await auth_manager.initialize()
         logger.info("认证服务已初始化")
         
         # 初始化频道ID缓存
@@ -136,11 +147,6 @@ async def lifespan(app: FastAPI):
         from app.core.config import settings
         await settings.load_db_configs()
         
-        # 初始化认证服务
-        from app.telegram.auth import auth_manager
-        await auth_manager.initialize()
-        logger.info("认证服务已初始化")
-        
         # 设置健康状态
         await health_monitor.set_healthy({
             "web_server_port": 8000,
@@ -148,6 +154,8 @@ async def lifespan(app: FastAPI):
             "static_files": True
         })
         
+        # 标记已初始化
+        app.state.initialized = True
         logger.info("✅ Web服务器启动完成")
         
         yield
@@ -263,5 +271,6 @@ if __name__ == "__main__":
         "web_server:app",
         host="0.0.0.0",
         port=8000,
-        reload=False  # 暂时禁用热重载，解决死循环问题
+        reload=False,  # 暂时禁用热重载，解决死循环问题
+        workers=1  # 明确设置为单worker，避免重复初始化
     )
