@@ -14,6 +14,7 @@ import os
 from app.storage.redis_store import get_redis_message_store
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -53,7 +54,7 @@ def check_permission(permission_name: str):
         return wrapper
     return decorator
 
-@router.post("/{message_id}/filter-tail")
+@router.post(ROUTES.messages.filter_tail)
 @check_permission("filter.execute")
 async def filter_message_tail(
     message_id: str,
@@ -177,7 +178,7 @@ async def filter_message_tail(
         logger.error(f"执行尾部过滤失败: {e}")
         raise HTTPException(status_code=500, detail=f"执行过滤失败: {str(e)}")
 
-@router.post("/{message_id}/refilter")
+@router.post(ROUTES.messages.refilter)
 @check_permission("filter.execute")
 async def refilter_message(
     message_id: str,
@@ -212,7 +213,7 @@ async def refilter_message(
         logger.error(f"重新过滤消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"重新过滤失败: {str(e)}")
 
-@router.get("/thresholds/stats")
+@router.get(ROUTES.messages.thresholds_stats)
 @check_permission("filter.view")
 async def get_threshold_stats(
     user: Dict[str, Any] = Depends(require_auth)
@@ -235,7 +236,7 @@ async def get_threshold_stats(
         logger.error(f"获取阈值统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取统计失败: {str(e)}")
 
-@router.post("/thresholds/optimize")
+@router.post(ROUTES.messages.thresholds_optimize)
 @check_permission("filter.admin")
 async def optimize_thresholds(
     user: Dict[str, Any] = Depends(require_auth)
@@ -265,7 +266,7 @@ async def optimize_thresholds(
         logger.error(f"阈值优化失败: {e}")
         raise HTTPException(status_code=500, detail=f"优化失败: {str(e)}")
 
-@router.post("/thresholds/{filter_name}/{metric_name}/reset")
+@router.post(ROUTES.messages.thresholds_reset)
 @check_permission("filter.admin")
 async def reset_threshold(
     filter_name: str,
@@ -303,7 +304,7 @@ async def reset_threshold(
         logger.error(f"重置阈值失败: {e}")
         raise HTTPException(status_code=500, detail=f"重置失败: {str(e)}")
 
-@router.post("/{message_id}/train-tail")
+@router.post(ROUTES.messages.train_tail)
 @check_permission("filter.train")
 async def train_message_tail(
     message_id: str,
@@ -372,7 +373,7 @@ async def train_message_tail(
         logger.error(f"保存训练数据失败: {e}")
         raise HTTPException(status_code=500, detail=f"保存训练数据失败: {str(e)}")
 
-@router.post("/{message_id}/not-ad")
+@router.post(ROUTES.messages.not_ad)
 @check_permission("filter.train")
 async def mark_not_ad(
     message_id: str,
@@ -407,7 +408,7 @@ async def mark_not_ad(
         logger.error(f"标记非广告失败: {e}")
         raise HTTPException(status_code=500, detail=f"标记失败: {str(e)}")
 
-@router.post("/{message_id}/feedback")
+@router.post(ROUTES.messages.feedback)
 @check_permission("filter.feedback")
 async def submit_filter_feedback(
     message_id: str,
