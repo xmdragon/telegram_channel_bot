@@ -1,4 +1,8 @@
 // 阈值监控组件 - 简化版本用于调试
+
+// 确保API配置可用
+const API = window.API;
+
 console.log('Vue:', window.Vue);
 console.log('ElementPlus:', window.ElementPlus);
 
@@ -116,7 +120,7 @@ const app = createApp({
         async refreshData(silent = false) {
             if (!silent) this.loading = true;
             try {
-                const response = await axios.get('/api/messages/thresholds/stats', {
+                const response = await axios.get(API.messages.thresholdsStats, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
@@ -140,7 +144,7 @@ const app = createApp({
         async optimizeAllThresholds() {
             this.optimizing = true;
             try {
-                const response = await axios.post('/api/messages/thresholds/optimize', {}, {
+                const response = await axios.post(API.messages.thresholdsOptimize, {}, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
@@ -170,7 +174,7 @@ const app = createApp({
 
                 this.$set(this.resetting, key, true);
                 
-                const response = await axios.post(`/api/messages/thresholds/${filterName}/${metricName}/reset`, {}, {
+                const response = await axios.post(API.messages.thresholdsReset(filterName, metricName), {}, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
@@ -209,7 +213,7 @@ const app = createApp({
                     ...this.feedbackDialog.form
                 };
 
-                const response = await axios.post('/api/messages/test-message/feedback', data, {
+                const response = await axios.post(API.messages.testMessageFeedback, data, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
@@ -237,7 +241,7 @@ const app = createApp({
 
         async exportConfig() {
             try {
-                const response = await axios.get('/api/messages/thresholds/stats', {
+                const response = await axios.get(API.messages.thresholdsStats, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 

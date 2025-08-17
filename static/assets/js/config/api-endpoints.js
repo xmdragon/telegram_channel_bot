@@ -17,6 +17,12 @@ const API_ENDPOINTS = {
         list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
         stats: '/api/messages/stats',                               // GET - 获取消息统计信息
         statsOverview: '/api/messages/stats/overview',              // GET - 获取消息统计概览
+        
+        // 阈值管理端点
+        thresholdsStats: '/api/messages/thresholds/stats',          // GET - 获取阈值统计
+        thresholdsOptimize: '/api/messages/thresholds/optimize',    // POST - 优化阈值
+        thresholdsReset: (filterName, metricName) => `/api/messages/thresholds/${filterName}/${metricName}/reset`, // POST - 重置阈值
+        testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
         getById: (id) => `/api/messages/${id}`,                    // GET - 根据ID获取单个消息
         updateById: (id) => `/api/messages/${id}`,                 // PUT - 更新消息内容
