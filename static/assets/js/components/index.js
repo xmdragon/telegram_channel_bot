@@ -106,8 +106,12 @@ const MainApp = {
                 
                 seenChannels.add(channelId);
                 uniqueChannels[channelId] = channelData;
+                
+                // 调试：输出最终的显示名称
+                console.log(`uniqueChannels[${channelId}]:`, this.getChannelDisplayName(channelData));
             }
             
+            console.log('uniqueChannels总数:', Object.keys(uniqueChannels).length);
             return uniqueChannels;
         },
         
@@ -415,10 +419,55 @@ const MainApp = {
             try {
                 const response = await axios.get(window.API.messages.channelInfo);
                 if (response.data.success) {
-                    this.channelInfo = response.data.data;
+                    const channelInfo = {};
+                    
+                    // 处理后端返回的频道数据
+                    const processChannel = (channel) => {
+                        if (!channel || !channel.channel_id) return;
+                        
+                        // 从channel_name提取username，确保格式正确
+                        const channelName = channel.channel_name || '';
+                        let username = '';
+                        if (channelName) {
+                            // 移除@前缀（如果有的话）
+                            username = channelName.startsWith('@') ? channelName.substring(1) : channelName;
+                        }
+                        
+                        const channelInfo_item = {
+                            id: channel.channel_id,
+                            title: channel.channel_title || channel.title || `频道 ${channel.channel_id}`,
+                            username: username, // 不包含@前缀
+                            type: channel.channel_type || 'source',
+                            enabled: channel.is_active !== false && channel.enabled !== false
+                        };
+                        
+                        channelInfo[channel.channel_id] = channelInfo_item;
+                        
+                        // 调试输出
+                        console.log(`频道 ${channel.channel_id}:`, {
+                            原始数据: channel,
+                            title: channelInfo_item.title,
+                            username: channelInfo_item.username,
+                            displayName: this.getChannelDisplayName(channelInfo_item)
+                        });
+                    };
+                    
+                    // 检查是否是数组格式（从get_all_channels返回）
+                    if (Array.isArray(response.data.data)) {
+                        response.data.data.forEach(processChannel);
+                    } 
+                    // 兼容对象格式（直接从JSON Store返回）
+                    else if (typeof response.data.data === 'object') {
+                        Object.values(response.data.data).forEach(processChannel);
+                    }
+                    
+                    this.channelInfo = channelInfo;
+                    console.log('频道信息加载成功:', Object.keys(channelInfo).length, '个频道');
+                } else {
+                    console.warn('频道信息API返回失败:', response.data);
                 }
             } catch (error) {
-                // console.error('加载频道信息失败:', error);
+                console.error('加载频道信息失败:', error);
             }
         },
         
@@ -507,7 +556,6 @@ const MainApp = {
                     
                     // 强制Vue下一帧重新渲染，确保媒体URL被正确加载
                     this.$nextTick(() => {
-                        // console.log('消息列表已更新，触发媒体重新加载');
                         // 重新设置滚动监听器，确保DOM更新后正确绑定
                         setTimeout(() => this.setupScrollListener(), 100);
                     });

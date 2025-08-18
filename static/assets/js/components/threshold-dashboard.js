@@ -3,9 +3,7 @@
 // 确保API配置可用
 const API = window.API;
 
-console.log('Vue:', window.Vue);
-console.log('ElementPlus:', window.ElementPlus);
-
+// 检查依赖
 if (!window.Vue) {
     console.error('Vue 未加载!');
 }

@@ -135,7 +135,6 @@ const TrainApp = {
                     messageId: messageId,
                     mode: mode
                 };
-                console.log('设置自动返回参数:', this.autoReturnParams);
             }
             
             // 如果有消息ID，从API获取消息内容
@@ -184,7 +183,6 @@ const TrainApp = {
                         this.activeTab = 'train';
                     }
                 } catch (error) {
-                    // console.error('获取消息详情失败:', error);
                     // 如果是404错误，消息不存在
                     if (error.response && error.response.status === 404) {
                         ElMessage({
@@ -250,7 +248,6 @@ const TrainApp = {
                 const response = await axios.get(API.training.separatorPatterns);
                 this.separatorPatterns = response.data.patterns || [];
             } catch (error) {
-                // console.error('加载分隔符模式失败:', error);
                 this.separatorPatterns = [
                     { regex: '━{10,}', description: '横线分隔符' },
                     { regex: '═{10,}', description: '双线分隔符' },
@@ -291,9 +288,8 @@ const TrainApp = {
             try {
                 const response = await axios.get(API.training.tailAdSamples);
                 // 处理广告样本数据
-                // console.log('广告样本:', response.data);
             } catch (error) {
-                // console.error('加载广告样本失败:', error);
+                // 静默处理加载失败
             }
         },
         
@@ -409,7 +405,6 @@ const TrainApp = {
                 const response = await axios.get(API.training.channels);
                 this.channels = response.data.channels || [];
             } catch (error) {
-                // console.error('加载频道失败:', error);
                 ElMessage({
                     message: '加载频道列表失败',
                     type: 'error',
@@ -434,7 +429,6 @@ const TrainApp = {
                     };
                 }
             } catch (error) {
-                // console.error('加载统计失败:', error);
                 // 如果统计端点不存在，降级到不加载
                 this.stats = {
                     totalChannels: 0,
@@ -448,7 +442,6 @@ const TrainApp = {
         async loadHistory() {
             // 如果处于自动返回模式，不加载历史记录
             if (this.autoReturnParams.enabled) {
-                console.log('自动返回模式，跳过加载历史记录');
                 return;
             }
             
@@ -462,7 +455,6 @@ const TrainApp = {
                     this.trainingHistory = response.data.history || [];
                 }
             } catch (error) {
-                // console.error('加载历史失败:', error);
                 // 如果历史端点不存在，设置为空
                 this.trainingHistory = [];
             }

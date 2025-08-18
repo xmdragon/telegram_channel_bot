@@ -42,21 +42,12 @@ const app = createApp({
     methods: {
         // 加载样本数据
         async loadSamples() {
-            console.log('🔄 开始加载尾部过滤样本数据...');
             this.loading = true;
             try {
-                console.log('📡 发送API请求: GET', API.training.tailFilterSamples);
                 const response = await axios.get(API.training.tailFilterSamples);
-                console.log('📥 收到API响应:', {
-                    status: response.status,
-                    dataKeys: Object.keys(response.data || {}),
-                    samplesCount: response.data.samples ? response.data.samples.length : 0
-                });
                 
                 this.allSamples = response.data.samples || [];
                 this.totalCount = this.allSamples.length;
-                
-                console.log(`✅ 成功加载 ${this.totalCount} 条样本数据`);
                 
                 // 按创建时间倒序排序（最新的在前）
                 this.allSamples.sort((a, b) => {
@@ -67,38 +58,19 @@ const app = createApp({
                 
                 // 计算统计信息
                 this.calculateStats();
-                console.log('📊 统计信息计算完成:', {
-                    totalSamples: this.totalSamples,
-                    validSamples: this.validSamples,
-                    todayAdded: this.todayAdded
-                });
                 
                 // 更新当前页数据
                 this.updatePageData();
-                console.log(`📄 页面数据更新完成 - 当前页: ${this.currentPage}, 显示: ${this.samples.length} 条`);
             } catch (error) {
-                console.error('❌ 加载尾部过滤样本失败:', error);
-                console.error('错误详情:', {
-                    message: error.message,
-                    status: error.response?.status,
-                    data: error.response?.data
-                });
+                console.error('加载尾部过滤样本失败:', error);
                 ElMessage.error('加载数据失败');
             } finally {
                 this.loading = false;
-                console.log('🏁 加载过程结束');
             }
         },
         
         // 更新当前页显示的数据
         updatePageData() {
-            console.log('🔄 更新页面数据...', {
-                allSamples: this.allSamples.length,
-                currentPage: this.currentPage,
-                pageSize: this.pageSize,
-                searchText: this.searchText
-            });
-            
             // 先进行搜索过滤
             let filteredSamples = this.allSamples;
             
@@ -119,13 +91,6 @@ const app = createApp({
             const start = (this.currentPage - 1) * this.pageSize;
             const end = start + this.pageSize;
             this.samples = filteredSamples.slice(start, end);
-            
-            console.log('📄 页面数据更新完成:', {
-                filteredCount: filteredSamples.length,
-                pageStart: start,
-                pageEnd: end,
-                displayedCount: this.samples.length
-            });
         },
         
         // 计算统计信息
@@ -157,7 +122,6 @@ const app = createApp({
         
         // 显示详情
         showDetail(sample) {
-            console.log('🔍 显示详情:', sample);
             this.currentSample = sample;
             this.detailDialog = true;
         },
@@ -207,7 +171,6 @@ const app = createApp({
         
         // 编辑样本
         editSample(sample) {
-            console.log('✏️ 编辑样本:', sample);
             this.editingSample = {
                 id: sample.id,
                 tail_part: sample.tail_part
@@ -268,7 +231,7 @@ const app = createApp({
                         await axios.delete(API.training.tailFilterSampleById(id));
                         successCount++;
                     } catch (e) {
-                        // console.error(`删除样本 ${id} 失败:`, e);
+                        // 静默处理删除失败
                     }
                 }
                 
@@ -277,7 +240,6 @@ const app = createApp({
                 
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('批量删除失败:', error);
                     ElMessage.error('批量删除失败');
                 }
             }
@@ -382,21 +344,14 @@ const app = createApp({
     },
     
     async mounted() {
-        console.log('🚀 尾部过滤管理器组件开始挂载...');
-        
         // 初始化权限检查
-        console.log('🔐 检查权限...');
         const isAuthorized = await authManager.initPageAuth('training.view');
         if (!isAuthorized) {
-            console.log('❌ 权限检查失败');
             return;
         }
-        console.log('✅ 权限检查通过');
         
         // 初始加载数据
-        console.log('📊 开始初始化数据加载...');
         await this.loadSamples();
-        console.log('🎉 组件挂载完成');
     }
 });
 
