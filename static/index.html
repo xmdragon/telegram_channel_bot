@@ -180,7 +180,7 @@
                     <!-- 消息内容 - 重复消息对比显示 -->
                     <div class="message-content">
                         <!-- 🔧 新增：重复消息对比布局 -->
-                        <div v-if="filters._show_duplicates && message.duplicate_info" class="duplicate-comparison-layout">
+                        <div v-if="message.duplicate_info && message.duplicate_original_id" class="duplicate-comparison-layout">
                             <!-- 左栏：被拒绝的重复消息 -->
                             <div class="comparison-column duplicate-column">
                                 <div class="comparison-column-header">

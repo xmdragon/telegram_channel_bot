@@ -279,6 +279,23 @@ class MessageStorageProcessor(MessageProcessor):
             
         except Exception as e:
             self.logger.error(f"清理媒体文件失败: {e}")
+    
+    def _generate_channel_link_prefix(self, channel_id: str) -> str:
+        """
+        生成频道链接前缀
+        将频道ID转换为Telegram链接格式
+        """
+        try:
+            # 移除负号前缀，Telegram链接不需要负号
+            clean_id = channel_id.lstrip('-')
+            
+            # 构建Telegram私有频道链接格式
+            # 格式：https://t.me/c/频道ID/消息ID
+            return f"https://t.me/c/{clean_id}"
+            
+        except Exception as e:
+            self.logger.error(f"生成频道链接前缀失败: {e}")
+            return f"https://t.me/c/{channel_id.lstrip('-')}"
 
 
 class DuplicateChecker(MessageProcessor):

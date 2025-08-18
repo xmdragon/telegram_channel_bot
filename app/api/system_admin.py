@@ -10,7 +10,7 @@ from pathlib import Path
 from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/system", tags=["system-admin"])
+router = APIRouter(tags=["system-admin"])
 
 @router.post(ROUTES.system.service_start)
 async def start_service(service_name: str) -> Dict[str, Any]:

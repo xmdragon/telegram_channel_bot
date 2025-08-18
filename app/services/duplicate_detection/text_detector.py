@@ -85,8 +85,9 @@ class TextDuplicateDetector:
                     
                     if similarity >= self.similarity_threshold:
                         orig_msg_id = msg_data.get('message_id')
-                        logger.info(f"发现文本相似重复，相似度: {similarity:.1%}，原消息ID: {orig_msg_id}")
-                        return True, orig_msg_id
+                        redis_key = msg_data.get('_redis_key')
+                        logger.info(f"发现文本相似重复，相似度: {similarity:.1%}，原消息ID: {orig_msg_id}，键: {redis_key}")
+                        return True, redis_key
                         
                 except Exception as e:
                     logger.debug(f"比较文本相似度时出错: {e}")
@@ -222,6 +223,8 @@ class TextDuplicateDetector:
                     if status == 'rejected':
                         continue
                     
+                    # 添加Redis键信息
+                    message_data['_redis_key'] = key
                     messages_with_content.append(message_data)
                     
                 except Exception as e:

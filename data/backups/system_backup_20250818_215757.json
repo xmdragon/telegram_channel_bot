@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-18T20:37:30.528132",
+    "updated_at": "2025-08-18T21:52:39.986054",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-18T12:37:32.714233",
+  "updated_at": "2025-08-18T13:55:25.685341",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-18T20:37:30.530901",
+    "updated_at": "2025-08-18T21:52:39.987489",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -53,7 +53,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-18T20:37:32.714222",
+    "updated_at": "2025-08-18T21:52:42.351894",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "channels.history_message_limit": {
@@ -61,7 +61,7 @@
     "config_type": "integer",
     "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
     "is_active": true,
-    "updated_at": "2025-08-18T18:38:22.099623",
+    "updated_at": "2025-08-18T21:55:25.674643",
     "created_at": "2025-08-14T22:53:30.663727"
   },
   "filter.ad_keywords_text": {
@@ -101,7 +101,7 @@
     "config_type": "string",
     "description": "频道落款内容（支持多行，用\\n分隔）",
     "is_active": true,
-    "updated_at": "2025-08-18T18:38:22.104591",
+    "updated_at": "2025-08-18T21:55:25.681993",
     "created_at": "2025-08-14T22:53:30.665451"
   },
   "channels.target_channel_id_cached": {
@@ -117,7 +117,7 @@
     "config_type": "string",
     "description": "",
     "is_active": true,
-    "updated_at": "2025-08-18T20:34:17.431545",
+    "updated_at": "2025-08-18T21:52:42.358414",
     "created_at": "2025-08-14T23:46:07.015035"
   },
   "channels.review_group": {
@@ -209,11 +209,11 @@
     "created_at": "2025-08-15T19:03:51.231615"
   },
   "collection.enabled": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "启用Telegram消息采集",
     "is_active": true,
-    "updated_at": "2025-08-18T18:40:50.451511",
+    "updated_at": "2025-08-18T21:55:25.685313",
     "created_at": "2025-08-15T19:03:51.231938"
   },
   "collection.interval": {

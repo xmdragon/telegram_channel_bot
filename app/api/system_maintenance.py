@@ -16,7 +16,7 @@ from app.telegram.auth import auth_manager
 from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/system", tags=["system-maintenance"])
+router = APIRouter(tags=["system-maintenance"])
 
 @router.post(ROUTES.system.restart)
 async def restart_services() -> Dict[str, Any]:

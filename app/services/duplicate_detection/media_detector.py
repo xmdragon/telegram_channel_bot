@@ -97,8 +97,8 @@ class MediaDuplicateDetector:
                     if message_id and str(orig_msg_id) == str(message_id):
                         continue
                     
-                    logger.info(f"发现媒体哈希重复，原消息ID: {orig_msg_id}")
-                    return True, orig_msg_id
+                    logger.info(f"发现媒体哈希重复，原消息ID: {orig_msg_id}，键: {key}")
+                    return True, key
                     
                 except Exception as e:
                     logger.debug(f"检查重复消息 {key} 时出错: {e}")

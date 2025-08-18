@@ -144,7 +144,7 @@ async def get_messages(
         # 计算总页数
         total_pages = (total_messages + page_size - 1) // page_size if total_messages > 0 else 1
         
-        # 处理媒体显示URL
+        # 处理媒体显示URL和重复消息信息
         for message in filtered_messages:
             if message.get('media_path'):
                 message['media_display_url'] = api_paths.get_temp_media_url(
@@ -158,6 +158,34 @@ async def get_messages(
                         media['display_url'] = api_paths.get_temp_media_url(
                             os.path.basename(media['media_path'])
                         )
+            
+            # 处理重复消息的原始消息信息
+            if message.get('duplicate_original_id'):
+                try:
+                    # 根据duplicate_original_id获取原始消息的完整数据
+                    original_message = redis_store.get_message_by_id(message['duplicate_original_id'])
+                    if original_message:
+                        # 处理原始消息的媒体URL
+                        if original_message.get('media_path'):
+                            original_message['media_display_url'] = api_paths.get_temp_media_url(
+                                os.path.basename(original_message['media_path'])
+                            )
+                        
+                        # 处理原始消息的组合媒体
+                        if original_message.get('media_group_display'):
+                            for media in original_message['media_group_display']:
+                                if media.get('media_path'):
+                                    media['display_url'] = api_paths.get_temp_media_url(
+                                        os.path.basename(media['media_path'])
+                                    )
+                        
+                        # 将原始消息数据填充到duplicate_info字段
+                        message['duplicate_info'] = original_message
+                        
+                except Exception as e:
+                    logger.warning(f"获取重复消息原始数据失败 {message.get('duplicate_original_id')}: {e}")
+                    # 如果无法获取原始消息，保持原有结构
+                    message['duplicate_info'] = None
         
         # 构建返回结果
         result = {
