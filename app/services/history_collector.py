@@ -76,6 +76,12 @@ class HistoryCollector:
             limit: 采集消息数量限制
         """
         try:
+            # 检查采集开关
+            from app.services.config_manager import config_manager
+            collection_enabled = await config_manager.get_config('collection.enabled', True)
+            if not collection_enabled:
+                logger.debug("采集已禁用，跳过历史消息采集")
+                return False
             # 检查是否已经在采集
             if channel_id in self.collection_tasks:
                 task = self.collection_tasks[channel_id]
@@ -403,6 +409,13 @@ class HistoryCollector:
     async def auto_collect_for_new_channels(self, history_limit: int = 100):
         """为新添加的频道自动采集历史消息"""
         try:
+            # 检查采集开关
+            from app.services.config_manager import config_manager
+            collection_enabled = await config_manager.get_config('collection.enabled', True)
+            if not collection_enabled:
+                logger.debug("采集已禁用，跳过新频道自动采集")
+                return
+                
             if history_limit <= 0:
                 return
                 

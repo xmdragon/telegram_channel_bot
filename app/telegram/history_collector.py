@@ -28,6 +28,12 @@ class HistoryCollector:
     async def collect_channel_history(self, client: TelegramClient):
         """采集所有监听频道的历史消息"""
         try:
+            # 检查采集开关
+            collection_enabled = await self.config_manager.get_config('collection.enabled', True)
+            if not collection_enabled:
+                logger.debug("采集已禁用，跳过历史消息采集")
+                return
+                
             # 获取历史消息采集配置
             history_limit = await self.config_manager.get_config("channels.history_message_limit", 50)
             
