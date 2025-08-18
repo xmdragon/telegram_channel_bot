@@ -149,7 +149,7 @@ const MainApp = {
             }
             const selectableMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
             return selectableMessages.length > 0 && 
-                   selectableMessages.every(msg => this.selectedMessages.includes(msg.id));
+                   selectableMessages.every(msg => this.selectedMessages.includes(msg.message_id));
         }
     },
     
@@ -491,21 +491,21 @@ const MainApp = {
                     params: params
                 });
                 
-                if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
-                    const newMessages = response.data.messages;
+                if (response.data && response.data.data && response.data.data.messages && Array.isArray(response.data.data.messages)) {
+                    const newMessages = response.data.data.messages;
                     
                     // 检查是否还有更多数据
                     this.hasMore = newMessages.length === this.pageSize;
                     
                     // 计算真正的新消息
-                    const currentMessageIds = new Set(newMessages.map(msg => msg.id));
-                    const reallyNewMessages = newMessages.filter(msg => !this.previousMessageIds.has(msg.id));
+                    const currentMessageIds = new Set(newMessages.map(msg => msg.message_id));
+                    const reallyNewMessages = newMessages.filter(msg => !this.previousMessageIds.has(msg.message_id));
                     
                     // 更新消息列表
                     if (append) {
                         // 追加到现有列表，避免重复
-                        const existingIds = new Set(this.messages.map(m => m.id));
-                        const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.id));
+                        const existingIds = new Set(this.messages.map(m => m.message_id));
+                        const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.message_id));
                         this.messages = [...this.messages, ...uniqueNewMessages];
                         
                         // 如果没有新的唯一消息，说明已经到底了
@@ -515,6 +515,10 @@ const MainApp = {
                     } else {
                         // 替换整个列表
                         this.messages = newMessages;
+                        
+                        // 强制Vue重新渲染
+                        this.$nextTick(() => {
+                        });
                     }
                     
                     // 只有在追加模式且有真正新消息时才显示提示
@@ -890,11 +894,11 @@ const MainApp = {
         
         // 切换消息选择状态
         toggleMessageSelection(message) {
-            const index = this.selectedMessages.indexOf(message.id);
+            const index = this.selectedMessages.indexOf(message.message_id);
             if (index > -1) {
                 this.selectedMessages.splice(index, 1);
             } else {
-                this.selectedMessages.push(message.id);
+                this.selectedMessages.push(message.message_id);
             }
         },
         
@@ -1292,7 +1296,7 @@ const MainApp = {
             // });
             
             // 检查消息是否已存在
-            const existingIndex = this.messages.findIndex(msg => msg.id === messageData.id);
+            const existingIndex = this.messages.findIndex(msg => msg.message_id === messageData.message_id);
             
             if (existingIndex === -1) {
                 // 检查新消息是否符合当前筛选条件
@@ -1449,7 +1453,7 @@ const MainApp = {
                 this.selectedMessages = [];
             } else {
                 const selectableMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
-                this.selectedMessages = selectableMessages.map(msg => msg.id);
+                this.selectedMessages = selectableMessages.map(msg => msg.message_id);
             }
         },
         
@@ -1521,7 +1525,7 @@ const MainApp = {
             try {
                 MessageManager.info('正在重新发送消息到目标频道...');
                 
-                const response = await axios.post(window.API.messages.resendById(message.id));
+                const response = await axios.post(window.API.messages.resendById(message.message_id));
                 
                 if (response.data.success) {
                     MessageManager.success('消息已重新发送到目标频道');
@@ -1663,7 +1667,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(API.messages.notAd(message.id));
+                const response = await axios.post(API.messages.notAd(message.message_id));
                 
                 if (response.data.success) {
                     MessageManager.success('已标记为"不是广告"，消息状态已改为待审核');
@@ -1694,13 +1698,13 @@ const MainApp = {
         // 手动执行尾部过滤
         async filterTail(message) {
             try {
-                const response = await axios.post(API.messages.filterTail(message.id));
+                const response = await axios.post(API.messages.filterTail(message.message_id));
                 
                 if (response.data.success) {
                     if (response.data.removed_length && response.data.removed_length > 0) {
                         MessageManager.success(`尾部过滤成功，移除了 ${response.data.removed_length} 个字符`);
                         // 更新消息的过滤后内容
-                        const index = this.messages.findIndex(m => m.id === message.id);
+                        const index = this.messages.findIndex(m => m.message_id === message.message_id);
                         if (index !== -1) {
                             this.messages[index].filtered_content = response.data.filtered_content;
                         }
@@ -1872,7 +1876,7 @@ const MainApp = {
             if (pendingMessages.length === this.selectedMessages.length) {
                 this.selectedMessages = [];
             } else {
-                this.selectedMessages = pendingMessages.map(msg => msg.id);
+                this.selectedMessages = pendingMessages.map(msg => msg.message_id);
             }
         },
         
@@ -1881,8 +1885,8 @@ const MainApp = {
             const pendingMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
             const currentSelected = new Set(this.selectedMessages);
             this.selectedMessages = pendingMessages
-                .filter(msg => !currentSelected.has(msg.id))
-                .map(msg => msg.id);
+                .filter(msg => !currentSelected.has(msg.message_id))
+                .map(msg => msg.message_id);
         },
         
         // 清空选择
@@ -1928,7 +1932,7 @@ const MainApp = {
                     break;
             }
             
-            this.selectedMessages = targetMessages.map(msg => msg.id);
+            this.selectedMessages = targetMessages.map(msg => msg.message_id);
             MessageManager.success(`已选择 ${targetMessages.length} 条消息`);
         },
         
