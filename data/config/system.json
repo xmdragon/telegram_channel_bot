@@ -7,7 +7,7 @@
     "updated_at": "2025-08-18T23:04:42.765217",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-18T15:04:47.022648",
+  "updated_at": "2025-08-19T06:59:28.477478",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
@@ -39,14 +39,6 @@
     "is_active": true,
     "updated_at": "2025-08-15T15:27:58.904163",
     "created_at": "2025-08-14T22:53:30.662827"
-  },
-  "channels.review_group_id_cached": {
-    "value": "-1002871459104",
-    "config_type": "string",
-    "description": "缓存的审核群ID（由系统自动解析链接后设置）",
-    "is_active": true,
-    "updated_at": "2025-08-18T18:37:35.881261",
-    "created_at": "2025-08-14T22:53:30.663121"
   },
   "channels.target_channel_id": {
     "value": "-1002696592354",
@@ -88,14 +80,6 @@
     "updated_at": "2025-08-18T21:55:25.681993",
     "created_at": "2025-08-14T22:53:30.665451"
   },
-  "channels.target_channel_id_cached": {
-    "value": "",
-    "config_type": "string",
-    "description": "",
-    "is_active": true,
-    "updated_at": "2025-08-15T00:00:19.461132",
-    "created_at": "2025-08-14T23:44:35.906100"
-  },
   "channels.target_channel": {
     "value": "@bigeventsinsea",
     "config_type": "string",
@@ -112,38 +96,6 @@
     "updated_at": "2025-08-18T18:37:35.731978",
     "created_at": "2025-08-15T00:00:20.971185"
   },
-  "telegram.session_string": {
-    "value": "",
-    "config_type": "text",
-    "description": "Telegram Session String",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.228371",
-    "created_at": "2025-08-15T19:03:51.228374"
-  },
-  "telegram.bot_token": {
-    "value": "",
-    "config_type": "string",
-    "description": "Telegram Bot Token（可选）",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.229107",
-    "created_at": "2025-08-15T19:03:51.229110"
-  },
-  "channels.target_channels": {
-    "value": "\"[]\"",
-    "config_type": "json",
-    "description": "目标频道列表",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.229459",
-    "created_at": "2025-08-15T19:03:51.229460"
-  },
-  "channels.review_chat_id": {
-    "value": "",
-    "config_type": "string",
-    "description": "审核群组ID",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.229745",
-    "created_at": "2025-08-15T19:03:51.229746"
-  },
   "filter.enabled": {
     "value": "true",
     "config_type": "boolean",
@@ -151,14 +103,6 @@
     "is_active": true,
     "updated_at": "2025-08-15T19:03:51.230062",
     "created_at": "2025-08-15T19:03:51.230063"
-  },
-  "filter.ad_keywords": {
-    "value": "\"[]\"",
-    "config_type": "json",
-    "description": "广告关键词列表",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.230368",
-    "created_at": "2025-08-15T19:03:51.230369"
   },
   "filter.tail_filter_enabled": {
     "value": "true",
@@ -223,38 +167,6 @@
     "is_active": true,
     "updated_at": "2025-08-15T19:03:51.232961",
     "created_at": "2025-08-15T19:03:51.232962"
-  },
-  "system.max_message_age_days": {
-    "value": "30",
-    "config_type": "integer",
-    "description": "消息最大保留天数",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.233354",
-    "created_at": "2025-08-15T19:03:51.233356"
-  },
-  "system.cleanup_enabled": {
-    "value": "true",
-    "config_type": "boolean",
-    "description": "启用定期清理",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.233727",
-    "created_at": "2025-08-15T19:03:51.233727"
-  },
-  "web.page_size": {
-    "value": "20",
-    "config_type": "integer",
-    "description": "页面显示消息数",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.234113",
-    "created_at": "2025-08-15T19:03:51.234114"
-  },
-  "web.auto_refresh_interval": {
-    "value": "30",
-    "config_type": "integer",
-    "description": "自动刷新间隔（秒）",
-    "is_active": true,
-    "updated_at": "2025-08-15T19:03:51.234554",
-    "created_at": "2025-08-15T19:03:51.234555"
   },
   "scheduler.enabled": {
     "value": "true",
