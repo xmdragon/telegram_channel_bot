@@ -29,7 +29,6 @@ async def get_system_config():
         "auto_forward_delay": await db_settings.get_auto_forward_delay(),
         "source_channels": await db_settings.get_source_channels(),
         "history_message_limit": await db_settings.get_history_message_limit(),
-        "ad_keywords": await db_settings.get_ad_keywords_text(),
         "channels.signature": await config_manager.get_config('channels.signature', ''),
         "collection.enabled": await config_manager.get_config('collection.enabled', True)
     }

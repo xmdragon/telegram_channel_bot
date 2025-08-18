@@ -116,9 +116,6 @@ class AppSettings:
         await self._ensure_initialized()
         return await self._config_manager.get_config("review.auto_forward_delay", 1800)
     
-    async def get_ad_keywords_text(self) -> List[str]:
-        await self._ensure_initialized()
-        return await self._config_manager.get_config("filter.ad_keywords_text", [])
     
     # ============= 兼容性方法 =============
     
