@@ -8,9 +8,10 @@ const Utils = {
         if (!dateString) return '';
         
         try {
-            // 后端现在会返回带时区信息的ISO字符串
-            // 直接解析即可，Date会正确处理时区
-            const date = new Date(dateString);
+            // 🕐 修复时区bug：明确处理UTC时间
+            // 后端存储的是UTC时间但没有时区标识，需要手动添加'Z'
+            const utcTimeStr = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+            const date = new Date(utcTimeStr);
             const now = new Date();
             const diff = now - date;
             

@@ -96,7 +96,9 @@ const MessageContentRenderer = {
         formatTime(timeStr) {
             if (!timeStr) return '';
             try {
-                const date = new Date(timeStr);
+                // 🕐 修复时区bug：明确处理UTC时间
+                const utcTimeStr = timeStr.endsWith('Z') ? timeStr : timeStr + 'Z';
+                const date = new Date(utcTimeStr);
                 const now = new Date();
                 const diffInSeconds = Math.floor((now - date) / 1000);
                 

@@ -644,20 +644,26 @@ const TrainApp = {
         
         formatTime(timeStr) {
             if (!timeStr) return '';
-            const date = new Date(timeStr);
-            const now = new Date();
-            const diff = (now - date) / 1000 / 60; // 分钟
-            
-            if (diff < 60) return `${Math.floor(diff)}分钟前`;
-            if (diff < 1440) return `${Math.floor(diff / 60)}小时前`;
-            
-            return date.toLocaleDateString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            try {
+                // 🕐 修复时区bug：明确处理UTC时间
+                const utcTimeStr = timeStr.endsWith('Z') ? timeStr : timeStr + 'Z';
+                const date = new Date(utcTimeStr);
+                const now = new Date();
+                const diff = (now - date) / 1000 / 60; // 分钟
+                
+                if (diff < 60) return `${Math.floor(diff)}分钟前`;
+                if (diff < 1440) return `${Math.floor(diff / 60)}小时前`;
+                
+                return date.toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                return timeStr;
+            }
         },
 
         // 加载训练数据统计
