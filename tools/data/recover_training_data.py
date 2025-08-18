@@ -50,7 +50,7 @@ class TrainingDataRecovery:
         self.data_dir = Path("data")
         self.backup_dir = Path("data/backups")
         self.main_data_file = Path("data/manual_training_data.json")
-        self.history_file = Path("data/training_history.json")
+        # 训练历史功能已移除
         self.recovery_log = []
         
         # 确保目录存在
@@ -109,9 +109,7 @@ class TrainingDataRecovery:
                     if not isinstance(channel_data, dict) or 'samples' not in channel_data:
                         return False, f"频道 {channel_id} 数据结构无效"
             
-            elif file_path.name.startswith('training_history'):
-                if not isinstance(data, dict) or 'history' not in data or 'stats' not in data:
-                    return False, "历史数据结构无效"
+            # training_history 功能已移除
             
             return True, "JSON格式正确"
             
@@ -162,7 +160,7 @@ class TrainingDataRecovery:
                         }
                     elif 'history' in data:
                         info["content_summary"] = {
-                            "type": "training_history", 
+                            "type": "other",  # training_history功能已移除 
                             "history_count": len(data.get("history", [])),
                             "total_samples": data.get("stats", {}).get("total_samples", 0)
                         }
@@ -313,16 +311,7 @@ class TrainingDataRecovery:
                 recovery_success = False
         
         # 恢复历史文件
-        history_file_info = integrity_report["main_files"].get("training_history.json", {})
-        if not history_file_info.get("valid", False):
-            recovery_needed = True
-            best_backup = self.find_best_backup("training_history")
-            if best_backup:
-                if not self.restore_from_backup(self.history_file, best_backup):
-                    recovery_success = False
-            else:
-                self.log_operation("自动恢复", "未找到历史数据备份", False)
-                recovery_success = False
+        # training_history 恢复功能已移除
         
         if not recovery_needed:
             self.log_operation("自动恢复", "所有文件状态正常，无需恢复")
@@ -513,8 +502,8 @@ def main():
                     if summary.get("type") == "training_data":
                         print(f"  📁 频道数: {summary.get('channels_count', 0)}")
                         print(f"  📝 样本数: {summary.get('total_samples', 0)}")
-                    elif summary.get("type") == "training_history":
-                        print(f"  📜 历史记录: {summary.get('history_count', 0)}")
+                    # elif summary.get("type") == "training_history":  # 功能已移除
+                        # print(f"  📜 历史记录: {summary.get('history_count', 0)}")  # 功能已移除
                 print()
             
             # 打印备份统计

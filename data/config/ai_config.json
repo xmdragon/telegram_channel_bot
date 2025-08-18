@@ -1,0 +1,6 @@
+{
+  "ai_enabled": false,
+  "startup_mode": "lazy",
+  "description": "开发环境AI功能配置 - 默认禁用以提升启动速度",
+  "updated_at": "2025-08-18T10:20:00"
+}

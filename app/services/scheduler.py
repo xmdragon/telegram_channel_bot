@@ -121,7 +121,8 @@ class MessageScheduler:
                             if isinstance(combined_msg, dict) and 'media_url' in combined_msg:
                                 media_url = combined_msg['media_url']
                                 if media_url and media_url.startswith('/temp_media/'):
-                                    media_path = Path('temp_media') / media_url.replace('/temp_media/', '')
+                                    from app.core.path_config import PathConfig
+                                    media_path = PathConfig.TEMP_MEDIA_DIR / media_url.replace('/temp_media/', '')
                                     if media_path.exists():
                                         media_files_to_delete.append(media_path)
                     

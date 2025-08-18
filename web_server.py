@@ -110,9 +110,25 @@ async def lifespan(app: FastAPI):
         logger.info("📦 初始化存储层...")
         storage_start = time.time()
         
-        # 初始化Redis存储层（使用连接池）
+        # 初始化Redis存储层（使用连接池，带重试机制）
         from app.storage.redis_store import init_redis_stores
-        if not init_redis_stores():
+        import time
+        
+        redis_retries = 5
+        redis_delay = 1
+        redis_success = False
+        
+        for attempt in range(redis_retries):
+            if init_redis_stores():
+                redis_success = True
+                break
+            else:
+                if attempt < redis_retries - 1:
+                    logger.warning(f"Redis初始化失败，{redis_delay}s后重试 ({attempt + 1}/{redis_retries})")
+                    time.sleep(redis_delay)
+                    redis_delay *= 1.5  # 指数退避
+        
+        if not redis_success:
             await health_monitor.set_unhealthy("Redis存储层初始化失败")
             raise RuntimeError("Redis初始化失败")
         
@@ -222,13 +238,15 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api")
 
 # 直接注册WebSocket路由（避免prefix问题）
-from app.api.auth import websocket_auth
-app.add_websocket_route("/api/auth/ws/auth", websocket_auth)
+from app.api.telegram_auth import websocket_auth
+from app.core.route_config import ROUTES
+app.add_websocket_route(f"/api/telegram-auth{ROUTES.auth.websocket}", websocket_auth)
 
 # 注册实时消息推送WebSocket路由
 from app.api.websocket import websocket_endpoint
 app.add_websocket_route("/api/ws/messages", websocket_endpoint)
 app.add_websocket_route("/api/websocket", websocket_endpoint)  # 兼容性路由
+app.add_websocket_route("/ws", websocket_endpoint)             # 主控制台WebSocket路由
 
 # 静态文件服务
 app.mount("/static", StaticFiles(directory="static"), name="static")

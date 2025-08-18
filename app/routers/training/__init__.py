@@ -10,9 +10,10 @@ from .media import router as media_router
 from .ad_samples import router as ad_samples_router
 from .ocr import router as ocr_router
 from .admin import router as admin_router
+from .thresholds import router as thresholds_router
 
-# 创建主路由器
-router = APIRouter(prefix="/api/training-db", tags=["training"])
+# 创建主路由器（不设置prefix，由主API路由器设置）
+router = APIRouter(tags=["training"])
 
 # 注册所有子路由
 def register_training_routes():
@@ -35,6 +36,9 @@ def register_training_routes():
     
     # 系统管理
     router.include_router(admin_router, tags=["training-admin"])
+    
+    # 阈值管理
+    router.include_router(thresholds_router, tags=["training-thresholds"])
 
 # 执行路由注册
 register_training_routes()

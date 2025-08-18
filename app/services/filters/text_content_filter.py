@@ -156,6 +156,10 @@ class TextContentFilter(BaseFilter):
         # 标记初始化完成
         self.initialized = True
     
+    def is_available(self) -> bool:
+        """检查文本过滤器是否可用"""
+        return True  # 文本过滤器总是可用，不依赖外部库
+    
     async def initialize(self) -> bool:
         """初始化过滤器"""
         try:

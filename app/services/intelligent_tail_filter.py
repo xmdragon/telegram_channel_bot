@@ -303,4 +303,23 @@ class IntelligentTailFilter:
 
 
 # 创建全局实例
-intelligent_tail_filter = IntelligentTailFilter()
+# 懒加载全局实例
+_intelligent_tail_filter_instance = None
+
+def get_intelligent_tail_filter():
+    """获取智能尾部过滤器实例（懒加载）"""
+    global _intelligent_tail_filter_instance
+    if _intelligent_tail_filter_instance is None:
+        _intelligent_tail_filter_instance = IntelligentTailFilter()
+    return _intelligent_tail_filter_instance
+
+# 兼容性：保持intelligent_tail_filter属性访问
+class IntelligentTailFilterProxy:
+    """智能尾部过滤器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_intelligent_tail_filter(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_intelligent_tail_filter(), name, value)
+
+intelligent_tail_filter = IntelligentTailFilterProxy()

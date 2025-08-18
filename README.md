@@ -112,7 +112,7 @@ docker compose up -d redis
 - **主界面**: http://localhost:8000/static/index.html
 - **管理员登录**: http://localhost:8000/static/login.html (admin/admin123)
 - **系统配置**: http://localhost:8000/static/config.html
-- **Telegram认证**: http://localhost:8000/static/auth.html
+- **Telegram认证**: http://localhost:8000/static/telegram-auth.html
 
 ## ⚙️ 配置说明
 

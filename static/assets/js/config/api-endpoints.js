@@ -17,11 +17,6 @@ const API_ENDPOINTS = {
         list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
         stats: '/api/messages/stats',                               // GET - 获取消息统计信息
         statsOverview: '/api/messages/stats/overview',              // GET - 获取消息统计概览
-        
-        // 阈值管理端点
-        thresholdsStats: '/api/messages/thresholds/stats',          // GET - 获取阈值统计
-        thresholdsOptimize: '/api/messages/thresholds/optimize',    // POST - 优化阈值
-        thresholdsReset: (filterName, metricName) => `/api/messages/thresholds/${filterName}/${metricName}/reset`, // POST - 重置阈值
         testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
         getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
@@ -38,7 +33,15 @@ const API_ENDPOINTS = {
         batchRejectAlt: '/api/messages/batch/reject',              // POST - 批量拒绝消息（备用端点）
         batchDeleteAlt: '/api/messages/batch/delete',              // POST - 批量删除消息（备用端点）
         reset: '/api/messages/reset',                              // POST - 重置消息
-        export: '/api/messages/export'                             // GET - 导出消息数据
+        export: '/api/messages/export',                            // GET - 导出消息数据
+        
+        // 消息操作端点
+        notAd: (id) => `/api/messages/${id}/not-ad`,               // POST - 标记消息为非广告
+        filterTail: (id) => `/api/messages/${id}/filter-tail`,     // POST - 执行尾部过滤
+        publish: (id) => `/api/messages/${id}/publish`,            // POST - 发布消息
+        editPublish: (id) => `/api/messages/${id}/edit-publish`,   // POST - 编辑并发布
+        refetchMedia: (id) => `/api/messages/${id}/refetch-media`, // POST - 重新获取媒体
+        trainTail: (id) => `/api/messages/${id}/train-tail`        // POST - 训练尾部过滤
     },
 
     // 管理员认证模块 - /api/admin/auth
@@ -53,17 +56,18 @@ const API_ENDPOINTS = {
         permissions: '/api/admin/auth/permissions'                  // GET - 获取权限列表
     },
 
-    // Telegram认证模块 - /api/auth
+    // Telegram认证模块 - /api/telegram-auth
     telegramAuth: {
-        init: '/api/auth/init',                                     // POST - 初始化认证
-        sendCode: '/api/auth/send-code',                            // POST - 发送验证码
-        verifyCode: '/api/auth/verify-code',                        // POST - 验证验证码
-        verifyPassword: '/api/auth/verify-password',                // POST - 验证密码
-        status: '/api/auth/status',                                 // GET - 获取认证状态
-        info: '/api/auth/info',                                     // GET - 获取认证信息
-        clear: '/api/auth/clear',                                   // POST - 清理认证
-        disconnect: '/api/auth/disconnect',                         // POST - 断开连接
-        logout: '/api/auth/logout'                                  // POST - 登出Telegram
+        init: '/api/telegram-auth/init',                            // POST - 初始化认证
+        sendCode: '/api/telegram-auth/send-code',                   // POST - 发送验证码
+        verifyCode: '/api/telegram-auth/verify-code',               // POST - 验证验证码
+        verifyPassword: '/api/telegram-auth/verify-password',       // POST - 验证密码
+        status: '/api/telegram-auth/status',                        // GET - 获取认证状态
+        info: '/api/telegram-auth/info',                            // GET - 获取认证信息
+        clear: '/api/telegram-auth/clear',                          // POST - 清理认证
+        disconnect: '/api/telegram-auth/disconnect',                // POST - 断开连接
+        logout: '/api/telegram-auth/logout',                        // POST - 登出Telegram
+        websocket: '/api/telegram-auth/ws/auth'                     // WebSocket - 认证WebSocket连接
     },
 
     // 训练数据模块 - /api/training-db
@@ -116,11 +120,17 @@ const API_ENDPOINTS = {
         // 额外的训练相关端点
         tailAdSamples: '/api/training-db/tail-ad-samples',         // GET/POST - 尾部广告样本
         promoSamples: '/api/training-db/promo-samples',            // POST - 推广样本
-        previewPromoFilter: '/api/training-db/preview-promo-filter' // POST - 预览推广过滤器
+        previewPromoFilter: '/api/training-db/preview-promo-filter', // POST - 预览推广过滤器
+        
+        // 阈值管理
+        thresholdsStats: '/api/training-db/thresholds/stats',          // GET - 获取阈值统计
+        thresholdsOptimize: '/api/training-db/thresholds/optimize',    // POST - 优化阈值
+        thresholdsReset: (filterName, metricName) => `/api/training-db/thresholds/${filterName}/${metricName}/reset` // POST - 重置阈值
     },
 
     // 配置管理模块 - /api/config
     config: {
+        list: '/api/config/',                                     // GET - 获取所有配置
         channelConfig: '/api/config/channel-config',               // GET/POST - 频道配置
         systemConfig: '/api/config/system-config',                // GET/POST - 系统配置
         filterConfig: '/api/config/filter-config',                // GET/POST - 过滤器配置
@@ -192,8 +202,9 @@ const API_ENDPOINTS = {
 
     // WebSocket端点
     websocket: {
-        main: '/ws',                                               // WebSocket - 主要连接
-        notifications: '/ws/notifications'                         // WebSocket - 通知连接
+        main: '/api/websocket',                                    // WebSocket - 主要连接
+        messages: '/api/ws/messages',                              // WebSocket - 消息推送
+        notifications: '/api/ws/notifications'                     // WebSocket - 通知连接
     },
 
     // AI配置模块 - /api/ai-config
@@ -218,7 +229,7 @@ const API_ENDPOINTS = {
         index: '/static/index.html',                               // 主页
         admin: '/static/admin.html',                               // 管理页面
         config: '/static/config.html',                             // 配置页面
-        auth: '/static/auth.html',                                 // 认证页面
+        auth: '/static/telegram-auth.html',                        // Telegram认证页面
         status: '/static/status.html',                             // 状态页面
         train: '/static/train.html',                               // 训练页面
         login: '/static/login.html'                                // 登录页面

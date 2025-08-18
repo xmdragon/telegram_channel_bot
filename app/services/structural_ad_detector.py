@@ -387,4 +387,23 @@ class StructuralAdDetector:
 
 
 # 创建全局实例
-structural_ad_detector = StructuralAdDetector()
+# 懒加载全局实例
+_structural_ad_detector_instance = None
+
+def get_structural_ad_detector():
+    """获取结构化广告检测器实例（懒加载）"""
+    global _structural_ad_detector_instance
+    if _structural_ad_detector_instance is None:
+        _structural_ad_detector_instance = StructuralAdDetector()
+    return _structural_ad_detector_instance
+
+# 兼容性：保持structural_ad_detector属性访问
+class StructuralAdDetectorProxy:
+    """结构化广告检测器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_structural_ad_detector(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_structural_ad_detector(), name, value)
+
+structural_ad_detector = StructuralAdDetectorProxy()

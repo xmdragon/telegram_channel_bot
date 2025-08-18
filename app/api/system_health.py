@@ -16,7 +16,7 @@ from app.telegram.auth import auth_manager
 from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/system", tags=["system-health"])
+router = APIRouter(tags=["system-health"])
 
 # 记录启动时间
 START_TIME = datetime.now()
@@ -61,7 +61,8 @@ async def get_system_status() -> Dict[str, Any]:
         try:
             # 直接从Redis检查telegram_collector状态
             import redis
-            r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+            from app.core.config import settings
+            r = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
             health_data = r.get('service_health:telegram_collector')
             if health_data:
                 health_obj = json.loads(health_data)

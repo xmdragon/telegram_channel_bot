@@ -20,6 +20,15 @@
                             <el-col :span="24">
                                 <el-card shadow="never">
                                     <div style="display: flex; align-items: center; gap: 15px;">
+                                        <!-- 日志类型选择 -->
+                                        <el-select v-model="selectedLogType" placeholder="选择日志类型" @change="changeLogType" style="width: 160px;">
+                                            <el-option label="📡 Telegram采集" value="collector"></el-option>
+                                            <el-option label="🌐 Web服务" value="web"></el-option>
+                                            <el-option label="⏰ 调度服务" value="scheduler"></el-option>
+                                            <el-option label="❌ 错误日志" value="error"></el-option>
+                                            <el-option label="📄 全部日志" value="all"></el-option>
+                                        </el-select>
+                                        
                                         <!-- 日志级别选择 -->
                                         <el-select v-model="selectedLevel" placeholder="选择日志级别" clearable @change="filterLogs" style="width: 140px;">
                                             <el-option label="全部" value=""></el-option>
@@ -62,9 +71,9 @@
                         <!-- 日志显示区域 -->
                         <el-card shadow="never" class="logs-display">
                             <div class="logs-header">
-                                <h3>系统日志 <span class="timestamp">{{ lastUpdate }}</span></h3>
+                                <h3>{{ getLogTypeLabel() }}日志 <span class="timestamp">{{ lastUpdate }}</span></h3>
                                 <p style="margin: 0; font-size: 12px; color: #909399;">
-                                    📌 最新日志显示在顶部，按时间倒序排列
+                                    📌 最新日志显示在顶部，按时间倒序排列 | 当前显示: {{ getLogTypeLabel() }}
                                 </p>
                             </div>
                             
@@ -96,6 +105,7 @@
     <script src="assets/js/vue.prod.js"></script>
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
+    <script src="assets/js/config/api-endpoints.js"></script>
     <script src="assets/js/components/navbar.js"></script>
     
     <!-- 页面脚本 -->

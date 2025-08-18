@@ -10,12 +10,12 @@ import hashlib
 from .base import (
     TailFilterSample, load_tail_filter_samples, save_tail_filter_samples,
     generate_sample_id, validate_sample_data, calculate_statistics,
-    add_training_history_entry, handle_api_error, validate_pagination_params,
+    handle_api_error, validate_pagination_params,
     paginate_data
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/training", tags=["training-tail-filter"])
+router = APIRouter(tags=["training-tail-filter"])
 
 @router.get("/tail-filter-statistics")
 async def get_tail_filter_statistics():
@@ -190,12 +190,6 @@ async def add_tail_filter_sample(request: dict):
         if not save_tail_filter_samples(samples):
             raise HTTPException(status_code=500, detail="保存样本失败")
         
-        # 记录历史
-        add_training_history_entry("add_tail_filter_sample", {
-            "sample_id": new_id,
-            "content_length": len(content),
-            "tail_length": len(tail_part)
-        })
         
         logger.info(f"成功添加尾部过滤训练样本: ID={new_id}")
         return {"success": True, "message": "训练样本已提交并自动应用", "id": new_id}
@@ -237,11 +231,6 @@ async def update_tail_filter_sample(sample_id: int, request: dict):
         if not save_tail_filter_samples(samples):
             raise HTTPException(status_code=500, detail="保存数据失败")
         
-        # 记录更新历史
-        add_training_history_entry("update_tail_filter_sample", {
-            "sample_id": sample_id,
-            "new_tail_length": len(tail_content)
-        })
         
         logger.info(f"成功更新尾部过滤样本: {sample_id}")
         return {"success": True, "message": "样本已更新"}
@@ -273,11 +262,6 @@ async def delete_tail_filter_sample(sample_id: int):
         if not save_tail_filter_samples(samples):
             raise HTTPException(status_code=500, detail="保存数据失败")
         
-        # 记录删除历史
-        add_training_history_entry("delete_tail_filter_sample", {
-            "sample_id": sample_id,
-            "channel_id": sample_to_delete.get('channel_id')
-        })
         
         return {"success": True, "message": "删除成功"}
     except Exception as e:
@@ -420,11 +404,6 @@ async def deduplicate_tail_filter_samples(request: dict):
             if not save_tail_filter_samples(samples):
                 raise HTTPException(status_code=500, detail="保存数据失败")
             
-            # 记录去重历史
-            add_training_history_entry("deduplicate_tail_filter", {
-                "removed_ids": remove_ids,
-                "removed_count": deleted_count
-            })
             
             logger.info(f"成功去重，删除了 {deleted_count} 个重复样本")
         

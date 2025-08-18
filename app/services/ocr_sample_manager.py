@@ -362,7 +362,8 @@ class OCRSampleManager:
             # 保存到文件
             if not output_file:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_file = f"data/ocr_training_export_{timestamp}.json"
+                from app.core.path_config import PathConfig
+                output_file = PathConfig.OCR_EXPORT_DIR / f"ocr_training_export_{timestamp}.json"
             
             output_path = Path(output_file)
             output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -33,9 +33,10 @@ def backup_original_file():
             logger.warning(f"⚠️ 原始文件不存在: {original_file}")
             return False
         
-        # 创建备份
+        # 创建备份 - 统一存放到data/backups目录
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_file = original_file.with_name(f"{original_file.stem}_backup_{timestamp}.json")
+        PathConfig.BACKUP_DIR.mkdir(exist_ok=True)  # 确保备份目录存在
+        backup_file = PathConfig.BACKUP_DIR / f"{original_file.stem}_backup_{timestamp}.json"
         
         shutil.copy2(original_file, backup_file)
         logger.info(f"✅ 已备份原始文件到: {backup_file}")

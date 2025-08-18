@@ -154,10 +154,10 @@ class TelegramCollectorService:
             if not auth_status.get('authorized', False):
                 await self.health_monitor.set_unhealthy("Telegram未认证", {
                     "auth_status": "unauthorized",
-                    "auth_url": "http://localhost:8000/auth.html"
+                    "auth_url": "http://localhost:8000/static/telegram-auth.html"
                 })
                 logger.error("❌ Telegram未认证，采集服务无法启动")
-                logger.error("请访问 http://localhost:8000/auth.html 完成Telegram登录")
+                logger.error("请访问 http://localhost:8000/static/telegram-auth.html 完成Telegram登录")
                 logger.error("获取API凭据请访问: https://my.telegram.org")
                 logger.warning("采集服务将在有限功能模式下运行，等待用户完成认证...")
                 return False

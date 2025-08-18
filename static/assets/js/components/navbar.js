@@ -32,7 +32,7 @@ const NavBar = {
                     <a href="./status.html" :class="['nav-link', isActive('/status.html') ? 'active' : '']">📊 系统状态</a>
                     <a href="./logs.html" :class="['nav-link', isActive('/logs.html') ? 'active' : '']">📋 系统日志</a>
                     <a href="./admin-manage.html" :class="['nav-link', isActive('/admin-manage.html') ? 'active' : '']">👥 管理员</a>
-                    <a href="./auth.html" :class="['nav-link', isActive('/auth.html') ? 'active' : '']">📱 Telegram认证</a>
+                    <a href="./telegram-auth.html" :class="['nav-link', isActive('/telegram-auth.html') ? 'active' : '']">📱 Telegram认证</a>
                     <a href="#" @click.prevent="handleLogout" class="nav-link">🚪 登出</a>
                 </div>
             </div>

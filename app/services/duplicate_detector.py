@@ -249,5 +249,23 @@ class DuplicateDetector:
         return self.calculate_combined_hash(media_list)
 
 
-# 创建全局实例
-duplicate_detector = DuplicateDetector()
+# 懒加载全局实例
+_duplicate_detector_instance = None
+
+def get_duplicate_detector():
+    """获取重复检测器实例（懒加载）"""
+    global _duplicate_detector_instance
+    if _duplicate_detector_instance is None:
+        _duplicate_detector_instance = DuplicateDetector()
+    return _duplicate_detector_instance
+
+# 兼容性：保持duplicate_detector属性访问
+class DuplicateDetectorProxy:
+    """重复检测器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_duplicate_detector(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_duplicate_detector(), name, value)
+
+duplicate_detector = DuplicateDetectorProxy()

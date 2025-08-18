@@ -89,7 +89,8 @@ class IntelligentFilter:
             from pathlib import Path
             
             # 加载广告训练数据
-            ad_file = Path("data/ad_training_data.json")
+            from app.core.path_config import PathConfig
+            ad_file = PathConfig.AD_TRAINING_FILE
             if ad_file.exists():
                 with open(ad_file, 'r', encoding='utf-8') as f:
                     ad_data = json.load(f)

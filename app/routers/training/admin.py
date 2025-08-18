@@ -13,23 +13,20 @@ import glob
 from pathlib import Path
 
 from .base import (
-    handle_api_error, add_training_history_entry, FeedbackData,
-    load_training_data, save_training_data, load_training_history
+    handle_api_error, FeedbackData,
+    load_training_data, save_training_data
 )
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/training", tags=["training-admin"])
+router = APIRouter(tags=["training-admin"])
 
 @router.post("/optimize-storage")
 async def optimize_storage():
     """优化存储"""
     try:
         # 简单实现：返回优化完成状态
-        add_training_history_entry("optimize_storage", {
-            "timestamp": datetime.now().isoformat()
-        })
         
         return {
             "success": True,
@@ -68,7 +65,7 @@ async def get_learning_stats():
     """获取学习统计"""
     try:
         samples = load_training_data()
-        history = load_training_history()
+        history = []  # 训练历史功能已移除
         
         # 计算基础统计
         total_samples = len(samples)
@@ -111,17 +108,13 @@ async def emergency_backup():
         # 收集所有训练数据
         backup_data = {
             "training_data": load_training_data(),
-            "training_history": load_training_history(),
+            "training_history": [],  # 训练历史功能已移除
             "backup_timestamp": datetime.now().isoformat(),
             "backup_type": "emergency"
         }
         
         # 保存备份
         if SafeFileOperation.write_json_safe(backup_file, backup_data):
-            add_training_history_entry("emergency_backup", {
-                "backup_file": str(backup_file.name),
-                "data_count": len(backup_data["training_data"])
-            })
             
             return {
                 "success": True,
@@ -147,7 +140,6 @@ async def get_integrity_report():
         # 检查主要配置文件
         config_files = [
             PathConfig.MANUAL_TRAINING_FILE,
-            PathConfig.TRAINING_HISTORY_FILE,
             PathConfig.TAIL_FILTER_SAMPLES_FILE,
             PathConfig.SEPARATOR_PATTERNS_FILE
         ]
@@ -212,9 +204,6 @@ async def cleanup_backups():
             except Exception as e:
                 logger.error(f"删除备份文件失败 {backup_file}: {e}")
         
-        add_training_history_entry("cleanup_backups", {
-            "deleted_count": deleted_count
-        })
         
         return {
             "success": True,
@@ -275,11 +264,7 @@ async def restore_backup(backup_filename: str):
             if not save_training_data(backup_data["training_data"]):
                 raise HTTPException(status_code=500, detail="恢复训练数据失败")
         
-        # 记录恢复操作
-        add_training_history_entry("restore_backup", {
-            "backup_file": backup_filename,
-            "restored_count": len(backup_data.get("training_data", []))
-        })
+        # 记录恢复操作已完成
         
         return {
             "success": True,
@@ -295,12 +280,7 @@ async def restore_backup(backup_filename: str):
 async def submit_feedback(feedback: FeedbackData):
     """提交反馈"""
     try:
-        # 记录反馈
-        add_training_history_entry("submit_feedback", {
-            "sample_id": feedback.sample_id,
-            "is_correct": feedback.is_correct,
-            "user_feedback": feedback.user_feedback
-        })
+        # 记录反馈已提交
         
         return {"success": True, "message": "反馈已提交"}
     except Exception as e:
@@ -311,7 +291,7 @@ async def get_general_statistics():
     """获取总体统计"""
     try:
         samples = load_training_data()
-        history = load_training_history()
+        history = []  # 训练历史功能已移除
         
         # 基础统计
         total_samples = len(samples)
@@ -359,7 +339,7 @@ async def clear_all_data():
         # 备份现有数据
         backup_data = {
             "training_data": load_training_data(),
-            "training_history": load_training_history(),
+            "training_history": [],  # 训练历史功能已移除
             "backup_timestamp": datetime.now().isoformat(),
             "backup_type": "pre_clear"
         }
@@ -370,11 +350,7 @@ async def clear_all_data():
         if not save_training_data([]):
             raise HTTPException(status_code=500, detail="清空数据失败")
         
-        # 记录清空操作
-        add_training_history_entry("clear_all_data", {
-            "backup_file": str(backup_file.name),
-            "cleared_count": len(backup_data["training_data"])
-        })
+        # 记录清空操作已完成
         
         return {
             "success": True,

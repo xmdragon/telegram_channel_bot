@@ -118,7 +118,7 @@ const app = createApp({
         async refreshData(silent = false) {
             if (!silent) this.loading = true;
             try {
-                const response = await axios.get(API.messages.thresholdsStats, {
+                const response = await axios.get(API.training.thresholdsStats, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
@@ -142,7 +142,7 @@ const app = createApp({
         async optimizeAllThresholds() {
             this.optimizing = true;
             try {
-                const response = await axios.post(API.messages.thresholdsOptimize, {}, {
+                const response = await axios.post(API.training.thresholdsOptimize, {}, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
@@ -172,7 +172,7 @@ const app = createApp({
 
                 this.$set(this.resetting, key, true);
                 
-                const response = await axios.post(API.messages.thresholdsReset(filterName, metricName), {}, {
+                const response = await axios.post(API.training.thresholdsReset(filterName, metricName), {}, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 
@@ -239,7 +239,7 @@ const app = createApp({
 
         async exportConfig() {
             try {
-                const response = await axios.get(API.messages.thresholdsStats, {
+                const response = await axios.get(API.training.thresholdsStats, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
                 });
                 

@@ -139,7 +139,7 @@ const app = createApp({
                     }
                 );
                 
-                const response = await axios.delete(`/api/training-db/ad-samples/${sampleId}`);
+                const response = await axios.delete(API.training.adSampleById(sampleId));
                 
                 if (response.data.success) {
                     ElMessage.success('删除成功');

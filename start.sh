@@ -152,32 +152,14 @@ mkdir -p logs data temp_media
 # 设置权限
 chmod 755 logs data temp_media
 
-# 检查并启动Redis服务（PostgreSQL已废弃）
+# Linus式Redis启动：零等待，让服务自己处理依赖
 if [ "$SKIP_REDIS" = false ]; then
     echo "🐳 检查Redis服务..."
     
     if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
-        echo "📦 启动Redis缓存..."
+        echo "📦 启动Redis（零等待模式）..."
         docker compose up -d redis
-        
-        # 等待Redis就绪
-        if [ "$QUICK_MODE" = false ]; then
-            echo "⏳ 等待Redis就绪..."
-            max_wait=$([ "$QUICK_MODE" = true ] && echo 5 || echo 10)
-            for i in $(seq 1 $max_wait); do
-                if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
-                    echo "✅ Redis已就绪"
-                    break
-                fi
-                if [ $i -eq $max_wait ]; then
-                    echo "❌ Redis启动超时"
-                    exit 1
-                fi
-                sleep 1
-            done
-        else
-            [ "$VERBOSE" = true ] && echo "⚡ 快速模式：跳过Redis等待"
-        fi
+        echo "💡 Redis连接会在服务启动时自动重试"
     else
         [ "$VERBOSE" = true ] && echo "✅ Redis服务已运行"
     fi

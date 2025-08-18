@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.services.auth_service import get_auth_service, AuthService
 from app.storage.json_store import get_json_admin_store
-from app.core.route_config import ROUTES
+from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

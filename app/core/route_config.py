@@ -32,10 +32,6 @@ class RouteConfig:
         not_ad = "/{message_id}/not-ad"
         feedback = "/{message_id}/feedback"
         
-        # 阈值管理
-        thresholds_stats = "/thresholds/stats"
-        thresholds_optimize = "/thresholds/optimize"
-        thresholds_reset = "/thresholds/{filter_name}/{metric_name}/reset"
         
         # 统计相关
         stats_overview = "/stats/overview"
@@ -95,6 +91,7 @@ class RouteConfig:
         disconnect = "/disconnect"
         clear = "/clear"
         info = "/info"
+        websocket = "/ws/auth"  # WebSocket认证连接
     
     class Config:
         """配置管理路由"""

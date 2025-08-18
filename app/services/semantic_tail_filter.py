@@ -46,4 +46,23 @@ class SemanticTailFilter:
 
 
 # 全局实例
-semantic_tail_filter = SemanticTailFilter()
+# 懒加载全局实例
+_semantic_tail_filter_instance = None
+
+def get_semantic_tail_filter():
+    """获取语义尾部过滤器实例（懒加载）"""
+    global _semantic_tail_filter_instance
+    if _semantic_tail_filter_instance is None:
+        _semantic_tail_filter_instance = SemanticTailFilter()
+    return _semantic_tail_filter_instance
+
+# 兼容性：保持semantic_tail_filter属性访问
+class SemanticTailFilterProxy:
+    """语义尾部过滤器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_semantic_tail_filter(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_semantic_tail_filter(), name, value)
+
+semantic_tail_filter = SemanticTailFilterProxy()

@@ -116,14 +116,8 @@ STOP_ARGS=""
 
 ./stop.sh $STOP_ARGS || true
 
-# 等待进程完全停止，确保清理完成
-if [ "$QUICK_MODE" = false ]; then
-    echo "⏳ 等待进程完全停止..."
-    sleep 2  # 从5秒减少到2秒
-else
-    [ "$VERBOSE" = true ] && echo "⚡ 快速模式：跳过停止等待"
-    sleep 1
-fi
+# Linus式：直接检查，不盲目等待
+echo "🔍 检查进程状态..."
 
 # 使用智能进程检查和清理
 if [[ $(type -t check_system_status) == function ]]; then
@@ -156,38 +150,19 @@ else
         pkill -9 -f "web_server.py" 2>/dev/null || true
         pkill -9 -f "telegram_collector.py" 2>/dev/null || true
         pkill -9 -f "message_scheduler.py" 2>/dev/null || true
-        sleep 2
     fi
 fi
 
 echo "✅ 所有服务已停止"
 echo
 
-# 步骤2：重启Redis服务
+# 步骤2：Linus式Redis重启 - 零等待
 if [ "$KEEP_REDIS" = false ]; then
-    echo "2️⃣ 重启Redis服务..."
+    echo "2️⃣ 重启Redis（零等待）..."
     docker compose restart redis > /dev/null 2>&1 || true
+    echo "💡 Redis连接会在服务启动时自动重试"
 else
     [ "$VERBOSE" = true ] && echo "2️⃣ 保持Redis服务不变..."
-fi
-
-# 等待Redis就绪
-if [ "$QUICK_MODE" = false ]; then
-    echo "⏳ 等待Redis就绪..."
-    max_wait=8  # 从15秒减少到8秒
-    for i in $(seq 1 $max_wait); do
-        if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
-            echo "✅ Redis已就绪"
-            break
-        fi
-        if [ $i -eq $max_wait ]; then
-            echo "⚠️ Redis响应慢，继续启动服务..."  # 改为警告而非错误
-            break
-        fi
-        sleep 1
-    done
-else
-    [ "$VERBOSE" = true ] && echo "⚡ 快速模式：跳过Redis等待"
 fi
 
 echo

@@ -98,18 +98,16 @@ const app = createApp({
         
         async loadSystemStatus() {
             try {
-                // 同时加载系统状态和消息统计
-                const [statusResponse, statsResponse] = await Promise.all([
-                    axios.get(API.system.systemStatus),
-                    axios.get(API.messages.statsOverview)
-                ]);
+                // 加载系统状态（包含消息统计数据）
+                const statusResponse = await axios.get(API.system.systemStatus);
                 
                 if (statusResponse.data) {
                     this.updateSystemStatus(statusResponse.data);
-                }
-                
-                if (statsResponse.data) {
-                    this.updateMessageStats(statsResponse.data);
+                    
+                    // 从系统状态中提取消息统计
+                    if (statusResponse.data.stats) {
+                        this.updateMessageStatsFromSystemStatus(statusResponse.data.stats);
+                    }
                 }
             } catch (error) {
                 // console.error('加载系统状态失败:', error);
@@ -136,7 +134,7 @@ const app = createApp({
         },
         
         updateMessageStats(stats) {
-            // 更新消息统计数据
+            // 更新消息统计数据 - 用于主控制台API数据格式
             this.systemStats.total.value = stats.total || 0;
             this.systemStats.pending.value = stats.pending || 0;
             this.systemStats.approved.value = stats.approved || 0;
@@ -144,6 +142,17 @@ const app = createApp({
             this.systemStats.ads.value = stats.ads || 0;
             this.systemStats.duplicates.value = stats.duplicates || 0;
             this.systemStats.chats.value = stats.chats || 0;
+        },
+        
+        updateMessageStatsFromSystemStatus(stats) {
+            // 更新消息统计数据 - 用于系统状态API数据格式
+            this.systemStats.total.value = stats.total_messages || 0;
+            this.systemStats.pending.value = stats.pending_messages || 0;
+            this.systemStats.approved.value = stats.forwarded_messages || 0;
+            this.systemStats.rejected.value = 0; // 系统状态API暂不包含拒绝数
+            this.systemStats.ads.value = 0;      // 系统状态API暂不包含广告数
+            this.systemStats.duplicates.value = 0; // 系统状态API暂不包含重复数
+            this.systemStats.chats.value = stats.source_channels || 0; // 用频道数作为聊天数
         },
         
         formatUptime(seconds) {

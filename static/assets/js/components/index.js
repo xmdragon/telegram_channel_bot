@@ -108,10 +108,8 @@ const MainApp = {
                 uniqueChannels[channelId] = channelData;
                 
                 // 调试：输出最终的显示名称
-                console.log(`uniqueChannels[${channelId}]:`, this.getChannelDisplayName(channelData));
             }
             
-            console.log('uniqueChannels总数:', Object.keys(uniqueChannels).length);
             return uniqueChannels;
         },
         
@@ -134,22 +132,9 @@ const MainApp = {
                     
                     const isDuplicate = hasDuplicateId || hasDuplicateInfo || hasFilterReason || hasRejectReason;
                     
-                    if (isDuplicate) {
-                        console.log(`找到重复消息: ${msg.source_channel}:${msg.message_id}`, {
-                            hasDuplicateId,
-                            hasDuplicateInfo,
-                            hasFilterReason,
-                            hasRejectReason,
-                            filter_reason: msg.filter_reason,
-                            reject_reason: msg.reject_reason,
-                            duplicate_original_id: msg.duplicate_original_id
-                        });
-                    }
-                    
                     return isDuplicate;
                 });
                 
-                console.log(`重复消息模式：从${this.messages.length}条消息中筛选出${duplicateMessages.length}条重复消息`);
                 return [...duplicateMessages];
             }
             
@@ -183,7 +168,6 @@ const MainApp = {
             }
         },
         'filters.source_channel': function(newVal, oldVal) {
-            console.log(`频道选择变化：${oldVal} -> ${newVal}`);
             // 频道变化时自动加载消息
             this.loadMessages();
         }
@@ -443,13 +427,6 @@ const MainApp = {
                         
                         channelInfo[channel.channel_id] = channelInfo_item;
                         
-                        // 调试输出
-                        console.log(`频道 ${channel.channel_id}:`, {
-                            原始数据: channel,
-                            title: channelInfo_item.title,
-                            username: channelInfo_item.username,
-                            displayName: this.getChannelDisplayName(channelInfo_item)
-                        });
                     };
                     
                     // 检查是否是数组格式（从get_all_channels返回）
@@ -462,7 +439,6 @@ const MainApp = {
                     }
                     
                     this.channelInfo = channelInfo;
-                    console.log('频道信息加载成功:', Object.keys(channelInfo).length, '个频道');
                 } else {
                     console.warn('频道信息API返回失败:', response.data);
                 }
@@ -612,7 +588,7 @@ const MainApp = {
         
         async loadStats() {
             try {
-                const response = await axios.get('/api/messages/stats/overview');
+                const response = await axios.get(API.messages.statsOverview);
                 if (response.data) {
                     const stats = response.data;
                     this.stats.total.value = stats.total || 0;
@@ -839,7 +815,7 @@ const MainApp = {
         // 批准消息
         async approveMessage(messageId) {
             try {
-                const response = await axios.post(`/api/messages/${messageId}/approve`);
+                const response = await axios.post(API.messages.approveById(messageId));
                 if (response.data.success) {
                     MessageManager.success('消息已批准');
                     // 如果当前过滤器是待审核状态，从列表中移除已批准的消息
@@ -867,7 +843,7 @@ const MainApp = {
                 // 先找到消息对象（在移除之前）
                 const message = this.messages.find(msg => msg.id === messageId);
                 
-                const response = await axios.post(`/api/messages/${messageId}/reject?reviewer=Web用户`);
+                const response = await axios.post(`${API.messages.rejectById(messageId)}?reviewer=Web用户`);
                 if (response.data.success) {
                     MessageManager.success('消息已拒绝');
                     
@@ -890,7 +866,7 @@ const MainApp = {
                     if (message && message.review_message_id) {
                         try {
                             // 调用删除审核群消息的API
-                            await axios.delete(`/api/messages/${messageId}/review-message`);
+                            await axios.delete(API.messages.deleteReviewById(messageId));
                         } catch (error) {
                             // console.error('删除审核群消息失败:', error);
                         }
@@ -933,7 +909,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post('/api/messages/batch/approve', {
+                const response = await axios.post(API.messages.batchApproveAlt, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
@@ -1183,12 +1159,11 @@ const MainApp = {
             try {
                 // 如果已经在连接中，避免重复连接
                 if (this.websocket && this.websocket.readyState === WebSocket.CONNECTING) {
-                    console.log('WebSocket正在连接中，跳过重复连接');
                     return;
                 }
                 
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/api/ws/messages`;
+                const wsUrl = `${protocol}//${window.location.host}${API.websocket.main}`;
                 
                 // 创建新连接前清理旧连接
                 if (this.websocket) {
@@ -1240,7 +1215,6 @@ const MainApp = {
                     
                     if (this.reconnectAttempts <= 10) { // 最多重试10次
                         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000); // 最大延迟30秒
-                        console.log(`WebSocket将在${delay/1000}秒后尝试第${this.reconnectAttempts}次重连`);
                         
                         setTimeout(() => {
                             if (!this.websocketConnected && !this._isUnmounting) {
@@ -1500,7 +1474,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post('/api/messages/batch/approve', {
+                const response = await axios.post(API.messages.batchApproveAlt, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
@@ -1524,7 +1498,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post('/api/messages/batch/reject', {
+                const response = await axios.post(API.messages.batchRejectAlt, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
@@ -1581,7 +1555,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post('/api/messages/reset', {
+                const response = await axios.post(API.messages.reset, {
                     source_channel: sourceChannel,
                     message_id: parseInt(messageId),
                     is_ad: message.is_ad
@@ -1611,7 +1585,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post('/api/messages/batch/delete', {
+                const response = await axios.post(API.messages.batchDeleteAlt, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
@@ -1658,7 +1632,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post('/api/training-db/mark-ad-message', {
+                const response = await axios.post(API.training.markAdMessage, {
                     message_id: message.id
                 });
                 
@@ -1687,7 +1661,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(`/api/messages/${message.id}/not-ad`);
+                const response = await axios.post(API.messages.notAd(message.id));
                 
                 if (response.data.success) {
                     MessageManager.success('已标记为"不是广告"，消息状态已改为待审核');
@@ -1718,7 +1692,7 @@ const MainApp = {
         // 手动执行尾部过滤
         async filterTail(message) {
             try {
-                const response = await axios.post(`/api/messages/${message.id}/filter-tail`);
+                const response = await axios.post(API.messages.filterTail(message.id));
                 
                 if (response.data.success) {
                     if (response.data.removed_length && response.data.removed_length > 0) {
@@ -1917,7 +1891,6 @@ const MainApp = {
         // 处理快速选择模式变化
         handleQuickSelectModeChange(enabled) {
             // 可以在这里处理快速选择模式的状态变化
-            console.log('快速选择模式:', enabled);
         },
         
         // 按条件快速选择
@@ -1959,7 +1932,6 @@ const MainApp = {
         
         // 处理批量操作完成
         handleBatchOperationComplete(result) {
-            console.log('批量操作完成:', result);
             // 刷新数据
             this.loadMessages();
             this.loadStats();
@@ -1967,7 +1939,6 @@ const MainApp = {
         
         // 处理进度更新
         handleProgressUpdate(progress) {
-            console.log('进度更新:', progress);
             // 可以在这里显示全局进度条
         },
         

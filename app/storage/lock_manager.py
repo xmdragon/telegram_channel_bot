@@ -15,7 +15,10 @@ logger = logging.getLogger(__name__)
 class RedisLockManager(RedisBaseStore):
     """Redis分布式锁管理器"""
     
-    def __init__(self, redis_url: str = "redis://localhost:6379", default_timeout: int = 30):
+    def __init__(self, redis_url: str = None, default_timeout: int = 30):
+        if redis_url is None:
+            from app.core.config import settings
+            redis_url = settings.REDIS_URL
         super().__init__(redis_url)
         self.default_timeout = default_timeout
         self.locks = {}  # 本地锁记录

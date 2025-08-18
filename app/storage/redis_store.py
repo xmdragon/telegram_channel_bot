@@ -37,7 +37,7 @@ redis_channel_store = None
 redis_cache_store = None
 redis_lock_manager = None
 
-def init_redis_stores(redis_url: str = "redis://localhost:6379"):
+def init_redis_stores(redis_url: str = None):
     """初始化Redis存储实例 - 单例模式，避免重复初始化
     
     这个函数保持与原有API完全兼容
@@ -52,6 +52,10 @@ def init_redis_stores(redis_url: str = "redis://localhost:6379"):
         return True
     
     try:
+        if redis_url is None:
+            from app.core.config import settings
+            redis_url = settings.REDIS_URL
+        
         # 创建专门化的存储实例（共享连接池）
         redis_message_store = RedisMessageStore(redis_url)
         redis_session_store = RedisSessionStore(redis_url)
@@ -128,7 +132,10 @@ class UnifiedRedisStore(RedisStore):
     保持与原有代码的完全兼容性
     """
     
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
+    def __init__(self, redis_url: str = None):
+        if redis_url is None:
+            from app.core.config import settings
+            redis_url = settings.REDIS_URL
         super().__init__(redis_url)
         
         # 初始化所有专门化模块
@@ -240,7 +247,7 @@ class UnifiedRedisStore(RedisStore):
         return self.lock_manager.is_locked(lock_name)
 
 # 为了完全向后兼容，提供原有的实例创建方式
-def create_unified_store(redis_url: str = "redis://localhost:6379") -> UnifiedRedisStore:
+def create_unified_store(redis_url: str = None) -> UnifiedRedisStore:
     """创建统一的Redis存储实例 - 向后兼容"""
     return UnifiedRedisStore(redis_url)
 

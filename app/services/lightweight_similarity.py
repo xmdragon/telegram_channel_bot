@@ -35,7 +35,8 @@ class LightweightTextSimilarity:
         self.initialized = False
         
         # 缓存已训练的模型
-        self.cache_file = "data/lightweight_similarity_cache.pkl"
+        from app.core.path_config import PathConfig
+        self.cache_file = str(PathConfig.LIGHTWEIGHT_SIMILARITY_CACHE_FILE)
         
         logger.info("✅ 轻量级文本相似度计算器初始化")
     

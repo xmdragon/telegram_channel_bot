@@ -66,7 +66,6 @@ async def export_configs():
             'ad_training_data': 'data/training/ad/json/ad_training_data.json',
             'tail_filter_samples': 'data/training/tail/tail_filter_samples.json',
             'ocr_samples': 'data/training/other/ocr_samples.json',
-            'feedback_learning': 'data/training/other/feedback_learning.json',
             'manual_training_data': 'data/training/other/manual_training_data.json'
         }
         

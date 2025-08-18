@@ -46,6 +46,7 @@ const app = createApp({
             logs: [],
             filteredLogs: [],
             selectedLevel: '',
+            selectedLogType: 'collector', // 默认选择Telegram采集日志
             searchText: '',
             autoRefresh: true,
             refreshInterval: null,
@@ -65,30 +66,33 @@ const app = createApp({
     methods: {
         async loadLogs() {
             try {
+                // 统一使用主日志API，每次都重新加载以确保日志类型正确
                 const response = await axios.get(API.system.logs, {
-                    params: { limit: 100 }
+                    params: { 
+                        limit: 100,
+                        log_type: this.selectedLogType 
+                    }
                 });
                 
                 if (response.data && response.data.logs) {
                     this.logs = response.data.logs;
-                    this.filterLogs();
-                    this.lastUpdate = new Date().toLocaleString('zh-CN');
-                } else if (response.data && response.data.success === false) {
-                    // 如果返回失败，显示默认消息
+                }
+                
+                this.filterLogs();
+                this.lastUpdate = new Date().toLocaleString('zh-CN');
+            } catch (error) {
+                console.error('加载日志失败:', error);
+                // 如果网络错误，显示基本信息
+                if (this.logs.length === 0) {
                     this.logs = [
-                        { time: new Date().toISOString(), level: 'INFO', message: '系统正常运行' }
+                        { timestamp: new Date().toISOString(), level: 'ERROR', message: `日志加载失败: ${error.message}` },
+                        { timestamp: new Date().toISOString(), level: 'INFO', message: '系统正常运行' }
                     ];
                     this.filterLogs();
                 }
-            } catch (error) {
-                // console.error('加载日志失败:', error);
-                // 如果网络错误，不显示错误消息，只显示基本信息
-                this.logs = [
-                    { time: new Date().toISOString(), level: 'INFO', message: '系统正常运行' }
-                ];
-                this.filterLogs();
             }
         },
+        
         
         filterLogs() {
             let filtered = [...this.logs];
@@ -165,7 +169,7 @@ const app = createApp({
             if (this.autoRefresh && !this.refreshInterval) {
                 this.refreshInterval = setInterval(() => {
                     this.loadLogs();
-                }, 2000); // 每2秒刷新一次
+                }, 1000); // 每1秒刷新一次，实现更实时的效果
             }
         },
         
@@ -174,6 +178,25 @@ const app = createApp({
                 clearInterval(this.refreshInterval);
                 this.refreshInterval = null;
             }
+        },
+        
+        async changeLogType() {
+            // 切换日志类型时重新加载日志
+            this.logs = [];
+            this.filteredLogs = [];
+            await this.loadLogs();
+            MessageManager.success(`已切换到${this.getLogTypeLabel()}日志`);
+        },
+        
+        getLogTypeLabel() {
+            const labels = {
+                'collector': 'Telegram采集',
+                'web': 'Web服务',
+                'scheduler': '调度服务',
+                'error': '错误日志',
+                'all': '全部日志'
+            };
+            return labels[this.selectedLogType] || 'Telegram采集';
         }
     }
 });

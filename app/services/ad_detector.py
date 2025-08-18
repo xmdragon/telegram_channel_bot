@@ -32,11 +32,14 @@ class AdDetector:
     def _initialize(self):
         """初始化AI模型"""
         try:
-            from sentence_transformers import SentenceTransformer
-            # 使用与ai_filter相同的多语言模型
-            self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-            self.initialized = True
-            logger.info("✅ 广告检测器初始化成功")
+            from app.services.model_cache_manager import get_cached_model
+            # 使用缓存管理器获取模型，避免重复下载
+            self.model = get_cached_model('paraphrase-multilingual-MiniLM-L12-v2')
+            if self.model:
+                self.initialized = True
+                logger.info("✅ 广告检测器初始化成功（使用缓存模型）")
+            else:
+                logger.error("❌ 广告检测器模型加载失败")
         except ImportError:
             logger.warning("⚠️ sentence-transformers 未安装，广告检测功能暂不可用")
         except Exception as e:
@@ -256,5 +259,23 @@ class AdDetector:
         }
 
 
-# 全局实例
-ad_detector = AdDetector()
+# 懒加载全局实例
+_ad_detector_instance = None
+
+def get_ad_detector():
+    """获取广告检测器实例（懒加载）"""
+    global _ad_detector_instance
+    if _ad_detector_instance is None:
+        _ad_detector_instance = AdDetector()
+    return _ad_detector_instance
+
+# 兼容性：保持ad_detector属性访问
+class AdDetectorProxy:
+    """广告检测器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_ad_detector(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_ad_detector(), name, value)
+
+ad_detector = AdDetectorProxy()

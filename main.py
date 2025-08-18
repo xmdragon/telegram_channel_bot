@@ -211,8 +211,9 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api")
 
 # 直接注册WebSocket路由（避免prefix问题）
-from app.api.auth import websocket_auth
-app.add_websocket_route("/api/auth/ws/auth", websocket_auth)
+from app.api.telegram_auth import websocket_auth
+from app.core.route_config import ROUTES
+app.add_websocket_route(f"/api/telegram-auth{ROUTES.auth.websocket}", websocket_auth)
 
 # 注册实时消息推送WebSocket路由
 from app.api.websocket import websocket_endpoint

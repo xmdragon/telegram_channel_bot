@@ -1,0 +1,283 @@
+{
+  "telegram.api_id": {
+    "value": "24382238",
+    "config_type": "integer",
+    "description": "Telegram API ID",
+    "is_active": true,
+    "updated_at": "2025-08-18T19:33:18.300447",
+    "created_at": "2025-08-14T22:53:30.661829"
+  },
+  "updated_at": "2025-08-18T11:33:18.300487",
+  "telegram.api_hash": {
+    "value": "a926790195b42a472477e7709a74fc24",
+    "config_type": "string",
+    "description": "Telegram API Hash",
+    "is_active": true,
+    "updated_at": "2025-08-18T19:25:30.469369",
+    "created_at": "2025-08-14T22:53:30.662274"
+  },
+  "telegram.session": {
+    "value": "1BVtsOHIBu1n87nbjxh1cisS5bpdDJPU5lO3967yEOPgqZjOHG2tv_GMKveredpCRFf9E1RC2P6QRLbG5K5joLVX5x9opUmwffJlFYFX9cSmpMXuVMx5utXu28CtWv4g-xQenXZT1viX_hZs0JYLTjUycrkaAzhTt0dacs_6dLnpHJJoEjZuEL50otrfpVXi3CAmbGUbSrMT8js3KvYSy-nk0Arx2-m6IHs7eBjv5nLu6AAm5D3ThxOgzh0UX4m92T0uVY9NYO4w4YDctyLWHaQbZV7VqVU0FDwGClJdkN-uL1duuMqRkDPUTt95hUS9rYZkGpjGCmg5Qmx9Z_lSEraJOh0WID5M=",
+    "config_type": "string",
+    "description": "Telegram Session (StringSession格式)",
+    "is_active": true,
+    "updated_at": "2025-08-14T23:39:48.869934",
+    "created_at": "2025-08-14T23:39:48.869953"
+  },
+  "channels.source_channels": {
+    "value": "[]",
+    "config_type": "list",
+    "description": "监听的源频道列表 (频道ID或用户名)",
+    "is_active": true,
+    "updated_at": "2025-08-14T22:53:30.662569",
+    "created_at": "2025-08-14T22:53:30.662570"
+  },
+  "channels.review_group_id": {
+    "value": "-1002871459104",
+    "config_type": "string",
+    "description": "审核群ID或链接",
+    "is_active": true,
+    "updated_at": "2025-08-15T15:27:58.904163",
+    "created_at": "2025-08-14T22:53:30.662827"
+  },
+  "channels.review_group_id_cached": {
+    "value": "-1002871459104",
+    "config_type": "string",
+    "description": "缓存的审核群ID（由系统自动解析链接后设置）",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:37:35.881261",
+    "created_at": "2025-08-14T22:53:30.663121"
+  },
+  "channels.target_channel_id": {
+    "value": "-1002696592354",
+    "config_type": "string",
+    "description": "目标频道ID",
+    "is_active": true,
+    "updated_at": "2025-08-18T19:25:32.608706",
+    "created_at": "2025-08-14T22:53:30.663414"
+  },
+  "channels.history_message_limit": {
+    "value": "50",
+    "config_type": "integer",
+    "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:38:22.099623",
+    "created_at": "2025-08-14T22:53:30.663727"
+  },
+  "filter.ad_keywords_text": {
+    "value": "[\"广告\", \"推广\", \"代理\", \"加微信\", \"联系方式\", \"优惠\", \"折扣\", \"限时\", \"抢购\", \"秒杀\", \"代理\", \"代购\", \"批发\", \"零售\", \"加盟\", \"招商\", \"合作\", \"投资\", \"理财\", \"股票\", \"基金\", \"保险\", \"贷款\", \"信用卡\", \"网贷\", \"高利贷\", \"赌博\", \"博彩\", \"彩票\", \"六合彩\", \"时时彩\", \"快三\", \"快彩\", \"时时乐\", \"11选5\", \"排列3\", \"排列5\", \"福彩3D\", \"体彩\", \"足彩\", \"竞彩\", \"单场\", \"任选\", \"胆拖\", \"复式\", \"倍投\", \"跟单\", \"计划\", \"稳赚\", \"包赚\", \"必中\", \"必赢\", \"稳赢\", \"包赢\", \"包中\", \"包赚\", \"稳赚\", \"必赚\", \"必赢\", \"稳赢\", \"包赢\", \"包中\", \"包赚\", \"稳赚\", \"必赚\"]",
+    "config_type": "list",
+    "description": "文中出现过滤消息的广告关键词 (消息内容包含这些关键词时过滤)",
+    "is_active": true,
+    "updated_at": "2025-08-14T22:53:30.664038",
+    "created_at": "2025-08-14T22:53:30.664040"
+  },
+  "filter.ad_keywords_line": {
+    "value": "[\"联系QQ\", \"联系微信\", \"联系QQ群\", \"联系微信群\", \"加QQ\", \"加微信\", \"QQ群\", \"微信群\", \"QQ:\", \"微信:\", \"QQ：\", \"微信：\", \"QQ号:\", \"微信号:\", \"QQ号：\", \"微信号：\", \"QQ群:\", \"微信群:\", \"QQ群：\", \"微信群：\", \"QQ号码:\", \"微信账号:\", \"QQ号码：\", \"微信账号：\", \"QQ联系:\", \"微信联系:\", \"QQ联系：\", \"微信联系：\", \"QQ客服:\", \"微信客服:\", \"QQ客服：\", \"微信客服：\", \"QQ咨询:\", \"微信咨询:\", \"QQ咨询：\", \"微信咨询：\", \"QQ交流:\", \"微信交流:\", \"QQ交流：\", \"微信交流：\", \"QQ讨论:\", \"微信讨论:\", \"QQ讨论：\", \"微信讨论：\", \"QQ分享:\", \"微信分享:\", \"QQ分享：\", \"微信分享：\", \"QQ学习:\", \"微信学习:\", \"QQ学习：\", \"微信学习：\", \"QQ培训:\", \"微信培训:\", \"QQ培训：\", \"微信培训：\", \"QQ课程:\", \"微信课程:\", \"QQ课程：\", \"微信课程：\", \"QQ教程:\", \"微信教程:\", \"QQ教程：\", \"微信教程：\", \"QQ资料:\", \"微信资料:\", \"QQ资料：\", \"微信资料：\", \"QQ资源:\", \"微信资源:\", \"QQ资源：\", \"微信资源：\", \"QQ工具:\", \"微信工具:\", \"QQ工具：\", \"微信工具：\", \"QQ软件:\", \"微信软件:\", \"QQ软件：\", \"微信软件：\", \"QQ应用:\", \"微信应用:\", \"QQ应用：\", \"微信应用：\", \"QQ平台:\", \"微信平台:\", \"QQ平台：\", \"微信平台：\", \"QQ网站:\", \"微信网站:\", \"QQ网站：\", \"微信网站：\", \"QQ链接:\", \"微信链接:\", \"QQ链接：\", \"微信链接：\", \"QQ地址:\", \"微信地址:\", \"QQ地址：\", \"微信地址：\", \"QQ网址:\", \"微信网址:\", \"QQ网址：\", \"微信网址：\", \"QQ域名:\", \"微信域名:\", \"QQ域名：\", \"微信域名：\", \"QQ空间:\", \"微信空间:\", \"QQ空间：\", \"微信空间：\", \"QQ博客:\", \"微信博客:\", \"QQ博客：\", \"微信博客：\", \"QQ微博:\", \"微信微博:\", \"QQ微博：\", \"微信微博：\", \"QQ论坛:\", \"微信论坛:\", \"QQ论坛：\", \"微信论坛：\", \"QQ贴吧:\", \"微信贴吧:\", \"QQ贴吧：\", \"微信贴吧：\", \"QQ知道:\", \"微信知道:\", \"QQ知道：\", \"微信知道：\", \"QQ百科:\", \"微信百科:\", \"QQ百科：\", \"微信百科：\", \"QQ文库:\", \"微信文库:\", \"QQ文库：\", \"微信文库：\", \"QQ视频:\", \"微信视频:\", \"QQ视频：\", \"微信视频：\", \"QQ音乐:\", \"微信音乐:\", \"QQ音乐：\", \"微信音乐：\", \"QQ游戏:\", \"微信游戏:\", \"QQ游戏：\", \"微信游戏：\", \"QQ直播:\", \"微信直播:\", \"QQ直播：\", \"微信直播：\", \"QQ短视频:\", \"微信短视频:\", \"QQ短视频：\", \"微信短视频：\", \"QQ小视频:\", \"微信小视频:\", \"QQ小视频：\", \"微信小视频：\", \"QQ朋友圈:\", \"微信朋友圈:\", \"QQ朋友圈：\", \"微信朋友圈：\", \"QQ动态:\", \"微信动态:\", \"QQ动态：\", \"微信动态：\", \"QQ说说:\", \"微信说说:\", \"QQ说说：\", \"微信说说：\", \"QQ日志:\", \"微信日志:\", \"QQ日志：\", \"微信日志：\", \"QQ相册:\", \"微信相册:\", \"QQ相册：\", \"微信相册：\", \"QQ收藏:\", \"微信收藏:\", \"QQ收藏：\", \"微信收藏：\", \"QQ钱包:\", \"微信钱包:\", \"QQ钱包：\", \"微信钱包：\", \"QQ支付:\", \"微信支付:\", \"QQ支付：\", \"微信支付：\", \"QQ转账:\", \"微信转账:\", \"QQ转账：\", \"微信转账：\", \"QQ红包:\", \"微信红包:\", \"QQ红包：\", \"微信红包：\", \"QQ理财:\", \"微信理财:\", \"QQ理财：\", \"微信理财：\", \"QQ基金:\", \"微信基金:\", \"QQ基金：\", \"微信基金：\", \"QQ股票:\", \"微信股票:\", \"QQ股票：\", \"微信股票：\", \"QQ保险:\", \"微信保险:\", \"QQ保险：\", \"微信保险：\", \"QQ贷款:\", \"微信贷款:\", \"QQ贷款：\", \"微信贷款：\", \"QQ信用卡:\", \"微信信用卡:\", \"QQ信用卡：\", \"微信信用卡：\", \"QQ网贷:\", \"微信网贷:\", \"QQ网贷：\", \"微信网贷：\", \"QQ高利贷:\", \"微信高利贷:\", \"QQ高利贷：\", \"微信高利贷：\", \"QQ赌博:\", \"微信赌博:\", \"QQ赌博：\", \"微信赌博：\", \"QQ博彩:\", \"微信博彩:\", \"QQ博彩：\", \"微信博彩：\", \"QQ彩票:\", \"微信彩票:\", \"QQ彩票：\", \"微信彩票：\", \"QQ六合彩:\", \"微信六合彩:\", \"QQ六合彩：\", \"微信六合彩：\", \"QQ时时彩:\", \"微信时时彩:\", \"QQ时时彩：\", \"微信时时彩：\", \"QQ快三:\", \"微信快三:\", \"QQ快三：\", \"微信快三：\", \"QQ快彩:\", \"微信快彩:\", \"QQ快彩：\", \"微信快彩：\", \"QQ时时乐:\", \"微信时时乐:\", \"QQ时时乐：\", \"微信时时乐：\", \"QQ11选5:\", \"微信11选5:\", \"QQ11选5：\", \"微信11选5：\", \"QQ排列3:\", \"微信排列3:\", \"QQ排列3：\", \"微信排列3：\", \"QQ排列5:\", \"微信排列5:\", \"QQ排列5：\", \"微信排列5：\", \"QQ福彩3D:\", \"微信福彩3D:\", \"QQ福彩3D：\", \"微信福彩3D：\", \"QQ体彩:\", \"微信体彩:\", \"QQ体彩：\", \"微信体彩：\", \"QQ足彩:\", \"微信足彩:\", \"QQ足彩：\", \"微信足彩：\", \"QQ竞彩:\", \"微信竞彩:\", \"QQ竞彩：\", \"微信竞彩：\", \"QQ单场:\", \"微信单场:\", \"QQ单场：\", \"微信单场：\", \"QQ任选:\", \"微信任选:\", \"QQ任选：\", \"微信任选：\", \"QQ胆拖:\", \"微信胆拖:\", \"QQ胆拖：\", \"微信胆拖：\", \"QQ复式:\", \"微信复式:\", \"QQ复式：\", \"微信复式：\", \"QQ倍投:\", \"微信倍投:\", \"QQ倍投：\", \"微信倍投：\", \"QQ跟单:\", \"微信跟单:\", \"QQ跟单：\", \"微信跟单：\", \"QQ计划:\", \"微信计划:\", \"QQ计划：\", \"微信计划：\", \"QQ稳赚:\", \"微信稳赚:\", \"QQ稳赚：\", \"微信稳赚：\", \"QQ包赚:\", \"微信包赚:\", \"QQ包赚：\", \"微信包赚：\", \"QQ必中:\", \"微信必中:\", \"QQ必中：\", \"微信必中：\", \"QQ必赢:\", \"微信必赢:\", \"QQ必赢：\", \"微信必赢：\", \"QQ稳赢:\", \"微信稳赢:\", \"QQ稳赢：\", \"微信稳赢：\", \"QQ包赢:\", \"微信包赢:\", \"QQ包赢：\", \"微信包赢：\", \"QQ包中:\", \"微信包中:\", \"QQ包中：\", \"微信包中：\", \"QQ包赚:\", \"微信包赚:\", \"QQ包赚：\", \"微信包赚：\", \"QQ稳赚:\", \"微信稳赚:\", \"QQ稳赚：\", \"微信稳赚：\", \"QQ必赚:\", \"微信必赚:\", \"QQ必赚：\", \"微信必赚：\", \"QQ必赢:\", \"微信必赢:\", \"QQ必赢：\", \"微信必赢：\", \"QQ稳赢:\", \"微信稳赢:\", \"QQ稳赢：\", \"微信稳赢：\", \"QQ包赢:\", \"微信包赢:\", \"QQ包赢：\", \"微信包赢：\", \"QQ包中:\", \"微信包中:\", \"QQ包中：\", \"微信包中：\", \"QQ包赚:\", \"微信包赚:\", \"QQ包赚：\", \"微信包赚：\", \"QQ稳赚:\", \"微信稳赚:\", \"QQ稳赚：\", \"微信稳赚：\", \"QQ必赚:\", \"微信必赚:\", \"QQ必赚：\", \"微信必赚：\"]",
+    "config_type": "list",
+    "description": "行中出现过滤本行的广告关键词 (消息行包含这些关键词时过滤整行)",
+    "is_active": true,
+    "updated_at": "2025-08-14T22:53:30.664376",
+    "created_at": "2025-08-14T22:53:30.664377"
+  },
+  "review.auto_forward_enabled": {
+    "value": "False",
+    "config_type": "string",
+    "description": "是否启用自动转发",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:37:35.734864",
+    "created_at": "2025-08-14T22:53:30.664735"
+  },
+  "review.auto_forward_delay": {
+    "value": "1800",
+    "config_type": "string",
+    "description": "自动转发延迟(秒)",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:37:35.737336",
+    "created_at": "2025-08-14T22:53:30.665092"
+  },
+  "channels.signature": {
+    "value": "🔔 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
+    "config_type": "string",
+    "description": "频道落款内容（支持多行，用\\n分隔）",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:38:22.104591",
+    "created_at": "2025-08-14T22:53:30.665451"
+  },
+  "channels.target_channel_id_cached": {
+    "value": "",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-15T00:00:19.461132",
+    "created_at": "2025-08-14T23:44:35.906100"
+  },
+  "channels.target_channel": {
+    "value": "@bigeventsinsea",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-18T19:25:32.611459",
+    "created_at": "2025-08-14T23:46:07.015035"
+  },
+  "channels.review_group": {
+    "value": "https://t.me/+HPbDzWj3ID01OTJl",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:37:35.731978",
+    "created_at": "2025-08-15T00:00:20.971185"
+  },
+  "telegram.session_string": {
+    "value": "",
+    "config_type": "text",
+    "description": "Telegram Session String",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.228371",
+    "created_at": "2025-08-15T19:03:51.228374"
+  },
+  "telegram.bot_token": {
+    "value": "",
+    "config_type": "string",
+    "description": "Telegram Bot Token（可选）",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.229107",
+    "created_at": "2025-08-15T19:03:51.229110"
+  },
+  "channels.target_channels": {
+    "value": "\"[]\"",
+    "config_type": "json",
+    "description": "目标频道列表",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.229459",
+    "created_at": "2025-08-15T19:03:51.229460"
+  },
+  "channels.review_chat_id": {
+    "value": "",
+    "config_type": "string",
+    "description": "审核群组ID",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.229745",
+    "created_at": "2025-08-15T19:03:51.229746"
+  },
+  "filter.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用内容过滤",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230062",
+    "created_at": "2025-08-15T19:03:51.230063"
+  },
+  "filter.ad_keywords": {
+    "value": "\"[]\"",
+    "config_type": "json",
+    "description": "广告关键词列表",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230368",
+    "created_at": "2025-08-15T19:03:51.230369"
+  },
+  "filter.tail_filter_enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用尾部过滤",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230654",
+    "created_at": "2025-08-15T19:03:51.230655"
+  },
+  "filter.ocr_enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用OCR图片文字识别",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.230933",
+    "created_at": "2025-08-15T19:03:51.230934"
+  },
+  "review.require_approval": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "需要人工审核",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.231268",
+    "created_at": "2025-08-15T19:03:51.231269"
+  },
+  "review.auto_reject_ads": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "自动拒绝广告消息",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.231614",
+    "created_at": "2025-08-15T19:03:51.231615"
+  },
+  "collection.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用Telegram消息采集",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:40:50.451511",
+    "created_at": "2025-08-15T19:03:51.231938"
+  },
+  "collection.interval": {
+    "value": "30",
+    "config_type": "integer",
+    "description": "采集间隔（秒）",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.232252",
+    "created_at": "2025-08-15T19:03:51.232253"
+  },
+  "collection.max_messages_per_batch": {
+    "value": "50",
+    "config_type": "integer",
+    "description": "每批最大消息数",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.232629",
+    "created_at": "2025-08-15T19:03:51.232630"
+  },
+  "system.log_level": {
+    "value": "INFO",
+    "config_type": "string",
+    "description": "日志级别",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.232961",
+    "created_at": "2025-08-15T19:03:51.232962"
+  },
+  "system.max_message_age_days": {
+    "value": "30",
+    "config_type": "integer",
+    "description": "消息最大保留天数",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.233354",
+    "created_at": "2025-08-15T19:03:51.233356"
+  },
+  "system.cleanup_enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用定期清理",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.233727",
+    "created_at": "2025-08-15T19:03:51.233727"
+  },
+  "web.page_size": {
+    "value": "20",
+    "config_type": "integer",
+    "description": "页面显示消息数",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.234113",
+    "created_at": "2025-08-15T19:03:51.234114"
+  },
+  "web.auto_refresh_interval": {
+    "value": "30",
+    "config_type": "integer",
+    "description": "自动刷新间隔（秒）",
+    "is_active": true,
+    "updated_at": "2025-08-15T19:03:51.234554",
+    "created_at": "2025-08-15T19:03:51.234555"
+  },
+  "scheduler.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用消息调度服务（自动转发、清理）",
+    "is_active": true,
+    "updated_at": "2025-08-16T22:23:50.891391",
+    "created_at": "2025-08-16T22:23:50.891394"
+  }
+}

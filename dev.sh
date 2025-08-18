@@ -126,40 +126,15 @@ fi
 # 创建必要的目录
 mkdir -p logs data temp_media
 
-# 检查并启动Redis缓存服务
+# Linus式Redis启动：无等待，让服务自己处理依赖
 echo "🐳 检查Redis服务..."
 if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
-    echo "📦 启动Redis缓存..."
+    echo "📦 启动Redis（后台，零等待）..."
     docker compose up -d redis
-    
-    # 等待Redis就绪
-    echo "⏳ 等待Redis就绪..."
-    for i in {1..15}; do
-        if docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
-            echo "✅ Redis已就绪"
-            break
-        fi
-        if [ $i -eq 15 ]; then
-            echo "❌ Redis启动超时"
-            exit 1
-        fi
-        echo "   等待中... ($i/15)"
-        sleep 2
-    done
 else
     echo "✅ Redis已在运行中"
-    # 验证Redis连接
-    if ! docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
-        echo "❌ Redis连接异常，重启Redis..."
-        docker compose restart redis
-        sleep 3
-        if ! docker exec telegram_bot_redis redis-cli ping > /dev/null 2>&1; then
-            echo "❌ Redis重启失败"
-            exit 1
-        fi
-        echo "✅ Redis重启成功"
-    fi
 fi
+echo "💡 Redis连接会在服务启动时自动重试"
 
 
 # 如果使用传统模式

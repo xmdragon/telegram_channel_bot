@@ -7,14 +7,14 @@ from typing import List, Dict, Any
 import logging
 
 from .base import (
-    handle_api_error, add_training_history_entry, validate_pagination_params,
+    handle_api_error, validate_pagination_params,
     paginate_data, generate_sample_id
 )
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/training", tags=["training-ocr"])
+router = APIRouter(tags=["training-ocr"])
 
 # OCR样本文件路径
 OCR_SAMPLES_FILE = PathConfig.AD_TRAINING_DIR / "ocr_samples.json"
@@ -140,11 +140,6 @@ async def learn_from_ocr_samples():
         if len(high_confidence_samples) < 5:
             return {"success": False, "message": "高置信度样本不足，需要至少5个样本"}
         
-        # 记录学习操作
-        add_training_history_entry("learn_from_ocr", {
-            "sample_count": len(high_confidence_samples),
-            "total_samples": len(samples)
-        })
         
         return {
             "success": True,
@@ -177,11 +172,6 @@ async def delete_ocr_sample(sample_id: str):
         if not save_ocr_samples(samples):
             raise HTTPException(status_code=500, detail="保存数据失败")
         
-        # 记录删除历史
-        add_training_history_entry("delete_ocr_sample", {
-            "sample_id": sample_id,
-            "file_hash": sample_to_delete.get('file_hash')
-        })
         
         return {"success": True, "message": "删除成功"}
     except Exception as e:
@@ -202,13 +192,6 @@ async def export_ocr_samples():
             "total_samples": len(samples)
         }
         
-        # 记录导出操作
-        add_training_history_entry("export_ocr_samples", {
-            "total_samples": len(samples),
-            "high_confidence_count": len(export_data["high_confidence"]),
-            "medium_confidence_count": len(export_data["medium_confidence"]),
-            "low_confidence_count": len(export_data["low_confidence"])
-        })
         
         return {
             "success": True,
@@ -256,11 +239,6 @@ async def add_ocr_sample(request: dict):
         if not save_ocr_samples(samples):
             raise HTTPException(status_code=500, detail="保存样本失败")
         
-        add_training_history_entry("add_ocr_sample", {
-            "sample_id": new_id,
-            "file_hash": file_hash,
-            "confidence": confidence
-        })
         
         return {"success": True, "message": "OCR样本已添加", "id": new_id}
     except Exception as e:
@@ -271,9 +249,6 @@ async def batch_process_ocr():
     """批量处理OCR"""
     try:
         # 简单实现：返回处理状态
-        add_training_history_entry("batch_process_ocr", {
-            "timestamp": datetime.now().isoformat()
-        })
         
         return {
             "success": True,

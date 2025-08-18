@@ -34,7 +34,10 @@ class PatternLearner:
     模式学习器 - 学习推广内容的模式，而不是记忆文本
     """
     
-    def __init__(self, storage_path: str = "data/learned_patterns.json"):
+    def __init__(self, storage_path: str = None):
+        from app.core.path_config import PathConfig
+        if storage_path is None:
+            storage_path = str(PathConfig.LEARNED_PATTERNS_FILE)
         self.storage_path = Path(storage_path)
         self.patterns: List[Pattern] = []
         self.feature_extractor = FeatureExtractor()

@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 # 文件路径配置
 TRAINING_DATA_FILE = PathConfig.MANUAL_TRAINING_FILE
-TRAINING_HISTORY_FILE = PathConfig.TRAINING_HISTORY_FILE
 TAIL_FILTER_SAMPLES_FILE = PathConfig.TAIL_FILTER_SAMPLES_FILE
 SEPARATOR_PATTERNS_FILE = PathConfig.SEPARATOR_PATTERNS_FILE
 
@@ -89,29 +88,6 @@ def save_training_data(samples: List[Dict]) -> bool:
         logger.error(f"保存训练数据失败: {e}")
         return False
 
-def load_training_history() -> List[Dict]:
-    """加载训练历史"""
-    try:
-        if TRAINING_HISTORY_FILE.exists():
-            data = SafeFileOperation.read_json_safe(TRAINING_HISTORY_FILE)
-            return data.get('history', []) if data else []
-        return []
-    except Exception as e:
-        logger.error(f"加载训练历史失败: {e}")
-        return []
-
-def save_training_history(history: List[Dict]) -> bool:
-    """保存训练历史"""
-    try:
-        data = {
-            'history': history,
-            'updated_at': datetime.now().isoformat()
-        }
-        SafeFileOperation.write_json_safe(TRAINING_HISTORY_FILE, data)
-        return True
-    except Exception as e:
-        logger.error(f"保存训练历史失败: {e}")
-        return False
 
 def load_tail_filter_samples() -> List[Dict]:
     """加载尾部过滤样本"""
@@ -208,26 +184,6 @@ def calculate_statistics(samples: List[Dict]) -> Dict[str, Any]:
         'channels': list(channels)
     }
 
-def add_training_history_entry(action: str, details: Dict[str, Any]) -> bool:
-    """添加训练历史记录"""
-    try:
-        history = load_training_history()
-        entry = {
-            'id': generate_sample_id(f"{action}_{datetime.now().isoformat()}"),
-            'action': action,
-            'timestamp': datetime.now().isoformat(),
-            'details': details
-        }
-        history.append(entry)
-        
-        # 保持历史记录数量合理（最近1000条）
-        if len(history) > 1000:
-            history = history[-1000:]
-        
-        return save_training_history(history)
-    except Exception as e:
-        logger.error(f"添加训练历史记录失败: {e}")
-        return False
 
 # 错误处理工具
 def handle_api_error(error: Exception, operation: str) -> HTTPException:

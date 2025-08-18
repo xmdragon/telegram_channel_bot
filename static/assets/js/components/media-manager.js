@@ -84,6 +84,15 @@ const app = createApp({
     },
     
     methods: {
+        // 获取媒体文件URL
+        getMediaUrl(filePath) {
+            if (typeof API !== 'undefined' && API.media && API.media.adTrainingData) {
+                return `${API.media.adTrainingData}/${filePath}`;
+            }
+            // 备用方案
+            return `/media/ad_training_data/${filePath}`;
+        },
+        
         // 加载媒体文件列表
         async loadMediaFiles() {
             this.loading = true;
@@ -140,7 +149,16 @@ const app = createApp({
                 const response = await axios.get(API.training.mediaFileOcr(fileHash));
                 
                 if (response.data.success) {
-                    this.currentFile.ocrResult = response.data.ocr_result;
+                    // 适配后端数据结构到前端期望的格式
+                    const ocrData = response.data;
+                    this.currentFile.ocrResult = {
+                        texts: ocrData.ocr_text ? ocrData.ocr_text.split('\n').filter(t => t.trim()) : [],
+                        qr_codes: ocrData.qr_codes || [],
+                        confidence: ocrData.ad_score || 0,
+                        is_ad: ocrData.is_ad || false,
+                        ad_indicators: ocrData.keywords_detected || [],
+                        processed_at: ocrData.processed_at
+                    };
                 } else {
                     this.currentFile.ocrError = response.data.message || '获取OCR结果失败';
                 }

@@ -297,11 +297,6 @@ def init_default_data_files():
             "created_at": "2024-01-01T00:00:00", 
             "total_count": 0
         },
-        str(PathConfig.FEEDBACK_LEARNING_FILE): {
-            "feedback_data": [],
-            "created_at": "2024-01-01T00:00:00",
-            "total_count": 0
-        },
         str(PathConfig.AD_TRAINING_FILE): {
             "positive_samples": [],
             "negative_samples": [],
@@ -424,7 +419,6 @@ async def check_storage_status():
     data_files = [
         str(PathConfig.TAIL_FILTER_SAMPLES_FILE),
         str(PathConfig.OCR_SAMPLES_FILE), 
-        str(PathConfig.FEEDBACK_LEARNING_FILE),
         str(PathConfig.AD_TRAINING_FILE),
         str(PathConfig.PERMISSIONS_CONFIG_FILE)
     ]

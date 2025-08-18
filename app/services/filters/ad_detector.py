@@ -205,5 +205,23 @@ class AdDetectorFilter(BaseFilter):
             return False
 
 
-# 创建默认实例
-ad_detector_filter = AdDetectorFilter()
+# 懒加载默认实例
+_ad_detector_filter_instance = None
+
+def get_ad_detector_filter():
+    """获取广告检测过滤器实例（懒加载）"""
+    global _ad_detector_filter_instance
+    if _ad_detector_filter_instance is None:
+        _ad_detector_filter_instance = AdDetectorFilter()
+    return _ad_detector_filter_instance
+
+# 兼容性：保持ad_detector_filter属性访问
+class AdDetectorFilterProxy:
+    """广告检测过滤器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_ad_detector_filter(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_ad_detector_filter(), name, value)
+
+ad_detector_filter = AdDetectorFilterProxy()

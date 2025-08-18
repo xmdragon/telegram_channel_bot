@@ -97,7 +97,8 @@ async def get_service_status(service_name: str) -> Dict[str, Any]:
         process_status = "unknown"
         process_info = {}
         
-        supervisor_status_file = Path("logs/supervisor_status.json")
+        from app.core.path_config import PathConfig
+        supervisor_status_file = PathConfig.SUPERVISOR_STATUS_FILE
         if supervisor_status_file.exists():
             try:
                 with open(supervisor_status_file, 'r', encoding='utf-8') as f:

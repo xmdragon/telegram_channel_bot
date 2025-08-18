@@ -200,12 +200,19 @@ async def get_channel_info(
         channels = []
         for channel in all_channels:
             if isinstance(channel, dict):
+                # 从channel_name中提取username（如果有@前缀则去掉）
+                channel_name = channel.get('channel_name', '')
+                username = channel_name.lstrip('@') if channel_name else ''
+                
                 channels.append({
                     "channel_id": channel.get('channel_id', ''),
-                    "title": channel.get('title', f'频道 {channel.get("channel_id", "")}'),
-                    "username": channel.get('username', ''),
-                    "enabled": channel.get('enabled', True),
-                    "channel_type": channel.get('channel_type', 'source')
+                    "title": channel.get('channel_title', channel.get('title', f'频道 {channel.get("channel_id", "")}')),
+                    "username": username,
+                    "enabled": channel.get('is_active', channel.get('enabled', True)),
+                    "channel_type": channel.get('channel_type', 'source'),
+                    # 保留原始字段供前端使用
+                    "channel_title": channel.get('channel_title', ''),
+                    "channel_name": channel.get('channel_name', '')
                 })
         
         return {

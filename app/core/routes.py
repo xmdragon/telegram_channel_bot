@@ -41,10 +41,30 @@ class ROUTES:
         batch_reject = "/messages/batch-reject"
         
     class admin:
-        """管理员模块路由（示例，根据需要扩展）"""
+        """管理员模块路由"""
         login = "/admin/login"
         logout = "/admin/logout"
         profile = "/admin/profile"
+        restart = "/admin/restart"
+        backup = "/admin/backup"
+        clear_cache = "/admin/clear-cache"
+        export_logs = "/admin/export-logs"
+        health = "/admin/health"
+    
+    class admin_auth:
+        """管理员认证模块路由"""
+        login = "/login"
+        logout = "/logout"
+        current = "/current"
+        change_password = "/change-password"
+        check_auth = "/check-auth"
+        admins = "/admins"
+        admin_by_id = "/admins/{admin_id}"
+        permissions = "/permissions"
+        sessions = "/sessions"
+        session_by_token = "/sessions/{token}"
+        me = "/me"
+        permissions_me = "/permissions/me"
         
     class config:
         """配置模块路由（示例，根据需要扩展）"""
@@ -68,10 +88,10 @@ class ROUTES:
         status = "/lock/status"
         force_release = "/lock/force-release"
     
-    class ai_config:
+    class ai:
         """AI配置模块路由"""
         status = "/ai-config/status"
-        global_config = "/ai-config/global-config"
+        config = "/ai-config/global-config"
         module_config = "/ai-config/module-config"
         cache_clear = "/ai-config/cache/clear"
         lightweight_train = "/ai-config/lightweight/train"

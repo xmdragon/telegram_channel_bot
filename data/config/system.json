@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-18T02:03:04.134331",
+    "updated_at": "2025-08-18T19:54:56.966099",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-17T18:03:06.650837",
+  "updated_at": "2025-08-18T11:54:56.972310",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-18T02:03:04.137724",
+    "updated_at": "2025-08-18T19:54:56.972284",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -45,7 +45,7 @@
     "config_type": "string",
     "description": "缓存的审核群ID（由系统自动解析链接后设置）",
     "is_active": true,
-    "updated_at": "2025-08-15T21:38:08.640138",
+    "updated_at": "2025-08-18T18:37:35.881261",
     "created_at": "2025-08-14T22:53:30.663121"
   },
   "channels.target_channel_id": {
@@ -53,7 +53,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-18T02:03:06.649775",
+    "updated_at": "2025-08-18T19:44:59.446270",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "channels.history_message_limit": {
@@ -61,7 +61,7 @@
     "config_type": "integer",
     "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
     "is_active": true,
-    "updated_at": "2025-08-16T23:11:27.671864",
+    "updated_at": "2025-08-18T18:38:22.099623",
     "created_at": "2025-08-14T22:53:30.663727"
   },
   "filter.ad_keywords_text": {
@@ -82,18 +82,18 @@
   },
   "review.auto_forward_enabled": {
     "value": "False",
-    "config_type": "boolean",
+    "config_type": "string",
     "description": "是否启用自动转发",
     "is_active": true,
-    "updated_at": "2025-08-15T21:38:08.283971",
+    "updated_at": "2025-08-18T18:37:35.734864",
     "created_at": "2025-08-14T22:53:30.664735"
   },
   "review.auto_forward_delay": {
     "value": "1800",
-    "config_type": "integer",
+    "config_type": "string",
     "description": "自动转发延迟(秒)",
     "is_active": true,
-    "updated_at": "2025-08-15T21:38:08.288310",
+    "updated_at": "2025-08-18T18:37:35.737336",
     "created_at": "2025-08-14T22:53:30.665092"
   },
   "channels.signature": {
@@ -101,7 +101,7 @@
     "config_type": "string",
     "description": "频道落款内容（支持多行，用\\n分隔）",
     "is_active": true,
-    "updated_at": "2025-08-16T23:11:27.679077",
+    "updated_at": "2025-08-18T18:38:22.104591",
     "created_at": "2025-08-14T22:53:30.665451"
   },
   "channels.target_channel_id_cached": {
@@ -117,7 +117,7 @@
     "config_type": "string",
     "description": "",
     "is_active": true,
-    "updated_at": "2025-08-18T02:03:06.650833",
+    "updated_at": "2025-08-18T19:44:59.452952",
     "created_at": "2025-08-14T23:46:07.015035"
   },
   "channels.review_group": {
@@ -125,7 +125,7 @@
     "config_type": "string",
     "description": "",
     "is_active": true,
-    "updated_at": "2025-08-15T21:38:08.277206",
+    "updated_at": "2025-08-18T18:37:35.731978",
     "created_at": "2025-08-15T00:00:20.971185"
   },
   "telegram.session_string": {
@@ -209,11 +209,11 @@
     "created_at": "2025-08-15T19:03:51.231615"
   },
   "collection.enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "启用Telegram消息采集",
     "is_active": true,
-    "updated_at": "2025-08-16T23:11:27.683446",
+    "updated_at": "2025-08-18T18:40:50.451511",
     "created_at": "2025-08-15T19:03:51.231938"
   },
   "collection.interval": {

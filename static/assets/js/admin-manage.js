@@ -53,16 +53,25 @@ createApp({
     },
     
     async mounted() {
-        // 初始化认证
-        await authManager.initPageAuth();
-        
-        // 加载当前管理员信息
-        await this.loadCurrentAdmin();
-        
-        // 如果是超级管理员，加载管理员列表和权限
-        if (this.currentAdmin.is_super_admin) {
-            await this.loadAdmins();
-            await this.loadPermissions();
+        try {
+            // 初始化认证 - 需要admin.manage权限
+            const authResult = await authManager.initPageAuth('admin.manage');
+            if (!authResult) {
+                return; // 认证失败，页面已跳转
+            }
+            
+            // 加载当前管理员信息
+            await this.loadCurrentAdmin();
+            
+            // 如果是超级管理员，加载管理员列表和权限
+            if (this.currentAdmin.is_super_admin) {
+                await this.loadAdmins();
+                await this.loadPermissions();
+            }
+            
+        } catch (error) {
+            console.error('管理员页面初始化失败:', error);
+            ElMessage.error(`页面初始化失败: ${error.message}`);
         }
     },
     
@@ -70,18 +79,23 @@ createApp({
         // 加载当前管理员信息
         async loadCurrentAdmin() {
             try {
-                const response = await axios.get('/api/admin/auth/current');
+                const response = await axios.get(API.adminAuth.current);
                 this.currentAdmin = response.data;
             } catch (error) {
+                console.error('加载管理员信息失败:', error);
                 ElMessage.error('加载管理员信息失败');
-                // console.error(error);
+                
+                // 如果是401错误，可能需要重新登录
+                if (error.response && error.response.status === 401) {
+                    authManager.redirectToLogin();
+                }
             }
         },
         
         // 加载管理员列表
         async loadAdmins() {
             try {
-                const response = await axios.get('/api/admin/auth/admins');
+                const response = await axios.get(API.adminAuth.admins);
                 this.admins = response.data.admins;
                 // console.log('加载的管理员列表:', this.admins);
             } catch (error) {
@@ -93,7 +107,7 @@ createApp({
         // 加载可用权限
         async loadPermissions() {
             try {
-                const response = await axios.get('/api/admin/auth/permissions');
+                const response = await axios.get(API.adminAuth.permissions);
                 this.availablePermissions = response.data.permissions;
             } catch (error) {
                 ElMessage.error('加载权限列表失败');
@@ -133,7 +147,7 @@ createApp({
             
             this.changePasswordDialog.loading = true;
             try {
-                await axios.post('/api/admin/auth/change-password', {
+                await axios.post(API.adminAuth.changePassword, {
                     old_password: form.old_password,
                     new_password: form.new_password
                 });
@@ -189,7 +203,7 @@ createApp({
             
             this.createAdminDialog.loading = true;
             try {
-                await axios.post('/api/admin/auth/admins', form);
+                await axios.post(API.adminAuth.admins, form);
                 ElMessage.success('管理员创建成功');
                 this.createAdminDialog.visible = false;
                 await this.loadAdmins();
@@ -245,7 +259,7 @@ createApp({
             
             this.editAdminDialog.loading = true;
             try {
-                await axios.put(`/api/admin/auth/admins/${adminId}`, updateData);
+                await axios.put(API.adminAuth.adminById(adminId), updateData);
                 ElMessage.success('管理员信息更新成功');
                 this.editAdminDialog.visible = false;
                 await this.loadAdmins();
@@ -273,7 +287,7 @@ createApp({
                     }
                 );
                 
-                await axios.delete(`/api/admin/auth/admins/${admin.id}`);
+                await axios.delete(API.adminAuth.adminById(admin.id));
                 ElMessage.success('管理员删除成功');
                 await this.loadAdmins();
             } catch (error) {
@@ -309,6 +323,7 @@ createApp({
                 'messages': '消息管理',
                 'config': '配置管理',
                 'training': '训练管理',
+                'admin': '管理员管理',
                 'system': '系统管理'
             };
             return labels[module] || module;

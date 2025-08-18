@@ -113,14 +113,14 @@
                         <div v-for="file in paginatedFiles" :key="file.hash" class="media-card">
                             <img
                                 v-if="file.type === 'image'"
-                                :src="'/media/ad_training_data/' + file.path"
+                                :src="getMediaUrl(file.path)"
                                 class="media-preview-image"
                                 @click.stop="previewImage(file, $event)"
                                 @error="handleImageError"
                                 loading="lazy"
                             />
                             
-                            <video v-else :src="'/media/ad_training_data/' + file.path" class="media-preview-video" preload="metadata"></video>
+                            <video v-else :src="getMediaUrl(file.path)" class="media-preview-video" preload="metadata"></video>
                             
                             <div class="media-info">
                                 <div class="media-name" :title="file.name">{{ file.name }}</div>
@@ -226,7 +226,7 @@
                 <div class="dialog-footer">
                     <el-image
                         v-if="currentFile.type === 'image'"
-                        :src="'/media/ad_training_data/' + currentFile.path"
+                        :src="getMediaUrl(currentFile.path)"
                         class="dialog-image"
                         fit="contain"
                     />
@@ -297,7 +297,7 @@
     <script src="assets/js/element-plus.js"></script>
     <script src="assets/js/axios.js"></script>
     <script src="assets/js/config/api-endpoints.js"></script>
-    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/admin-auth.js"></script>
     <script src="assets/js/components/navbar.js"></script>
     <script src="assets/js/components/training-nav.js"></script>
     <script src="assets/js/components/media-manager.js"></script>

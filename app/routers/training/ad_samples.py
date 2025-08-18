@@ -8,17 +8,17 @@ import logging
 import hashlib
 
 from .base import (
-    handle_api_error, add_training_history_entry, validate_pagination_params,
+    handle_api_error, validate_pagination_params,
     paginate_data, generate_sample_id
 )
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/training", tags=["training-ad-samples"])
+router = APIRouter(tags=["training-ad-samples"])
 
 # 广告样本文件路径
-AD_SAMPLES_FILE = PathConfig.AD_TRAINING_DIR / "ad_samples.json"
+AD_SAMPLES_FILE = PathConfig.AD_TRAINING_FILE
 
 def load_ad_samples():
     """加载广告样本"""
@@ -152,11 +152,6 @@ async def delete_ad_sample(sample_id: str):
         if not save_ad_samples(samples):
             raise HTTPException(status_code=500, detail="保存数据失败")
         
-        # 记录删除历史
-        add_training_history_entry("delete_ad_sample", {
-            "sample_id": sample_id,
-            "channel_id": sample_to_delete.get('channel_id')
-        })
         
         return {"success": True, "message": "删除成功"}
     except Exception as e:
@@ -183,11 +178,6 @@ async def batch_delete_ad_samples(request: dict):
             if not save_ad_samples(samples):
                 raise HTTPException(status_code=500, detail="保存数据失败")
             
-            # 记录批量删除历史
-            add_training_history_entry("batch_delete_ad_samples", {
-                "sample_ids": sample_ids,
-                "deleted_count": deleted_count
-            })
         
         return {
             "success": True,
@@ -294,11 +284,6 @@ async def deduplicate_ad_samples(request: dict):
         if deleted_count > 0:
             if not save_ad_samples(samples):
                 raise HTTPException(status_code=500, detail="保存数据失败")
-            
-            add_training_history_entry("deduplicate_ad_samples", {
-                "removed_ids": remove_ids,
-                "removed_count": deleted_count
-            })
         
         return {
             "success": True,
@@ -337,11 +322,6 @@ async def mark_ad_message(request: dict):
         if not message_id:
             return {"success": False, "message": "消息ID不能为空"}
         
-        # 记录标记操作
-        add_training_history_entry("mark_ad_message", {
-            "message_id": message_id,
-            "is_ad": is_ad
-        })
         
         return {"success": True, "message": "标记完成"}
     except Exception as e:
@@ -387,12 +367,6 @@ async def add_ad_sample(request: dict):
         if not save_ad_samples(samples):
             raise HTTPException(status_code=500, detail="保存样本失败")
         
-        add_training_history_entry("add_ad_sample", {
-            "sample_id": new_id,
-            "channel_id": channel_id,
-            "is_ad": is_ad
-        })
-        
         return {"success": True, "message": "广告样本已添加", "id": new_id}
     except Exception as e:
         raise handle_api_error(e, "添加广告样本")
@@ -419,10 +393,6 @@ async def reload_ad_samples():
     """重新加载广告样本"""
     try:
         samples = load_ad_samples()
-        
-        add_training_history_entry("reload_ad_samples", {
-            "sample_count": len(samples)
-        })
         
         return {
             "success": True,

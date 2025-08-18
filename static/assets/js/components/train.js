@@ -140,7 +140,7 @@ const TrainApp = {
             // 如果有消息ID，从API获取消息内容
             if (messageId) {
                 try {
-                    const response = await axios.get(`/api/messages/${messageId}`);
+                    const response = await axios.get(API.messages.getById(messageId));
                     if (response.data && response.data.success && response.data.message) {
                         const msg = response.data.message;
                         
@@ -244,16 +244,8 @@ const TrainApp = {
         
         // 加载分隔符模式
         async loadSeparatorPatterns() {
-            try {
-                const response = await axios.get(API.training.separatorPatterns);
-                this.separatorPatterns = response.data.patterns || [];
-            } catch (error) {
-                this.separatorPatterns = [
-                    { regex: '━{10,}', description: '横线分隔符' },
-                    { regex: '═{10,}', description: '双线分隔符' },
-                    { regex: '─{10,}', description: '细线分隔符' }
-                ];
-            }
+            const response = await axios.get(API.training.separatorPatterns);
+            this.separatorPatterns = response.data.patterns || [];
         },
         
         // 保存分隔符模式
@@ -626,7 +618,7 @@ const TrainApp = {
                 );
                 
                 // 统一删除tail-filter-samples中的记录
-                const response = await axios.delete(`/api/training-db/tail-filter-samples/${id}`);
+                const response = await axios.delete(API.training.tailFilterSampleById(id));
                 if (response.data.success) {
                     ElMessage({
                         message: '删除成功',

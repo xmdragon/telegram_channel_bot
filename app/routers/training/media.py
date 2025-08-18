@@ -9,13 +9,13 @@ import logging
 import shutil
 
 from .base import (
-    handle_api_error, add_training_history_entry
+    handle_api_error
 )
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/training", tags=["training-media"])
+router = APIRouter(tags=["training-media"])
 
 @router.get("/media-files")
 async def get_media_files():
@@ -140,9 +140,6 @@ async def delete_media_file(file_hash: str):
                 logger.info(f"删除媒体文件: {file_path}")
         
         if deleted:
-            add_training_history_entry("delete_media_file", {
-                "file_hash": file_hash
-            })
             return {"success": True, "message": "文件已删除"}
         else:
             return {"success": False, "message": "文件不存在"}
@@ -154,10 +151,6 @@ async def clean_orphaned_files():
     """清理孤立的媒体文件"""
     try:
         # 简单实现：暂时不执行实际清理，只返回成功
-        add_training_history_entry("clean_orphaned_files", {
-            "timestamp": datetime.now().isoformat()
-        })
-        
         return {
             "success": True,
             "message": "清理完成",
@@ -421,13 +414,6 @@ async def deduplicate_media_files():
             logger.error("保存去重后的元数据失败")
             return {"success": False, "error": "保存元数据失败"}
         
-        # 记录去重历史
-        add_training_history_entry("deduplicate_media_files", {
-            "deleted_count": deleted_count,
-            "merged_count": merged_count,
-            "backup_file": str(backup_file.name)
-        })
-        
         logger.info(f"去重完成: 删除 {deleted_count} 个文件, 合并 {merged_count} 个引用")
         
         return {
@@ -445,10 +431,6 @@ async def rebuild_visual_hashes():
     """重建视觉哈希"""
     try:
         # 简单实现：返回重建完成状态
-        add_training_history_entry("rebuild_visual_hashes", {
-            "timestamp": datetime.now().isoformat()
-        })
-        
         return {
             "success": True,
             "message": "视觉哈希重建完成",
@@ -461,12 +443,70 @@ async def rebuild_visual_hashes():
 async def get_media_ocr(file_hash: str):
     """获取媒体文件的OCR结果"""
     try:
-        # 简单实现：返回空OCR结果
-        return {
-            "success": True,
-            "ocr_text": "",
-            "confidence": 0.0,
-            "processed_at": datetime.now().isoformat()
-        }
+        # 加载OCR样本数据
+        ocr_samples_file = PathConfig.OCR_SAMPLES_FILE
+        if not ocr_samples_file.exists():
+            return {
+                "success": True,
+                "ocr_text": "",
+                "confidence": 0.0,
+                "processed_at": datetime.now().isoformat(),
+                "message": "OCR数据文件不存在"
+            }
+        
+        data = SafeFileOperation.read_json_safe(ocr_samples_file)
+        if not data or "samples" not in data:
+            return {
+                "success": True,
+                "ocr_text": "",
+                "confidence": 0.0,
+                "processed_at": datetime.now().isoformat(),
+                "message": "OCR数据为空"
+            }
+        
+        # 在OCR样本中查找匹配的文件hash
+        ocr_result = None
+        for sample in data["samples"]:
+            # 检查image_hash字段（OCR中的hash可能是短格式）
+            ocr_hash = sample.get("image_hash", "")
+            if ocr_hash:
+                # 完全匹配
+                if ocr_hash == file_hash:
+                    ocr_result = sample
+                    break
+                # 检查完整hash是否以OCR hash开头（OCR hash是短格式）
+                if file_hash.startswith(ocr_hash):
+                    ocr_result = sample
+                    break
+                # 反向检查：OCR hash是否以file hash开头
+                if ocr_hash.startswith(file_hash):
+                    ocr_result = sample
+                    break
+            
+            # 不使用路径匹配 - 只返回精确hash匹配的真实OCR数据
+        
+        if ocr_result:
+            # 合并OCR文本
+            ocr_texts = ocr_result.get("ocr_texts", [])
+            combined_text = "\n".join(ocr_texts) if ocr_texts else ""
+            
+            return {
+                "success": True,
+                "ocr_text": combined_text,
+                "confidence": 0.9 if combined_text else 0.0,
+                "processed_at": ocr_result.get("created_at", datetime.now().isoformat()),
+                "qr_codes": ocr_result.get("qr_codes", []),
+                "keywords_detected": ocr_result.get("keywords_detected", []),
+                "is_ad": ocr_result.get("is_ad", False),
+                "ad_score": ocr_result.get("ad_score", 0.0)
+            }
+        else:
+            return {
+                "success": True,
+                "ocr_text": "",
+                "confidence": 0.0,
+                "processed_at": datetime.now().isoformat(),
+                "message": f"未找到文件 {file_hash} 的OCR数据"
+            }
     except Exception as e:
         raise handle_api_error(e, "获取OCR结果")

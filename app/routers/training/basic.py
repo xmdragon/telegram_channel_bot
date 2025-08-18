@@ -9,16 +9,16 @@ import hashlib
 
 from .base import (
     check_permission, TrainingSubmission, SeparatorPattern,
-    load_training_data, save_training_data, load_training_history, save_training_history,
+    load_training_data, save_training_data,
     load_separator_patterns, save_separator_patterns,
     generate_sample_id, validate_sample_data, calculate_statistics,
-    add_training_history_entry, handle_api_error, validate_pagination_params,
+    handle_api_error, validate_pagination_params,
     paginate_data
 )
 from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/training", tags=["training-basic"])
+router = APIRouter(tags=["training-basic"])
 
 @router.get("/channels")
 async def get_channels():
@@ -158,12 +158,6 @@ async def submit_training(submission: TrainingSubmission):
         if not save_training_data(samples):
             raise HTTPException(status_code=500, detail="保存训练数据失败")
         
-        # 记录训练历史
-        add_training_history_entry("submit_training", {
-            "sample_id": new_id,
-            "channel_id": submission.channel_id,
-            "channel_name": submission.channel_name
-        })
         
         # 尝试立即应用到AI过滤器
         try:
@@ -201,12 +195,6 @@ async def delete_training_sample(sample_id: int):
         if not save_training_data(samples):
             raise HTTPException(status_code=500, detail="保存数据失败")
         
-        # 记录删除历史
-        add_training_history_entry("delete_sample", {
-            "sample_id": sample_id,
-            "channel_id": sample_to_delete.get('channel_id'),
-            "channel_name": sample_to_delete.get('channel_name')
-        })
         
         return {"success": True, "message": "删除成功"}
     except Exception as e:
@@ -260,11 +248,6 @@ async def apply_training():
             # 保存AI模式到文件
             ai_filter.save_patterns(str(PathConfig.AI_FILTER_PATTERNS_FILE))
             
-            # 记录应用历史
-            add_training_history_entry("apply_training", {
-                "trained_channels": success_count,
-                "total_samples": total_samples
-            })
             
         except ImportError:
             logger.warning("AI过滤器模块未找到，跳过模式学习")
@@ -302,11 +285,6 @@ async def clear_channel_training(channel_id: str):
             except ImportError:
                 pass
             
-            # 记录清理历史
-            add_training_history_entry("clear_channel", {
-                "channel_id": channel_id,
-                "deleted_count": deleted_count
-            })
             
             return {"success": True, "message": f"已清除 {deleted_count} 个训练样本"}
         else:
@@ -373,11 +351,6 @@ async def auto_learn_from_history(channel_id: str):
                 # 让AI学习该频道的模式
                 success = await ai_filter.learn_channel_pattern(channel_id, contents)
                 if success:
-                    # 记录学习历史
-                    add_training_history_entry("auto_learn", {
-                        "channel_id": channel_id,
-                        "sample_count": len(contents)
-                    })
                     
                     return {
                         "success": True,
@@ -461,9 +434,6 @@ async def reload_model():
         success = await ai_filter.reload_model()
         
         if success:
-            add_training_history_entry("reload_model", {
-                "timestamp": datetime.now().isoformat()
-            })
             return {"success": True, "message": "模型重新加载成功"}
         else:
             return {"success": False, "message": "模型重新加载失败"}

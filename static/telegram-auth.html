@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 Telegram认证</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <link rel="stylesheet" href="assets/css/element-plus.css">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
+    <link rel="stylesheet" href="assets/css/modern-ui.css">
+    <link rel="stylesheet" href="assets/css/components/auth.css">
+    
+    <!-- JavaScript 库 -->
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/element-plus.js"></script>
+    <script src="assets/js/axios.js"></script>
+    <script src="assets/js/config/api-endpoints.js"></script>
+    <script src="assets/js/admin-auth.js"></script>
+    <script src="assets/js/components/navbar.js"></script>
+    <script src="assets/js/components/telegram-auth.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav-bar page-title="📱 Telegram认证"></nav-bar>
+
+        <div class="container">
+            <div class="form-container">
+                <div class="form-title">Telegram 认证</div>
+                
+                <!-- 已保存的认证信息 -->
+                <div v-if="showSavedInfo" class="saved-auth-info">
+                    <div style="text-align: center; margin-bottom: 32px;">
+                        <div style="font-size: 48px; color: var(--success-color); margin-bottom: 16px;">✅</div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 8px; font-size: 24px; font-weight: 700;">认证成功！</h3>
+                        <p style="color: var(--text-secondary); font-size: 16px;">Telegram 客户端已成功连接</p>
+                    </div>
+                    
+                    <div class="auth-info-item">
+                        <label>API ID:</label>
+                        <span>{{ savedAuthInfo.api_id }}</span>
+                    </div>
+                    <div class="auth-info-item">
+                        <label>API Hash:</label>
+                        <span>{{ savedAuthInfo.api_hash ? '••••••••••••••••••••••••••••••••' : '未设置' }}</span>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 32px; display: flex; gap: 16px; justify-content: center;">
+                        <el-button 
+                            @click="goToMain"
+                            type="primary"
+                            size="large"
+                            style="min-width: 120px;">
+                            进入系统
+                        </el-button>
+                        <el-button 
+                            @click="startReAuth" 
+                            type="default"
+                            size="large"
+                            :loading="loading"
+                            style="min-width: 120px;">
+                            重新认证
+                        </el-button>
+                        <el-button 
+                            @click="clearAuthData" 
+                            type="danger" 
+                            :loading="loading"
+                            :disabled="!hasSavedSession"
+                            size="large"
+                            style="min-width: 120px;">
+                            清除数据
+                        </el-button>
+                    </div>
+                </div>
+                
+                <!-- 步骤指示器 -->
+                <div v-if="!showSavedInfo" class="step-indicator">
+                    <div class="step" :class="{ active: currentStep >= 1, completed: currentStep > 1 }">配置</div>
+                    <div class="step-line"></div>
+                    <div class="step" :class="{ active: currentStep >= 2, completed: currentStep > 2 }">手机</div>
+                    <div class="step-line"></div>
+                    <div class="step" :class="{ active: currentStep >= 3, completed: currentStep > 3 }">验证</div>
+                    <div class="step-line"></div>
+                    <div class="step" :class="{ active: currentStep >= 4, completed: currentStep > 4 }">两步</div>
+                    <div class="step-line"></div>
+                    <div class="step" :class="{ active: currentStep >= 5, completed: currentStep > 5 }">完成</div>
+                </div>
+
+                <!-- 步骤1: 配置信息 -->
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 1 }">
+                    <div class="form-group">
+                        <label class="form-label">API ID</label>
+                        <el-input 
+                            v-model="config.api_id" 
+                            placeholder="请输入 Telegram API ID"
+                            type="text">
+                        </el-input>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">API Hash</label>
+                        <el-input 
+                            v-model="config.api_hash" 
+                            placeholder="请输入 Telegram API Hash"
+                            type="text">
+                        </el-input>
+                    </div>
+                    
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <el-button @click="submitConfig" type="primary" :disabled="!canProceed" :loading="loading">
+                            提交配置
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 步骤2: 手机号码 -->
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 2 }">
+                    <div class="form-group">
+                        <label class="form-label">手机号码</label>
+                        <el-input 
+                            v-model="config.phone" 
+                            placeholder="请输入手机号码 (格式: +8613800138000)"
+                            type="text">
+                        </el-input>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <el-button @click="prevStep" type="info">
+                            上一步
+                        </el-button>
+                        <el-button @click="sendCode" type="primary" :loading="loading">
+                            发送验证码
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 步骤3: 验证码 -->
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 3 }">
+                    <div class="form-group">
+                        <label class="form-label">验证码</label>
+                        <el-input 
+                            v-model="verificationCode" 
+                            placeholder="请输入收到的验证码"
+                            type="text">
+                        </el-input>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <el-button @click="prevStep" type="info">
+                            上一步
+                        </el-button>
+                        <el-button @click="verifyCode" type="primary" :loading="verifying">
+                            验证
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 步骤4: 两步验证 -->
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 4 }">
+                    <div class="form-group">
+                        <label class="form-label">两步验证密码</label>
+                        <el-input 
+                            v-model="password" 
+                            placeholder="请输入两步验证密码"
+                            type="password">
+                        </el-input>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <el-button @click="prevStep" type="info">
+                            上一步
+                        </el-button>
+                        <el-button @click="verifyPassword" type="primary" :loading="verifying">
+                            验证
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 步骤5: 完成 -->
+                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 5 }">
+                    <div style="text-align: center; margin: 32px 0;">
+                        <div style="font-size: 64px; color: var(--success-color); margin-bottom: 24px;">✅</div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 12px; font-size: 24px; font-weight: 700;">认证成功！</h3>
+                        <p style="color: var(--text-secondary); font-size: 16px;">Telegram 客户端已成功连接</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 32px;">
+                        <el-button 
+                            @click="goToMain" 
+                            type="primary"
+                            size="large"
+                            style="min-width: 140px; height: 48px; font-size: 16px;">
+                            进入系统
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 错误信息 -->
+                <div v-if="errorMessage" class="error-message">
+                    {{ errorMessage }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态消息 -->
+        <div v-if="statusMessage" class="status-message" :class="statusType">
+            {{ statusMessage }}
+        </div>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

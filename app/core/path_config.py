@@ -42,15 +42,25 @@ class PathConfig:
     # 其他训练数据
     OTHER_TRAINING_DIR = TRAINING_DIR / "other"
     MANUAL_TRAINING_FILE = OTHER_TRAINING_DIR / "manual_training_data.json"
-    TRAINING_HISTORY_FILE = OTHER_TRAINING_DIR / "training_history.json"
-    FEEDBACK_LEARNING_FILE = OTHER_TRAINING_DIR / "feedback_learning.json"
     AI_FILTER_PATTERNS_FILE = OTHER_TRAINING_DIR / "ai_filter_patterns.json"
     LEARNED_PATTERNS_FILE = OTHER_TRAINING_DIR / "learned_patterns.json"
     OCR_SAMPLES_FILE = OTHER_TRAINING_DIR / "ocr_samples.json"
     
+    # 模型和缓存目录
+    MODELS_DIR = DATA_DIR / "models"
+    SENTENCE_TRANSFORMERS_CACHE_DIR = MODELS_DIR / "sentence_transformers"
+    LIGHTWEIGHT_SIMILARITY_CACHE_FILE = MODELS_DIR / "lightweight_similarity_cache.pkl"
+    
     # 日志文件
     APP_LOG_FILE = LOGS_DIR / "app.log"
     ERROR_LOG_FILE = LOGS_DIR / "error.log"
+    SUPERVISOR_STATUS_FILE = LOGS_DIR / "supervisor_status.json"
+    
+    # AI配置文件
+    AI_CONFIG_FILE = CONFIG_DIR / "ai_config.json"
+    
+    # OCR导出文件目录
+    OCR_EXPORT_DIR = DATA_DIR / "exports"
     
     @classmethod
     def ensure_directories(cls):
@@ -81,6 +91,13 @@ class PathConfig:
             
             # 创建其他训练数据目录
             cls.OTHER_TRAINING_DIR.mkdir(exist_ok=True)
+            
+            # 创建模型缓存目录
+            cls.MODELS_DIR.mkdir(exist_ok=True)
+            cls.SENTENCE_TRANSFORMERS_CACHE_DIR.mkdir(exist_ok=True)
+            
+            # 创建OCR导出目录
+            cls.OCR_EXPORT_DIR.mkdir(exist_ok=True)
             
             logger.info("所有系统目录结构初始化完成")
             return True

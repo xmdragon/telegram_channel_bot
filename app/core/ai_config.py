@@ -6,6 +6,7 @@ import os
 import logging
 from typing import Dict, Any, Optional
 from pathlib import Path
+from .path_config import PathConfig
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +179,7 @@ class AIConfig:
         
         # 2. 配置文件
         try:
-            config_file = Path("data/config/ai_config.json")
+            config_file = PathConfig.AI_CONFIG_FILE
             if config_file.exists():
                 import json
                 with open(config_file, 'r', encoding='utf-8') as f:
@@ -254,7 +255,7 @@ class AIConfig:
     def _save_config(self):
         """保存配置到文件"""
         try:
-            config_file = Path("data/config/ai_config.json")
+            config_file = PathConfig.AI_CONFIG_FILE
             config_file.parent.mkdir(parents=True, exist_ok=True)
             
             config = {

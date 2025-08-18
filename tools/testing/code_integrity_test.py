@@ -206,7 +206,6 @@ class CodeIntegrityTestSuite:
             # 检查关键路径配置
             required_paths = [
                 'MANUAL_TRAINING_FILE',
-                'TRAINING_HISTORY_FILE', 
                 'TAIL_FILTER_SAMPLES_FILE',
                 'SEPARATOR_PATTERNS_FILE',
                 'AD_TRAINING_DIR'

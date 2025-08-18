@@ -88,7 +88,6 @@ async def backup_permissions_and_users():
         training_files = [
             str(PathConfig.TAIL_FILTER_SAMPLES_FILE),
             str(PathConfig.OCR_SAMPLES_FILE),
-            str(PathConfig.FEEDBACK_LEARNING_FILE),
             str(PathConfig.AD_TRAINING_FILE)
         ]
         
@@ -248,7 +247,6 @@ async def restore_from_backup(backup_path: str):
         training_files = [
             (PathConfig.TAIL_FILTER_SAMPLES_FILE.name, PathConfig.TAIL_FILTER_SAMPLES_FILE),
             (PathConfig.OCR_SAMPLES_FILE.name, PathConfig.OCR_SAMPLES_FILE),
-            (PathConfig.FEEDBACK_LEARNING_FILE.name, PathConfig.FEEDBACK_LEARNING_FILE),
             (PathConfig.AD_TRAINING_FILE.name, PathConfig.AD_TRAINING_FILE)
         ]
         

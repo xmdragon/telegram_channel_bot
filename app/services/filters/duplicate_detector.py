@@ -754,4 +754,23 @@ class DuplicateDetectorFilter(BaseFilter):
 
 
 # 创建默认实例
-duplicate_detector_filter = DuplicateDetectorFilter()
+# 懒加载默认实例
+_duplicate_detector_filter_instance = None
+
+def get_duplicate_detector_filter():
+    """获取重复检测过滤器实例（懒加载）"""
+    global _duplicate_detector_filter_instance
+    if _duplicate_detector_filter_instance is None:
+        _duplicate_detector_filter_instance = DuplicateDetectorFilter()
+    return _duplicate_detector_filter_instance
+
+# 兼容性：保持duplicate_detector_filter属性访问
+class DuplicateDetectorFilterProxy:
+    """重复检测过滤器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_duplicate_detector_filter(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_duplicate_detector_filter(), name, value)
+
+duplicate_detector_filter = DuplicateDetectorFilterProxy()

@@ -9,7 +9,7 @@ from .messages_filter import router as messages_filter_router
 from .messages_stats import router as messages_stats_router
 from .admin import router as admin_router
 from .config import router as config_router
-from .auth import router as auth_router
+from .telegram_auth import router as auth_router
 # 系统模块已重构为多个子模块
 from .system_health import router as system_health_router
 from .system_monitor import router as system_monitor_router
@@ -38,7 +38,7 @@ api_router.include_router(messages_stats_router, prefix="/messages", tags=["mess
 # 其他API路由
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 api_router.include_router(config_router, prefix="/config", tags=["config"])
-api_router.include_router(auth_router, prefix="/auth", tags=["telegram-auth"])  # Telegram认证
+api_router.include_router(auth_router, prefix="/telegram-auth", tags=["telegram-auth"])  # Telegram用户认证（非管理员认证）
 api_router.include_router(admin_auth_router, prefix="/admin/auth", tags=["admin-auth"])  # 管理员认证，使用不同路径
 # 注册重构后的系统模块路由
 api_router.include_router(system_health_router, prefix="/system", tags=["system-health"])
@@ -49,6 +49,6 @@ api_router.include_router(system_admin_router, prefix="/system", tags=["system-a
 api_router.include_router(lock_router, prefix="/lock", tags=["lock"])
 api_router.include_router(ai_control_router, prefix="/ai", tags=["ai-control"])
 api_router.include_router(ai_config_router, tags=["ai-config"])
-# 使用重构后的训练路由（已经包含/api/training-db前缀）
-api_router.include_router(training_router, tags=["training"])
+# 使用重构后的训练路由
+api_router.include_router(training_router, prefix="/training-db", tags=["training"])
 # api_router.include_router(channel_resolver_router, prefix="/channel-resolver", tags=["channel-resolver"])  # 暂时禁用

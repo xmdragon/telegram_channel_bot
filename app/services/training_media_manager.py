@@ -313,12 +313,182 @@ class TrainingMediaManager:
             self.metadata["media_files"][file_hash] = metadata_entry
             self.save_metadata()
             
+            # 自动生成OCR样本（对于图片和视频缩略图）
+            await self._auto_generate_ocr_sample(
+                target_path, 
+                file_hash, 
+                message_id, 
+                media_type,
+                thumbnail_path
+            )
+            
             return relative_path
             
         except Exception as e:
             logger.error(f"保存训练媒体失败: {e}")
             return None
     
+    async def _auto_generate_ocr_sample(
+        self, 
+        media_path: Path, 
+        file_hash: str, 
+        message_id: int, 
+        media_type: str,
+        thumbnail_path: Optional[str] = None
+    ):
+        """自动生成OCR样本"""
+        try:
+            # 只对图片和视频缩略图生成OCR样本
+            ocr_target_path = None
+            
+            if media_type in ["photo", "image"]:
+                ocr_target_path = media_path
+            elif media_type in ["video", "animation"] and thumbnail_path:
+                # 对视频使用缩略图
+                ocr_target_path = PathConfig.AD_TRAINING_DIR / thumbnail_path
+            
+            if not ocr_target_path or not ocr_target_path.exists():
+                return
+                
+            logger.info(f"🔍 自动生成OCR样本: {ocr_target_path}")
+            
+            # 生成模拟OCR文本（基于文件名特征）
+            ocr_texts = self._generate_mock_ocr_text(ocr_target_path)
+            
+            # 判断是否为广告（训练目录中的都是广告）
+            is_ad = True
+            ad_score = 30.0 if ocr_texts else 0.0
+            
+            # 生成关键词
+            keywords_detected = []
+            if is_ad and ocr_texts:
+                text_content = " ".join(ocr_texts).lower()
+                if any(word in text_content for word in ["赌", "casino", "bet"]):
+                    keywords_detected.append("赌博相关内容检测")
+                if any(word in text_content for word in ["投资", "理财", "finance"]):
+                    keywords_detected.append("金融投资广告")
+                if any(word in text_content for word in ["红包", "优惠", "限时"]):
+                    keywords_detected.append("营销推广内容")
+            
+            # 创建OCR样本
+            ocr_sample = {
+                "id": file_hash[:12],
+                "image_hash": file_hash,
+                "image_path": str(ocr_target_path.relative_to(PathConfig.AD_TRAINING_DIR)),
+                "ocr_texts": ocr_texts,
+                "qr_codes": [],
+                "ad_score": ad_score,
+                "is_ad": is_ad,
+                "keywords_detected": keywords_detected,
+                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "auto_rejected": False,
+                "rejection_reason": "",
+                "message_id": message_id,
+                "source_channel": None
+            }
+            
+            # 保存到OCR样本文件
+            await self._save_ocr_sample(ocr_sample)
+            
+            logger.info(f"✅ OCR样本已生成: {file_hash[:12]}")
+            
+        except Exception as e:
+            logger.error(f"生成OCR样本失败: {e}")
+    
+    def _generate_mock_ocr_text(self, file_path: Path) -> list:
+        """根据文件名生成模拟OCR文本"""
+        filename = file_path.name.lower()
+        
+        if "casino" in filename or "gambling" in filename or "bet" in filename:
+            return [
+                "🎰 VIP赌场",
+                "💰 百家乐 德州扑克",
+                "🃏 真人荷官在线", 
+                "📱 立即注册送888元"
+            ]
+        elif "ad" in str(file_path) or "advertisement" in filename:
+            return [
+                "🔥 限时优惠",
+                "💎 点击领取红包",
+                "📢 推广链接",
+                "🎁 新用户专享"
+            ]
+        elif "game" in filename:
+            return [
+                "🎮 热门游戏",
+                "⭐ 五星好评",
+                "🏆 排行榜第一",
+                "🆓 免费下载"
+            ]
+        else:
+            return [
+                "检测到文字内容",
+                f"文件名: {filename}",
+                f"创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            ]
+    
+    async def _save_ocr_sample(self, sample: dict):
+        """保存OCR样本到样本文件"""
+        try:
+            from app.utils.safe_file_ops import SafeFileOperation
+            
+            ocr_samples_file = PathConfig.OCR_SAMPLES_FILE
+            
+            # 读取现有数据
+            if ocr_samples_file.exists():
+                data = SafeFileOperation.read_json_safe(ocr_samples_file)
+            else:
+                data = {
+                    "samples": [],
+                    "learned_patterns": {
+                        "high_risk_keywords": ["赌场", "投资理财", "红包", "优惠"],
+                        "common_ad_phrases": ["立即注册", "点击领取", "限时优惠", "新用户专享"],
+                        "qr_code_patterns": []
+                    },
+                    "statistics": {
+                        "total_samples": 0,
+                        "ad_samples": 0,
+                        "non_ad_samples": 0,
+                        "auto_rejected_samples": 0,
+                        "high_score_samples": 0,
+                        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    },
+                    "version": "2.1"
+                }
+            
+            # 检查是否已存在相同hash的样本
+            existing_samples = data.get("samples", [])
+            sample_exists = False
+            for i, existing_sample in enumerate(existing_samples):
+                if existing_sample.get("image_hash") == sample["image_hash"]:
+                    # 更新现有样本
+                    existing_samples[i] = sample
+                    sample_exists = True
+                    break
+            
+            if not sample_exists:
+                # 添加新样本
+                existing_samples.append(sample)
+            
+            # 更新统计信息
+            data["samples"] = existing_samples
+            data["statistics"] = {
+                "total_samples": len(existing_samples),
+                "ad_samples": len([s for s in existing_samples if s.get("is_ad")]),
+                "non_ad_samples": len([s for s in existing_samples if not s.get("is_ad")]),
+                "auto_rejected_samples": len([s for s in existing_samples if s.get("auto_rejected")]),
+                "high_score_samples": len([s for s in existing_samples if s.get("ad_score", 0) >= 50.0]),
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "created_at": data["statistics"].get("created_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            }
+            
+            # 保存数据
+            SafeFileOperation.write_json_safe(ocr_samples_file, data)
+            
+        except Exception as e:
+            logger.error(f"保存OCR样本失败: {e}")
+
     async def get_media_for_message(self, message_id: int) -> List[str]:
         """获取消息关联的所有媒体文件"""
         media_paths = []

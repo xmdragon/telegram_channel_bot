@@ -365,5 +365,34 @@ class TailFeatureExtractor:
         }
 
 
-# 创建全局实例
-tail_feature_extractor = TailFeatureExtractor()
+# 懒加载全局实例
+_tail_feature_extractor_instance = None
+
+def get_tail_feature_extractor():
+    """获取尾部特征提取器实例（懒加载）"""
+    global _tail_feature_extractor_instance
+    if _tail_feature_extractor_instance is None:
+        # 检查AI功能是否启用
+        try:
+            from app.core.ai_config import is_module_enabled
+            if not is_module_enabled('semantic_tail_filter'):
+                logger.info("🔒 尾部特征提取器已禁用，使用空实现")
+                from app.services.dummy_implementations import DummyTailFeatureExtractor
+                _tail_feature_extractor_instance = DummyTailFeatureExtractor()
+                return _tail_feature_extractor_instance
+        except ImportError:
+            pass
+        
+        _tail_feature_extractor_instance = TailFeatureExtractor()
+    return _tail_feature_extractor_instance
+
+# 兼容性：保持tail_feature_extractor属性访问
+class TailFeatureExtractorProxy:
+    """尾部特征提取器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_tail_feature_extractor(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_tail_feature_extractor(), name, value)
+
+tail_feature_extractor = TailFeatureExtractorProxy()

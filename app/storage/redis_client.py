@@ -13,7 +13,10 @@ logger = logging.getLogger(__name__)
 _redis_pool = None
 _redis_client = None
 
-def get_redis_client(redis_url: str = "redis://localhost:6379"):
+def get_redis_client(redis_url: str = None):
+    if redis_url is None:
+        from app.core.config import settings
+        redis_url = settings.REDIS_URL
     """获取Redis客户端，使用连接池模式"""
     global _redis_pool, _redis_client
     
@@ -23,14 +26,19 @@ def get_redis_client(redis_url: str = "redis://localhost:6379"):
             _redis_pool = redis.ConnectionPool.from_url(
                 redis_url, 
                 decode_responses=True,
-                max_connections=20,  # 最大连接数
-                retry_on_timeout=True
+                max_connections=20,
+                retry_on_timeout=True,
+                retry_on_error=[redis.ConnectionError, redis.TimeoutError]
             )
             _redis_client = redis.Redis(connection_pool=_redis_pool)
             
-            # 测试连接
-            _redis_client.ping()
-            logger.info("Redis连接池初始化成功")
+            # Linus式连接：不强制ping，让使用时自然重试
+            try:
+                _redis_client.ping()
+                logger.info("Redis连接池初始化成功")
+            except Exception as ping_error:
+                logger.warning(f"Redis暂时不可用，服务将在后台重试: {ping_error}")
+                # 继续启动，不阻塞服务
             
         except Exception as e:
             logger.error(f"Redis连接池初始化失败: {e}")
@@ -41,7 +49,7 @@ def get_redis_client(redis_url: str = "redis://localhost:6379"):
 class RedisBaseStore:
     """Redis存储基类，提供通用的连接和序列化功能"""
     
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
+    def __init__(self, redis_url: str = None):
         # 使用共享的Redis连接池
         self.redis = get_redis_client(redis_url)
         logger.debug(f"Redis存储实例已创建: {self.__class__.__name__}")

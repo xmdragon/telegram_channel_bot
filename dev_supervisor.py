@@ -108,6 +108,7 @@ class ServiceProcess:
             return False
         else:
             # 其他服务只需要检查进程存在
+            import asyncio
             await asyncio.sleep(2)
             return self.process.poll() is None
     

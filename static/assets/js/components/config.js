@@ -198,18 +198,20 @@ const ConfigApp = {
         
         async loadSystemConfig() {
             try {
-                const response = await axios.get(API.admin.config);
-                if (response.data) {
+                const response = await axios.get(API.config.list);
+                if (response.data && response.data.configs) {
+                    const configs = response.data.configs;
+                    
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
-                        history_message_limit: response.data.history_message_limit || 50,
-                        channel_signature: response.data['channels.signature'] || '',
-                        collection_enabled: response.data['collection.enabled'] !== undefined ? response.data['collection.enabled'] : true
+                        history_message_limit: configs['channels.history_message_limit']?.value || 50,
+                        channel_signature: configs['channels.signature']?.value || '',
+                        collection_enabled: configs['collection.enabled']?.value !== undefined ? configs['collection.enabled'].value : true
                     };
                 }
             } catch (error) {
-                // 静默处理错误，使用默认配置
-                // console.log('使用默认系统配置');
+                console.error('加载系统配置失败:', error);
+                // 使用默认配置
             }
         },
         
@@ -256,7 +258,7 @@ const ConfigApp = {
             try {
                 // console.log('删除频道ID:', channelId);
                 
-                const response = await axios.delete(`/api/admin/channels/${encodeURIComponent(channelId)}`);
+                const response = await axios.delete(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channelId)));
                 
                 // console.log('删除频道响应:', response.data);
                 
@@ -358,7 +360,7 @@ const ConfigApp = {
                 
                 // console.log('切换频道状态:', channel.channel_id || channel.name, '从', channel.status, '到', newStatus);
                 
-                const response = await axios.put(`/api/admin/channels/${encodeURIComponent(channel.name)}`, {
+                const response = await axios.put(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channel.name)), {
                     is_active: isActive
                 });
                 

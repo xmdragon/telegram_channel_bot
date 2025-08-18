@@ -403,5 +403,34 @@ class TailVectorManager:
         return health
 
 
-# 创建全局实例
-tail_vector_manager = TailVectorManager()
+# 懒加载全局实例
+_tail_vector_manager_instance = None
+
+def get_tail_vector_manager():
+    """获取尾部向量管理器实例（懒加载）"""
+    global _tail_vector_manager_instance
+    if _tail_vector_manager_instance is None:
+        # 检查AI功能是否启用
+        try:
+            from app.core.ai_config import is_module_enabled
+            if not is_module_enabled('semantic_tail_filter'):
+                logger.info("🔒 尾部向量管理器已禁用，使用空实现")
+                from app.services.dummy_implementations import DummyTailVectorManager
+                _tail_vector_manager_instance = DummyTailVectorManager()
+                return _tail_vector_manager_instance
+        except ImportError:
+            pass
+        
+        _tail_vector_manager_instance = TailVectorManager()
+    return _tail_vector_manager_instance
+
+# 兼容性：保持tail_vector_manager属性访问
+class TailVectorManagerProxy:
+    """尾部向量管理器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_tail_vector_manager(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_tail_vector_manager(), name, value)
+
+tail_vector_manager = TailVectorManagerProxy()

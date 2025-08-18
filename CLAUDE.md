@@ -48,6 +48,11 @@ git status && git log --oneline -1
 #### 禁止存放：
 ❌ 测试文件、临时脚本、批量操作脚本、实验文件、备份文件、会话文件
 
+#### ⚠️ 重要原则：
+- **测试文件、临时文件用完立即删除**
+- **禁止创建代码备份文件（.bak、.backup、*-backup.*等）**
+- **版本控制使用git，不需要手动备份文件**
+
 #### 允许的核心文件：
 ✅ main.py, CLAUDE.md, README.md, requirements.txt, .gitignore
 ✅ docker-compose.yml, Dockerfile  
@@ -148,7 +153,7 @@ curl localhost:8000/api/health  # API健康检查
 - `/api/messages` - 消息管理
 - `/api/admin` - 管理员功能
 - `/api/config` - 配置管理
-- `/api/auth` - Telegram认证
+- `/api/telegram-auth` - Telegram用户认证（非管理员认证）
 - `/api/training-db` - AI训练数据
 
 ## 🌐 API端点管理规范
@@ -227,6 +232,12 @@ API_ENDPOINTS = {
 - 使用`docker compose`而不是`docker-compose`
 - 前端Vue3 + Element Plus + Axios
 - 中文简短回复
+
+### 🧹 文件管理规范
+- **测试文件、临时文件用完立即删除**
+- **禁止创建任何形式的备份文件**（.bak、.backup、*-backup.*、*-old.*等）
+- **版本控制依赖git，不需要手动文件备份**
+- **调试页面、测试脚本使用完毕必须清理**
 
 ### 强制规范
 - **禁止硬编码文件路径**：必须从PathConfig类引用

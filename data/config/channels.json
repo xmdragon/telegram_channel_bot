@@ -427,5 +427,13 @@
     "channel_title": "东南亚大事件",
     "last_message_id": 0,
     "updated_at": "2025-08-16T14:29:17.418022"
+  },
+  "@bigeventsinsea": {
+    "channel_name": "@bigeventsinsea",
+    "channel_id": "-1002696592354",
+    "channel_type": "source",
+    "is_active": true,
+    "updated_at": "2025-08-18T10:37:24.836073",
+    "created_at": "2025-08-18T10:37:24.836098"
   }
 }

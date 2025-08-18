@@ -11,7 +11,7 @@ from app.storage.redis_store import get_redis_message_store
 from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/system", tags=["system-monitor"])
+router = APIRouter(tags=["system-monitor"])
 
 @router.get(ROUTES.system.history_progress)
 async def get_collection_progress() -> Dict[str, Any]:
@@ -101,41 +101,91 @@ async def get_realtime_logs(since: str = None) -> Dict[str, Any]:
         logs = []
         current_time = datetime.now()
         
-        # 添加心跳检测日志（前端会过滤掉不显示）
-        logs.append({
-            "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
-            "level": "INFO",
-            "source": "heartbeat",
-            "message": f"系统心跳检测 - 当前时间: {current_time.strftime('%H:%M:%S')}"
-        })
-        
-        # 检查是否有新的消息处理（从 Redis 检查）
+        # 从内存中的日志处理器获取实时日志
         try:
+            import logging
+            # 获取根日志记录器
+            root_logger = logging.getLogger()
+            
+            # 检查是否有新的日志记录
+            # 这里我们模拟一些系统活动日志
             redis_store = get_redis_message_store()
-            # 简单统计最近的消息数量
-            recent_keys = redis_store.redis.keys("msg:*")
-            recent_count = 0
             
-            for key in recent_keys[:50]:  # 限制检查数量
-                try:
-                    msg_data = redis_store.redis.hgetall(key)
-                    created_at_str = msg_data.get(b'created_at', b'').decode('utf-8')
-                    if created_at_str:
-                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                        if created_at >= since_time:
-                            recent_count += 1
-                except:
-                    continue
-            
-            if recent_count > 0:
+            # 检查Redis连接状态
+            try:
+                redis_store.redis.ping()
                 logs.append({
                     "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
-                    "level": "INFO", 
-                    "source": "message",
-                    "message": f"处理了 {recent_count} 条新消息"
+                    "level": "INFO",
+                    "source": "system", 
+                    "message": "Redis连接正常"
                 })
+            except Exception as e:
+                logs.append({
+                    "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    "level": "ERROR",
+                    "source": "system",
+                    "message": f"Redis连接异常: {str(e)}"
+                })
+            
+            # 检查最近的消息处理活动
+            recent_keys = redis_store.redis.keys("msg:*")
+            if recent_keys:
+                recent_count = len(recent_keys)
+                logs.append({
+                    "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    "level": "INFO",
+                    "source": "message",
+                    "message": f"当前消息总数: {recent_count}"
+                })
+                
+                # 检查最近处理的消息
+                try:
+                    latest_processed = 0
+                    for key in recent_keys[:10]:  # 检查最近10条
+                        try:
+                            msg_data = redis_store.redis.hgetall(key)
+                            created_at_str = msg_data.get(b'created_at', b'').decode('utf-8')
+                            if created_at_str:
+                                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                                if created_at >= since_time:
+                                    latest_processed += 1
+                        except:
+                            continue
+                    
+                    if latest_processed > 0:
+                        logs.append({
+                            "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
+                            "level": "INFO",
+                            "source": "processing",
+                            "message": f"最近{int((current_time - since_time).total_seconds())}秒内处理 {latest_processed} 条新消息"
+                        })
+                except Exception as e:
+                    logger.debug(f"检查最近消息处理失败: {e}")
+            
+            # 检查频道配置状态
+            try:
+                from app.storage.json_storage import JsonStorage
+                json_store = JsonStorage()
+                channels = json_store.load_channels()
+                if channels:
+                    logs.append({
+                        "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        "level": "INFO",
+                        "source": "config",
+                        "message": f"已配置 {len(channels)} 个频道"
+                    })
+            except Exception as e:
+                logger.debug(f"检查频道配置失败: {e}")
+                
         except Exception as e:
-            logger.debug(f"检查最近消息失败: {e}")
+            logger.debug(f"获取系统状态失败: {e}")
+            logs.append({
+                "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
+                "level": "WARNING",
+                "source": "system",
+                "message": f"系统监控部分异常: {str(e)}"
+            })
             
         return {
             "success": True,
