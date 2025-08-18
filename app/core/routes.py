@@ -67,3 +67,12 @@ class ROUTES:
         """进程锁模块路由"""
         status = "/lock/status"
         force_release = "/lock/force-release"
+    
+    class ai_config:
+        """AI配置模块路由"""
+        status = "/ai-config/status"
+        global_config = "/ai-config/global-config"
+        module_config = "/ai-config/module-config"
+        cache_clear = "/ai-config/cache/clear"
+        lightweight_train = "/ai-config/lightweight/train"
+        recommendations = "/ai-config/recommendations"

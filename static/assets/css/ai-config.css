@@ -1,0 +1,246 @@
+/* AI配置管理页面样式 */
+
+.ai-config-container {
+    height: 100vh;
+    background: #f5f7fa;
+}
+
+.header {
+    background: #fff;
+    border-bottom: 1px solid #e4e7ed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+}
+
+.page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-right {
+    display: flex;
+    gap: 10px;
+}
+
+.main-content {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* 卡片样式 */
+.el-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* 状态概览 */
+.status-overview .el-row {
+    padding: 10px 0;
+}
+
+.status-item {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.status-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.status-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* 全局配置 */
+.global-config .el-form {
+    margin-bottom: 15px;
+}
+
+.mode-description {
+    margin-top: 15px;
+}
+
+/* 模块配置表格 */
+.modules-config .el-table {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.modules-config .el-table th {
+    background: #f8f9fa;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* 缓存管理 */
+.cache-info p {
+    margin: 8px 0;
+    color: #606266;
+}
+
+.cache-actions {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+.cache-actions .el-button {
+    width: 100%;
+}
+
+/* 配置建议 */
+.recommendation-item {
+    margin-bottom: 15px;
+}
+
+.recommendation-action {
+    margin-top: 10px;
+    text-align: right;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+    }
+    
+    .main-content {
+        padding: 15px;
+    }
+    
+    .status-overview .el-col {
+        margin-bottom: 15px;
+    }
+    
+    .cache-actions {
+        flex-direction: column;
+    }
+}
+
+/* 标签类型样式 */
+.el-tag.el-tag--success {
+    background: #f0f9ff;
+    border-color: #67c23a;
+    color: #67c23a;
+}
+
+.el-tag.el-tag--warning {
+    background: #fdf6ec;
+    border-color: #e6a23c;
+    color: #e6a23c;
+}
+
+.el-tag.el-tag--danger {
+    background: #fef0f0;
+    border-color: #f56c6c;
+    color: #f56c6c;
+}
+
+.el-tag.el-tag--info {
+    background: #f4f4f5;
+    border-color: #909399;
+    color: #909399;
+}
+
+/* 加载状态 */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* 动画效果 */
+.el-card {
+    transition: all 0.3s ease;
+}
+
+.el-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.el-button {
+    transition: all 0.3s ease;
+}
+
+/* 自定义表格样式 */
+.el-table .cell {
+    padding: 8px 0;
+}
+
+.el-table .el-table__row:hover > td {
+    background-color: #f5f7fa;
+}
+
+/* 表单样式 */
+.el-form-item {
+    margin-bottom: 18px;
+}
+
+.el-select {
+    width: 140px;
+}
+
+/* 警告框样式 */
+.el-alert {
+    border-radius: 6px;
+}
+
+.el-alert--info {
+    background-color: #f4f4f5;
+    border-color: #e9e9eb;
+}
+
+.el-alert--success {
+    background-color: #f0f9ff;
+    border-color: #c2e7b0;
+}
+
+.el-alert--warning {
+    background-color: #fdf6ec;
+    border-color: #fadcad;
+}
+
+.el-alert--error {
+    background-color: #fef0f0;
+    border-color: #fbc4c4;
+}

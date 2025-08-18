@@ -196,6 +196,16 @@ const API_ENDPOINTS = {
         notifications: '/ws/notifications'                         // WebSocket - 通知连接
     },
 
+    // AI配置模块 - /api/ai-config
+    aiConfig: {
+        status: '/api/ai-config/status',                           // GET - 获取AI功能状态
+        globalConfig: '/api/ai-config/global-config',              // POST - 更新全局AI配置
+        moduleConfig: '/api/ai-config/module-config',              // POST - 更新单个模块配置
+        cacheClear: '/api/ai-config/cache/clear',                  // POST - 清理模型缓存
+        lightweightTrain: '/api/ai-config/lightweight/train',      // POST - 训练轻量级模型
+        recommendations: '/api/ai-config/recommendations'          // GET - 获取AI配置建议
+    },
+
     // 媒体和静态文件路径
     media: {
         tempMedia: '/temp_media',                                  // 临时媒体文件路径

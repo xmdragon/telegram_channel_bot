@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI配置管理 - Telegram消息采集审核系统</title>
+    
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="/static/assets/css/ai-config.css">
+</head>
+<body>
+    <div id="app">
+        <el-container class="ai-config-container">
+            <!-- 顶部导航 -->
+            <el-header class="header">
+                <div class="header-left">
+                    <h1 class="page-title">
+                        <i class="el-icon-cpu"></i>
+                        AI配置管理
+                    </h1>
+                </div>
+                <div class="header-right">
+                    <el-button @click="refreshStatus" :loading="loading">
+                        <i class="el-icon-refresh"></i>
+                        刷新状态
+                    </el-button>
+                    <el-button @click="goBack" type="primary">
+                        <i class="el-icon-back"></i>
+                        返回主页
+                    </el-button>
+                </div>
+            </el-header>
+
+            <!-- 主内容区 -->
+            <el-main class="main-content">
+                <!-- 状态概览 -->
+                <el-card class="status-overview" shadow="hover">
+                    <template #header>
+                        <div class="card-header">
+                            <span>系统状态概览</span>
+                            <el-tag :type="aiStatus.ai_enabled ? 'success' : 'danger'">
+                                AI功能{{ aiStatus.ai_enabled ? '已启用' : '已禁用' }}
+                            </el-tag>
+                        </div>
+                    </template>
+                    
+                    <el-row :gutter="20">
+                        <el-col :span="8">
+                            <div class="status-item">
+                                <div class="status-label">启动模式</div>
+                                <div class="status-value">{{ aiStatus.startup_mode || '未知' }}</div>
+                            </div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="status-item">
+                                <div class="status-label">深度学习支持</div>
+                                <div class="status-value">
+                                    <el-tag :type="aiStatus.dependencies?.sentence_transformers ? 'success' : 'warning'">
+                                        {{ aiStatus.dependencies?.sentence_transformers ? '可用' : '不可用' }}
+                                    </el-tag>
+                                </div>
+                            </div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="status-item">
+                                <div class="status-label">轻量级模式</div>
+                                <div class="status-value">
+                                    <el-tag type="success">始终可用</el-tag>
+                                </div>
+                            </div>
+                        </el-col>
+                    </el-row>
+                </el-card>
+
+                <!-- 全局配置 -->
+                <el-card class="global-config" shadow="hover">
+                    <template #header>
+                        <div class="card-header">
+                            <span>全局AI配置</span>
+                        </div>
+                    </template>
+                    
+                    <el-form :model="globalConfig" inline>
+                        <el-form-item label="AI运行模式">
+                            <el-select v-model="globalConfig.ai_mode" placeholder="选择AI模式">
+                                <el-option label="自动模式" value="auto" />
+                                <el-option label="轻量级模式" value="lightweight" />
+                                <el-option label="深度学习模式" value="deep" />
+                                <el-option label="禁用AI" value="disabled" />
+                            </el-select>
+                        </el-form-item>
+                        
+                        <el-form-item>
+                            <el-button type="primary" @click="updateGlobalConfig" :loading="saving">
+                                应用配置
+                            </el-button>
+                        </el-form-item>
+                    </el-form>
+                    
+                    <div class="mode-description">
+                        <el-alert
+                            :title="getModeDescription(globalConfig.ai_mode)"
+                            type="info"
+                            :closable="false"
+                            show-icon>
+                        </el-alert>
+                    </div>
+                </el-card>
+
+                <!-- AI模块配置 -->
+                <el-card class="modules-config" shadow="hover">
+                    <template #header>
+                        <div class="card-header">
+                            <span>AI模块配置</span>
+                        </div>
+                    </template>
+                    
+                    <el-table :data="moduleList" stripe>
+                        <el-table-column prop="name" label="模块名称" width="200" />
+                        <el-table-column prop="description" label="模块描述" width="250" />
+                        
+                        <el-table-column label="启用状态" width="120">
+                            <template #default="scope">
+                                <el-switch
+                                    v-model="scope.row.enabled"
+                                    @change="updateModuleConfig(scope.row.name, scope.row.enabled, scope.row.mode)"
+                                />
+                            </template>
+                        </el-table-column>
+                        
+                        <el-table-column label="运行模式" width="150">
+                            <template #default="scope">
+                                <el-select 
+                                    v-model="scope.row.mode" 
+                                    size="small"
+                                    @change="updateModuleConfig(scope.row.name, scope.row.enabled, scope.row.mode)"
+                                    :disabled="!scope.row.enabled"
+                                >
+                                    <el-option label="自动" value="auto" />
+                                    <el-option label="轻量级" value="lightweight" />
+                                    <el-option label="深度学习" value="deep" />
+                                    <el-option label="规则基础" value="rule_based" />
+                                </el-select>
+                            </template>
+                        </el-table-column>
+                        
+                        <el-table-column label="实际模式" width="120">
+                            <template #default="scope">
+                                <el-tag :type="getActualModeType(scope.row.actual_mode)">
+                                    {{ scope.row.actual_mode }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+                        
+                        <el-table-column label="工作状态" width="120">
+                            <template #default="scope">
+                                <el-tag :type="scope.row.is_working ? 'success' : 'danger'">
+                                    {{ scope.row.is_working ? '正常' : '停用' }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-card>
+
+                <!-- 模型缓存管理 -->
+                <el-card class="cache-management" shadow="hover" v-if="aiStatus.dependencies?.sentence_transformers">
+                    <template #header>
+                        <div class="card-header">
+                            <span>模型缓存管理</span>
+                        </div>
+                    </template>
+                    
+                    <el-row :gutter="20">
+                        <el-col :span="12">
+                            <div class="cache-info">
+                                <p><strong>缓存目录：</strong>{{ aiStatus.cache_info?.cache_dir || '未设置' }}</p>
+                                <p><strong>缓存大小：</strong>{{ aiStatus.cache_info?.cache_size_mb || 0 }} MB</p>
+                                <p><strong>已缓存模型：</strong>{{ (aiStatus.cache_info?.cached_models || []).length }} 个</p>
+                            </div>
+                        </el-col>
+                        <el-col :span="12">
+                            <div class="cache-actions">
+                                <el-button @click="clearModelCache" :loading="clearing" type="warning">
+                                    <i class="el-icon-delete"></i>
+                                    清理缓存
+                                </el-button>
+                                <el-button @click="trainLightweight" :loading="training" type="success">
+                                    <i class="el-icon-cpu"></i>
+                                    训练轻量级模型
+                                </el-button>
+                            </div>
+                        </el-col>
+                    </el-row>
+                </el-card>
+
+                <!-- 配置建议 -->
+                <el-card class="recommendations" shadow="hover" v-if="recommendations.length > 0">
+                    <template #header>
+                        <div class="card-header">
+                            <span>配置建议</span>
+                        </div>
+                    </template>
+                    
+                    <div v-for="rec in recommendations" :key="rec.title" class="recommendation-item">
+                        <el-alert
+                            :title="rec.title"
+                            :description="rec.message"
+                            :type="rec.type"
+                            show-icon
+                            :closable="false"
+                        >
+                        </el-alert>
+                        
+                        <div class="recommendation-action" v-if="rec.action">
+                            <el-button 
+                                size="small" 
+                                :type="rec.action.type === 'install' ? 'primary' : 'success'"
+                                @click="applyRecommendation(rec)"
+                            >
+                                {{ rec.action.description }}
+                            </el-button>
+                        </div>
+                    </div>
+                </el-card>
+            </el-main>
+        </el-container>
+    </div>
+
+    <!-- Vue 3 和 Element Plus -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    
+    <!-- API配置 -->
+    <script src="/static/assets/js/config/api-endpoints.js"></script>
+    <!-- AI配置管理脚本 -->
+    <script src="/static/assets/js/components/ai-config.js"></script>
+</body>
+</html>

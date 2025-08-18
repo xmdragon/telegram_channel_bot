@@ -18,6 +18,8 @@ from .system_maintenance import router as system_maintenance_router
 from .system_admin import router as system_admin_router
 from .lock import router as lock_router
 from .admin_auth import router as admin_auth_router
+from .ai_control import router as ai_control_router
+from .ai_config import router as ai_config_router
 # 使用重构后的训练路由模块
 from app.routers.training import router as training_router
 # from app.api.channel_resolver import router as channel_resolver_router  # 暂时禁用，包含数据库依赖
@@ -45,6 +47,8 @@ api_router.include_router(system_logs_router, prefix="/system", tags=["system-lo
 api_router.include_router(system_maintenance_router, prefix="/system", tags=["system-maintenance"])
 api_router.include_router(system_admin_router, prefix="/system", tags=["system-admin"])
 api_router.include_router(lock_router, prefix="/lock", tags=["lock"])
+api_router.include_router(ai_control_router, prefix="/ai", tags=["ai-control"])
+api_router.include_router(ai_config_router, tags=["ai-config"])
 # 使用重构后的训练路由（已经包含/api/training-db前缀）
 api_router.include_router(training_router, tags=["training"])
 # api_router.include_router(channel_resolver_router, prefix="/channel-resolver", tags=["channel-resolver"])  # 暂时禁用

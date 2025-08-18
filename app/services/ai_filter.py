@@ -48,13 +48,37 @@ class IntelligentFilter:
     def _initialize(self):
         """初始化模型"""
         try:
-            from sentence_transformers import SentenceTransformer
-            # 使用多语言模型，支持中文
-            self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-            self.initialized = True
-            logger.info("✅ AI过滤器初始化成功")
-        except ImportError:
-            logger.warning("⚠️ sentence-transformers 未安装，AI过滤功能暂不可用")
+            # 检查AI功能配置
+            from app.core.ai_config import get_ai_config
+            ai_config = get_ai_config()
+            
+            if not ai_config.is_module_enabled('ai_filter'):
+                logger.info("🔒 AI过滤器已禁用，跳过初始化")
+                return
+            
+            mode = ai_config.get_module_mode('ai_filter')
+            logger.info(f"AI过滤器运行模式: {mode}")
+            
+            if mode == 'deep':
+                # 使用深度学习模式
+                from app.services.model_cache_manager import get_cached_model
+                self.model = get_cached_model('paraphrase-multilingual-MiniLM-L12-v2')
+                if self.model:
+                    self.initialized = True
+                    logger.info("✅ AI过滤器初始化成功（深度学习模式）")
+                else:
+                    logger.error("❌ 深度学习模型加载失败")
+            elif mode == 'lightweight':
+                # 使用轻量级模式
+                from app.services.lightweight_similarity import get_lightweight_filter
+                self.lightweight_filter = get_lightweight_filter()
+                self.initialized = True
+                logger.info("✅ AI过滤器初始化成功（轻量级模式）")
+            else:
+                logger.info(f"AI过滤器模式 {mode}，跳过AI初始化")
+                
+        except ImportError as e:
+            logger.warning(f"⚠️ AI模块导入失败: {e}，AI过滤功能暂不可用")
         except Exception as e:
             logger.error(f"AI过滤器初始化失败: {e}")
     
@@ -617,5 +641,23 @@ class IntelligentFilter:
             logger.error(f"加载模式失败: {e}")
 
 
-# 全局实例
-ai_filter = IntelligentFilter()
+# 懒加载全局实例
+_ai_filter_instance = None
+
+def get_ai_filter():
+    """获取AI过滤器实例（懒加载）"""
+    global _ai_filter_instance
+    if _ai_filter_instance is None:
+        _ai_filter_instance = IntelligentFilter()
+    return _ai_filter_instance
+
+# 兼容性：保持ai_filter属性访问
+class AIFilterProxy:
+    """AI过滤器代理，实现懒加载"""
+    def __getattr__(self, name):
+        return getattr(get_ai_filter(), name)
+    
+    def __setattr__(self, name, value):
+        setattr(get_ai_filter(), name, value)
+
+ai_filter = AIFilterProxy()
