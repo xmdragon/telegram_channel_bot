@@ -148,7 +148,8 @@ class MessageStorageProcessor(MessageProcessor):
             'grouped_id': str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None,
             'is_combined': False,  # 单独消息不是组合消息
             'status': 'pending',   # 默认状态
-            'created_at': context.created_at
+            'created_at': context.created_at,
+            'source_channel_link_prefix': self._generate_channel_link_prefix(context.channel_id)
         }
         
         # 添加过滤原因（如果有）
@@ -338,3 +339,20 @@ class DuplicateChecker(MessageProcessor):
             
         except Exception as e:
             return await self._handle_error(context, e)
+    
+    def _generate_channel_link_prefix(self, channel_id: str) -> str:
+        """
+        生成频道链接前缀
+        将频道ID转换为Telegram链接格式
+        """
+        try:
+            # 移除负号前缀，Telegram链接不需要负号
+            clean_id = channel_id.lstrip('-')
+            
+            # 构建Telegram私有频道链接格式
+            # 格式：https://t.me/c/频道ID/消息ID
+            return f"https://t.me/c/{clean_id}"
+            
+        except Exception as e:
+            self.logger.error(f"生成频道链接前缀失败: {e}")
+            return f"https://t.me/c/{channel_id.lstrip('-')}"
