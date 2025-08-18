@@ -283,18 +283,31 @@ class MessageStorageProcessor(MessageProcessor):
     def _generate_channel_link_prefix(self, channel_id: str) -> str:
         """
         生成频道链接前缀
-        将频道ID转换为Telegram链接格式
+        优先使用公开频道用户名，否则使用内部频道ID格式
         """
         try:
-            # 移除负号前缀，Telegram链接不需要负号
-            clean_id = channel_id.lstrip('-')
+            from app.storage.json_manager import JSONManager
             
-            # 构建Telegram私有频道链接格式
-            # 格式：https://t.me/c/频道ID/消息ID
+            # 尝试从频道配置获取用户名
+            channels_manager = JSONManager('channels.json')
+            channels_data = channels_manager.load()
+            
+            # 查找匹配的频道
+            for channel_key, channel_info in channels_data.items():
+                if channel_info.get('channel_id') == channel_id:
+                    channel_name = channel_info.get('channel_name')
+                    if channel_name and channel_name.startswith('@'):
+                        # 使用公开频道用户名格式
+                        # 格式：https://t.me/用户名/消息ID
+                        return f"https://t.me/{channel_name[1:]}"  # 移除@符号
+            
+            # 如果没找到用户名，使用内部频道ID格式
+            clean_id = channel_id.lstrip('-')
             return f"https://t.me/c/{clean_id}"
             
         except Exception as e:
             self.logger.error(f"生成频道链接前缀失败: {e}")
+            # 降级到内部ID格式
             return f"https://t.me/c/{channel_id.lstrip('-')}"
 
 
@@ -356,20 +369,3 @@ class DuplicateChecker(MessageProcessor):
             
         except Exception as e:
             return await self._handle_error(context, e)
-    
-    def _generate_channel_link_prefix(self, channel_id: str) -> str:
-        """
-        生成频道链接前缀
-        将频道ID转换为Telegram链接格式
-        """
-        try:
-            # 移除负号前缀，Telegram链接不需要负号
-            clean_id = channel_id.lstrip('-')
-            
-            # 构建Telegram私有频道链接格式
-            # 格式：https://t.me/c/频道ID/消息ID
-            return f"https://t.me/c/{clean_id}"
-            
-        except Exception as e:
-            self.logger.error(f"生成频道链接前缀失败: {e}")
-            return f"https://t.me/c/{channel_id.lstrip('-')}"
