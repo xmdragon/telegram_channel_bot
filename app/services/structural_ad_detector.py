@@ -373,7 +373,7 @@ class StructuralAdDetector:
         
         return entities
     
-    def remove_hidden_links(self, message: Any) -> tuple:
+    async def remove_hidden_links(self, message: Any) -> tuple:
         """移除隐藏链接（向后兼容API）"""
         try:
             result = await self.detect_structural_ads(message)

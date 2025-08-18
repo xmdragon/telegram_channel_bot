@@ -588,9 +588,11 @@ const MainApp = {
         
         async loadStats() {
             try {
-                const response = await axios.get(API.messages.statsOverview);
+                const response = await axios.get(API.messages.statsOverview, {
+                    headers: authManager.getAuthHeaders()
+                });
                 if (response.data) {
-                    const stats = response.data;
+                    const stats = response.data.data || response.data;
                     this.stats.total.value = stats.total || 0;
                     this.stats.pending.value = stats.pending || 0;
                     this.stats.approved.value = stats.approved || 0;

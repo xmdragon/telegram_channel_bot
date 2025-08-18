@@ -73,7 +73,7 @@ class MediaDuplicateDetector:
                         continue
                     
                     # 获取消息数据
-                    message_data = self.redis_store.redis_client.hgetall(key)
+                    message_data = self.redis_store.redis.hgetall(key)
                     if not message_data:
                         continue
                     

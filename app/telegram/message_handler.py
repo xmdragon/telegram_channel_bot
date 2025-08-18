@@ -68,7 +68,7 @@ class MessageHandler:
             
             # 执行处理
             result = await pipeline.process(context)
-            db_message = result.data if result.success else None
+            db_message = result.context.save_data if result.success else None
             
             if not db_message:
                 logger.debug(f"消息 {message.id} 处理完成（被过滤或等待组合）")
@@ -121,7 +121,7 @@ class MessageHandler:
             
             # 执行处理
             result = await pipeline.process(context)
-            db_message = result.data if result.success else None
+            db_message = result.context.save_data if result.success else None
             
             if not db_message:
                 logger.debug(f"历史消息 {message.id} 处理完成（被过滤或等待组合）")

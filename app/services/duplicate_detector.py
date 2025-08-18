@@ -227,7 +227,7 @@ class DuplicateDetector:
             message_key = f"msg:{channel_id}:{message_id}"
             
             # 更新消息状态
-            self.redis_store.redis_client.hset(message_key, mapping={
+            self.redis_store.redis.hset(message_key, mapping={
                 'status': 'duplicate',
                 'original_message_id': str(original_message_id),
                 'duplicate_detected_at': datetime.utcnow().isoformat()

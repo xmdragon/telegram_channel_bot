@@ -80,7 +80,7 @@ class AdDetectorFilter(BaseFilter):
                 result.filtered_content = content
                 
                 # 在context中记录广告检测结果，供后续处理使用
-                context.set_metadata('ad_detection_result', {
+                context.add_metadata('ad_detection_result', {
                     'is_ad': True,
                     'confidence': final_score,
                     'main_reason': main_reason,

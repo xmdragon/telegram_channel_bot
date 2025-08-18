@@ -377,8 +377,16 @@ class DuplicateDetectorFilter(BaseFilter):
             if ':' not in dup_key:
                 return False, None
             
-            channel_id, dup_message_id = dup_key.split(':', 1)
-            dup_message_id = int(dup_message_id)
+            parts = dup_key.split(':', 1)
+            if len(parts) != 2:
+                return False, None
+            
+            channel_id, dup_message_id_str = parts
+            try:
+                dup_message_id = int(dup_message_id_str)
+            except ValueError:
+                # 如果message_id不是数字，跳过这个重复检查
+                return False, None
             
             # 排除当前消息本身
             if message_id is not None and dup_message_id == message_id:

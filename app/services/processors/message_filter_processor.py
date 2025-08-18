@@ -76,7 +76,7 @@ class MessageFilterProcessor(MessageProcessor):
             context.entities = entities
             
             # 移除隐藏链接（系统默认策略）
-            clean_entities, removed_links = structural_detector.remove_hidden_links(message)
+            clean_entities, removed_links = await structural_detector.remove_hidden_links(message)
             context.removed_hidden_links = removed_links
             
             if removed_links:
