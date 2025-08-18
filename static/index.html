@@ -134,9 +134,9 @@
                 
                 <!-- 消息列表，使用template标签包裹v-for -->
                 <template v-else>
-                    <div v-for="message in filteredMessages" :key="message.id" 
+                    <div v-for="message in filteredMessages" :key="message.message_id" 
                          class="message-item"
-                         :class="{ 'selected': isSelected(message.id) }">
+                         :class="{ 'selected': isSelected(message.message_id) }">
                     
                     <!-- 消息头部 -->
                     <div class="message-header">
@@ -144,16 +144,16 @@
                             <!-- 选择框 -->
                             <input type="checkbox" 
                                    v-if="message.status === 'pending'"
-                                   :checked="isSelected(message.id)"
-                                   @change="toggleMessage(message.id)">
+                                   :checked="isSelected(message.message_id)"
+                                   @change="toggleMessage(message.message_id)">
                             
                             <!-- 频道信息 -->
                             <span class="message-channel">
                                 📢 <a href="javascript:void(0)" 
-                                     @click="filterByChannel(message.source_channel, message.source_channel_title || message.source_channel)"
+                                     @click="filterByChannel(message.source_channel, getChannelDisplayName(uniqueChannels[message.source_channel]))"
                                      class="channel-link"
-                                     :title="'点击查看频道「' + (message.source_channel_title || message.source_channel) + '」的所有消息'">
-                                    {{ message.source_channel_title || message.source_channel || '未知频道' }}
+                                     :title="'点击查看频道「' + getChannelDisplayName(uniqueChannels[message.source_channel]) + '」的所有消息'">
+                                    {{ getChannelDisplayName(uniqueChannels[message.source_channel]) }}
                                 </a>
                             </span>
                             
@@ -531,12 +531,12 @@
                         
                         
                         <!-- 消息ID和原频道链接 -->
-                        <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer">
+                        <div v-if="message.message_id" class="message-footer">
                             <span class="message-full-id">
                                 📋 消息ID: #{{ message.source_channel }}:{{ message.message_id }}
                             </span>
-                            <span class="message-link-separator">|</span>
-                            <span class="original-link">
+                            <span v-if="message.source_channel_link_prefix" class="message-link-separator">|</span>
+                            <span v-if="message.source_channel_link_prefix" class="original-link">
                                 🔗 <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
                                      target="_blank" 
                                      class="original-message-link">
@@ -556,12 +556,12 @@
                                 ✏️ 编辑
                             </button>
                             <button v-if="buttonVisibility.approve" 
-                                    @click="selectedMessages = [message.id]; approveMessages()" 
+                                    @click="selectedMessages = [message.message_id]; approveMessages()" 
                                     class="btn btn-sm btn-success">
                                 ✅ 批准
                             </button>
                             <button v-if="buttonVisibility.reject" 
-                                    @click="selectedMessages = [message.id]; rejectMessages()" 
+                                    @click="selectedMessages = [message.message_id]; rejectMessages()" 
                                     class="btn btn-sm btn-danger">
                                 ❌ 拒绝
                             </button>
@@ -602,7 +602,7 @@
                                 ✏️ 编辑
                             </button>
                             <button v-if="buttonVisibility.approve" 
-                                    @click="selectedMessages = [message.id]; approveMessages()" 
+                                    @click="selectedMessages = [message.message_id]; approveMessages()" 
                                     class="btn btn-sm btn-success"
                                     title="重新批准此消息">
                                 ♻️ 恢复
@@ -648,7 +648,7 @@
                                 🔄 重新发送
                             </button>
                             <button v-if="buttonVisibility.reject" 
-                                    @click="selectedMessages = [message.id]; rejectMessages()" 
+                                    @click="selectedMessages = [message.message_id]; rejectMessages()" 
                                     class="btn btn-sm btn-danger"
                                     title="撤回批准">
                                 ↩️ 撤回
@@ -668,9 +668,9 @@
                         <button v-if="buttonVisibility.refetchMedia && message.media_type && !mediaExists(message)"
                                 @click="refetchMedia(message)" 
                                 class="btn btn-sm btn-primary"
-                                :disabled="refetchingMedia[message.id]"
+                                :disabled="refetchingMedia[message.message_id]"
                                 title="重新下载缺失的媒体文件">
-                            <span v-if="refetchingMedia[message.id]">⏳</span>
+                            <span v-if="refetchingMedia[message.message_id]">⏳</span>
                             <span v-else>🔄 补抓</span>
                         </button>
                     </div>
