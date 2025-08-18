@@ -9,29 +9,29 @@ class ROUTES:
     class system:
         """系统模块路由"""
         # 健康检查
-        status = "/status"
-        status_detailed = "/status/detailed"
-        health = "/health"
+        status = "/system/status"
+        status_detailed = "/system/status/detailed"
+        health = "/system/health"
         
         # 服务管理
-        service_start = "/services/{service_name}/start"
-        service_stop = "/services/{service_name}/stop"
-        service_restart = "/services/{service_name}/restart"
-        service_status = "/services/{service_name}/status"
-        services = "/services"
+        service_start = "/system/services/{service_name}/start"
+        service_stop = "/system/services/{service_name}/stop"
+        service_restart = "/system/services/{service_name}/restart"
+        service_status = "/system/services/{service_name}/status"
+        services = "/system/services"
         
         # 监控相关
-        history_progress = "/history-collection/progress"
-        history_start = "/history-collection/start/{channel_id}"
-        history_stop = "/history-collection/stop/{channel_id}"
-        logs_realtime = "/logs/realtime"
+        history_progress = "/system/history-collection/progress"
+        history_start = "/system/history-collection/start/{channel_id}"
+        history_stop = "/system/history-collection/stop/{channel_id}"
+        logs_realtime = "/system/logs/realtime"
         
         # 维护操作
-        restart = "/restart"
-        reset = "/reset"
+        restart = "/system/restart"
+        reset = "/system/reset"
         
         # 日志管理
-        logs = "/logs"
+        logs = "/system/logs"
     
     class messages:
         """消息模块路由（示例，根据需要扩展）"""
@@ -53,18 +53,18 @@ class ROUTES:
     
     class admin_auth:
         """管理员认证模块路由"""
-        login = "/login"
-        logout = "/logout"
-        current = "/current"
-        change_password = "/change-password"
-        check_auth = "/check-auth"
-        admins = "/admins"
-        admin_by_id = "/admins/{admin_id}"
-        permissions = "/permissions"
-        sessions = "/sessions"
-        session_by_token = "/sessions/{token}"
-        me = "/me"
-        permissions_me = "/permissions/me"
+        login = "/admin/auth/login"
+        logout = "/admin/auth/logout"
+        current = "/admin/auth/current"
+        change_password = "/admin/auth/change-password"
+        check_auth = "/admin/auth/check-auth"
+        admins = "/admin/auth/admins"
+        admin_by_id = "/admin/auth/admins/{admin_id}"
+        permissions = "/admin/auth/permissions"
+        sessions = "/admin/auth/sessions"
+        session_by_token = "/admin/auth/sessions/{token}"
+        me = "/admin/auth/me"
+        permissions_me = "/admin/auth/permissions/me"
         
     class config:
         """配置模块路由（示例，根据需要扩展）"""

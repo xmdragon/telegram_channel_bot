@@ -136,7 +136,7 @@ const MessageModule = {
     // 编辑消息
     async updateMessage(messageId, content) {
         try {
-            const response = await axios.put(`/api/messages/${messageId}`, {
+            const response = await axios.put(API.messages.updateById(messageId), {
                 content: content
             });
             

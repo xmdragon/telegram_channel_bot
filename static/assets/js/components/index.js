@@ -1398,7 +1398,7 @@ const MainApp = {
         // 发布消息到目标频道
         async publishMessage(messageId) {
             try {
-                const response = await axios.post(`/api/messages/${messageId}/publish`);
+                const response = await axios.post(API.messages.publish(messageId));
                 if (response.data.success) {
                     MessageManager.success('消息已发布到目标频道');
                     // 从列表中移除消息（消息已发布）
@@ -1424,7 +1424,7 @@ const MainApp = {
         async saveEditedMessage() {
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
-                const response = await axios.post(`/api/messages/${this.editDialog.messageId}/edit-publish`, {
+                const response = await axios.post(API.messages.editPublish(this.editDialog.messageId), {
                     content: this.editDialog.content
                 });
                 if (response.data.success) {
@@ -1774,7 +1774,7 @@ const MainApp = {
                 }
                 
                 // 提交补抓任务
-                const response = await axios.post(`/api/messages/${message.id}/refetch-media`);
+                const response = await axios.post(API.messages.refetchMedia(message.id));
                 
                 if (response.data.success) {
                     const taskId = response.data.task_id;
@@ -1801,7 +1801,7 @@ const MainApp = {
                 try {
                     attempts++;
                     
-                    const response = await axios.get(`/api/refetch-task/${taskId}`);
+                    const response = await axios.get(API.messages.refetchTask(taskId));
                     const taskData = response.data.data;
                     
                     if (taskData.status === 'completed') {

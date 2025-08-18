@@ -41,7 +41,8 @@ const API_ENDPOINTS = {
         publish: (id) => `/api/messages/${id}/publish`,            // POST - 发布消息
         editPublish: (id) => `/api/messages/${id}/edit-publish`,   // POST - 编辑并发布
         refetchMedia: (id) => `/api/messages/${id}/refetch-media`, // POST - 重新获取媒体
-        trainTail: (id) => `/api/messages/${id}/train-tail`        // POST - 训练尾部过滤
+        trainTail: (id) => `/api/messages/${id}/train-tail`,       // POST - 训练尾部过滤
+        refetchTask: (taskId) => `/api/refetch-task/${taskId}`     // GET - 查询媒体补抓任务状态
     },
 
     // 管理员认证模块 - /api/admin/auth

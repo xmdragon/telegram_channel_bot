@@ -167,7 +167,22 @@ const BatchOperationPanel = {
         
         // 处理单个批次
         async processBatch(operation, messageIds) {
-            const endpoint = `/api/messages/batch/${operation}`;
+            // 根据操作类型选择对应的API端点
+            let endpoint;
+            switch (operation) {
+                case 'approve':
+                    endpoint = API.messages.batchApprove;
+                    break;
+                case 'reject':
+                    endpoint = API.messages.batchReject;
+                    break;
+                case 'delete':
+                    endpoint = API.messages.batchDelete;
+                    break;
+                default:
+                    throw new Error(`未知的批量操作: ${operation}`);
+            }
+            
             const response = await axios.post(endpoint, { message_ids: messageIds });
             
             if (!response.data.success) {

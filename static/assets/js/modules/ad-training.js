@@ -226,7 +226,7 @@ createApp({
                     type: 'warning'
                 });
                 
-                const response = await axios.delete(`/api/training-db/tail-filter-samples/${id}`);
+                const response = await axios.delete(API.training.tailFilterSampleById(id));
                 
                 if (response.data.success) {
                     ElMessage.success('样本已删除');
