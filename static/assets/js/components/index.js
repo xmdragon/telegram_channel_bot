@@ -66,7 +66,7 @@ const MainApp = {
             editDialog: {
                 visible: false,
                 messageId: null,
-                content: '',
+                filteredContent: '',
                 originalMessage: null
             },
             refetchingMedia: {}, // 记录正在补抓的消息ID
@@ -1419,7 +1419,7 @@ const MainApp = {
         // 编辑消息
         editMessage(message) {
             this.editDialog.messageId = message.id;
-            this.editDialog.content = message.filtered_content || '';
+            this.editDialog.filteredContent = message.filtered_content || '';
             this.editDialog.originalMessage = message;
             this.editDialog.visible = true;
         },
@@ -1429,7 +1429,7 @@ const MainApp = {
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
                 const response = await axios.post(API.messages.editPublish(this.editDialog.messageId), {
-                    content: this.editDialog.content
+                    filtered_content: this.editDialog.filteredContent
                 });
                 if (response.data.success) {
                     MessageManager.success('消息已编辑并保存');
@@ -1437,11 +1437,17 @@ const MainApp = {
                     // 更新本地消息内容
                     const messageIndex = this.messages.findIndex(msg => msg.id === this.editDialog.messageId);
                     if (messageIndex !== -1) {
-                        // 只更新filtered_content字段
-                        this.messages[messageIndex].filtered_content = response.data.content || this.editDialog.content;
-                        // Vue 3中直接修改即可触发响应式更新
-                        // 如果需要强制刷新，可以重新赋值整个数组
+                        // 只更新filtered_content字段（用户编辑的内容）
+                        // content字段保持不变（原始消息）
+                        this.messages[messageIndex].filtered_content = this.editDialog.filteredContent;
+                        // 更新修改时间
+                        this.messages[messageIndex].updated_at = new Date().toISOString();
+                        // 强制触发Vue响应式更新
                         this.messages = [...this.messages];
+                    } else {
+                        // 如果在本地找不到消息，重新加载消息列表
+                        console.warn('本地消息列表中未找到消息:', this.editDialog.messageId);
+                        this.loadMessages();
                     }
                 } else {
                     MessageManager.error('编辑失败: ' + response.data.message);
@@ -1614,7 +1620,7 @@ const MainApp = {
         // 打开编辑对话框
         openEditDialog(message) {
             this.editDialog.messageId = message.id;
-            this.editDialog.content = message.filtered_content || '';
+            this.editDialog.filteredContent = message.filtered_content || '';
             this.editDialog.originalMessage = message;
             this.editDialog.visible = true;
         },

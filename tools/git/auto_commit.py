@@ -16,7 +16,8 @@ class GitAutoCommitter:
     """自动Git提交管理器"""
     
     def __init__(self):
-        self.repo_path = os.path.dirname(os.path.abspath(__file__))
+        # 从tools/git/目录向上找到项目根目录
+        self.repo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         
     def run_git_command(self, command: List[str]) -> Tuple[bool, str]:
         """执行Git命令"""
