@@ -25,10 +25,29 @@ class OCRCore:
         """初始化EasyOCR引擎"""
         try:
             import easyocr
+            import warnings
+            import logging as torch_logging
+            
             if self.ocr_reader is None:
                 logger.info("正在初始化EasyOCR（支持中英文识别）...")
-                # 创建中英文OCR识别器，gpu=False确保兼容性
-                self.ocr_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False)
+                
+                # 多重设置抑制PyTorch警告
+                os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+                os.environ['TORCH_LOGS'] = 'error'
+                
+                # 抑制torch的dataloader警告
+                torch_logging.getLogger('torch.utils.data.dataloader').setLevel(torch_logging.ERROR)
+                
+                # 临时抑制特定警告
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    warnings.filterwarnings("ignore", message=".*pin_memory.*")
+                    warnings.filterwarnings("ignore", module="torch")
+                    warnings.simplefilter("ignore")
+                    
+                    # 创建中英文OCR识别器，gpu=False确保兼容性
+                    self.ocr_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False)
+                    
                 logger.info("EasyOCR初始化成功")
             self.initialized = True
         except Exception as e:
@@ -61,8 +80,15 @@ class OCRCore:
     
     def _extract_direct(self, image_path: str) -> List[str]:
         """直接文字识别"""
+        import warnings
         texts = []
-        result = self.ocr_reader.readtext(image_path)
+        
+        # 在实际识别时抑制PyTorch警告
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            warnings.filterwarnings("ignore", module="torch")
+            warnings.simplefilter("ignore")
+            result = self.ocr_reader.readtext(image_path)
         
         for bbox, text, confidence in result:
             if confidence > 0.3 and text.strip():
@@ -101,7 +127,10 @@ class OCRCore:
                 cv2.imwrite(temp_path, processed_img)
                 
                 try:
-                    result = self.ocr_reader.readtext(temp_path)
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        result = self.ocr_reader.readtext(temp_path)
                     for bbox, text, confidence in result:
                         if confidence > 0.1 and text.strip() and text.strip() not in texts:
                             texts.append(text.strip())
@@ -122,7 +151,10 @@ class OCRCore:
                 cv2.imwrite(temp_path, binary)
                 
                 try:
-                    result = self.ocr_reader.readtext(temp_path)
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        result = self.ocr_reader.readtext(temp_path)
                     for bbox, text, confidence in result:
                         if confidence > 0.05 and text.strip():
                             texts.append(text.strip())

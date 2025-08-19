@@ -80,6 +80,27 @@ class OCRSampleManager:
             with open(self.samples_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 
+            # 确保数据结构完整性（向后兼容）
+            if "statistics" not in data:
+                data["statistics"] = {
+                    "total_samples": len(data.get("samples", [])),
+                    "ad_samples": sum(1 for s in data.get("samples", []) if s.get("is_ad", False)),
+                    "non_ad_samples": 0,
+                    "auto_rejected_samples": sum(1 for s in data.get("samples", []) if s.get("auto_rejected", False)),
+                    "high_score_samples": sum(1 for s in data.get("samples", []) if s.get("ad_score", 0) >= 50),
+                    "last_updated": None,
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                # 重新计算非广告样本数
+                data["statistics"]["non_ad_samples"] = data["statistics"]["total_samples"] - data["statistics"]["ad_samples"]
+                
+            if "learned_patterns" not in data:
+                data["learned_patterns"] = {
+                    "high_risk_keywords": [],
+                    "common_ad_phrases": [],
+                    "qr_code_patterns": []
+                }
+            
             # 更新缓存
             self._cache = data
             self._cache_timestamp = self.samples_file.stat().st_mtime

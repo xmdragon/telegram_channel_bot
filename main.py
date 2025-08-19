@@ -3,13 +3,19 @@
 Telegram消息采集审核系统主入口
 """
 import warnings
+import os
+
+# 抑制PyTorch MPS相关警告
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+warnings.filterwarnings("ignore", category=UserWarning, module="torch.utils.data.dataloader")
+warnings.filterwarnings("ignore", message=".*pin_memory.*not supported on MPS.*")
+
 # 抑制pkg_resources弃用警告
 warnings.filterwarnings("ignore", category=UserWarning, module="jieba._compat")
 warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 

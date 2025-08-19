@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-19T10:58:35.458910",
+    "updated_at": "2025-08-19T14:20:36.293166",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-19T04:23:03.289038",
+  "updated_at": "2025-08-19T06:20:38.797567",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-19T10:58:35.465528",
+    "updated_at": "2025-08-19T14:20:36.296130",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -77,7 +77,7 @@
     "config_type": "boolean",
     "description": "自动拒绝广告消息",
     "is_active": true,
-    "updated_at": "2025-08-19T12:22:58.120467",
+    "updated_at": "2025-08-19T12:23:03.295177",
     "created_at": "2025-08-15T19:03:51.231615"
   },
   "collection.enabled": {
@@ -141,7 +141,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-19T10:58:37.709342",
+    "updated_at": "2025-08-19T14:20:38.797521",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "review.group_id": {
@@ -157,7 +157,7 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-19T12:23:03.279275",
+    "updated_at": "2025-08-19T13:21:30.850124",
     "created_at": "2025-08-19T08:41:29.221316"
   },
   "review.group_link": {
