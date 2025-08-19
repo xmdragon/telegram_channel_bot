@@ -33,13 +33,14 @@ class DummyTailFeatureExtractor:
         """返回空分析结果"""
         return self.extract_features(text)
     
-    def calculate_scores(self, text: str, **kwargs) -> Dict[str, float]:
+    def calculate_scores(self, text: str, features: Optional[Dict] = None) -> Dict[str, float]:
         """计算分数（空实现）"""
         return {
             "tail_score": 0.0,
             "promo_score": 0.0,
             "content_score": 1.0,
-            "filter_confidence": 0.0
+            "filter_confidence": 0.0,
+            "overall_score": 0.0
         }
 
 class DummyTailVectorManager:

@@ -295,7 +295,9 @@ class MessageStorageProcessor(MessageProcessor):
             
             # 尝试从频道配置获取用户名
             channel_store = get_json_channel_store()
-            channels_data = channel_store.get_all() or {}
+            channels_list = channel_store.get_all_channels() or []
+            # 转换为字典格式便于查找
+            channels_data = {ch.get('channel_id', ch.get('name', '')): ch for ch in channels_list}
             
             # 查找匹配的频道
             for channel_key, channel_info in channels_data.items():
