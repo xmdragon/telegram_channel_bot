@@ -79,7 +79,9 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
                 
             # 检查消息是否存在且为指定状态
             msg_data = redis_store.get_message(channel_id, int(message_id))
-            if msg_data and msg_data.get('status') == status_filter:
+            # 如果status_filter为None，接受任何状态的消息；否则只接受匹配状态的消息
+            status_matches = status_filter is None or msg_data.get('status') == status_filter
+            if msg_data and status_matches:
                 # 检查是否为组合消息，如果是，需要同时处理整个组
                 if msg_data.get('is_combined') and msg_data.get('grouped_id'):
                     grouped_id = msg_data.get('grouped_id')
@@ -88,8 +90,9 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
                         # 查找同组的所有单独消息，一起处理
                         group_messages = redis_store.get_messages_by_channel(channel_id, limit=100)
                         for group_msg in group_messages:
+                            group_status_matches = status_filter is None or group_msg.get('status') == status_filter
                             if (group_msg.get('grouped_id') == grouped_id and 
-                                group_msg.get('status') == status_filter and
+                                group_status_matches and
                                 not group_msg.get('is_combined')):  # 只处理单独消息
                                 valid_messages.append(group_msg)
                                 # 添加到message_tuples用于状态更新
