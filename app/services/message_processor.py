@@ -501,13 +501,14 @@ class MessageProcessor:
             return []
     
     async def batch_update_status(self, message_ids: List[tuple], 
-                                new_status: str, reviewed_by: str = None) -> Dict[str, bool]:
+                                new_status: str, reviewed_by: str = None, reason: str = None) -> Dict[str, bool]:
         """批量更新消息状态
         
         Args:
             message_ids: [(channel_id, message_id), ...] 消息ID元组列表
             new_status: 新状态
             reviewed_by: 审核人
+            reason: 拒绝原因（可选）
             
         Returns:
             {f"{channel_id}:{message_id}": success_status, ...}
@@ -521,6 +522,10 @@ class MessageProcessor:
                     success = await self.update_message_status(
                         str(channel_id), int(message_id), new_status, reviewed_by
                     )
+                    
+                    # 如果有reason且为rejected状态，记录到日志
+                    if reason and new_status == "rejected":
+                        logger.info(f"批量拒绝原因 {channel_id}:{message_id}: {reason}")
                     results[key] = success
                     
                     if success:
