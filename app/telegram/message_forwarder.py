@@ -564,8 +564,7 @@ class MessageForwarder:
         """
         try:
             # 使用ConfigManager从数据库获取配置
-            from app.services.config_manager import ConfigManager
-            config_manager = ConfigManager()
+            from app.services.config_manager import config_manager
             footer = await config_manager.get_config("target.signature", "")
             
             if footer:

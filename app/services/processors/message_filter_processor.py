@@ -171,16 +171,16 @@ class MessageFilterProcessor(MessageProcessor):
         
         try:
             from app.services.config_manager import config_manager
-            auto_filter = await config_manager.get_config('filter.auto_filter_ads', False)
+            auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
             
-            if auto_filter:
+            if auto_reject_ads:
                 context.should_reject = True
                 context.auto_rejected = True
-                context.reject_reason = f"配置自动过滤: {context.filter_reason}"
-                self.logger.info(f"配置自动过滤广告消息: {context.filter_reason}")
+                context.reject_reason = f"自动拒绝广告消息: {context.filter_reason}"
+                self.logger.info(f"根据配置自动拒绝广告消息: {context.filter_reason}")
                 
         except Exception as e:
-            self.logger.debug(f"检查自动过滤配置失败: {e}")
+            self.logger.debug(f"检查自动拒绝广告配置失败: {e}")
     
     def _should_reject_pure_ad(self, context: MessageContext) -> Tuple[bool, str]:
         """

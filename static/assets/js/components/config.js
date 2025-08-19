@@ -90,7 +90,8 @@ const ConfigApp = {
                 review_group: '',
                 resolved_group_id: '',
                 resolved_target_channel_id: '',
-                delay: 0
+                delay: 0,
+                auto_reject_ads: false
             },
             
             // 帮助提示标记
@@ -187,7 +188,8 @@ const ConfigApp = {
                         enabled: response.data.auto_forward_enabled || false,
                         target_channel: response.data.target_channel || '',
                         review_group: response.data.review_group || '',
-                        delay: response.data.auto_forward_delay || 1800
+                        delay: response.data.auto_forward_delay || 1800,
+                        auto_reject_ads: response.data.auto_reject_ads || false
                     };
                 }
             } catch (error) {
@@ -197,7 +199,8 @@ const ConfigApp = {
                     enabled: false,
                     target_channel: '',
                     review_group: '',
-                    delay: 1800
+                    delay: 1800,
+                    auto_reject_ads: false
                 };
             }
         },
@@ -392,7 +395,8 @@ const ConfigApp = {
                     target_channel: this.forwardingConfig.target_channel.trim(),
                     review_group: this.forwardingConfig.review_group.trim(),
                     auto_forward_enabled: this.forwardingConfig.enabled,
-                    auto_forward_delay: this.forwardingConfig.delay
+                    auto_forward_delay: this.forwardingConfig.delay,
+                    auto_reject_ads: this.forwardingConfig.auto_reject_ads
                 });
                 
                 if (response.data.success) {

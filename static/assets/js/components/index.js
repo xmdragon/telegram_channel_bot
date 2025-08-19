@@ -754,7 +754,7 @@ const MainApp = {
                     this.filters._show_duplicates = false;
                     break;
                 case 'ads':
-                    this.filters.status = '';
+                    this.filters.status = 'pending';  // 只显示待审核的广告消息
                     this.filters.is_ad = true;
                     this.filters.filter_reason = null;
                     this.filters._show_duplicates = false;

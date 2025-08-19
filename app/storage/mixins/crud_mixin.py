@@ -228,10 +228,14 @@ class MessageCrudMixin:
         """删除消息核心逻辑"""
         try:
             msg_key = f"msg:{channel_id}:{message_id}"
+            logger.info(f"开始删除消息核心逻辑: {msg_key}")
             
             # 获取消息数据用于清理索引
-            msg_data = self.get_message(channel_id, message_id)
+            msg_data = self.get_message(channel_id, message_id, silent=True)
+            logger.info(f"获取消息数据结果: {msg_key} -> {msg_data is not None}")
+            
             if not msg_data:
+                logger.warning(f"消息不存在，无法删除: {msg_key}")
                 return False
             
             pipe = self.redis.pipeline()

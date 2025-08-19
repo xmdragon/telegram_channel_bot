@@ -4,6 +4,7 @@
 import json
 import logging
 import threading
+import os
 from typing import Any, Dict, List, Optional, Union, Callable
 from datetime import datetime
 
@@ -20,6 +21,7 @@ class ConfigManager:
         self._cache_lock = threading.RLock()
         self._change_listeners = []  # 配置变更监听器
         self._json_store: Optional[JSONConfigStore] = None
+        self._last_file_mtime = 0.0  # 上次文件修改时间
     
     def _get_store(self) -> JSONConfigStore:
         """获取JSON存储实例"""
@@ -27,9 +29,29 @@ class ConfigManager:
             self._json_store = get_json_config_store()
         return self._json_store
     
+    def _check_file_updated(self) -> bool:
+        """检查配置文件是否已更新"""
+        try:
+            config_file_path = "data/config/system.json"
+            if os.path.exists(config_file_path):
+                current_mtime = os.path.getmtime(config_file_path)
+                if current_mtime > self._last_file_mtime:
+                    self._last_file_mtime = current_mtime
+                    return True
+            return False
+        except Exception as e:
+            logger.debug(f"检查配置文件更新时间失败: {e}")
+            return False
+    
     async def get_config(self, key: str, default: Any = None) -> Any:
         """获取配置值"""
         with self._cache_lock:
+            # 🔄 检查配置文件是否已更新，如果是则重新加载缓存
+            if self._cache_loaded and self._check_file_updated():
+                logger.debug("检测到配置文件更新，重新加载缓存")
+                self._cache = {}
+                self._cache_loaded = False
+            
             if not self._cache_loaded:
                 await self._load_cache()
             

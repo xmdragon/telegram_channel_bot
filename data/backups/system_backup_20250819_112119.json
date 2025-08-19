@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-19T10:07:46.263946",
+    "updated_at": "2025-08-19T10:58:35.458910",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-19T02:07:48.421249",
+  "updated_at": "2025-08-19T03:21:19.426795",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-19T10:07:46.270673",
+    "updated_at": "2025-08-19T10:58:35.465528",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -29,7 +29,7 @@
     "config_type": "string",
     "description": "是否启用自动转发",
     "is_active": true,
-    "updated_at": "2025-08-18T18:37:35.734864",
+    "updated_at": "2025-08-19T11:21:19.426792",
     "created_at": "2025-08-14T22:53:30.664735"
   },
   "review.auto_forward_delay": {
@@ -37,7 +37,7 @@
     "config_type": "string",
     "description": "自动转发延迟(秒)",
     "is_active": true,
-    "updated_at": "2025-08-18T18:37:35.737336",
+    "updated_at": "2025-08-19T11:16:12.400411",
     "created_at": "2025-08-14T22:53:30.665092"
   },
   "filter.enabled": {
@@ -141,7 +141,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-19T10:07:48.421211",
+    "updated_at": "2025-08-19T10:58:37.709342",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "review.group_id": {
@@ -157,7 +157,7 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-19T10:00:44.971395",
+    "updated_at": "2025-08-19T11:21:19.425368",
     "created_at": "2025-08-19T08:41:29.221316"
   },
   "review.group_link": {
@@ -165,7 +165,7 @@
     "config_type": "string",
     "description": "审核群链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-19T08:41:29.221317",
+    "updated_at": "2025-08-19T11:21:19.426274",
     "created_at": "2025-08-19T08:41:29.221318"
   }
 }

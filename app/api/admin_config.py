@@ -27,6 +27,7 @@ async def get_system_config():
         # 其他配置
         "auto_forward_enabled": await config_manager.get_config('review.auto_forward_enabled', False),
         "auto_forward_delay": await db_settings.get_auto_forward_delay(),
+        "auto_reject_ads": await config_manager.get_config('review.auto_reject_ads', False),
         "source_channels": await db_settings.get_source_channels(),
         "history_message_limit": await db_settings.get_history_message_limit(),
         "target.signature": await config_manager.get_config('target.signature', ''),
@@ -104,6 +105,7 @@ class ForwardingConfigRequest(BaseModel):
     review_group: str
     auto_forward_enabled: bool = False
     auto_forward_delay: int = 1800
+    auto_reject_ads: bool = False
 
 @router.post(ROUTES.admin.config_forwarding)
 async def update_forwarding_config(request: ForwardingConfigRequest):
@@ -114,6 +116,7 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
         await config_manager.set_config('review.group_link', request.review_group)
         await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled)
         await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay)
+        await config_manager.set_config('review.auto_reject_ads', request.auto_reject_ads)
         
         # 尝试解析并缓存私有链接的ID
         target_resolved_id = None
@@ -147,6 +150,10 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
                     logger.warning(f"目标频道私有链接解析失败: {request.target_channel}")
             except Exception as e:
                 logger.error(f"解析目标频道私有链接时出错: {e}")
+        
+        # 🔄 强制刷新配置缓存确保立即生效
+        await config_manager.reload_cache()
+        logger.info("配置缓存已刷新，新配置立即生效")
         
         # 刷新Redis缓存并获取解析结果
         from app.services.channel_cache import channel_cache

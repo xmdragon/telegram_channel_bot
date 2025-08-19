@@ -6,7 +6,7 @@ import logging
 from typing import Dict, List, Optional
 import redis.asyncio as redis
 from app.storage.redis_store import get_redis_message_store
-from app.services.config_manager import ConfigManager
+from app.services.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class ChannelCache:
     
     def __init__(self):
         self.redis_store = None
-        self.config_manager = ConfigManager()
+        self.config_manager = config_manager
         
     async def _ensure_redis(self):
         """确保Redis连接"""

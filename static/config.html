@@ -260,6 +260,12 @@
                                     <small>消息在审核群中停留多长时间后自动转发（0表示不自动转发）</small>
                                 </div>
                             </el-form-item>
+                            <el-form-item label="自动拒绝广告">
+                                <el-switch v-model="forwardingConfig.auto_reject_ads"></el-switch>
+                                <div class="form-hint">
+                                    <small>启用后，检测到的广告消息将被自动拒绝，不会进入自动转发队列</small>
+                                </div>
+                            </el-form-item>
                             <el-form-item>
                                 <el-button type="primary" @click="saveForwardingConfig">保存配置</el-button>
                             </el-form-item>

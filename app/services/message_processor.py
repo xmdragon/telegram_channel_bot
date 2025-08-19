@@ -40,8 +40,7 @@ class MessageProcessor:
                     return []
             
             # 获取自动转发延迟配置
-            from app.services.config_manager import ConfigManager
-            config_manager = ConfigManager()
+            from app.services.config_manager import config_manager
             auto_forward_delay = await config_manager.get_config('review.auto_forward_delay', 1800)  # 默认30分钟
             
             cutoff_time = datetime.utcnow() - timedelta(seconds=int(auto_forward_delay))
@@ -58,13 +57,21 @@ class MessageProcessor:
                     if created_at_str:
                         created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                         if created_at.replace(tzinfo=None) <= cutoff_time:
-                            # 检查是否为非广告消息
+                            # 检查是否为非广告消息（双重安全检查）
                             is_ad = msg.get('is_ad', False)
                             if isinstance(is_ad, str):
                                 is_ad = is_ad.lower() == 'true'
                             
-                            if not is_ad:
+                            # 额外安全检查：拒绝原因包含广告相关内容也不自动转发
+                            reject_reason = msg.get('reject_reason', '').lower()
+                            filter_reason = msg.get('filter_reason', '').lower()
+                            has_ad_reason = ('广告' in reject_reason or '广告' in filter_reason or 
+                                           'ad' in reject_reason or 'ad' in filter_reason)
+                            
+                            if not is_ad and not has_ad_reason:
                                 auto_forward_messages.append(msg)
+                            elif is_ad or has_ad_reason:
+                                logger.debug(f"跳过广告消息自动转发: {msg.get('source_channel')}:{msg.get('message_id')} (is_ad: {is_ad}, ad_reason: {has_ad_reason})")
                 except Exception as e:
                     logger.error(f"解析消息时间失败: {e}")
                     continue
@@ -486,7 +493,19 @@ class MessageProcessor:
     async def delete_message(self, channel_id: str, message_id: int) -> bool:
         """删除消息"""
         try:
-            return self.redis_store.delete_message(channel_id, message_id)
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                    logger.debug("MessageProcessor: redis_store初始化成功（删除操作）")
+                except RuntimeError as e:
+                    logger.error(f"MessageProcessor: redis_store初始化失败（删除操作）: {e}")
+                    return False
+            
+            logger.info(f"MessageProcessor开始删除: {channel_id}:{message_id}")
+            result = self.redis_store.delete_message(channel_id, message_id)
+            logger.info(f"MessageProcessor删除结果: {channel_id}:{message_id} -> {result}")
+            return result
         except Exception as e:
             logger.error(f"删除消息失败 {channel_id}:{message_id}: {e}")
             return False

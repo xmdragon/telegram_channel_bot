@@ -153,7 +153,7 @@ class StructuralContentFilter(BaseFilter):
                 reason=reason,
                 confidence=confidence,
                 details=details,
-                should_early_stop=is_advertisement and confidence > 0.8  # 高置信度结构化广告建议早停
+                should_early_stop=await self._should_early_stop_on_ad(is_advertisement, confidence, 0.8)
             )
             
         except Exception as e:
@@ -360,6 +360,19 @@ class StructuralContentFilter(BaseFilter):
         except Exception as e:
             logger.error(f"格式化推广检测失败: {e}")
             return False, 0.0, {'error': str(e)}
+    
+    async def _should_early_stop_on_ad(self, is_advertisement: bool, confidence: float, threshold: float) -> bool:
+        """检查是否应该在检测到广告时early stop"""
+        if not is_advertisement or confidence <= threshold:
+            return False
+            
+        try:
+            from app.services.config_manager import config_manager
+            auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
+            return auto_reject_ads
+        except Exception:
+            # 配置读取失败时，不进行early stop
+            return False
     
     def get_structural_status(self) -> Dict[str, Any]:
         """获取结构化服务状态"""

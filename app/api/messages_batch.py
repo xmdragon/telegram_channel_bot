@@ -344,27 +344,55 @@ async def batch_delete_messages(
         if not valid_messages:
             return {"success": False, "message": "没有找到可删除的消息"}
         
-        # 批量删除消息
+        # 先清理媒体文件，再删除消息数据
+        media_cleanup_count = 0
+        try:
+            from app.telegram.bot import telegram_bot
+            if telegram_bot and telegram_bot.client:
+                for msg_data in valid_messages:
+                    # 删除审核群消息（如果存在）
+                    review_message_id = msg_data.get('review_message_id')
+                    if review_message_id:
+                        try:
+                            await telegram_bot.delete_review_message(review_message_id)
+                            logger.debug(f"已删除审核群消息: {review_message_id}")
+                        except Exception as e:
+                            logger.debug(f"删除审核群消息失败: {e}")
+                    
+                    # 清理媒体文件
+                    try:
+                        await telegram_bot._cleanup_message_files(msg_data)
+                        media_cleanup_count += 1
+                        logger.debug(f"已清理媒体文件: {msg_data.get('source_channel')}:{msg_data.get('message_id')}")
+                    except Exception as e:
+                        logger.debug(f"清理媒体文件失败: {e}")
+        except ImportError:
+            logger.warning("Telegram bot模块不可用，跳过媒体清理")
+        except Exception as e:
+            logger.error(f"清理媒体文件失败: {e}")
+
+        # 批量删除消息数据
         deleted_count = 0
         for msg_data in valid_messages:
             try:
                 channel_id = msg_data.get('source_channel')
                 message_id = msg_data.get('message_id')
-                logger.info(f"开始删除消息: {channel_id}:{message_id}")
+                logger.info(f"开始删除消息数据: {channel_id}:{message_id}")
                 
                 success = await message_processor.delete_message(channel_id, message_id)
                 
-                logger.info(f"删除消息结果: {channel_id}:{message_id} -> {success}")
+                logger.info(f"删除消息数据结果: {channel_id}:{message_id} -> {success}")
                 if success:
                     deleted_count += 1
             except Exception as e:
-                logger.error(f"删除消息失败 {channel_id}:{message_id}: {e}")
+                logger.error(f"删除消息数据失败 {channel_id}:{message_id}: {e}")
         
         return {
             "success": True,
-            "message": f"批量删除完成，删除 {deleted_count} 条消息",
+            "message": f"批量删除完成，删除 {deleted_count} 条消息，清理 {media_cleanup_count} 个媒体文件",
             "data": {
                 "deleted_count": deleted_count,
+                "media_cleanup_count": media_cleanup_count,
                 "total_processed": len(valid_messages)
             },
             "timestamp": format_for_api(get_current_time())
