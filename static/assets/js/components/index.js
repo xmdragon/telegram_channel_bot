@@ -919,7 +919,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post(API.messages.batchApproveAlt, {
+                const response = await axios.post(API.messages.batchApprove, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
@@ -1490,7 +1490,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post(API.messages.batchApproveAlt, {
+                const response = await axios.post(API.messages.batchApprove, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
@@ -1514,7 +1514,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post(API.messages.batchRejectAlt, {
+                const response = await axios.post(API.messages.batchReject, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
@@ -1601,7 +1601,7 @@ const MainApp = {
             }
             
             try {
-                const response = await axios.post(API.messages.batchDeleteAlt, {
+                const response = await axios.post(API.messages.batchDelete, {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
