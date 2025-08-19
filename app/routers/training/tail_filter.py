@@ -13,6 +13,7 @@ from .base import (
     handle_api_error, validate_pagination_params,
     paginate_data
 )
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-tail-filter"])

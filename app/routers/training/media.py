@@ -12,6 +12,7 @@ from .base import (
     handle_api_error
 )
 from app.core.path_config import PathConfig
+from app.core.route_config import ROUTES
 from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)

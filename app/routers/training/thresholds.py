@@ -7,6 +7,7 @@ from datetime import datetime
 import logging
 
 from .base import handle_api_error
+from app.core.route_config import ROUTES
 from app.services.auth_service import get_auth_service
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
