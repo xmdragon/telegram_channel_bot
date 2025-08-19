@@ -100,7 +100,7 @@ class PermissionChecker {
     }
     
     /**
-     * 是否可以批准消息
+     * 是否可以发布消息
      */
     canApproveMessage() {
         return this.hasPermission('messages.approve');

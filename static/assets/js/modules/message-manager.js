@@ -51,10 +51,10 @@ const MessageModule = {
         }
     },
     
-    // 批准消息
+    // 发布消息
     async approveMessages(messageIds) {
         if (!messageIds || messageIds.length === 0) {
-            MessageManager.warning('请选择要批准的消息');
+            MessageManager.warning('请选择要发布的消息');
             return { success: false };
         }
         
@@ -65,14 +65,14 @@ const MessageModule = {
             
             // API返回200就是成功
             if (response.status === 200) {
-                MessageManager.success(`成功批准 ${messageIds.length} 条消息`);
+                MessageManager.success(`成功发布 ${messageIds.length} 条消息`);
                 return { success: true, data: response.data };
             }
             
-            throw new Error('批准失败');
+            throw new Error('发布失败');
         } catch (error) {
-            // console.error('批准消息失败:', error);
-            MessageManager.error('批准失败: ' + (error.response?.data?.detail || error.message));
+            // console.error('发布消息失败:', error);
+            MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
             return { success: false, error: error.message };
         }
     },

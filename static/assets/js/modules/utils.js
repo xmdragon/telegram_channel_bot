@@ -36,7 +36,7 @@ const Utils = {
     getStatusTag(status) {
         const statusMap = {
             'pending': { text: '待审核', type: 'warning' },
-            'approved': { text: '已批准', type: 'success' },
+            'approved': { text: '已发布', type: 'success' },
             'rejected': { text: '已拒绝', type: 'danger' },
             'auto_forwarded': { text: '自动转发', type: 'info' }
         };
