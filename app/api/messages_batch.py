@@ -109,7 +109,7 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
 @router.post(ROUTES.messages.batch_approve)
 @check_permission("messages.approve")
 async def batch_approve_messages(
-    request: dict,
+    request: dict = Body({}),
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
@@ -192,7 +192,7 @@ async def batch_approve_messages(
 @router.post(ROUTES.messages.batch_reject)
 @check_permission("messages.reject")
 async def batch_reject_messages(
-    request: dict,
+    request: dict = Body({}),
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
@@ -267,7 +267,7 @@ async def batch_reject_messages(
 @router.post(ROUTES.messages.batch_refetch_media)
 @check_permission("messages.refetch")
 async def batch_refetch_media(
-    request: dict,
+    request: dict = Body({}),
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
@@ -321,7 +321,7 @@ async def batch_refetch_media(
 @router.post(ROUTES.messages.batch_delete)
 @check_permission("messages.delete")
 async def batch_delete_messages(
-    request: dict,
+    request: dict = Body({},
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
