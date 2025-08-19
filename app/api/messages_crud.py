@@ -117,11 +117,20 @@ async def get_messages(
         # 应用过滤条件
         filtered_messages = []
         for msg in all_messages:
-            # 组消息去重
+            # 组消息去重：如果有组合版本，过滤掉单独版本
             if (not msg.get('is_combined') and 
                 msg.get('grouped_id') and 
                 msg.get('grouped_id') in combined_group_ids):
-                continue
+                # 找到对应的组合消息，检查是否真的存在
+                found_combined = False
+                for other_msg in all_messages:
+                    if (other_msg.get('is_combined') and 
+                        other_msg.get('grouped_id') == msg.get('grouped_id')):
+                        found_combined = True
+                        break
+                
+                if found_combined:
+                    continue  # 跳过单独消息，显示组合版本
             
             # 状态过滤
             if status and msg.get('status') != status:

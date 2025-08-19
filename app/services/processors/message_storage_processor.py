@@ -73,24 +73,29 @@ class MessageStorageProcessor(MessageProcessor):
                     context.save_data['duplicate_original_id'] = context.duplicate_info.get('original_id')
                     context.save_data['duplicate_type'] = context.duplicate_info.get('type')
             
-            # 步骤4: 保存单独消息到Redis
-            saved_message = await self.message_processor.process_new_message(context.save_data)
-            
-            if not saved_message:
-                return ProcessorResult(False, context, "消息保存失败")
-            
-            # 更新上下文
-            context.save_data = saved_message
-            
-            # 记录保存结果
-            msg_id = saved_message.get('message_id', 'N/A')
-            status = saved_message.get('status', 'unknown')
-            self.logger.info(f"消息已保存: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
-            
-            # 步骤5: 处理组合消息（如果有组ID）
+            # 检查是否为组消息
             grouped_id = str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None
+            
             if grouped_id:
+                # 组消息交给组合器处理，不立即保存
                 await self._handle_grouped_message(context, grouped_id)
+                # 设置save_data为None，表示等待组合
+                context.save_data = None
+                self.logger.info(f"组消息 #{message.id} 已交给组合器处理，等待组合完成")
+            else:
+                # 步骤4: 非组消息立即保存到Redis
+                saved_message = await self.message_processor.process_new_message(context.save_data)
+                
+                if not saved_message:
+                    return ProcessorResult(False, context, "消息保存失败")
+                
+                # 更新上下文
+                context.save_data = saved_message
+                
+                # 记录保存结果
+                msg_id = saved_message.get('message_id', 'N/A')
+                status = saved_message.get('status', 'unknown')
+                self.logger.info(f"消息已保存: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
             
             return ProcessorResult(True, context)
             

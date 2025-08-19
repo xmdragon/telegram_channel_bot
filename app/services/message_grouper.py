@@ -119,8 +119,8 @@ class MessageGrouper:
         self.pending_groups[group_key].append(message_data)
         logger.debug(f"批量模式：消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
         
-        # 🔧 修复：批量模式也返回单独消息，确保每条消息都被保存
-        return await self._create_single_message(message_data, channel_id)
+        # 批量模式下等待组合完成，不立即返回单独消息
+        return None
     
     async def _process_batch_group_after_timeout(self, group_key: str, channel_id: str, timeout: float):
         """批量模式下的超时处理"""
@@ -185,8 +185,8 @@ class MessageGrouper:
         
         logger.info(f"消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
         
-        # 🔧 修复：同时返回单独消息，确保每条消息都被保存
-        return await self._create_single_message(message_data, channel_id)
+        # 等待组合完成，不立即返回单独消息
+        return None
     
     async def _process_group_after_timeout(self, group_key: str, channel_id: str):
         """超时后处理消息组"""
@@ -237,6 +237,9 @@ class MessageGrouper:
                     saved_message = await processor.process_new_message(save_data)
                     if saved_message:
                         logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
+                        
+                        # 通知前端组合消息已创建
+                        await self._notify_combined_message_created(saved_message)
                     else:
                         logger.error(f"❌ 组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
                         
@@ -678,6 +681,71 @@ class MessageGrouper:
                 
         except Exception as e:
             logger.error(f"清理过期消息组时出错: {e}")
+    
+    async def _notify_combined_message_created(self, saved_message):
+        """通知前端组合消息已创建"""
+        try:
+            from app.api.websocket import websocket_manager
+            from app.utils.timezone import format_for_api
+            
+            # 准备消息数据
+            message_data = {
+                "id": saved_message.id,
+                "message_id": saved_message.message_id,
+                "source_channel": saved_message.source_channel,
+                "content": saved_message.content,
+                "filtered_content": saved_message.filtered_content,
+                "media_type": saved_message.media_type,
+                "media_url": saved_message.media_url,
+                "is_ad": saved_message.is_ad,
+                "is_combined": saved_message.is_combined,
+                "grouped_id": saved_message.grouped_id,
+                "status": saved_message.status,
+                "created_at": format_for_api(saved_message.created_at),
+                "media_group_display": self._prepare_media_group_display(saved_message),
+                "media_group": saved_message.media_group,
+                "combined_messages": saved_message.combined_messages
+            }
+            
+            # 广播到所有WebSocket客户端
+            await websocket_manager.broadcast_new_message(message_data)
+            logger.info(f"✅ 成功通知前端组合消息创建: ID:{saved_message.id}")
+            
+        except ImportError as e:
+            logger.warning(f"WebSocket管理器未可用: {e}")
+        except Exception as e:
+            logger.error(f"通知前端组合消息创建失败: {e}")
+    
+    def _prepare_media_group_display(self, db_message):
+        """准备媒体组显示数据"""
+        try:
+            if not db_message.is_combined or not db_message.media_group:
+                return None
+                
+            media_display = []
+            for media_item in db_message.media_group:
+                # 转换本地文件路径为web访问路径
+                file_path = media_item.get('file_path', '')
+                from app.core.path_config import PathConfig
+                temp_media_local = f"./{PathConfig.TEMP_MEDIA_DIR.name}/"
+                temp_media_web = f"/{PathConfig.TEMP_MEDIA_DIR.name}/"
+                if file_path.startswith(temp_media_local):
+                    web_path = file_path.replace(temp_media_local, temp_media_web)
+                else:
+                    web_path = file_path
+                    
+                media_display.append({
+                    'media_type': media_item.get('media_type'),
+                    'url': web_path,
+                    'file_size': media_item.get('file_size'),
+                    'mime_type': media_item.get('mime_type')
+                })
+            
+            return media_display
+            
+        except Exception as e:
+            logger.error(f"准备媒体组显示数据时出错: {e}")
+            return None
 
 # 全局消息组合器实例
 message_grouper = MessageGrouper()
