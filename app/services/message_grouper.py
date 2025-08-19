@@ -43,7 +43,7 @@ class MessageGrouper:
             message_data = {
                 'message_id': message.id,
                 'content': original_content,  # 使用提取或传入的内容
-                'filtered_content': filtered_content if filtered_content is not None else original_content,
+                'filtered_content': await self._ensure_filtered_content(original_content, filtered_content),
                 'is_ad': is_ad,
                 'media_info': media_info,
                 'date': message.date or get_current_time(),
@@ -410,6 +410,41 @@ class MessageGrouper:
             'media_group': media_group if media_group else None,
             'date': main_message['date']
         }
+    
+    async def _ensure_filtered_content(self, original_content: str, filtered_content: Optional[str]) -> str:
+        """确保内容经过过滤处理
+        
+        如果没有提供filtered_content，则通过过滤管道处理原始内容
+        这样确保组合消息和单独消息使用相同的过滤逻辑
+        """
+        if filtered_content is not None:
+            return filtered_content
+            
+        if not original_content:
+            return ""
+        
+        try:
+            # 使用统一的过滤引擎处理内容
+            from app.services.unified_filter_engine import unified_filter_engine
+            from app.services.filters.base import FilterContext
+            
+            # 创建过滤上下文
+            context = FilterContext(
+                message_id=0,  # 组合消息的临时ID
+                channel_id="grouper"
+            )
+            
+            # 执行过滤
+            result = await unified_filter_engine.filter_pipeline.process(original_content, context)
+            
+            if result.final_content != original_content:
+                logger.info(f"组合消息内容过滤: {len(original_content)} -> {len(result.final_content)} 字符")
+            
+            return result.final_content
+            
+        except Exception as e:
+            logger.error(f"组合消息过滤失败，使用原始内容: {e}")
+            return original_content
     
     async def _save_combined_message(self, combined_message: Dict, channel_id: str):
         """准备组合消息数据（不再直接保存）"""
