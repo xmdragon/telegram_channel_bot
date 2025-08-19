@@ -54,7 +54,7 @@ class DummyTailVectorManager:
         """不添加任何向量"""
         return True
     
-    def find_similar(self, text: str, threshold: float = 0.8, limit: int = 10) -> List[Dict]:
+    def find_similar(self, text: str, threshold: float = 0.8, limit: int = 10, top_k: int = None) -> List[Dict]:
         """不返回任何相似结果"""
         return []
     
