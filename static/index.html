@@ -7,14 +7,14 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <!-- 外部样式文件 -->
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755570874">
-    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755570874">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755570874">
-    <link rel="stylesheet" href="assets/css/components/index.css?v=1755570874">
-    <link rel="stylesheet" href="assets/css/components/performance-ui.css?v=1755570874">
-    <link rel="stylesheet" href="assets/css/components/media-group.css?v=1755570874">
-    <link rel="stylesheet" href="assets/css/components/media-grid-fix.css?v=1755570874">
-    <link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=1755570874">
+    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755609324">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755609324">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755609324">
+    <link rel="stylesheet" href="assets/css/components/index.css?v=1755609324">
+    <link rel="stylesheet" href="assets/css/components/performance-ui.css?v=1755609324">
+    <link rel="stylesheet" href="assets/css/components/media-group.css?v=1755609324">
+    <link rel="stylesheet" href="assets/css/components/media-grid-fix.css?v=1755609324">
+    <link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=1755609324">
 </head>
 <body>
     <div id="app">
@@ -134,9 +134,9 @@
                 
                 <!-- 消息列表，使用template标签包裹v-for -->
                 <template v-else>
-                    <div v-for="message in filteredMessages" :key="`${message.source_channel}:${message.message_id}`" 
+                    <div v-for="message in filteredMessages" :key="message.id" 
                          class="message-item"
-                         :class="{ 'selected': isSelected(`${message.source_channel}:${message.message_id}`) }">
+                         :class="{ 'selected': isSelected(message.id) }">
                     
                     <!-- 消息头部 -->
                     <div class="message-header">
@@ -144,8 +144,8 @@
                             <!-- 选择框 -->
                             <input type="checkbox" 
                                    v-if="message.status === 'pending'"
-                                   :checked="isSelected(`${message.source_channel}:${message.message_id}`)"
-                                   @change="toggleMessage(`${message.source_channel}:${message.message_id}`)">
+                                   :checked="isSelected(message.id)"
+                                   @change="toggleMessage(message.id)">
                             
                             <!-- 频道信息 -->
                             <span class="message-channel">
@@ -189,7 +189,7 @@
                                 </div>
                                 <div class="comparison-column-body">
                                     <!-- 重复消息的媒体内容 -->
-                                    <div v-if="message.media_type" class="comparison-media-section">
+                                    <div v-if="message.media_type || (message.is_combined && message.media_group_display)" class="comparison-media-section">
                                         <!-- 组合消息的媒体组 -->
                                         <div v-if="message.is_combined && message.media_group_display && message.media_group_display.length > 0" 
                                              class="media-grid media-grid-comparison"
@@ -247,13 +247,13 @@
                                     <div class="duplicate-message-info">
                                         <div class="info-row">
                                             <span class="info-label">消息ID:</span>
-                                            <span class="info-value">#{{ message.source_channel }}:{{ message.message_id }}</span>
+                                            <span class="info-value">#{{ message.id }}</span>
                                         </div>
                                         <div class="info-row">
                                             <span class="info-label">时间:</span>
                                             <span class="info-value">{{ formatTime(message.created_at) }}</span>
                                         </div>
-                                        <div v-if="message.source_channel_link_prefix && message.message_id" class="info-row">
+                                        <div v-if="message.source_channel_link_prefix && message.id" class="info-row">
                                             <span class="info-label">原消息:</span>
                                             <span class="info-value">
                                                 <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
@@ -320,8 +320,8 @@
                                     </div>
                                     
                                     <!-- 原始消息的文本内容 -->
-                                    <div v-if="message.duplicate_info && message.duplicate_info.content" class="message-text comparison-text">
-                                        {{ message.duplicate_info.content }}
+                                    <div v-if="message.duplicate_info && (message.duplicate_info.filtered_content || message.duplicate_info.content)" class="message-text comparison-text">
+                                        {{ message.duplicate_info.filtered_content || message.duplicate_info.content }}
                                     </div>
                                     <div v-else-if="message.duplicate_info && !message.duplicate_info.media_type" class="content-empty">
                                         暂无文本内容
@@ -361,8 +361,9 @@
                             </div>
                         </div>
                         
-                        <!-- 常规消息内容 - 双栏对比显示（包含媒体和文本） -->
-                        <div v-else-if="message.content || message.filtered_content || message.media_type" class="message-content-comparison">
+                        <!-- 常规消息内容 - 双栏对比显示（仅当内容真正被过滤时显示） -->
+                        <div v-else-if="(message.content && message.filtered_content && message.content !== message.filtered_content) || 
+                                        (message.removed_hidden_links && message.removed_hidden_links.length > 0)" class="message-content-comparison">
                             <!-- 左栏：过滤后内容（包含媒体） -->
                             <div class="content-column content-filtered">
                                 <div class="content-column-header">
@@ -370,7 +371,7 @@
                                 </div>
                                 <div class="content-column-body">
                                     <!-- 过滤后的媒体内容 -->
-                                    <div v-if="message.media_type" class="column-media-section">
+                                    <div v-if="message.media_type || (message.is_combined && message.media_group_display)" class="column-media-section">
                                         <!-- 组合消息的媒体组 -->
                                         <div v-if="message.is_combined && message.media_group_display && message.media_group_display.length > 0" 
                                              class="media-grid media-grid-compact"
@@ -454,7 +455,7 @@
                                 </div>
                                 <div class="content-column-body">
                                     <!-- 原始的媒体内容（与左栏相同） -->
-                                    <div v-if="message.media_type" class="column-media-section">
+                                    <div v-if="message.media_type || (message.is_combined && message.media_group_display)" class="column-media-section">
                                         <!-- 组合消息的媒体组 -->
                                         <div v-if="message.is_combined && message.media_group_display && message.media_group_display.length > 0" 
                                              class="media-grid media-grid-compact"
@@ -529,11 +530,73 @@
                             {{ message.filtered_content }}
                         </div>
                         
+                        <!-- 简单媒体和内容显示（非对比模式） -->
+                        <div v-else class="simple-message-display">
+                            <!-- 媒体内容 -->
+                            <div v-if="message.media_type || (message.is_combined && message.media_group_display)" class="simple-media-section">
+                                <!-- 组合消息的媒体组 -->
+                                <div v-if="message.is_combined && message.media_group_display && message.media_group_display.length > 0" 
+                                     class="media-grid"
+                                     :class="{
+                                         'media-grid-single': message.media_group_display.length === 1,
+                                         'media-grid-double': message.media_group_display.length === 2,
+                                         'media-grid-triple': message.media_group_display.length === 3,
+                                         'media-grid-quad': message.media_group_display.length === 4,
+                                         'media-grid-five': message.media_group_display.length === 5,
+                                         'media-grid-six': message.media_group_display.length === 6,
+                                         'media-grid-seven': message.media_group_display.length === 7,
+                                         'media-grid-eight': message.media_group_display.length === 8,
+                                         'media-grid-nine': message.media_group_display.length === 9,
+                                         'media-grid-ten': message.media_group_display.length >= 10
+                                     }">
+                                    <div v-for="(media, index) in message.media_group_display" :key="index" class="media-grid-item">
+                                        <img v-if="media.media_type === 'photo' && media.display_url" 
+                                             :src="media.display_url"
+                                             class="media-image"
+                                             @click="openMediaPreview(media.display_url)"
+                                             @error="handleGroupMediaError(media, $event)">
+                                        <video v-else-if="media.media_type === 'video' && media.display_url"
+                                               :src="media.display_url"
+                                               class="media-video"
+                                               controls>
+                                        </video>
+                                        <div v-else class="media-placeholder">
+                                            {{ getMediaTypeIcon(media.media_type) }} {{ media.media_type }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 单个媒体 -->
+                                <template v-else>
+                                    <img v-if="message.media_type === 'photo' && message.media_display_url && !message._mediaLoadFailed" 
+                                         :src="message.media_display_url"
+                                         class="media-image single-media"
+                                         @click="openMediaPreview(message.media_display_url)"
+                                         @error="handleImageError(message, $event)">
+                                    <video v-else-if="message.media_type === 'video' && message.media_display_url"
+                                           :src="message.media_display_url"
+                                           class="media-video single-media"
+                                           controls>
+                                    </video>
+                                    <div v-else-if="message.media_type && (!message.media_display_url || message._mediaLoadFailed)" class="media-placeholder single-media">
+                                        <div>
+                                            {{ getMediaTypeIcon(message.media_type) }} {{ message.media_type === 'photo' ? '图片' : message.media_type === 'video' ? '视频' : message.media_type }}
+                                            <div class="media-missing-text">媒体文件缺失</div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <!-- 文本内容 -->
+                            <div v-if="message.filtered_content || message.content" class="message-text simple-text">
+                                {{ message.filtered_content || message.content }}
+                            </div>
+                        </div>
                         
                         <!-- 消息ID和原频道链接 -->
-                        <div v-if="message.message_id" class="message-footer">
+                        <div v-if="message.id" class="message-footer">
                             <span class="message-full-id">
-                                📋 消息ID: #{{ message.source_channel }}:{{ message.message_id }}
+                                📋 消息ID: #{{ message.id }}
                             </span>
                             <span v-if="message.source_channel_link_prefix" class="message-link-separator">|</span>
                             <span v-if="message.source_channel_link_prefix" class="original-link">
@@ -556,12 +619,12 @@
                                 ✏️ 编辑
                             </button>
                             <button v-if="buttonVisibility.approve" 
-                                    @click="selectedMessages = [`${message.source_channel}:${message.message_id}`]; approveMessages()" 
+                                    @click="selectedMessages = [message.id]; approveMessages()" 
                                     class="btn btn-sm btn-success">
                                 ✅ 批准
                             </button>
                             <button v-if="buttonVisibility.reject" 
-                                    @click="selectedMessages = [`${message.source_channel}:${message.message_id}`]; rejectMessages()" 
+                                    @click="selectedMessages = [message.id]; rejectMessages()" 
                                     class="btn btn-sm btn-danger">
                                 ❌ 拒绝
                             </button>
@@ -602,7 +665,7 @@
                                 ✏️ 编辑
                             </button>
                             <button v-if="buttonVisibility.approve" 
-                                    @click="selectedMessages = [`${message.source_channel}:${message.message_id}`]; approveMessages()" 
+                                    @click="selectedMessages = [message.id]; approveMessages()" 
                                     class="btn btn-sm btn-success"
                                     title="重新批准此消息">
                                 ♻️ 恢复
@@ -648,7 +711,7 @@
                                 🔄 重新发送
                             </button>
                             <button v-if="buttonVisibility.reject" 
-                                    @click="selectedMessages = [`${message.source_channel}:${message.message_id}`]; rejectMessages()" 
+                                    @click="selectedMessages = [message.id]; rejectMessages()" 
                                     class="btn btn-sm btn-danger"
                                     title="撤回批准">
                                 ↩️ 撤回
@@ -668,9 +731,9 @@
                         <button v-if="buttonVisibility.refetchMedia && message.media_type && !mediaExists(message)"
                                 @click="refetchMedia(message)" 
                                 class="btn btn-sm btn-primary"
-                                :disabled="refetchingMedia[message.message_id]"
+                                :disabled="refetchingMedia[message.id]"
                                 title="重新下载缺失的媒体文件">
-                            <span v-if="refetchingMedia[message.message_id]">⏳</span>
+                            <span v-if="refetchingMedia[message.id]">⏳</span>
                             <span v-else>🔄 补抓</span>
                         </button>
                     </div>
@@ -782,18 +845,18 @@
     </div>
     
     <!-- 外部脚本文件 -->
-    <script src="assets/js/vue.prod.js?v=1755570874"></script>
-    <script src="assets/js/element-plus.js?v=1755570874"></script>
-    <script src="assets/js/axios.js?v=1755570874"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755570874"></script>
-    <script src="assets/js/admin-auth.js?v=1755570874"></script>
-    <script src="assets/js/components/navbar.js?v=1755570874"></script>
-    <script src="assets/js/utils/permission-checker.js?v=1755570874"></script>
-    <script src="assets/js/utils/message-state-manager.js?v=1755570874"></script>
-    <script src="assets/js/components/virtual-list.js?v=1755570874"></script>
-    <script src="assets/js/components/batch-operation-panel.js?v=1755570874"></script>
-    <script src="assets/js/components/message-content-renderer.js?v=1755570874"></script>
-    <script src="assets/js/message-manager.js?v=1755570874"></script>
-    <script src="assets/js/components/index.js?v=1755570875"></script>
+    <script src="assets/js/vue.prod.js?v=1755609324"></script>
+    <script src="assets/js/element-plus.js?v=1755609324"></script>
+    <script src="assets/js/axios.js?v=1755609324"></script>
+    <script src="assets/js/config/api-endpoints.js?v=1755609324"></script>
+    <script src="assets/js/admin-auth.js?v=1755609324"></script>
+    <script src="assets/js/components/navbar.js?v=1755609324"></script>
+    <script src="assets/js/utils/permission-checker.js?v=1755609324"></script>
+    <script src="assets/js/utils/message-state-manager.js?v=1755609324"></script>
+    <script src="assets/js/components/virtual-list.js?v=1755609324"></script>
+    <script src="assets/js/components/batch-operation-panel.js?v=1755609324"></script>
+    <script src="assets/js/components/message-content-renderer.js?v=1755609324"></script>
+    <script src="assets/js/message-manager.js?v=1755609324"></script>
+    <script src="assets/js/components/index.js?v=1755609324"></script>
 </body>
 </html>
