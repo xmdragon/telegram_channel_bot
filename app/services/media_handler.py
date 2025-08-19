@@ -96,7 +96,12 @@ class MediaHandler:
                     )
                 except asyncio.TimeoutError:
                     logger.warning(f"下载图片超时（{download_timeout}秒）: {file_name}")
-                    return None
+                    # 检查文件是否实际已经下载完成
+                    if file_path.exists() and file_path.stat().st_size > 0:
+                        logger.info(f"✅ 虽然超时，但图片下载完成: {file_name} ({file_path.stat().st_size} bytes)")
+                    else:
+                        logger.error(f"❌ 图片下载真正失败，文件不存在: {file_name}")
+                        return None
                 
                 # 计算文件哈希
                 file_hash = None
@@ -175,7 +180,7 @@ class MediaHandler:
                 if timeout:
                     download_timeout = timeout
                 else:
-                    download_timeout = 120.0 if media_info['media_type'] == 'video' else 60.0
+                    download_timeout = 240.0 if media_info['media_type'] == 'video' else 60.0
                 try:
                     await asyncio.wait_for(
                         client.download_media(message.media, file_path),
@@ -183,7 +188,12 @@ class MediaHandler:
                     )
                 except asyncio.TimeoutError:
                     logger.warning(f"下载{media_info['media_type']}超时（{download_timeout}秒）: {file_name}")
-                    return None
+                    # 检查文件是否实际已经下载完成
+                    if file_path.exists() and file_path.stat().st_size > 0:
+                        logger.info(f"✅ 虽然超时，但文件下载完成: {file_name} ({file_path.stat().st_size} bytes)")
+                    else:
+                        logger.error(f"❌ 下载真正失败，文件不存在: {file_name}")
+                        return None
                 
                 # 计算文件哈希
                 file_hash = None
