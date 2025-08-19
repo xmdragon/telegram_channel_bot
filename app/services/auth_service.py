@@ -7,6 +7,7 @@ import logging
 import secrets
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
+from fastapi import HTTPException
 
 from app.storage.redis_store import get_redis_session_store
 from app.storage.json_store import get_json_admin_store
@@ -20,6 +21,14 @@ class AuthService:
         self.session_store = get_redis_session_store()
         self.admin_store = get_json_admin_store()
         self.default_session_expire = 24 * 3600  # 24小时
+        # 暴力破解防护配置
+        self.max_login_attempts = 5      # 最大尝试次数
+        self.lockout_duration = 15 * 60  # 锁定时间（15分钟）
+        self.attempt_window = 5 * 60     # 尝试窗口（5分钟）
+        # 内存中的失败尝试跟踪（简化实现）
+        self.failed_attempts = {}        # {identifier: {"count": int, "first_attempt": datetime, "locked_until": datetime}}
+        from datetime import datetime
+        self._datetime = datetime
     
     def hash_password(self, password: str) -> str:
         """密码哈希"""
@@ -33,24 +42,134 @@ class AuthService:
         """生成会话token"""
         return secrets.token_urlsafe(32)
     
+    def _get_login_attempt_key(self, identifier: str) -> str:
+        """获取登录尝试的Redis键"""
+        return f"login_attempts:{identifier}"
+    
+    def _get_lockout_key(self, identifier: str) -> str:
+        """获取账户锁定的Redis键"""
+        return f"account_lockout:{identifier}"
+    
+    async def _is_account_locked(self, identifier: str) -> bool:
+        """检查账户是否被锁定"""
+        now = self._datetime.now()
+        if identifier in self.failed_attempts:
+            attempt_info = self.failed_attempts[identifier]
+            if 'locked_until' in attempt_info and attempt_info['locked_until'] > now:
+                return True
+            # 清除过期的锁定
+            if 'locked_until' in attempt_info and attempt_info['locked_until'] <= now:
+                del self.failed_attempts[identifier]
+        return False
+    
+    async def _record_login_attempt(self, identifier: str, success: bool = False) -> None:
+        """记录登录尝试"""
+        logger.info(f"🔍 _record_login_attempt 被调用: identifier={identifier}, success={success}")
+        now = self._datetime.now()
+        
+        if success:
+            # 登录成功，清除尝试记录
+            if identifier in self.failed_attempts:
+                del self.failed_attempts[identifier]
+            logger.info(f"清除登录失败记录: {identifier}")
+            return
+        
+        # 登录失败处理
+        if identifier not in self.failed_attempts:
+            # 首次失败
+            self.failed_attempts[identifier] = {
+                "count": 1,
+                "first_attempt": now
+            }
+            logger.warning(f"记录登录失败尝试: {identifier} (1/{self.max_login_attempts})")
+        else:
+            attempt_info = self.failed_attempts[identifier]
+            
+            # 检查是否在时间窗口内
+            if (now - attempt_info["first_attempt"]).total_seconds() > self.attempt_window:
+                # 超出时间窗口，重置计数
+                attempt_info["count"] = 1
+                attempt_info["first_attempt"] = now
+                logger.warning(f"重置登录失败计数: {identifier} (1/{self.max_login_attempts})")
+            else:
+                # 在时间窗口内，增加计数
+                attempt_info["count"] += 1
+                logger.warning(f"记录登录失败尝试: {identifier} ({attempt_info['count']}/{self.max_login_attempts})")
+                
+                # 检查是否达到最大尝试次数
+                if attempt_info["count"] >= self.max_login_attempts:
+                    # 锁定账户
+                    locked_until = now + timedelta(seconds=self.lockout_duration)
+                    attempt_info["locked_until"] = locked_until
+                    logger.warning(f"🔒 账户被锁定: {identifier} (连续{attempt_info['count']}次失败尝试，锁定{self.lockout_duration//60}分钟)")
+    
+    async def get_lockout_info(self, identifier: str) -> dict:
+        """获取账户锁定信息"""
+        now = self._datetime.now()
+        
+        if identifier not in self.failed_attempts:
+            return {
+                'is_locked': False,
+                'lockout_remaining_seconds': 0,
+                'current_attempts': 0,
+                'max_attempts': self.max_login_attempts,
+                'remaining_attempts': self.max_login_attempts
+            }
+        
+        attempt_info = self.failed_attempts[identifier]
+        
+        # 检查是否被锁定
+        is_locked = 'locked_until' in attempt_info and attempt_info['locked_until'] > now
+        lockout_remaining = 0
+        if is_locked:
+            lockout_remaining = int((attempt_info['locked_until'] - now).total_seconds())
+        
+        current_attempts = attempt_info.get('count', 0)
+        
+        return {
+            'is_locked': is_locked,
+            'lockout_remaining_seconds': max(0, lockout_remaining),
+            'current_attempts': current_attempts,
+            'max_attempts': self.max_login_attempts,
+            'remaining_attempts': max(0, self.max_login_attempts - current_attempts)
+        }
+    
     async def login(self, username: str, password: str, 
                    ip_address: str = None, user_agent: str = None) -> Optional[Dict[str, Any]]:
         """用户登录"""
         try:
+            # 使用用户名和IP作为标识符进行暴力破解防护
+            identifier = f"{username}:{ip_address or 'unknown'}"
+            
+            # 检查账户是否被锁定
+            if await self._is_account_locked(identifier):
+                lockout_info = await self.get_lockout_info(identifier)
+                remaining_seconds = lockout_info['lockout_remaining_seconds']
+                logger.warning(f"登录被拒绝: 账户已锁定 {username} (剩余{remaining_seconds}秒)")
+                raise HTTPException(
+                    status_code=429, 
+                    detail=f"账户暂时锁定，请{remaining_seconds // 60}分钟后重试"
+                )
+            
             # 查找用户
             admin = self.admin_store.get_admin_by_username(username)
             if not admin:
                 logger.warning(f"登录失败: 用户不存在 {username}")
+                logger.info(f"🚀 准备调用 _record_login_attempt: {identifier}")
+                await self._record_login_attempt(identifier, success=False)
+                logger.info(f"✅ _record_login_attempt 调用完成")
                 return None
             
             # 检查用户状态
             if not admin.get('is_active', True):
                 logger.warning(f"登录失败: 用户已禁用 {username}")
+                await self._record_login_attempt(identifier, success=False)
                 return None
             
             # 验证密码
             if not self.verify_password(password, admin['password_hash']):
                 logger.warning(f"登录失败: 密码错误 {username}")
+                await self._record_login_attempt(identifier, success=False)
                 return None
             
             # 生成会话token
@@ -78,6 +197,9 @@ class AuthService:
             admin['last_login'] = datetime.now().isoformat()
             self.admin_store.save_admin(admin)
             
+            # 记录登录成功，清除失败记录
+            await self._record_login_attempt(identifier, success=True)
+            
             logger.info(f"用户登录成功: {username}")
             
             # 返回登录结果
@@ -89,6 +211,9 @@ class AuthService:
                 'expires_at': (datetime.now() + timedelta(seconds=self.default_session_expire)).isoformat()
             }
             
+        except HTTPException:
+            # 重新抛出HTTP异常（如账户锁定）
+            raise
         except Exception as e:
             logger.error(f"登录异常 {username}: {e}")
             return None

@@ -114,12 +114,16 @@ async def login(
     user_agent = request.headers.get('user-agent')
     
     # 尝试登录
-    login_result = await auth.login(
-        login_req.username, 
-        login_req.password,
-        ip_address=ip_address,
-        user_agent=user_agent
-    )
+    try:
+        login_result = await auth.login(
+            login_req.username, 
+            login_req.password,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+    except HTTPException:
+        # 重新抛出暴力破解防护等HTTPException
+        raise
     
     if not login_result:
         raise HTTPException(status_code=401, detail="用户名或密码错误")

@@ -39,12 +39,15 @@ async def get_media_files():
                         media_type = file_info.get("media_type", "")
                         file_type = file_info.get("type") or ("image" if media_type in ["photo", "image"] else "video")
                         
+                        # 获取真实文件大小（直接使用文件系统的实际大小，不信任元数据）
+                        actual_file_size = file_path.stat().st_size
+                        
                         media_files.append({
                             "hash": file_hash,  # 使用metadata中的真实hash
                             "name": file_path.name,
                             "filename": file_path.name,
                             "type": file_type,
-                            "size": file_info.get("file_size", file_path.stat().st_size),
+                            "size": actual_file_size,
                             "created_at": file_info.get("saved_at", datetime.fromtimestamp(file_path.stat().st_ctime).isoformat()),
                             "path": file_info["path"],
                             "messageIds": file_info.get("message_ids", []),
@@ -131,23 +134,112 @@ async def get_media_files():
 
 @router.delete(ROUTES.training.media_files_by_hash)
 async def delete_media_file(file_hash: str):
-    """删除媒体文件"""
+    """完整删除媒体文件（包括文件、元数据、OCR数据）"""
+    logger.info(f"开始删除媒体文件: {file_hash}")
+    
     try:
         media_dir = PathConfig.AD_MEDIA_DIR
-        deleted = False
+        media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
+        ocr_samples_file = PathConfig.OCR_SAMPLES_FILE
         
-        # 查找并删除匹配的文件
-        for file_path in media_dir.glob(f"**/*{file_hash}*"):
-            if file_path.is_file():
-                file_path.unlink()
-                deleted = True
-                logger.info(f"删除媒体文件: {file_path}")
+        deleted_files = 0
+        deleted_metadata = False
+        deleted_ocr = False
         
-        if deleted:
-            return {"success": True, "message": "文件已删除"}
+        # 1. 从元数据中查找并删除文件记录
+        if media_metadata_file.exists():
+            metadata = SafeFileOperation.read_json_safe(media_metadata_file)
+            if metadata and "media_files" in metadata:
+                if file_hash in metadata["media_files"]:
+                    file_info = metadata["media_files"][file_hash]
+                    file_path = media_dir / file_info["path"]
+                    
+                    # 删除物理文件
+                    if file_path.exists():
+                        file_path.unlink()
+                        deleted_files += 1
+                        logger.info(f"删除媒体文件: {file_path}")
+                    
+                    # 删除元数据记录
+                    del metadata["media_files"][file_hash]
+                    metadata["updated_at"] = datetime.now().isoformat()
+                    
+                    if SafeFileOperation.write_json_safe(media_metadata_file, metadata):
+                        deleted_metadata = True
+                        logger.info(f"删除元数据记录: {file_hash}")
+                    else:
+                        logger.error(f"保存元数据失败: {file_hash}")
+        
+        # 2. 查找并删除文件系统中的匹配文件（fallback）
+        if deleted_files == 0:
+            for file_path in media_dir.glob(f"**/*{file_hash}*"):
+                if file_path.is_file():
+                    file_path.unlink()
+                    deleted_files += 1
+                    logger.info(f"删除孤立文件: {file_path}")
+        
+        # 3. 删除相关的OCR样本数据
+        if ocr_samples_file.exists():
+            ocr_data = SafeFileOperation.read_json_safe(ocr_samples_file)
+            if ocr_data and "samples" in ocr_data:
+                original_count = len(ocr_data["samples"])
+                
+                # 过滤掉匹配的OCR样本（支持完整匹配和前缀匹配）
+                ocr_data["samples"] = [
+                    sample for sample in ocr_data["samples"]
+                    if not (
+                        sample.get("image_hash") == file_hash or
+                        (sample.get("image_hash") and file_hash.startswith(sample.get("image_hash"))) or
+                        (sample.get("image_hash") and sample.get("image_hash").startswith(file_hash))
+                    )
+                ]
+                
+                removed_ocr_count = original_count - len(ocr_data["samples"])
+                if removed_ocr_count > 0:
+                    # 更新统计信息
+                    if "statistics" not in ocr_data:
+                        ocr_data["statistics"] = {}
+                    
+                    ocr_data["statistics"].update({
+                        "total_samples": len(ocr_data["samples"]),
+                        "ad_samples": len([s for s in ocr_data["samples"] if s.get("is_ad")]),
+                        "non_ad_samples": len([s for s in ocr_data["samples"] if not s.get("is_ad")]),
+                        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                    
+                    if SafeFileOperation.write_json_safe(ocr_samples_file, ocr_data):
+                        deleted_ocr = True
+                        logger.info(f"删除OCR样本: {removed_ocr_count} 个")
+                    else:
+                        logger.error(f"保存OCR数据失败: {file_hash}")
+        
+        # 4. 返回删除结果
+        if deleted_files > 0 or deleted_metadata or deleted_ocr:
+            result_msg = []
+            if deleted_files > 0:
+                result_msg.append(f"删除文件 {deleted_files} 个")
+            if deleted_metadata:
+                result_msg.append("删除元数据")
+            if deleted_ocr:
+                result_msg.append("删除OCR数据")
+            
+            success_msg = "删除成功: " + ", ".join(result_msg)
+            logger.info(f"媒体文件删除完成: {file_hash} - {success_msg}")
+            return {
+                "success": True,
+                "message": success_msg,
+                "details": {
+                    "deleted_files": deleted_files,
+                    "deleted_metadata": deleted_metadata,
+                    "deleted_ocr": deleted_ocr
+                }
+            }
         else:
-            return {"success": False, "message": "文件不存在"}
+            logger.warning(f"删除失败，未找到媒体文件: {file_hash}")
+            return {"success": False, "message": "未找到相关数据"}
+            
     except Exception as e:
+        logger.error(f"删除媒体文件失败: {e}")
         raise handle_api_error(e, "删除媒体文件")
 
 @router.post(ROUTES.training.media_files_clean_orphaned)

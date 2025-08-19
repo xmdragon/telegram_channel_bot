@@ -48,6 +48,16 @@ const app = createApp({
             autoRefresh: true,
             refreshInterval: null,
             
+            // WebSocket相关
+            ws: null,
+            operationProgress: {
+                active: false,
+                operation: '',
+                progress: 0,
+                message: '',
+                type: ''  // 'system_status' 或 'system_reset'
+            },
+            
             // 系统统计 - 与主控制台保持一致
             systemStats: {
                 total: { label: '总消息', value: 0 },
@@ -72,17 +82,28 @@ const app = createApp({
                 version: '1.0.0',
                 uptime: '0小时',
                 lastUpdate: new Date().toLocaleString('zh-CN')
-            }
+            },
+            
+            // 进度条颜色配置
+            progressColors: [
+                { color: '#f56565', percentage: 20 },
+                { color: '#ed8936', percentage: 40 },
+                { color: '#ecc94b', percentage: 60 },
+                { color: '#48bb78', percentage: 80 },
+                { color: '#38b2ac', percentage: 100 }
+            ]
         };
     },
     
     mounted() {
         this.loadSystemStatus();
         this.startAutoRefresh();
+        this.connectWebSocket();
     },
     
     beforeUnmount() {
         this.stopAutoRefresh();
+        this.disconnectWebSocket();
     },
     
     methods: {
@@ -271,6 +292,94 @@ const app = createApp({
             } finally {
                 this.loading = false;
             }
+        },
+        
+        // WebSocket相关方法
+        connectWebSocket() {
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                this.ws = new WebSocket(wsUrl);
+                
+                this.ws.onopen = () => {
+                    console.log('WebSocket 连接已建立');
+                };
+                
+                this.ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        this.handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('解析WebSocket消息失败:', error);
+                    }
+                };
+                
+                this.ws.onclose = () => {
+                    console.log('WebSocket 连接已关闭，尝试重连...');
+                    // 5秒后重连
+                    setTimeout(() => {
+                        if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+                            this.connectWebSocket();
+                        }
+                    }, 5000);
+                };
+                
+                this.ws.onerror = (error) => {
+                    console.error('WebSocket 错误:', error);
+                };
+                
+            } catch (error) {
+                console.error('WebSocket 连接失败:', error);
+            }
+        },
+        
+        disconnectWebSocket() {
+            if (this.ws) {
+                this.ws.close();
+                this.ws = null;
+            }
+        },
+        
+        handleWebSocketMessage(data) {
+            if (data.type === 'operation_progress') {
+                this.updateProgress(data.data);
+            }
+            // 可以添加其他类型的WebSocket消息处理
+        },
+        
+        updateProgress(progressData) {
+            this.operationProgress = {
+                active: true,
+                operation: progressData.operation,
+                progress: progressData.progress,
+                message: progressData.message,
+                type: progressData.operation
+            };
+            
+            // 如果进度完成，延迟隐藏
+            if (progressData.progress >= 100) {
+                setTimeout(() => {
+                    this.operationProgress.active = false;
+                    // 刷新状态（如果是系统状态检查完成）
+                    if (progressData.operation === 'system_status') {
+                        // 系统状态已经通过API获取，无需额外刷新
+                    } else if (progressData.operation === 'system_reset') {
+                        // 重置完成后刷新状态
+                        setTimeout(() => {
+                            this.loadSystemStatus();
+                        }, 1000);
+                    }
+                }, 2000);
+            }
+        },
+        
+        getProgressTitle() {
+            const titleMap = {
+                'system_status': '系统状态检查',
+                'system_reset': '系统重置进行中'
+            };
+            return titleMap[this.operationProgress.type] || '操作进行中';
         }
     }
 });

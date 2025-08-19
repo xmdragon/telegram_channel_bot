@@ -93,6 +93,21 @@ class WebSocketManager:
             "timestamp": datetime.utcnow().isoformat()
         }
         await self.broadcast(json.dumps(payload, ensure_ascii=False))
+        
+    async def broadcast_progress(self, operation: str, progress: int, message: str, details: Dict = None):
+        """广播操作进度"""
+        payload = {
+            "type": "operation_progress",
+            "data": {
+                "operation": operation,      # "system_status" 或 "system_reset"
+                "progress": progress,        # 0-100 进度百分比
+                "message": message,          # 当前步骤描述
+                "details": details or {},    # 额外详情数据
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        }
+        logger.info(f"📡 广播进度: {operation} - {progress}% - {message}")
+        await self.broadcast(json.dumps(payload, ensure_ascii=False))
 
 # 全局WebSocket管理器实例
 websocket_manager = WebSocketManager()

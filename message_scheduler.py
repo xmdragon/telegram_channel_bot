@@ -23,16 +23,14 @@ os.makedirs('./logs', exist_ok=True)
 
 from logging.handlers import TimedRotatingFileHandler
 
-# 创建自定义的文件处理器，过滤数据库日志
+# 创建自定义的文件处理器，只过滤数据库驱动模块日志
 class FilteredTimedRotatingFileHandler(TimedRotatingFileHandler):
     """过滤特定模块的按时间轮转文件处理器"""
     def emit(self, record):
-        # 过滤掉数据库相关的日志
+        # 只过滤数据库驱动模块的日志（系统已不使用SQL数据库，但保留以防遗留组件）
         if record.name.startswith(('sqlalchemy', 'asyncpg', 'databases')):
             return
-        # 过滤掉包含特定关键词的日志
-        if any(keyword in record.getMessage().lower() for keyword in ['sql', 'database', 'query', 'insert', 'update', 'delete', 'select']):
-            return
+        # 移除关键词过滤 - 避免误杀DELETE等正常操作日志
         super().emit(record)
 
 # 在日志初始化前导入PathConfig

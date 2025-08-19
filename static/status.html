@@ -82,15 +82,15 @@
             <!-- 操作按钮 -->
             <div style="text-align: center; margin-top: 30px;">
                 <el-button @click="refreshStatus" type="primary">
-                    <el-icon><Refresh /></el-icon>
+                    <el-icon><el-icon-refresh></el-icon-refresh></el-icon>
                     刷新状态
                 </el-button>
                 <el-button @click="restartServices" type="warning">
-                    <el-icon><RefreshRight /></el-icon>
+                    <el-icon><el-icon-refresh-right></el-icon-refresh-right></el-icon>
                     重启服务
                 </el-button>
                 <el-button @click="resetMessages" type="danger">
-                    <el-icon><Delete /></el-icon>
+                    <el-icon><el-icon-delete></el-icon-delete></el-icon>
                     消息重置
                 </el-button>
             </div>
@@ -102,6 +102,25 @@
             <div class="loading-content">
                 <div class="loading-spinner"></div>
                 <p style="margin-top: 15px; color: #00ff41;">{{ loadingMessage }}</p>
+            </div>
+        </div>
+        
+        <!-- WebSocket进度遮罩 -->
+        <div v-if="operationProgress.active" class="progress-overlay">
+            <div class="progress-content">
+                <h3 style="margin-bottom: 20px; color: #00ff41; text-align: center;">
+                    {{ getProgressTitle() }}
+                </h3>
+                <el-progress 
+                    :percentage="operationProgress.progress" 
+                    :stroke-width="20" 
+                    :color="progressColors"
+                    :show-text="true"
+                    :format="() => `${operationProgress.progress}%`">
+                </el-progress>
+                <p style="margin-top: 15px; color: #00ff41; text-align: center; font-size: 14px;">
+                    {{ operationProgress.message }}
+                </p>
             </div>
         </div>
     </div>
