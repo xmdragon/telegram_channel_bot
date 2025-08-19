@@ -6,9 +6,9 @@
     <title>AI配置管理 - Telegram消息采集审核系统</title>
     
     <!-- Element Plus CSS -->
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755612420">
+    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755613663">
     <!-- 自定义样式 -->
-    <link rel="stylesheet" href="assets/css/ai-config.css?v=1755612420">
+    <link rel="stylesheet" href="assets/css/ai-config.css?v=1755613663">
 </head>
 <body>
     <div id="app">
@@ -85,10 +85,10 @@
                     <el-form :model="globalConfig" inline>
                         <el-form-item label="AI运行模式">
                             <el-select v-model="globalConfig.ai_mode" placeholder="选择AI模式">
-                                <el-option label="自动模式" value="auto" />
-                                <el-option label="轻量级模式" value="lightweight" />
-                                <el-option label="深度学习模式" value="deep" />
-                                <el-option label="禁用AI" value="disabled" />
+                                <el-option label="自动模式" value="auto"></el-option>
+                                <el-option label="轻量级模式" value="lightweight"></el-option>
+                                <el-option label="深度学习模式" value="deep"></el-option>
+                                <el-option label="禁用AI" value="disabled"></el-option>
                             </el-select>
                         </el-form-item>
                         
@@ -118,15 +118,15 @@
                     </template>
                     
                     <el-table :data="moduleList" stripe>
-                        <el-table-column prop="name" label="模块名称" width="200" />
-                        <el-table-column prop="description" label="模块描述" width="250" />
+                        <el-table-column prop="name" label="模块名称" width="200"></el-table-column>
+                        <el-table-column prop="description" label="模块描述" width="250"></el-table-column>
                         
                         <el-table-column label="启用状态" width="120">
                             <template #default="scope">
                                 <el-switch
                                     v-model="scope.row.enabled"
-                                    @change="updateModuleConfig(scope.row.name, scope.row.enabled, scope.row.mode)"
-                                />
+                                    @change="updateModuleConfig(scope.row.name, scope.row.enabled, scope.row.mode)">
+                                </el-switch>
                             </template>
                         </el-table-column>
                         
@@ -138,10 +138,10 @@
                                     @change="updateModuleConfig(scope.row.name, scope.row.enabled, scope.row.mode)"
                                     :disabled="!scope.row.enabled"
                                 >
-                                    <el-option label="自动" value="auto" />
-                                    <el-option label="轻量级" value="lightweight" />
-                                    <el-option label="深度学习" value="deep" />
-                                    <el-option label="规则基础" value="rule_based" />
+                                    <el-option label="自动" value="auto"></el-option>
+                                    <el-option label="轻量级" value="lightweight"></el-option>
+                                    <el-option label="深度学习" value="deep"></el-option>
+                                    <el-option label="规则基础" value="rule_based"></el-option>
                                 </el-select>
                             </template>
                         </el-table-column>
@@ -229,13 +229,13 @@
     </div>
 
     <!-- Vue 3 和 Element Plus -->
-    <script src="assets/js/vue.prod.js?v=1755612420"></script>
-    <script src="assets/js/element-plus.js?v=1755612420"></script>
-    <script src="assets/js/axios.js?v=1755612420"></script>
+    <script src="assets/js/vue.prod.js?v=1755613663"></script>
+    <script src="assets/js/element-plus.js?v=1755613663"></script>
+    <script src="assets/js/axios.js?v=1755613663"></script>
     
     <!-- API配置 -->
-    <script src="assets/js/config/api-endpoints.js?v=1755612420"></script>
+    <script src="assets/js/config/api-endpoints.js?v=1755613663"></script>
     <!-- AI配置管理脚本 -->
-    <script src="assets/js/components/ai-config.js?v=1755612420"></script>
+    <script src="assets/js/components/ai-config.js?v=1755613663"></script>
 </body>
 </html>

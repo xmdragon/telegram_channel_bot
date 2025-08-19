@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>尾部过滤数据管理</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/training-common.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/training-manager.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/training-nav.css?v=1755612420">
+    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/training-common.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/training-manager.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/training-nav.css?v=1755613663">
     <style>
         /* 修复表格操作列覆盖问题 */
         .el-table {
@@ -147,22 +147,22 @@
                                     @input="handleSearch"
                                     clearable>
                                     <template #prefix>
-                                        <el-icon><Search /></el-icon>
+                                        <el-icon><search></search></el-icon>
                                     </template>
                                 </el-input>
                             </div>
                             <div class="toolbar-right">
                                 <div class="btn-group">
                                     <el-button @click="goToTrainingPage" type="primary" class="btn-primary">
-                                        <el-icon><Plus /></el-icon>
+                                        <el-icon><plus></plus></el-icon>
                                         前往添加样本
                                     </el-button>
                                     <el-button @click="showDuplicates" type="warning" class="btn-warning">
-                                        <el-icon><CopyDocument /></el-icon>
+                                        <el-icon><copy-document></copy-document></el-icon>
                                         检测重复
                                     </el-button>
                                     <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
-                                        <el-icon><Delete /></el-icon>
+                                        <el-icon><delete></delete></el-icon>
                                         批量删除 ({{ selectedSamples.length }})
                                     </el-button>
                                 </div>
@@ -307,13 +307,13 @@
 
     </div>
 
-    <script src="assets/js/vue.prod.js?v=1755612420"></script>
-    <script src="assets/js/element-plus.js?v=1755612420"></script>
-    <script src="assets/js/axios.js?v=1755612420"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755612420"></script>
-    <script src="assets/js/admin-auth.js?v=1755612420"></script>
-    <script src="assets/js/components/navbar.js?v=1755612420"></script>
-    <script src="assets/js/components/training-nav.js?v=1755612420"></script>
-    <script src="assets/js/components/tail-filter-manager.js?v=1755612420"></script>
+    <script src="assets/js/vue.prod.js?v=1755613663"></script>
+    <script src="assets/js/element-plus.js?v=1755613663"></script>
+    <script src="assets/js/axios.js?v=1755613663"></script>
+    <script src="assets/js/config/api-endpoints.js?v=1755613663"></script>
+    <script src="assets/js/admin-auth.js?v=1755613663"></script>
+    <script src="assets/js/components/navbar.js?v=1755613663"></script>
+    <script src="assets/js/components/training-nav.js?v=1755613663"></script>
+    <script src="assets/js/components/tail-filter-manager.js?v=1755613663"></script>
 </body>
 </html>

@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>媒体文件管理</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/training-common.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/media-manager.css?v=1755612420">
-    <link rel="stylesheet" href="assets/css/training-nav.css?v=1755612420">
+    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/training-common.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/media-manager.css?v=1755613663">
+    <link rel="stylesheet" href="assets/css/training-nav.css?v=1755613663">
 </head>
 <body>
     <div id="app">
@@ -84,7 +84,7 @@
                             <div class="toolbar-right">
                                 <el-input v-model="searchKeyword" placeholder="搜索文件名" clearable class="search-input">
                                     <template #prefix>
-                                        <el-icon><Search /></el-icon>
+                                        <el-icon><search></search></el-icon>
                                     </template>
                                 </el-input>
                                 <el-select v-model="filterType" placeholder="类型" class="filter-select">
@@ -100,7 +100,7 @@
                 <div class="table-content">
                     <div v-if="loading" class="loading-container">
                         <el-icon class="is-loading" size="40">
-                            <Loading />
+                            <loading></loading>
                         </el-icon>
                         <p class="loading-text">加载中...</p>
                     </div>
@@ -145,8 +145,8 @@
                             :page-size="pageSize"
                             :total="filteredFiles.length"
                             layout="prev, pager, next, total"
-                            class="pagination"
-                        />
+                            class="pagination">
+                        </el-pagination>
                     </div>
                 </div>
             </div>
@@ -169,7 +169,7 @@
                     </el-descriptions-item>
                     <el-descriptions-item label="OCR识别结果" v-if="currentFile.type === 'image'">
                         <div v-if="currentFile.ocrLoading" class="ocr-loading">
-                            <el-icon class="is-loading"><Loading /></el-icon>
+                            <el-icon class="is-loading"><loading></loading></el-icon>
                             <span>正在识别图片内容...</span>
                         </div>
                         <div v-else-if="currentFile.ocrResult" class="ocr-result">
@@ -187,7 +187,7 @@
                                 <div class="ocr-text-list">
                                     <el-tag v-for="(qr, index) in currentFile.ocrResult.qr_codes" :key="index" 
                                            type="warning" class="ocr-text-tag">
-                                        <el-icon><QrCode /></el-icon> {{ qr.data || qr }}
+                                        <el-icon><qr-code></qr-code></el-icon> {{ qr.data || qr }}
                                     </el-tag>
                                 </div>
                             </div>
@@ -197,7 +197,7 @@
                                     {{ currentFile.ocrResult.confidence.toFixed(1) }}/100
                                 </el-tag>
                                 <span v-if="currentFile.ocrResult.is_ad" class="ad-indicator">
-                                    <el-icon color="red"><Warning /></el-icon> 疑似广告
+                                    <el-icon color="red"><warning></warning></el-icon> 疑似广告
                                 </span>
                             </div>
                             <div v-if="currentFile.ocrResult && currentFile.ocrResult.ad_indicators && currentFile.ocrResult.ad_indicators.length > 0" class="ocr-section">
@@ -212,12 +212,12 @@
                             <div v-if="currentFile.ocrResult && 
                                      (!currentFile.ocrResult.texts || currentFile.ocrResult.texts.length === 0) && 
                                      (!currentFile.ocrResult.qr_codes || currentFile.ocrResult.qr_codes.length === 0)" class="ocr-empty">
-                                <el-icon><InfoFilled /></el-icon>
+                                <el-icon><info-filled></info-filled></el-icon>
                                 <span>未识别到文字或二维码内容</span>
                             </div>
                         </div>
                         <div v-else-if="currentFile.ocrError" class="ocr-error">
-                            <el-icon color="red"><CircleCloseFilled /></el-icon>
+                            <el-icon color="red"><circle-close-filled></circle-close-filled></el-icon>
                             <span>OCR识别失败: {{ currentFile.ocrError }}</span>
                         </div>
                     </el-descriptions-item>
@@ -228,8 +228,8 @@
                         v-if="currentFile.type === 'image'"
                         :src="getMediaUrl(currentFile.path)"
                         class="dialog-image"
-                        fit="contain"
-                    />
+                        fit="contain">
+                    </el-image>
                 </div>
             </div>
         </el-dialog>
@@ -249,8 +249,8 @@
                         :percentage="optimizeProgress.percent" 
                         :stroke-width="20"
                         :text-inside="true"
-                        status="success"
-                    />
+                        status="success">
+                    </el-progress>
                     
                     <div class="progress-details">
                         <p>
@@ -293,13 +293,13 @@
         </el-dialog>
     </div>
 
-    <script src="assets/js/vue.prod.js?v=1755612420"></script>
-    <script src="assets/js/element-plus.js?v=1755612420"></script>
-    <script src="assets/js/axios.js?v=1755612420"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755612420"></script>
-    <script src="assets/js/admin-auth.js?v=1755612420"></script>
-    <script src="assets/js/components/navbar.js?v=1755612420"></script>
-    <script src="assets/js/components/training-nav.js?v=1755612420"></script>
-    <script src="assets/js/components/media-manager.js?v=1755612420"></script>
+    <script src="assets/js/vue.prod.js?v=1755613663"></script>
+    <script src="assets/js/element-plus.js?v=1755613663"></script>
+    <script src="assets/js/axios.js?v=1755613663"></script>
+    <script src="assets/js/config/api-endpoints.js?v=1755613663"></script>
+    <script src="assets/js/admin-auth.js?v=1755613663"></script>
+    <script src="assets/js/components/navbar.js?v=1755613663"></script>
+    <script src="assets/js/components/training-nav.js?v=1755613663"></script>
+    <script src="assets/js/components/media-manager.js?v=1755613663"></script>
 </body>
 </html>
