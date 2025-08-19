@@ -897,11 +897,12 @@ const MainApp = {
         
         // 切换消息选择状态
         toggleMessageSelection(message) {
-            const index = this.selectedMessages.indexOf(message.message_id);
+            const messageId = message.id || `${message.source_channel}:${message.message_id}`;
+            const index = this.selectedMessages.indexOf(messageId);
             if (index > -1) {
                 this.selectedMessages.splice(index, 1);
             } else {
-                this.selectedMessages.push(message.message_id);
+                this.selectedMessages.push(messageId);
             }
         },
         
@@ -1456,7 +1457,7 @@ const MainApp = {
                 this.selectedMessages = [];
             } else {
                 const selectableMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
-                this.selectedMessages = selectableMessages.map(msg => msg.message_id);
+                this.selectedMessages = selectableMessages.map(msg => msg.id || `${msg.source_channel}:${msg.message_id}`);
             }
         },
         
@@ -1879,7 +1880,7 @@ const MainApp = {
             if (pendingMessages.length === this.selectedMessages.length) {
                 this.selectedMessages = [];
             } else {
-                this.selectedMessages = pendingMessages.map(msg => msg.message_id);
+                this.selectedMessages = pendingMessages.map(msg => msg.id || `${msg.source_channel}:${msg.message_id}`);
             }
         },
         
@@ -1935,7 +1936,7 @@ const MainApp = {
                     break;
             }
             
-            this.selectedMessages = targetMessages.map(msg => msg.message_id);
+            this.selectedMessages = targetMessages.map(msg => msg.id || `${msg.source_channel}:${msg.message_id}`);
             MessageManager.success(`已选择 ${targetMessages.length} 条消息`);
         },
         
