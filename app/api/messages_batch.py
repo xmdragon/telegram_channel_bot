@@ -348,14 +348,17 @@ async def batch_delete_messages(
         deleted_count = 0
         for msg_data in valid_messages:
             try:
-                success = await message_processor.delete_message(
-                    f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}",
-                    user.get('user_id')
-                )
+                channel_id = msg_data.get('source_channel')
+                message_id = msg_data.get('message_id')
+                logger.info(f"开始删除消息: {channel_id}:{message_id}")
+                
+                success = await message_processor.delete_message(channel_id, message_id)
+                
+                logger.info(f"删除消息结果: {channel_id}:{message_id} -> {success}")
                 if success:
                     deleted_count += 1
             except Exception as e:
-                logger.error(f"删除消息失败: {e}")
+                logger.error(f"删除消息失败 {channel_id}:{message_id}: {e}")
         
         return {
             "success": True,
