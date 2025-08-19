@@ -112,11 +112,11 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
     """更新转发配置并刷新缓存"""
     try:
         # 保存用户输入的用户名/链接格式
-        await config_manager.set_config('target.channel_link', request.target_channel)
-        await config_manager.set_config('review.group_link', request.review_group)
-        await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled)
-        await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay)
-        await config_manager.set_config('review.auto_reject_ads', request.auto_reject_ads)
+        await config_manager.set_config('target.channel_link', request.target_channel, config_type="string")
+        await config_manager.set_config('review.group_link', request.review_group, config_type="string")
+        await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled, config_type="boolean")
+        await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay, config_type="integer")
+        await config_manager.set_config('review.auto_reject_ads', request.auto_reject_ads, config_type="boolean")
         
         # 尝试解析并缓存私有链接的ID
         target_resolved_id = None
