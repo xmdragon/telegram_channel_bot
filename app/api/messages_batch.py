@@ -2,7 +2,7 @@
 消息批量操作API模块
 处理消息的批量批准、拒绝、删除等操作
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -321,7 +321,7 @@ async def batch_refetch_media(
 @router.post(ROUTES.messages.batch_delete)
 @check_permission("messages.delete")
 async def batch_delete_messages(
-    request: dict = Body({},
+    request: dict = Body({}),
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
