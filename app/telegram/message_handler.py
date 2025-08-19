@@ -49,7 +49,7 @@ class MessageHandler:
                 channel_id = str(raw_chat_id)
             
             # 使用新的处理器管道
-            from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageStorageProcessor
+            from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
             from app.services.processors.base import MessageContext
             
             # 创建处理上下文
@@ -62,6 +62,7 @@ class MessageHandler:
             # 创建处理管道
             pipeline = MessagePipeline([
                 MessageReceiver(),
+                MediaDownloader(),
                 MessageFilterProcessor(), 
                 MessageStorageProcessor()
             ])
@@ -102,7 +103,7 @@ class MessageHandler:
         """处理并保存消息（用于历史消息采集）"""
         try:
             # 使用新的处理器管道
-            from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageStorageProcessor
+            from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
             from app.services.processors.base import MessageContext
             
             # 创建处理上下文
@@ -115,6 +116,7 @@ class MessageHandler:
             # 创建处理管道
             pipeline = MessagePipeline([
                 MessageReceiver(),
+                MediaDownloader(),
                 MessageFilterProcessor(), 
                 MessageStorageProcessor()
             ])
