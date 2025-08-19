@@ -36,7 +36,8 @@ async def get_media_files():
                     # 检查文件是否真实存在
                     if file_path.exists():
                         # 获取文件类型（兼容type和media_type字段）
-                        file_type = file_info.get("type") or ("image" if file_info.get("media_type") == "photo" else "video")
+                        media_type = file_info.get("media_type", "")
+                        file_type = file_info.get("type") or ("image" if media_type in ["photo", "image"] else "video")
                         
                         media_files.append({
                             "hash": file_hash,  # 使用metadata中的真实hash

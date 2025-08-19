@@ -687,56 +687,6 @@
       "method": "error",
       "created_at": "2025-08-19T14:08:01.370449",
       "source": "video_frame_processing"
-    },
-    {
-      "file_hash": "8aab11381eea428ef7a04d9941d263e1553480e646c40858bea4520f730c0699",
-      "file_path": "images/2025-08/7704_20250813_000233_87a4ed91.jpg",
-      "message_ids": [],
-      "text": "开元棋牌 全网各大平台均有上押信誉保障\n赠迭彩金\n首存\n即迭\n8888\n100U\n280\n300U\n580\n5OOU\n1380\n1000U\n2380\n5OOOU\n5380\n10000U\n12880\n电子返\n50000U\n30880\n[U存U\nNo 大颧无忧\n不I 无需1名\n代理佣金\n5\n尽享顶级娱乐体验\n永久扶持\n官方招商:@KY333V\n宫方频道:@KY33VIP\n官方客服:@KY33VP",
-      "confidence": 10.0,
-      "method": "easyocr",
-      "created_at": "2025-08-19T14:16:40.020451",
-      "source": "manual_video_frame_processing"
-    },
-    {
-      "file_hash": "557a3f9de53cc37fa910f3beecd60b7e588c32666d0da2acfe5e5ab82d50aae6",
-      "file_path": "images/2025-08/7762_20250813_124836_d41bbd0e.jpg",
-      "message_ids": [],
-      "text": "星链几代版本对比\n[二代\n三代\nmini",
-      "confidence": 0.0,
-      "method": "easyocr",
-      "created_at": "2025-08-19T14:16:40.626404",
-      "source": "manual_video_frame_processing"
-    },
-    {
-      "file_hash": "9a427681953feb8b1060350dcde35c31a6de8cf00dcaeefa76eae2724b1c10ae",
-      "file_path": "images/2025-08/7739_20250813_131553_0eefaebc.jpg",
-      "message_ids": [],
-      "text": "JINBIANCOM\n博彩担保.信誉平台\n雀赌必赢\n实力平台。肘时反水\n信訾至上\n大额无忧\n盒边娱乐城官方网址:jnbiancom   盒边娱乐城官方客服:@Jkefug   盒边娱乐城官方频道:@J8750",
-      "confidence": 40.0,
-      "method": "easyocr",
-      "created_at": "2025-08-19T14:16:43.951994",
-      "source": "manual_video_frame_processing"
-    },
-    {
-      "file_hash": "0183f4bdd1b3fa5befa01061e02a70da5b251a57505b25f1b5c28be4c631804d",
-      "file_path": "images/2025-08/5192_20250810_215635_d801164d.jpg",
-      "message_ids": [],
-      "text": "新币娱乐\nXTTIBI.ME\n新币担保直营,行亚龙头,亚界策\n实力无需多言  欢迎各位盘总来操\n客服专员: @XINBIGGG\n代理专员: @DAILIXW",
-      "confidence": 10.0,
-      "method": "easyocr",
-      "created_at": "2025-08-19T14:16:44.514277",
-      "source": "manual_video_frame_processing"
-    },
-    {
-      "file_hash": "8a23f7f33ced08f54d6375faceafc66891956ede9cceeabff2fd15e237aeadd5",
-      "file_path": "images/2025-08/5244_20250810_215635_b745cc3b.jpg",
-      "message_ids": [],
-      "text": "开元棋牌 全网各大平台均有上押信誉保障\n首存\n赠迭彩孟\n8888\n100U\n280\n300U\n58U\n5O0U\n1380\n100OU\n2380\n50OOU\n5380\n1000OU\n12880\n电子返\nSOOooU\n30880\n老虎机返4%起\nUAUI\n代理佣金\n尺享顶级娱乐体验\n永久扶持\n官万招商:@KY333VIP\n官方频道:@KY33VIP\n官方窨眼:@KY33VIP",
-      "confidence": 10.0,
-      "method": "easyocr",
-      "created_at": "2025-08-19T14:16:45.387049",
-      "source": "manual_video_frame_processing"
     }
   ]
 }

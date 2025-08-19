@@ -1499,7 +1499,8 @@
       "file_hash": "8aab11381eea428ef7a04d9941d263e1553480e646c40858bea4520f730c0699",
       "display_path": "images/2025-08/7704_20250813_000233_87a4ed91.jpg",
       "sync_source": "file_system",
-      "file_category": "image"
+      "file_category": "image",
+      "type": "image"
     },
     "de03535e4dc6002b5d17e6b2db9a26873707cba9367aed283039495ff8763f5d": {
       "path": "images/2025-08/6084_20250811_091610_c8dd6f5b.jpg",
@@ -1606,7 +1607,8 @@
       "file_hash": "557a3f9de53cc37fa910f3beecd60b7e588c32666d0da2acfe5e5ab82d50aae6",
       "display_path": "images/2025-08/7762_20250813_124836_d41bbd0e.jpg",
       "sync_source": "file_system",
-      "file_category": "image"
+      "file_category": "image",
+      "type": "image"
     },
     "cbcf33ccde0e8831764dfe89d9f995f5e5c2df92906659a2c9bfa1df91ba1691": {
       "path": "images/2025-08/4716_20250810_215635_751b1422.jpg",
@@ -1659,7 +1661,8 @@
       "file_hash": "26285daedde2e948e3b15c624030559d49221dc676cef7905861cb67e0e74bf7",
       "display_path": "images/2025-08/7800_20250813_174556_26ff3dcd.jpg",
       "sync_source": "file_system",
-      "file_category": "image"
+      "file_category": "image",
+      "type": "image"
     },
     "4649fc05a7289c28aa3db8080d52b9e7022ca96a4c7e01f3bb9e928d9a2c0b9a": {
       "path": "images/2025-08/4724_20250811_003607_6b96646c.jpg",
@@ -1748,7 +1751,8 @@
       "file_hash": "9a427681953feb8b1060350dcde35c31a6de8cf00dcaeefa76eae2724b1c10ae",
       "display_path": "images/2025-08/7739_20250813_131553_0eefaebc.jpg",
       "sync_source": "file_system",
-      "file_category": "image"
+      "file_category": "image",
+      "type": "image"
     },
     "03ed5ea882ebe92958692281f03fc148d4ccc7d8a303b633f926b834859651c9": {
       "path": "images/2025-08/5156_20250810_215635_1af2277a.jpg",
@@ -1801,7 +1805,8 @@
       "file_hash": "0183f4bdd1b3fa5befa01061e02a70da5b251a57505b25f1b5c28be4c631804d",
       "display_path": "images/2025-08/5192_20250810_215635_d801164d.jpg",
       "sync_source": "file_system",
-      "file_category": "image"
+      "file_category": "image",
+      "type": "image"
     },
     "8a23f7f33ced08f54d6375faceafc66891956ede9cceeabff2fd15e237aeadd5": {
       "path": "images/2025-08/5244_20250810_215635_b745cc3b.jpg",
@@ -1818,10 +1823,11 @@
       "file_hash": "8a23f7f33ced08f54d6375faceafc66891956ede9cceeabff2fd15e237aeadd5",
       "display_path": "images/2025-08/5244_20250810_215635_b745cc3b.jpg",
       "sync_source": "file_system",
-      "file_category": "image"
+      "file_category": "image",
+      "type": "image"
     }
   },
-  "updated_at": "2025-08-19T14:08:01.372060",
+  "updated_at": "2025-08-19T14:15:50.712585",
   "deduplication_log": {
     "timestamp": "2025-08-18T16:20:06.437895",
     "deleted": 2,
