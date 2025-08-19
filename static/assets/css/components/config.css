@@ -460,6 +460,15 @@
     opacity: 0.9;
 }
 
+/* 配置表单输入框宽度限制 */
+.config-section .el-form-item .el-input {
+    max-width: 400px;
+}
+
+.config-section .el-form-item .el-input-number {
+    max-width: 200px;
+}
+
 /* 表单行对齐样式 */
 .form-item-flex {
     display: flex;
@@ -469,6 +478,7 @@
 
 .form-item-flex .el-input {
     flex: 1;
+    max-width: 400px;
 }
 
 .form-item-flex .el-button {
