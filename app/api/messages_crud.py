@@ -161,13 +161,65 @@ async def get_messages(
             if 'source_channel' in message and 'message_id' in message:
                 message['id'] = f"{message['source_channel']}:{message['message_id']}"
             
-            if message.get('media_path'):
-                message['media_display_url'] = api_paths.get_temp_media_url(
-                    os.path.basename(message['media_path'])
-                )
+            # 确保消息有链接前缀
+            if not message.get('source_channel_link_prefix') and message.get('source_channel'):
+                from app.services.processors.message_storage_processor import MessageStorageProcessor
+                processor = MessageStorageProcessor()
+                message['source_channel_link_prefix'] = processor._generate_channel_link_prefix(message['source_channel'])
             
-            # 处理组合消息媒体
-            if message.get('media_group_display'):
+            # 处理单个媒体显示URL（支持多种字段名）
+            media_path = message.get('media_path') or message.get('media_url')
+            if media_path:
+                message['media_display_url'] = api_paths.get_temp_media_url(
+                    os.path.basename(media_path)
+                )
+                # 统一字段名，确保前端能找到
+                message['media_path'] = media_path
+            
+            # 处理组合消息媒体 - 转换数据格式
+            if message.get('media_group'):
+                # 转换media_group为media_group_display格式
+                media_group_display = []
+                for media in message['media_group']:
+                    media_item = {
+                        'media_type': media.get('media_type'),
+                        'media_path': media.get('file_path'),  # Redis中是file_path，前端需要media_path
+                        'message_id': media.get('message_id'),
+                        'file_size': media.get('file_size'),
+                        'mime_type': media.get('mime_type'),
+                        'download_failed': media.get('download_failed', False),
+                        'error': media.get('error')
+                    }
+                    # 添加显示URL
+                    if media_item.get('media_path'):
+                        media_item['display_url'] = api_paths.get_temp_media_url(
+                            os.path.basename(media_item['media_path'])
+                        )
+                    media_group_display.append(media_item)
+                
+                message['media_group_display'] = media_group_display
+                
+                # 为组合消息设置media_type（如果没有的话）
+                if not message.get('media_type') and media_group_display:
+                    # 使用第一个媒体的类型作为整体类型
+                    message['media_type'] = media_group_display[0].get('media_type')
+                
+                # 清理内容中的媒体文本描述（因为现在有真实媒体了）
+                import re
+                media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+                if message.get('content'):
+                    original_content = message['content']
+                    cleaned_content = re.sub(media_desc_pattern, '', original_content).strip()
+                    if cleaned_content != original_content:
+                        message['content'] = cleaned_content
+                if message.get('filtered_content'):
+                    original_filtered = message['filtered_content']
+                    cleaned_filtered = re.sub(media_desc_pattern, '', original_filtered).strip()
+                    if cleaned_filtered != original_filtered:
+                        message['filtered_content'] = cleaned_filtered
+            
+            # 兼容处理：如果已有media_group_display，更新其display_url
+            elif message.get('media_group_display'):
                 for media in message['media_group_display']:
                     if media.get('media_path'):
                         media['display_url'] = api_paths.get_temp_media_url(
@@ -180,14 +232,44 @@ async def get_messages(
                     # 根据duplicate_original_id获取原始消息的完整数据
                     original_message = redis_store.get_message_by_id(message['duplicate_original_id'])
                     if original_message:
-                        # 处理原始消息的媒体URL
-                        if original_message.get('media_path'):
+                        # 处理原始消息的单个媒体URL（支持多种字段名）
+                        original_media_path = original_message.get('media_path') or original_message.get('media_url')
+                        if original_media_path:
                             original_message['media_display_url'] = api_paths.get_temp_media_url(
-                                os.path.basename(original_message['media_path'])
+                                os.path.basename(original_media_path)
                             )
+                            # 统一字段名
+                            original_message['media_path'] = original_media_path
                         
-                        # 处理原始消息的组合媒体
-                        if original_message.get('media_group_display'):
+                        # 处理原始消息的组合媒体 - 转换数据格式
+                        if original_message.get('media_group'):
+                            # 转换media_group为media_group_display格式
+                            media_group_display = []
+                            for media in original_message['media_group']:
+                                media_item = {
+                                    'media_type': media.get('media_type'),
+                                    'media_path': media.get('file_path'),
+                                    'message_id': media.get('message_id'),
+                                    'file_size': media.get('file_size'),
+                                    'mime_type': media.get('mime_type'),
+                                    'download_failed': media.get('download_failed', False),
+                                    'error': media.get('error')
+                                }
+                                # 添加显示URL
+                                if media_item.get('media_path'):
+                                    media_item['display_url'] = api_paths.get_temp_media_url(
+                                        os.path.basename(media_item['media_path'])
+                                    )
+                                media_group_display.append(media_item)
+                            
+                            original_message['media_group_display'] = media_group_display
+                            
+                            # 为原始消息的组合消息设置media_type
+                            if not original_message.get('media_type') and media_group_display:
+                                original_message['media_type'] = media_group_display[0].get('media_type')
+                        
+                        # 兼容处理：如果已有media_group_display，更新其display_url
+                        elif original_message.get('media_group_display'):
                             for media in original_message['media_group_display']:
                                 if media.get('media_path'):
                                     media['display_url'] = api_paths.get_temp_media_url(
@@ -290,14 +372,52 @@ async def get_message(
         if 'source_channel' in message and 'message_id' in message:
             message['id'] = f"{message['source_channel']}:{message['message_id']}"
         
-        # 处理媒体显示URL
-        if message.get('media_path'):
-            message['media_display_url'] = api_paths.get_temp_media_url(
-                os.path.basename(message['media_path'])
-            )
+        # 确保消息有链接前缀
+        if not message.get('source_channel_link_prefix') and message.get('source_channel'):
+            from app.services.processors.message_storage_processor import MessageStorageProcessor
+            processor = MessageStorageProcessor()
+            message['source_channel_link_prefix'] = processor._generate_channel_link_prefix(message['source_channel'])
         
-        # 处理组合消息媒体
-        if message.get('media_group_display'):
+        # 处理单个媒体显示URL（支持多种字段名）
+        media_path = message.get('media_path') or message.get('media_url')
+        if media_path:
+            message['media_display_url'] = api_paths.get_temp_media_url(
+                os.path.basename(media_path)
+            )
+            # 统一字段名
+            message['media_path'] = media_path
+        
+        # 处理组合消息媒体 - 转换数据格式
+        if message.get('media_group'):
+            # 转换media_group为media_group_display格式
+            media_group_display = []
+            for media in message['media_group']:
+                media_item = {
+                    'media_type': media.get('media_type'),
+                    'media_path': media.get('file_path'),
+                    'message_id': media.get('message_id'),
+                    'file_size': media.get('file_size'),
+                    'mime_type': media.get('mime_type'),
+                    'download_failed': media.get('download_failed', False),
+                    'error': media.get('error')
+                }
+                # 添加显示URL
+                if media_item.get('media_path'):
+                    media_item['display_url'] = api_paths.get_temp_media_url(
+                        os.path.basename(media_item['media_path'])
+                    )
+                media_group_display.append(media_item)
+            
+            message['media_group_display'] = media_group_display
+            
+            # 为组合消息设置media_type（如果没有的话）
+            if not message.get('media_type') and media_group_display:
+                message['media_type'] = media_group_display[0].get('media_type')
+            
+            # 不需要清理单个消息的内容，因为这里是处理单个媒体显示URL
+        
+        # 兼容处理：如果已有media_group_display，更新其display_url
+        elif message.get('media_group_display'):
             for media in message['media_group_display']:
                 if media.get('media_path'):
                     media['display_url'] = api_paths.get_temp_media_url(
@@ -316,6 +436,40 @@ async def get_message(
         logger.error(f"获取消息详情失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取消息详情失败: {str(e)}")
 
+async def _publish_message_to_target(message_id: str, user_id: str = None) -> dict:
+    """
+    统一的发布消息逻辑 - 批准并转发到目标频道
+    供 approve_message、publish_message、resend_message 复用
+    """
+    redis_store = get_redis_message_store()
+    message = redis_store.get_message_by_id(message_id)
+    if not message:
+        raise HTTPException(status_code=404, detail="消息不存在")
+    
+    # 如果消息还未批准，先批准
+    if message.get('status') != 'approved':
+        success = redis_store.update_message_status(message_id, "approved", user_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="批准消息失败")
+    
+    # 转发消息到目标频道
+    message_processor = get_message_processor()
+    forward_success = await message_processor.forward_approved_message(message_id)
+    
+    if not forward_success:
+        logger.warning(f"消息已批准但发布失败: {message_id}")
+        return {
+            "success": True,
+            "message": "消息已批准，但发布失败，请检查Telegram连接",
+            "timestamp": format_for_api(get_current_time())
+        }
+    
+    return {
+        "success": True,
+        "message": "消息已发布到目标频道",
+        "timestamp": format_for_api(get_current_time())
+    }
+
 @router.post(ROUTES.messages.approve)
 @check_permission("message.approve")
 async def approve_message(
@@ -323,30 +477,16 @@ async def approve_message(
     user: Dict[str, Any] = Depends(require_auth)
 ):
     """
-    批准单个消息
+    发布单个消息到目标频道
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
-        if not message:
-            raise HTTPException(status_code=404, detail="消息不存在")
-        
-        # 更新消息状态为已批准
-        success = redis_store.update_message_status(message_id, "approved", user.get('user_id'))
-        if not success:
-            raise HTTPException(status_code=500, detail="批准消息失败")
-        
-        return {
-            "success": True,
-            "message": "消息已批准",
-            "timestamp": format_for_api(get_current_time())
-        }
+        return await _publish_message_to_target(message_id, user.get('user_id'))
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"批准消息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"批准消息失败: {str(e)}")
+        logger.error(f"发布消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"发布消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.reject)
 @check_permission("message.reject")
@@ -482,8 +622,7 @@ async def publish_message(
     发布消息到目标频道
     """
     try:
-        # 直接调用批准逻辑，因为发布就是批准并转发
-        return await approve_message(message_id, user)
+        return await _publish_message_to_target(message_id, user.get('user_id'))
         
     except HTTPException:
         raise
@@ -521,36 +660,23 @@ async def resend_message(
     user: Dict[str, Any] = Depends(require_auth)
 ):
     """
-    重新发送已批准的消息到目标频道
+    重新发布消息到目标频道
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
-        if not message:
-            raise HTTPException(status_code=404, detail="消息不存在")
+        # 使用统一的发布逻辑，自动处理状态检查
+        result = await _publish_message_to_target(message_id, user.get('user_id'))
         
-        # 检查消息状态
-        if message.get('status') != 'approved':
-            raise HTTPException(status_code=400, detail="只能重新发送已批准的消息")
+        # 修改返回消息文本
+        if result.get('success') and "已发布到目标频道" in result.get('message', ''):
+            result['message'] = "消息已重新发布到目标频道"
         
-        # 使用消息处理器重新转发
-        message_processor = get_message_processor()
-        success = await message_processor.forward_approved_message(message_id)
-        
-        if not success:
-            raise HTTPException(status_code=500, detail="重新发送消息失败")
-        
-        return {
-            "success": True,
-            "message": "消息已重新发送",
-            "timestamp": format_for_api(get_current_time())
-        }
+        return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"重新发送消息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"重新发送消息失败: {str(e)}")
+        logger.error(f"重新发布消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"重新发布消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.refetch_media)
 @check_permission("message.refetch_media")

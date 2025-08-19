@@ -65,15 +65,15 @@ const BatchOperationPanel = {
             this.$emit('clear-selection');
         },
         
-        // 批量批准（带进度条）
+        // 批量发布（带进度条）
         async batchApprove() {
             if (!this.hasSelection) return;
             
-            if (!confirm(`确定要批准 ${this.selectedCount} 条消息吗？`)) {
+            if (!confirm(`确定要发布 ${this.selectedCount} 条消息吗？`)) {
                 return;
             }
             
-            await this.executeBatchOperation('approve', '批准中...');
+            await this.executeBatchOperation('approve', '发布中...');
         },
         
         // 批量拒绝（带进度条）
@@ -306,9 +306,9 @@ const BatchOperationPanel = {
                         type="success" 
                         :disabled="isProcessing || !buttonVisibility.approve"
                         @click="batchApprove"
-                        :loading="isProcessing && operationProgress.status.includes('批准')"
+                        :loading="isProcessing && operationProgress.status.includes('发布')"
                     >
-                        ✅ 批准 ({{ selectedCount }})
+                        📤 发布 ({{ selectedCount }})
                     </el-button>
                     
                     <el-button 

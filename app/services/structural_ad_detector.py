@@ -86,10 +86,31 @@ class StructuralAdDetector:
                     'confidence': max(result['confidence'], entity_analysis['confidence']),
                     'suspicious_entities': entity_analysis['suspicious_entities']
                 })
-                result['removed_elements'].extend([
-                    {'type': 'entity', 'content': ent}
-                    for ent in entity_analysis['suspicious_entities']
-                ])
+                # 为隐藏链接生成正确的格式
+                hidden_links = []
+                for ent in entity_analysis['suspicious_entities']:
+                    # 提取链接文本
+                    text = ""
+                    if message.text and 'offset' in ent and 'length' in ent:
+                        offset = ent.get('offset', 0)
+                        length = ent.get('length', 0)
+                        if offset + length <= len(message.text):
+                            text = message.text[offset:offset + length]
+                    
+                    # 智能判断是否保留文字
+                    should_keep_text = self._should_keep_link_text(text, ent.get('url', ''))
+                    display_text = text if should_keep_text else ""
+                    
+                    hidden_link = {
+                        'text': text or "隐藏链接",  # 原始文字，用于显示
+                        'url': ent.get('url', ''),
+                        'type': 'hidden_link',
+                        'action': 'keep_text' if should_keep_text else 'remove_all',
+                        'display_text': display_text  # 处理后的显示文字
+                    }
+                    hidden_links.append(hidden_link)
+                
+                result['removed_elements'].extend(hidden_links)
                 if not result['ad_type']:
                     result['ad_type'] = 'hidden_links'
         
@@ -100,6 +121,76 @@ class StructuralAdDetector:
             )
         
         return result
+    
+    def _should_keep_link_text(self, text: str, url: str) -> bool:
+        """
+        智能判断是否保留链接文字
+        
+        Args:
+            text: 链接显示文字
+            url: 链接URL
+            
+        Returns:
+            True: 保留文字，只删除链接
+            False: 删除整个链接（包括文字）
+        """
+        if not text:
+            return False
+        
+        text_lower = text.lower().strip()
+        
+        # 推广性关键词 - 这些应该完全删除
+        promotional_keywords = [
+            # 频道相关
+            '订阅频道', '关注频道', '加入频道', '点击加入', '进入频道', '频道链接',
+            'subscribe', 'channel', 'join', 'follow', 'click',
+            
+            # 联系方式相关  
+            '联系', '咨询', '客服', '商务', '合作', '投稿', '爆料',
+            'contact', 'business', 'cooperation', 'submit',
+            
+            # 用户名/ID相关
+            '@', 'telegram', 't.me', 'tg',
+            
+            # 推广词汇
+            '点击', '立即', '马上', '现在', '火速', '速度', '快来',
+            '专属', '回馈', '优惠', '福利', '活动', '奖励',
+            'click', 'now', 'fast', 'exclusive', 'bonus', 'reward',
+            
+            # 空白或无意义内容
+            '这里', '链接', 'link', 'here', '👆', '⬆️', '☝️'
+        ]
+        
+        # 检查是否包含推广关键词
+        for keyword in promotional_keywords:
+            if keyword in text_lower:
+                return False  # 包含推广词汇，删除整个链接
+        
+        # 检查是否是纯符号或数字（通常是推广内容）
+        if text_lower.replace(' ', '').replace('_', '').replace('-', '').isdigit():
+            return False
+        
+        # 检查长度 - 过短的文字通常没有语义价值
+        if len(text_lower) <= 2:
+            return False
+        
+        # 检查是否与URL高度相似（可能是显示URL本身）
+        if url:
+            url_lower = url.lower()
+            if text_lower in url_lower or url_lower in text_lower:
+                return False
+        
+        # 检查是否是常见的无意义词汇
+        meaningless_words = {
+            '点击', 'click', '查看', 'view', '进入', 'enter', '访问', 'visit',
+            '链接', 'link', '网址', 'url', '网站', 'website', '页面', 'page'
+        }
+        
+        if text_lower in meaningless_words:
+            return False
+        
+        # 默认保留有语义价值的文字
+        return True
     
     def _extract_message_components(self, message: Any) -> Dict:
         """提取消息的结构化组件"""
@@ -315,7 +406,7 @@ class StructuralAdDetector:
         return False
     
     def _clean_text_from_ads(self, text: str, suspicious_entities: List[Dict]) -> str:
-        """从文本中清理广告内容"""
+        """从文本中智能清理广告内容"""
         if not text or not suspicious_entities:
             return text
         
@@ -329,7 +420,20 @@ class StructuralAdDetector:
             length = entity.get('length', 0)
             
             if offset + length <= len(clean_text):
-                clean_text = clean_text[:offset] + clean_text[offset + length:]
+                # 提取链接文字
+                link_text = clean_text[offset:offset + length]
+                url = entity.get('url', '')
+                
+                # 智能判断处理策略
+                should_keep_text = self._should_keep_link_text(link_text, url)
+                
+                if should_keep_text:
+                    # 保留文字，只是移除了链接属性（实际上文字还在）
+                    # 这里不删除文字，让文字保留在消息中
+                    continue
+                else:
+                    # 删除整个链接（包括文字）
+                    clean_text = clean_text[:offset] + clean_text[offset + length:]
         
         return clean_text.strip()
     

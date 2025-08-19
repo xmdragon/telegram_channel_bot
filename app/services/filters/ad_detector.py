@@ -83,14 +83,14 @@ class AdDetectorFilter(BaseFilter):
                         result.should_early_stop = True
                         result.reason = f"自动拒绝广告消息: {main_reason}"
                         result.filtered_content = ""  # 清空内容
-                        self.logger.info(f"广告检测器自动拒绝: {main_reason}")
+                        logger.info(f"广告检测器自动拒绝: {main_reason}")
                     else:
                         # 仅检测标记：让消息继续通过后续过滤器
                         result.passed = True
                         result.should_early_stop = False
                         result.reason = f"AI检测到疑似广告: {main_reason}"
                         result.filtered_content = content  # 保持原始内容
-                        self.logger.debug(f"广告检测器仅标记（未启用自动拒绝）: {main_reason}")
+                        logger.debug(f"广告检测器仅标记（未启用自动拒绝）: {main_reason}")
                         
                 except Exception as e:
                     # 配置读取失败时，采用保守策略：仅检测标记
@@ -98,7 +98,7 @@ class AdDetectorFilter(BaseFilter):
                     result.should_early_stop = False
                     result.reason = f"AI检测到疑似广告: {main_reason}"
                     result.filtered_content = content
-                    self.logger.warning(f"读取auto_reject_ads配置失败，采用保守策略: {e}")
+                    logger.warning(f"读取auto_reject_ads配置失败，采用保守策略: {e}")
                 
                 result.confidence = final_score
                 

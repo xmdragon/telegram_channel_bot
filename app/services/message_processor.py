@@ -659,3 +659,160 @@ class MessageProcessor:
         except Exception as e:
             logger.error(f"标记非广告失败 {channel_id}:{message_id}: {e}")
             return False
+    
+    async def forward_approved_message(self, message_id: str) -> bool:
+        """
+        转发已批准的消息到目标频道
+        
+        Args:
+            message_id: 消息ID（格式：channel_id:message_id）
+            
+        Returns:
+            bool: 转发是否成功
+        """
+        try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                except RuntimeError:
+                    logger.error("Redis连接失败")
+                    return False
+            
+            # 获取消息数据
+            message = self.redis_store.get_message_by_id(message_id)
+            if not message:
+                logger.error(f"消息不存在: {message_id}")
+                return False
+            
+            # 检查消息状态
+            if message.get('status') != 'approved':
+                logger.error(f"消息状态不是已批准: {message_id}, 当前状态: {message.get('status')}")
+                return False
+            
+            # 使用消息转发器转发消息
+            try:
+                from app.telegram.message_forwarder import message_forwarder
+                from app.telegram.client_manager import client_manager
+                
+                # 确保客户端连接并获取实例
+                if not await client_manager.ensure_connected():
+                    logger.error("Telegram客户端连接失败")
+                    return False
+                
+                client = await client_manager.get_client()
+                if not client:
+                    logger.error("无法获取Telegram客户端实例")
+                    return False
+                
+                # 转发到目标频道
+                await message_forwarder.forward_to_target(client, message)
+                logger.info(f"消息转发成功: {message_id}")
+                return True
+                
+            except ImportError as e:
+                logger.error(f"导入转发组件失败: {e}")
+                return False
+            except Exception as e:
+                logger.error(f"转发消息失败: {e}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"转发已批准消息失败 {message_id}: {e}")
+            return False
+    
+    async def refetch_media(self, channel_id: str, message_id: int) -> bool:
+        """
+        重新获取消息的媒体文件
+        
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID
+            
+        Returns:
+            bool: 重新获取是否成功
+        """
+        try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                except RuntimeError:
+                    logger.error("Redis连接失败")
+                    return False
+            
+            # 获取消息数据
+            message = await self.get_message(channel_id, message_id)
+            if not message:
+                logger.error(f"消息不存在: {channel_id}:{message_id}")
+                return False
+            
+            # 检查消息是否有媒体类型
+            if not message.get('media_type'):
+                logger.warning(f"消息没有媒体类型: {channel_id}:{message_id}")
+                return False
+            
+            # 使用媒体处理器重新下载媒体
+            try:
+                from app.services.media_handler import media_handler
+                from app.telegram.client_manager import client_manager
+                
+                # 确保客户端连接并获取实例
+                if not await client_manager.ensure_connected():
+                    logger.error("Telegram客户端连接失败")
+                    return False
+                
+                client = await client_manager.get_client()
+                if not client:
+                    logger.error("无法获取Telegram客户端实例")
+                    return False
+                
+                # 获取原始消息对象（用于重新下载媒体）
+                original_message = await client.get_messages(
+                    int(channel_id), ids=[int(message_id)]
+                )
+                
+                if not original_message or len(original_message) == 0:
+                    logger.error(f"无法获取原始消息: {channel_id}:{message_id}")
+                    return False
+                
+                telegram_message = original_message[0]
+                
+                # 重新下载媒体
+                media_info = await media_handler.download_media(
+                    client, 
+                    telegram_message, 
+                    message_id,
+                    timeout=60  # 60秒超时
+                )
+                
+                if not media_info:
+                    logger.error(f"重新下载媒体失败: {channel_id}:{message_id}")
+                    return False
+                
+                # 更新消息的媒体信息
+                update_data = {
+                    'media_url': media_info.get('file_path'),
+                    'media_path': media_info.get('file_path'),
+                    'media_hash': media_info.get('hash'),
+                    'refetch_time': datetime.utcnow().isoformat()
+                }
+                
+                success = self.redis_store.update_message(channel_id, message_id, update_data)
+                if success:
+                    logger.info(f"媒体重新获取成功: {channel_id}:{message_id}")
+                    return True
+                else:
+                    logger.error(f"更新媒体信息失败: {channel_id}:{message_id}")
+                    return False
+                    
+            except ImportError as e:
+                logger.error(f"导入媒体处理器失败: {e}")
+                return False
+            except Exception as e:
+                logger.error(f"重新获取媒体失败: {e}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"重新获取媒体失败 {channel_id}:{message_id}: {e}")
+            return False

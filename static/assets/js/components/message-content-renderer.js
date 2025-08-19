@@ -28,7 +28,7 @@ const MessageContentRenderer = {
         statusTag() {
             const statusMap = {
                 'pending': { text: '待审核', type: 'warning' },
-                'approved': { text: '已批准', type: 'success' },
+                'approved': { text: '已发布', type: 'success' },
                 'rejected': { text: '已拒绝', type: 'danger' },
                 'auto_forwarded': { text: '自动转发', type: 'info' }
             };
@@ -129,7 +129,7 @@ const MessageContentRenderer = {
         
         // 获取原消息链接
         getOriginalMessageLink() {
-            if (!this.message.message_id) return '#';
+            if (!this.message.id) return '#';
             
             if (this.message.source_channel_link_prefix) {
                 return `${this.message.source_channel_link_prefix}/${this.message.message_id}`;
@@ -327,7 +327,7 @@ const MessageContentRenderer = {
                 </div>
                 
                 <!-- 原频道链接 -->
-                <div v-if="message.source_channel_link_prefix && message.message_id" class="message-footer">
+                <div v-if="message.source_channel_link_prefix && message.id" class="message-footer">
                     🔗 原消息链接: 
                     <a :href="getOriginalMessageLink()" 
                        target="_blank" 
@@ -344,7 +344,7 @@ const MessageContentRenderer = {
                     ✏️ 编辑
                 </button>
                 <button @click="approveMessage" class="btn btn-sm btn-success">
-                    ✅ 批准
+                    📤 发布
                 </button>
                 <button @click="rejectMessage" class="btn btn-sm btn-danger">
                     ❌ 拒绝

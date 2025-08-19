@@ -189,7 +189,10 @@ const ConfigApp = {
                         target_channel: response.data.target_channel || '',
                         review_group: response.data.review_group || '',
                         delay: response.data.auto_forward_delay || 1800,
-                        auto_reject_ads: response.data.auto_reject_ads || false
+                        auto_reject_ads: response.data.auto_reject_ads || false,
+                        // 加载已解析的ID
+                        resolved_target_channel_id: response.data.target_channel_id || '',
+                        resolved_group_id: response.data.review_group_id || ''
                     };
                 }
             } catch (error) {
