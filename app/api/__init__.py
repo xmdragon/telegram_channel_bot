@@ -20,6 +20,7 @@ from .lock import router as lock_router
 from .admin_auth import router as admin_auth_router
 from .ai_control import router as ai_control_router
 from .ai_config import router as ai_config_router
+from .version import router as version_router
 # 使用重构后的训练路由模块
 from app.routers.training import router as training_router
 # from app.api.channel_resolver import router as channel_resolver_router  # 暂时禁用，包含数据库依赖
@@ -49,6 +50,7 @@ api_router.include_router(system_admin_router, tags=["system-admin"])
 api_router.include_router(lock_router, tags=["lock"])
 api_router.include_router(ai_control_router, tags=["ai-control"])
 api_router.include_router(ai_config_router, tags=["ai-config"])
+api_router.include_router(version_router, tags=["version"])
 # 使用重构后的训练路由
 api_router.include_router(training_router, tags=["training"])
 # api_router.include_router(channel_resolver_router, prefix="/channel-resolver", tags=["channel-resolver"])  # 暂时禁用

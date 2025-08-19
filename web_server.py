@@ -139,6 +139,28 @@ async def lifespan(app: FastAPI):
         storage_time = time.time() - storage_start
         logger.info(f"✅ 存储层初始化完成 ({storage_time:.2f}s)")
         
+        # 阶段1.5：版本号管理初始化（生成新版本号并更新HTML文件）
+        version_start = time.time()
+        logger.info("🔄 初始化版本号管理...")
+        
+        try:
+            from app.core.version_manager import get_version_manager
+            version_manager = get_version_manager()
+            
+            # 生成新的版本号（每次启动都刷新）
+            new_version = version_manager.refresh_version()
+            
+            # 更新所有HTML文件中的版本号
+            updated_count = version_manager.update_html_files()
+            
+            version_time = time.time() - version_start
+            logger.info(f"✅ 版本号管理初始化完成 ({version_time:.2f}s)")
+            logger.info(f"📱 前端资源版本号: {new_version} (更新了{updated_count}个文件)")
+            
+        except Exception as e:
+            logger.error(f"❌ 版本号管理初始化失败: {e}")
+            # 版本号管理失败不应阻止服务启动
+        
         # 阶段2：配置和认证初始化（并行处理）
         config_start = time.time()
         
