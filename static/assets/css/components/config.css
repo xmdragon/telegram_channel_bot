@@ -1,124 +1,137 @@
-/* 配置页面特定样式 */
+/* 配置页面现代风格样式 */
 
 /* ID显示框样式 */
 .channel-id-display {
     margin-top: 8px;
-    padding: 8px;
-    background-color: #f5f7fa;
-    border-radius: 4px;
+    padding: 12px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    border-left: 4px solid #0ea5e9;
 }
 
 .channel-id-display strong {
-    color: #333;
+    color: #0f172a;
+    font-weight: 600;
 }
 
 .channel-id-tag {
     margin-left: 8px;
     font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
     font-size: 12px;
+    background: #0ea5e9;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
 }
 
+/* 配置标签页 */
 .config-tabs {
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
-    border-radius: 10px;
-    backdrop-filter: blur(10px);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     margin-top: 20px;
+    overflow: hidden;
 }
 
 .config-tabs .el-tabs__header {
-    background: rgba(15, 52, 96, 0.8);
-    border-bottom: 2px solid #00ff41;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e5e7eb;
     margin: 0;
 }
 
 .config-tabs .el-tabs__content {
-    padding: 20px;
+    padding: 24px;
+    background: #ffffff;
 }
 
 .config-section {
-    margin-bottom: 30px;
+    margin-bottom: 32px;
 }
 
 .config-section h3 {
-    color: #00ff41;
-    font-size: 1.3em;
-    font-weight: 700;
-    margin-bottom: 20px;
-    text-shadow: 0 0 10px #00ff41;
+    color: #1e293b;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .config-section h4 {
-    color: #7fdbff;
-    font-size: 1.1em;
-    font-weight: 700;
-    margin: 20px 0 15px 0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    color: #475569;
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 20px 0 12px 0;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 /* 频道列表样式 */
 .channel-list {
-    margin-bottom: 30px;
+    margin-bottom: 24px;
 }
 
 .channel-item {
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .channel-item:hover {
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
-    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    border-color: #d1d5db;
 }
 
 .channel-info {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
     flex: 1;
     min-width: 0;
 }
 
 .channel-name {
-    color: #00ff41;
-    font-weight: 700;
-    font-size: 16px;
+    color: #5b63d3;
+    font-weight: 600;
+    font-size: 14px;
     line-height: 1.2;
-    text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
-    font-family: 'Courier New', monospace;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     flex-shrink: 0;
 }
 
 .channel-id {
-    font-size: 13px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
     flex-shrink: 0;
 }
 
 .channel-id.no-id {
-    color: #f56c6c;
-    background-color: rgba(245, 108, 108, 0.1);
-    border: 1px solid rgba(245, 108, 108, 0.3);
+    color: #dc2626;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
 }
 
 .channel-id.has-id {
-    color: #67c23a;
-    background-color: rgba(103, 194, 58, 0.1);
-    border: 1px solid rgba(103, 194, 58, 0.3);
+    color: #059669;
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
 }
 
 .channel-title {
-    color: #7fdbff;
+    color: #374151;
     font-size: 14px;
     font-weight: 500;
     line-height: 1.2;
@@ -131,31 +144,31 @@
 .channel-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 /* 表单样式 */
 .add-channel-form {
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
-    border-radius: 10px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     padding: 20px;
-    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .add-channel-form:hover {
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* 加载动画 */
 .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(0, 255, 65, 0.3);
-    border-top: 4px solid #00ff41;
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e5e7eb;
+    border-top: 3px solid #5b63d3;
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin: 0 auto 20px;
+    margin: 0 auto 16px;
 }
 
 @keyframes spin {
@@ -165,15 +178,13 @@
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-    .channel-item,
-    .rule-item {
+    .channel-item {
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         align-items: flex-start;
     }
     
-    .channel-actions,
-    .rule-actions {
+    .channel-actions {
         width: 100%;
         justify-content: flex-end;
     }
@@ -186,36 +197,36 @@
 }
 
 .config-card {
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
-    border-radius: 10px;
-    backdrop-filter: blur(10px);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     margin-bottom: 20px;
     overflow: hidden;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .config-card:hover {
-    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
-    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
 }
 
 .config-header {
-    background: rgba(15, 52, 96, 0.8);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     padding: 20px;
-    border-bottom: 2px solid #00ff41;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .config-header h2 {
     margin: 0;
-    color: #00ff41;
-    font-size: 1.5em;
-    font-weight: 700;
-    text-shadow: 0 0 10px #00ff41;
+    color: #1e293b;
+    font-size: 1.25rem;
+    font-weight: 600;
 }
 
 .config-content {
     padding: 20px;
+    background: #ffffff;
 }
 
 .config-form {
@@ -225,67 +236,72 @@
 }
 
 .config-item {
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
-    padding: 15px;
-    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.config-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .config-item-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .config-key {
     font-weight: 600;
-    color: #333;
+    color: #1e293b;
     font-size: 14px;
 }
 
 .config-type {
-    background: #e3f2fd;
-    color: #1976d2;
+    background: #dbeafe;
+    color: #1e40af;
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: 4px;
     font-size: 12px;
     font-weight: 500;
 }
 
 .config-description {
-    color: #666;
+    color: #6b7280;
     font-size: 12px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     line-height: 1.4;
 }
 
 .actions {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     justify-content: flex-end;
-    margin-top: 20px;
+    margin-top: 24px;
     padding-top: 20px;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid #e5e7eb;
 }
 
 .status-message {
-    margin: 10px 0;
-    padding: 10px;
-    border-radius: 4px;
+    margin: 12px 0;
+    padding: 12px;
+    border-radius: 6px;
     font-size: 14px;
 }
 
 .status-success {
-    background: #f0f9ff;
-    color: #67C23A;
-    border: 1px solid #c2e7b0;
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
 }
 
 .status-error {
-    background: #fef0f0;
-    color: #f56c6c;
-    border: 1px solid #fbc4c4;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
 }
 
 .category-tabs {
@@ -293,18 +309,18 @@
 }
 
 .config-summary {
-    background: rgba(26, 26, 46, 0.8);
-    border: 2px solid #00ff41;
-    border-radius: 10px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .config-summary:hover {
-    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
-    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
 }
 
 .summary-grid {
@@ -315,92 +331,80 @@
 
 .summary-item {
     text-align: center;
-    padding: 15px;
-    border-radius: 6px;
-    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
 }
 
 .summary-number {
-    font-size: 2em;
-    font-weight: 900;
-    color: #00ff41;
-    text-shadow: 0 0 15px #00ff41;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #5b63d3;
+    line-height: 1;
 }
 
 .summary-label {
     font-size: 14px;
-    color: #7fdbff;
-    margin-top: 5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    color: #6b7280;
+    margin-top: 8px;
+    font-weight: 500;
 }
 
 .nav-buttons {
     margin-bottom: 20px;
     display: flex;
-    gap: 10px;
+    gap: 12px;
 }
 
-
-.keyword-list {
-    margin-top: 15px;
-}
-
-.keyword-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
-    margin-bottom: 6px;
-    background: white;
-}
-
-.keyword-text {
-    font-weight: 500;
-    color: #333;
-}
-
+.keyword-list,
 .account-list {
-    margin-top: 15px;
+    margin-top: 16px;
 }
 
+.keyword-item,
 .account-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
     margin-bottom: 8px;
-    background: white;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.keyword-item:hover,
+.account-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.keyword-text,
+.account-name {
+    font-weight: 500;
+    color: #374151;
 }
 
 .account-info {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-.account-name {
-    font-weight: 500;
-    color: #333;
+    gap: 12px;
 }
 
 .add-form {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 6px;
-    margin-bottom: 15px;
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border: 1px solid #e5e7eb;
 }
 
 .form-row {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .form-row:last-child {
@@ -410,56 +414,47 @@
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
+    gap: 16px;
     margin-bottom: 20px;
 }
 
 .stat-item {
-    background: white;
-    padding: 15px;
-    border-radius: 6px;
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 8px;
     text-align: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
 }
 
 .stat-number {
     font-size: 20px;
     font-weight: 600;
-    color: #409EFF;
+    color: #5b63d3;
+    line-height: 1;
 }
 
 .stat-label {
     font-size: 12px;
-    color: #666;
-    margin-top: 5px;
-}
-
-/* 状态消息样式 */
-.status-success {
-    background: #f0f9ff;
-    color: #67C23A;
-    border: 1px solid #c2e7b0;
-}
-
-.status-error {
-    background: #ffeaea;
-    color: #F56C6C;
-    border: 1px solid #f5b7b1;
+    color: #6b7280;
+    margin-top: 6px;
+    font-weight: 500;
 }
 
 /* 表单提示样式 */
 .form-hint {
-    margin-top: 5px;
-    padding: 8px 12px;
-    background: rgba(127, 219, 255, 0.1);
-    border: 1px solid rgba(127, 219, 255, 0.3);
-    border-radius: 4px;
-    color: #7fdbff;
+    margin-top: 8px;
+    padding: 12px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    color: #0c4a6e;
     font-size: 12px;
-    line-height: 1.4;
+    line-height: 1.5;
+    border-left: 4px solid #0ea5e9;
 }
 
 .form-hint small {
     color: inherit;
     opacity: 0.9;
-} 
+}
