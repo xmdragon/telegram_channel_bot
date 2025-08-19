@@ -386,25 +386,29 @@ class MessageProcessor:
                 
                 # 分析样本消息
                 for msg in sample_messages:
-                    # 检查广告标记
-                    is_ad = msg.get('is_ad', False)
-                    if isinstance(is_ad, str):
-                        is_ad = is_ad.lower() == 'true'
-                    if is_ad:
-                        ad_count += 1
-                    
-                    # 检查重复标记
                     filter_reason = msg.get('filter_reason', '')
                     reject_reason = msg.get('reject_reason', '')
                     all_reasons = f"{filter_reason} {reject_reason}".lower()
                     
-                    if '重复' in all_reasons or 'duplicate' in all_reasons:
+                    # 🔧 修复：检查广告标记 - 包含自动拒绝的广告
+                    is_ad = msg.get('is_ad', False)
+                    if isinstance(is_ad, str):
+                        is_ad = is_ad.lower() == 'true'
+                    
+                    # 广告识别：直接标记为广告 OR 拒绝原因包含广告关键词
+                    if (is_ad or '广告' in all_reasons or 'ad' in all_reasons or 
+                        '高风险广告' in all_reasons or '赌博' in all_reasons or 
+                        '色情' in all_reasons or '诈骗' in all_reasons):
+                        ad_count += 1
+                    
+                    # 检查重复标记
+                    elif '重复' in all_reasons or 'duplicate' in all_reasons:
                         duplicate_count += 1
                     
-                    # 🔧 新增：检查聊天内容标记
-                    if ('聊天内容' in all_reasons or 'chat' in all_reasons or 
-                        'chatcontentfilter' in all_reasons.replace('_', '').replace(' ', '') or
-                        '检测到聊天内容' in all_reasons):
+                    # 🔧 检查聊天内容标记
+                    elif ('聊天内容' in all_reasons or 'chat' in all_reasons or 
+                          'chatcontentfilter' in all_reasons.replace('_', '').replace(' ', '') or
+                          '检测到聊天内容' in all_reasons):
                         chat_count += 1
                 
                 # 按比例推算全局数量

@@ -156,7 +156,7 @@ class MessageFilterProcessor(MessageProcessor):
                 context.should_reject = True
                 context.auto_rejected = True
                 context.reject_reason = reject_reason
-                self.logger.warning(f"自动拒绝消息: {reject_reason}")
+                self.logger.info(f"自动拒绝消息: {reject_reason}")
                 
                 # 保存被拒绝的OCR样本
                 await self._save_rejected_sample(context, reject_reason)
