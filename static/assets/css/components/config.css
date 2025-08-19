@@ -1,5 +1,23 @@
 /* 配置页面特定样式 */
 
+/* ID显示框样式 */
+.channel-id-display {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+}
+
+.channel-id-display strong {
+    color: #333;
+}
+
+.channel-id-tag {
+    margin-left: 8px;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 12px;
+}
+
 .config-tabs {
     background: rgba(26, 26, 46, 0.8);
     border: 2px solid #00ff41;
