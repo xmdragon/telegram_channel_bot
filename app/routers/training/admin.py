@@ -22,7 +22,7 @@ from app.utils.safe_file_ops import SafeFileOperation
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-admin"])
 
-@router.post("/optimize-storage")
+@router.post(ROUTES.training.optimize_storage)
 async def optimize_storage():
     """优化存储"""
     try:
@@ -37,7 +37,7 @@ async def optimize_storage():
     except Exception as e:
         raise handle_api_error(e, "优化存储")
 
-@router.get("/optimize-storage-sse")
+@router.get(ROUTES.training.optimize_storage_sse)
 async def optimize_storage_sse():
     """SSE存储优化"""
     async def generate_sse():
@@ -60,7 +60,7 @@ async def optimize_storage_sse():
     
     return StreamingResponse(generate_sse(), media_type="text/plain")
 
-@router.get("/learning-stats")
+@router.get(ROUTES.training.learning_stats)
 async def get_learning_stats():
     """获取学习统计"""
     try:
@@ -95,7 +95,7 @@ async def get_learning_stats():
     except Exception as e:
         raise handle_api_error(e, "获取学习统计")
 
-@router.post("/emergency-backup")
+@router.post(ROUTES.training.emergency_backup)
 async def emergency_backup():
     """紧急备份"""
     try:
@@ -128,7 +128,7 @@ async def emergency_backup():
     except Exception as e:
         raise handle_api_error(e, "紧急备份")
 
-@router.get("/integrity-report")
+@router.get(ROUTES.training.integrity_report)
 async def get_integrity_report():
     """获取完整性报告"""
     try:
@@ -172,7 +172,7 @@ async def get_integrity_report():
     except Exception as e:
         raise handle_api_error(e, "获取完整性报告")
 
-@router.post("/verify-integrity")
+@router.post(ROUTES.training.verify_integrity)
 async def verify_integrity():
     """验证数据完整性"""
     try:
@@ -181,7 +181,7 @@ async def verify_integrity():
     except Exception as e:
         raise handle_api_error(e, "验证数据完整性")
 
-@router.post("/cleanup-backups")
+@router.post(ROUTES.training.cleanup_backups)
 async def cleanup_backups():
     """清理备份文件"""
     try:
@@ -213,7 +213,7 @@ async def cleanup_backups():
     except Exception as e:
         raise handle_api_error(e, "清理备份文件")
 
-@router.get("/backups")
+@router.get(ROUTES.training.backups)
 async def get_backups():
     """获取备份列表"""
     try:
@@ -244,7 +244,7 @@ async def get_backups():
     except Exception as e:
         raise handle_api_error(e, "获取备份列表")
 
-@router.post("/restore/{backup_filename}")
+@router.post(ROUTES.training.restore)
 async def restore_backup(backup_filename: str):
     """恢复备份"""
     try:
@@ -276,7 +276,7 @@ async def restore_backup(backup_filename: str):
     except Exception as e:
         raise handle_api_error(e, "恢复备份")
 
-@router.post("/feedback")
+@router.post(ROUTES.training.feedback)
 async def submit_feedback(feedback: FeedbackData):
     """提交反馈"""
     try:
@@ -286,7 +286,7 @@ async def submit_feedback(feedback: FeedbackData):
     except Exception as e:
         raise handle_api_error(e, "提交反馈")
 
-@router.get("/statistics")
+@router.get(ROUTES.training.statistics)
 async def get_general_statistics():
     """获取总体统计"""
     try:
@@ -325,7 +325,7 @@ async def get_general_statistics():
     except Exception as e:
         raise handle_api_error(e, "获取总体统计")
 
-@router.delete("/clear")
+@router.delete(ROUTES.training.clear)
 async def clear_all_data():
     """清除所有训练数据（危险操作）"""
     try:

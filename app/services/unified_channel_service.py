@@ -47,8 +47,8 @@ class UnifiedChannelService:
             if channel_type == "source":
                 from app.services.config_manager import config_manager
                 # 获取目标频道配置
-                target_channel_id = await config_manager.get_config('channels.target_channel_id')
-                target_channel = await config_manager.get_config('channels.target_channel')
+                target_channel_id = await config_manager.get_config('target.channel_id')
+                target_channel = await config_manager.get_config('target.channel_link')
                 
                 # 解析要添加的频道ID（如果需要）
                 resolved_id = channel_id

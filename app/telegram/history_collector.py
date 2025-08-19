@@ -35,7 +35,7 @@ class HistoryCollector:
                 return
                 
             # 获取历史消息采集配置
-            history_limit = await self.config_manager.get_config("channels.history_message_limit", 50)
+            history_limit = await self.config_manager.get_config("source.history_limit", 50)
             
             if history_limit <= 0:
                 logger.info("历史消息采集已禁用")
@@ -106,7 +106,7 @@ class HistoryCollector:
             
             if is_new_channel:
                 # 没有Redis采集点的频道：根据配置采集指定数量的历史消息
-                history_limit = await config_manager.get_config('channels.history_message_limit', 50)
+                history_limit = await config_manager.get_config('source.history_limit', 50)
                 
                 if existing_count >= history_limit:
                     logger.info(f"频道 {channel_name} 已有 {existing_count} 条消息，超过配置限制 {history_limit}，跳过历史采集")

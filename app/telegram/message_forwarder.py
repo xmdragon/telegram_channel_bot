@@ -566,7 +566,7 @@ class MessageForwarder:
             # 使用ConfigManager从数据库获取配置
             from app.services.config_manager import ConfigManager
             config_manager = ConfigManager()
-            footer = await config_manager.get_config("channels.signature", "")
+            footer = await config_manager.get_config("target.signature", "")
             
             if footer:
                 # 使用配置的落款，处理换行符

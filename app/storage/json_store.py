@@ -198,8 +198,8 @@ class JSONChannelStore(JSONStore):
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                     
-                    target_channel_id = loop.run_until_complete(config_manager.get_config('channels.target_channel_id'))
-                    target_channel = loop.run_until_complete(config_manager.get_config('channels.target_channel'))
+                    target_channel_id = loop.run_until_complete(config_manager.get_config('target.channel_id'))
+                    target_channel = loop.run_until_complete(config_manager.get_config('target.channel_link'))
                     
                     if channel_id == target_channel_id or channel_name == target_channel:
                         logger.error(f"拒绝添加目标频道为源频道: {channel_name} ({channel_id})")

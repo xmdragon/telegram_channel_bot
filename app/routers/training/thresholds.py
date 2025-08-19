@@ -43,7 +43,7 @@ def check_permission(permission_name: str):
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-thresholds"])
 
-@router.get("/thresholds/stats")
+@router.get(ROUTES.training.thresholds_stats)
 @check_permission("filter.view")
 async def get_threshold_stats(
     user: Dict[str, Any] = Depends(require_auth)
@@ -67,7 +67,7 @@ async def get_threshold_stats(
         raise HTTPException(status_code=500, detail=f"获取统计失败: {str(e)}")
 
 
-@router.post("/thresholds/optimize")
+@router.post(ROUTES.training.thresholds_optimize)
 @check_permission("filter.admin")
 async def optimize_thresholds(
     user: Dict[str, Any] = Depends(require_auth)
@@ -98,7 +98,7 @@ async def optimize_thresholds(
         raise HTTPException(status_code=500, detail=f"优化失败: {str(e)}")
 
 
-@router.post("/thresholds/{filter_name}/{metric_name}/reset")
+@router.post(ROUTES.training.thresholds_reset)
 @check_permission("filter.admin")
 async def reset_threshold(
     filter_name: str,

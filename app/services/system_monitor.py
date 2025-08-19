@@ -188,15 +188,15 @@ class SystemMonitor:
             # 优先使用缓存的ID（针对私有链接）
             target_channel_id = await config_manager.get_config('channels.target_channel_id_cached')
             if not target_channel_id:
-                target_channel_id = await config_manager.get_config('channels.target_channel_id')
+                target_channel_id = await config_manager.get_config('target.channel_id')
             
             review_group_id = await config_manager.get_config('channels.review_group_id_cached')
             if not review_group_id:
-                review_group_id = await config_manager.get_config('channels.review_group_id')
+                review_group_id = await config_manager.get_config('review.group_id')
             
             # 获取显示用的原始配置
-            target_channel = await config_manager.get_config('channels.target_channel')
-            review_group = await config_manager.get_config('channels.review_group')
+            target_channel = await config_manager.get_config('target.channel_link')
+            review_group = await config_manager.get_config('review.group_link')
                     
             # 验证必要配置
             if not source_channels:

@@ -852,7 +852,7 @@ const MainApp = {
                 // 先找到消息对象（在移除之前）
                 const message = this.messages.find(msg => msg.id === messageId);
                 
-                const response = await axios.post(`${API.messages.rejectById(messageId)}?reviewer=Web用户`);
+                const response = await axios.post(`${API.messages.rejectById(messageId)}?reason=手动拒绝&reviewer=Web用户`);
                 if (response.data.success) {
                     MessageManager.success('消息已拒绝');
                     
@@ -1701,7 +1701,7 @@ const MainApp = {
         // 手动执行尾部过滤
         async filterTail(message) {
             try {
-                const response = await axios.post(API.messages.filterTail(message.message_id));
+                const response = await axios.post(API.messages.filterTail(message.id));
                 
                 if (response.data.success) {
                     if (response.data.removed_length && response.data.removed_length > 0) {

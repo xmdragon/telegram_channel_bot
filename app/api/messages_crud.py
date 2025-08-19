@@ -2,7 +2,7 @@
 消息基础CRUD API模块
 处理消息的基本增删改查操作
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -52,6 +52,8 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
 def check_permission(permission_name: str):
     """检查权限装饰器"""
     def decorator(func):
+        import functools
+        @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # 这里可以添加具体的权限检查逻辑
             return await func(*args, **kwargs)
@@ -146,6 +148,10 @@ async def get_messages(
         
         # 处理媒体显示URL和重复消息信息
         for message in filtered_messages:
+            # 为前端添加统一的id字段（用于API调用）
+            if 'source_channel' in message and 'message_id' in message:
+                message['id'] = f"{message['source_channel']}:{message['message_id']}"
+            
             if message.get('media_path'):
                 message['media_display_url'] = api_paths.get_temp_media_url(
                     os.path.basename(message['media_path'])
@@ -178,6 +184,10 @@ async def get_messages(
                                     media['display_url'] = api_paths.get_temp_media_url(
                                         os.path.basename(media['media_path'])
                                     )
+                        
+                        # 为原始消息添加id字段
+                        if 'source_channel' in original_message and 'message_id' in original_message:
+                            original_message['id'] = f"{original_message['source_channel']}:{original_message['message_id']}"
                         
                         # 将原始消息数据填充到duplicate_info字段
                         message['duplicate_info'] = original_message
@@ -266,6 +276,10 @@ async def get_message(
         message = redis_store.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 为前端添加统一的id字段
+        if 'source_channel' in message and 'message_id' in message:
+            message['id'] = f"{message['source_channel']}:{message['message_id']}"
         
         # 处理媒体显示URL
         if message.get('media_path'):
@@ -389,3 +403,208 @@ async def delete_message(
     except Exception as e:
         logger.error(f"删除消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"删除消息失败: {str(e)}")
+
+@router.put(ROUTES.messages.update)
+@check_permission("message.update")
+async def update_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth),
+    request: dict = Body({})
+):
+    """
+    更新消息内容
+    """
+    try:
+        redis_store = get_redis_message_store()
+        message = redis_store.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 更新消息内容
+        update_data = {}
+        if "content" in request:
+            update_data["content"] = request["content"]
+        if "filtered_content" in request:
+            update_data["filtered_content"] = request["filtered_content"]
+        
+        # 添加更新时间和操作者
+        update_data["updated_at"] = get_current_time().isoformat()
+        update_data["updated_by"] = user.get('user_id')
+        
+        # 执行更新
+        success = redis_store.update_message(message_id, update_data)
+        if not success:
+            raise HTTPException(status_code=500, detail="更新消息失败")
+        
+        return {
+            "success": True,
+            "message": "消息已更新",
+            "timestamp": format_for_api(get_current_time())
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"更新消息失败: {str(e)}")
+
+@router.post(ROUTES.messages.publish)
+@check_permission("message.publish")
+async def publish_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    发布消息到目标频道
+    """
+    try:
+        # 直接调用批准逻辑，因为发布就是批准并转发
+        return await approve_message(message_id, user)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"发布消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"发布消息失败: {str(e)}")
+
+@router.post(ROUTES.messages.edit_publish)
+@check_permission("message.edit_publish")
+async def edit_and_publish_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth),
+    request: dict = Body({})
+):
+    """
+    编辑并发布消息
+    """
+    try:
+        # 先更新消息内容
+        if "content" in request or "filtered_content" in request:
+            await update_message(message_id, request, user)
+        
+        # 然后发布消息
+        return await publish_message(message_id, user)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"编辑并发布消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"编辑并发布消息失败: {str(e)}")
+
+@router.post(ROUTES.messages.resend)
+@check_permission("message.resend")
+async def resend_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    重新发送已批准的消息到目标频道
+    """
+    try:
+        redis_store = get_redis_message_store()
+        message = redis_store.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 检查消息状态
+        if message.get('status') != 'approved':
+            raise HTTPException(status_code=400, detail="只能重新发送已批准的消息")
+        
+        # 使用消息处理器重新转发
+        message_processor = get_message_processor()
+        success = await message_processor.forward_approved_message(message_id)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="重新发送消息失败")
+        
+        return {
+            "success": True,
+            "message": "消息已重新发送",
+            "timestamp": format_for_api(get_current_time())
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"重新发送消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"重新发送消息失败: {str(e)}")
+
+@router.post(ROUTES.messages.refetch_media)
+@check_permission("message.refetch_media")
+async def refetch_message_media(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    重新获取消息的媒体文件
+    """
+    try:
+        # 解析消息ID
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        # 使用消息处理器重新获取媒体
+        message_processor = get_message_processor()
+        success = await message_processor.refetch_media(channel_id, int(msg_id))
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="重新获取媒体失败")
+        
+        return {
+            "success": True,
+            "message": "媒体文件已重新获取",
+            "timestamp": format_for_api(get_current_time())
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"重新获取媒体失败: {e}")
+        raise HTTPException(status_code=500, detail=f"重新获取媒体失败: {str(e)}")
+
+@router.delete(ROUTES.messages.delete_review)
+@check_permission("message.delete_review")
+async def delete_review_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    删除审核群中的消息
+    """
+    try:
+        redis_store = get_redis_message_store()
+        message = redis_store.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        review_message_id = message.get('review_message_id')
+        if not review_message_id:
+            raise HTTPException(status_code=400, detail="消息没有审核消息ID")
+        
+        # 删除审核群中的消息
+        try:
+            from app.telegram.bot import telegram_bot
+            if telegram_bot and telegram_bot.client:
+                await telegram_bot.delete_review_message(review_message_id)
+                logger.info(f"已删除审核群消息: {review_message_id}")
+            else:
+                raise HTTPException(status_code=503, detail="Telegram bot服务不可用")
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Telegram bot模块不可用")
+        except Exception as e:
+            logger.error(f"删除审核消息失败: {e}")
+            raise HTTPException(status_code=500, detail=f"删除审核消息失败: {str(e)}")
+        
+        return {
+            "success": True,
+            "message": "审核消息已删除",
+            "timestamp": format_for_api(get_current_time())
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除审核消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"删除审核消息失败: {str(e)}")

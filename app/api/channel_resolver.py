@@ -129,7 +129,7 @@ async def resolve_target_channel():
     """
     try:
         # 获取当前目标频道配置
-        target_channel = await config_manager.get_config('channels.target_channel_id')
+        target_channel = await config_manager.get_config('target.channel_id')
         
         if not target_channel:
             return {"success": False, "message": "未配置目标频道"}
@@ -159,11 +159,11 @@ async def resolve_target_channel():
             }
         
         # 保存解析的ID
-        await config_manager.set_config('channels.target_channel_id', resolved_id)
+        await config_manager.set_config('target.channel_id', resolved_id)
         
         # 如果原来是用户名，保存到target_channel
         if target_channel.startswith('@'):
-            await config_manager.set_config('channels.target_channel', target_channel)
+            await config_manager.set_config('target.channel_link', target_channel)
         
         # 获取频道信息
         channel_info = None
@@ -198,7 +198,7 @@ async def resolve_review_group():
     """
     try:
         # 获取当前审核群配置
-        review_group = await config_manager.get_config('channels.review_group_id')
+        review_group = await config_manager.get_config('review.group_id')
         
         if not review_group:
             return {"success": False, "message": "未配置审核群"}
@@ -228,11 +228,11 @@ async def resolve_review_group():
             }
         
         # 保存解析的ID
-        await config_manager.set_config('channels.review_group_id', resolved_id)
+        await config_manager.set_config('review.group_id', resolved_id)
         
         # 如果原来是用户名或链接，保存到review_group
         if review_group.startswith('@') or review_group.startswith('http'):
-            await config_manager.set_config('channels.review_group', review_group)
+            await config_manager.set_config('review.group_link', review_group)
         
         # 获取群组信息
         group_info = None

@@ -288,28 +288,37 @@ DEFAULT_CONFIGS = {
         "config_type": "string"
     },
     
-    # 频道监听配置
-    "channels.source_channels": {
-        "value": [],
-        "description": "监听的源频道列表 (频道ID或用户名)",
-        "config_type": "list"
-    },
-    "channels.review_group_id": {
+    # 目标频道配置
+    "target.channel_link": {
         "value": "",
-        "description": "审核群ID或链接",
+        "description": "目标频道链接（用户配置）",
         "config_type": "string"
     },
-    "channels.review_group_id_cached": {
+    "target.channel_id": {
         "value": "",
-        "description": "缓存的审核群ID（由系统自动解析链接后设置）",
+        "description": "目标频道ID（系统解析缓存）",
         "config_type": "string"
     },
-    "channels.target_channel_id": {
+    "target.signature": {
         "value": "",
-        "description": "目标频道ID",
+        "description": "频道落款内容（支持多行，用\\n分隔）",
         "config_type": "string"
     },
-    "channels.history_message_limit": {
+    
+    # 审核群配置
+    "review.group_link": {
+        "value": "",
+        "description": "审核群链接（用户配置）",
+        "config_type": "string"
+    },
+    "review.group_id": {
+        "value": "",
+        "description": "审核群ID（系统解析缓存）",
+        "config_type": "string"
+    },
+    
+    # 消息采集配置
+    "source.history_limit": {
         "value": 50,
         "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
         "config_type": "integer"
@@ -329,13 +338,6 @@ DEFAULT_CONFIGS = {
         "config_type": "integer"
     },
     
-    
-    # 频道落款配置
-    "channels.signature": {
-        "value": "",
-        "description": "频道落款内容（支持多行，用\\n分隔）",
-        "config_type": "string"
-    },
     
     # 服务控制配置
     "collection.enabled": {

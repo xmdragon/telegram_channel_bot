@@ -20,7 +20,7 @@ from app.core.path_config import PathConfig
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-basic"])
 
-@router.get("/channels")
+@router.get(ROUTES.training.channels)
 async def get_channels():
     """获取频道列表（从训练数据中获取）"""
     try:
@@ -56,7 +56,7 @@ async def get_channels():
         logger.error(f"获取频道列表失败: {e}")
         return {"channels": []}
 
-@router.get("/stats")
+@router.get(ROUTES.training.stats)
 async def get_stats():
     """获取训练统计"""
     try:
@@ -97,7 +97,7 @@ async def get_stats():
             "todayTraining": 0
         }
 
-@router.get("/history")
+@router.get(ROUTES.training.history)
 async def get_history(limit: int = 20):
     """获取训练历史"""
     try:
@@ -125,7 +125,7 @@ async def get_history(limit: int = 20):
         logger.error(f"获取历史失败: {e}")
         return {"history": []}
 
-@router.post("/submit")
+@router.post(ROUTES.training.submit)
 async def submit_training(submission: TrainingSubmission):
     """提交训练数据"""
     try:
@@ -172,7 +172,7 @@ async def submit_training(submission: TrainingSubmission):
     except Exception as e:
         raise handle_api_error(e, "提交训练数据")
 
-@router.delete("/{sample_id}")
+@router.delete(ROUTES.training.sample_by_id)
 async def delete_training_sample(sample_id: int):
     """删除训练样本"""
     try:
@@ -200,7 +200,7 @@ async def delete_training_sample(sample_id: int):
     except Exception as e:
         raise handle_api_error(e, "删除训练样本")
 
-@router.post("/apply")
+@router.post(ROUTES.training.apply)
 async def apply_training():
     """应用所有训练数据到AI过滤器"""
     try:
@@ -262,7 +262,7 @@ async def apply_training():
     except Exception as e:
         raise handle_api_error(e, "应用训练数据")
 
-@router.delete("/clear/{channel_id}")
+@router.delete(ROUTES.training.clear_by_channel)
 async def clear_channel_training(channel_id: str):
     """清除某个频道的训练数据"""
     try:
@@ -293,7 +293,7 @@ async def clear_channel_training(channel_id: str):
     except Exception as e:
         raise handle_api_error(e, "清除训练数据")
 
-@router.get("/export")
+@router.get(ROUTES.training.export)
 async def export_training_data():
     """导出训练数据"""
     try:
@@ -326,7 +326,7 @@ async def export_training_data():
     except Exception as e:
         raise handle_api_error(e, "导出训练数据")
 
-@router.post("/auto-learn/{channel_id}")
+@router.post(ROUTES.training.auto_learn)
 async def auto_learn_from_history(channel_id: str):
     """从现有训练样本自动学习频道模式"""
     try:
@@ -368,7 +368,7 @@ async def auto_learn_from_history(channel_id: str):
     except Exception as e:
         raise handle_api_error(e, "自动学习")
 
-@router.get("/sample/{sample_id}")
+@router.get(ROUTES.training.sample_detail)
 async def get_training_sample(sample_id: int):
     """获取单个训练样本详情"""
     try:
@@ -382,7 +382,7 @@ async def get_training_sample(sample_id: int):
     except Exception as e:
         raise handle_api_error(e, "获取训练样本")
 
-@router.get("/separator-patterns")
+@router.get(ROUTES.training.separator_patterns)
 async def get_separator_patterns():
     """获取分隔符模式列表"""
     try:
@@ -395,7 +395,7 @@ async def get_separator_patterns():
     except Exception as e:
         raise handle_api_error(e, "获取分隔符模式")
 
-@router.post("/separator-patterns")
+@router.post(ROUTES.training.separator_patterns)
 async def add_separator_pattern(pattern_data: SeparatorPattern):
     """添加分隔符模式"""
     try:
@@ -424,7 +424,7 @@ async def add_separator_pattern(pattern_data: SeparatorPattern):
     except Exception as e:
         raise handle_api_error(e, "添加分隔符模式")
 
-@router.post("/reload-model")
+@router.post(ROUTES.training.reload_model)
 async def reload_model():
     """重新加载AI模型"""
     try:

@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-19T08:54:03.912292",
+    "updated_at": "2025-08-19T07:25:25.306240",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-19T00:54:06.223123",
+  "updated_at": "2025-08-18T23:30:24.115359",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-19T08:54:03.918512",
+    "updated_at": "2025-08-19T07:25:25.307278",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -23,6 +23,38 @@
     "is_active": true,
     "updated_at": "2025-08-14T23:39:48.869934",
     "created_at": "2025-08-14T23:39:48.869953"
+  },
+  "channels.source_channels": {
+    "value": "[]",
+    "config_type": "list",
+    "description": "监听的源频道列表 (频道ID或用户名)",
+    "is_active": true,
+    "updated_at": "2025-08-14T22:53:30.662569",
+    "created_at": "2025-08-14T22:53:30.662570"
+  },
+  "channels.review_group_id": {
+    "value": "-1002871459104",
+    "config_type": "string",
+    "description": "审核群ID或链接",
+    "is_active": true,
+    "updated_at": "2025-08-15T15:27:58.904163",
+    "created_at": "2025-08-14T22:53:30.662827"
+  },
+  "channels.target_channel_id": {
+    "value": "-1002696592354",
+    "config_type": "string",
+    "description": "目标频道ID",
+    "is_active": true,
+    "updated_at": "2025-08-19T07:25:27.827231",
+    "created_at": "2025-08-14T22:53:30.663414"
+  },
+  "channels.history_message_limit": {
+    "value": "50",
+    "config_type": "integer",
+    "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
+    "is_active": true,
+    "updated_at": "2025-08-18T21:55:25.674643",
+    "created_at": "2025-08-14T22:53:30.663727"
   },
   "review.auto_forward_enabled": {
     "value": "False",
@@ -39,6 +71,30 @@
     "is_active": true,
     "updated_at": "2025-08-18T18:37:35.737336",
     "created_at": "2025-08-14T22:53:30.665092"
+  },
+  "channels.signature": {
+    "value": "🔔 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
+    "config_type": "string",
+    "description": "频道落款内容（支持多行，用\\n分隔）",
+    "is_active": true,
+    "updated_at": "2025-08-18T21:55:25.681993",
+    "created_at": "2025-08-14T22:53:30.665451"
+  },
+  "channels.target_channel": {
+    "value": "@bigeventsinsea",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-19T07:25:27.831823",
+    "created_at": "2025-08-14T23:46:07.015035"
+  },
+  "channels.review_group": {
+    "value": "https://t.me/+HPbDzWj3ID01OTJl",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-18T18:37:35.731978",
+    "created_at": "2025-08-15T00:00:20.971185"
   },
   "filter.enabled": {
     "value": "true",
@@ -120,52 +176,12 @@
     "updated_at": "2025-08-16T22:23:50.891391",
     "created_at": "2025-08-16T22:23:50.891394"
   },
-  "source.history_limit": {
-    "value": "50",
-    "config_type": "integer",
-    "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
-    "is_active": true,
-    "updated_at": "2025-08-18T21:55:25.674643",
-    "created_at": "2025-08-14T22:53:30.663727"
-  },
-  "target.signature": {
-    "value": "🔔 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
+  "channels.review_group_id_cached": {
+    "value": "",
     "config_type": "string",
-    "description": "频道落款内容（支持多行，用\\n分隔）",
+    "description": "缓存的审核群ID（由系统自动解析链接后设置）",
     "is_active": true,
-    "updated_at": "2025-08-18T21:55:25.681993",
-    "created_at": "2025-08-14T22:53:30.665451"
-  },
-  "target.channel_id": {
-    "value": "-1002696592354",
-    "config_type": "string",
-    "description": "目标频道ID",
-    "is_active": true,
-    "updated_at": "2025-08-19T08:54:06.217751",
-    "created_at": "2025-08-14T22:53:30.663414"
-  },
-  "review.group_id": {
-    "value": "-1002871459104",
-    "config_type": "string",
-    "description": "审核群ID或链接",
-    "is_active": true,
-    "updated_at": "2025-08-15T15:27:58.904163",
-    "created_at": "2025-08-14T22:53:30.662827"
-  },
-  "target.channel_link": {
-    "value": "@bigeventsinsea",
-    "config_type": "string",
-    "description": "目标频道链接（用户配置）",
-    "is_active": true,
-    "updated_at": "2025-08-19T08:54:06.223104",
-    "created_at": "2025-08-19T08:41:29.221316"
-  },
-  "review.group_link": {
-    "value": "https://t.me/+HPbDzWj3ID01OTJl",
-    "config_type": "string",
-    "description": "审核群链接（用户配置）",
-    "is_active": true,
-    "updated_at": "2025-08-19T08:41:29.221317",
-    "created_at": "2025-08-19T08:41:29.221318"
+    "updated_at": "2025-08-19T07:30:24.115352",
+    "created_at": "2025-08-19T07:10:54.137476"
   }
 }

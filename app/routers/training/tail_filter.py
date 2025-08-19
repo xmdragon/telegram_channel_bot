@@ -17,7 +17,7 @@ from .base import (
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-tail-filter"])
 
-@router.get("/tail-filter-statistics")
+@router.get(ROUTES.training.tail_filter_statistics)
 async def get_tail_filter_statistics():
     """获取尾部过滤统计信息"""
     try:
@@ -60,7 +60,7 @@ async def get_tail_filter_statistics():
             "today_added": 0
         }
 
-@router.get("/tail-filter-history")
+@router.get(ROUTES.training.tail_filter_history)
 async def get_tail_filter_history(limit: int = 20):
     """获取尾部过滤历史记录"""
     try:
@@ -89,7 +89,7 @@ async def get_tail_filter_history(limit: int = 20):
         logger.error(f"获取尾部过滤历史失败: {e}")
         return {"success": False, "history": []}
 
-@router.get("/tail-filter-samples")
+@router.get(ROUTES.training.tail_filter_samples)
 async def get_tail_filter_samples(page: int = 1, page_size: int = 20):
     """获取尾部过滤训练样本列表"""
     try:
@@ -138,7 +138,7 @@ async def get_tail_filter_samples(page: int = 1, page_size: int = 20):
             "total_pages": 0
         }
 
-@router.post("/tail-filter-samples")
+@router.post(ROUTES.training.tail_filter_samples)
 async def add_tail_filter_sample(request: dict):
     """添加尾部过滤训练样本"""
     try:
@@ -197,7 +197,7 @@ async def add_tail_filter_sample(request: dict):
     except Exception as e:
         raise handle_api_error(e, "添加尾部过滤训练样本")
 
-@router.put("/tail-filter-samples/{sample_id}")
+@router.put(ROUTES.training.tail_filter_samples_by_id)
 async def update_tail_filter_sample(sample_id: int, request: dict):
     """更新尾部过滤训练样本"""
     try:
@@ -239,7 +239,7 @@ async def update_tail_filter_sample(sample_id: int, request: dict):
         logger.error(f"更新尾部过滤样本失败: {e}")
         return {"success": False, "message": str(e)}
 
-@router.delete("/tail-filter-samples/{sample_id}")
+@router.delete(ROUTES.training.tail_filter_samples_by_id)
 async def delete_tail_filter_sample(sample_id: int):
     """删除尾部过滤训练样本"""
     try:
@@ -267,7 +267,7 @@ async def delete_tail_filter_sample(sample_id: int):
     except Exception as e:
         raise handle_api_error(e, "删除尾部过滤训练样本")
 
-@router.post("/tail-filter-samples/detect-duplicates")
+@router.post(ROUTES.training.tail_filter_detect_duplicates)
 async def detect_tail_filter_duplicates():
     """检测尾部过滤样本中的重复项"""
     try:
@@ -381,7 +381,7 @@ async def detect_tail_filter_duplicates():
             "error": str(e)
         }
 
-@router.post("/tail-filter-samples/deduplicate")
+@router.post(ROUTES.training.tail_filter_deduplicate)
 async def deduplicate_tail_filter_samples(request: dict):
     """去重尾部过滤样本"""
     try:

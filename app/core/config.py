@@ -37,7 +37,7 @@ class AppSettings:
     async def get_review_group_id(self) -> str:
         """获取审核群ID配置（URL或用户名格式）"""
         await self._ensure_initialized()
-        return await self._config_manager.get_config("channels.review_group_id", "")
+        return await self._config_manager.get_config("review.group_id", "")
     
     async def get_review_group_resolved_id(self) -> str:
         """获取解析后的审核群ID（数字格式，优先使用cached值，否则尝试解析）"""
@@ -71,7 +71,7 @@ class AppSettings:
     async def get_target_channel_id(self) -> str:
         """获取目标频道ID配置（用户名格式，如@channelname）"""
         await self._ensure_initialized()
-        return await self._config_manager.get_config("channels.target_channel_id", "")
+        return await self._config_manager.get_config("target.channel_id", "")
     
     async def get_target_channel_resolved_id(self) -> str:
         """获取解析后的目标频道ID（数字格式，优先使用cached值，否则尝试解析）"""
@@ -106,7 +106,7 @@ class AppSettings:
     
     async def get_history_message_limit(self) -> int:
         await self._ensure_initialized()
-        return await self._config_manager.get_config("channels.history_message_limit", 50)
+        return await self._config_manager.get_config("source.history_limit", 50)
     
     async def get_history_limit(self) -> int:
         """获取历史消息采集限制"""

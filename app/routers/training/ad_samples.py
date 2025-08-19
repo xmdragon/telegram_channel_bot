@@ -45,7 +45,7 @@ def save_ad_samples(samples: List[Dict]) -> bool:
         logger.error(f"保存广告样本失败: {e}")
         return False
 
-@router.get("/ad-samples")
+@router.get(ROUTES.training.ad_samples)
 async def get_ad_samples(page: int = 1, page_size: int = 20):
     """获取广告样本列表"""
     try:
@@ -74,7 +74,7 @@ async def get_ad_samples(page: int = 1, page_size: int = 20):
             "total_pages": 0
         }
 
-@router.get("/ad-statistics")
+@router.get(ROUTES.training.ad_statistics)
 async def get_ad_statistics():
     """获取广告统计信息"""
     try:
@@ -129,7 +129,7 @@ async def get_ad_statistics():
             }
         }
 
-@router.delete("/ad-samples/{sample_id}")
+@router.delete(ROUTES.training.ad_samples_by_id)
 async def delete_ad_sample(sample_id: str):
     """删除广告样本"""
     try:
@@ -157,7 +157,7 @@ async def delete_ad_sample(sample_id: str):
     except Exception as e:
         raise handle_api_error(e, "删除广告样本")
 
-@router.delete("/ad-samples/batch")
+@router.delete(ROUTES.training.ad_samples_batch)
 async def batch_delete_ad_samples(request: dict):
     """批量删除广告样本"""
     try:
@@ -187,7 +187,7 @@ async def batch_delete_ad_samples(request: dict):
     except Exception as e:
         raise handle_api_error(e, "批量删除广告样本")
 
-@router.post("/ad-samples/detect-duplicates")
+@router.post(ROUTES.training.ad_samples_detect_duplicates)
 async def detect_ad_duplicates():
     """检测广告样本中的重复项"""
     try:
@@ -265,7 +265,7 @@ async def detect_ad_duplicates():
             "error": str(e)
         }
 
-@router.post("/ad-samples/deduplicate")
+@router.post(ROUTES.training.ad_samples_deduplicate)
 async def deduplicate_ad_samples(request: dict):
     """去重广告样本"""
     try:
@@ -293,7 +293,7 @@ async def deduplicate_ad_samples(request: dict):
     except Exception as e:
         return handle_api_error(e, "去重广告样本")
 
-@router.post("/mark-ad-test")
+@router.post(ROUTES.training.mark_ad_test)
 async def mark_ad_test(request: dict):
     """标记广告测试"""
     try:
@@ -312,7 +312,7 @@ async def mark_ad_test(request: dict):
     except Exception as e:
         raise handle_api_error(e, "标记广告测试")
 
-@router.post("/mark-ad-message")
+@router.post(ROUTES.training.mark_ad_message)
 async def mark_ad_message(request: dict):
     """标记广告消息"""
     try:
@@ -327,7 +327,7 @@ async def mark_ad_message(request: dict):
     except Exception as e:
         raise handle_api_error(e, "标记广告消息")
 
-@router.post("/add-ad-sample")
+@router.post(ROUTES.training.add_ad_sample)
 async def add_ad_sample(request: dict):
     """添加广告样本"""
     try:
@@ -371,7 +371,7 @@ async def add_ad_sample(request: dict):
     except Exception as e:
         raise handle_api_error(e, "添加广告样本")
 
-@router.get("/ad-stats")
+@router.get(ROUTES.training.ad_stats)
 async def get_ad_stats():
     """获取广告统计（简化版）"""
     try:
@@ -388,7 +388,7 @@ async def get_ad_stats():
     except Exception as e:
         raise handle_api_error(e, "获取广告统计")
 
-@router.post("/ad-samples/reload")
+@router.post(ROUTES.training.ad_samples_reload)
 async def reload_ad_samples():
     """重新加载广告样本"""
     try:

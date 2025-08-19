@@ -44,7 +44,7 @@ def save_ocr_samples(samples: List[Dict]) -> bool:
         logger.error(f"保存OCR样本失败: {e}")
         return False
 
-@router.get("/ocr-samples")
+@router.get(ROUTES.training.ocr_samples)
 async def get_ocr_samples(page: int = 1, page_size: int = 20):
     """获取OCR样本列表"""
     try:
@@ -73,7 +73,7 @@ async def get_ocr_samples(page: int = 1, page_size: int = 20):
             "total_pages": 0
         }
 
-@router.get("/ocr-samples/statistics")
+@router.get(ROUTES.training.ocr_statistics)
 async def get_ocr_statistics():
     """获取OCR统计信息"""
     try:
@@ -125,7 +125,7 @@ async def get_ocr_statistics():
             }
         }
 
-@router.post("/ocr-samples/learn")
+@router.post(ROUTES.training.ocr_learn)
 async def learn_from_ocr_samples():
     """从OCR样本学习"""
     try:
@@ -149,7 +149,7 @@ async def learn_from_ocr_samples():
     except Exception as e:
         raise handle_api_error(e, "从OCR样本学习")
 
-@router.delete("/ocr-samples/{sample_id}")
+@router.delete(ROUTES.training.ocr_samples_by_id)
 async def delete_ocr_sample(sample_id: str):
     """删除OCR样本"""
     try:
@@ -177,7 +177,7 @@ async def delete_ocr_sample(sample_id: str):
     except Exception as e:
         raise handle_api_error(e, "删除OCR样本")
 
-@router.post("/ocr-samples/export")
+@router.post(ROUTES.training.ocr_export)
 async def export_ocr_samples():
     """导出OCR样本"""
     try:
@@ -201,7 +201,7 @@ async def export_ocr_samples():
     except Exception as e:
         raise handle_api_error(e, "导出OCR样本")
 
-@router.post("/ocr-samples/add")
+@router.post(ROUTES.training.ocr_add)
 async def add_ocr_sample(request: dict):
     """添加OCR样本"""
     try:
@@ -244,7 +244,7 @@ async def add_ocr_sample(request: dict):
     except Exception as e:
         raise handle_api_error(e, "添加OCR样本")
 
-@router.post("/ocr-samples/batch-process")
+@router.post(ROUTES.training.ocr_batch_process)
 async def batch_process_ocr():
     """批量处理OCR"""
     try:
@@ -258,7 +258,7 @@ async def batch_process_ocr():
     except Exception as e:
         raise handle_api_error(e, "批量处理OCR")
 
-@router.get("/ocr-samples/confidence-distribution")
+@router.get(ROUTES.training.ocr_confidence_distribution)
 async def get_confidence_distribution():
     """获取置信度分布"""
     try:

@@ -280,10 +280,10 @@ class TelegramLinkResolver:
             
             # 如果没有缓存，获取配置的审核群设置
             # 先尝试优先使用review_group配置
-            review_group_config = await config_manager.get_config('channels.review_group', '')
+            review_group_config = await config_manager.get_config('review.group_link', '')
             if not review_group_config:
                 # 如果没有，再尝试使用review_group_id配置
-                review_group_config = await config_manager.get_config('channels.review_group_id', '')
+                review_group_config = await config_manager.get_config('review.group_id', '')
             
             if not review_group_config:
                 logger.info("未配置审核群")

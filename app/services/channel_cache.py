@@ -92,7 +92,7 @@ class ChannelCache:
             # 解析并缓存目标频道（优先使用已缓存的ID）
             target_channel_id = await self.config_manager.get_config('channels.target_channel_id_cached', '')
             if not target_channel_id:
-                target_channel = await self.config_manager.get_config('channels.target_channel', '')
+                target_channel = await self.config_manager.get_config('target.channel_link', '')
                 if target_channel:
                     resolved_id = await self.resolve_channel(target_channel)
                     if resolved_id:
@@ -105,7 +105,7 @@ class ChannelCache:
             # 解析并缓存审核群（优先使用已缓存的ID）
             review_group_id = await self.config_manager.get_config('channels.review_group_id_cached', '')
             if not review_group_id:
-                review_group = await self.config_manager.get_config('channels.review_group', '')
+                review_group = await self.config_manager.get_config('review.group_link', '')
                 if review_group:
                     resolved_id = await self.resolve_group(review_group)
                     if resolved_id:
@@ -142,7 +142,7 @@ class ChannelCache:
         """获取目标频道ID（从配置和缓存）"""
         try:
             # 🔧 修复：直接从配置获取，避免async/sync问题
-            target_channel_id = await self.config_manager.get_config('channels.target_channel_id')
+            target_channel_id = await self.config_manager.get_config('target.channel_id')
             if target_channel_id:
                 logger.debug(f"从配置获取目标频道ID: {target_channel_id}")
                 return target_channel_id
@@ -163,7 +163,7 @@ class ChannelCache:
         """获取审核群ID（从配置和缓存）"""
         try:
             # 🔧 修复：直接从配置获取，避免async/sync问题
-            review_group_id = await self.config_manager.get_config('channels.review_group_id')
+            review_group_id = await self.config_manager.get_config('review.group_id')
             if review_group_id:
                 logger.debug(f"从配置获取审核群ID: {review_group_id}")
                 return review_group_id
@@ -202,7 +202,7 @@ class ChannelCache:
                 return target_channel_id
             
             # 如果没有缓存ID，从原始配置解析
-            target_channel = await self.config_manager.get_config('channels.target_channel', '')
+            target_channel = await self.config_manager.get_config('target.channel_link', '')
             if target_channel:
                 resolved_id = await self.resolve_channel(target_channel)
                 if resolved_id:
@@ -227,7 +227,7 @@ class ChannelCache:
                 return review_group_id
             
             # 如果没有缓存ID，从原始配置解析
-            review_group = await self.config_manager.get_config('channels.review_group', '')
+            review_group = await self.config_manager.get_config('review.group_link', '')
             if review_group:
                 resolved_id = await self.resolve_group(review_group)
                 if resolved_id:

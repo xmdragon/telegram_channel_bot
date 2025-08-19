@@ -182,7 +182,7 @@ const ConfigApp = {
             try {
                 const response = await axios.get(API.admin.config);
                 if (response.data) {
-                    // 直接赋值，无需任何判断
+                    // 使用新的配置字段名
                     this.forwardingConfig = {
                         enabled: response.data.auto_forward_enabled || false,
                         target_channel: response.data.target_channel || '',
@@ -191,8 +191,14 @@ const ConfigApp = {
                     };
                 }
             } catch (error) {
-                // 静默处理错误，使用默认配置
-                // console.log('使用默认转发配置');
+                console.error('加载转发配置失败:', error);
+                // 使用默认配置
+                this.forwardingConfig = {
+                    enabled: false,
+                    target_channel: '',
+                    review_group: '',
+                    delay: 1800
+                };
             }
         },
         
@@ -204,8 +210,8 @@ const ConfigApp = {
                     
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
-                        history_message_limit: configs['channels.history_message_limit']?.value || 50,
-                        channel_signature: configs['channels.signature']?.value || '',
+                        history_message_limit: configs['source.history_limit']?.value || 50,
+                        channel_signature: configs['target.signature']?.value || '',
                         collection_enabled: configs['collection.enabled']?.value !== undefined ? configs['collection.enabled'].value : true
                     };
                 }
@@ -404,8 +410,8 @@ const ConfigApp = {
             try {
                 // 准备保存的配置数据
                 const configData = {
-                    'channels.history_message_limit': this.systemConfig.history_message_limit,
-                    'channels.signature': this.systemConfig.channel_signature,
+                    'source.history_limit': this.systemConfig.history_message_limit,
+                    'target.signature': this.systemConfig.channel_signature,
                     'collection.enabled': this.systemConfig.collection_enabled
                 };
                 

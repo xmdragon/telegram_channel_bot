@@ -20,11 +20,11 @@ const API_ENDPOINTS = {
         testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
         getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
-        updateById: (id) => `/api/messages/detail/${id}`,          // PUT - 更新消息内容
-        deleteById: (id) => `/api/messages/detail/${id}`,          // DELETE - 删除单个消息
-        approveById: (id) => `/api/messages/detail/${id}/approve`, // POST - 审核通过单个消息
-        rejectById: (id) => `/api/messages/detail/${id}/reject`,   // POST - 拒绝单个消息
-        deleteReviewById: (id) => `/api/messages/${id}/review-message`, // DELETE - 删除审核消息
+        updateById: (id) => `/api/messages/update/${id}`,          // PUT - 更新消息内容
+        deleteById: (id) => `/api/messages/delete/${id}`,          // DELETE - 删除单个消息
+        approveById: (id) => `/api/messages/approve/${id}`,        // POST - 审核通过单个消息
+        rejectById: (id) => `/api/messages/reject/${id}`,          // POST - 拒绝单个消息
+        deleteReviewById: (id) => `/api/messages/delete-review/${id}`, // DELETE - 删除审核消息
         resendById: (id) => `/api/messages/resend/${id}`,          // POST - 重新发送已批准消息到目标频道
         batchApprove: '/api/messages/batch-approve',               // POST - 批量审核通过消息
         batchReject: '/api/messages/batch-reject',                 // POST - 批量拒绝消息
@@ -36,12 +36,14 @@ const API_ENDPOINTS = {
         export: '/api/messages/export',                            // GET - 导出消息数据
         
         // 消息操作端点
-        notAd: (id) => `/api/messages/${id}/not-ad`,               // POST - 标记消息为非广告
-        filterTail: (id) => `/api/messages/${id}/filter-tail`,     // POST - 执行尾部过滤
-        publish: (id) => `/api/messages/${id}/publish`,            // POST - 发布消息
-        editPublish: (id) => `/api/messages/${id}/edit-publish`,   // POST - 编辑并发布
-        refetchMedia: (id) => `/api/messages/${id}/refetch-media`, // POST - 重新获取媒体
-        trainTail: (id) => `/api/messages/${id}/train-tail`,       // POST - 训练尾部过滤
+        notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
+        filterTail: (id) => `/api/messages/filter-tail/${id}`,     // POST - 执行尾部过滤
+        publish: (id) => `/api/messages/publish/${id}`,            // POST - 发布消息
+        editPublish: (id) => `/api/messages/edit-publish/${id}`,   // POST - 编辑并发布
+        refetchMedia: (id) => `/api/messages/refetch-media/${id}`, // POST - 重新获取媒体
+        trainTail: (id) => `/api/messages/train-tail/${id}`,       // POST - 训练尾部过滤
+        refilter: (id) => `/api/messages/refilter/${id}`,          // POST - 重新过滤消息
+        feedback: (id) => `/api/messages/feedback/${id}`,          // POST - 提交过滤反馈
         refetchTask: (taskId) => `/api/refetch-task/${taskId}`     // GET - 查询媒体补抓任务状态
     },
 

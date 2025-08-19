@@ -14,22 +14,22 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # === 配置读取方法 === 
-@router.get("/config")
+@router.get(ROUTES.admin.config)
 async def get_system_config():
     """获取系统配置"""
     from app.core.config import db_settings
     
     return {
         # 前端显示用（用户友好格式）
-        "target_channel": await config_manager.get_config('channels.target_channel', ''),
-        "review_group": await config_manager.get_config('channels.review_group', ''),
+        "target_channel": await config_manager.get_config('target.channel_link', ''),
+        "review_group": await config_manager.get_config('review.group_link', ''),
         
         # 其他配置
         "auto_forward_enabled": await config_manager.get_config('review.auto_forward_enabled', False),
         "auto_forward_delay": await db_settings.get_auto_forward_delay(),
         "source_channels": await db_settings.get_source_channels(),
         "history_message_limit": await db_settings.get_history_message_limit(),
-        "channels.signature": await config_manager.get_config('channels.signature', ''),
+        "target.signature": await config_manager.get_config('target.signature', ''),
         "collection.enabled": await config_manager.get_config('collection.enabled', True)
     }
 
@@ -110,8 +110,8 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
     """更新转发配置并刷新缓存"""
     try:
         # 保存用户输入的用户名/链接格式
-        await config_manager.set_config('channels.target_channel', request.target_channel)
-        await config_manager.set_config('channels.review_group', request.review_group)
+        await config_manager.set_config('target.channel_link', request.target_channel)
+        await config_manager.set_config('review.group_link', request.review_group)
         await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled)
         await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay)
         
@@ -219,7 +219,7 @@ async def get_review_group_status():
         from app.services.telegram_link_resolver import link_resolver
         
         # 获取配置的审核群
-        review_group_config = await config_manager.get_config('channels.review_group_id', '')
+        review_group_config = await config_manager.get_config('review.group_id', '')
         cached_id = await link_resolver.get_cached_group_id()
         effective_id = await link_resolver.get_effective_group_id()
         

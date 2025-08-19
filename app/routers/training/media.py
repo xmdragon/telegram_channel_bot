@@ -17,7 +17,7 @@ from app.utils.safe_file_ops import SafeFileOperation
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-media"])
 
-@router.get("/media-files")
+@router.get(ROUTES.training.media_files)
 async def get_media_files():
     """获取媒体文件列表"""
     try:
@@ -125,7 +125,7 @@ async def get_media_files():
             }
         }
 
-@router.delete("/media-files/{file_hash}")
+@router.delete(ROUTES.training.media_files_by_hash)
 async def delete_media_file(file_hash: str):
     """删除媒体文件"""
     try:
@@ -146,7 +146,7 @@ async def delete_media_file(file_hash: str):
     except Exception as e:
         raise handle_api_error(e, "删除媒体文件")
 
-@router.post("/media-files/clean-orphaned")
+@router.post(ROUTES.training.media_files_clean_orphaned)
 async def clean_orphaned_files():
     """清理孤立的媒体文件"""
     try:
@@ -160,7 +160,7 @@ async def clean_orphaned_files():
     except Exception as e:
         raise handle_api_error(e, "清理孤立文件")
 
-@router.get("/media-files/duplicates")
+@router.get(ROUTES.training.media_files_duplicates)
 async def get_duplicate_files():
     """检测视觉重复的媒体文件"""
     try:
@@ -267,7 +267,7 @@ async def get_duplicate_files():
         logger.error(f"检测重复媒体文件失败: {e}")
         return {"success": False, "error": str(e), "duplicates": [], "stats": {"groups": 0, "total_duplicates": 0}}
 
-@router.get("/media-files/export")
+@router.get(ROUTES.training.media_files_export)
 async def export_media_files():
     """导出媒体文件信息"""
     try:
@@ -286,7 +286,7 @@ async def export_media_files():
     except Exception as e:
         raise handle_api_error(e, "导出媒体文件")
 
-@router.post("/media-files/deduplicate")
+@router.post(ROUTES.training.media_files_deduplicate)
 async def deduplicate_media_files():
     """执行视觉去重"""
     try:
@@ -426,7 +426,7 @@ async def deduplicate_media_files():
     except Exception as e:
         return handle_api_error(e, "执行去重")
 
-@router.post("/media-files/rebuild-visual-hashes")
+@router.post(ROUTES.training.media_files_rebuild_visual_hashes)
 async def rebuild_visual_hashes():
     """重建视觉哈希"""
     try:
@@ -439,7 +439,7 @@ async def rebuild_visual_hashes():
     except Exception as e:
         raise handle_api_error(e, "重建视觉哈希")
 
-@router.get("/media-files/{file_hash}/ocr")
+@router.get(ROUTES.training.media_files_ocr)
 async def get_media_ocr(file_hash: str):
     """获取媒体文件的OCR结果"""
     try:
