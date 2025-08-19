@@ -592,3 +592,66 @@ class MessageProcessor:
             logger.info("过期数据清理完成")
         except Exception as e:
             logger.error(f"清理过期数据失败: {e}")
+    
+    async def mark_as_not_ad(self, channel_id: str, message_id: int, user_id: str = None) -> bool:
+        """
+        标记消息为非广告
+        会将消息状态从广告改为待审核，并清理相关训练数据
+        
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID
+            user_id: 操作用户ID
+            
+        Returns:
+            bool: 操作是否成功
+        """
+        try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = get_redis_message_store()
+                except RuntimeError:
+                    logger.error("Redis连接失败")
+                    return False
+            
+            # 获取消息
+            msg_data = await self.get_message(channel_id, message_id)
+            if not msg_data:
+                logger.warning(f"消息不存在: {channel_id}:{message_id}")
+                return False
+            
+            # 检查消息是否确实被标记为广告
+            if msg_data.get('is_ad') != 'True':
+                logger.info(f"消息 {channel_id}:{message_id} 未被标记为广告，无需操作")
+                return True
+            
+            # 更新消息状态
+            update_data = {
+                'status': 'pending',  # 改回待审核状态
+                'is_ad': 'False',     # 标记为非广告
+                'reviewed_by': user_id or 'system',
+                'reviewed_at': datetime.utcnow().isoformat(),
+                'not_ad_marked_at': datetime.utcnow().isoformat()
+            }
+            
+            success = self.redis_store.update_message(channel_id, message_id, update_data)
+            if not success:
+                logger.error(f"更新消息状态失败: {channel_id}:{message_id}")
+                return False
+            
+            # 清理相关训练数据
+            try:
+                from app.services.training_media_manager import training_media_manager
+                deleted_count = await training_media_manager.remove_training_media_by_message(message_id)
+                logger.info(f"消息 {channel_id}:{message_id} 标记为非广告，清理了 {deleted_count} 个训练文件")
+            except Exception as e:
+                logger.error(f"清理训练数据失败: {e}")
+                # 不因为清理失败而让整个操作失败
+            
+            logger.info(f"消息 {channel_id}:{message_id} 已标记为非广告")
+            return True
+            
+        except Exception as e:
+            logger.error(f"标记非广告失败 {channel_id}:{message_id}: {e}")
+            return False

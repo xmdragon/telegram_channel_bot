@@ -244,13 +244,13 @@ class RouteConfig:
         
         # 媒体文件
         media_files = "/training/media-files"
-        media_files_by_hash = "/training/media-files/{file_hash}"
         media_files_clean_orphaned = "/training/media-files/clean-orphaned"
         media_files_duplicates = "/training/media-files/duplicates"
         media_files_export = "/training/media-files/export"
         media_files_deduplicate = "/training/media-files/deduplicate"
         media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
-        media_files_ocr = "/training/media-files/{file_hash}/ocr"
+        media_files_ocr = "/training/media-files/ocr/{file_hash}"
+        media_files_by_hash = "/training/media-files/{file_hash}"
     
     def __init__(self):
         self.messages = self.Messages()

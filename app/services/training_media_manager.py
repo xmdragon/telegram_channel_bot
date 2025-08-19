@@ -307,7 +307,7 @@ class TrainingMediaManager:
             
             if media_type in ["video", "animation"]:
                 # 视频：保存第一帧截图
-                target_filename = f"{message_id}_{timestamp}_{file_hash[:8]}_frame.jpg"
+                target_filename = f"{message_id}_{timestamp}_{file_hash[:8]}.jpg"
                 target_path = target_dir / target_filename
                 
                 # 使用已经提取的帧数据

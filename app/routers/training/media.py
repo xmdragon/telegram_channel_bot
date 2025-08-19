@@ -467,6 +467,7 @@ async def get_media_ocr(file_hash: str):
         
         # 在OCR样本中查找匹配的文件hash
         ocr_result = None
+        logger.debug(f"搜索OCR样本中的hash: {file_hash}, 样本数量: {len(data['samples'])}")
         for sample in data["samples"]:
             # 检查image_hash字段（OCR中的hash可能是短格式）
             ocr_hash = sample.get("image_hash", "")
@@ -474,14 +475,17 @@ async def get_media_ocr(file_hash: str):
                 # 完全匹配
                 if ocr_hash == file_hash:
                     ocr_result = sample
+                    logger.debug(f"找到完全匹配的OCR数据: {ocr_hash}")
                     break
                 # 检查完整hash是否以OCR hash开头（OCR hash是短格式）
                 if file_hash.startswith(ocr_hash):
                     ocr_result = sample
+                    logger.debug(f"找到前缀匹配的OCR数据: {ocr_hash}")
                     break
                 # 反向检查：OCR hash是否以file hash开头
                 if ocr_hash.startswith(file_hash):
                     ocr_result = sample
+                    logger.debug(f"找到反向匹配的OCR数据: {ocr_hash}")
                     break
             
             # 不使用路径匹配 - 只返回精确hash匹配的真实OCR数据
@@ -502,12 +506,62 @@ async def get_media_ocr(file_hash: str):
                 "ad_score": ocr_result.get("ad_score", 0.0)
             }
         else:
-            return {
-                "success": True,
-                "ocr_text": "",
-                "confidence": 0.0,
-                "processed_at": datetime.now().isoformat(),
-                "message": f"未找到文件 {file_hash} 的OCR数据"
-            }
+            # 没有找到缓存的OCR数据，尝试实时识别
+            try:
+                # 根据hash查找实际图片文件
+                media_dir = PathConfig.AD_MEDIA_DIR
+                media_metadata_file = PathConfig.AD_MEDIA_METADATA_FILE
+                
+                # 从metadata中查找文件路径
+                image_path = None
+                if media_metadata_file.exists():
+                    metadata = SafeFileOperation.read_json_safe(media_metadata_file)
+                    if metadata and "media_files" in metadata:
+                        file_info = metadata["media_files"].get(file_hash)
+                        if file_info:
+                            potential_path = media_dir / file_info["path"]
+                            # 检查文件是否存在且是图片格式（根据扩展名判断）
+                            if potential_path.exists() and potential_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+                                image_path = str(potential_path)
+                
+                if not image_path:
+                    return {
+                        "success": True,
+                        "ocr_text": "",
+                        "confidence": 0.0,
+                        "processed_at": datetime.now().isoformat(),
+                        "message": f"未找到文件 {file_hash} 对应的图片文件"
+                    }
+                
+                # 实时OCR识别
+                from app.services.ocr_service import ocr_service
+                logger.info(f"实时OCR识别图片: {image_path}")
+                
+                ocr_result = await ocr_service.extract_image_content(image_path)
+                
+                # 合并OCR文本
+                combined_text = "\n".join(ocr_result.get("texts", [])) if ocr_result.get("texts") else ""
+                
+                return {
+                    "success": True,
+                    "ocr_text": combined_text,
+                    "confidence": 0.9 if combined_text else 0.0,
+                    "processed_at": datetime.now().isoformat(),
+                    "qr_codes": ocr_result.get("qr_codes", []),
+                    "keywords_detected": ocr_result.get("ad_indicators", []),
+                    "is_ad": ocr_result.get("has_ad_content", False),
+                    "ad_score": ocr_result.get("ad_score", 0.0),
+                    "message": "实时OCR识别结果"
+                }
+                
+            except Exception as ocr_error:
+                logger.error(f"实时OCR识别失败: {ocr_error}")
+                return {
+                    "success": True,
+                    "ocr_text": "",
+                    "confidence": 0.0,
+                    "processed_at": datetime.now().isoformat(),
+                    "message": f"OCR识别失败: {str(ocr_error)}"
+                }
     except Exception as e:
         raise handle_api_error(e, "获取OCR结果")

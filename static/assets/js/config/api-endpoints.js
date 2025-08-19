@@ -70,62 +70,62 @@ const API_ENDPOINTS = {
         websocket: '/api/telegram-auth/ws/auth'                     // WebSocket - 认证WebSocket连接
     },
 
-    // 训练数据模块 - /api/training-db
+    // 训练数据模块 - /api/training
     training: {
         // 分隔符模式管理
-        separatorPatterns: '/api/training-db/separator-patterns',   // GET/POST - 获取/保存分隔符模式
+        separatorPatterns: '/api/training/separator-patterns',   // GET/POST - 获取/保存分隔符模式
 
         // 广告样本管理
-        adSamples: '/api/training-db/ad-samples',                   // GET - 获取广告样本列表（分页）
-        adSampleById: (id) => `/api/training-db/ad-samples/${id}`,  // DELETE - 删除单个广告样本
-        adSamplesBatch: '/api/training-db/ad-samples/batch',        // DELETE - 批量删除广告样本
-        adSamplesDetectDuplicates: '/api/training-db/ad-samples/detect-duplicates', // POST - 检测重复广告样本
-        adSamplesDeduplicate: '/api/training-db/ad-samples/deduplicate', // POST - 去重广告样本
-        adStatistics: '/api/training-db/ad-statistics',             // GET - 获取广告训练统计
+        adSamples: '/api/training/ad-samples',                   // GET - 获取广告样本列表（分页）
+        adSampleById: (id) => `/api/training/ad-samples/${id}`,  // DELETE - 删除单个广告样本
+        adSamplesBatch: '/api/training/ad-samples/batch',        // DELETE - 批量删除广告样本
+        adSamplesDetectDuplicates: '/api/training/ad-samples/detect-duplicates', // POST - 检测重复广告样本
+        adSamplesDeduplicate: '/api/training/ad-samples/deduplicate', // POST - 去重广告样本
+        adStatistics: '/api/training/ad-statistics',             // GET - 获取广告训练统计
 
         // 尾部过滤样本管理
-        tailFilterSamples: '/api/training-db/tail-filter-samples',  // GET/POST - 获取/添加尾部过滤样本
-        tailFilterSampleById: (id) => `/api/training-db/tail-filter-samples/${id}`, // PUT/DELETE - 更新/删除尾部过滤样本
-        tailFilterStatistics: '/api/training-db/tail-filter-statistics', // GET - 获取尾部过滤统计
-        tailFilterHistory: '/api/training-db/tail-filter-history',  // GET - 获取尾部过滤历史
-        tailFilterDetectDuplicates: '/api/training-db/tail-filter-samples/detect-duplicates', // POST - 检测重复尾部样本
-        tailFilterDeduplicate: '/api/training-db/tail-filter-samples/deduplicate', // POST - 去重尾部样本
+        tailFilterSamples: '/api/training/tail-filter-samples',  // GET/POST - 获取/添加尾部过滤样本
+        tailFilterSampleById: (id) => `/api/training/tail-filter-samples/${id}`, // PUT/DELETE - 更新/删除尾部过滤样本
+        tailFilterStatistics: '/api/training/tail-filter-statistics', // GET - 获取尾部过滤统计
+        tailFilterHistory: '/api/training/tail-filter-history',  // GET - 获取尾部过滤历史
+        tailFilterDetectDuplicates: '/api/training/tail-filter-samples/detect-duplicates', // POST - 检测重复尾部样本
+        tailFilterDeduplicate: '/api/training/tail-filter-samples/deduplicate', // POST - 去重尾部样本
 
         // 媒体文件管理
-        mediaFiles: '/api/training-db/media-files',                 // GET - 获取媒体文件列表
-        mediaFileById: (hash) => `/api/training-db/media-files/${hash}`, // DELETE - 删除媒体文件
-        mediaFileOcr: (hash) => `/api/training-db/media-files/${hash}/ocr`, // GET - 获取媒体文件OCR结果
-        mediaFilesExport: '/api/training-db/media-files/export',    // GET - 导出媒体文件
-        mediaFilesCleanOrphaned: '/api/training-db/media-files/clean-orphaned', // POST - 清理孤立文件
-        mediaFilesDuplicates: '/api/training-db/media-files/duplicates', // GET - 检测重复媒体文件
-        mediaFilesDeduplicate: '/api/training-db/media-files/deduplicate', // POST - 去重媒体文件
-        mediaFilesRebuildHashes: '/api/training-db/media-files/rebuild-visual-hashes', // POST - 重建视觉哈希
+        mediaFiles: '/api/training/media-files',                 // GET - 获取媒体文件列表
+        mediaFileById: (hash) => `/api/training/media-files/${hash}`, // DELETE - 删除媒体文件
+        mediaFileOcr: (hash) => `/api/training/media-files/ocr/${hash}`, // GET - 获取媒体文件OCR结果
+        mediaFilesExport: '/api/training/media-files/export',    // GET - 导出媒体文件
+        mediaFilesCleanOrphaned: '/api/training/media-files/clean-orphaned', // POST - 清理孤立文件
+        mediaFilesDuplicates: '/api/training/media-files/duplicates', // GET - 检测重复媒体文件
+        mediaFilesDeduplicate: '/api/training/media-files/deduplicate', // POST - 去重媒体文件
+        mediaFilesRebuildHashes: '/api/training/media-files/rebuild-visual-hashes', // POST - 重建视觉哈希
 
         // 其他训练功能
-        channels: '/api/training-db/channels',                      // GET - 获取频道列表
-        stats: '/api/training-db/stats',                           // GET - 获取训练统计
-        history: '/api/training-db/history',                       // GET - 获取训练历史
-        submit: '/api/training-db/submit',                         // POST - 提交训练数据
-        apply: '/api/training-db/apply',                           // POST - 应用训练数据
-        sampleById: (id) => `/api/training-db/sample/${id}`,       // GET - 获取训练样本详情
-        clearChannel: (id) => `/api/training-db/clear/${id}`,      // DELETE - 清除频道训练数据
-        autoLearn: (id) => `/api/training-db/auto-learn/${id}`,    // POST - 自动学习频道模式
-        exportData: '/api/training-db/export',                     // GET - 导出训练数据
-        optimizeStorage: '/api/training-db/optimize-storage',      // POST - 优化存储空间
-        reloadModel: '/api/training-db/reload-model',              // POST - 重新加载模型
-        markAdMessage: '/api/training-db/mark-ad-message',         // POST - 标记消息为广告
-        markAdTest: '/api/training-db/mark-ad-test',               // POST - 测试标记功能
-        learningStats: '/api/training-db/learning-stats',         // GET - 获取学习统计
+        channels: '/api/training/channels',                      // GET - 获取频道列表
+        stats: '/api/training/stats',                           // GET - 获取训练统计
+        history: '/api/training/history',                       // GET - 获取训练历史
+        submit: '/api/training/submit',                         // POST - 提交训练数据
+        apply: '/api/training/apply',                           // POST - 应用训练数据
+        sampleById: (id) => `/api/training/sample/${id}`,       // GET - 获取训练样本详情
+        clearChannel: (id) => `/api/training/clear/${id}`,      // DELETE - 清除频道训练数据
+        autoLearn: (id) => `/api/training/auto-learn/${id}`,    // POST - 自动学习频道模式
+        exportData: '/api/training/export',                     // GET - 导出训练数据
+        optimizeStorage: '/api/training/optimize-storage',      // POST - 优化存储空间
+        reloadModel: '/api/training/reload-model',              // POST - 重新加载模型
+        markAdMessage: '/api/training/mark-ad-message',         // POST - 标记消息为广告
+        markAdTest: '/api/training/mark-ad-test',               // POST - 测试标记功能
+        learningStats: '/api/training/learning-stats',         // GET - 获取学习统计
         
         // 额外的训练相关端点
-        tailAdSamples: '/api/training-db/tail-ad-samples',         // GET/POST - 尾部广告样本
-        promoSamples: '/api/training-db/promo-samples',            // POST - 推广样本
-        previewPromoFilter: '/api/training-db/preview-promo-filter', // POST - 预览推广过滤器
+        tailAdSamples: '/api/training/tail-ad-samples',         // GET/POST - 尾部广告样本
+        promoSamples: '/api/training/promo-samples',            // POST - 推广样本
+        previewPromoFilter: '/api/training/preview-promo-filter', // POST - 预览推广过滤器
         
         // 阈值管理
-        thresholdsStats: '/api/training-db/thresholds/stats',          // GET - 获取阈值统计
-        thresholdsOptimize: '/api/training-db/thresholds/optimize',    // POST - 优化阈值
-        thresholdsReset: (filterName, metricName) => `/api/training-db/thresholds/${filterName}/${metricName}/reset` // POST - 重置阈值
+        thresholdsStats: '/api/training/thresholds/stats',          // GET - 获取阈值统计
+        thresholdsOptimize: '/api/training/thresholds/optimize',    // POST - 优化阈值
+        thresholdsReset: (filterName, metricName) => `/api/training/thresholds/${filterName}/${metricName}/reset` // POST - 重置阈值
     },
 
     // 配置管理模块 - /api/config
