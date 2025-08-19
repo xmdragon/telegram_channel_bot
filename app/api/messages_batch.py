@@ -78,7 +78,7 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
                 continue
                 
             # 检查消息是否存在且为指定状态
-            msg_data = redis_store.get_message(channel_id, int(message_id))
+            msg_data = redis_store.get_message(channel_id, int(message_id), silent=True)
             # 如果status_filter为None，接受任何状态的消息；否则只接受匹配状态的消息
             status_matches = status_filter is None or msg_data.get('status') == status_filter
             if msg_data and status_matches:

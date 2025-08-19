@@ -240,7 +240,7 @@ class MessageForwarder:
                         msg_id_str = msg_id_str.decode('utf-8') if isinstance(msg_id_str, bytes) else str(msg_id_str)
                         if ':' in msg_id_str:
                             msg_channel_id, msg_message_id = msg_id_str.split(':', 1)
-                            group_msg = redis_store.get_message(msg_channel_id, int(msg_message_id))
+                            group_msg = redis_store.get_message(msg_channel_id, int(msg_message_id), silent=True)
                             if group_msg and group_msg.get('status') == 'approved':
                                 group_messages.append(group_msg)
                     

@@ -233,7 +233,7 @@ class MessageProcessor:
                 return None
             
             # 非重复消息，检查Redis中是否已存在
-            existing_message = self.redis_store.get_message(channel_id, int(message_id))
+            existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
             
             if existing_message:
                 logger.info(f"📋 message_processor: 消息已存在于Redis中：频道 {channel_id}，消息ID {message_id}")
@@ -573,7 +573,7 @@ class MessageProcessor:
             for key in duplicate_keys:
                 try:
                     channel_id, message_id = key.split(':', 1)
-                    msg = self.redis_store.get_message(channel_id, int(message_id))
+                    msg = self.redis_store.get_message(channel_id, int(message_id), silent=True)
                     if msg:
                         messages.append(msg)
                 except Exception as e:
