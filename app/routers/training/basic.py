@@ -16,6 +16,7 @@ from .base import (
     paginate_data
 )
 from app.core.path_config import PathConfig
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-basic"])
