@@ -92,8 +92,10 @@ class TrainingMediaManager:
             ret, frame = cap.read()
             
             if ret:
-                # 将帧转换为JPEG格式的字节数据
-                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                # 压缩图片尺寸和质量
+                frame = self._compress_image(frame)
+                # 将帧转换为JPEG格式的字节数据（低质量压缩）
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 65])
                 return buffer.tobytes()
             return None
         except Exception as e:
@@ -102,6 +104,48 @@ class TrainingMediaManager:
         finally:
             if cap is not None:
                 cap.release()
+    
+    def _compress_image(self, image):
+        """压缩图片尺寸"""
+        height, width = image.shape[:2]
+        
+        # 设置最大尺寸（训练用途不需要太高分辨率）
+        max_width = 800
+        max_height = 600
+        
+        # 如果图片过大，按比例缩放
+        if width > max_width or height > max_height:
+            scale_w = max_width / width
+            scale_h = max_height / height
+            scale = min(scale_w, scale_h)
+            
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            
+            image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            logger.debug(f"图片压缩：{width}x{height} -> {new_width}x{new_height}")
+        
+        return image
+    
+    def _compress_image_file(self, file_path: Path) -> Optional[bytes]:
+        """压缩图片文件"""
+        try:
+            # 读取图片
+            image = cv2.imread(str(file_path))
+            if image is None:
+                logger.warning(f"无法读取图片文件: {file_path}")
+                return None
+            
+            # 压缩尺寸
+            image = self._compress_image(image)
+            
+            # 编码为JPEG（压缩质量）
+            _, buffer = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 65])
+            return buffer.tobytes()
+            
+        except Exception as e:
+            logger.error(f"压缩图片文件失败 {file_path}: {e}")
+            return None
     
     async def check_visual_duplicate(self, media_data: bytes, media_type: str) -> Optional[Dict]:
         """检查视觉重复
@@ -280,14 +324,20 @@ class TrainingMediaManager:
                 
                 actual_media_type = "image"  # 保存的是图片
             else:
-                # 图片：正常保存
-                ext = source.suffix or ".jpg"
-                target_filename = f"{message_id}_{timestamp}_{file_hash[:8]}{ext}"
+                # 图片：压缩后保存
+                target_filename = f"{message_id}_{timestamp}_{file_hash[:8]}.jpg"  # 统一保存为jpg
                 target_path = target_dir / target_filename
                 
-                # 复制图片文件
-                shutil.copy2(source, target_path)
-                logger.info(f"已保存训练图片: {target_path}")
+                # 压缩图片并保存
+                compressed_data = self._compress_image_file(source)
+                if compressed_data:
+                    with open(target_path, 'wb') as f:
+                        f.write(compressed_data)
+                    logger.info(f"已保存压缩训练图片: {target_path}")
+                else:
+                    # 压缩失败，使用原文件
+                    shutil.copy2(source, target_path)
+                    logger.warning(f"图片压缩失败，使用原文件: {target_path}")
                 
                 actual_media_type = media_type
             
