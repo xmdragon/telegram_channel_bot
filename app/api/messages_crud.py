@@ -431,8 +431,20 @@ async def update_message(
         update_data["updated_at"] = get_current_time().isoformat()
         update_data["updated_by"] = user.get('user_id')
         
+        # 解析message_id获取channel_id
+        if ':' in message_id:
+            channel_id, msg_id = message_id.split(':', 1)
+            msg_id = int(msg_id)
+        else:
+            # 尝试从消息数据中获取channel_id
+            channel_id = message.get('source_channel')
+            msg_id = int(message_id)
+        
+        if not channel_id:
+            raise HTTPException(status_code=400, detail="无法确定消息的频道ID")
+        
         # 执行更新
-        success = redis_store.update_message(message_id, update_data)
+        success = await redis_store.update_message(channel_id, msg_id, update_data)
         if not success:
             raise HTTPException(status_code=500, detail="更新消息失败")
         
@@ -475,21 +487,20 @@ async def edit_and_publish_message(
     request: dict = Body({})
 ):
     """
-    编辑并发布消息
+    编辑消息（仅编辑，不自动发布）
     """
     try:
-        # 先更新消息内容
+        # 只更新消息内容，不进行发布
         if "content" in request or "filtered_content" in request:
-            await update_message(message_id, request, user)
-        
-        # 然后发布消息
-        return await publish_message(message_id, user)
+            return await update_message(message_id, user, request)
+        else:
+            raise HTTPException(status_code=400, detail="没有提供要更新的内容")
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"编辑并发布消息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"编辑并发布消息失败: {str(e)}")
+        logger.error(f"编辑消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"编辑消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.resend)
 @check_permission("message.resend")
