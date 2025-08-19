@@ -291,10 +291,11 @@ class MessageStorageProcessor(MessageProcessor):
         优先使用公开频道用户名，否则使用内部频道ID格式
         """
         try:
-            from app.storage.json_store import json_channels_store
+            from app.storage.json_store import get_json_channel_store
             
             # 尝试从频道配置获取用户名
-            channels_data = json_channels_store.get_all() or {}
+            channel_store = get_json_channel_store()
+            channels_data = channel_store.get_all() or {}
             
             # 查找匹配的频道
             for channel_key, channel_info in channels_data.items():
