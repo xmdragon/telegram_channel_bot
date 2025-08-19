@@ -62,7 +62,7 @@ const app = createApp({
             systemStats: {
                 total: { label: '总消息', value: 0 },
                 pending: { label: '待审核', value: 0 },
-                approved: { label: '已批准', value: 0 },
+                approved: { label: '已发布', value: 0 },
                 rejected: { label: '已拒绝', value: 0 },
                 ads: { label: '广告消息', value: 0 },
                 duplicates: { label: '重复消息', value: 0 },

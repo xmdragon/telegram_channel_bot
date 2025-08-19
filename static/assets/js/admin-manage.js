@@ -305,7 +305,7 @@ createApp({
         getPermissionLabel(permission) {
             const labels = {
                 'messages.view': '查看消息',
-                'messages.approve': '批准消息',
+                'messages.approve': '发布消息',
                 'messages.reject': '拒绝消息',
                 'config.view': '查看配置',
                 'config.edit': '编辑配置',

@@ -25,7 +25,7 @@ const API_ENDPOINTS = {
         approveById: (id) => `/api/messages/approve/${id}`,        // POST - 审核通过单个消息
         rejectById: (id) => `/api/messages/reject/${id}`,          // POST - 拒绝单个消息
         deleteReviewById: (id) => `/api/messages/delete-review/${id}`, // DELETE - 删除审核消息
-        resendById: (id) => `/api/messages/resend/${id}`,          // POST - 重新发送已批准消息到目标频道
+        resendById: (id) => `/api/messages/resend/${id}`,          // POST - 重新发布已发布消息到目标频道
         batchApprove: '/api/messages/batch/approve',               // POST - 批量审核通过消息
         batchReject: '/api/messages/batch/reject',                 // POST - 批量拒绝消息
         batchDelete: '/api/messages/batch/delete',                 // POST - 批量删除消息

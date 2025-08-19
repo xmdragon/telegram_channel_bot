@@ -44,7 +44,7 @@ const MainApp = {
             stats: {
                 total: { value: 0, label: '总消息' },
                 pending: { value: 0, label: '待审核' },
-                approved: { value: 0, label: '已批准' },
+                approved: { value: 0, label: '已发布' },
                 rejected: { value: 0, label: '已拒绝' },
                 ads: { value: 0, label: '广告消息' },
                 duplicates: { value: 0, label: '重复消息' },
@@ -665,7 +665,7 @@ const MainApp = {
         getStatusText(status) {
             const statusMap = {
                 'pending': '待审核',
-                'approved': '已批准',
+                'approved': '已发布',
                 'rejected': '已拒绝',
                 'auto_forwarded': '自动转发'
             };
@@ -701,7 +701,7 @@ const MainApp = {
         
         // 获取原消息链接
         getOriginalMessageLink(message) {
-            if (!message.message_id) {
+            if (!message.id) {
                 return '#';
             }
             
@@ -787,7 +787,7 @@ const MainApp = {
             const labelMap = {
                 'total': '总消息',
                 'pending': '待审核',
-                'approved': '已批准', 
+                'approved': '已发布', 
                 'rejected': '已拒绝',
                 'ads': '广告消息',
                 'duplicates': '重复消息',
@@ -821,13 +821,13 @@ const MainApp = {
             MessageManager.info('已清除频道筛选');
         },
         
-        // 批准消息
+        // 发布消息
         async approveMessage(messageId) {
             try {
                 const response = await axios.post(API.messages.approveById(messageId));
                 if (response.data.success) {
-                    MessageManager.success('消息已批准');
-                    // 如果当前过滤器是待审核状态，从列表中移除已批准的消息
+                    MessageManager.success('消息已发布');
+                    // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
                     if (this.filters.status === 'pending') {
                         this.messages = this.messages.filter(msg => msg.id !== messageId);
                     } else {
@@ -839,10 +839,10 @@ const MainApp = {
                     }
                     this.loadStats();
                 } else {
-                    MessageManager.error('批准失败: ' + response.data.message);
+                    MessageManager.error('发布失败: ' + response.data.message);
                 }
             } catch (error) {
-                MessageManager.error('批准失败: ' + (error.response?.data?.detail || error.message));
+                MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
@@ -911,10 +911,10 @@ const MainApp = {
             return this.selectedMessages.includes(messageId);
         },
         
-        // 批量批准
+        // 批量发布
         async batchApprove() {
             if (this.selectedMessages.length === 0) {
-                MessageManager.warning('请先选择要批准的消息');
+                MessageManager.warning('请先选择要发布的消息');
                 return;
             }
             
@@ -923,15 +923,15 @@ const MainApp = {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
-                    MessageManager.success(`成功批准 ${this.selectedMessages.length} 条消息`);
+                    MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.loadStats();
                 } else {
-                    MessageManager.error('批量批准失败: ' + response.data.message);
+                    MessageManager.error('批量发布失败: ' + response.data.message);
                 }
             } catch (error) {
-                MessageManager.error('批量批准失败: ' + (error.response?.data?.detail || error.message));
+                MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
@@ -1370,7 +1370,7 @@ const MainApp = {
         handleMessageStatusUpdate(updateData) {
             const messageIndex = this.messages.findIndex(msg => msg.id === updateData.message_id);
             if (messageIndex !== -1) {
-                // 如果当前过滤器是待审核，且消息状态变为已批准或已拒绝，从列表中移除
+                // 如果当前过滤器是待审核，且消息状态变为已发布或已拒绝，从列表中移除
                 if (this.filters.status === 'pending' && 
                     (updateData.status === 'approved' || updateData.status === 'rejected')) {
                     this.messages.splice(messageIndex, 1);
@@ -1482,10 +1482,10 @@ const MainApp = {
             }
         },
         
-        // 批量批准消息
+        // 批量发布消息
         async approveMessages() {
             if (this.selectedMessages.length === 0) {
-                MessageManager.warning('请先选择要批准的消息');
+                MessageManager.warning('请先选择要发布的消息');
                 return;
             }
             
@@ -1494,15 +1494,15 @@ const MainApp = {
                     message_ids: this.selectedMessages
                 });
                 if (response.data.success) {
-                    MessageManager.success(`成功批准 ${this.selectedMessages.length} 条消息`);
+                    MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.loadStats();
                 } else {
-                    MessageManager.error('批量批准失败: ' + response.data.message);
+                    MessageManager.error('批量发布失败: ' + response.data.message);
                 }
             } catch (error) {
-                MessageManager.error('批量批准失败: ' + (error.response?.data?.detail || error.message));
+                MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
@@ -1530,23 +1530,23 @@ const MainApp = {
             }
         },
         
-        // 重新发送消息到目标频道
+        // 重新发布消息到目标频道
         async resendMessage(message) {
             try {
-                MessageManager.info('正在重新发送消息到目标频道...');
+                MessageManager.info('正在重新发布消息到目标频道...');
                 
-                const response = await axios.post(window.API.messages.resendById(message.message_id));
+                const response = await axios.post(window.API.messages.resendById(message.id));
                 
                 if (response.data.success) {
-                    MessageManager.success('消息已重新发送到目标频道');
+                    MessageManager.success('消息已重新发布到目标频道');
                     this.loadMessages(); // 刷新消息列表
                 } else {
-                    MessageManager.error('重新发送失败: ' + response.data.message);
+                    MessageManager.error('重新发布失败: ' + response.data.message);
                 }
             } catch (error) {
-                const errorMsg = error.response?.data?.detail || error.message || '重新发送失败';
-                MessageManager.error('重新发送失败: ' + errorMsg);
-                console.error('重新发送消息错误:', error);
+                const errorMsg = error.response?.data?.detail || error.message || '重新发布失败';
+                MessageManager.error('重新发布失败: ' + errorMsg);
+                console.error('重新发布消息错误:', error);
             }
         },
         
@@ -1634,7 +1634,7 @@ const MainApp = {
         getStatusTag(status) {
             const statusMap = {
                 'pending': { text: '待审核', type: 'warning' },
-                'approved': { text: '已批准', type: 'success' },
+                'approved': { text: '已发布', type: 'success' },
                 'rejected': { text: '已拒绝', type: 'danger' },
                 'auto_forwarded': { text: '自动转发', type: 'info' }
             };
@@ -1677,7 +1677,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(API.messages.notAd(message.message_id));
+                const response = await axios.post(API.messages.notAd(message.id));
                 
                 if (response.data.success) {
                     MessageManager.success('已标记为"不是广告"，消息状态已改为待审核');
@@ -1714,7 +1714,7 @@ const MainApp = {
                     if (response.data.removed_length && response.data.removed_length > 0) {
                         MessageManager.success(`尾部过滤成功，移除了 ${response.data.removed_length} 个字符`);
                         // 更新消息的过滤后内容
-                        const index = this.messages.findIndex(m => m.message_id === message.message_id);
+                        const index = this.messages.findIndex(m => m.id === message.id);
                         if (index !== -1) {
                             this.messages[index].filtered_content = response.data.filtered_content;
                         }
