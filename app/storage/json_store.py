@@ -44,9 +44,8 @@ class JSONStore:
         file_path = self._get_file_path(filename)
         
         try:
-            # system.json频繁更新，不需要备份；其他文件保持备份
-            should_backup = filename != "system.json"
-            success = SafeFileOperation.write_json_safe(file_path, data, backup=should_backup)
+            # 禁用自动备份，由用户自己备份
+            success = SafeFileOperation.write_json_safe(file_path, data, backup=False)
             if success:
                 logger.debug(f"JSON文件已保存: {filename}")
             return success

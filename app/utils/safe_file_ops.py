@@ -130,7 +130,7 @@ class SafeFileOperation:
                 updated_data = update_func(data)
                 
                 # 写回文件
-                return cls.write_json_safe(file_path, updated_data, backup=True)
+                return cls.write_json_safe(file_path, updated_data, backup=False)
                 
             except Exception as e:
                 logger.error(f"更新文件失败 {file_path}: {e}")
