@@ -11,26 +11,37 @@ class RouteConfig:
     """路由配置类"""
     
     class Messages:
-        """消息相关路由"""
+        """消息相关路由 - 统一action-first设计"""
+        # 基础查询
         list = "/messages/"
         channel_info = "/messages/channel-info"
         detail = "/messages/detail/{message_id}"
-        approve = "/messages/detail/{message_id}/approve"
-        reject = "/messages/detail/{message_id}/reject"
-        delete = "/messages/detail/{message_id}"
+        
+        # 核心操作 - action-first模式
+        approve = "/messages/approve/{message_id}"
+        reject = "/messages/reject/{message_id}"
+        delete = "/messages/delete/{message_id}"
+        update = "/messages/update/{message_id}"
+        
+        # 高级操作
+        edit_publish = "/messages/edit-publish/{message_id}"
+        publish = "/messages/publish/{message_id}"
+        resend = "/messages/resend/{message_id}"
+        
+        # 过滤器操作
+        filter_tail = "/messages/filter-tail/{message_id}"
+        train_tail = "/messages/train-tail/{message_id}"
+        not_ad = "/messages/not-ad/{message_id}"
+        refetch_media = "/messages/refetch-media/{message_id}"
+        refilter = "/messages/refilter/{message_id}"
+        feedback = "/messages/feedback/{message_id}"
+        delete_review = "/messages/delete-review/{message_id}"
         
         # 批量操作
         batch_approve = "/messages/batch/approve"
         batch_reject = "/messages/batch/reject"
         batch_delete = "/messages/batch/delete"
         batch_refetch_media = "/messages/batch/refetch-media"
-        
-        # 过滤器操作
-        filter_tail = "/messages/{message_id}/filter-tail"
-        refilter = "/messages/{message_id}/refilter"
-        train_tail = "/messages/{message_id}/train-tail"
-        not_ad = "/messages/{message_id}/not-ad"
-        feedback = "/messages/{message_id}/feedback"
         
         
         # 统计相关
@@ -152,6 +163,95 @@ class RouteConfig:
         status = "/lock/status"
         force_release = "/lock/force-release"
     
+    class AI:
+        """AI功能控制路由"""
+        status = "/ai/status"
+        enable = "/ai/enable"
+        disable = "/ai/disable"
+        config = "/ai/config"
+        module_config = "/ai/module-config"
+        cache_info = "/ai/cache/info"
+        cache_preload = "/ai/cache/preload"
+        cache_clear = "/ai/cache/clear"
+        lightweight_train = "/ai/lightweight-train"
+        recommendations = "/ai/recommendations"
+    
+    class Training:
+        """训练数据管理路由"""
+        # 广告样本
+        ad_samples = "/training/ad-samples"
+        ad_statistics = "/training/ad-statistics"
+        ad_samples_by_id = "/training/ad-samples/{sample_id}"
+        ad_samples_batch = "/training/ad-samples/batch"
+        ad_samples_detect_duplicates = "/training/ad-samples/detect-duplicates"
+        ad_samples_deduplicate = "/training/ad-samples/deduplicate"
+        mark_ad_test = "/training/mark-ad-test"
+        mark_ad_message = "/training/mark-ad-message"
+        add_ad_sample = "/training/add-ad-sample"
+        ad_stats = "/training/ad-stats"
+        ad_samples_reload = "/training/ad-samples/reload"
+        
+        # 基础训练
+        channels = "/training/channels"
+        stats = "/training/stats"
+        history = "/training/history"
+        submit = "/training/submit"
+        sample_by_id = "/training/{sample_id}"
+        apply = "/training/apply"
+        clear_by_channel = "/training/clear/{channel_id}"
+        export = "/training/export"
+        auto_learn = "/training/auto-learn/{channel_id}"
+        sample_detail = "/training/sample/{sample_id}"
+        separator_patterns = "/training/separator-patterns"
+        reload_model = "/training/reload-model"
+        
+        # OCR样本
+        ocr_samples = "/training/ocr-samples"
+        ocr_statistics = "/training/ocr-samples/statistics"
+        ocr_learn = "/training/ocr-samples/learn"
+        ocr_samples_by_id = "/training/ocr-samples/{sample_id}"
+        ocr_export = "/training/ocr-samples/export"
+        ocr_add = "/training/ocr-samples/add"
+        ocr_batch_process = "/training/ocr-samples/batch-process"
+        ocr_confidence_distribution = "/training/ocr-samples/confidence-distribution"
+        
+        # 管理功能
+        optimize_storage = "/training/optimize-storage"
+        optimize_storage_sse = "/training/optimize-storage-sse"
+        learning_stats = "/training/learning-stats"
+        emergency_backup = "/training/emergency-backup"
+        integrity_report = "/training/integrity-report"
+        verify_integrity = "/training/verify-integrity"
+        cleanup_backups = "/training/cleanup-backups"
+        backups = "/training/backups"
+        restore = "/training/restore/{backup_filename}"
+        feedback = "/training/feedback"
+        statistics = "/training/statistics"
+        clear = "/training/clear"
+        
+        # 尾部过滤器
+        tail_filter_statistics = "/training/tail-filter-statistics"
+        tail_filter_history = "/training/tail-filter-history"
+        tail_filter_samples = "/training/tail-filter-samples"
+        tail_filter_samples_by_id = "/training/tail-filter-samples/{sample_id}"
+        tail_filter_detect_duplicates = "/training/tail-filter-samples/detect-duplicates"
+        tail_filter_deduplicate = "/training/tail-filter-samples/deduplicate"
+        
+        # 阈值管理
+        thresholds_stats = "/training/thresholds/stats"
+        thresholds_optimize = "/training/thresholds/optimize"
+        thresholds_reset = "/training/thresholds/{filter_name}/{metric_name}/reset"
+        
+        # 媒体文件
+        media_files = "/training/media-files"
+        media_files_by_hash = "/training/media-files/{file_hash}"
+        media_files_clean_orphaned = "/training/media-files/clean-orphaned"
+        media_files_duplicates = "/training/media-files/duplicates"
+        media_files_export = "/training/media-files/export"
+        media_files_deduplicate = "/training/media-files/deduplicate"
+        media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
+        media_files_ocr = "/training/media-files/{file_hash}/ocr"
+    
     def __init__(self):
         self.messages = self.Messages()
         self.admin = self.Admin()
@@ -161,6 +261,8 @@ class RouteConfig:
         self.system = self.System()
         self.channel_resolver = self.ChannelResolver()
         self.lock = self.Lock()
+        self.ai = self.AI()
+        self.training = self.Training()
 
 # 全局路由配置实例
 ROUTES = RouteConfig()

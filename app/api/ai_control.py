@@ -8,6 +8,7 @@ import logging
 
 from app.services.auth_service import get_auth_service
 from app.core.ai_config import get_ai_config
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -17,7 +18,7 @@ async def require_admin():
     # 简化版权限检查，实际项目应有完整的权限系统
     return True
 
-@router.get("/status")
+@router.get(ROUTES.ai.status)
 async def get_ai_status():
     """获取AI功能状态"""
     try:
@@ -30,7 +31,7 @@ async def get_ai_status():
         logger.error(f"获取AI状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/enable")
+@router.post(ROUTES.ai.enable)
 async def enable_ai(admin: bool = Depends(require_admin)):
     """启用AI功能"""
     try:
@@ -50,7 +51,7 @@ async def enable_ai(admin: bool = Depends(require_admin)):
         logger.error(f"启用AI功能失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/disable")
+@router.post(ROUTES.ai.disable)
 async def disable_ai(admin: bool = Depends(require_admin)):
     """禁用AI功能"""
     try:
@@ -70,7 +71,7 @@ async def disable_ai(admin: bool = Depends(require_admin)):
         logger.error(f"禁用AI功能失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/cache/info")
+@router.get(ROUTES.ai.cache_info)
 async def get_cache_info():
     """获取模型缓存信息"""
     try:
@@ -85,7 +86,7 @@ async def get_cache_info():
         logger.error(f"获取缓存信息失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/cache/preload")
+@router.post(ROUTES.ai.cache_preload)
 async def preload_models(admin: bool = Depends(require_admin)):
     """预加载AI模型"""
     try:
@@ -102,7 +103,7 @@ async def preload_models(admin: bool = Depends(require_admin)):
         logger.error(f"预加载模型失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/cache/clear")
+@router.delete(ROUTES.ai.cache_clear)
 async def clear_cache(admin: bool = Depends(require_admin)):
     """清理模型缓存"""
     try:
