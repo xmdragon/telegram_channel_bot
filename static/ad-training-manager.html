@@ -55,7 +55,7 @@
                                 @keyup.enter="loadSamples"
                                 clearable>
                                 <template #prefix>
-                                    <el-icon><Search /></el-icon>
+                                    <el-icon><search /></el-icon>
                                 </template>
                             </el-input>
                             <el-select v-model="filterType" placeholder="筛选类型" class="filter-select" @change="loadSamples">
@@ -68,15 +68,15 @@
                         <!-- 按钮栏 -->
                         <div class="button-bar">
                             <el-button @click="showDuplicates" type="warning" class="btn-warning">
-                                <el-icon><CopyDocument /></el-icon>
+                                <el-icon><copy-document /></el-icon>
                                 检测重复
                             </el-button>
                             <el-button @click="optimizeStorage" type="info">
-                                <el-icon><FolderOpened /></el-icon>
+                                <el-icon><folder-opened /></el-icon>
                                 优化存储
                             </el-button>
                             <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
-                                <el-icon><Delete /></el-icon>
+                                <el-icon><delete /></el-icon>
                                 批量删除 ({{ selectedSamples.length }})
                             </el-button>
                         </div>
