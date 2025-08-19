@@ -28,9 +28,21 @@ class GitAutoCommitter:
                 text=True,
                 check=True
             )
-            return True, result.stdout
+            # 成功时合并stdout和stderr（git commit的pre-commit输出在stderr）
+            output = result.stdout.strip()
+            if result.stderr.strip():
+                # 如果stderr有内容，通常是pre-commit hook等信息输出
+                if output:
+                    output += "\n" + result.stderr.strip()
+                else:
+                    output = result.stderr.strip()
+            return True, output
         except subprocess.CalledProcessError as e:
-            return False, e.stderr
+            # 失败时提供完整的错误信息
+            error_output = e.stderr.strip()
+            if e.stdout.strip():
+                error_output = f"{e.stdout.strip()}\n{error_output}" if error_output else e.stdout.strip()
+            return False, error_output
     
     def get_changed_files(self) -> List[str]:
         """获取已修改的文件列表"""
@@ -241,10 +253,29 @@ class GitAutoCommitter:
             return False
         
         # 执行提交
+        print("🚀 执行Git提交...")
         success, output = self.run_git_command(['commit', '-m', message])
         if success:
             print(f"✅ 提交成功！")
-            print(output)
+            
+            # 显示提交输出（包括pre-commit信息）
+            if output:
+                # 过滤和美化输出
+                lines = output.split('\n')
+                for line in lines:
+                    if line.strip():
+                        # 识别pre-commit相关输出
+                        if any(keyword in line for keyword in ['Pre-commit', '🔒', '🎉', '检查']):
+                            print(f"🔧 {line}")
+                        elif 'files changed' in line or 'insertions' in line or 'deletions' in line:
+                            print(f"📊 {line}")
+                        else:
+                            print(f"ℹ️  {line}")
+            
+            # 获取最新提交的hash
+            commit_success, commit_hash = self.run_git_command(['rev-parse', '--short', 'HEAD'])
+            if commit_success:
+                print(f"📝 提交哈希: {commit_hash.strip()}")
             
             # 询问是否推送（处理非交互环境）
             try:
@@ -254,11 +285,13 @@ class GitAutoCommitter:
                 push = 'n'
                 
             if push == 'y':
-                success, output = self.run_git_command(['push'])
-                if success:
+                push_success, push_output = self.run_git_command(['push'])
+                if push_success:
                     print("✅ 推送成功！")
+                    if push_output:
+                        print(f"📤 {push_output}")
                 else:
-                    print(f"❌ 推送失败: {output}")
+                    print(f"❌ 推送失败: {push_output}")
             return True
         else:
             print(f"❌ 提交失败: {output}")
