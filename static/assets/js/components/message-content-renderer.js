@@ -24,41 +24,36 @@ const MessageContentRenderer = {
             return this.message.filtered_content || this.message.content || '';
         },
         
-        // 是否应该显示左右栏对比
+        // 是否应该显示左右栏对比（始终显示，只要有内容字段）
         shouldShowContentComparison() {
-            const hasContent = !!this.message.content;
-            const hasFilteredContent = !!this.message.filtered_content;
+            return !!(this.message.content && this.message.filtered_content);
+        },
+        
+        // 内容是否真正被过滤
+        isContentActuallyFiltered() {
+            const contentsDifferent = this.message.content !== this.message.filtered_content;
+            const hasRemovedLinks = !!(this.message.removed_hidden_links && this.message.removed_hidden_links.length > 0);
+            return contentsDifferent || hasRemovedLinks;
+        },
+        
+        // 过滤状态描述
+        filterStatus() {
+            if (!this.shouldShowContentComparison) {
+                return { type: 'none', text: '无对比数据', icon: '⚪' };
+            }
+            
             const contentsDifferent = this.message.content !== this.message.filtered_content;
             const hasRemovedLinks = !!(this.message.removed_hidden_links && this.message.removed_hidden_links.length > 0);
             
-            const shouldShow = (hasContent && hasFilteredContent && contentsDifferent) || hasRemovedLinks;
-            
-            // 🔍 详细调试日志
-            if (window.MessageComparisonDebug && window.MessageComparisonDebug.enableDebug) {
-                console.log(`🔍 [消息 #${this.message.id}] shouldShowContentComparison:`, {
-                    shouldShow,
-                    hasContent,
-                    hasFilteredContent,
-                    contentsDifferent,
-                    hasRemovedLinks,
-                    originalContent: hasContent ? `"${this.message.content}"` : null,
-                    filteredContent: hasFilteredContent ? `"${this.message.filtered_content}"` : null,
-                    contentLength: hasContent ? this.message.content.length : 0,
-                    filteredLength: hasFilteredContent ? this.message.filtered_content.length : 0,
-                    removedLinksCount: hasRemovedLinks ? this.message.removed_hidden_links.length : 0
-                });
-                
-                // 如果有内容但不显示对比，特别标记
-                if (hasContent && hasFilteredContent && !shouldShow) {
-                    console.warn(`⚠️ [消息 #${this.message.id}] 有内容但未显示对比！`, {
-                        contentEqual: this.message.content === this.message.filtered_content,
-                        contentTrimEqual: this.message.content.trim() === this.message.filtered_content.trim(),
-                        hasSpaceOnlyDifferences: this.message.content.replace(/\s/g, '') === this.message.filtered_content.replace(/\s/g, '')
-                    });
-                }
+            if (contentsDifferent && hasRemovedLinks) {
+                return { type: 'filtered-and-links', text: '内容已过滤并移除链接', icon: '🔄' };
+            } else if (contentsDifferent) {
+                return { type: 'filtered', text: '内容已过滤', icon: '🔄' };
+            } else if (hasRemovedLinks) {
+                return { type: 'links-only', text: '仅移除隐藏链接', icon: '🔗' };
+            } else {
+                return { type: 'unchanged', text: '内容未被过滤', icon: '⚪' };
             }
-            
-            return shouldShow;
         },
         
         // 消息状态标签
@@ -260,8 +255,18 @@ const MessageContentRenderer = {
             
             <!-- 消息内容 -->
             <div class="message-content">
-                <!-- 双栏内容对比显示（当内容真正被过滤时） -->
-                <div v-if="shouldShowContentComparison" class="message-content-comparison">
+                <!-- 双栏内容对比显示 -->
+                <div v-if="shouldShowContentComparison" 
+                     :class="['message-content-comparison', { 'unchanged': !isContentActuallyFiltered }]">
+                    <!-- 过滤状态指示器 -->
+                    <div class="comparison-status-bar">
+                        <span :class="['status-indicator', 'status-' + filterStatus.type]">
+                            {{ filterStatus.icon }} {{ filterStatus.text }}
+                        </span>
+                        <div v-if="!isContentActuallyFiltered" class="status-note">
+                            原始内容与过滤后内容相同
+                        </div>
+                    </div>
                     <!-- 左栏：过滤后内容（包含媒体） -->
                     <div class="content-column content-filtered">
                         <div class="content-column-header">
