@@ -516,6 +516,17 @@ const MainApp = {
                         // 替换整个列表
                         this.messages = newMessages;
                         
+                        // 🔍 调试: 分析消息对比显示问题
+                        if (window.MessageComparisonDebug && window.MessageComparisonDebug.enableDebug) {
+                            console.log('🔍 [调试] 消息加载完成，开始分析对比显示问题...');
+                            console.log('📊 加载的消息数量:', newMessages.length);
+                            
+                            // 分析消息数据
+                            setTimeout(() => {
+                                window.MessageComparisonDebug.analyzeAllMessages(newMessages);
+                            }, 1000);
+                        }
+                        
                         // 强制Vue重新渲染
                         this.$nextTick(() => {
                         });

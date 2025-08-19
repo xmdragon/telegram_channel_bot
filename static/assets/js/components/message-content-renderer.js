@@ -26,9 +26,39 @@ const MessageContentRenderer = {
         
         // 是否应该显示左右栏对比
         shouldShowContentComparison() {
-            return (this.message.content && this.message.filtered_content && 
-                    this.message.content !== this.message.filtered_content) || 
-                   (this.message.removed_hidden_links && this.message.removed_hidden_links.length > 0);
+            const hasContent = !!this.message.content;
+            const hasFilteredContent = !!this.message.filtered_content;
+            const contentsDifferent = this.message.content !== this.message.filtered_content;
+            const hasRemovedLinks = !!(this.message.removed_hidden_links && this.message.removed_hidden_links.length > 0);
+            
+            const shouldShow = (hasContent && hasFilteredContent && contentsDifferent) || hasRemovedLinks;
+            
+            // 🔍 详细调试日志
+            if (window.MessageComparisonDebug && window.MessageComparisonDebug.enableDebug) {
+                console.log(`🔍 [消息 #${this.message.id}] shouldShowContentComparison:`, {
+                    shouldShow,
+                    hasContent,
+                    hasFilteredContent,
+                    contentsDifferent,
+                    hasRemovedLinks,
+                    originalContent: hasContent ? `"${this.message.content}"` : null,
+                    filteredContent: hasFilteredContent ? `"${this.message.filtered_content}"` : null,
+                    contentLength: hasContent ? this.message.content.length : 0,
+                    filteredLength: hasFilteredContent ? this.message.filtered_content.length : 0,
+                    removedLinksCount: hasRemovedLinks ? this.message.removed_hidden_links.length : 0
+                });
+                
+                // 如果有内容但不显示对比，特别标记
+                if (hasContent && hasFilteredContent && !shouldShow) {
+                    console.warn(`⚠️ [消息 #${this.message.id}] 有内容但未显示对比！`, {
+                        contentEqual: this.message.content === this.message.filtered_content,
+                        contentTrimEqual: this.message.content.trim() === this.message.filtered_content.trim(),
+                        hasSpaceOnlyDifferences: this.message.content.replace(/\s/g, '') === this.message.filtered_content.replace(/\s/g, '')
+                    });
+                }
+            }
+            
+            return shouldShow;
         },
         
         // 消息状态标签
