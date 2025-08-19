@@ -138,6 +138,20 @@ const ConfigApp = {
     },
     
     methods: {
+        // 工具函数：解析boolean值
+        parseBooleanValue(value, defaultValue = false) {
+            if (value === undefined || value === null) {
+                return defaultValue;
+            }
+            if (typeof value === 'boolean') {
+                return value;
+            }
+            if (typeof value === 'string') {
+                return value.toLowerCase() === 'true';
+            }
+            return Boolean(value);
+        },
+        
         async loadConfigData() {
             this.loading = true;
             this.loadingMessage = '正在加载配置数据...';
@@ -186,15 +200,17 @@ const ConfigApp = {
                     const configs = response.data.configs;
                     
                     this.forwardingConfig = {
-                        enabled: configs['review.auto_forward_enabled']?.value === 'true' || false,
+                        enabled: this.parseBooleanValue(configs['review.auto_forward_enabled']?.value, false),
                         target_channel: configs['target.channel_link']?.value || '',
                         review_group: configs['review.group_link']?.value || '',
                         delay: parseInt(configs['review.auto_forward_delay']?.value) || 1800,
-                        auto_reject_ads: configs['review.auto_reject_ads']?.value === 'true' || false,
+                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads']?.value, false),
                         // 加载已解析的ID
                         target_channel_id: configs['target.channel_id']?.value || '',
                         review_group_id: configs['review.group_id']?.value || ''
                     };
+                    
+                    console.log('加载的转发配置:', this.forwardingConfig);
                 }
             } catch (error) {
                 console.error('加载转发配置失败:', error);
@@ -219,10 +235,12 @@ const ConfigApp = {
                     
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
-                        history_message_limit: configs['source.history_limit']?.value || 50,
+                        history_message_limit: parseInt(configs['source.history_limit']?.value) || 50,
                         channel_signature: configs['target.signature']?.value || '',
-                        collection_enabled: configs['collection.enabled']?.value !== undefined ? configs['collection.enabled'].value : true
+                        collection_enabled: this.parseBooleanValue(configs['collection.enabled']?.value, true)
                     };
+                    
+                    console.log('加载的系统配置:', this.systemConfig);
                 }
             } catch (error) {
                 console.error('加载系统配置失败:', error);
@@ -398,24 +416,30 @@ const ConfigApp = {
             try {
                 // 使用批量配置保存API
                 const configData = {
-                    'review.auto_forward_enabled': this.forwardingConfig.enabled,
+                    'review.auto_forward_enabled': Boolean(this.forwardingConfig.enabled),
                     'target.channel_link': this.forwardingConfig.target_channel.trim(),
                     'review.group_link': this.forwardingConfig.review_group.trim(),
-                    'review.auto_forward_delay': this.forwardingConfig.delay,
-                    'review.auto_reject_ads': this.forwardingConfig.auto_reject_ads,
+                    'review.auto_forward_delay': parseInt(this.forwardingConfig.delay),
+                    'review.auto_reject_ads': Boolean(this.forwardingConfig.auto_reject_ads),
                     'target.channel_id': this.forwardingConfig.target_channel_id,
                     'review.group_id': this.forwardingConfig.review_group_id
                 };
+                
+                // 调试日志
+                console.log('保存配置数据:', configData);
                 
                 const response = await axios.post(API.admin.configBatch, configData);
                 
                 if (response.data.success) {
                     MessageManager.success('转发配置保存成功');
+                    // 保存成功后重新加载配置
+                    await this.loadForwardingConfig();
                 } else {
                     throw new Error(response.data.message || '配置保存失败');
                 }
                 
             } catch (error) {
+                console.error('保存配置错误:', error);
                 MessageManager.error('转发配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -424,21 +448,26 @@ const ConfigApp = {
             try {
                 // 准备保存的配置数据
                 const configData = {
-                    'source.history_limit': this.systemConfig.history_message_limit,
+                    'source.history_limit': parseInt(this.systemConfig.history_message_limit),
                     'target.signature': this.systemConfig.channel_signature,
-                    'collection.enabled': this.systemConfig.collection_enabled
+                    'collection.enabled': Boolean(this.systemConfig.collection_enabled)
                 };
+                
+                // 调试日志
+                console.log('保存系统配置数据:', configData);
                 
                 // 批量保存配置
                 const response = await axios.post(API.admin.configBatch, configData);
                 
                 if (response.data.success) {
                     MessageManager.success('系统配置保存成功');
+                    // 保存成功后重新加载配置
+                    await this.loadSystemConfig();
                 } else {
                     throw new Error(response.data.message || '保存配置失败');
                 }
             } catch (error) {
-                // console.error('保存系统配置失败:', error);
+                console.error('保存系统配置失败:', error);
                 MessageManager.error('系统配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
