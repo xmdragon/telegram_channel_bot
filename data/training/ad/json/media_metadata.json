@@ -1771,9 +1771,43 @@
       "display_path": "images/2025-08/5184_20250810_215635_628691a4.jpg",
       "sync_source": "file_system",
       "file_category": "video_snapshot"
+    },
+    "0183f4bdd1b3fa5befa01061e02a70da5b251a57505b25f1b5c28be4c631804d": {
+      "path": "images/2025-08/5192_20250810_215635_d801164d.jpg",
+      "message_ids": [
+        5192
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 71337,
+      "saved_at": "2025-08-19T14:03:18.394145",
+      "original_name": "5192_20250810_215635_d801164d.jpg",
+      "file_hash": "0183f4bdd1b3fa5befa01061e02a70da5b251a57505b25f1b5c28be4c631804d",
+      "display_path": "images/2025-08/5192_20250810_215635_d801164d.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
+    },
+    "8a23f7f33ced08f54d6375faceafc66891956ede9cceeabff2fd15e237aeadd5": {
+      "path": "images/2025-08/5244_20250810_215635_b745cc3b.jpg",
+      "message_ids": [
+        5244
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 80631,
+      "saved_at": "2025-08-19T14:03:18.395192",
+      "original_name": "5244_20250810_215635_b745cc3b.jpg",
+      "file_hash": "8a23f7f33ced08f54d6375faceafc66891956ede9cceeabff2fd15e237aeadd5",
+      "display_path": "images/2025-08/5244_20250810_215635_b745cc3b.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
     }
   },
-  "updated_at": "2025-08-19T13:36:20.561804",
+  "updated_at": "2025-08-19T14:03:18.395519",
   "deduplication_log": {
     "timestamp": "2025-08-18T16:20:06.437895",
     "deleted": 2,

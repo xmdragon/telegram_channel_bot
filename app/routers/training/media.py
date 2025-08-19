@@ -98,6 +98,8 @@ async def get_media_files():
         image_count = len([f for f in media_files if f['type'] == 'image'])
         video_count = len([f for f in media_files if f['type'] == 'video'])
         total_size = sum(f['size'] for f in media_files)
+        referenced_count = len([f for f in media_files if f['isReferenced']])
+        orphaned_count = total_files - referenced_count
         
         return {
             "success": True,
@@ -107,8 +109,8 @@ async def get_media_files():
                 "imageCount": image_count,
                 "videoCount": video_count,
                 "totalSize": total_size,
-                "referencedCount": total_files,  # 暂时假设都被引用
-                "orphanedCount": 0
+                "referencedCount": referenced_count,
+                "orphanedCount": orphaned_count
             }
         }
     except Exception as e:
