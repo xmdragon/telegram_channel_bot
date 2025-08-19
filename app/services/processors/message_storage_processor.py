@@ -221,8 +221,10 @@ class MessageStorageProcessor(MessageProcessor):
             )
             
             if is_duplicate:
+                # 🔧 修复：构建完整的消息ID格式 channel_id:message_id
+                original_full_id = f"{context.channel_id}:{orig_id}" if orig_id else None
                 duplicate_info = {
-                    'original_id': orig_id,
+                    'original_id': original_full_id,
                     'type': dup_type,
                     'reason': f"{dup_type}重复"
                 }
@@ -361,8 +363,10 @@ class DuplicateChecker(MessageProcessor):
             )
             
             if is_duplicate:
+                # 🔧 修复：构建完整的消息ID格式 channel_id:message_id
+                original_full_id = f"{context.channel_id}:{orig_id}" if orig_id else None
                 context.duplicate_info = {
-                    'original_id': orig_id,
+                    'original_id': original_full_id,
                     'type': dup_type,
                     'reason': f"{dup_type}重复"
                 }
