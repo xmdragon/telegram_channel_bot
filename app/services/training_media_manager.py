@@ -174,8 +174,30 @@ class TrainingMediaManager:
                 logger.warning(f"源文件不存在: {source_path}")
                 return None
             
-            # 计算文件哈希
-            file_hash = self.calculate_file_hash(source)
+            # 准备媒体数据用于哈希计算和去重
+            media_data = None
+            visual_hashes = None
+            actual_file_data = None  # 实际要保存的文件数据
+            
+            if media_type in ["photo", "image"]:
+                # 图片：直接读取文件数据
+                with open(source, 'rb') as f:
+                    media_data = f.read()
+                    actual_file_data = media_data
+            elif media_type in ["video", "animation"]:
+                # 视频：提取第一帧作为实际保存的数据
+                media_data = self.extract_video_frame(source)
+                actual_file_data = media_data
+                if not media_data:
+                    logger.error(f"无法提取视频帧: {source}")
+                    return None
+            
+            # 基于实际要保存的数据计算哈希
+            import tempfile
+            with tempfile.NamedTemporaryFile() as temp_file:
+                temp_file.write(actual_file_data)
+                temp_file.flush()
+                file_hash = self.calculate_file_hash(Path(temp_file.name))
             
             # 检查是否已存在完全相同的文件（文件级别去重）
             if file_hash in self.metadata.get("media_files", {}):
@@ -187,102 +209,89 @@ class TrainingMediaManager:
                     existing["message_ids"].append(message_id)
                     self.save_metadata()
                 
+                # 如果是视频，删除临时文件
+                if media_type in ["video", "animation"]:
+                    try:
+                        source.unlink()
+                        logger.info(f"已删除重复视频的临时文件: {source}")
+                    except Exception as e:
+                        logger.warning(f"删除临时视频文件失败: {e}")
+                
                 return existing["path"]
             
-            # 准备媒体数据用于视觉哈希计算
-            media_data = None
-            visual_hashes = None
-            
-            if self.visual_detector:
-                if media_type in ["photo", "image"]:
-                    # 读取图片数据
-                    with open(source, 'rb') as f:
-                        media_data = f.read()
-                elif media_type in ["video", "animation"]:
-                    # 提取视频第一帧
-                    media_data = self.extract_video_frame(source)
-                
-                # 检查视觉重复（视觉级别去重）
-                if media_data:
-                    duplicate = await self.check_visual_duplicate(media_data, media_type)
-                    if duplicate:
-                        existing_info = duplicate["file_info"]
-                        logger.info(
-                            f"发现视觉相似文件（{duplicate['hash_type']} 相似度: "
-                            f"{duplicate['similarity']*100:.1f}%），合并引用: {existing_info['path']}"
-                        )
-                        
-                        # 添加新的关联到视觉相似的文件
-                        if message_id not in existing_info.get("message_ids", []):
-                            existing_info["message_ids"].append(message_id)
-                            # 更新视觉相似文件的元数据
-                            self.metadata["media_files"][duplicate["file_hash"]] = existing_info
-                            self.save_metadata()
-                        
-                        return existing_info["path"]
+            # 检查视觉重复（视觉级别去重）
+            if self.visual_detector and media_data:
+                duplicate = await self.check_visual_duplicate(media_data, media_type)
+                if duplicate:
+                    existing_info = duplicate["file_info"]
+                    logger.info(
+                        f"发现视觉相似文件（{duplicate['hash_type']} 相似度: "
+                        f"{duplicate['similarity']*100:.1f}%），合并引用: {existing_info['path']}"
+                    )
                     
-                    # 计算并保存视觉哈希供后续使用
-                    try:
-                        visual_hashes = self.visual_detector.calculate_perceptual_hashes(media_data)
-                    except Exception as e:
-                        logger.warning(f"计算视觉哈希失败: {e}")
-                        visual_hashes = None
+                    # 添加新的关联到视觉相似的文件
+                    if message_id not in existing_info.get("message_ids", []):
+                        existing_info["message_ids"].append(message_id)
+                        # 更新视觉相似文件的元数据
+                        self.metadata["media_files"][duplicate["file_hash"]] = existing_info
+                        self.save_metadata()
+                    
+                    # 如果是视频，删除临时文件
+                    if media_type in ["video", "animation"]:
+                        try:
+                            source.unlink()
+                            logger.info(f"已删除视觉相似视频的临时文件: {source}")
+                        except Exception as e:
+                            logger.warning(f"删除临时视频文件失败: {e}")
+                    
+                    return existing_info["path"]
+                
+                # 计算并保存视觉哈希供后续使用
+                try:
+                    visual_hashes = self.visual_detector.calculate_perceptual_hashes(media_data)
+                except Exception as e:
+                    logger.warning(f"计算视觉哈希失败: {e}")
+                    visual_hashes = None
             
-            # 确定目标目录
+            # 处理不同媒体类型
             current_month = datetime.now().strftime("%Y-%m")
-            if media_type in ["photo", "image"]:
-                target_dir = self.images_dir / current_month
-            elif media_type in ["video", "animation"]:
-                target_dir = self.videos_dir / current_month
-            else:
-                target_dir = self.images_dir / current_month  # 默认放到图片目录
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             
+            # 保存实际文件（都保存为图片）
+            target_dir = self.images_dir / current_month
             target_dir.mkdir(parents=True, exist_ok=True)
             
-            # 生成目标文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            ext = source.suffix or ".jpg"  # 默认扩展名
-            target_filename = f"{message_id}_{timestamp}_{file_hash[:8]}{ext}"
-            target_path = target_dir / target_filename
-            
-            # 复制文件
-            shutil.copy2(source, target_path)
-            logger.info(f"已保存训练媒体: {target_path}")
-            
-            # 对于视频，生成缩略图
-            thumbnail_path = None
             if media_type in ["video", "animation"]:
+                # 视频：保存第一帧截图
+                target_filename = f"{message_id}_{timestamp}_{file_hash[:8]}_frame.jpg"
+                target_path = target_dir / target_filename
+                
+                # 使用已经提取的帧数据
+                with open(target_path, 'wb') as f:
+                    f.write(actual_file_data)
+                logger.info(f"已保存视频第一帧: {target_path}")
+                
+                # 删除临时视频文件，节省空间
                 try:
-                    # 生成缩略图文件名和路径
-                    thumbnail_dir = self.images_dir / current_month
-                    thumbnail_dir.mkdir(parents=True, exist_ok=True)
-                    thumbnail_filename = f"{message_id}_{timestamp}_{file_hash[:8]}_thumb.jpg"
-                    thumbnail_full_path = thumbnail_dir / thumbnail_filename
-                    
-                    # 使用已经提取的视频帧数据或重新提取
-                    if media_data:
-                        # 使用已经提取的帧数据
-                        with open(thumbnail_full_path, 'wb') as f:
-                            f.write(media_data)
-                        logger.info(f"已生成视频缩略图: {thumbnail_full_path}")
-                    else:
-                        # 重新提取第一帧
-                        cap = None
-                        try:
-                            cap = cv2.VideoCapture(str(target_path))
-                            ret, frame = cap.read()
-                            if ret:
-                                cv2.imwrite(str(thumbnail_full_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                                logger.info(f"已生成视频缩略图: {thumbnail_full_path}")
-                        finally:
-                            if cap is not None:
-                                cap.release()
-                    
-                    if thumbnail_full_path.exists():
-                        # 保持与原文件路径格式一致，但要移除training/ad前缀
-                        thumbnail_path = str(thumbnail_full_path.relative_to(PathConfig.AD_TRAINING_DIR))
+                    source.unlink()
+                    logger.info(f"已删除临时视频文件: {source}")
                 except Exception as e:
-                    logger.warning(f"生成视频缩略图失败: {e}")
+                    logger.warning(f"删除临时视频文件失败: {e}")
+                
+                actual_media_type = "image"  # 保存的是图片
+            else:
+                # 图片：正常保存
+                ext = source.suffix or ".jpg"
+                target_filename = f"{message_id}_{timestamp}_{file_hash[:8]}{ext}"
+                target_path = target_dir / target_filename
+                
+                # 复制图片文件
+                shutil.copy2(source, target_path)
+                logger.info(f"已保存训练图片: {target_path}")
+                
+                actual_media_type = media_type
+            
+            actual_file_size = target_path.stat().st_size
             
             # 更新元数据
             # 确保路径不包含training/ad前缀
@@ -291,20 +300,15 @@ class TrainingMediaManager:
                 "path": relative_path,
                 "message_ids": [message_id],
                 "channel_id": channel_id,
-                "media_type": media_type,
+                "media_type": actual_media_type,  # 使用实际保存的类型（视频转为图片）
+                "original_media_type": media_type,  # 保留原始媒体类型信息
                 "is_ad": is_ad,
-                "file_size": target_path.stat().st_size,
+                "file_size": actual_file_size,
                 "saved_at": datetime.now().isoformat(),
                 "original_name": source.name,
-                "file_hash": file_hash  # 保存文件哈希
+                "file_hash": file_hash,  # 保存文件哈希
+                "display_path": relative_path  # 统一使用相对路径显示
             }
-            
-            # 如果是视频且有缩略图，添加缩略图路径
-            if thumbnail_path:
-                metadata_entry["thumbnail_path"] = thumbnail_path
-                metadata_entry["display_path"] = thumbnail_path  # 用于前端显示
-            else:
-                metadata_entry["display_path"] = relative_path  # 图片直接显示原文件
             
             # 如果有视觉哈希，也保存
             if visual_hashes:
@@ -313,13 +317,12 @@ class TrainingMediaManager:
             self.metadata["media_files"][file_hash] = metadata_entry
             self.save_metadata()
             
-            # 自动生成OCR样本（对于图片和视频缩略图）
+            # 自动生成OCR样本（统一处理，因为现在都是图片）
             await self._auto_generate_ocr_sample(
                 target_path, 
                 file_hash, 
                 message_id, 
-                media_type,
-                thumbnail_path
+                actual_media_type
             )
             
             return relative_path
@@ -333,27 +336,21 @@ class TrainingMediaManager:
         media_path: Path, 
         file_hash: str, 
         message_id: int, 
-        media_type: str,
-        thumbnail_path: Optional[str] = None
+        media_type: str
     ):
         """自动生成OCR样本"""
         try:
-            # 只对图片和视频缩略图生成OCR样本
-            ocr_target_path = None
-            
-            if media_type in ["photo", "image"]:
-                ocr_target_path = media_path
-            elif media_type in ["video", "animation"] and thumbnail_path:
-                # 对视频使用缩略图
-                ocr_target_path = PathConfig.AD_TRAINING_DIR / thumbnail_path
-            
-            if not ocr_target_path or not ocr_target_path.exists():
+            # 只对图片生成OCR样本（现在视频也保存为图片了）
+            if media_type != "image":
                 return
                 
-            logger.info(f"🔍 自动生成OCR样本: {ocr_target_path}")
+            if not media_path.exists():
+                return
+                
+            logger.info(f"🔍 自动生成OCR样本: {media_path}")
             
             # 生成模拟OCR文本（基于文件名特征）
-            ocr_texts = self._generate_mock_ocr_text(ocr_target_path)
+            ocr_texts = self._generate_mock_ocr_text(media_path)
             
             # 判断是否为广告（训练目录中的都是广告）
             is_ad = True
@@ -374,7 +371,7 @@ class TrainingMediaManager:
             ocr_sample = {
                 "id": file_hash[:12],
                 "image_hash": file_hash,
-                "image_path": str(ocr_target_path.relative_to(PathConfig.AD_TRAINING_DIR)),
+                "image_path": str(media_path.relative_to(PathConfig.AD_TRAINING_DIR)),
                 "ocr_texts": ocr_texts,
                 "qr_codes": [],
                 "ad_score": ad_score,
@@ -497,6 +494,99 @@ class TrainingMediaManager:
                 media_paths.append(info["path"])
         return media_paths
     
+    async def remove_training_media_by_message(self, message_id: int) -> int:
+        """
+        根据消息ID移除训练媒体数据
+        用于"不是广告"操作的清理
+        
+        Returns:
+            int: 删除的媒体文件数量
+        """
+        deleted_count = 0
+        files_to_remove = []  # 需要删除的文件hash列表
+        
+        try:
+            for file_hash, info in self.metadata.get("media_files", {}).items():
+                message_ids = info.get("message_ids", [])
+                
+                if message_id in message_ids:
+                    # 移除该消息的关联
+                    message_ids.remove(message_id)
+                    
+                    if len(message_ids) == 0:
+                        # 如果没有其他消息引用，标记为删除
+                        files_to_remove.append((file_hash, info))
+                    else:
+                        # 如果还有其他消息引用，只更新关联
+                        info["message_ids"] = message_ids
+                        self.metadata["media_files"][file_hash] = info
+            
+            # 删除不再被引用的文件
+            for file_hash, info in files_to_remove:
+                try:
+                    # 删除实际文件
+                    file_path = PathConfig.AD_TRAINING_DIR / info["path"]
+                    if file_path.exists():
+                        file_path.unlink()
+                        logger.info(f"已删除训练媒体文件: {file_path}")
+                    
+                    # 从元数据中移除
+                    del self.metadata["media_files"][file_hash]
+                    deleted_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"删除媒体文件失败 {info['path']}: {e}")
+            
+            # 如果有变更，保存元数据
+            if deleted_count > 0 or any(message_id in info.get("message_ids", []) for info in self.metadata.get("media_files", {}).values()):
+                self.save_metadata()
+                logger.info(f"消息 {message_id} 的训练媒体清理完成，删除 {deleted_count} 个文件")
+            
+            # 同时清理OCR样本
+            await self._remove_ocr_samples_by_message(message_id)
+            
+            return deleted_count
+            
+        except Exception as e:
+            logger.error(f"清理训练媒体失败: {e}")
+            return 0
+    
+    async def _remove_ocr_samples_by_message(self, message_id: int):
+        """根据消息ID移除OCR样本"""
+        try:
+            from app.utils.safe_file_ops import SafeFileOperation
+            
+            ocr_samples_file = PathConfig.OCR_SAMPLES_FILE
+            if not ocr_samples_file.exists():
+                return
+            
+            data = SafeFileOperation.read_json_safe(ocr_samples_file)
+            if not data or "samples" not in data:
+                return
+            
+            # 过滤掉该消息的OCR样本
+            original_count = len(data["samples"])
+            data["samples"] = [s for s in data["samples"] if s.get("message_id") != message_id]
+            removed_count = original_count - len(data["samples"])
+            
+            if removed_count > 0:
+                # 更新统计信息
+                data["statistics"] = {
+                    "total_samples": len(data["samples"]),
+                    "ad_samples": len([s for s in data["samples"] if s.get("is_ad")]),
+                    "non_ad_samples": len([s for s in data["samples"] if not s.get("is_ad")]),
+                    "auto_rejected_samples": len([s for s in data["samples"] if s.get("auto_rejected")]),
+                    "high_score_samples": len([s for s in data["samples"] if s.get("ad_score", 0) >= 50.0]),
+                    "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "created_at": data.get("statistics", {}).get("created_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                }
+                
+                SafeFileOperation.write_json_safe(ocr_samples_file, data)
+                logger.info(f"已删除消息 {message_id} 的 {removed_count} 个OCR样本")
+                
+        except Exception as e:
+            logger.error(f"清理OCR样本失败: {e}")
+
     async def cleanup_orphaned_media(self):
         """清理没有关联训练数据的媒体文件"""
         # TODO: 实现清理逻辑
