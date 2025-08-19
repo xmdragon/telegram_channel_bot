@@ -407,3 +407,6 @@ class StructuralAdDetectorProxy:
         setattr(get_structural_ad_detector(), name, value)
 
 structural_ad_detector = StructuralAdDetectorProxy()
+
+# 添加向后兼容的别名
+structural_detector = structural_ad_detector

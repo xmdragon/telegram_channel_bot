@@ -660,9 +660,21 @@ class DuplicateDetectorFilter(BaseFilter):
         recent_msg_ids = self.redis_store.redis.zrevrange(channel_key, 0, 199)
         
         for msg_id in recent_msg_ids:
-            msg_data = self._get_and_validate_content_message(
-                channel_id, int(msg_id), time_start, time_end, exclude_message_id
-            )
+            try:
+                # 确保msg_id是整数
+                if isinstance(msg_id, bytes):
+                    msg_id = msg_id.decode('utf-8')
+                
+                # 提取纯数字ID（避免channel:id格式）
+                if ':' in str(msg_id):
+                    msg_id = str(msg_id).split(':')[-1]
+                
+                msg_data = self._get_and_validate_content_message(
+                    channel_id, int(msg_id), time_start, time_end, exclude_message_id
+                )
+            except (ValueError, TypeError) as e:
+                logger.debug(f"跳过无效的消息ID: {msg_id}, 错误: {e}")
+                continue
             if msg_data:
                 messages.append(msg_data)
         

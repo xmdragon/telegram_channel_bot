@@ -32,6 +32,15 @@ class DummyTailFeatureExtractor:
     def analyze_text(self, text: str) -> Dict[str, Any]:
         """返回空分析结果"""
         return self.extract_features(text)
+    
+    def calculate_scores(self, text: str, **kwargs) -> Dict[str, float]:
+        """计算分数（空实现）"""
+        return {
+            "tail_score": 0.0,
+            "promo_score": 0.0,
+            "content_score": 1.0,
+            "filter_confidence": 0.0
+        }
 
 class DummyTailVectorManager:
     """尾部向量管理器的空实现"""
