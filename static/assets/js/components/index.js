@@ -972,6 +972,54 @@ const MainApp = {
             this.mediaPreview.show = false;
             this.mediaPreview.url = null;
         },
+        
+        // 获取消息对比状态的CSS类
+        getComparisonStatusClass(message) {
+            const contentsDifferent = message.content !== message.filtered_content;
+            const hasRemovedLinks = !!(message.removed_hidden_links && message.removed_hidden_links.length > 0);
+            
+            if (contentsDifferent && hasRemovedLinks) {
+                return 'status-filtered-and-links';
+            } else if (contentsDifferent) {
+                return 'status-filtered';
+            } else if (hasRemovedLinks) {
+                return 'status-links-only';
+            } else {
+                return 'status-unchanged';
+            }
+        },
+        
+        // 获取消息对比状态的图标
+        getComparisonStatusIcon(message) {
+            const contentsDifferent = message.content !== message.filtered_content;
+            const hasRemovedLinks = !!(message.removed_hidden_links && message.removed_hidden_links.length > 0);
+            
+            if (contentsDifferent && hasRemovedLinks) {
+                return '🔄';
+            } else if (contentsDifferent) {
+                return '🔄';
+            } else if (hasRemovedLinks) {
+                return '🔗';
+            } else {
+                return '⚪';
+            }
+        },
+        
+        // 获取消息对比状态的文本描述
+        getComparisonStatusText(message) {
+            const contentsDifferent = message.content !== message.filtered_content;
+            const hasRemovedLinks = !!(message.removed_hidden_links && message.removed_hidden_links.length > 0);
+            
+            if (contentsDifferent && hasRemovedLinks) {
+                return '内容已过滤并移除链接';
+            } else if (contentsDifferent) {
+                return '内容已过滤';
+            } else if (hasRemovedLinks) {
+                return '仅移除隐藏链接';
+            } else {
+                return '内容未被过滤';
+            }
+        },
 
         // 格式化消息内容
         formatMessageContent(message) {

@@ -7,14 +7,14 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <!-- 外部样式文件 -->
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755619325">
-    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755619325">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755619325">
-    <link rel="stylesheet" href="assets/css/components/index.css?v=1755619325">
-    <link rel="stylesheet" href="assets/css/components/performance-ui.css?v=1755619325">
-    <link rel="stylesheet" href="assets/css/components/media-group.css?v=1755619325">
-    <link rel="stylesheet" href="assets/css/components/media-grid-fix.css?v=1755619325">
-    <link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=1755619325">
+    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755620656">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755620656">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755620656">
+    <link rel="stylesheet" href="assets/css/components/index.css?v=1755620656">
+    <link rel="stylesheet" href="assets/css/components/performance-ui.css?v=1755620656">
+    <link rel="stylesheet" href="assets/css/components/media-group.css?v=1755620656">
+    <link rel="stylesheet" href="assets/css/components/media-grid-fix.css?v=1755620656">
+    <link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=1755620656">
 </head>
 <body>
     <div id="app">
@@ -361,9 +361,18 @@
                             </div>
                         </div>
                         
-                        <!-- 常规消息内容 - 双栏对比显示（仅当内容真正被过滤时显示） -->
-                        <div v-else-if="(message.content && message.filtered_content && message.content !== message.filtered_content) || 
-                                        (message.removed_hidden_links && message.removed_hidden_links.length > 0)" class="message-content-comparison">
+                        <!-- 常规消息内容 - 双栏对比显示（始终显示，只要有内容字段） -->
+                        <div v-else-if="message.content && message.filtered_content" 
+                             :class="['message-content-comparison', { 'unchanged': message.content === message.filtered_content && (!message.removed_hidden_links || message.removed_hidden_links.length === 0) }]">
+                            <!-- 过滤状态指示器 -->
+                            <div class="comparison-status-bar">
+                                <span :class="['status-indicator', getComparisonStatusClass(message)]">
+                                    {{ getComparisonStatusIcon(message) }} {{ getComparisonStatusText(message) }}
+                                </span>
+                                <div v-if="message.content === message.filtered_content && (!message.removed_hidden_links || message.removed_hidden_links.length === 0)" class="status-note">
+                                    原始内容与过滤后内容相同
+                                </div>
+                            </div>
                             <!-- 左栏：过滤后内容（包含媒体） -->
                             <div class="content-column content-filtered">
                                 <div class="content-column-header">
@@ -845,18 +854,18 @@
     </div>
     
     <!-- 外部脚本文件 -->
-    <script src="assets/js/vue.prod.js?v=1755619325"></script>
-    <script src="assets/js/element-plus.js?v=1755619325"></script>
-    <script src="assets/js/axios.js?v=1755619325"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755619325"></script>
-    <script src="assets/js/admin-auth.js?v=1755619325"></script>
-    <script src="assets/js/components/navbar.js?v=1755619325"></script>
-    <script src="assets/js/utils/permission-checker.js?v=1755619325"></script>
-    <script src="assets/js/utils/message-state-manager.js?v=1755619325"></script>
-    <script src="assets/js/components/virtual-list.js?v=1755619325"></script>
-    <script src="assets/js/components/batch-operation-panel.js?v=1755619325"></script>
-    <script src="assets/js/components/message-content-renderer.js?v=1755619325"></script>
-    <script src="assets/js/message-manager.js?v=1755619325"></script>
-    <script src="assets/js/components/index.js?v=1755619325"></script>
+    <script src="assets/js/vue.prod.js?v=1755620656"></script>
+    <script src="assets/js/element-plus.js?v=1755620656"></script>
+    <script src="assets/js/axios.js?v=1755620656"></script>
+    <script src="assets/js/config/api-endpoints.js?v=1755620656"></script>
+    <script src="assets/js/admin-auth.js?v=1755620656"></script>
+    <script src="assets/js/components/navbar.js?v=1755620656"></script>
+    <script src="assets/js/utils/permission-checker.js?v=1755620656"></script>
+    <script src="assets/js/utils/message-state-manager.js?v=1755620656"></script>
+    <script src="assets/js/components/virtual-list.js?v=1755620656"></script>
+    <script src="assets/js/components/batch-operation-panel.js?v=1755620656"></script>
+    <script src="assets/js/components/message-content-renderer.js?v=1755620656"></script>
+    <script src="assets/js/message-manager.js?v=1755620656"></script>
+    <script src="assets/js/components/index.js?v=1755620656"></script>
 </body>
 </html>
