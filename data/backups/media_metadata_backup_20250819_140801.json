@@ -1378,56 +1378,6 @@
       "original_size": 2531013,
       "optimized_size": 244848
     },
-    "113fccc1b49604d7f6d2c51490340db0b23b5596fee455cb9a6f337e165a1bce": {
-      "path": "videos/2025-08/7957_20250814_145315_113fccc1.MP4",
-      "message_ids": [
-        7957
-      ],
-      "channel_id": "-1001313162502",
-      "media_type": "video",
-      "is_ad": true,
-      "file_size": 11605875,
-      "saved_at": "2025-08-14T14:53:15.695296",
-      "original_name": "39511_20250814_135949_video.MP4",
-      "file_hash": "113fccc1b49604d7f6d2c51490340db0b23b5596fee455cb9a6f337e165a1bce",
-      "thumbnail_path": "images/2025-08/7957_20250814_145315_113fccc1_thumb.jpg",
-      "display_path": "images/2025-08/7957_20250814_145315_113fccc1_thumb.jpg",
-      "visual_hashes": {
-        "phash": "c69178acb34e8db1",
-        "dhash": "ef50f36c4c6725c9",
-        "ahash": "fffcf8347f330000",
-        "whash": "fffcf83c2f330000",
-        "colorhash": "02002000180",
-        "sha256": "65cdf7ede8e08d65c3473ca0718c8500ad933a704ca10b1ed9fda280839b3d4a"
-      }
-    },
-    "35cdb6ba06257b7825f5b9947d6e923aac2a3c481247a8dd2fababf21117e8b2": {
-      "path": "images/2025-08/7985_20250814_173215_35cdb6ba_thumb.jpg",
-      "message_ids": [
-        7985
-      ],
-      "channel_id": "-1002167120993",
-      "media_type": "video",
-      "is_ad": true,
-      "file_size": 15339498,
-      "saved_at": "2025-08-14T17:32:15.395768",
-      "original_name": "13882_20250814_161927_video.mp4",
-      "file_hash": "35cdb6ba06257b7825f5b9947d6e923aac2a3c481247a8dd2fababf21117e8b2",
-      "thumbnail_path": "images/2025-08/7985_20250814_173215_35cdb6ba_thumb.jpg",
-      "display_path": "images/2025-08/7985_20250814_173215_35cdb6ba_thumb.jpg",
-      "visual_hashes": {
-        "phash": "d5e9e98a9d719805",
-        "dhash": "1260049864741c36",
-        "ahash": "fff0f0ee1e1e00de",
-        "whash": "fff090ee1e1e009a",
-        "colorhash": "03601010000",
-        "sha256": "f762b9e5375c03200d9443a4e852cc70d2c74e886817d254eff6cfc4dc297df6"
-      },
-      "type": "image",
-      "size": 217386,
-      "original_type": "video",
-      "optimized_at": "2025-08-15T10:12:14.944536"
-    },
     "cd2ff7ef34907a3f7cf9ffac1f91496a4ad12995b31e90d0e93e85851da8b96e": {
       "path": "images/2025-08/7982_20250814_173219_cd2ff7ef.jpg",
       "message_ids": [
@@ -1449,13 +1399,419 @@
         "colorhash": "062010000c0",
         "sha256": "cd2ff7ef34907a3f7cf9ffac1f91496a4ad12995b31e90d0e93e85851da8b96e"
       }
+    },
+    "fdd8ab865737a412d5d0ce67d52f41bf49c751ba1eba273344b8fc39197c2552": {
+      "path": "images/2025-08/-1001548749089:11632_20250816_180800_fdd8ab86.jpg",
+      "message_ids": [
+        "-1001548749089:11632"
+      ],
+      "channel_id": "-1001548749089",
+      "media_type": "photo",
+      "is_ad": true,
+      "file_size": 138144,
+      "saved_at": "2025-08-16T18:08:00.280612",
+      "original_name": "11632_20250816_180741_photo.jpg",
+      "file_hash": "fdd8ab865737a412d5d0ce67d52f41bf49c751ba1eba273344b8fc39197c2552",
+      "display_path": "images/2025-08/-1001548749089:11632_20250816_180800_fdd8ab86.jpg",
+      "visual_hashes": {
+        "phash": "ed5274313c8d1ec6",
+        "dhash": "1089e1126372a627",
+        "ahash": "c0e0f8fbf13bf3f3",
+        "whash": "c0e0f0cbb13973d3",
+        "colorhash": "0f3c0040000",
+        "sha256": "fdd8ab865737a412d5d0ce67d52f41bf49c751ba1eba273344b8fc39197c2552"
+      }
+    },
+    "7dbff76e1e53dbfd0f7f1f6c46c2cd6faec3753fcc79f95472143c8809eeede1": {
+      "path": "images/2025-08/-1002062871756:43138_20250816_185406_7dbff76e.jpg",
+      "message_ids": [
+        "-1002062871756:43138"
+      ],
+      "channel_id": "-1002062871756",
+      "media_type": "photo",
+      "is_ad": true,
+      "file_size": 264557,
+      "saved_at": "2025-08-16T18:54:06.807490",
+      "original_name": "43138_20250816_185347_photo.jpg",
+      "file_hash": "7dbff76e1e53dbfd0f7f1f6c46c2cd6faec3753fcc79f95472143c8809eeede1",
+      "display_path": "images/2025-08/-1002062871756:43138_20250816_185406_7dbff76e.jpg",
+      "visual_hashes": {
+        "phash": "815c0d0f7e5c8f99",
+        "dhash": "a2ccc8ac8bead894",
+        "ahash": "183c7ec0ef277e7e",
+        "whash": "18247cc06f237e7e",
+        "colorhash": "0a401008080",
+        "sha256": "7dbff76e1e53dbfd0f7f1f6c46c2cd6faec3753fcc79f95472143c8809eeede1"
+      }
+    },
+    "61ecc988da696c5a9cca48f43416bd30aa0c25c9eed6a91c848e9b9dc4fa6157": {
+      "path": "images/2025-08/-1001956665373:57731_20250817_135011_61ecc988.jpg",
+      "message_ids": [
+        "-1001956665373:57731"
+      ],
+      "channel_id": "-1001956665373",
+      "media_type": "photo",
+      "is_ad": true,
+      "file_size": 58909,
+      "saved_at": "2025-08-17T13:50:11.716432",
+      "original_name": "57731_20250817_135011_photo.jpg",
+      "file_hash": "61ecc988da696c5a9cca48f43416bd30aa0c25c9eed6a91c848e9b9dc4fa6157",
+      "display_path": "images/2025-08/-1001956665373:57731_20250817_135011_61ecc988.jpg",
+      "visual_hashes": {
+        "phash": "b69fcbc10f653032",
+        "dhash": "61090d060f8c8dad",
+        "ahash": "ffff878387c7e000",
+        "whash": "bfbf878387c76000",
+        "colorhash": "06e00000000",
+        "sha256": "61ecc988da696c5a9cca48f43416bd30aa0c25c9eed6a91c848e9b9dc4fa6157"
+      }
+    },
+    "1f10d4f559a639b5317ec7f91f1e0a0e32f4cb8dc5d3bf26b747f00747b03a11": {
+      "path": "images/2025-08/5391_20250810_222421_cbada3b4.jpg",
+      "message_ids": [
+        5391
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 79384,
+      "saved_at": "2025-08-19T13:29:04.664629",
+      "original_name": "5391_20250810_222421_cbada3b4_snapshot.jpg",
+      "file_hash": "1f10d4f559a639b5317ec7f91f1e0a0e32f4cb8dc5d3bf26b747f00747b03a11",
+      "display_path": "images/2025-08/5391_20250810_222421_cbada3b4.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "8aab11381eea428ef7a04d9941d263e1553480e646c40858bea4520f730c0699": {
+      "path": "images/2025-08/7704_20250813_000233_87a4ed91.jpg",
+      "message_ids": [
+        7704
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 100393,
+      "saved_at": "2025-08-19T13:29:04.664798",
+      "original_name": "7704_20250813_000233_87a4ed91.jpg",
+      "file_hash": "8aab11381eea428ef7a04d9941d263e1553480e646c40858bea4520f730c0699",
+      "display_path": "images/2025-08/7704_20250813_000233_87a4ed91.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
+    },
+    "de03535e4dc6002b5d17e6b2db9a26873707cba9367aed283039495ff8763f5d": {
+      "path": "images/2025-08/6084_20250811_091610_c8dd6f5b.jpg",
+      "message_ids": [
+        6084
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 54778,
+      "saved_at": "2025-08-19T13:29:04.664903",
+      "original_name": "6084_20250811_091610_c8dd6f5b_snapshot.jpg",
+      "file_hash": "de03535e4dc6002b5d17e6b2db9a26873707cba9367aed283039495ff8763f5d",
+      "display_path": "images/2025-08/6084_20250811_091610_c8dd6f5b.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "8b28f8a0bea49294c9887eacb4b5fe5ff605aed223ceb7420cf45c2b64e32112": {
+      "path": "images/2025-08/4701_20250811_001559_030a90fd.jpg",
+      "message_ids": [
+        4701
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 27646,
+      "saved_at": "2025-08-19T13:29:04.665127",
+      "original_name": "4701_20250811_001559_030a90fd_snapshot.jpg",
+      "file_hash": "8b28f8a0bea49294c9887eacb4b5fe5ff605aed223ceb7420cf45c2b64e32112",
+      "display_path": "images/2025-08/4701_20250811_001559_030a90fd.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "823a583a5a9c1db544b4944681696622951b9a902e7259b0160affc553e4eaa3": {
+      "path": "images/2025-08/4980_20250810_215635_3d50db33.jpg",
+      "message_ids": [
+        4980
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 75568,
+      "saved_at": "2025-08-19T13:29:04.665391",
+      "original_name": "4980_20250810_215635_3d50db33_snapshot.jpg",
+      "file_hash": "823a583a5a9c1db544b4944681696622951b9a902e7259b0160affc553e4eaa3",
+      "display_path": "images/2025-08/4980_20250810_215635_3d50db33.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "7c5355066e27aa13640c530ccefda5dc010eb486951978249d7b29b55ada82e2": {
+      "path": "images/2025-08/4795_20250811_010809_dd168363.jpg",
+      "message_ids": [
+        4795
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 76998,
+      "saved_at": "2025-08-19T13:29:04.665518",
+      "original_name": "4795_20250811_010809_dd168363_snapshot.jpg",
+      "file_hash": "7c5355066e27aa13640c530ccefda5dc010eb486951978249d7b29b55ada82e2",
+      "display_path": "images/2025-08/4795_20250811_010809_dd168363.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "70e479df7003de940e9874697f869376072fb2a41378b79055bcc6810fd006e5": {
+      "path": "images/2025-08/5707_20250811_103739_b0338360.jpg",
+      "message_ids": [
+        5707
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 62668,
+      "saved_at": "2025-08-19T13:29:04.665601",
+      "original_name": "5707_20250811_103739_b0338360_snapshot.jpg",
+      "file_hash": "70e479df7003de940e9874697f869376072fb2a41378b79055bcc6810fd006e5",
+      "display_path": "images/2025-08/5707_20250811_103739_b0338360.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "557a3f9de53cc37fa910f3beecd60b7e588c32666d0da2acfe5e5ab82d50aae6": {
+      "path": "images/2025-08/7762_20250813_124836_d41bbd0e.jpg",
+      "message_ids": [
+        7762
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 50223,
+      "saved_at": "2025-08-19T13:29:04.665750",
+      "original_name": "7762_20250813_124836_d41bbd0e.jpg",
+      "file_hash": "557a3f9de53cc37fa910f3beecd60b7e588c32666d0da2acfe5e5ab82d50aae6",
+      "display_path": "images/2025-08/7762_20250813_124836_d41bbd0e.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
+    },
+    "cbcf33ccde0e8831764dfe89d9f995f5e5c2df92906659a2c9bfa1df91ba1691": {
+      "path": "images/2025-08/4716_20250810_215635_751b1422.jpg",
+      "message_ids": [
+        4716
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 65086,
+      "saved_at": "2025-08-19T13:29:04.665981",
+      "original_name": "4716_20250810_215635_751b1422_snapshot.jpg",
+      "file_hash": "cbcf33ccde0e8831764dfe89d9f995f5e5c2df92906659a2c9bfa1df91ba1691",
+      "display_path": "images/2025-08/4716_20250810_215635_751b1422.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "e7adbd74fdf2a3458cb4c9388c2b23f2c3a43dfe87f4776d47245ac4dfa0c8b8": {
+      "path": "images/2025-08/7246_20250811_104246_72090ada.jpg",
+      "message_ids": [
+        7246
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 31263,
+      "saved_at": "2025-08-19T13:29:04.666065",
+      "original_name": "7246_20250811_104246_72090ada_snapshot.jpg",
+      "file_hash": "e7adbd74fdf2a3458cb4c9388c2b23f2c3a43dfe87f4776d47245ac4dfa0c8b8",
+      "display_path": "images/2025-08/7246_20250811_104246_72090ada.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "26285daedde2e948e3b15c624030559d49221dc676cef7905861cb67e0e74bf7": {
+      "path": "images/2025-08/7800_20250813_174556_26ff3dcd.jpg",
+      "message_ids": [
+        7800
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 20238,
+      "saved_at": "2025-08-19T13:29:04.666416",
+      "original_name": "7800_20250813_174556_26ff3dcd.jpg",
+      "file_hash": "26285daedde2e948e3b15c624030559d49221dc676cef7905861cb67e0e74bf7",
+      "display_path": "images/2025-08/7800_20250813_174556_26ff3dcd.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
+    },
+    "4649fc05a7289c28aa3db8080d52b9e7022ca96a4c7e01f3bb9e928d9a2c0b9a": {
+      "path": "images/2025-08/4724_20250811_003607_6b96646c.jpg",
+      "message_ids": [
+        4724
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 29904,
+      "saved_at": "2025-08-19T13:29:04.666519",
+      "original_name": "4724_20250811_003607_6b96646c_snapshot.jpg",
+      "file_hash": "4649fc05a7289c28aa3db8080d52b9e7022ca96a4c7e01f3bb9e928d9a2c0b9a",
+      "display_path": "images/2025-08/4724_20250811_003607_6b96646c.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "69eeecc109215e433f468eacadd976af53120c3441d9a936826cd864ffa68249": {
+      "path": "images/2025-08/5194_20250810_215635_86eb9564.jpg",
+      "message_ids": [
+        5194
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 40473,
+      "saved_at": "2025-08-19T13:29:04.666750",
+      "original_name": "5194_20250810_215635_86eb9564_snapshot.jpg",
+      "file_hash": "69eeecc109215e433f468eacadd976af53120c3441d9a936826cd864ffa68249",
+      "display_path": "images/2025-08/5194_20250810_215635_86eb9564.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "5de057805cb3ae2e9dcd2158737ff17212522c8df3813c2208d5bd25bcb441ca": {
+      "path": "images/2025-08/5174_20250810_215635_35cdb6ba.jpg",
+      "message_ids": [
+        5174
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 29562,
+      "saved_at": "2025-08-19T13:29:04.666862",
+      "original_name": "5174_20250810_215635_35cdb6ba_snapshot.jpg",
+      "file_hash": "5de057805cb3ae2e9dcd2158737ff17212522c8df3813c2208d5bd25bcb441ca",
+      "display_path": "images/2025-08/5174_20250810_215635_35cdb6ba.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "d9954e88113fc8c89e3a1ea06dc3a6f3f8ee9ab915b54bc4aac186dcf1a7efc6": {
+      "path": "images/2025-08/5025_20250810_215635_1b7c93ba.jpg",
+      "message_ids": [
+        5025
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 27311,
+      "saved_at": "2025-08-19T13:29:04.666920",
+      "original_name": "5025_20250810_215635_1b7c93ba_snapshot.jpg",
+      "file_hash": "d9954e88113fc8c89e3a1ea06dc3a6f3f8ee9ab915b54bc4aac186dcf1a7efc6",
+      "display_path": "images/2025-08/5025_20250810_215635_1b7c93ba.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "9a427681953feb8b1060350dcde35c31a6de8cf00dcaeefa76eae2724b1c10ae": {
+      "path": "images/2025-08/7739_20250813_131553_0eefaebc.jpg",
+      "message_ids": [
+        7739
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 81734,
+      "saved_at": "2025-08-19T13:29:04.667293",
+      "original_name": "7739_20250813_131553_0eefaebc.jpg",
+      "file_hash": "9a427681953feb8b1060350dcde35c31a6de8cf00dcaeefa76eae2724b1c10ae",
+      "display_path": "images/2025-08/7739_20250813_131553_0eefaebc.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
+    },
+    "03ed5ea882ebe92958692281f03fc148d4ccc7d8a303b633f926b834859651c9": {
+      "path": "images/2025-08/5156_20250810_215635_1af2277a.jpg",
+      "message_ids": [
+        5156
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 64194,
+      "saved_at": "2025-08-19T13:29:04.667790",
+      "original_name": "5156_20250810_215635_1af2277a_snapshot.jpg",
+      "file_hash": "03ed5ea882ebe92958692281f03fc148d4ccc7d8a303b633f926b834859651c9",
+      "display_path": "images/2025-08/5156_20250810_215635_1af2277a.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "1000d2147e6df7096e07726ba85db0050f1efd45d23923ee5f7a2f3a897934c1": {
+      "path": "images/2025-08/5184_20250810_215635_628691a4.jpg",
+      "message_ids": [
+        5184
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "video",
+      "is_ad": true,
+      "file_size": 79666,
+      "saved_at": "2025-08-19T13:29:04.667921",
+      "original_name": "5184_20250810_215635_628691a4_snapshot.jpg",
+      "file_hash": "1000d2147e6df7096e07726ba85db0050f1efd45d23923ee5f7a2f3a897934c1",
+      "display_path": "images/2025-08/5184_20250810_215635_628691a4.jpg",
+      "sync_source": "file_system",
+      "file_category": "video_snapshot"
+    },
+    "0183f4bdd1b3fa5befa01061e02a70da5b251a57505b25f1b5c28be4c631804d": {
+      "path": "images/2025-08/5192_20250810_215635_d801164d.jpg",
+      "message_ids": [
+        5192
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 71337,
+      "saved_at": "2025-08-19T14:03:18.394145",
+      "original_name": "5192_20250810_215635_d801164d.jpg",
+      "file_hash": "0183f4bdd1b3fa5befa01061e02a70da5b251a57505b25f1b5c28be4c631804d",
+      "display_path": "images/2025-08/5192_20250810_215635_d801164d.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
+    },
+    "8a23f7f33ced08f54d6375faceafc66891956ede9cceeabff2fd15e237aeadd5": {
+      "path": "images/2025-08/5244_20250810_215635_b745cc3b.jpg",
+      "message_ids": [
+        5244
+      ],
+      "channel_id": null,
+      "media_type": "image",
+      "original_media_type": "photo",
+      "is_ad": true,
+      "file_size": 80631,
+      "saved_at": "2025-08-19T14:03:18.395192",
+      "original_name": "5244_20250810_215635_b745cc3b.jpg",
+      "file_hash": "8a23f7f33ced08f54d6375faceafc66891956ede9cceeabff2fd15e237aeadd5",
+      "display_path": "images/2025-08/5244_20250810_215635_b745cc3b.jpg",
+      "sync_source": "file_system",
+      "file_category": "image"
     }
   },
-  "updated_at": "2025-08-15T10:00:26.516472",
+  "updated_at": "2025-08-19T14:03:18.395519",
   "deduplication_log": {
-    "timestamp": "2025-08-15T10:00:26.516475",
-    "deleted": 4,
-    "merged": 4,
-    "backup_file": "media_metadata_backup_20250815_100026.json"
+    "timestamp": "2025-08-18T16:20:06.437895",
+    "deleted": 2,
+    "merged": 2,
+    "backup_file": "media_metadata_backup_20250818_162006.json"
   }
 }
