@@ -88,8 +88,8 @@ const ConfigApp = {
                 enabled: false,
                 target_channel: '',
                 review_group: '',
-                resolved_group_id: '',
-                resolved_target_channel_id: '',
+                target_channel_id: '',
+                review_group_id: '',
                 delay: 0,
                 auto_reject_ads: false
             },
@@ -181,18 +181,19 @@ const ConfigApp = {
         
         async loadForwardingConfig() {
             try {
-                const response = await axios.get(API.admin.config);
-                if (response.data) {
-                    // 使用新的配置字段名
+                const response = await axios.get(API.config.list);
+                if (response.data && response.data.configs) {
+                    const configs = response.data.configs;
+                    
                     this.forwardingConfig = {
-                        enabled: response.data.auto_forward_enabled || false,
-                        target_channel: response.data.target_channel || '',
-                        review_group: response.data.review_group || '',
-                        delay: response.data.auto_forward_delay || 1800,
-                        auto_reject_ads: response.data.auto_reject_ads || false,
+                        enabled: configs['review.auto_forward_enabled']?.value === 'true' || false,
+                        target_channel: configs['target.channel_link']?.value || '',
+                        review_group: configs['review.group_link']?.value || '',
+                        delay: parseInt(configs['review.auto_forward_delay']?.value) || 1800,
+                        auto_reject_ads: configs['review.auto_reject_ads']?.value === 'true' || false,
                         // 加载已解析的ID
-                        resolved_target_channel_id: response.data.target_channel_id || '',
-                        resolved_group_id: response.data.review_group_id || ''
+                        target_channel_id: configs['target.channel_id']?.value || '',
+                        review_group_id: configs['review.group_id']?.value || ''
                     };
                 }
             } catch (error) {
@@ -202,6 +203,8 @@ const ConfigApp = {
                     enabled: false,
                     target_channel: '',
                     review_group: '',
+                    target_channel_id: '',
+                    review_group_id: '',
                     delay: 1800,
                     auto_reject_ads: false
                 };
@@ -393,17 +396,21 @@ const ConfigApp = {
         
         async saveForwardingConfig() {
             try {
-                // 直接发送原始值到新的API端点
-                const response = await axios.post(API.admin.configForwarding, {
-                    target_channel: this.forwardingConfig.target_channel.trim(),
-                    review_group: this.forwardingConfig.review_group.trim(),
-                    auto_forward_enabled: this.forwardingConfig.enabled,
-                    auto_forward_delay: this.forwardingConfig.delay,
-                    auto_reject_ads: this.forwardingConfig.auto_reject_ads
-                });
+                // 使用批量配置保存API
+                const configData = {
+                    'review.auto_forward_enabled': this.forwardingConfig.enabled,
+                    'target.channel_link': this.forwardingConfig.target_channel.trim(),
+                    'review.group_link': this.forwardingConfig.review_group.trim(),
+                    'review.auto_forward_delay': this.forwardingConfig.delay,
+                    'review.auto_reject_ads': this.forwardingConfig.auto_reject_ads,
+                    'target.channel_id': this.forwardingConfig.target_channel_id,
+                    'review.group_id': this.forwardingConfig.review_group_id
+                };
+                
+                const response = await axios.post(API.admin.configBatch, configData);
                 
                 if (response.data.success) {
-                    MessageManager.success('转发配置保存成功，缓存已自动刷新');
+                    MessageManager.success('转发配置保存成功');
                 } else {
                     throw new Error(response.data.message || '配置保存失败');
                 }
@@ -489,23 +496,6 @@ const ConfigApp = {
             }, 12000);
         },
         
-        // 更新审核群ID
-        async updateReviewGroupId() {
-            if (this.forwardingConfig.review_group) {
-                try {
-                    // 使用admin API解析审核群ID
-                    const response = await axios.post(API.admin.resolveReviewGroup, {
-                        review_group_config: this.forwardingConfig.review_group
-                    });
-                    if (response.data.success && response.data.resolved_id) {
-                        this.forwardingConfig.resolved_group_id = response.data.resolved_id;
-                    }
-                } catch (error) {
-                    // console.error('解析群ID失败:', error);
-                    // 静默处理，不影响主流程
-                }
-            }
-        },
         
         // 手动解析目标频道
         async manualResolveTargetChannel() {
@@ -521,11 +511,11 @@ const ConfigApp = {
                 });
                 
                 if (response.data.success) {
-                    this.forwardingConfig.resolved_target_channel_id = response.data.resolved_id;
+                    this.forwardingConfig.target_channel_id = response.data.resolved_id;
                     MessageManager.success(`目标频道已解析: ${response.data.resolved_id}`);
                     
-                    // 重新加载配置
-                    await this.loadForwardingConfig();
+                    // 保存解析结果到系统配置
+                    await this.saveForwardingConfig();
                 } else {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
@@ -551,11 +541,11 @@ const ConfigApp = {
                 });
                 
                 if (response.data.success) {
-                    this.forwardingConfig.resolved_group_id = response.data.resolved_id;
+                    this.forwardingConfig.review_group_id = response.data.resolved_id;
                     MessageManager.success(`审核群已解析: ${response.data.resolved_id}`);
                     
-                    // 重新加载配置
-                    await this.loadForwardingConfig();
+                    // 保存解析结果到系统配置
+                    await this.saveForwardingConfig();
                 } else {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
@@ -592,24 +582,6 @@ const ConfigApp = {
             }
         },
         
-        // 更新目标频道ID
-        async updateTargetChannelId() {
-            if (this.forwardingConfig.target_channel) {
-                try {
-                    // 使用admin API解析频道ID
-                    const response = await axios.post(API.admin.resolveChannelId, {
-                        channel_name: this.forwardingConfig.target_channel
-                    });
-                    if (response.data.success && response.data.resolved_id) {
-                        this.forwardingConfig.resolved_target_channel_id = response.data.resolved_id;
-                        MessageManager.success(`目标频道ID已解析: ${response.data.resolved_id}`);
-                    }
-                } catch (error) {
-                    // console.error('解析目标频道ID失败:', error);
-                    // 静默处理，不影响主流程
-                }
-            }
-        },
         
         // 搜索频道
         async searchChannels() {

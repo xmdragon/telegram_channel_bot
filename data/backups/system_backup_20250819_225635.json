@@ -7,13 +7,13 @@
     "updated_at": "2025-08-19T22:56:35.087309",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-19T14:56:35.093549",
+  "updated_at": "2025-08-19T14:56:35.088658",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-19T22:56:35.093526",
+    "updated_at": "2025-08-19T22:41:55.613388",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {

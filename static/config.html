@@ -244,53 +244,69 @@
                                 </div>
                             </el-form-item>
                             <el-form-item label="目标频道">
-                                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                                <div class="form-item-flex">
                                     <el-input 
                                         v-model="forwardingConfig.target_channel" 
-                                        placeholder="输入用户名（如：@bigeventsinsea），系统会自动解析为ID" 
-                                        @blur="updateTargetChannelId"
-                                        style="flex: 1;">
+                                        placeholder="输入用户名（如：@bigeventsinsea 或 bigeventsinsea）">
                                     </el-input>
                                     <el-button 
                                         type="primary" 
                                         size="default" 
                                         @click="manualResolveTargetChannel"
-                                        :disabled="!forwardingConfig.target_channel"
-                                        style="white-space: nowrap;">
+                                        :disabled="!forwardingConfig.target_channel">
                                         手动解析
                                     </el-button>
                                 </div>
                                 <div class="form-hint">
-                                    <small>💡 输入频道用户名（如：@bigeventsinsea 或 bigeventsinsea），系统会自动解析为数字ID用于消息发送</small>
-                                    <div v-if="forwardingConfig.resolved_target_channel_id" class="channel-id-display">
-                                        <strong>目标频道ID：</strong>
-                                        <el-tag size="small" type="info" class="channel-id-tag">{{ forwardingConfig.resolved_target_channel_id }}</el-tag>
-                                    </div>
+                                    <small>💡 输入频道用户名，系统会自动解析为数字ID用于消息发送</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="目标频道ID">
+                                <div class="channel-id-row">
+                                    <el-input 
+                                        v-model="forwardingConfig.target_channel_id" 
+                                        placeholder="自动解析后显示ID"
+                                        readonly>
+                                    </el-input>
+                                    <el-button 
+                                        size="default" 
+                                        @click="manualResolveTargetChannel"
+                                        :disabled="!forwardingConfig.target_channel">
+                                        手动解析
+                                    </el-button>
                                 </div>
                             </el-form-item>
                             <el-form-item label="审核群">
-                                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                                <div class="form-item-flex">
                                     <el-input 
                                         v-model="forwardingConfig.review_group" 
-                                        placeholder="输入群组链接（如：https://t.me/+xxx），系统会自动解析为ID" 
-                                        @blur="updateReviewGroupId"
-                                        style="flex: 1;">
+                                        placeholder="输入群组链接（如：https://t.me/+HPbDzWj3ID01OTJl）">
                                     </el-input>
                                     <el-button 
                                         type="primary" 
                                         size="default" 
                                         @click="manualResolveReviewGroup"
-                                        :disabled="!forwardingConfig.review_group"
-                                        style="white-space: nowrap;">
+                                        :disabled="!forwardingConfig.review_group">
                                         手动解析
                                     </el-button>
                                 </div>
                                 <div class="form-hint">
-                                    <small>💡 输入私有群组链接（如：https://t.me/+HPbDzWj3ID01OTJl），系统会自动解析为数字ID用于消息发送</small>
-                                    <div v-if="forwardingConfig.resolved_group_id" class="channel-id-display">
-                                        <strong>审核群ID：</strong>
-                                        <el-tag size="small" type="info" class="channel-id-tag">{{ forwardingConfig.resolved_group_id }}</el-tag>
-                                    </div>
+                                    <small>💡 输入私有群组链接，系统会自动解析为数字ID用于消息发送</small>
+                                </div>
+                            </el-form-item>
+                            <el-form-item label="审核群ID">
+                                <div class="channel-id-row">
+                                    <el-input 
+                                        v-model="forwardingConfig.review_group_id" 
+                                        placeholder="自动解析后显示ID"
+                                        readonly>
+                                    </el-input>
+                                    <el-button 
+                                        size="default" 
+                                        @click="manualResolveReviewGroup"
+                                        :disabled="!forwardingConfig.review_group">
+                                        手动解析
+                                    </el-button>
                                 </div>
                             </el-form-item>
                             <el-form-item label="转发延迟（秒）">

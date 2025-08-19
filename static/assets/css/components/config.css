@@ -7,7 +7,7 @@
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
     border: 1px solid #bae6fd;
     border-radius: 8px;
-    border-left: 4px solid #0ea5e9;
+    border-left: 3px solid #0ea5e9;
 }
 
 .channel-id-display strong {
@@ -451,10 +451,43 @@
     color: #0c4a6e;
     font-size: 12px;
     line-height: 1.5;
-    border-left: 4px solid #0ea5e9;
+    border-left: 3px solid #0ea5e9;
 }
 
 .form-hint small {
     color: inherit;
     opacity: 0.9;
+}
+
+/* 表单行对齐样式 */
+.form-item-flex {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-item-flex .el-input {
+    flex: 1;
+}
+
+.form-item-flex .el-button {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ID显示行样式 */
+.channel-id-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.channel-id-row .el-input {
+    flex: 1;
+}
+
+.channel-id-row .el-button {
+    white-space: nowrap;
+    flex-shrink: 0;
 }
