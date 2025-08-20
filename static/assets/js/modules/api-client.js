@@ -17,10 +17,16 @@ const ApiClient = {
         
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
+                // 🔧 修复认证问题：保留axios默认headers，不要覆盖认证信息
                 const config = {
                     method,
                     timeout,
-                    ...options
+                    ...options,
+                    // 确保保留默认的认证头
+                    headers: {
+                        ...axios.defaults.headers.common,
+                        ...options.headers
+                    }
                 };
                 
                 let response;
@@ -300,7 +306,7 @@ const ApiClient = {
     interceptResponse(response) {
         // 统一处理时间戳格式
         if (response.data && typeof response.data === 'object') {
-            this.normalizeTimestamps(response.data);
+            ApiClient.normalizeTimestamps(response.data);
         }
         
         return response;
@@ -309,7 +315,7 @@ const ApiClient = {
     // 标准化时间戳
     normalizeTimestamps(obj) {
         if (Array.isArray(obj)) {
-            obj.forEach(item => this.normalizeTimestamps(item));
+            obj.forEach(item => ApiClient.normalizeTimestamps(item));
         } else if (obj && typeof obj === 'object') {
             Object.keys(obj).forEach(key => {
                 if (key.includes('time') || key.includes('date') || key.includes('created') || key.includes('updated')) {
@@ -319,7 +325,7 @@ const ApiClient = {
                 }
                 
                 if (typeof obj[key] === 'object') {
-                    this.normalizeTimestamps(obj[key]);
+                    ApiClient.normalizeTimestamps(obj[key]);
                 }
             });
         }
@@ -328,8 +334,8 @@ const ApiClient = {
 
 // 设置axios拦截器（如果axios可用）
 if (typeof axios !== 'undefined') {
-    axios.interceptors.request.use(ApiClient.interceptRequest);
-    axios.interceptors.response.use(ApiClient.interceptResponse);
+    axios.interceptors.request.use(config => ApiClient.interceptRequest(config));
+    axios.interceptors.response.use(response => ApiClient.interceptResponse(response));
 }
 
 // 导出模块
