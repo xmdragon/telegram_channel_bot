@@ -457,10 +457,10 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
     forward_success = await message_processor.forward_approved_message(message_id)
     
     if not forward_success:
-        logger.warning(f"消息已批准但发布失败: {message_id}")
+        logger.error(f"消息发布失败: {message_id}")
         return {
-            "success": True,
-            "message": "消息已批准，但发布失败，请检查Telegram连接",
+            "success": False,
+            "message": "消息发布失败，请检查Telegram连接状态",
             "timestamp": format_for_api(get_current_time())
         }
     

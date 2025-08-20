@@ -275,7 +275,14 @@ class MessageForwarder:
                 # 发送纯文本消息（不包含隐藏链接实体）
                 filtered_content = getattr(message, 'filtered_content', None) or message.get('filtered_content', None)
                 content = getattr(message, 'content', None) or message.get('content', '')
-                content_with_footer = await self._add_channel_footer(filtered_content or content)
+                
+                # 清理媒体组标记
+                import re
+                media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+                text_content = filtered_content or content
+                text_content = re.sub(media_desc_pattern, '', text_content).strip()
+                
+                content_with_footer = await self._add_channel_footer(text_content)
                 sent_message = await client.send_message(
                     entity=int(target_channel_id),
                     message=content_with_footer,
@@ -585,6 +592,12 @@ class MessageForwarder:
         try:
             media_files = []
             caption_text = message.filtered_content or message.content
+            
+            # 清理媒体组标记（与messages_crud.py保持一致）
+            import re
+            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+            caption_text = re.sub(media_desc_pattern, '', caption_text).strip()
+            
             # 添加频道落款
             caption_text = await self._add_channel_footer(caption_text)
             
@@ -617,8 +630,12 @@ class MessageForwarder:
                 
         except Exception as e:
             logger.error(f"发送组合消息失败: {e}")
-            # 发送失败时也要添加落款
-            content_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
+            # 发送失败时也要清理媒体组标记并添加落款
+            import re
+            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+            fallback_text = message.filtered_content or message.content
+            fallback_text = re.sub(media_desc_pattern, '', fallback_text).strip()
+            content_with_footer = await self._add_channel_footer(fallback_text)
             return await client.send_message(
                 entity=int(target_channel_id),
                 message=content_with_footer
@@ -627,8 +644,12 @@ class MessageForwarder:
     async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message):
         """发送单个媒体消息"""
         try:
-            # 添加频道落款到caption
-            caption_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
+            # 清理媒体组标记并添加频道落款到caption
+            import re
+            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+            caption_text = message.filtered_content or message.content
+            caption_text = re.sub(media_desc_pattern, '', caption_text).strip()
+            caption_with_footer = await self._add_channel_footer(caption_text)
             return await client.send_file(
                 entity=int(target_channel_id),
                 file=message.media_url,
@@ -636,8 +657,12 @@ class MessageForwarder:
             )
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
-            # 发送失败时也要添加落款
-            content_with_footer = await self._add_channel_footer(message.filtered_content or message.content)
+            # 发送失败时也要清理媒体组标记并添加落款
+            import re
+            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+            caption_text = message.filtered_content or message.content
+            caption_text = re.sub(media_desc_pattern, '', caption_text).strip()
+            content_with_footer = await self._add_channel_footer(caption_text)
             return await client.send_message(
                 entity=int(target_channel_id),
                 message=content_with_footer
