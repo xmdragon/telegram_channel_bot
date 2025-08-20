@@ -231,6 +231,14 @@
                     <h3 class="modal-title">文件详情</h3>
                     <button class="close-btn" @click="fileDetailsDialog.visible = false">×</button>
                 </div>
+                <!-- 临时调试信息 -->
+                <div style="background: #f0f0f0; padding: 10px; margin: 10px; font-size: 12px; border-radius: 4px;">
+                    <strong>调试信息:</strong><br>
+                    visible: {{ fileDetailsDialog.visible }}<br>
+                    details存在: {{ fileDetailsDialog.details ? 'true' : 'false' }}<br>
+                    fileName: {{ fileDetailsDialog.details?.fileName }}<br>
+                    原始数据: {{ JSON.stringify(fileDetailsDialog.details) }}
+                </div>
                 <div class="modal-body file-details-body">
                     <table class="file-details-table">
                         <tr>

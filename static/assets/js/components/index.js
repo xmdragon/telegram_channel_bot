@@ -1312,19 +1312,27 @@ const MainApp = {
         
         // 显示文件详情对话框
         showFileDetailsDialog(details) {
-            // 创建或更新文件详情对话框数据
+            console.log('🔍 显示文件详情对话框:', details);
+            
+            // 确保fileDetailsDialog存在并且是响应式的
             if (!this.fileDetailsDialog) {
+                console.warn('fileDetailsDialog不存在，重新初始化');
                 this.fileDetailsDialog = {
                     visible: false,
                     details: null
                 };
             }
             
-            // 确保响应式更新 - 重新赋值整个对象
-            this.fileDetailsDialog = {
-                visible: true,
-                details: { ...details }
-            };
+            // Vue 3响应式更新：直接修改属性
+            this.fileDetailsDialog.visible = true;
+            this.fileDetailsDialog.details = { ...details };
+            
+            console.log('📊 fileDetailsDialog更新后:', this.fileDetailsDialog);
+            
+            // 强制Vue重新渲染以确保UI更新
+            this.$nextTick(() => {
+                console.log('✅ Vue nextTick: 文件详情对话框应该已显示');
+            });
             
             // 异步获取文件大小
             this.getFileSize(details.path);
@@ -1337,10 +1345,12 @@ const MainApp = {
                 const size = response.headers.get('content-length');
                 if (size && this.fileDetailsDialog && this.fileDetailsDialog.details) {
                     const sizeInBytes = parseInt(size);
+                    // Vue 3响应式更新：直接修改属性
                     this.fileDetailsDialog.details.size = this.formatFileSize(sizeInBytes);
+                    console.log('📦 文件大小已更新:', this.fileDetailsDialog.details.size);
                 }
             } catch (error) {
-                // console.error('获取文件大小失败:', error);
+                console.warn('获取文件大小失败:', error);
                 if (this.fileDetailsDialog && this.fileDetailsDialog.details) {
                     this.fileDetailsDialog.details.size = '未知';
                 }
@@ -1742,15 +1752,10 @@ const MainApp = {
         updateSingleMessage(messageId, updates) {
             const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
             if (messageIndex !== -1) {
-                // 使用Vue.set确保响应式更新，但只更新变化的属性
+                // Vue 3响应式更新：直接修改属性即可
                 Object.keys(updates).forEach(key => {
-                    // 使用this.$set确保Vue能检测到变化（兼容Vue 2.x）
-                    if (this.$set) {
-                        this.$set(this.messages[messageIndex], key, updates[key]);
-                    } else {
-                        // Vue 3.x直接赋值即可
-                        this.messages[messageIndex][key] = updates[key];
-                    }
+                    // Vue 3中直接赋值即可触发响应式更新
+                    this.messages[messageIndex][key] = updates[key];
                 });
             } else {
                 // 作为后备方案，只在真正找不到时才重新加载
