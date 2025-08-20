@@ -181,6 +181,7 @@ class MessageCrudMixin:
         """更新消息的多个字段"""
         try:
             msg_key = f"msg:{channel_id}:{message_id}"
+            logger.debug(f"开始更新消息: {msg_key}, 更新数据: {update_data}")
             
             # 检查消息是否存在
             if not self.redis.exists(msg_key):
@@ -198,11 +199,15 @@ class MessageCrudMixin:
             # 添加更新时间
             redis_update_data['updated_at'] = get_current_time().isoformat()
             
+            logger.debug(f"执行Redis更新: {msg_key}, 数据: {redis_update_data}")
             self.redis.hset(msg_key, mapping=redis_update_data)
+            logger.info(f"消息更新成功: {channel_id}:{message_id}")
             return True
             
         except Exception as e:
             logger.error(f"更新消息失败 {channel_id}:{message_id}: {e}")
+            import traceback
+            logger.error(f"更新消息异常堆栈: {traceback.format_exc()}")
             return False
     
     async def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:

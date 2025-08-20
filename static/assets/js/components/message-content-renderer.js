@@ -237,8 +237,22 @@ const MessageContentRenderer = {
             this.$emit('reject-message', this.message.id);
         },
         
-        editMessage() {
-            this.$emit('edit-message', this.message);
+        editMessage(event) {
+            // 强制阻止所有事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 立即设置双重保护标志
+            this.$parent._isProcessingAction = true;
+            window._globalProcessingAction = true;
+            
+            // 延迟发送事件，确保当前事件循环完成
+            this.$nextTick(() => {
+                this.$emit('edit-message', this.message);
+            });
         },
         
         markAsAd() {

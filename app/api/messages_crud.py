@@ -555,16 +555,23 @@ async def update_message(
         update_data["updated_at"] = get_current_time().isoformat()
         update_data["updated_by"] = user.get('user_id')
         
-        # 解析message_id获取channel_id
-        if ':' in message_id:
-            channel_id, msg_id = message_id.split(':', 1)
-            msg_id = int(msg_id)
-        else:
-            # 尝试从消息数据中获取channel_id
-            channel_id = message.get('source_channel')
-            msg_id = int(message_id)
+        # 解析message_id获取channel_id  
+        try:
+            if ':' in message_id:
+                channel_id, msg_id = message_id.split(':', 1)
+                msg_id = int(msg_id)
+                logger.debug(f"从message_id解析: channel_id={channel_id}, msg_id={msg_id}")
+            else:
+                # 尝试从消息数据中获取channel_id
+                channel_id = message.get('source_channel')
+                msg_id = int(message_id)
+                logger.debug(f"从消息数据解析: channel_id={channel_id}, msg_id={msg_id}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"消息ID解析失败: {message_id}, 错误: {e}")
+            raise HTTPException(status_code=400, detail=f"消息ID格式错误: {message_id}")
         
         if not channel_id:
+            logger.error(f"无法确定频道ID: message_id={message_id}, message_data={message}")
             raise HTTPException(status_code=400, detail="无法确定消息的频道ID")
         
         # 执行更新
@@ -613,16 +620,31 @@ async def edit_and_publish_message(
     编辑消息（仅编辑，不自动发布）
     """
     try:
-        # 只更新消息内容，不进行发布
-        if "content" in request or "filtered_content" in request:
-            return await update_message(message_id, user, request)
-        else:
+        logger.info(f"开始编辑消息: {message_id}, 请求数据: {request}")
+        
+        # 验证请求数据
+        if not request:
+            raise HTTPException(status_code=400, detail="请求数据为空")
+            
+        if "content" not in request and "filtered_content" not in request:
             raise HTTPException(status_code=400, detail="没有提供要更新的内容")
+        
+        # 验证消息ID格式
+        if not message_id or ':' not in message_id:
+            logger.error(f"消息ID格式错误: {message_id}")
+            raise HTTPException(status_code=400, detail="消息ID格式错误，应为 'channel:message_id'")
+        
+        # 调用更新方法
+        result = await update_message(message_id, user, request)
+        logger.info(f"消息编辑成功: {message_id}")
+        return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"编辑消息失败: {e}")
+        logger.error(f"编辑消息失败: {message_id}, 错误: {e}")
+        import traceback
+        logger.error(f"编辑消息异常堆栈: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"编辑消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.resend)

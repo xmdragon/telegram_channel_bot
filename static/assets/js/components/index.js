@@ -1668,11 +1668,32 @@ const MainApp = {
                 event.stopPropagation();
                 event.stopImmediatePropagation();
             }
+            
+            // 验证必要的数据
+            if (!this.editDialog.messageId) {
+                MessageManager.error('编辑失败: 消息ID不存在');
+                return;
+            }
+            
+            if (!this.editDialog.filteredContent && this.editDialog.filteredContent !== '') {
+                MessageManager.error('编辑失败: 内容不能为空');
+                return;
+            }
+            
+            console.log('开始编辑消息:', {
+                messageId: this.editDialog.messageId,
+                content: this.editDialog.filteredContent,
+                url: window.API.messages.editPublish(this.editDialog.messageId)
+            });
+            
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
                 const response = await axios.post(window.API.messages.editPublish(this.editDialog.messageId), {
                     filtered_content: this.editDialog.filteredContent
                 });
+                
+                console.log('编辑响应:', response.data);
+                
                 if (response.data.success) {
                     MessageManager.success('消息已编辑并保存');
                     this.editDialog.visible = false;
@@ -1683,10 +1704,28 @@ const MainApp = {
                         updated_at: new Date().toISOString()
                     });
                 } else {
-                    MessageManager.error('编辑失败: ' + response.data.message);
+                    MessageManager.error('编辑失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                MessageManager.error('编辑失败: ' + (error.response?.data?.detail || error.message));
+                console.error('编辑请求异常:', error);
+                console.error('错误详情:', {
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data
+                });
+                
+                let errorMessage = '编辑失败: ';
+                if (error.response?.data?.detail) {
+                    errorMessage += error.response.data.detail;
+                } else if (error.response?.data?.message) {
+                    errorMessage += error.response.data.message;
+                } else if (error.message) {
+                    errorMessage += error.message;
+                } else {
+                    errorMessage += '未知错误';
+                }
+                
+                MessageManager.error(errorMessage);
             }
         },
         
