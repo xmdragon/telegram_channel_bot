@@ -25,34 +25,171 @@ function initializeGlobals() {
 // 主应用协调器 - 纯协调层，不包含具体业务逻辑
 const MainApp = {
     data() {
-        // 使用StateManager创建初始状态，消除数据结构重复
-        return window.StateManager ? window.StateManager.createInitialState() : {
-            // 降级状态，确保向后兼容
+        // Linus式"好品味"：确保状态初始化完整且可靠
+        const baseState = {
+            // 加载状态
             loading: false,
+            loadingMessage: '',
+            isLoadingMore: false,
+            isClearing: false,
+            
+            // 系统状态
+            statusMessage: '',
+            statusType: 'success',
+            systemStatus: '在线',
+            
+            // WebSocket状态
+            websocket: null,
+            websocketConnected: false,
+            
+            // 数据状态
             messages: [],
             selectedMessages: [],
+            searchKeyword: '',
+            channelInfo: {},
+            previousMessageIds: new Set(),
+            
+            // 分页状态
             currentPage: 1,
             pageSize: 20,
             hasMore: true,
-            filters: { status: 'pending' },
-            stats: {},
-            systemStatus: '在线'
+            
+            // 筛选状态 - 确保filters对象完整初始化
+            filters: {
+                status: 'pending',
+                is_ad: null,
+                source_channel: '',
+                filter_reason: null,
+                _show_duplicates: false
+            },
+            
+            // 统计状态 - 确保stats对象完整初始化
+            stats: {
+                total: { value: 0, label: '总消息' },
+                pending: { value: 0, label: '待审核' },
+                approved: { value: 0, label: '已发布' },
+                rejected: { value: 0, label: '已拒绝' },
+                ads: { value: 0, label: '广告消息' },
+                duplicates: { value: 0, label: '重复消息' },
+                chats: { value: 0, label: '聊天消息' }
+            },
+            
+            // 操作状态
+            processingMessages: new Set(),
+            _isProcessingAction: false,
+            refetchingMedia: {},
+            
+            // 对话框状态
+            mediaPreview: {
+                show: false,
+                url: null
+            },
+            fileDetailsDialog: {
+                visible: false,
+                details: null
+            },
+            editDialog: {
+                visible: false,
+                messageId: null,
+                filteredContent: '',
+                originalMessage: null
+            },
+            
+            // 虚拟滚动配置
+            useVirtualScroll: true,
+            virtualScrollThreshold: 100,
+            messageItemHeight: 200,
+            virtualListHeight: 600,
+            
+            // 权限控制
+            buttonVisibility: {
+                edit: true,
+                approve: true,
+                reject: true,
+                markAsAd: true,
+                markAsTail: true,
+                executeFilter: true,
+                refetchMedia: true,
+                delete: false
+            }
         };
+        
+        // 如果StateManager可用，验证并使用其初始状态
+        if (window.StateManager && typeof window.StateManager.createInitialState === 'function') {
+            try {
+                const stateManagerState = window.StateManager.createInitialState();
+                // 合并状态，确保所有字段都存在
+                return { ...baseState, ...stateManagerState };
+            } catch (error) {
+                console.warn('StateManager初始化失败，使用基础状态:', error);
+            }
+        }
+        
+        return baseState;
     },
     
     computed: {
-        // 委托给StateManager的计算属性，消除重复逻辑
+        // Linus式"好品味"：简单直接的频道去重逻辑
         uniqueChannels() {
-            return window.StateManager ? 
-                window.StateManager.getUniqueChannels(this.channelInfo) : 
-                {};
+            if (!this.channelInfo) return {};
+            
+            const uniqueChannels = {};
+            const seenChannels = new Set();
+            
+            for (const [id, info] of Object.entries(this.channelInfo)) {
+                if (!seenChannels.has(id)) {
+                    uniqueChannels[id] = info;
+                    seenChannels.add(id);
+                }
+            }
+            
+            return uniqueChannels;
         },
         
-        // 委托给StateManager的消息过滤，消除复杂的过滤逻辑
+        // Linus式"好品味"：可靠的消息过滤，不依赖外部模块
         filteredMessages() {
-            return window.StateManager ? 
-                window.StateManager.getFilteredMessages(this.messages, this.filters) : 
-                this.messages || [];
+            if (!this.messages || !Array.isArray(this.messages)) {
+                return [];
+            }
+            
+            if (!this.filters) {
+                return this.messages;
+            }
+            
+            return this.messages.filter(message => {
+                // 状态筛选
+                if (this.filters.status && message.status !== this.filters.status) {
+                    return false;
+                }
+                
+                // 广告筛选
+                if (this.filters.is_ad !== null && message.is_ad !== this.filters.is_ad) {
+                    return false;
+                }
+                
+                // 频道筛选
+                if (this.filters.source_channel && 
+                    message.source_channel_id !== this.filters.source_channel &&
+                    message.source_channel !== this.filters.source_channel) {
+                    return false;
+                }
+                
+                // 过滤原因筛选
+                if (this.filters.filter_reason && message.filter_reason !== this.filters.filter_reason) {
+                    return false;
+                }
+                
+                // 搜索关键词筛选
+                if (this.searchKeyword && this.searchKeyword.trim()) {
+                    const keyword = this.searchKeyword.trim().toLowerCase();
+                    const content = (message.filtered_content || message.content || '').toLowerCase();
+                    if (!content.includes(keyword)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
         },
         
         // 简化的全选状态计算
@@ -65,9 +202,32 @@ const MainApp = {
     },
     
     created() {
-        // 确保所有响应式数据正确初始化
+        // Linus式"好品味"：确保所有响应式数据正确初始化
+        console.log('🟢 Vue实例创建中，初始状态检查:');
+        console.log('  - messages数组长度:', this.messages ? this.messages.length : 'undefined');
+        console.log('  - filters对象:', this.filters);
+        console.log('  - stats对象:', this.stats);
+        console.log('  - filteredMessages长度:', this.filteredMessages ? this.filteredMessages.length : 'undefined');
+        
+        // 确保关键对象存在
         if (!this.mediaPreview) {
             this.mediaPreview = { show: false, url: null };
+        }
+        if (!this.fileDetailsDialog) {
+            this.fileDetailsDialog = { visible: false, details: null };
+        }
+        if (!this.editDialog) {
+            this.editDialog = { visible: false, messageId: null, filteredContent: '', originalMessage: null };
+        }
+        if (!this.refetchingMedia) {
+            this.refetchingMedia = {};
+        }
+        
+        // 确保loadMessages方法存在
+        if (typeof this.loadMessages !== 'function') {
+            console.error('⚠️ loadMessages方法未找到，Vue实例可能不完整');
+        } else {
+            console.log('✅ loadMessages方法已确认存在');
         }
     },
     
@@ -92,21 +252,32 @@ const MainApp = {
     
     async mounted() {
         try {
+            console.log('🟢 Vue实例mounted开始，状态检查:');
+            console.log('  - messages数组长度:', this.messages ? this.messages.length : 'undefined');
+            console.log('  - filters对象:', this.filters);
+            console.log('  - loadMessages方法类型:', typeof this.loadMessages);
+            console.log('  - window.API存在:', !!window.API);
+            console.log('  - axios存在:', typeof axios);
+            
             // 初始化全局处理标志
             window._globalProcessingAction = false;
             
             // 初始化权限检查
             const isAuthorized = await authManager.initPageAuth('messages.view');
             if (!isAuthorized) {
+                console.error('❌ 权限验证失败，停止初始化');
                 return;
             }
+            console.log('✅ 权限验证通过');
             
             // 初始化权限按钮可见性
             await this.initializePermissions();
+            console.log('✅ 权限按钮初始化完成');
             
             // 初始化状态管理器
             if (window.messageStateManager) {
                 window.messageStateManager.subscribe(this.handleStateUpdates);
+                console.log('✅ 状态管理器已连接');
             }
             
             // 检查是否需要刷新（从训练页面返回）
@@ -116,21 +287,42 @@ const MainApp = {
                 window.history.replaceState({}, document.title, window.location.pathname);
                 // 强制刷新数据
                 this.messages = [];
+                console.log('✅ 检测到刷新参数，已清理消息数据');
             }
             
+            console.log('🔄 开始并行加载初始数据...');
+            
             // 并行加载初始数据
-            await Promise.all([
+            const loadResults = await Promise.allSettled([
                 this.loadMessages().catch(err => {
-                    console.error('加载消息失败:', err);
+                    console.error('❌ 加载消息失败:', err);
                     MessageManager.error('加载消息失败，请刷新页面重试');
+                    throw err;
                 }),
                 this.loadStats().catch(err => {
-                    console.error('加载统计失败:', err);
+                    console.error('❌ 加载统计失败:', err);
+                    throw err;
                 }),
                 this.loadChannelInfo().catch(err => {
-                    console.error('加载频道信息失败:', err);
+                    console.error('❌ 加载频道信息失败:', err);
+                    throw err;
                 })
             ]);
+            
+            // 检查加载结果
+            console.log('📊 数据加载结果:');
+            console.log('  - loadMessages:', loadResults[0].status, loadResults[0].status === 'rejected' ? loadResults[0].reason : 'success');
+            console.log('  - loadStats:', loadResults[1].status, loadResults[1].status === 'rejected' ? loadResults[1].reason : 'success');
+            console.log('  - loadChannelInfo:', loadResults[2].status, loadResults[2].status === 'rejected' ? loadResults[2].reason : 'success');
+            
+            // 在数据加载完成后检查状态
+            setTimeout(() => {
+                console.log('🔍 数据加载后状态检查:');
+                console.log('  - messages数组长度:', this.messages ? this.messages.length : 'undefined');
+                console.log('  - filteredMessages长度:', this.filteredMessages ? this.filteredMessages.length : 'undefined');
+                console.log('  - filters:', this.filters);
+                console.log('  - stats:', this.stats);
+            }, 1000);
             
             // 建立WebSocket连接（非关键功能，失败不影响使用）
             try {
@@ -372,12 +564,17 @@ const MainApp = {
         
         
         async loadMessages(append = false) {
+            console.log('📡 loadMessages开始，模式:', append ? '追加' : '重新加载');
+            
             // 如果正在处理操作，直接返回防止干扰
             if (this._isProcessingAction || window._globalProcessingAction) {
+                console.log('⏸️ 正在处理其他操作，跳过loadMessages');
                 return;
             }
+            
             if (append) {
                 this.isLoadingMore = true;
+                console.log('🔄 设置加载更多模式');
             } else {
                 // 立即清空消息数据和设置加载状态
                 this.messages = [];  
@@ -387,6 +584,7 @@ const MainApp = {
                 this.hasMore = true;  // 重置hasMore状态
                 this.loading = true;
                 this.loadingMessage = '正在加载消息数据...';
+                console.log('🔄 清空状态并设置加载模式');
             }
             
             try {
@@ -415,12 +613,25 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
+                console.log('🌐 准备API请求, 参数:', params);
+                console.log('🌐 API端点:', window.API ? window.API.messages?.list : '未定义');
+                
                 const response = await axios.get(window.API.messages.list, {
                     params: params
                 });
                 
+                console.log('📥 API响应状态:', response.status);
+                console.log('📥 API响应数据结构:', {
+                    hasData: !!response.data,
+                    hasDataData: !!(response.data && response.data.data),
+                    hasMessages: !!(response.data && response.data.data && response.data.data.messages),
+                    messagesType: response.data && response.data.data && response.data.data.messages ? typeof response.data.data.messages : 'undefined',
+                    messagesLength: response.data && response.data.data && response.data.data.messages && Array.isArray(response.data.data.messages) ? response.data.data.messages.length : 'N/A'
+                });
+                
                 if (response.data && response.data.data && response.data.data.messages && Array.isArray(response.data.data.messages)) {
                     const newMessages = response.data.data.messages;
+                    console.log('✅ 获取到', newMessages.length, '条消息');
                     
                     // 检查是否还有更多数据
                     this.hasMore = newMessages.length === this.pageSize;
@@ -479,14 +690,22 @@ const MainApp = {
                         setTimeout(() => this.setupScrollListener(), 100);
                     });
                 } else {
+                    console.warn('❌ API返回格式异常或无消息数据');
+                    console.log('📄 完整API响应:', response.data);
                     this.messages = [];
-                    // console.warn('API返回格式异常:', response.data);
                     if (this.previousMessageIds.size === 0) {
                         MessageManager.warning('暂无消息数据');
                     }
                 }
             } catch (error) {
-                // console.error('加载消息失败:', error);
+                console.error('❌ 加载消息失败:', error);
+                console.error('❌ 错误详情:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    responseData: error.response?.data,
+                    config: error.config
+                });
                 this.messages = [];
                 MessageManager.error('加载消息失败: ' + (error.response?.data?.detail || error.message));
             } finally {

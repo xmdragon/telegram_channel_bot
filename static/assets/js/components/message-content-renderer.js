@@ -215,11 +215,22 @@ const MessageContentRenderer = {
         },
         
         // 单个操作方法
-        approveMessage() {
+        approveMessage(event) {
+            // 强制阻止所有事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
             // 立即设置双重保护标志
             this.$parent._isProcessingAction = true;
             window._globalProcessingAction = true;
-            this.$emit('approve-message', this.message.id);
+            
+            // 延迟发送事件，确保当前事件循环完成
+            this.$nextTick(() => {
+                this.$emit('approve-message', this.message.id);
+            });
         },
         
         rejectMessage() {
@@ -827,7 +838,7 @@ const MessageContentRenderer = {
                 <button @click.stop="editMessage" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
-                <button @click.stop.prevent="approveMessage" class="btn btn-sm btn-success">
+                <button @click="approveMessage($event)" class="btn btn-sm btn-success">
                     📤 发布
                 </button>
                 <button @click.stop="rejectMessage" class="btn btn-sm btn-danger">

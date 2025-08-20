@@ -66,7 +66,14 @@ const BatchOperationPanel = {
         },
         
         // 批量发布（带进度条）
-        async batchApprove() {
+        async batchApprove(event) {
+            // 防止事件冒泡
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
             if (!this.hasSelection) return;
             
             if (!confirm(`确定要发布 ${this.selectedCount} 条消息吗？`)) {
@@ -305,7 +312,7 @@ const BatchOperationPanel = {
                     <el-button 
                         type="success" 
                         :disabled="isProcessing || !buttonVisibility.approve"
-                        @click="batchApprove"
+                        @click="batchApprove($event)"
                         :loading="isProcessing && operationProgress.status.includes('发布')"
                     >
                         📤 发布 ({{ selectedCount }})
