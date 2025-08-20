@@ -63,6 +63,7 @@ class MessageReceiver(MessageProcessor):
     async def _extract_original_content(self, message: TLMessage) -> str:
         """
         提取消息的原始内容，确保不丢失任何文本
+        同时提取text和caption，优先使用text
         
         Args:
             message: Telegram消息对象
@@ -81,10 +82,22 @@ class MessageReceiver(MessageProcessor):
         # 3. 尝试message属性
         elif hasattr(message, 'message') and message.message:
             content = message.message
-        # 4. 对于媒体消息，尝试caption
-        elif hasattr(message, 'media') and message.media:
-            if hasattr(message, 'caption') and message.caption:
-                content = message.caption
+        
+        # 4. 🔧 重要修复：无论是否已有文本，都检查caption
+        # 对于媒体消息，caption是描述文字，应该被保留
+        caption = ""
+        if hasattr(message, 'caption') and message.caption:
+            caption = message.caption
+        
+        # 5. 组合文本和caption
+        if content and caption:
+            # 如果既有文本又有caption，合并它们
+            content = f"{content}\n\n{caption}"
+            self.logger.debug(f"合并文本和caption: text={len(message.text)}字符, caption={len(caption)}字符")
+        elif not content and caption:
+            # 如果只有caption，使用caption
+            content = caption
+            self.logger.debug(f"使用caption作为内容: {len(caption)}字符")
         
         # 记录提取结果
         if content:

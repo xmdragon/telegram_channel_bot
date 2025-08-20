@@ -30,15 +30,37 @@ class MessageGrouper:
         """
         try:
             # 提取消息基本信息
-            # 优先使用传入的filtered_content作为内容（已经包含caption）
-            original_content = filtered_content if filtered_content is not None else ""
+            # 🔧 修复：改进文本内容提取，确保不丢失caption
+            original_content = ""
             
-            # 如果没有传入filtered_content，再从消息对象提取
-            if original_content == "" and hasattr(message, 'text'):
-                original_content = message.text or message.raw_text or ""
-                # 检查caption
-                if not original_content and hasattr(message, 'caption'):
-                    original_content = message.caption or ""
+            # 1. 优先使用传入的filtered_content（来自上游处理器）
+            if filtered_content is not None and filtered_content.strip():
+                original_content = filtered_content
+                logger.debug(f"使用上游过滤后内容: {len(original_content)}字符")
+            else:
+                # 2. 如果没有传入有效的filtered_content，直接从消息提取
+                # 按优先级提取：text -> raw_text -> message -> caption
+                if hasattr(message, 'text') and message.text:
+                    original_content = message.text
+                elif hasattr(message, 'raw_text') and message.raw_text:
+                    original_content = message.raw_text
+                elif hasattr(message, 'message') and message.message:
+                    original_content = message.message
+                
+                # 3. 🔧 重要：无论是否已有文本，都检查caption
+                caption = ""
+                if hasattr(message, 'caption') and message.caption:
+                    caption = message.caption
+                
+                # 4. 组合文本和caption
+                if original_content and caption:
+                    original_content = f"{original_content}\n\n{caption}"
+                    logger.debug(f"组合器中合并文本和caption: text={len(message.text if hasattr(message, 'text') else '')}字符, caption={len(caption)}字符")
+                elif not original_content and caption:
+                    original_content = caption
+                    logger.debug(f"组合器中使用caption: {len(caption)}字符")
+                
+                logger.debug(f"组合器提取原始内容: {len(original_content)}字符")
             
             message_data = {
                 'message_id': message.id,
@@ -264,32 +286,48 @@ class MessageGrouper:
         # 按时间排序
         messages.sort(key=lambda x: x['date'])
         
-        # 提取所有文本内容（优先使用过滤后的内容）
+        # 🔧 改进文本内容提取和合并逻辑
         all_texts = []
         all_filtered_texts = []
         is_ad = False
+        text_message_count = 0  # 记录有文本的消息数量
         
-        for msg in messages:
+        for i, msg in enumerate(messages):
             content = msg.get('content') or ''
             filtered_content = msg.get('filtered_content')
             
-            # 始终保存原始内容
-            if content.strip():
-                all_texts.append(content)
+            # 记录文本内容存在性
+            has_content = bool(content.strip())
+            has_filtered = bool(filtered_content and filtered_content.strip())
             
-            # 如果有过滤后的内容，使用过滤后的；否则使用原始内容
-            if filtered_content and filtered_content.strip():
-                all_filtered_texts.append(filtered_content)
-            elif content.strip():
-                all_filtered_texts.append(content)
+            if has_content:
+                text_message_count += 1
+            
+            # 始终保存原始内容（即使为空，保持消息顺序）
+            if content.strip():
+                all_texts.append(content.strip())
+                logger.debug(f"消息{i+1}原始内容: {len(content)}字符")
+            
+            # 过滤后内容处理
+            if has_filtered:
+                all_filtered_texts.append(filtered_content.strip())
+                logger.debug(f"消息{i+1}过滤后内容: {len(filtered_content)}字符")
+            elif has_content:
+                # 如果没有过滤后内容但有原始内容，使用原始内容
+                all_filtered_texts.append(content.strip())
+                logger.debug(f"消息{i+1}使用原始内容作为过滤后内容: {len(content)}字符")
             
             # 如果组内任何一条消息被判定为广告，整组都标记为广告
             if msg.get('is_ad'):
                 is_ad = True
                 logger.info(f"🚫 消息组中检测到广告，整组标记为广告")
         
-        combined_content = '\n'.join(all_texts) if all_texts else ""
-        combined_filtered_content = '\n'.join(all_filtered_texts) if all_filtered_texts else ""
+        # 合并文本内容
+        combined_content = '\n\n'.join(all_texts) if all_texts else ""
+        combined_filtered_content = '\n\n'.join(all_filtered_texts) if all_filtered_texts else ""
+        
+        # 记录文本合并结果
+        logger.info(f"组合消息文本合并: {len(messages)}条消息, {text_message_count}条有文本, 原始{len(combined_content)}字符, 过滤后{len(combined_filtered_content)}字符")
         
         # 提取所有媒体信息
         media_group = []
