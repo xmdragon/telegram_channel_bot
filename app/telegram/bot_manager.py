@@ -148,7 +148,7 @@ class BotManager:
                 # 检查是否启用自动转发
                 from app.services.config_manager import ConfigManager
                 config_manager = ConfigManager()
-                auto_forward_enabled = await config_manager.get_config("review.auto_forward_enabled", False)
+                auto_forward_enabled = await config_manager.get_config("target.auto_forward_enabled", False)
                 
                 if auto_forward_enabled:
                     # 获取需要转发的消息

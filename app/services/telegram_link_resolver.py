@@ -64,18 +64,21 @@ class TelegramLinkResolver:
     async def resolve_group_id(self, link: str) -> Optional[int]:
         """解析群组链接获取真实ID"""
         try:
-            if not auth_manager.client:
+            # 使用全局客户端管理器获取客户端
+            from app.telegram.client_manager import client_manager
+            client = await client_manager.get_client()
+            if not client:
                 logger.error("Telegram客户端未连接")
                 return None
             
             parsed = self.parse_link(link)
             
             if parsed['type'] == 'invite_link':
-                return await self._resolve_invite_link(parsed['hash'])
+                return await self._resolve_invite_link(client, parsed['hash'])
             elif parsed['type'] == 'username_link':
-                return await self._resolve_username_link(parsed['username'])
+                return await self._resolve_username_link(client, parsed['username'])
             elif parsed['type'] == 'joinchat_link':
-                return await self._resolve_joinchat_link(parsed['hash'])
+                return await self._resolve_joinchat_link(client, parsed['hash'])
             else:
                 logger.error(f"不支持的链接格式: {link}")
                 return None
@@ -84,7 +87,7 @@ class TelegramLinkResolver:
             logger.error(f"解析群组链接失败: {e}")
             return None
     
-    async def _resolve_invite_link(self, invite_hash: str) -> Optional[int]:
+    async def _resolve_invite_link(self, client, invite_hash: str) -> Optional[int]:
         """解析邀请链接获取群组ID"""
         try:
             # 使用Telethon的方法解析邀请链接
@@ -96,7 +99,7 @@ class TelegramLinkResolver:
             
             # 首先检查邀请链接信息
             try:
-                result = await auth_manager.client(CheckChatInviteRequest(invite_hash))
+                result = await client(CheckChatInviteRequest(invite_hash))
             except (InviteHashExpiredError, InviteHashInvalidError) as e:
                 logger.warning(f"邀请链接无效或已过期: {e}")
                 return None
@@ -124,7 +127,7 @@ class TelegramLinkResolver:
                 logger.info(f"需要加入群组才能获取ID: {result.title}")
                 
                 try:
-                    import_result = await auth_manager.client(ImportChatInviteRequest(invite_hash))
+                    import_result = await client(ImportChatInviteRequest(invite_hash))
                     
                     if hasattr(import_result, 'chats') and import_result.chats:
                         chat = import_result.chats[0]
@@ -151,10 +154,10 @@ class TelegramLinkResolver:
             logger.error(f"解析邀请链接失败: {e}")
             return None
     
-    async def _resolve_username_link(self, username: str) -> Optional[int]:
+    async def _resolve_username_link(self, client, username: str) -> Optional[int]:
         """解析用户名链接获取群组ID"""
         try:
-            entity = await auth_manager.client.get_entity(username)
+            entity = await client.get_entity(username)
             
             if hasattr(entity, 'id'):
                 chat_id = entity.id
@@ -172,10 +175,10 @@ class TelegramLinkResolver:
             logger.error(f"解析用户名链接失败: {e}")
             return None
     
-    async def _resolve_joinchat_link(self, chat_hash: str) -> Optional[int]:
+    async def _resolve_joinchat_link(self, client, chat_hash: str) -> Optional[int]:
         """解析旧版加入链接获取群组ID"""
         # 旧版joinchat链接的处理方式与invite链接类似
-        return await self._resolve_invite_link(chat_hash)
+        return await self._resolve_invite_link(client, chat_hash)
     
     async def resolve_and_cache_group_id(self, review_group_config: str) -> Optional[int]:
         """
@@ -200,7 +203,13 @@ class TelegramLinkResolver:
             if review_group_config.startswith('@') and not self.is_telegram_link(review_group_config):
                 logger.info(f"检测到用户名格式: {review_group_config}")
                 try:
-                    entity = await auth_manager.client.get_entity(review_group_config)
+                    # 使用全局客户端管理器获取客户端
+                    from app.telegram.client_manager import client_manager
+                    client = await client_manager.get_client()
+                    if not client:
+                        logger.error("Telegram客户端未连接")
+                        return None
+                    entity = await client.get_entity(review_group_config)
                     if hasattr(entity, 'id'):
                         chat_id = entity.id
                         if hasattr(entity, 'megagroup') and entity.megagroup:

@@ -25,7 +25,7 @@ async def get_system_config():
         "review_group": await config_manager.get_config('review.group_link', ''),
         
         # 其他配置
-        "auto_forward_enabled": await config_manager.get_config('review.auto_forward_enabled', False),
+        "auto_forward_enabled": await config_manager.get_config('target.auto_forward_enabled', False),
         "auto_forward_delay": await db_settings.get_auto_forward_delay(),
         "auto_reject_ads": await config_manager.get_config('review.auto_reject_ads', False),
         "source_channels": await db_settings.get_source_channels(),
@@ -114,7 +114,7 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
         # 保存用户输入的用户名/链接格式
         await config_manager.set_config('target.channel_link', request.target_channel, config_type="string")
         await config_manager.set_config('review.group_link', request.review_group, config_type="string")
-        await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled, config_type="boolean")
+        await config_manager.set_config('target.auto_forward_enabled', request.auto_forward_enabled, config_type="boolean")
         await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay, config_type="integer")
         await config_manager.set_config('review.auto_reject_ads', request.auto_reject_ads, config_type="boolean")
         

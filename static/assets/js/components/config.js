@@ -101,7 +101,17 @@ const ConfigApp = {
             systemConfig: {
                 history_message_limit: 50,
                 channel_signature: '',
-                collection_enabled: true
+                collection_enabled: true,
+                // 过滤设置
+                filter_enabled: true,
+                tail_filter_enabled: true,
+                ocr_enabled: true,
+                // 审核设置
+                require_approval: true,
+                auto_forward_after_collect: true,
+                // 系统设置
+                scheduler_enabled: true,
+                delete_single_messages: true
             },
             
             // 过滤设置 - 系统自动管理
@@ -200,7 +210,7 @@ const ConfigApp = {
                     const configs = response.data.configs;
                     
                     this.forwardingConfig = {
-                        enabled: this.parseBooleanValue(configs['review.auto_forward_enabled']?.value, false),
+                        enabled: this.parseBooleanValue(configs['target.auto_forward_enabled']?.value, false),
                         target_channel: configs['target.channel_link']?.value || '',
                         review_group: configs['review.group_link']?.value || '',
                         delay: parseInt(configs['review.auto_forward_delay']?.value) || 1800,
@@ -237,7 +247,17 @@ const ConfigApp = {
                     this.systemConfig = {
                         history_message_limit: parseInt(configs['source.history_limit']?.value) || 50,
                         channel_signature: configs['target.signature']?.value || '',
-                        collection_enabled: this.parseBooleanValue(configs['collection.enabled']?.value, true)
+                        collection_enabled: this.parseBooleanValue(configs['collection.enabled']?.value, true),
+                        // 过滤设置
+                        filter_enabled: this.parseBooleanValue(configs['filter.enabled']?.value, true),
+                        tail_filter_enabled: this.parseBooleanValue(configs['filter.tail_filter_enabled']?.value, true),
+                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled']?.value, true),
+                        // 审核设置
+                        require_approval: this.parseBooleanValue(configs['review.require_approval']?.value, true),
+                        auto_forward_after_collect: this.parseBooleanValue(configs['review.auto_forward_after_collect']?.value, true),
+                        // 系统设置
+                        scheduler_enabled: this.parseBooleanValue(configs['scheduler.enabled']?.value, true),
+                        delete_single_messages: this.parseBooleanValue(configs['storage.delete_single_messages']?.value, true)
                     };
                     
                     console.log('加载的系统配置:', this.systemConfig);
@@ -416,7 +436,7 @@ const ConfigApp = {
             try {
                 // 使用批量配置保存API
                 const configData = {
-                    'review.auto_forward_enabled': Boolean(this.forwardingConfig.enabled),
+                    'target.auto_forward_enabled': Boolean(this.forwardingConfig.enabled),
                     'target.channel_link': this.forwardingConfig.target_channel.trim(),
                     'review.group_link': this.forwardingConfig.review_group.trim(),
                     'review.auto_forward_delay': parseInt(this.forwardingConfig.delay),
@@ -450,7 +470,17 @@ const ConfigApp = {
                 const configData = {
                     'source.history_limit': parseInt(this.systemConfig.history_message_limit),
                     'target.signature': this.systemConfig.channel_signature,
-                    'collection.enabled': Boolean(this.systemConfig.collection_enabled)
+                    'collection.enabled': Boolean(this.systemConfig.collection_enabled),
+                    // 过滤设置
+                    'filter.enabled': Boolean(this.systemConfig.filter_enabled),
+                    'filter.tail_filter_enabled': Boolean(this.systemConfig.tail_filter_enabled),
+                    'filter.ocr_enabled': Boolean(this.systemConfig.ocr_enabled),
+                    // 审核设置
+                    'review.require_approval': Boolean(this.systemConfig.require_approval),
+                    'review.auto_forward_after_collect': Boolean(this.systemConfig.auto_forward_after_collect),
+                    // 系统设置
+                    'scheduler.enabled': Boolean(this.systemConfig.scheduler_enabled),
+                    'storage.delete_single_messages': Boolean(this.systemConfig.delete_single_messages)
                 };
                 
                 // 调试日志
@@ -476,7 +506,17 @@ const ConfigApp = {
             this.systemConfig = {
                 history_message_limit: 50,
                 channel_signature: '',
-                collection_enabled: true
+                collection_enabled: true,
+                // 过滤设置
+                filter_enabled: true,
+                tail_filter_enabled: true,
+                ocr_enabled: true,
+                // 审核设置
+                require_approval: true,
+                auto_forward_after_collect: true,
+                // 系统设置
+                scheduler_enabled: true,
+                delete_single_messages: true
             };
             MessageManager.success('系统配置已重置为默认值');
         },

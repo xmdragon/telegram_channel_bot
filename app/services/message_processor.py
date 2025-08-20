@@ -2,6 +2,7 @@
 消息处理服务
 """
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from app.storage.redis_store import get_redis_message_store, RedisMessageStore
@@ -209,6 +210,10 @@ class MessageProcessor:
                     saved_message = self.redis_store.get_message(channel_id, int(message_id))
                     if saved_message:
                         logger.info(f"💾 message_processor: 新消息 {channel_id}:{message_id} 成功保存到Redis [状态: {saved_message.get('status', 'unknown')}]")
+                        
+                        # 检查是否启用采集后自动转发到审核群
+                        await self._check_auto_forward_after_collect(saved_message)
+                        
                         return saved_message
                     else:
                         logger.error(f"保存成功但无法获取消息: {channel_id}:{message_id}")
@@ -235,6 +240,44 @@ class MessageProcessor:
         except Exception as e:
             logger.error(f"处理新消息时出错: {e}")
             raise
+    
+    async def _check_auto_forward_after_collect(self, saved_message: dict):
+        """检查是否需要采集后自动转发到审核群"""
+        try:
+            from app.services.config_manager import config_manager
+            auto_forward_enabled = await config_manager.get_config('review.auto_forward_after_collect', True)
+            
+            if not auto_forward_enabled:
+                logger.debug("采集后自动转发已禁用")
+                return
+            
+            # 添加转发任务到队列
+            from app.services.message_forward_queue import forward_queue
+            
+            message_id_str = f"{saved_message.get('source_channel')}:{saved_message.get('message_id')}"
+            task_id = f"auto_forward_review_{message_id_str}_{int(time.time())}"
+            
+            # 创建转发到审核群的任务
+            task = forward_queue.create_task(
+                task_id=task_id,
+                action="forward_to_review", 
+                message_id=message_id_str,
+                priority=5,  # 中等优先级
+                max_retries=3,
+                data={
+                    "source": "auto_forward_after_collect",
+                    "message_data": saved_message
+                }
+            )
+            
+            if forward_queue.add_task(task):
+                logger.info(f"📤 已添加采集后自动转发任务: {message_id_str}")
+            else:
+                logger.warning(f"添加自动转发任务失败: {message_id_str}")
+                
+        except Exception as e:
+            logger.error(f"检查采集后自动转发时出错: {e}")
+            # 不抛出异常，避免影响消息保存流程
     
     async def get_message_stats(self) -> dict:
         """获取消息统计信息"""

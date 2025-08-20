@@ -344,6 +344,87 @@
                                     控制是否开启Telegram消息采集，关闭后系统将暂停从监听频道采集新消息
                                 </div>
                             </el-form-item>
+                            
+                            <!-- 过滤设置 -->
+                            <el-form-item label="内容过滤">
+                                <el-switch 
+                                    v-model="systemConfig.filter_enabled"
+                                    active-text="启用"
+                                    inactive-text="禁用">
+                                </el-switch>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    启用智能内容过滤，检测和过滤广告等不合规内容
+                                </div>
+                            </el-form-item>
+                            
+                            <el-form-item label="尾部过滤">
+                                <el-switch 
+                                    v-model="systemConfig.tail_filter_enabled"
+                                    active-text="启用"
+                                    inactive-text="禁用">
+                                </el-switch>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    自动去除消息尾部的推广内容、联系方式等
+                                </div>
+                            </el-form-item>
+                            
+                            <el-form-item label="OCR图片识别">
+                                <el-switch 
+                                    v-model="systemConfig.ocr_enabled"
+                                    active-text="启用"
+                                    inactive-text="禁用">
+                                </el-switch>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    对图片进行文字识别，用于广告检测和内容过滤
+                                </div>
+                            </el-form-item>
+                            
+                            <!-- 审核设置 -->
+                            <el-form-item label="人工审核">
+                                <el-switch 
+                                    v-model="systemConfig.require_approval"
+                                    active-text="启用"
+                                    inactive-text="禁用">
+                                </el-switch>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    消息需要人工审核通过后才会转发到目标频道
+                                </div>
+                            </el-form-item>
+                            
+                            <el-form-item label="采集后自动转发审核群">
+                                <el-switch 
+                                    v-model="systemConfig.auto_forward_after_collect"
+                                    active-text="启用"
+                                    inactive-text="禁用">
+                                </el-switch>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    消息采集后立即转发到审核群，供人工审核
+                                </div>
+                            </el-form-item>
+                            
+                            <!-- 系统设置 -->
+                            <el-form-item label="消息调度服务">
+                                <el-switch 
+                                    v-model="systemConfig.scheduler_enabled"
+                                    active-text="启用"
+                                    inactive-text="禁用">
+                                </el-switch>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    后台调度服务，处理自动转发和数据清理任务
+                                </div>
+                            </el-form-item>
+                            
+                            <el-form-item label="单独消息删除">
+                                <el-switch 
+                                    v-model="systemConfig.delete_single_messages"
+                                    active-text="启用"
+                                    inactive-text="禁用">
+                                </el-switch>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    组合消息保存后删除单独消息（性能优化，可回滚）
+                                </div>
+                            </el-form-item>
+                            
                             <el-form-item>
                                 <el-button type="primary" @click="saveSystemConfig">保存配置</el-button>
                                 <el-button @click="resetSystemConfig">重置默认</el-button>

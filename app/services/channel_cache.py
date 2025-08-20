@@ -89,8 +89,8 @@ class ChannelCache:
             await self._ensure_redis()
             logger.info("开始初始化频道ID缓存...")
             
-            # 解析并缓存目标频道（优先使用已缓存的ID）
-            target_channel_id = await self.config_manager.get_config('channels.target_channel_id_cached', '')
+            # 解析并缓存目标频道（优先使用已保存的ID）
+            target_channel_id = await self.config_manager.get_config('target.channel_id', '')
             if not target_channel_id:
                 target_channel = await self.config_manager.get_config('target.channel_link', '')
                 if target_channel:
@@ -102,8 +102,8 @@ class ChannelCache:
                 self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
                 logger.info(f"目标频道ID已缓存: {target_channel_id}")
             
-            # 解析并缓存审核群（优先使用已缓存的ID）
-            review_group_id = await self.config_manager.get_config('channels.review_group_id_cached', '')
+            # 解析并缓存审核群（优先使用已保存的ID）
+            review_group_id = await self.config_manager.get_config('review.group_id', '')
             if not review_group_id:
                 review_group = await self.config_manager.get_config('review.group_link', '')
                 if review_group:
@@ -193,12 +193,12 @@ class ChannelCache:
     async def refresh_target_channel_cache(self):
         """刷新目标频道缓存"""
         try:
-            # 优先使用已缓存的ID
-            target_channel_id = await self.config_manager.get_config('channels.target_channel_id_cached', '')
+            # 优先使用已保存的ID
+            target_channel_id = await self.config_manager.get_config('target.channel_id', '')
             if target_channel_id:
                 await self._ensure_redis()
                 self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
-                logger.info(f"目标频道缓存已刷新（使用缓存ID）: {target_channel_id}")
+                logger.info(f"目标频道缓存已刷新（使用保存ID）: {target_channel_id}")
                 return target_channel_id
             
             # 如果没有缓存ID，从原始配置解析
@@ -218,12 +218,12 @@ class ChannelCache:
     async def refresh_review_group_cache(self):
         """刷新审核群缓存"""
         try:
-            # 优先使用已缓存的ID
-            review_group_id = await self.config_manager.get_config('channels.review_group_id_cached', '')
+            # 优先使用已保存的ID
+            review_group_id = await self.config_manager.get_config('review.group_id', '')
             if review_group_id:
                 await self._ensure_redis()
                 self.redis_store.redis.set('cache:review_group_id', review_group_id)
-                logger.info(f"审核群缓存已刷新（使用缓存ID）: {review_group_id}")
+                logger.info(f"审核群缓存已刷新（使用保存ID）: {review_group_id}")
                 return review_group_id
             
             # 如果没有缓存ID，从原始配置解析
