@@ -892,7 +892,18 @@ const MainApp = {
         },
         
         // 发布消息
-        async approveMessage(messageId) {
+        async approveMessage(event, messageId) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果messageId在event中，提取出来
+            if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
+                messageId = event.target.dataset.messageId;
+            }
             try {
                 // 设置操作标志，防止watcher触发loadMessages
                 this._isProcessingAction = true;
@@ -950,7 +961,18 @@ const MainApp = {
         },
         
         // 拒绝消息
-        async rejectMessage(messageId) {
+        async rejectMessage(event, messageId) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果messageId在event中，提取出来
+            if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
+                messageId = event.target.dataset.messageId;
+            }
             try {
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
@@ -1035,7 +1057,13 @@ const MainApp = {
         },
         
         // 批量发布
-        async batchApprove() {
+        async batchApprove(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             if (window.MessageManager) {
                 const result = await window.MessageManager.batchApprove(this.selectedMessages);
                 if (result.success) {
@@ -1573,7 +1601,18 @@ const MainApp = {
         },
         
         // 发布消息到目标频道
-        async publishMessage(messageId) {
+        async publishMessage(event, messageId) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果messageId在event中，提取出来
+            if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
+                messageId = event.target.dataset.messageId;
+            }
             try {
                 const response = await axios.post(window.API.messages.publish(messageId));
                 if (response.data.success) {
@@ -1590,7 +1629,22 @@ const MainApp = {
         },
         
         // 编辑消息
-        editMessage(message) {
+        editMessage(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                // 从dataset中重构message对象
+                message = {
+                    id: event.target.dataset.messageId,
+                    filtered_content: event.target.dataset.filteredContent || ''
+                };
+            }
             this.editDialog.messageId = message.id;
             this.editDialog.filteredContent = message.filtered_content || '';
             this.editDialog.originalMessage = message;
@@ -1598,7 +1652,13 @@ const MainApp = {
         },
         
         // 保存编辑的消息
-        async saveEditedMessage() {
+        async saveEditedMessage(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
                 const response = await axios.post(window.API.messages.editPublish(this.editDialog.messageId), {
@@ -1642,7 +1702,13 @@ const MainApp = {
         },
         
         // 切换全选
-        toggleSelectAll() {
+        toggleSelectAll(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             if (this.allSelected) {
                 this.selectedMessages = [];
             } else {
@@ -1667,7 +1733,13 @@ const MainApp = {
         },
         
         // 批量发布消息
-        async approveMessages() {
+        async approveMessages(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             if (window.MessageManager) {
                 const result = await window.MessageManager.batchApprove(this.selectedMessages);
                 if (result.success) {
@@ -1704,7 +1776,13 @@ const MainApp = {
         },
         
         // 批量拒绝消息
-        async rejectMessages() {
+        async rejectMessages(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             if (window.MessageManager) {
                 const result = await window.MessageManager.batchReject(this.selectedMessages);
                 if (result.success) {
@@ -1741,7 +1819,20 @@ const MainApp = {
         },
         
         // 重新发布消息到目标频道
-        async resendMessage(message) {
+        async resendMessage(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId
+                };
+            }
             try {
                 MessageManager.info('正在重新发布消息到目标频道...');
                 
@@ -1761,7 +1852,21 @@ const MainApp = {
         },
         
         // 重置消息状态 - 用于误判恢复
-        async resetMessage(message) {
+        async resetMessage(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId,
+                    is_ad: event.target.dataset.isAd === 'true'
+                };
+            }
             try {
                 // 解析消息ID
                 const idParts = message.id.split(':');
@@ -1800,7 +1905,13 @@ const MainApp = {
         },
         
         // 批量删除消息
-        async deleteMessages() {
+        async deleteMessages(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             if (this.selectedMessages.length === 0) {
                 MessageManager.warning('请先选择要删除的消息');
                 return;
@@ -1841,7 +1952,21 @@ const MainApp = {
         },
         
         // 打开编辑对话框
-        openEditDialog(message) {
+        openEditDialog(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId,
+                    filtered_content: event.target.dataset.filteredContent || ''
+                };
+            }
             this.editDialog.messageId = message.id;
             this.editDialog.filteredContent = message.filtered_content || '';
             this.editDialog.originalMessage = message;
@@ -1849,7 +1974,13 @@ const MainApp = {
         },
         
         // 保存编辑
-        async saveEdit() {
+        async saveEdit(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             await this.saveEditedMessage();
         },
         
@@ -1865,7 +1996,20 @@ const MainApp = {
         },
 
         // 标记为广告并加入训练样本
-        async markAsAd(message) {
+        async markAsAd(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId
+                };
+            }
             try {
                 if (!confirm('确定将此消息标记为广告吗？这将帮助AI更好地识别广告内容。')) {
                     return;
@@ -1894,7 +2038,20 @@ const MainApp = {
         },
         
         // 标记为"不是广告" - 纠正AI误判
-        async markAsNotAd(message) {
+        async markAsNotAd(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId
+                };
+            }
             try {
                 if (!confirm('确定将此消息标记为"不是广告"吗？这将帮助AI减少误判。')) {
                     return;
@@ -1917,7 +2074,21 @@ const MainApp = {
         },
         
         // 训练尾部
-        trainTail(message) {
+        trainTail(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId,
+                    source_channel: event.target.dataset.sourceChannel
+                };
+            }
             // 跳转到训练页面，并传递消息信息用于尾部训练
             const params = new URLSearchParams({
                 message_id: message.id,
@@ -1929,7 +2100,20 @@ const MainApp = {
         },
         
         // 手动执行尾部过滤
-        async filterTail(message) {
+        async filterTail(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId
+                };
+            }
             try {
                 const response = await axios.post(window.API.messages.filterTail(message.id));
                 
@@ -1992,7 +2176,20 @@ const MainApp = {
         },
         
         // 补抓媒体文件
-        async refetchMedia(message) {
+        async refetchMedia(event, message) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // 如果message在event中，提取出来
+            if (!message && event && event.target && event.target.dataset) {
+                message = {
+                    id: event.target.dataset.messageId
+                };
+            }
             try {
                 // 设置加载状态
                 this.refetchingMedia[message.id] = true;
@@ -2101,7 +2298,13 @@ const MainApp = {
         },
         
         // 智能全选
-        smartSelectAll() {
+        smartSelectAll(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             const pendingMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
             if (pendingMessages.length === this.selectedMessages.length) {
                 this.selectedMessages = [];
@@ -2111,7 +2314,13 @@ const MainApp = {
         },
         
         // 反选
-        invertSelection() {
+        invertSelection(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             const pendingMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
             const currentSelected = new Set(this.selectedMessages);
             this.selectedMessages = pendingMessages
@@ -2120,7 +2329,13 @@ const MainApp = {
         },
         
         // 清空选择
-        clearSelection() {
+        clearSelection(event) {
+            // 强制阻止事件传播
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
             this.selectedMessages = [];
         },
         
