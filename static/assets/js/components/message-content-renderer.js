@@ -6,6 +6,10 @@ const MessageContentRenderer = {
         message: {
             type: Object,
             required: true
+        },
+        channelInfo: {
+            type: Object,
+            default: () => ({})
         }
     },
     
@@ -239,23 +243,44 @@ const MessageContentRenderer = {
         
         // 获取频道显示名称
         getChannelDisplayName(channelId) {
-            // 直接使用DataUtils获取频道显示名称
-            if (window.DataUtils && window.DataUtils.getChannelDisplayName) {
-                // 从消息中获取频道信息
-                if (this.message.source_channel_title) {
-                    return this.message.source_channel_title;
+            // 尝试从channelInfo prop中获取完整的频道信息
+            if (this.channelInfo && channelId) {
+                const channelData = this.channelInfo[channelId];
+                if (channelData && window.DataUtils) {
+                    return window.DataUtils.getChannelDisplayName(channelData);
                 }
-                
-                // 如果有父组件的channelInfo，尝试从中获取
-                return window.DataUtils.getChannelDisplayName({
-                    id: channelId,
-                    title: this.message.source_channel_title,
-                    username: this.message.source_channel
-                });
             }
             
-            // 降级处理
-            return this.message.source_channel_title || this.message.source_channel || '未知频道';
+            // 从消息中构建频道信息
+            const channelData = {
+                id: channelId,
+                title: this.message.source_channel_title,
+                username: this.message.source_channel_username || this.extractUsernameFromChannel()
+            };
+            
+            if (window.DataUtils && window.DataUtils.getChannelDisplayName) {
+                return window.DataUtils.getChannelDisplayName(channelData);
+            }
+            
+            // 降级处理：优先显示标题
+            if (this.message.source_channel_title) {
+                let displayName = this.message.source_channel_title;
+                if (channelData.username) {
+                    displayName += ` [${channelData.username}]`;
+                }
+                return displayName;
+            }
+            
+            return this.message.source_channel || '未知频道';
+        },
+        
+        // 尝试从source_channel中提取用户名
+        extractUsernameFromChannel() {
+            const sourceChannel = this.message.source_channel;
+            if (typeof sourceChannel === 'string' && sourceChannel.startsWith('@')) {
+                return sourceChannel.substring(1); // 移除@符号
+            }
+            return null;
         },
         
         // 处理图片错误

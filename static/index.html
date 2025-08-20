@@ -108,7 +108,11 @@
                                  'processing': processingMessages.has(message.id)
                              }">
                             <!-- 消息内容渲染 -->
-                            <message-content-renderer :message="message" @toggle-select="toggleMessage"></message-content-renderer>
+                            <message-content-renderer 
+                                :message="message" 
+                                :channel-info="channelInfo"
+                                @toggle-select="toggleMessage">
+                            </message-content-renderer>
                         </div>
                     </template>
                 </virtual-list>
@@ -140,6 +144,7 @@
                          :class="{ 'selected': isSelected(message.id) }">
                         <message-content-renderer 
                             :message="message"
+                            :channel-info="channelInfo"
                             @toggle-select="toggleMessage"
                             @is-selected="isSelected"
                             @open-media-preview="openMediaPreview"

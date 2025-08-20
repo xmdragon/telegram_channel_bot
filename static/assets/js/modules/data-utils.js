@@ -62,8 +62,32 @@ const DataUtils = {
             return channelData;
         }
         
-        // 如果是对象，按优先级返回
-        return channelData.title || channelData.username || this.formatChannelId(channelData.id) || '未知频道';
+        // 如果是对象，构建 "频道标题 [用户名]" 格式
+        if (typeof channelData === 'object') {
+            let displayName = '';
+            
+            // 优先使用频道标题
+            if (channelData.title) {
+                displayName = channelData.title;
+                
+                // 如果有用户名，添加 [用户名] 后缀
+                if (channelData.username) {
+                    displayName += ` [${channelData.username}]`;
+                }
+                
+                return displayName;
+            }
+            
+            // 如果没有标题但有用户名
+            if (channelData.username) {
+                return `@${channelData.username}`;
+            }
+            
+            // 最后降级到ID
+            return this.formatChannelId(channelData.id) || '未知频道';
+        }
+        
+        return '未知频道';
     },
     
     // 格式化频道ID为友好显示
