@@ -1,6 +1,13 @@
-// 主页面 JavaScript 组件
+/**
+ * 主页面协调器 - Linus式"好品味"重构版本
+ * 
+ * 核心理念：
+ * 1. 数据结构驱动程序设计 - "Bad programmers worry about the code. Good programmers worry about data structures"
+ * 2. 消除边界情况 - 统一的委托模式处理所有操作
+ * 3. 简洁执念 - 协调层只负责协调，不做具体实现
+ */
 
-// 确保API配置可用，延迟解析避免加载时错误
+// 确保全局依赖可用
 let createApp, ElMessage;
 
 // 延迟初始化函数
@@ -15,148 +22,45 @@ function initializeGlobals() {
     if (!ElMessage && window.ElementPlus) ElMessage = window.ElementPlus.ElMessage;
 }
 
-// 主应用组件
+// 主应用协调器 - 纯协调层，不包含具体业务逻辑
 const MainApp = {
     data() {
-        return {
+        // 使用StateManager创建初始状态，消除数据结构重复
+        return window.StateManager ? window.StateManager.createInitialState() : {
+            // 降级状态，确保向后兼容
             loading: false,
-            loadingMessage: '',
-            statusMessage: '',
-            statusType: 'success',
-            systemStatus: '在线',
             messages: [],
-            websocket: null,
-            websocketConnected: false,
             selectedMessages: [],
-            searchKeyword: '',  // 搜索关键词
-            channelInfo: {},
-            
-            // 虚拟列表配置
-            useVirtualScroll: true,
-            virtualScrollThreshold: 100,
-            messageItemHeight: 200,
-            virtualListHeight: 600,
-            
-            // 状态管理
-            processingMessages: new Set(),
-            _isProcessingAction: false,
-            mediaPreview: {
-                show: false,
-                url: null
-            },
-            fileDetailsDialog: {
-                visible: false,
-                details: null
-            },
-            stats: {
-                total: { value: 0, label: '总消息' },
-                pending: { value: 0, label: '待审核' },
-                approved: { value: 0, label: '已发布' },
-                rejected: { value: 0, label: '已拒绝' },
-                ads: { value: 0, label: '广告消息' },
-                duplicates: { value: 0, label: '重复消息' },
-                chats: { value: 0, label: '聊天消息' }
-            },
-            filters: {
-                status: 'pending',
-                is_ad: null,
-                source_channel: '',  // 频道筛选，使用空字符串匹配HTML默认值
-                filter_reason: null,    // 过滤原因筛选
-                _show_duplicates: false  // 🔧 新增：重复消息对比显示标识
-            },
             currentPage: 1,
             pageSize: 20,
             hasMore: true,
-            isLoadingMore: false,
-            isClearing: false,  // 专门的清空状态，确保DOM立即更新
-            previousMessageIds: new Set(),  // 存储之前加载的消息ID
-            editDialog: {
-                visible: false,
-                messageId: null,
-                filteredContent: '',
-                originalMessage: null
-            },
-            refetchingMedia: {}, // 记录正在补抓的消息ID
-            // 权限控制
-            buttonVisibility: {
-                edit: true,
-                approve: true,
-                reject: true,
-                markAsAd: true,
-                markAsTail: true,
-                executeFilter: true,
-                refetchMedia: true
-            }
-        }
+            filters: { status: 'pending' },
+            stats: {},
+            systemStatus: '在线'
+        };
     },
     
     computed: {
-        // 去重的频道列表（只显示监听频道）
+        // 委托给StateManager的计算属性，消除重复逻辑
         uniqueChannels() {
-            if (!this.channelInfo) return {};
-            
-            const uniqueChannels = {};
-            const seenChannels = new Set();
-            
-            // 遍历所有频道，去重并过滤
-            for (const [key, channelData] of Object.entries(this.channelInfo)) {
-                // 只处理source类型的频道（监听频道）
-                if (channelData.type !== 'source') {
-                    continue;
-                }
-                
-                // 使用ID作为唯一标识
-                const channelId = channelData.id;
-                if (seenChannels.has(channelId)) {
-                    continue;
-                }
-                
-                seenChannels.add(channelId);
-                uniqueChannels[channelId] = channelData;
-                
-                // 调试：输出最终的显示名称
-            }
-            
-            return uniqueChannels;
+            return window.StateManager ? 
+                window.StateManager.getUniqueChannels(this.channelInfo) : 
+                {};
         },
         
-        // 过滤后的消息列表
+        // 委托给StateManager的消息过滤，消除复杂的过滤逻辑
         filteredMessages() {
-            if (!this.messages || !Array.isArray(this.messages)) {
-                return [];
-            }
-            
-            // 🔧 特殊处理：重复消息模式下只显示有重复信息的消息
-            if (this.filters._show_duplicates) {
-                const duplicateMessages = this.messages.filter(msg => {
-                    const hasDuplicateId = !!(msg.duplicate_original_id);
-                    const hasDuplicateInfo = !!(msg.duplicate_info);
-                    const hasFilterReason = !!(msg.filter_reason && msg.filter_reason.toLowerCase().includes('duplicate'));
-                    const hasRejectReason = !!(msg.reject_reason && (
-                        msg.reject_reason.includes('重复') || 
-                        msg.reject_reason.toLowerCase().includes('duplicate')
-                    ));
-                    
-                    const isDuplicate = hasDuplicateId || hasDuplicateInfo || hasFilterReason || hasRejectReason;
-                    
-                    return isDuplicate;
-                });
-                
-                return [...duplicateMessages];
-            }
-            
-            // 确保返回新的数组引用，避免Vue缓存问题
-            return [...this.messages];
+            return window.StateManager ? 
+                window.StateManager.getFilteredMessages(this.messages, this.filters) : 
+                this.messages || [];
         },
         
-        // 是否全选
+        // 简化的全选状态计算
         allSelected() {
-            if (!this.filteredMessages || this.filteredMessages.length === 0) {
-                return false;
-            }
-            const selectableMessages = this.filteredMessages.filter(msg => msg.status === 'pending');
-            return selectableMessages.length > 0 && 
-                   selectableMessages.every(msg => this.selectedMessages.includes(msg.message_id));
+            if (!this.filteredMessages || this.filteredMessages.length === 0) return false;
+            const selectableIds = this.filteredMessages.map(msg => msg.message_id);
+            return selectableIds.length > 0 && 
+                   selectableIds.every(id => this.selectedMessages.includes(id));
         }
     },
     
@@ -420,7 +324,7 @@ const MainApp = {
         
         async loadChannelInfo() {
             try {
-                const response = await axios.get(window.API.messages.channelInfo);
+                const response = await axios.get(window.window.API.messages.channelInfo);
                 if (response.data.success) {
                     const channelInfo = {};
                     
@@ -511,7 +415,7 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
-                const response = await axios.get(window.API.messages.list, {
+                const response = await axios.get(window.window.API.messages.list, {
                     params: params
                 });
                 
@@ -627,7 +531,7 @@ const MainApp = {
         
         async loadStats() {
             try {
-                const response = await axios.get(API.messages.statsOverview, {
+                const response = await axios.get(window.window.API.messages.statsOverview, {
                     headers: authManager.getAuthHeaders()
                 });
                 if (response.data) {
@@ -647,33 +551,12 @@ const MainApp = {
 
         // 获取频道名称
         getChannelName(channel_id) {
-            if (this.channelInfo[channel_id]) {
-                return this.channelInfo[channel_id].title || this.channelInfo[channel_id].name || channel_id;
-            }
-            return channel_id;
+            return window.DataUtils ? window.DataUtils.getChannelName(channel_id, this.channelInfo) : channel_id;
         },
         
         // 获取频道显示名称（用于下拉框）
         getChannelDisplayName(channel) {
-            if (!channel) return '未知频道';
-            
-            // 优先使用title，其次name
-            let displayName = channel.title || channel.name || '未知频道';
-            
-            // 添加[@用户名]标识
-            const username = channel.username;
-            if (username) {
-                // 确保username以@开头
-                const formattedUsername = username.startsWith('@') ? username : '@' + username;
-                displayName += ` [${formattedUsername}]`;
-            }
-            
-            // 如果名称太长，截取前50个字符（增加长度以容纳用户名）
-            if (displayName.length > 50) {
-                return displayName.substring(0, 50) + '...';
-            }
-            
-            return displayName;
+            return window.DataUtils ? window.DataUtils.getChannelDisplayName(channel) : (channel ? channel.title || channel.name || '未知频道' : '未知频道');
         },
         
         // 处理频道切换事件
@@ -685,83 +568,24 @@ const MainApp = {
             this.loadMessages();
         },
         
-        // 获取状态类型
+        // 获取状态类型 - 委托给DataUtils
         getStatusType(status) {
-            const statusMap = {
-                'pending': '',
-                'approved': 'success',
-                'rejected': 'danger',
-                'auto_forwarded': 'info'
-            };
-            return statusMap[status] || '';
+            return window.DataUtils ? window.DataUtils.getStatusType(status) : '';
         },
         
-        // 获取状态文本
+        // 获取状态文本 - 委托给DataUtils
         getStatusText(status) {
-            const statusMap = {
-                'pending': '待审核',
-                'approved': '已发布',
-                'rejected': '已拒绝',
-                'auto_forwarded': '自动转发'
-            };
-            return statusMap[status] || status;
+            return window.DataUtils ? window.DataUtils.getStatusText(status) : status;
         },
         
-        // 格式化时间
+        // 格式化时间 - 委托给DataUtils
         formatTime(timeStr) {
-            if (!timeStr) return '';
-            try {
-                // 🕐 修复时区bug：明确处理UTC时间
-                // 后端存储的是UTC时间但没有时区标识，需要手动添加'Z'
-                const utcTimeStr = timeStr.endsWith('Z') ? timeStr : timeStr + 'Z';
-                const date = new Date(utcTimeStr);
-                const now = new Date();
-                const diffInSeconds = Math.floor((now - date) / 1000);
-                
-                if (diffInSeconds < 60) return `${diffInSeconds}秒前`;
-                if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}分钟前`;
-                if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}小时前`;
-                
-                // 超过一天显示具体时间
-                return date.toLocaleString('zh-CN', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            } catch (error) {
-                return timeStr;
-            }
+            return window.DataUtils ? window.DataUtils.formatTime(timeStr) : timeStr;
         },
         
-        // 获取原消息链接
+        // 获取原消息链接 - 委托给DataUtils
         getOriginalMessageLink(message) {
-            if (!message.id) {
-                return '#';
-            }
-            
-            // 优先使用后端提供的link_prefix
-            if (message.source_channel_link_prefix) {
-                return `${message.source_channel_link_prefix}/${message.message_id}`;
-            }
-            
-            // 兼容旧逻辑：如果没有link_prefix，尝试自己构建
-            if (!message.source_channel) {
-                return '#';
-            }
-            
-            let channelId = message.source_channel;
-            
-            // 如果是数字ID（如 -1001234567890），需要特殊处理
-            if (channelId.startsWith('-100')) {
-                // 私有频道使用 c/ 格式
-                const id = channelId.substring(4);  // 移除 -100 前缀
-                return `https://t.me/c/${id}/${message.message_id}`;
-            } else {
-                // 其他情况尝试作为私有频道处理
-                const id = channelId.replace('-', '');
-                return `https://t.me/c/${id}/${message.message_id}`;
-            }
+            return window.DataUtils ? window.DataUtils.getOriginalMessageLink(message) : '#';
         },
         
         // 统计面板点击事件
@@ -818,18 +642,9 @@ const MainApp = {
             this.loadMessages();
         },
         
-        // 获取统计标签的显示名称
+        // 获取统计标签的显示名称 - 委托给DataUtils
         getStatLabel(statKey) {
-            const labelMap = {
-                'total': '总消息',
-                'pending': '待审核',
-                'approved': '已发布', 
-                'rejected': '已拒绝',
-                'ads': '广告消息',
-                'duplicates': '重复消息',
-                'chats': '聊天消息'
-            };
-            return labelMap[statKey] || '总消息';
+            return window.DataUtils ? window.DataUtils.getStatLabel(statKey) : statKey;
         },
         
         // 点击频道名称筛选该频道的消息
@@ -870,7 +685,7 @@ const MainApp = {
                 const wasLoadingMore = this.isLoadingMore;
                 this.isLoadingMore = true;
                 
-                const response = await axios.post(API.messages.approveById(messageId));
+                const response = await axios.post(window.window.API.messages.approveById(messageId));
                 if (response.data.success) {
                     MessageManager.success('消息已发布');
                     // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
@@ -928,7 +743,7 @@ const MainApp = {
                 // 先找到消息对象（在移除之前）
                 const message = this.messages.find(msg => msg.id === messageId);
                 
-                const response = await axios.post(`${API.messages.rejectById(messageId)}?reason=手动拒绝&reviewer=Web用户`);
+                const response = await axios.post(`${window.API.messages.rejectById(messageId)}?reason=手动拒绝&reviewer=Web用户`);
                 if (response.data.success) {
                     MessageManager.success('消息已拒绝');
                     
@@ -960,7 +775,7 @@ const MainApp = {
                     if (message && message.review_message_id) {
                         try {
                             // 调用删除审核群消息的API
-                            await axios.delete(API.messages.deleteReviewById(messageId));
+                            await axios.delete(window.API.messages.deleteReviewById(messageId));
                         } catch (error) {
                             // console.error('删除审核群消息失败:', error);
                         }
@@ -1002,25 +817,38 @@ const MainApp = {
         
         // 批量发布
         async batchApprove() {
-            if (this.selectedMessages.length === 0) {
-                MessageManager.warning('请先选择要发布的消息');
-                return;
-            }
-            
-            try {
-                const response = await axios.post(API.messages.batchApprove, {
-                    message_ids: this.selectedMessages
-                });
-                if (response.data.success) {
+            if (window.MessageManager) {
+                const result = await window.MessageManager.batchApprove(this.selectedMessages);
+                if (result.success) {
                     MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.loadStats();
                 } else {
-                    MessageManager.error('批量发布失败: ' + response.data.message);
+                    MessageManager.error('批量发布失败: ' + result.error);
                 }
-            } catch (error) {
-                MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
+            } else {
+                // 降级处理
+                if (this.selectedMessages.length === 0) {
+                    MessageManager.warning('请先选择要发布的消息');
+                    return;
+                }
+                
+                try {
+                    const response = await axios.post(window.API.messages.batchApprove, {
+                        message_ids: this.selectedMessages
+                    });
+                    if (response.data.success) {
+                        MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
+                        this.selectedMessages = [];
+                        this.loadMessages();
+                        this.loadStats();
+                    } else {
+                        MessageManager.error('批量发布失败: ' + response.data.message);
+                    }
+                } catch (error) {
+                    MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
+                }
             }
         },
         
@@ -1111,14 +939,7 @@ const MainApp = {
 
         // 获取媒体类型图标
         getMediaTypeIcon(mediaType) {
-            const iconMap = {
-                'photo': '🖼️',
-                'video': '🎥',
-                'document': '📄',
-                'animation': '🎬',
-                'audio': '🎧'
-            };
-            return iconMap[mediaType] || '📎';
+            return window.DataUtils ? window.DataUtils.getMediaTypeIcon(mediaType) : '📎';
         },
 
         // 媒体预览（支持组合消息）
@@ -1265,13 +1086,9 @@ const MainApp = {
             }
         },
         
-        // 格式化文件大小
+        // 格式化文件大小 - 委托给DataUtils
         formatFileSize(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            return window.DataUtils ? window.DataUtils.formatFileSize(bytes) : bytes + ' B';
         },
 
         // 处理媒体加载错误
@@ -1310,7 +1127,7 @@ const MainApp = {
                 }
                 
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}${API.websocket.main}`;
+                const wsUrl = `${protocol}//${window.location.host}${window.API.websocket.main}`;
                 
                 // 创建新连接前清理旧连接
                 if (this.websocket) {
@@ -1539,7 +1356,7 @@ const MainApp = {
         // 发布消息到目标频道
         async publishMessage(messageId) {
             try {
-                const response = await axios.post(API.messages.publish(messageId));
+                const response = await axios.post(window.API.messages.publish(messageId));
                 if (response.data.success) {
                     MessageManager.success('消息已发布到目标频道');
                     // 从列表中移除消息（消息已发布）
@@ -1565,7 +1382,7 @@ const MainApp = {
         async saveEditedMessage() {
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
-                const response = await axios.post(API.messages.editPublish(this.editDialog.messageId), {
+                const response = await axios.post(window.API.messages.editPublish(this.editDialog.messageId), {
                     filtered_content: this.editDialog.filteredContent
                 });
                 if (response.data.success) {
@@ -1632,49 +1449,75 @@ const MainApp = {
         
         // 批量发布消息
         async approveMessages() {
-            if (this.selectedMessages.length === 0) {
-                MessageManager.warning('请先选择要发布的消息');
-                return;
-            }
-            
-            try {
-                const response = await axios.post(API.messages.batchApprove, {
-                    message_ids: this.selectedMessages
-                });
-                if (response.data.success) {
+            if (window.MessageManager) {
+                const result = await window.MessageManager.batchApprove(this.selectedMessages);
+                if (result.success) {
                     MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.loadStats();
                 } else {
-                    MessageManager.error('批量发布失败: ' + response.data.message);
+                    MessageManager.error('批量发布失败: ' + result.error);
                 }
-            } catch (error) {
-                MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
+            } else {
+                // 降级处理
+                if (this.selectedMessages.length === 0) {
+                    MessageManager.warning('请先选择要发布的消息');
+                    return;
+                }
+                
+                try {
+                    const response = await axios.post(window.API.messages.batchApprove, {
+                        message_ids: this.selectedMessages
+                    });
+                    if (response.data.success) {
+                        MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
+                        this.selectedMessages = [];
+                        this.loadMessages();
+                        this.loadStats();
+                    } else {
+                        MessageManager.error('批量发布失败: ' + response.data.message);
+                    }
+                } catch (error) {
+                    MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
+                }
             }
         },
         
         // 批量拒绝消息
         async rejectMessages() {
-            if (this.selectedMessages.length === 0) {
-                MessageManager.warning('请先选择要拒绝的消息');
-                return;
-            }
-            
-            try {
-                const response = await axios.post(API.messages.batchReject, {
-                    message_ids: this.selectedMessages
-                });
-                if (response.data.success) {
+            if (window.MessageManager) {
+                const result = await window.MessageManager.batchReject(this.selectedMessages);
+                if (result.success) {
                     MessageManager.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.loadStats();
                 } else {
-                    MessageManager.error('批量拒绝失败: ' + response.data.message);
+                    MessageManager.error('批量拒绝失败: ' + result.error);
                 }
-            } catch (error) {
-                MessageManager.error('批量拒绝失败: ' + (error.response?.data?.detail || error.message));
+            } else {
+                // 降级处理
+                if (this.selectedMessages.length === 0) {
+                    MessageManager.warning('请先选择要拒绝的消息');
+                    return;
+                }
+                
+                try {
+                    const response = await axios.post(window.API.messages.batchReject, {
+                        message_ids: this.selectedMessages
+                    });
+                    if (response.data.success) {
+                        MessageManager.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
+                        this.selectedMessages = [];
+                        this.loadMessages();
+                        this.loadStats();
+                    } else {
+                        MessageManager.error('批量拒绝失败: ' + response.data.message);
+                    }
+                } catch (error) {
+                    MessageManager.error('批量拒绝失败: ' + (error.response?.data?.detail || error.message));
+                }
             }
         },
         
@@ -1683,7 +1526,7 @@ const MainApp = {
             try {
                 MessageManager.info('正在重新发布消息到目标频道...');
                 
-                const response = await axios.post(window.API.messages.resendById(message.id));
+                const response = await axios.post(window.window.API.messages.resendById(message.id));
                 
                 if (response.data.success) {
                     MessageManager.success('消息已重新发布到目标频道');
@@ -1719,7 +1562,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(API.messages.reset, {
+                const response = await axios.post(window.API.messages.reset, {
                     source_channel: sourceChannel,
                     message_id: parseInt(messageId),
                     is_ad: message.is_ad
@@ -1748,20 +1591,33 @@ const MainApp = {
                 return;
             }
             
-            try {
-                const response = await axios.post(API.messages.batchDelete, {
-                    message_ids: this.selectedMessages
-                });
-                if (response.data.success) {
+            if (window.MessageManager) {
+                const result = await window.MessageManager.batchDelete(this.selectedMessages);
+                if (result.success) {
                     MessageManager.success(`成功删除 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.loadStats();
                 } else {
-                    MessageManager.error('批量删除失败: ' + response.data.message);
+                    MessageManager.error('批量删除失败: ' + result.error);
                 }
-            } catch (error) {
-                MessageManager.error('批量删除失败: ' + (error.response?.data?.detail || error.message));
+            } else {
+                // 降级处理
+                try {
+                    const response = await axios.post(window.API.messages.batchDelete, {
+                        message_ids: this.selectedMessages
+                    });
+                    if (response.data.success) {
+                        MessageManager.success(`成功删除 ${this.selectedMessages.length} 条消息`);
+                        this.selectedMessages = [];
+                        this.loadMessages();
+                        this.loadStats();
+                    } else {
+                        MessageManager.error('批量删除失败: ' + response.data.message);
+                    }
+                } catch (error) {
+                    MessageManager.error('批量删除失败: ' + (error.response?.data?.detail || error.message));
+                }
             }
         },
         
@@ -1796,7 +1652,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(API.training.markAdMessage, {
+                const response = await axios.post(window.API.training.markAdMessage, {
                     message_id: message.id
                 });
                 
@@ -1825,7 +1681,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(API.messages.notAd(message.id));
+                const response = await axios.post(window.API.messages.notAd(message.id));
                 
                 if (response.data.success) {
                     MessageManager.success('已标记为"不是广告"，消息状态已改为待审核');
@@ -1856,7 +1712,7 @@ const MainApp = {
         // 手动执行尾部过滤
         async filterTail(message) {
             try {
-                const response = await axios.post(API.messages.filterTail(message.id));
+                const response = await axios.post(window.API.messages.filterTail(message.id));
                 
                 if (response.data.success) {
                     if (response.data.removed_length && response.data.removed_length > 0) {
@@ -1905,17 +1761,14 @@ const MainApp = {
         
         // 处理图片加载错误
         handleImageError(message, event) {
-            // 静默处理，不输出日志避免控制台噪音
-            // console.log(`图片加载失败: 消息 #${message.id}`);
-            
-            // 标记媒体为不存在，触发补抓按钮显示
-            if (!message._mediaLoadFailed) {
-                message._mediaLoadFailed = true;
-            }
-            
-            // 阻止错误冒泡到控制台
-            if (event) {
-                event.preventDefault();
+            if (window.DataUtils) {
+                window.DataUtils.handleImageError(message, event);
+            } else {
+                // 降级处理
+                if (message && !message._mediaLoadFailed) {
+                    message._mediaLoadFailed = true;
+                }
+                if (event) event.preventDefault();
             }
         },
         
@@ -1932,7 +1785,7 @@ const MainApp = {
                 }
                 
                 // 提交补抓任务
-                const response = await axios.post(API.messages.refetchMedia(message.id));
+                const response = await axios.post(window.API.messages.refetchMedia(message.id));
                 
                 if (response.data.success) {
                     const taskId = response.data.task_id;
@@ -1959,7 +1812,7 @@ const MainApp = {
                 try {
                     attempts++;
                     
-                    const response = await axios.get(API.messages.refetchTask(taskId));
+                    const response = await axios.get(window.API.messages.refetchTask(taskId));
                     const taskData = response.data.data;
                     
                     if (taskData.status === 'completed') {
