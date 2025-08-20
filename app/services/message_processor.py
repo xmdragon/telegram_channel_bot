@@ -85,41 +85,18 @@ class MessageProcessor:
     async def auto_forward_message(self, message: Dict[str, Any]):
         """自动转发消息"""
         try:
-            # 首先检查审核群是否已配置（从Redis缓存）
-            from app.services.channel_cache import channel_cache
-            review_group = await channel_cache.get_review_group_id()
-            
-            if not review_group:
-                logger.error("❌ 审核群未配置，阻止自动转发！所有消息必须经过审核群。")
-                # 更新消息状态为错误状态
-                channel_id = message.get('source_channel')
-                message_id = message.get('message_id')
-                
-                if channel_id and message_id:
-                    success = self.redis_store.update_message_status(
-                        channel_id, int(message_id), "error"
-                    )
-                    if success:
-                        # 更新拒绝原因
-                        msg_key = f"msg:{channel_id}:{message_id}"
-                        self.redis_store.redis.hset(msg_key, "reject_reason", "审核群未配置，自动转发被阻止")
-                return
-            
-            # 这里应该调用Telegram API转发消息
-            # 为了简化，这里只更新状态
             channel_id = message.get('source_channel')
             message_id = message.get('message_id')
             
-            if channel_id and message_id:
-                success = self.redis_store.update_message_status(
-                    channel_id, int(message_id), "auto_forwarded"
-                )
-                if success:
-                    # 更新转发时间
-                    msg_key = f"msg:{channel_id}:{message_id}"
-                    self.redis_store.redis.hset(msg_key, "forwarded_time", datetime.utcnow().isoformat())
-                    
-                logger.info(f"自动转发消息 ID: {channel_id}:{message_id}")
+            if not channel_id or not message_id:
+                logger.error("消息缺少ID信息")
+                return
+                
+            msg_id = f"{channel_id}:{message_id}"
+            
+            # 调用现有的发布流程（会自动批准并转发）
+            await self.forward_approved_message(msg_id)
+            logger.info(f"自动转发成功: {msg_id}")
             
         except Exception as e:
             logger.error(f"自动转发消息失败: {e}")
