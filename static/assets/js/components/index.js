@@ -324,7 +324,7 @@ const MainApp = {
         
         async loadChannelInfo() {
             try {
-                const response = await axios.get(window.window.API.messages.channelInfo);
+                const response = await axios.get(window.API.messages.channelInfo);
                 if (response.data.success) {
                     const channelInfo = {};
                     
@@ -415,7 +415,7 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
-                const response = await axios.get(window.window.API.messages.list, {
+                const response = await axios.get(window.API.messages.list, {
                     params: params
                 });
                 
@@ -531,7 +531,7 @@ const MainApp = {
         
         async loadStats() {
             try {
-                const response = await axios.get(window.window.API.messages.statsOverview, {
+                const response = await axios.get(window.API.messages.statsOverview, {
                     headers: authManager.getAuthHeaders()
                 });
                 if (response.data) {
@@ -685,7 +685,7 @@ const MainApp = {
                 const wasLoadingMore = this.isLoadingMore;
                 this.isLoadingMore = true;
                 
-                const response = await axios.post(window.window.API.messages.approveById(messageId));
+                const response = await axios.post(window.API.messages.approveById(messageId));
                 if (response.data.success) {
                     MessageManager.success('消息已发布');
                     // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
@@ -1526,7 +1526,7 @@ const MainApp = {
             try {
                 MessageManager.info('正在重新发布消息到目标频道...');
                 
-                const response = await axios.post(window.window.API.messages.resendById(message.id));
+                const response = await axios.post(window.API.messages.resendById(message.id));
                 
                 if (response.data.success) {
                     MessageManager.success('消息已重新发布到目标频道');

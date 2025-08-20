@@ -143,6 +143,116 @@ const WebSocketManager = {
     // 重置重连计数
     resetReconnectAttempts() {
         this.reconnectAttempts = 0;
+    },
+
+    // 心跳管理
+    startHeartbeat(interval = 30000) {
+        this.stopHeartbeat();
+        
+        this.heartbeatInterval = setInterval(() => {
+            if (this.instance && this.instance.readyState === WebSocket.OPEN) {
+                this.send('ping');
+            }
+        }, interval);
+    },
+
+    stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+    },
+
+    // 连接超时管理
+    setConnectionTimeout(timeout = 10000) {
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+        }
+        
+        this.connectionTimeout = setTimeout(() => {
+            if (this.instance && this.instance.readyState === WebSocket.CONNECTING) {
+                console.warn('WebSocket连接超时，关闭连接');
+                this.instance.close();
+            }
+        }, timeout);
+    },
+
+    clearConnectionTimeout() {
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+            this.connectionTimeout = null;
+        }
+    },
+
+    // 高级连接管理
+    connectWithOptions(url, options = {}) {
+        const {
+            timeout = 10000,
+            enableHeartbeat = true,
+            heartbeatInterval = 30000,
+            ...callbacks
+        } = options;
+
+        // 设置回调
+        this.callbacks = { ...this.callbacks, ...callbacks };
+        
+        // 创建连接
+        if (this.instance && this.instance.readyState === WebSocket.CONNECTING) {
+            return; // 避免重复连接
+        }
+        
+        if (this.instance) {
+            this.instance.close();
+        }
+
+        try {
+            this.instance = new WebSocket(url);
+            this.setConnectionTimeout(timeout);
+
+            this.instance.onopen = (event) => {
+                this.clearConnectionTimeout();
+                this.handleOpen(event);
+                if (enableHeartbeat) {
+                    this.startHeartbeat(heartbeatInterval);
+                }
+            };
+
+            this.instance.onmessage = this.handleMessage.bind(this);
+            this.instance.onclose = (event) => {
+                this.clearConnectionTimeout();
+                this.stopHeartbeat();
+                this.handleClose(event);
+            };
+            this.instance.onerror = (error) => {
+                this.clearConnectionTimeout();
+                this.handleError(error);
+            };
+
+        } catch (error) {
+            console.error('WebSocket连接失败:', error);
+            this.handleError(error);
+        }
+    },
+
+    // 检查并重连
+    checkAndReconnect(url, options = {}) {
+        if (!this.isConnected && (!this.instance || this.instance.readyState === WebSocket.CLOSED)) {
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.connectWithOptions(url, options);
+            }
+        }
+    },
+
+    // 清理资源
+    cleanup() {
+        this.stopHeartbeat();
+        this.clearConnectionTimeout();
+        this.close();
+        this.callbacks = {
+            onMessage: null,
+            onStatusChange: null,
+            onError: null
+        };
     }
 };
 

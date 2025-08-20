@@ -272,6 +272,112 @@ const UIHandlers = {
         if (loading) {
             container.removeChild(loading);
         }
+    },
+
+    // 滚动工具函数
+    scrollToTop(smooth = true) {
+        window.scrollTo({
+            top: 0,
+            behavior: smooth ? 'smooth' : 'auto'
+        });
+    },
+
+    scrollToBottom(smooth = true) {
+        window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: smooth ? 'smooth' : 'auto'
+        });
+    },
+
+    // 获取滚动信息
+    getScrollInfo() {
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        return {
+            scrollTop,
+            documentHeight,
+            windowHeight,
+            remaining: documentHeight - (scrollTop + windowHeight),
+            percentage: documentHeight > windowHeight ? 
+                Math.min(100, (scrollTop / (documentHeight - windowHeight)) * 100) : 0
+        };
+    },
+
+    // 检查是否接近底部
+    isNearBottom(threshold = 100) {
+        const scrollInfo = this.getScrollInfo();
+        return scrollInfo.remaining <= threshold;
+    },
+
+    // 从URL提取文件名
+    extractFileName(url) {
+        if (!url) return '未知文件';
+        const parts = url.split('/');
+        const fileName = parts[parts.length - 1];
+        
+        // 移除查询参数
+        const cleanName = fileName.split('?')[0];
+        
+        // 如果文件名过长，简化显示
+        if (cleanName.length > 50) {
+            const ext = cleanName.split('.').pop();
+            const name = cleanName.substring(0, 30);
+            return `${name}...${ext ? '.' + ext : ''}`;
+        }
+        
+        return cleanName || '未知文件';
+    },
+
+    // 检查文件类型
+    getFileType(url) {
+        if (!url) return 'unknown';
+        
+        const ext = url.toLowerCase().split('.').pop();
+        
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+            return 'image';
+        } else if (['mp4', 'webm', 'avi', 'mov'].includes(ext)) {
+            return 'video';
+        } else if (['mp3', 'wav', 'ogg', 'aac'].includes(ext)) {
+            return 'audio';
+        } else if (['pdf', 'doc', 'docx', 'txt'].includes(ext)) {
+            return 'document';
+        }
+        
+        return 'unknown';
+    },
+
+    // 创建滚动处理器
+    createScrollHandler(onScroll, options = {}) {
+        const {
+            threshold = 100,
+            throttleMs = 200,
+            minInterval = 2000
+        } = options;
+        
+        let lastLoadTime = 0;
+        let isThrottling = false;
+        
+        return () => {
+            // 节流处理
+            if (isThrottling) return;
+            isThrottling = true;
+            setTimeout(() => isThrottling = false, throttleMs);
+            
+            // 检查最小间隔
+            const now = Date.now();
+            if (now - lastLoadTime < minInterval) {
+                return;
+            }
+            
+            // 检查是否接近底部
+            if (this.isNearBottom(threshold)) {
+                lastLoadTime = now;
+                onScroll();
+            }
+        };
     }
 };
 

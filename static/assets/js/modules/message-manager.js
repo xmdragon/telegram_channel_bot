@@ -148,6 +148,98 @@ const MessageManager = {
         } else {
             console.warn('WARNING:', message);
         }
+    },
+
+    // 单个消息审核
+    async approveSingleMessage(messageId) {
+        if (!messageId) {
+            return { success: false, error: '消息ID不能为空' };
+        }
+
+        try {
+            this.processingMessages.add(messageId);
+
+            const response = await axios.post(`/api/messages/${messageId}/approve`);
+            
+            if (response.data.success) {
+                return {
+                    success: true,
+                    data: response.data.data
+                };
+            } else {
+                throw new Error(response.data.message || '发布失败');
+            }
+        } catch (error) {
+            console.error('发布消息失败:', error);
+            return {
+                success: false,
+                error: error.message || '网络错误'
+            };
+        } finally {
+            this.processingMessages.delete(messageId);
+        }
+    },
+
+    // 单个消息拒绝
+    async rejectSingleMessage(messageId) {
+        if (!messageId) {
+            return { success: false, error: '消息ID不能为空' };
+        }
+
+        try {
+            this.processingMessages.add(messageId);
+
+            const response = await axios.post(`/api/messages/${messageId}/reject`);
+            
+            if (response.data.success) {
+                return {
+                    success: true,
+                    data: response.data.data
+                };
+            } else {
+                throw new Error(response.data.message || '拒绝失败');
+            }
+        } catch (error) {
+            console.error('拒绝消息失败:', error);
+            return {
+                success: false,
+                error: error.message || '网络错误'
+            };
+        } finally {
+            this.processingMessages.delete(messageId);
+        }
+    },
+
+    // 批量删除消息
+    async batchDelete(messageIds) {
+        if (!messageIds || messageIds.length === 0) {
+            return { success: false, error: '请选择要删除的消息' };
+        }
+
+        try {
+            messageIds.forEach(id => this.processingMessages.add(id));
+
+            const response = await axios.post('/api/messages/batch/delete', {
+                message_ids: messageIds
+            });
+
+            if (response.data.success) {
+                return {
+                    success: true,
+                    data: response.data.data
+                };
+            } else {
+                throw new Error(response.data.message || '批量删除失败');
+            }
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            return {
+                success: false,
+                error: error.message || '网络错误'
+            };
+        } finally {
+            messageIds.forEach(id => this.processingMessages.delete(id));
+        }
     }
 };
 
