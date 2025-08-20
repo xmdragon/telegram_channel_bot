@@ -306,9 +306,6 @@ const MessageContentRenderer = {
                            @click.stop
                            @change="toggleSelect">
                     
-                    <!-- 数据库编号 -->
-                    <span class="message-id">#{{ message.id }}</span>
-                    
                     <!-- 频道信息 -->
                     <span class="message-channel">
                         📢 <a href="javascript:void(0)" 
@@ -795,15 +792,28 @@ const MessageContentRenderer = {
                     </div>
                 </div>
                 
-                <!-- 原频道链接 -->
-                <div v-if="message.source_channel_link_prefix && message.id" class="message-footer">
-                    🔗 原消息链接: 
-                    <a :href="getOriginalMessageLink()" 
-                       target="_blank" 
-                       class="original-message-link"
-                       @click.stop>
-                        查看原消息
-                    </a>
+                <!-- 消息底部信息 -->
+                <div class="message-footer">
+                    <!-- 源消息ID -->
+                    <div v-if="message.source_channel && message.message_id" class="source-message-id">
+                        消息ID: #{{ message.source_channel }}:{{ message.message_id }}
+                    </div>
+                    
+                    <!-- 重复消息的源ID -->
+                    <div v-else-if="message.duplicate_info && message.duplicate_info.source_channel && message.duplicate_info.message_id" class="source-message-id">
+                        消息ID: #{{ message.duplicate_info.source_channel }}:{{ message.duplicate_info.message_id }}
+                    </div>
+                    
+                    <!-- 原消息链接 -->
+                    <div v-if="message.source_channel_link_prefix && message.id" class="original-message-link-container">
+                        🔗 原消息链接: 
+                        <a :href="getOriginalMessageLink()" 
+                           target="_blank" 
+                           class="original-message-link"
+                           @click.stop>
+                            查看原消息
+                        </a>
+                    </div>
                 </div>
             </div>
             
