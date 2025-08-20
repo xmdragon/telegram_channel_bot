@@ -236,6 +236,11 @@ const MainApp = {
             
             // 页面获得焦点时立即刷新
             window.addEventListener('focus', () => {
+                if (this._isProcessingAction) {
+                    console.log('🟡 [焦点事件] 跳过loadMessages，正在处理操作');
+                    return;
+                }
+                console.log('🔵 [焦点事件] 页面获得焦点，刷新数据');
                 this.loadMessages().catch(err => {
                     console.error('焦点刷新失败:', err);
                 });
@@ -2102,6 +2107,12 @@ const MainApp = {
             this.scrollHandler = () => {
                 // 如果正在加载或没有更多数据，直接返回
                 if (this.isLoadingMore || !this.hasMore) {
+                    return;
+                }
+                
+                // 如果正在处理操作，跳过滚动加载
+                if (this._isProcessingAction) {
+                    console.log('🟡 [滚动] 跳过loadMore，正在处理操作');
                     return;
                 }
                 
