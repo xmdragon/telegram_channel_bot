@@ -51,17 +51,17 @@ class EventDelegate {
     }
     
     /**
-     * 获取统计键值 - Linus风格的简单逻辑
+     * 获取统计键值 - Linus风格修复版
      */
     getStatKey(target) {
-        // 向上查找最近的 stat-card
-        const statCard = target.closest('.stat-card');
-        if (!statCard) return null;
-        
-        // 检查是否点击的是按钮区域
-        if (target.closest('button, .btn, a, input, select, textarea, [role="button"]')) {
+        // 🔥 Linus原则：首先检查是否是交互元素，如果是则直接返回null
+        if (target.closest('button, .btn, a, input, select, textarea, [role="button"], .message-actions')) {
             return null;
         }
+        
+        // 只有在不是交互元素的情况下，才查找统计卡片
+        const statCard = target.closest('.stat-card');
+        if (!statCard) return null;
         
         // 返回数据属性中的统计键
         return statCard.dataset.statKey;

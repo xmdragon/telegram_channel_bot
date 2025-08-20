@@ -214,34 +214,7 @@ const MessageContentRenderer = {
                    !this.mediaLoadError;
         },
         
-        // 操作方法 - Linus风格简洁版
-        approveMessage() {
-            this.$emit('approve-message', this.message.id);
-        },
-        
-        rejectMessage() {
-            this.$emit('reject-message', this.message.id);
-        },
-        
-        editMessage() {
-            this.$emit('edit-message', this.message);
-        },
-        
-        markAsAd() {
-            this.$emit('mark-as-ad', this.message);
-        },
-        
-        trainTail() {
-            this.$emit('train-tail', this.message);
-        },
-        
-        filterTail() {
-            this.$emit('filter-tail', this.message);
-        },
-        
-        refetchMedia() {
-            this.$emit('refetch-media', this.message);
-        },
+        // 🔥 Linus风格：操作方法被事件委托取代，不再需要Vue事件
         
         // 频道过滤方法
         filterByChannel(channelId, channelName) {
