@@ -160,7 +160,8 @@ class TelegramCollectorService:
                 logger.error("请访问 http://localhost:8000/static/telegram-auth.html 完成Telegram登录")
                 logger.error("获取API凭据请访问: https://my.telegram.org")
                 logger.warning("采集服务将在有限功能模式下运行，等待用户完成认证...")
-                return False
+                logger.error("🚨 安全策略：认证失败，服务立即退出")
+                sys.exit(1)
             else:
                 # Telegram已认证，正常启动
                 logger.info("✅ Telegram认证状态正常，启动消息监听...")
