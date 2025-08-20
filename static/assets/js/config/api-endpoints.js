@@ -15,7 +15,7 @@ const API_ENDPOINTS = {
     // 消息管理模块 - /api/messages
     messages: {
         list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
-        stats: '/api/messages/stats',                               // GET - 获取消息统计信息
+        stats: '/api/messages/stats/overview',                      // GET - 获取消息统计信息（修复：使用正确的端点）
         statsOverview: '/api/messages/stats/overview',              // GET - 获取消息统计概览
         testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
