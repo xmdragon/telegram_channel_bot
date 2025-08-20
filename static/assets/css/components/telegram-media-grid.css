@@ -321,6 +321,37 @@
     gap: 0.5px;
 }
 
+/* 对比模式样式 */
+.telegram-media-container.comparison-media {
+    max-width: 100%;
+    margin: 6px 0;
+    border-radius: 8px;
+}
+
+.telegram-media-container.comparison-media .telegram-media-grid {
+    gap: 2px;
+}
+
+.telegram-media-container.comparison-media .media-item {
+    border-radius: 4px;
+}
+
+.telegram-media-container.comparison-media .telegram-media-grid.count-5 {
+    height: 120px;
+}
+
+.telegram-media-container.comparison-media .telegram-media-grid.count-4 .media-item {
+    height: 60px;
+}
+
+.telegram-media-container.comparison-media .telegram-media-grid.count-3 {
+    height: 140px;
+}
+
+.telegram-media-container.comparison-media .telegram-media-grid.count-2 .media-item {
+    height: 80px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .telegram-media-container {
