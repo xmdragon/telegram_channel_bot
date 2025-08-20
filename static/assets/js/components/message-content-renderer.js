@@ -214,45 +214,17 @@ const MessageContentRenderer = {
                    !this.mediaLoadError;
         },
         
-        // 单个操作方法
-        approveMessage(event) {
-            // 强制阻止所有事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 立即设置双重保护标志
-            this.$parent._isProcessingAction = true;
-            window._globalProcessingAction = true;
-            
-            // 延迟发送事件，确保当前事件循环完成
-            this.$nextTick(() => {
-                this.$emit('approve-message', this.message.id);
-            });
+        // 操作方法 - Linus风格简洁版
+        approveMessage() {
+            this.$emit('approve-message', this.message.id);
         },
         
         rejectMessage() {
             this.$emit('reject-message', this.message.id);
         },
         
-        editMessage(event) {
-            // 强制阻止所有事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 立即设置双重保护标志
-            this.$parent._isProcessingAction = true;
-            window._globalProcessingAction = true;
-            
-            // 延迟发送事件，确保当前事件循环完成
-            this.$nextTick(() => {
-                this.$emit('edit-message', this.message);
-            });
+        editMessage() {
+            this.$emit('edit-message', this.message);
         },
         
         markAsAd() {
@@ -849,26 +821,27 @@ const MessageContentRenderer = {
             
             <!-- 操作按钮 -->
             <div v-if="message.status === 'pending'" class="message-actions">
-                <button @click.stop="editMessage" class="btn btn-sm btn-secondary">
+                <button data-action="editMessage" :data-message-id="message.id" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
-                <button @click="approveMessage($event)" class="btn btn-sm btn-success">
+                <button data-action="approveMessage" :data-message-id="message.id" class="btn btn-sm btn-success">
                     📤 发布
                 </button>
-                <button @click.stop="rejectMessage" class="btn btn-sm btn-danger">
+                <button data-action="rejectMessage" :data-message-id="message.id" class="btn btn-sm btn-danger">
                     ❌ 拒绝
                 </button>
-                <button @click.stop="markAsAd" class="btn btn-sm btn-warning">
+                <button data-action="markAsAd" :data-message-id="message.id" class="btn btn-sm btn-warning">
                     🚫 广告
                 </button>
-                <button @click.stop="trainTail" class="btn btn-sm btn-info">
+                <button data-action="trainTail" :data-message-id="message.id" class="btn btn-sm btn-info">
                     ✂️ 尾部
                 </button>
-                <button @click.stop="filterTail" class="btn btn-sm btn-primary">
+                <button data-action="filterTail" :data-message-id="message.id" class="btn btn-sm btn-primary">
                     🎯 过滤
                 </button>
                 <button v-if="message.media_type && !mediaExists()" 
-                        @click.stop="refetchMedia" 
+                        data-action="refetchMedia" 
+                        :data-message-id="message.id"
                         class="btn btn-sm btn-primary">
                     🔄 补抓
                 </button>

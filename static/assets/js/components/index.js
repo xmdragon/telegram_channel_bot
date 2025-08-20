@@ -76,7 +76,6 @@ const MainApp = {
             
             // 操作状态
             processingMessages: new Set(),
-            _isProcessingAction: false,
             refetchingMedia: {},
             
             // 对话框状态
@@ -240,11 +239,6 @@ const MainApp = {
         },
         'filters.source_channel': function(newVal, oldVal) {
             // 频道变化时自动加载消息
-            // 如果正在处理消息操作，跳过自动加载
-            if (this._isProcessingAction) {
-                console.log('🟠 [Watcher] 跳过loadMessages，正在处理操作');
-                return;
-            }
             console.log('🟠 [Watcher] 频道变化触发loadMessages, 从:', oldVal, '到:', newVal);
             this.loadMessages();
         }
@@ -252,15 +246,18 @@ const MainApp = {
     
     async mounted() {
         try {
+            // 🔥 Linus风格：初始化事件委托系统
+            if (window.EventDelegate) {
+                this.eventDelegate = new window.EventDelegate(this);
+                console.log('🔥 事件委托系统已初始化');
+            }
+            
             console.log('🟢 Vue实例mounted开始，状态检查:');
             console.log('  - messages数组长度:', this.messages ? this.messages.length : 'undefined');
             console.log('  - filters对象:', this.filters);
             console.log('  - loadMessages方法类型:', typeof this.loadMessages);
             console.log('  - window.API存在:', !!window.API);
             console.log('  - axios存在:', typeof axios);
-            
-            // 初始化全局处理标志
-            window._globalProcessingAction = false;
             
             // 初始化权限检查
             const isAuthorized = await authManager.initPageAuth('messages.view');
@@ -342,9 +339,6 @@ const MainApp = {
             
             // 页面获得焦点时立即刷新
             window.addEventListener('focus', () => {
-                if (this._isProcessingAction || window._globalProcessingAction) {
-                    return;
-                }
                 this.loadMessages().catch(err => {
                     console.error('焦点刷新失败:', err);
                 });
@@ -362,6 +356,12 @@ const MainApp = {
     },
     
     beforeUnmount() {
+        // 🔥 Linus风格：销毁事件委托系统
+        if (this.eventDelegate && typeof this.eventDelegate.destroy === 'function') {
+            this.eventDelegate.destroy();
+            console.log('🔥 事件委托系统已销毁');
+        }
+        
         // 标记组件正在卸载，避免重连
         this._isUnmounting = true;
         
@@ -565,12 +565,6 @@ const MainApp = {
         
         async loadMessages(append = false) {
             console.log('📡 loadMessages开始，模式:', append ? '追加' : '重新加载');
-            
-            // 如果正在处理操作，直接返回防止干扰
-            if (this._isProcessingAction || window._globalProcessingAction) {
-                console.log('⏸️ 正在处理其他操作，跳过loadMessages');
-                return;
-            }
             
             if (append) {
                 this.isLoadingMore = true;
@@ -807,24 +801,11 @@ const MainApp = {
             return window.DataUtils ? window.DataUtils.getOriginalMessageLink(message) : '#';
         },
         
-        // 统计面板点击事件
-        handleStatClick(event, statKey) {
-            // Linus式解决方案：检查点击是否来源于按钮或交互元素
-            if (event && event.target) {
-                const isInteractiveElement = event.target.closest('button, .btn, a, input, select, textarea, [role="button"]');
-                if (isInteractiveElement) {
-                    // 点击来源于交互元素，不处理统计点击
-                    return;
-                }
-            }
+        // Linus风格统计面板点击 - 没有特殊情况
+        handleStatClick(statKey) {
             
-            // 检查是否有处理中的操作（解决竞争条件）
-            if (this._isProcessingAction || window._globalProcessingAction) {
-                return;
-            }
-            
-            // 点击标签页时，清除频道选择并设置对应的筛选条件
-            this.filters.source_channel = '';  // 清除频道选择
+            // 数据驱动，直接设置状态
+            this.filters.source_channel = '';
             
             switch(statKey) {
                 case 'pending':
@@ -906,21 +887,8 @@ const MainApp = {
         },
         
         // 发布消息
-        async approveMessage(messageId, event) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果messageId在event中，提取出来（向后兼容）
-            if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
-                messageId = event.target.dataset.messageId;
-            }
+        async approveMessage(messageId) {
             try {
-                // 设置操作标志，防止watcher触发loadMessages
-                this._isProcessingAction = true;
                 
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
@@ -950,17 +918,13 @@ const MainApp = {
                         // 延迟恢复加载状态，防止滚动事件立即触发
                         setTimeout(() => {
                             this.isLoadingMore = wasLoadingMore;
-                            this._isProcessingAction = false; // 清除操作标志
-                            window._globalProcessingAction = false; // 清除全局标志
-                        }, 1000); // 增加到1秒保护时间
+                        }, 1000);
                     });
                 } else {
                     MessageManager.error('发布失败: ' + response.data.message);
                     // 恢复加载状态
                     setTimeout(() => {
                         this.isLoadingMore = wasLoadingMore;
-                        this._isProcessingAction = false; // 清除操作标志
-                        window._globalProcessingAction = false; // 清除全局标志
                     }, 500);
                 }
             } catch (error) {
@@ -968,25 +932,12 @@ const MainApp = {
                 // 恢复加载状态
                 setTimeout(() => {
                     this.isLoadingMore = false;
-                    this._isProcessingAction = false; // 清除操作标志
-                    window._globalProcessingAction = false; // 清除全局标志
                 }, 500);
             }
         },
         
         // 拒绝消息
-        async rejectMessage(messageId, event) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果messageId在event中，提取出来（向后兼容）
-            if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
-                messageId = event.target.dataset.messageId;
-            }
+        async rejectMessage(messageId) {
             try {
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
@@ -1653,25 +1604,11 @@ const MainApp = {
         },
         
         // 编辑消息
-        editMessage(message, event) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 清理保护标志
-            this._isProcessingAction = false;
-            window._globalProcessingAction = false;
-            
-            // 如果message在event中，提取出来（向后兼容）
-            if (!message && event && event.target && event.target.dataset) {
-                // 从dataset中重构message对象
-                message = {
-                    id: event.target.dataset.messageId,
-                    filtered_content: event.target.dataset.filteredContent || ''
-                };
+        editMessage(messageId) {
+            const message = this.messages.find(msg => msg.id === messageId);
+            if (!message) {
+                MessageManager.error('未找到消息');
+                return;
             }
             this.editDialog.messageId = message.id;
             this.editDialog.filteredContent = message.filtered_content || '';
@@ -2058,20 +1995,13 @@ const MainApp = {
         },
 
         // 标记为广告并加入训练样本
-        async markAsAd(message, event) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+        async markAsAd(messageId) {
+            const message = this.messages.find(msg => msg.id === messageId);
+            if (!message) {
+                MessageManager.error('未找到消息');
+                return;
             }
             
-            // 如果message在event中，提取出来
-            if (!message && event && event.target && event.target.dataset) {
-                message = {
-                    id: event.target.dataset.messageId
-                };
-            }
             try {
                 if (!confirm('确定将此消息标记为广告吗？这将帮助AI更好地识别广告内容。')) {
                     return;
@@ -2136,20 +2066,11 @@ const MainApp = {
         },
         
         // 训练尾部
-        trainTail(message, event) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果message在event中，提取出来
-            if (!message && event && event.target && event.target.dataset) {
-                message = {
-                    id: event.target.dataset.messageId,
-                    source_channel: event.target.dataset.sourceChannel
-                };
+        trainTail(messageId) {
+            const message = this.messages.find(msg => msg.id === messageId);
+            if (!message) {
+                MessageManager.error('未找到消息');
+                return;
             }
             // 跳转到训练页面，并传递消息信息用于尾部训练
             const params = new URLSearchParams({
@@ -2161,20 +2082,12 @@ const MainApp = {
             window.location.href = '/static/train.html?' + params.toString();
         },
         
-        // 手动执行尾部过滤
-        async filterTail(message, event) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果message在event中，提取出来
-            if (!message && event && event.target && event.target.dataset) {
-                message = {
-                    id: event.target.dataset.messageId
-                };
+        // 手动执行尾部过滤 - Linus风格
+        async filterTail(messageId) {
+            const message = this.messages.find(msg => msg.id === messageId);
+            if (!message) {
+                MessageManager.error('未找到消息');
+                return;
             }
             try {
                 const response = await axios.post(window.API.messages.filterTail(message.id));
@@ -2237,20 +2150,12 @@ const MainApp = {
             }
         },
         
-        // 补抓媒体文件
-        async refetchMedia(event, message) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果message在event中，提取出来
-            if (!message && event && event.target && event.target.dataset) {
-                message = {
-                    id: event.target.dataset.messageId
-                };
+        // 补抓媒体文件 - Linus风格
+        async refetchMedia(messageId) {
+            const message = this.messages.find(msg => msg.id === messageId);
+            if (!message) {
+                MessageManager.error('未找到消息');
+                return;
             }
             try {
                 // 设置加载状态
@@ -2477,10 +2382,6 @@ const MainApp = {
                     return;
                 }
                 
-                // 如果正在处理操作，跳过滚动加载
-                if (this._isProcessingAction || window._globalProcessingAction) {
-                    return;
-                }
                 
                 // 检查距离上次加载的时间间隔
                 const now = Date.now();

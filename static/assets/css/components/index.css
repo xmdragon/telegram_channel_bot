@@ -1,4 +1,46 @@
-/* 主页面特定样式 */
+/* 主页面特定样式 - Linus风格事件隔离 */
+
+/* ==============================================
+ * Linus风格事件隔离系统
+ * 核心原则：用CSS层级控制事件传播，消除JavaScript特殊情况
+ * ============================================== */
+
+/* 统计面板事件层级管理 */
+.stat-card {
+    position: relative;
+    cursor: pointer;
+    /* 统计面板基础点击层 */
+}
+
+/* 消息操作按钮独立层级 */
+.message-actions {
+    position: relative;
+    z-index: 10;
+    /* 确保按钮在统计面板点击层之上 */
+}
+
+.message-actions button {
+    position: relative;
+    z-index: 11;
+    pointer-events: auto;
+    /* 按钮必须能响应点击 */
+}
+
+/* 工具栏按钮层级 */
+.toolbar button,
+.toolbar select,
+.toolbar input {
+    position: relative;
+    z-index: 12;
+    pointer-events: auto;
+}
+
+/* 批量操作面板按钮层级 */
+.batch-operation-panel button {
+    position: relative;
+    z-index: 13;
+    pointer-events: auto;
+}
 
 /* 统计容器 */
 .stats-container {
