@@ -41,7 +41,42 @@ const DataUtils = {
     // 获取频道显示名称
     getChannelDisplayName(channelData) {
         if (!channelData) return '未知频道';
-        return channelData.title || channelData.username || channelData.id || '未知频道';
+        
+        // 如果是字符串，尝试解析
+        if (typeof channelData === 'string') {
+            // 处理类似 "#-100266881691➡️ :-100266881691919" 的格式
+            if (channelData.includes('➡️')) {
+                const parts = channelData.split('➡️');
+                if (parts.length > 1) {
+                    const channelId = parts[0].replace('#', '').trim();
+                    // 返回清理后的ID，或者查找真实名称
+                    return this.formatChannelId(channelId);
+                }
+            }
+            
+            // 处理纯ID格式
+            if (channelData.startsWith('-100')) {
+                return this.formatChannelId(channelData);
+            }
+            
+            return channelData;
+        }
+        
+        // 如果是对象，按优先级返回
+        return channelData.title || channelData.username || this.formatChannelId(channelData.id) || '未知频道';
+    },
+    
+    // 格式化频道ID为友好显示
+    formatChannelId(channelId) {
+        if (!channelId) return '未知频道';
+        
+        // 移除-100前缀，显示简化的ID
+        if (channelId.toString().startsWith('-100')) {
+            const shortId = channelId.toString().replace('-100', '');
+            return `频道${shortId.slice(0, 8)}...`;
+        }
+        
+        return `频道${channelId}`;
     },
 
     // 获取媒体类型图标

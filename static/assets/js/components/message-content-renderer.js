@@ -237,9 +237,25 @@ const MessageContentRenderer = {
             this.$emit('filter-by-channel', channelId, channelName);
         },
         
-        // 获取频道显示名称（使用emit通知父组件）
-        getChannelDisplayName(channels) {
-            return this.$emit('get-channel-display-name', channels);
+        // 获取频道显示名称
+        getChannelDisplayName(channelId) {
+            // 直接使用DataUtils获取频道显示名称
+            if (window.DataUtils && window.DataUtils.getChannelDisplayName) {
+                // 从消息中获取频道信息
+                if (this.message.source_channel_title) {
+                    return this.message.source_channel_title;
+                }
+                
+                // 如果有父组件的channelInfo，尝试从中获取
+                return window.DataUtils.getChannelDisplayName({
+                    id: channelId,
+                    title: this.message.source_channel_title,
+                    username: this.message.source_channel
+                });
+            }
+            
+            // 降级处理
+            return this.message.source_channel_title || this.message.source_channel || '未知频道';
         },
         
         // 处理图片错误
@@ -271,10 +287,10 @@ const MessageContentRenderer = {
                     <!-- 频道信息 -->
                     <span class="message-channel">
                         📢 <a href="javascript:void(0)" 
-                             @click="filterByChannel(message.source_channel, message.source_channel_title || message.source_channel)"
+                             @click="filterByChannel(message.source_channel, getChannelDisplayName(message.source_channel))"
                              class="channel-link"
-                             :title="'点击查看频道「' + (message.source_channel_title || message.source_channel) + '」的所有消息'">
-                            {{ message.source_channel_title || message.source_channel || '未知频道' }}
+                             :title="'点击查看频道「' + getChannelDisplayName(message.source_channel) + '」的所有消息'">
+                            {{ getChannelDisplayName(message.source_channel) }}
                         </a>
                     </span>
                     
