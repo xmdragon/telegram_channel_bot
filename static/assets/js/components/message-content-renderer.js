@@ -216,7 +216,9 @@ const MessageContentRenderer = {
         
         // 单个操作方法
         approveMessage() {
+            // 立即设置双重保护标志
             this.$parent._isProcessingAction = true;
+            window._globalProcessingAction = true;
             this.$emit('approve-message', this.message.id);
         },
         

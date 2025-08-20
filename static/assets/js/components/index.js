@@ -246,11 +246,9 @@ const MainApp = {
             
             // 页面获得焦点时立即刷新
             window.addEventListener('focus', () => {
-                if (this._isProcessingAction) {
-                    console.log('🟡 [焦点事件] 跳过loadMessages，正在处理操作');
+                if (this._isProcessingAction || window._globalProcessingAction) {
                     return;
                 }
-                console.log('🔵 [焦点事件] 页面获得焦点，刷新数据');
                 this.loadMessages().catch(err => {
                     console.error('焦点刷新失败:', err);
                 });
@@ -894,6 +892,7 @@ const MainApp = {
                         setTimeout(() => {
                             this.isLoadingMore = wasLoadingMore;
                             this._isProcessingAction = false; // 清除操作标志
+                            window._globalProcessingAction = false; // 清除全局标志
                         }, 1000); // 增加到1秒保护时间
                     });
                 } else {
@@ -902,6 +901,7 @@ const MainApp = {
                     setTimeout(() => {
                         this.isLoadingMore = wasLoadingMore;
                         this._isProcessingAction = false; // 清除操作标志
+                        window._globalProcessingAction = false; // 清除全局标志
                     }, 500);
                 }
             } catch (error) {
@@ -910,6 +910,7 @@ const MainApp = {
                 setTimeout(() => {
                     this.isLoadingMore = false;
                     this._isProcessingAction = false; // 清除操作标志
+                    window._globalProcessingAction = false; // 清除全局标志
                 }, 500);
             }
         },
@@ -2128,8 +2129,7 @@ const MainApp = {
                 }
                 
                 // 如果正在处理操作，跳过滚动加载
-                if (this._isProcessingAction) {
-                    console.log('🟡 [滚动] 跳过loadMore，正在处理操作');
+                if (this._isProcessingAction || window._globalProcessingAction) {
                     return;
                 }
                 
@@ -2171,20 +2171,8 @@ const MainApp = {
                 const canScroll = maxScrollTop > 50; // 至少要有50px的滚动空间
                 const nearBottom = scrollPercentage > 95;
                 
-                // 添加调试信息
-                if (canScroll && nearBottom) {
-                    console.log('🔵 [滚动] 检测到接近底部:', {
-                        scrollPercentage: scrollPercentage.toFixed(1) + '%',
-                        scrollTop,
-                        maxScrollTop,
-                        canScroll,
-                        nearBottom
-                    });
-                }
-                
                 // 只在真正接近底部且页面可滚动时加载
                 if (canScroll && nearBottom && !this.isLoadingMore && this.hasMore) {
-                    console.log('🔵 [滚动] 触发loadMore, 滚动百分比:', scrollPercentage.toFixed(1) + '%');
                     lastLoadTime = now;
                     this.loadMore();
                 }
