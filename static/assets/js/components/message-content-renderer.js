@@ -295,7 +295,7 @@ const MessageContentRenderer = {
     },
     
     template: `
-        <div class="message-content-wrapper" @click="toggleSelect">
+        <div class="message-content-wrapper">
             <!-- 消息头部 -->
             <div class="message-header">
                 <div class="message-info">
@@ -309,7 +309,7 @@ const MessageContentRenderer = {
                     <!-- 频道信息 -->
                     <span class="message-channel">
                         📢 <a href="javascript:void(0)" 
-                             @click="filterByChannel(message.source_channel, getChannelDisplayName(message.source_channel))"
+                             @click.stop="filterByChannel(message.source_channel, getChannelDisplayName(message.source_channel))"
                              class="channel-link"
                              :title="'点击查看频道「' + getChannelDisplayName(message.source_channel) + '」的所有消息'">
                             {{ getChannelDisplayName(message.source_channel) }}
