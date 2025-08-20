@@ -5,7 +5,13 @@ let createApp, ElMessage;
 
 // 延迟初始化函数
 function initializeGlobals() {
-    if (!createApp && window.Vue) createApp = window.Vue.createApp;
+    if (!createApp) {
+        if (window.Vue?.createApp) {
+            createApp = window.Vue.createApp;
+        } else if (typeof Vue !== 'undefined' && Vue.createApp) {
+            createApp = Vue.createApp;
+        }
+    }
     if (!ElMessage && window.ElementPlus) ElMessage = window.ElementPlus.ElMessage;
 }
 
@@ -2201,7 +2207,7 @@ function initializeVueApp() {
     
     // 检查必要的依赖
     const missingDeps = [];
-    if (typeof Vue === 'undefined') missingDeps.push('Vue');
+    if (typeof createApp === 'undefined' && !window.Vue?.createApp) missingDeps.push('Vue');
     if (typeof ElementPlus === 'undefined') missingDeps.push('ElementPlus');
     if (typeof axios === 'undefined') missingDeps.push('axios');
     
