@@ -301,7 +301,6 @@ const MessageContentRenderer = {
             return this.$emit('get-media-type-icon', mediaType);
         }
     },
-    
     template: `
         <div class="message-content-wrapper">
             <!-- 消息头部 -->
