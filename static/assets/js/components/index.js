@@ -1509,26 +1509,39 @@ const MainApp = {
                 if (response.data.success) {
                     MessageManager.success('消息已编辑并保存');
                     this.editDialog.visible = false;
-                    // 更新本地消息内容
-                    const messageIndex = this.messages.findIndex(msg => msg.id === this.editDialog.messageId);
-                    if (messageIndex !== -1) {
-                        // 只更新filtered_content字段（用户编辑的内容）
-                        // content字段保持不变（原始消息）
-                        this.messages[messageIndex].filtered_content = this.editDialog.filteredContent;
-                        // 更新修改时间
-                        this.messages[messageIndex].updated_at = new Date().toISOString();
-                        // 强制触发Vue响应式更新
-                        this.messages = [...this.messages];
-                    } else {
-                        // 如果在本地找不到消息，重新加载消息列表
-                        console.warn('本地消息列表中未找到消息:', this.editDialog.messageId);
-                        this.loadMessages();
-                    }
+                    
+                    // 🚀 性能优化：使用局部更新，避免整个列表重新渲染
+                    this.updateSingleMessage(this.editDialog.messageId, {
+                        filtered_content: this.editDialog.filteredContent,
+                        updated_at: new Date().toISOString()
+                    });
                 } else {
                     MessageManager.error('编辑失败: ' + response.data.message);
                 }
             } catch (error) {
                 MessageManager.error('编辑失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 🚀 性能优化：单个消息局部更新方法
+        updateSingleMessage(messageId, updates) {
+            const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
+            if (messageIndex !== -1) {
+                // 使用Vue.set确保响应式更新，但只更新变化的属性
+                Object.keys(updates).forEach(key => {
+                    // 使用this.$set确保Vue能检测到变化（兼容Vue 2.x）
+                    if (this.$set) {
+                        this.$set(this.messages[messageIndex], key, updates[key]);
+                    } else {
+                        // Vue 3.x直接赋值即可
+                        this.messages[messageIndex][key] = updates[key];
+                    }
+                });
+                console.log(`✅ 已局部更新消息 ${messageId}:`, updates);
+            } else {
+                console.warn(`⚠️  未找到消息 ${messageId}，可能需要重新加载消息列表`);
+                // 作为后备方案，只在真正找不到时才重新加载
+                this.loadMessages();
             }
         },
         
