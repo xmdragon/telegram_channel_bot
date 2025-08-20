@@ -838,6 +838,10 @@ const MainApp = {
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
                 
+                // 临时禁用滚动加载，防止DOM变化触发意外的loadMore
+                const wasLoadingMore = this.isLoadingMore;
+                this.isLoadingMore = true;
+                
                 const response = await axios.post(API.messages.approveById(messageId));
                 if (response.data.success) {
                     MessageManager.success('消息已发布');
@@ -846,22 +850,30 @@ const MainApp = {
                         this.messages = this.messages.filter(msg => msg.id !== messageId);
                     } else {
                         // 本地更新消息状态
-                        const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
+                        const messageIndex = this.messages.findIndex(msg => msg.id !== messageId);
                         if (messageIndex !== -1) {
                             this.messages[messageIndex].status = 'approved';
                         }
                     }
                     this.loadStats();
                     
-                    // 下一帧恢复滚动位置
+                    // 下一帧恢复滚动位置和加载状态
                     this.$nextTick(() => {
                         window.scrollTo(0, scrollPosition);
+                        // 延迟恢复加载状态，防止滚动事件立即触发
+                        setTimeout(() => {
+                            this.isLoadingMore = wasLoadingMore;
+                        }, 100);
                     });
                 } else {
                     MessageManager.error('发布失败: ' + response.data.message);
+                    // 恢复加载状态
+                    this.isLoadingMore = wasLoadingMore;
                 }
             } catch (error) {
                 MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
+                // 恢复加载状态
+                this.isLoadingMore = false;
             }
         },
         
@@ -870,6 +882,10 @@ const MainApp = {
             try {
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // 临时禁用滚动加载，防止DOM变化触发意外的loadMore
+                const wasLoadingMore = this.isLoadingMore;
+                this.isLoadingMore = true;
                 
                 // 先找到消息对象（在移除之前）
                 const message = this.messages.find(msg => msg.id === messageId);
@@ -893,9 +909,13 @@ const MainApp = {
                     
                     this.loadStats();
                     
-                    // 下一帧恢复滚动位置
+                    // 下一帧恢复滚动位置和加载状态
                     this.$nextTick(() => {
                         window.scrollTo(0, scrollPosition);
+                        // 延迟恢复加载状态，防止滚动事件立即触发
+                        setTimeout(() => {
+                            this.isLoadingMore = wasLoadingMore;
+                        }, 100);
                     });
                     
                     // 如果消息有审核群消息ID，删除审核群中的消息
@@ -909,9 +929,13 @@ const MainApp = {
                     }
                 } else {
                     MessageManager.error('拒绝失败: ' + response.data.message);
+                    // 恢复加载状态
+                    this.isLoadingMore = wasLoadingMore;
                 }
             } catch (error) {
                 MessageManager.error('拒绝失败: ' + (error.response?.data?.detail || error.message));
+                // 恢复加载状态
+                this.isLoadingMore = false;
             }
         },
         
