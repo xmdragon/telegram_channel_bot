@@ -808,7 +808,16 @@ const MainApp = {
         },
         
         // 统计面板点击事件
-        handleStatClick(statKey) {
+        handleStatClick(event, statKey) {
+            // Linus式解决方案：检查点击是否来源于按钮或交互元素
+            if (event && event.target) {
+                const isInteractiveElement = event.target.closest('button, .btn, a, input, select, textarea, [role="button"]');
+                if (isInteractiveElement) {
+                    // 点击来源于交互元素，不处理统计点击
+                    return;
+                }
+            }
+            
             // 点击标签页时，清除频道选择并设置对应的筛选条件
             this.filters.source_channel = '';  // 清除频道选择
             
