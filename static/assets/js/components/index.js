@@ -901,7 +901,7 @@ const MainApp = {
         },
         
         // 发布消息
-        async approveMessage(event, messageId) {
+        async approveMessage(messageId, event) {
             // 强制阻止事件传播
             if (event) {
                 event.preventDefault();
@@ -909,7 +909,7 @@ const MainApp = {
                 event.stopImmediatePropagation();
             }
             
-            // 如果messageId在event中，提取出来
+            // 如果messageId在event中，提取出来（向后兼容）
             if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
                 messageId = event.target.dataset.messageId;
             }
@@ -932,7 +932,7 @@ const MainApp = {
                         this.messages = this.messages.filter(msg => msg.id !== messageId);
                     } else {
                         // 本地更新消息状态
-                        const messageIndex = this.messages.findIndex(msg => msg.id !== messageId);
+                        const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
                         if (messageIndex !== -1) {
                             this.messages[messageIndex].status = 'approved';
                         }
@@ -970,7 +970,7 @@ const MainApp = {
         },
         
         // 拒绝消息
-        async rejectMessage(event, messageId) {
+        async rejectMessage(messageId, event) {
             // 强制阻止事件传播
             if (event) {
                 event.preventDefault();
@@ -978,7 +978,7 @@ const MainApp = {
                 event.stopImmediatePropagation();
             }
             
-            // 如果messageId在event中，提取出来
+            // 如果messageId在event中，提取出来（向后兼容）
             if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
                 messageId = event.target.dataset.messageId;
             }
@@ -1638,7 +1638,7 @@ const MainApp = {
         },
         
         // 编辑消息
-        editMessage(event, message) {
+        editMessage(message, event) {
             // 强制阻止事件传播
             if (event) {
                 event.preventDefault();
@@ -1646,7 +1646,7 @@ const MainApp = {
                 event.stopImmediatePropagation();
             }
             
-            // 如果message在event中，提取出来
+            // 如果message在event中，提取出来（向后兼容）
             if (!message && event && event.target && event.target.dataset) {
                 // 从dataset中重构message对象
                 message = {
@@ -2044,7 +2044,7 @@ const MainApp = {
         },
 
         // 标记为广告并加入训练样本
-        async markAsAd(event, message) {
+        async markAsAd(message, event) {
             // 强制阻止事件传播
             if (event) {
                 event.preventDefault();
@@ -2122,7 +2122,7 @@ const MainApp = {
         },
         
         // 训练尾部
-        trainTail(event, message) {
+        trainTail(message, event) {
             // 强制阻止事件传播
             if (event) {
                 event.preventDefault();
@@ -2148,7 +2148,7 @@ const MainApp = {
         },
         
         // 手动执行尾部过滤
-        async filterTail(event, message) {
+        async filterTail(message, event) {
             // 强制阻止事件传播
             if (event) {
                 event.preventDefault();
