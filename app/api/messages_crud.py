@@ -454,13 +454,13 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
     
     # 转发消息到目标频道
     message_processor = get_message_processor()
-    forward_success = await message_processor.forward_approved_message(message_id)
-    
-    if not forward_success:
-        logger.error(f"消息发布失败: {message_id}")
+    try:
+        await message_processor.forward_approved_message(message_id)
+    except Exception as e:
+        logger.error(f"消息发布失败: {message_id}, 错误: {e}")
         return {
             "success": False,
-            "message": "消息发布失败，请检查Telegram连接状态",
+            "message": f"消息发布失败: {str(e)}",
             "timestamp": format_for_api(get_current_time())
         }
     

@@ -630,16 +630,8 @@ class MessageForwarder:
                 
         except Exception as e:
             logger.error(f"发送组合消息失败: {e}")
-            # 发送失败时也要清理媒体组标记并添加落款
-            import re
-            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
-            fallback_text = message.filtered_content or message.content
-            fallback_text = re.sub(media_desc_pattern, '', fallback_text).strip()
-            content_with_footer = await self._add_channel_footer(fallback_text)
-            return await client.send_message(
-                entity=int(target_channel_id),
-                message=content_with_footer
-            )
+            # 不降级，直接抛出异常让上层处理
+            raise
     
     async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message):
         """发送单个媒体消息"""
@@ -657,16 +649,8 @@ class MessageForwarder:
             )
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
-            # 发送失败时也要清理媒体组标记并添加落款
-            import re
-            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
-            caption_text = message.filtered_content or message.content
-            caption_text = re.sub(media_desc_pattern, '', caption_text).strip()
-            content_with_footer = await self._add_channel_footer(caption_text)
-            return await client.send_message(
-                entity=int(target_channel_id),
-                message=content_with_footer
-            )
+            # 不降级，直接抛出异常让上层处理
+            raise
     
     async def _cleanup_message_files(self, message):
         """清理消息相关的媒体文件"""

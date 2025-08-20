@@ -715,11 +715,13 @@ class MessageProcessor:
                 return False
             except Exception as e:
                 logger.error(f"转发消息失败: {e}")
-                return False
+                # 向上传递异常，让API层能获得具体错误信息
+                raise
                 
         except Exception as e:
             logger.error(f"转发已批准消息失败 {message_id}: {e}")
-            return False
+            # 向上传递异常，让API层能处理具体错误
+            raise
     
     async def refetch_media(self, channel_id: str, message_id: int) -> bool:
         """
