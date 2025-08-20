@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-20T12:08:23.777503",
+    "updated_at": "2025-08-20T12:48:26.502768",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-20T04:08:25.972663",
+  "updated_at": "2025-08-20T04:48:28.880693",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-20T12:08:23.779260",
+    "updated_at": "2025-08-20T12:48:26.506598",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -25,11 +25,11 @@
     "created_at": "2025-08-14T23:39:48.869953"
   },
   "review.auto_forward_enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "是否启用自动转发",
     "is_active": true,
-    "updated_at": "2025-08-19T23:30:08.182820",
+    "updated_at": "2025-08-20T12:47:38.872143",
     "created_at": "2025-08-14T22:53:30.664735"
   },
   "review.auto_forward_delay": {
@@ -37,7 +37,7 @@
     "config_type": "integer",
     "description": "自动转发延迟(秒)",
     "is_active": true,
-    "updated_at": "2025-08-19T23:30:08.189159",
+    "updated_at": "2025-08-20T12:47:38.876632",
     "created_at": "2025-08-14T22:53:30.665092"
   },
   "filter.enabled": {
@@ -77,7 +77,7 @@
     "config_type": "boolean",
     "description": "自动拒绝广告消息",
     "is_active": true,
-    "updated_at": "2025-08-19T23:30:08.190804",
+    "updated_at": "2025-08-20T12:47:38.877637",
     "created_at": "2025-08-15T19:03:51.231615"
   },
   "collection.enabled": {
@@ -141,7 +141,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-20T12:08:25.971959",
+    "updated_at": "2025-08-20T12:48:28.876802",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "review.group_id": {
@@ -149,7 +149,7 @@
     "config_type": "string",
     "description": "审核群ID或链接",
     "is_active": true,
-    "updated_at": "2025-08-19T23:30:08.196181",
+    "updated_at": "2025-08-20T12:47:38.879785",
     "created_at": "2025-08-14T22:53:30.662827"
   },
   "target.channel_link": {
@@ -157,7 +157,7 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-20T12:08:25.972660",
+    "updated_at": "2025-08-20T12:48:28.880662",
     "created_at": "2025-08-19T08:41:29.221316"
   },
   "review.group_link": {
@@ -165,7 +165,7 @@
     "config_type": "string",
     "description": "审核群链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-19T23:30:08.187595",
+    "updated_at": "2025-08-20T12:47:38.875421",
     "created_at": "2025-08-19T08:41:29.221318"
   }
 }

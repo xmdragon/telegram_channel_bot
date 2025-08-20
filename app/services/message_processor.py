@@ -94,8 +94,15 @@ class MessageProcessor:
                 
             msg_id = f"{channel_id}:{message_id}"
             
-            # 调用现有的发布流程（会自动批准并转发）
-            await self.forward_approved_message(msg_id)
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                self.redis_store = get_redis_message_store()
+            
+            # 直接转发消息
+            await self.forward_message(msg_id)
+            
+            # 转发成功后更新状态为已发布
+            self.redis_store.update_message_status(msg_id, "published", "auto_forward")
             logger.info(f"自动转发成功: {msg_id}")
             
         except Exception as e:
@@ -637,9 +644,9 @@ class MessageProcessor:
             logger.error(f"标记非广告失败 {channel_id}:{message_id}: {e}")
             return False
     
-    async def forward_approved_message(self, message_id: str) -> bool:
+    async def forward_message(self, message_id: str) -> bool:
         """
-        转发已批准的消息到目标频道
+        转发消息到目标频道
         
         Args:
             message_id: 消息ID（格式：channel_id:message_id）
@@ -660,11 +667,6 @@ class MessageProcessor:
             message = self.redis_store.get_message_by_id(message_id)
             if not message:
                 logger.error(f"消息不存在: {message_id}")
-                return False
-            
-            # 检查消息状态
-            if message.get('status') != 'approved':
-                logger.error(f"消息状态不是已批准: {message_id}, 当前状态: {message.get('status')}")
                 return False
             
             # 使用消息转发器转发消息

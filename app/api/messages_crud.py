@@ -446,16 +446,13 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
     if not message:
         raise HTTPException(status_code=404, detail="消息不存在")
     
-    # 如果消息还未批准，先批准
-    if message.get('status') != 'approved':
-        success = redis_store.update_message_status(message_id, "approved", user_id)
-        if not success:
-            raise HTTPException(status_code=500, detail="批准消息失败")
-    
     # 转发消息到目标频道
     message_processor = get_message_processor()
     try:
-        await message_processor.forward_approved_message(message_id)
+        await message_processor.forward_message(message_id)
+        
+        # 转发成功后更新状态为已发布
+        redis_store.update_message_status(message_id, "published", user_id)
     except Exception as e:
         logger.error(f"消息发布失败: {message_id}, 错误: {e}")
         return {
