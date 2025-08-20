@@ -821,27 +821,27 @@ const MessageContentRenderer = {
             </div>
             
             <!-- 操作按钮 -->
-            <div v-if="message.status === 'pending'" class="message-actions" @click.stop>
-                <button @click="editMessage" class="btn btn-sm btn-secondary">
+            <div v-if="message.status === 'pending'" class="message-actions">
+                <button @click.stop="editMessage" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
-                <button @click="approveMessage" class="btn btn-sm btn-success">
+                <button @click.stop="approveMessage" class="btn btn-sm btn-success">
                     📤 发布
                 </button>
-                <button @click="rejectMessage" class="btn btn-sm btn-danger">
+                <button @click.stop="rejectMessage" class="btn btn-sm btn-danger">
                     ❌ 拒绝
                 </button>
-                <button @click="markAsAd" class="btn btn-sm btn-warning">
+                <button @click.stop="markAsAd" class="btn btn-sm btn-warning">
                     🚫 广告
                 </button>
-                <button @click="trainTail" class="btn btn-sm btn-info">
+                <button @click.stop="trainTail" class="btn btn-sm btn-info">
                     ✂️ 尾部
                 </button>
-                <button @click="filterTail" class="btn btn-sm btn-primary">
+                <button @click.stop="filterTail" class="btn btn-sm btn-primary">
                     🎯 过滤
                 </button>
                 <button v-if="message.media_type && !mediaExists()" 
-                        @click="refetchMedia" 
+                        @click.stop="refetchMedia" 
                         class="btn btn-sm btn-primary">
                     🔄 补抓
                 </button>
