@@ -217,9 +217,20 @@ const MessageContentRenderer = {
         // 单个操作方法
         approveMessage() {
             console.log('🔴 [按钮点击] approveMessage被调用, messageId:', this.message.id);
-            // 立即设置父组件的操作标志
+            
+            // 立即设置父组件的操作标志，并额外增加延迟保护
             this.$parent._isProcessingAction = true;
+            
+            // 临时禁用页面焦点事件（防止按钮点击引发焦点变化）
+            const originalTitle = document.title;
+            document.title = '正在发布...';
+            
             this.$emit('approve-message', this.message.id);
+            
+            // 确保在一段时间后恢复标题
+            setTimeout(() => {
+                document.title = originalTitle;
+            }, 2000);
         },
         
         rejectMessage() {
@@ -828,7 +839,7 @@ const MessageContentRenderer = {
                 <button @click.stop="editMessage" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
-                <button @click.stop="approveMessage" class="btn btn-sm btn-success">
+                <button @click.stop.prevent="approveMessage" class="btn btn-sm btn-success">
                     📤 发布
                 </button>
                 <button @click.stop="rejectMessage" class="btn btn-sm btn-danger">

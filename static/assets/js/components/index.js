@@ -888,19 +888,24 @@ const MainApp = {
                         setTimeout(() => {
                             this.isLoadingMore = wasLoadingMore;
                             this._isProcessingAction = false; // 清除操作标志
-                        }, 100);
+                            console.log('🟢 [操作完成] 清除保护标志，恢复正常事件处理');
+                        }, 1000); // 增加到1秒保护时间
                     });
                 } else {
                     MessageManager.error('发布失败: ' + response.data.message);
                     // 恢复加载状态
-                    this.isLoadingMore = wasLoadingMore;
-                    this._isProcessingAction = false; // 清除操作标志
+                    setTimeout(() => {
+                        this.isLoadingMore = wasLoadingMore;
+                        this._isProcessingAction = false; // 清除操作标志
+                    }, 500);
                 }
             } catch (error) {
                 MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
                 // 恢复加载状态
-                this.isLoadingMore = false;
-                this._isProcessingAction = false; // 清除操作标志
+                setTimeout(() => {
+                    this.isLoadingMore = false;
+                    this._isProcessingAction = false; // 清除操作标志
+                }, 500);
             }
         },
         
