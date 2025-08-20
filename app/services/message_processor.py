@@ -82,31 +82,8 @@ class MessageProcessor:
             logger.error(f"获取自动转发消息失败: {e}")
             return []
     
-    async def auto_forward_message(self, message: Dict[str, Any]):
-        """自动转发消息"""
-        try:
-            channel_id = message.get('source_channel')
-            message_id = message.get('message_id')
-            
-            if not channel_id or not message_id:
-                logger.error("消息缺少ID信息")
-                return
-                
-            msg_id = f"{channel_id}:{message_id}"
-            
-            # 确保redis_store已初始化
-            if self.redis_store is None:
-                self.redis_store = get_redis_message_store()
-            
-            # 直接转发消息
-            await self.forward_message(msg_id)
-            
-            # 转发成功后更新状态为已发布
-            self.redis_store.update_message_status(msg_id, "published", "auto_forward")
-            logger.info(f"自动转发成功: {msg_id}")
-            
-        except Exception as e:
-            logger.error(f"自动转发消息失败: {e}")
+    # Linus式重构：删除不必要的HTTP API调用层
+    # 自动转发功能已移至collector服务中，直接使用Telegram客户端
     
     async def check_and_filter_duplicates(self, message: Dict[str, Any]) -> bool:
         """

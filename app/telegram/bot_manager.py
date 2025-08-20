@@ -16,6 +16,7 @@ class BotManager:
         self.is_running = False
         self.monitor_task = None
         self.event_loop_task = None
+        self.auto_forward_task = None
         self.auto_collection_done = False
         
     async def start(self):
@@ -66,6 +67,10 @@ class BotManager:
                 await self._auto_collect_history()
                 self.auto_collection_done = True
             
+            # 启动自动转发任务 - Linus式简单解决方案
+            logger.info("启动自动转发任务...")
+            self.auto_forward_task = asyncio.create_task(self._auto_forward_loop())
+            
             # 创建并启动事件循环任务
             logger.info("启动事件循环...")
             self.event_loop_task = asyncio.create_task(self._run_event_loop())
@@ -80,6 +85,9 @@ class BotManager:
         
         if self.event_loop_task:
             self.event_loop_task.cancel()
+        
+        if self.auto_forward_task:
+            self.auto_forward_task.cancel()
     
     async def _run_event_loop(self):
         """运行客户端事件循环"""
@@ -131,6 +139,69 @@ class BotManager:
         except Exception as e:
             logger.error(f"自动采集历史消息失败: {e}")
     
+    async def _auto_forward_loop(self):
+        """自动转发循环 - 在collector服务内直接执行"""
+        logger.info("启动自动转发监控循环")
+        
+        while self.is_running:
+            try:
+                # 检查是否启用自动转发
+                from app.services.config_manager import ConfigManager
+                config_manager = ConfigManager()
+                auto_forward_enabled = await config_manager.get_config("review.auto_forward_enabled", False)
+                
+                if auto_forward_enabled:
+                    # 获取需要转发的消息
+                    from app.services.message_processor import MessageProcessor
+                    message_processor = MessageProcessor()
+                    messages = await message_processor.get_auto_forward_messages()
+                    
+                    if messages:
+                        logger.info(f"发现 {len(messages)} 条消息需要自动转发")
+                        
+                        # 直接使用已有的客户端转发消息
+                        from app.telegram.message_forwarder import message_forwarder
+                        from app.storage.redis_store import get_redis_message_store
+                        redis_store = get_redis_message_store()
+                        
+                        for message in messages:
+                            try:
+                                channel_id = message.get('source_channel')
+                                message_id = message.get('message_id')
+                                
+                                if not channel_id or not message_id:
+                                    logger.error("消息缺少ID信息")
+                                    continue
+                                    
+                                msg_id = f"{channel_id}:{message_id}"
+                                
+                                # 获取完整的消息对象
+                                full_message = redis_store.get_message(channel_id, message_id, silent=True)
+                                if not full_message:
+                                    logger.error(f"无法获取消息详情: {msg_id}")
+                                    continue
+                                
+                                # 直接调用转发，使用已连接的客户端和完整消息对象
+                                await message_forwarder.forward_to_target(self.client, full_message)
+                                
+                                # 只有在没有抛出异常的情况下才更新状态为已发布
+                                redis_store.update_message_status(msg_id, "published", "auto_forward")
+                                
+                                logger.info(f"自动转发成功: {msg_id}")
+                                
+                            except Exception as e:
+                                logger.error(f"转发消息失败: {msg_id if 'msg_id' in locals() else 'unknown'}, 错误: {e}")
+                
+                # 等待60秒后再次检查
+                await asyncio.sleep(60)
+                
+            except asyncio.CancelledError:
+                logger.info("自动转发任务已被取消")
+                break
+            except Exception as e:
+                logger.error(f"自动转发循环出错: {e}")
+                await asyncio.sleep(60)  # 出错后等待再重试
+    
     async def stop(self):
         """停止Bot"""
         self.is_running = False
@@ -142,6 +213,10 @@ class BotManager:
         # 停止事件循环任务
         if self.event_loop_task:
             self.event_loop_task.cancel()
+        
+        # 停止自动转发任务
+        if self.auto_forward_task:
+            self.auto_forward_task.cancel()
             
         # 停止系统监控
         from app.services.system_monitor import system_monitor

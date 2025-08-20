@@ -20,15 +20,7 @@ class MessageScheduler:
         self.message_processor = MessageProcessor()
     
     def start(self):
-        """启动调度器"""
-        # 每分钟检查一次需要自动转发的消息
-        self.scheduler.add_job(
-            self.check_auto_forward,
-            'interval',
-            minutes=1,
-            id='auto_forward_check'
-        )
-        
+        """启动调度器 - 只负责数据清理，转发功能已移至collector"""
         # 每小时清理过期数据
         self.scheduler.add_job(
             self.cleanup_old_data,
@@ -60,27 +52,6 @@ class MessageScheduler:
         """关闭调度器"""
         self.scheduler.shutdown()
         logger.info("消息调度器已关闭")
-    
-    async def check_auto_forward(self):
-        """检查并处理自动转发"""
-        try:
-            # 检查是否启用自动转发
-            from app.services.config_manager import config_manager
-            auto_forward_enabled = await config_manager.get_config("review.auto_forward_enabled", False)
-            
-            if not auto_forward_enabled:
-                # 自动转发已禁用
-                return
-            
-            messages = await self.message_processor.get_auto_forward_messages()
-            if messages:
-                logger.info(f"发现 {len(messages)} 条消息需要自动转发")
-            
-            for message in messages:
-                await self.message_processor.auto_forward_message(message)
-                
-        except Exception as e:
-            logger.error(f"自动转发检查失败: {e}")
     
     async def cleanup_old_data(self):
         """清理旧数据 - 删除7天前已发布或拒绝的消息"""
