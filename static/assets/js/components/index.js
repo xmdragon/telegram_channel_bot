@@ -1537,9 +1537,7 @@ const MainApp = {
                         this.messages[messageIndex][key] = updates[key];
                     }
                 });
-                console.log(`✅ 已局部更新消息 ${messageId}:`, updates);
             } else {
-                console.warn(`⚠️  未找到消息 ${messageId}，可能需要重新加载消息列表`);
                 // 作为后备方案，只在真正找不到时才重新加载
                 this.loadMessages();
             }
