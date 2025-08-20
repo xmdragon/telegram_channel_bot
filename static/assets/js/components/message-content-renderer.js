@@ -9,6 +9,17 @@ const MessageContentRenderer = {
         }
     },
     
+    emits: [
+        'toggle-select',
+        'is-selected', 
+        'open-media-preview',
+        'filter-by-channel',
+        'get-channel-display-name',
+        'format-time',
+        'handle-image-error',
+        'get-media-type-icon'
+    ],
+    
     data() {
         return {
             mediaLoadError: false
@@ -24,9 +35,18 @@ const MessageContentRenderer = {
             return this.message.filtered_content || this.message.content || '';
         },
         
-        // 是否应该显示左右栏对比（始终显示，只要有内容字段）
+        // 是否为重复消息
+        isDuplicateMessage() {
+            return !!(this.message.duplicate_info && this.message.duplicate_original_id);
+        },
+        
+        // 是否应该显示左右栏对比（始终显示，只要有内容字段或有媒体）
         shouldShowContentComparison() {
-            return !!(this.message.content && this.message.filtered_content);
+            if (this.isDuplicateMessage) {
+                return true; // 重复消息总是显示对比
+            }
+            return !!(this.message.content && this.message.filtered_content) || 
+                   !!(this.message.media_type || this.isCombinedMessage);
         },
         
         // 内容是否真正被过滤
@@ -210,6 +230,26 @@ const MessageContentRenderer = {
         
         refetchMedia() {
             this.$emit('refetch-media', this.message);
+        },
+        
+        // 频道过滤方法
+        filterByChannel(channelId, channelName) {
+            this.$emit('filter-by-channel', channelId, channelName);
+        },
+        
+        // 获取频道显示名称（使用emit通知父组件）
+        getChannelDisplayName(channels) {
+            return this.$emit('get-channel-display-name', channels);
+        },
+        
+        // 处理图片错误
+        handleImageError(message, event) {
+            this.$emit('handle-image-error', message, event);
+        },
+        
+        // 获取媒体类型图标
+        getMediaTypeIcon(mediaType) {
+            return this.$emit('get-media-type-icon', mediaType);
         }
     },
     
@@ -230,7 +270,12 @@ const MessageContentRenderer = {
                     
                     <!-- 频道信息 -->
                     <span class="message-channel">
-                        📢 {{ message.source_channel_title || message.source_channel || '未知频道' }}
+                        📢 <a href="javascript:void(0)" 
+                             @click="filterByChannel(message.source_channel, message.source_channel_title || message.source_channel)"
+                             class="channel-link"
+                             :title="'点击查看频道「' + (message.source_channel_title || message.source_channel) + '」的所有消息'">
+                            {{ message.source_channel_title || message.source_channel || '未知频道' }}
+                        </a>
                     </span>
                     
                     <!-- 时间 -->
@@ -255,18 +300,194 @@ const MessageContentRenderer = {
             
             <!-- 消息内容 -->
             <div class="message-content">
-                <!-- 双栏内容对比显示 -->
-                <div v-if="shouldShowContentComparison" 
-                     :class="['message-content-comparison', { 'unchanged': !isContentActuallyFiltered }]">
-                    <!-- 过滤状态指示器 -->
-                    <div class="comparison-status-bar">
-                        <span :class="['status-indicator', 'status-' + filterStatus.type]">
-                            {{ filterStatus.icon }} {{ filterStatus.text }}
-                        </span>
-                        <div v-if="!isContentActuallyFiltered" class="status-note">
-                            原始内容与过滤后内容相同
+                <!-- 重复消息特殊对比显示 -->
+                <div v-if="isDuplicateMessage" class="duplicate-comparison-layout">
+                    <!-- 左栏：被拒绝的重复消息 -->
+                    <div class="comparison-column duplicate-column">
+                        <div class="comparison-column-header">
+                            <span class="comparison-label">🚫 被拒绝消息（重复）</span>
+                            <span v-if="message.duplicate_type" class="duplicate-type-tag">{{ message.duplicate_type }}</span>
+                        </div>
+                        <div class="comparison-column-body">
+                            <!-- 重复消息的媒体内容 -->
+                            <div v-if="message.media_type || isCombinedMessage" class="comparison-media-section">
+                                <!-- 组合消息的媒体组 -->
+                                <div v-if="isCombinedMessage" 
+                                     class="media-grid media-grid-comparison"
+                                     :class="'media-grid-' + (message.media_group_display.length <= 3 ? 
+                                              (['single', 'double', 'triple'][message.media_group_display.length - 1]) : 
+                                              'multiple')">
+                                    <div v-for="(media, index) in message.media_group_display" :key="index">
+                                        <img v-if="media.media_type === 'photo' && media.display_url" 
+                                             :src="media.display_url"
+                                             class="media-image media-comparison-item"
+                                             @click.stop="openMediaPreview(media.display_url)">
+                                        <video v-else-if="media.media_type === 'video' && media.display_url"
+                                               :src="media.display_url"
+                                               class="media-video media-comparison-item"
+                                               controls>
+                                        </video>
+                                        <div v-else class="media-placeholder media-comparison-other">
+                                            {{ media.media_type }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 单个媒体 -->
+                                <template v-else>
+                                    <img v-if="message.media_type === 'photo' && message.media_display_url && !mediaLoadError" 
+                                         :src="message.media_display_url"
+                                         class="media-image media-comparison"
+                                         @click.stop="openMediaPreview(message.media_display_url)"
+                                         @error="handleMediaError">
+                                    <video v-else-if="message.media_type === 'video' && message.media_display_url"
+                                           :src="message.media_display_url"
+                                           class="media-video media-comparison"
+                                           controls>
+                                    </video>
+                                    <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
+                                         class="media-placeholder media-comparison">
+                                        <div>
+                                            📷 {{ message.media_type === 'photo' ? '图片' : 
+                                                 message.media_type === 'video' ? '视频' : 
+                                                 message.media_type }}
+                                            <div class="media-missing-text">媒体文件缺失</div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <!-- 重复消息的文本内容 -->
+                            <div v-if="message.content || message.filtered_content" class="message-text comparison-text">
+                                {{ message.filtered_content || message.content }}
+                            </div>
+                            <div v-else-if="!message.media_type" class="content-empty">
+                                暂无文本内容
+                            </div>
+                            
+                            <!-- 重复消息信息 -->
+                            <div class="duplicate-message-info">
+                                <div class="info-row">
+                                    <span class="info-label">消息ID:</span>
+                                    <span class="info-value">#{{ message.id }}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">时间:</span>
+                                    <span class="info-value">{{ formatTime(message.created_at) }}</span>
+                                </div>
+                                <div v-if="message.source_channel_link_prefix && message.message_id" class="info-row">
+                                    <span class="info-label">原消息:</span>
+                                    <span class="info-value">
+                                        <a :href="message.source_channel_link_prefix + '/' + message.message_id" 
+                                           target="_blank" 
+                                           class="original-message-link">
+                                            查看原消息
+                                        </a>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    
+                    <!-- 右栏：原始存在的消息 -->
+                    <div class="comparison-column original-column">
+                        <div class="comparison-column-header">
+                            <span class="comparison-label">✅ 原始消息（已存在）</span>
+                        </div>
+                        <div class="comparison-column-body">
+                            <!-- 原始消息的媒体内容 -->
+                            <div v-if="message.duplicate_info && message.duplicate_info.media_type" class="comparison-media-section">
+                                <!-- 组合消息的媒体组 -->
+                                <div v-if="message.duplicate_info.is_combined && message.duplicate_info.media_group_display && message.duplicate_info.media_group_display.length > 0" 
+                                     class="media-grid media-grid-comparison"
+                                     :class="'media-grid-' + (message.duplicate_info.media_group_display.length <= 3 ? 
+                                              (['single', 'double', 'triple'][message.duplicate_info.media_group_display.length - 1]) : 
+                                              'multiple')">
+                                    <div v-for="(media, index) in message.duplicate_info.media_group_display" :key="index">
+                                        <img v-if="media.media_type === 'photo' && media.display_url" 
+                                             :src="media.display_url"
+                                             class="media-image media-comparison-item"
+                                             @click.stop="openMediaPreview(media.display_url)">
+                                        <video v-else-if="media.media_type === 'video' && media.display_url"
+                                               :src="media.display_url"
+                                               class="media-video media-comparison-item"
+                                               controls>
+                                        </video>
+                                        <div v-else class="media-placeholder media-comparison-other">
+                                            {{ media.media_type }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 单个媒体 -->
+                                <template v-else>
+                                    <img v-if="message.duplicate_info.media_type === 'photo' && message.duplicate_info.media_display_url" 
+                                         :src="message.duplicate_info.media_display_url"
+                                         class="media-image media-comparison"
+                                         @click.stop="openMediaPreview(message.duplicate_info.media_display_url)">
+                                    <video v-else-if="message.duplicate_info.media_type === 'video' && message.duplicate_info.media_display_url"
+                                           :src="message.duplicate_info.media_display_url"
+                                           class="media-video media-comparison"
+                                           controls>
+                                    </video>
+                                    <div v-else-if="message.duplicate_info.media_type && !message.duplicate_info.media_display_url" 
+                                         class="media-placeholder media-comparison">
+                                        <div>
+                                            📷 {{ message.duplicate_info.media_type === 'photo' ? '图片' : 
+                                                 message.duplicate_info.media_type === 'video' ? '视频' : 
+                                                 message.duplicate_info.media_type }}
+                                            <div class="media-missing-text">媒体文件缺失</div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <!-- 原始消息的文本内容 -->
+                            <div v-if="message.duplicate_info && (message.duplicate_info.filtered_content || message.duplicate_info.content)" 
+                                 class="message-text comparison-text">
+                                {{ message.duplicate_info.filtered_content || message.duplicate_info.content }}
+                            </div>
+                            <div v-else-if="message.duplicate_info && !message.duplicate_info.media_type" class="content-empty">
+                                暂无文本内容
+                            </div>
+                            <div v-else class="content-empty">
+                                加载原始消息数据中...
+                            </div>
+                            
+                            <!-- 原始消息信息 -->
+                            <div v-if="message.duplicate_info" class="duplicate-message-info">
+                                <div class="info-row">
+                                    <span class="info-label">消息ID:</span>
+                                    <span class="info-value">#{{ message.duplicate_info.source_channel }}:{{ message.duplicate_info.message_id }}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">时间:</span>
+                                    <span class="info-value">{{ formatTime(message.duplicate_info.created_at) }}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">状态:</span>
+                                    <span class="info-value status-tag" :class="'tag-' + statusTag.type">
+                                        {{ statusTag.text }}
+                                    </span>
+                                </div>
+                                <div v-if="message.duplicate_info.source_channel_link_prefix && message.duplicate_info.message_id" class="info-row">
+                                    <span class="info-label">原消息:</span>
+                                    <span class="info-value">
+                                        <a :href="message.duplicate_info.source_channel_link_prefix + '/' + message.duplicate_info.message_id" 
+                                           target="_blank" 
+                                           class="original-message-link">
+                                            查看原消息
+                                        </a>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 常规消息双栏内容对比显示 -->
+                <div v-else-if="shouldShowContentComparison" 
+                     :class="['message-content-comparison', { 'unchanged': !isContentActuallyFiltered }]">
                     <!-- 左栏：过滤后内容（包含媒体） -->
                     <div class="content-column content-filtered">
                         <div class="content-column-header">

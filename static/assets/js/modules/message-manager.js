@@ -1,178 +1,126 @@
-/**
- * 消息管理模块
- * 处理消息的增删改查操作
- */
+// 消息管理模块
 
-// 确保API配置可用
-const API = window.API;
-
-const MessageModule = {
+const MessageManager = {
+    // 消息状态管理
+    processingMessages: new Set(),
+    
     // 加载消息列表
-    async loadMessages(filters = {}, append = false) {
+    async loadMessages(filters = {}, page = 1, pageSize = 20, append = false) {
         try {
-            // 计算页码
-            const currentPage = append ? Math.floor((filters.currentCount || 0) / 50) + 1 : 1;
-            
-            const params = {
-                page: currentPage,
-                size: 50
-            };
-            
-            if (filters.status) params.status = filters.status;
-            if (filters.is_ad !== null && filters.is_ad !== undefined) params.is_ad = filters.is_ad;
-            if (filters.searchKeyword && filters.searchKeyword.trim()) {
-                params.search = filters.searchKeyword.trim();
-            }
-            
-            const response = await axios.get(API.messages.list, { params });
-            
-            // API直接返回数据，不包装在success字段中
-            if (response.data && response.data.messages) {
-                const messages = response.data.messages || [];
-                const hasMore = messages.length === params.size;
-                
-                return {
-                    messages,
-                    hasMore,
-                    success: true
-                };
-            }
-            
-            throw new Error('加载消息失败');
-        } catch (error) {
-            // console.error('加载消息失败:', error);
-            MessageManager.error('加载消息失败: ' + (error.message || '未知错误'));
-            return {
-                messages: [],
-                hasMore: false,
-                success: false,
-                error: error.message
-            };
-        }
-    },
-    
-    // 发布消息
-    async approveMessages(messageIds) {
-        if (!messageIds || messageIds.length === 0) {
-            MessageManager.warning('请选择要发布的消息');
-            return { success: false };
-        }
-        
-        try {
-            const response = await axios.post(API.messages.batchApprove, {
-                message_ids: messageIds
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: pageSize.toString(),
+                ...filters
             });
-            
-            // API返回200就是成功
-            if (response.status === 200) {
-                MessageManager.success(`成功发布 ${messageIds.length} 条消息`);
-                return { success: true, data: response.data };
+
+            // 移除空值参数
+            for (const [key, value] of params.entries()) {
+                if (value === '' || value === null || value === undefined) {
+                    params.delete(key);
+                }
             }
-            
-            throw new Error('发布失败');
-        } catch (error) {
-            // console.error('发布消息失败:', error);
-            MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
-            return { success: false, error: error.message };
-        }
-    },
-    
-    // 拒绝消息
-    async rejectMessages(messageIds) {
-        if (!messageIds || messageIds.length === 0) {
-            MessageManager.warning('请选择要拒绝的消息');
-            return { success: false };
-        }
-        
-        try {
-            const response = await axios.post(API.messages.batchReject, {
-                message_ids: messageIds
-            });
-            
-            // API返回200就是成功
-            if (response.status === 200) {
-                MessageManager.success(`成功拒绝 ${messageIds.length} 条消息`);
-                return { success: true, data: response.data };
-            }
-            
-            throw new Error('拒绝失败');
-        } catch (error) {
-            // console.error('拒绝消息失败:', error);
-            MessageManager.error('拒绝失败: ' + (error.response?.data?.detail || error.message));
-            return { success: false, error: error.message };
-        }
-    },
-    
-    // 删除消息
-    async deleteMessages(messageIds) {
-        if (!messageIds || messageIds.length === 0) {
-            MessageManager.warning('请选择要删除的消息');
-            return { success: false };
-        }
-        
-        if (!confirm(`确定要删除 ${messageIds.length} 条消息吗？此操作不可恢复。`)) {
-            return { success: false };
-        }
-        
-        try {
-            const response = await axios.post(API.messages.batchDelete, {
-                message_ids: messageIds
-            });
-            
-            // API返回200就是成功
-            if (response.status === 200) {
-                MessageManager.success(`成功删除 ${messageIds.length} 条消息`);
-                return { success: true, data: response.data };
-            }
-            
-            throw new Error('删除失败');
-        } catch (error) {
-            // console.error('删除消息失败:', error);
-            MessageManager.error('删除失败: ' + (error.response?.data?.detail || error.message));
-            return { success: false, error: error.message };
-        }
-    },
-    
-    // 编辑消息
-    async updateMessage(messageId, content) {
-        try {
-            const response = await axios.put(API.messages.updateById(messageId), {
-                content: content
-            });
-            
-            // API返回200就是成功
-            if (response.status === 200) {
-                MessageManager.success('消息已更新');
-                return { success: true, data: response.data };
-            }
-            
-            throw new Error('更新失败');
-        } catch (error) {
-            // console.error('更新消息失败:', error);
-            MessageManager.error('更新失败: ' + (error.response?.data?.detail || error.message));
-            return { success: false, error: error.message };
-        }
-    },
-    
-    // 标记为广告
-    async markAsAd(messageId) {
-        try {
-            const response = await axios.post(API.training.markAdMessage, {
-                message_id: messageId
-            });
+
+            const response = await axios.get(`${API_ENDPOINTS.messages.list}?${params}`);
             
             if (response.data.success) {
-                MessageManager.success('已标记为广告并加入训练样本');
-                return { success: true, data: response.data };
+                return {
+                    success: true,
+                    data: response.data.data,
+                    has_more: response.data.has_more,
+                    total: response.data.total
+                };
+            } else {
+                throw new Error(response.data.message || '加载消息失败');
             }
-            
-            throw new Error(response.data.message || '标记失败');
         } catch (error) {
-            // console.error('标记广告失败:', error);
-            MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
-            return { success: false, error: error.message };
+            console.error('加载消息失败:', error);
+            return {
+                success: false,
+                error: error.message || '网络错误'
+            };
         }
+    },
+
+    // 批量审核消息
+    async batchApprove(messageIds) {
+        if (!messageIds || messageIds.length === 0) {
+            return { success: false, error: '请选择要发布的消息' };
+        }
+
+        try {
+            // 添加到处理中的消息集合
+            messageIds.forEach(id => this.processingMessages.add(id));
+
+            const response = await axios.post(API_ENDPOINTS.messages.batchApprove, {
+                message_ids: messageIds
+            });
+
+            if (response.data.success) {
+                return {
+                    success: true,
+                    data: response.data.data
+                };
+            } else {
+                throw new Error(response.data.message || '批量发布失败');
+            }
+        } catch (error) {
+            console.error('批量发布失败:', error);
+            return {
+                success: false,
+                error: error.message || '网络错误'
+            };
+        } finally {
+            // 从处理中的消息集合移除
+            messageIds.forEach(id => this.processingMessages.delete(id));
+        }
+    },
+
+    // 批量拒绝消息
+    async batchReject(messageIds) {
+        if (!messageIds || messageIds.length === 0) {
+            return { success: false, error: '请选择要拒绝的消息' };
+        }
+
+        try {
+            messageIds.forEach(id => this.processingMessages.add(id));
+
+            const response = await axios.post(API_ENDPOINTS.messages.batchReject, {
+                message_ids: messageIds
+            });
+
+            if (response.data.success) {
+                return {
+                    success: true,
+                    data: response.data.data
+                };
+            } else {
+                throw new Error(response.data.message || '批量拒绝失败');
+            }
+        } catch (error) {
+            console.error('批量拒绝失败:', error);
+            return {
+                success: false,
+                error: error.message || '网络错误'
+            };
+        } finally {
+            messageIds.forEach(id => this.processingMessages.delete(id));
+        }
+    },
+
+    // 检查消息是否正在处理
+    isProcessing(messageId) {
+        return this.processingMessages.has(messageId);
+    },
+
+    // 清除所有处理状态
+    clearProcessingStates() {
+        this.processingMessages.clear();
     }
 };
 
-window.MessageModule = MessageModule;
+// 导出模块
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = MessageManager;
+} else {
+    window.MessageManager = MessageManager;
+}
