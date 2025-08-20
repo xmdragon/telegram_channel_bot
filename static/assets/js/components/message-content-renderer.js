@@ -21,7 +21,14 @@ const MessageContentRenderer = {
         'get-channel-display-name',
         'format-time',
         'handle-image-error',
-        'get-media-type-icon'
+        'get-media-type-icon',
+        'approve-message',
+        'reject-message',
+        'edit-message',
+        'mark-as-ad',
+        'train-tail',
+        'filter-tail',
+        'refetch-media'
     ],
     
     data() {

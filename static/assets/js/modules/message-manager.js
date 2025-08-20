@@ -115,6 +115,39 @@ const MessageManager = {
     // 清除所有处理状态
     clearProcessingStates() {
         this.processingMessages.clear();
+    },
+
+    // 消息提示方法
+    success(message) {
+        if (typeof ElMessage !== 'undefined') {
+            ElMessage.success(message);
+        } else {
+            console.log('SUCCESS:', message);
+        }
+    },
+
+    error(message) {
+        if (typeof ElMessage !== 'undefined') {
+            ElMessage.error(message);
+        } else {
+            console.error('ERROR:', message);
+        }
+    },
+
+    info(message) {
+        if (typeof ElMessage !== 'undefined') {
+            ElMessage.info(message);
+        } else {
+            console.info('INFO:', message);
+        }
+    },
+
+    warning(message) {
+        if (typeof ElMessage !== 'undefined') {
+            ElMessage.warning(message);
+        } else {
+            console.warn('WARNING:', message);
+        }
     }
 };
 

@@ -835,6 +835,9 @@ const MainApp = {
         // 发布消息
         async approveMessage(messageId) {
             try {
+                // 保存当前滚动位置
+                const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                
                 const response = await axios.post(API.messages.approveById(messageId));
                 if (response.data.success) {
                     MessageManager.success('消息已发布');
@@ -849,6 +852,11 @@ const MainApp = {
                         }
                     }
                     this.loadStats();
+                    
+                    // 下一帧恢复滚动位置
+                    this.$nextTick(() => {
+                        window.scrollTo(0, scrollPosition);
+                    });
                 } else {
                     MessageManager.error('发布失败: ' + response.data.message);
                 }
@@ -860,6 +868,9 @@ const MainApp = {
         // 拒绝消息
         async rejectMessage(messageId) {
             try {
+                // 保存当前滚动位置
+                const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                
                 // 先找到消息对象（在移除之前）
                 const message = this.messages.find(msg => msg.id === messageId);
                 
@@ -881,6 +892,11 @@ const MainApp = {
                     }
                     
                     this.loadStats();
+                    
+                    // 下一帧恢复滚动位置
+                    this.$nextTick(() => {
+                        window.scrollTo(0, scrollPosition);
+                    });
                     
                     // 如果消息有审核群消息ID，删除审核群中的消息
                     if (message && message.review_message_id) {
