@@ -33,6 +33,7 @@ const MainApp = {
             
             // 状态管理
             processingMessages: new Set(),
+            _isProcessingAction: false,
             mediaPreview: {
                 show: false,
                 url: null
@@ -181,6 +182,9 @@ const MainApp = {
     
     async mounted() {
         try {
+            // 初始化全局处理标志
+            window._globalProcessingAction = false;
+            
             // 初始化权限检查
             const isAuthorized = await authManager.initPageAuth('messages.view');
             if (!isAuthorized) {
@@ -460,15 +464,10 @@ const MainApp = {
         
         
         async loadMessages(append = false) {
-            console.log('🟡 [加载消息] loadMessages被调用, append:', append);
-            
             // 如果正在处理操作，直接返回防止干扰
-            if (this._isProcessingAction) {
-                console.log('🛑 [加载消息] 检测到正在处理操作，终止loadMessages调用');
+            if (this._isProcessingAction || window._globalProcessingAction) {
                 return;
             }
-            
-            console.trace('调用栈:');
             if (append) {
                 this.isLoadingMore = true;
             } else {
@@ -856,7 +855,6 @@ const MainApp = {
         
         // 发布消息
         async approveMessage(messageId) {
-            console.log('🟢 [父组件] approveMessage收到事件, messageId:', messageId);
             try {
                 // 设置操作标志，防止watcher触发loadMessages
                 this._isProcessingAction = true;
@@ -890,7 +888,6 @@ const MainApp = {
                         setTimeout(() => {
                             this.isLoadingMore = wasLoadingMore;
                             this._isProcessingAction = false; // 清除操作标志
-                            console.log('🟢 [操作完成] 清除保护标志，恢复正常事件处理');
                         }, 1000); // 增加到1秒保护时间
                     });
                 } else {
