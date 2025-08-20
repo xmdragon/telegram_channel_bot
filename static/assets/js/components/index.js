@@ -461,6 +461,13 @@ const MainApp = {
         
         async loadMessages(append = false) {
             console.log('🟡 [加载消息] loadMessages被调用, append:', append);
+            
+            // 如果正在处理操作，直接返回防止干扰
+            if (this._isProcessingAction) {
+                console.log('🛑 [加载消息] 检测到正在处理操作，终止loadMessages调用');
+                return;
+            }
+            
             console.trace('调用栈:');
             if (append) {
                 this.isLoadingMore = true;
@@ -2140,19 +2147,33 @@ const MainApp = {
                     remaining: documentHeight - (scrollTop + windowHeight)
                 };
                 
-                // 计算滚动百分比
-                if (documentHeight > windowHeight) {
-                    scrollPercentage = (scrollTop + windowHeight) / documentHeight * 100;
+                // 修复滚动百分比计算
+                const maxScrollTop = Math.max(0, documentHeight - windowHeight);
+                if (maxScrollTop <= 0) {
+                    // 页面内容不足一屏，不需要滚动加载
+                    scrollPercentage = 0;
+                } else {
+                    // 正常计算滚动百分比，确保不会超过100%
+                    scrollPercentage = Math.min(100, (scrollTop / maxScrollTop) * 100);
                 }
                 
-                // 降低阈值：滚动到90%以上才认为接近底部
-                if (scrollPercentage > 90) {
-                    isNearBottom = true;
+                // 只有当页面确实可以滚动且滚动到95%以上才加载更多
+                const canScroll = maxScrollTop > 50; // 至少要有50px的滚动空间
+                const nearBottom = scrollPercentage > 95;
+                
+                // 添加调试信息
+                if (canScroll && nearBottom) {
+                    console.log('🔵 [滚动] 检测到接近底部:', {
+                        scrollPercentage: scrollPercentage.toFixed(1) + '%',
+                        scrollTop,
+                        maxScrollTop,
+                        canScroll,
+                        nearBottom
+                    });
                 }
                 
-                
-                // 只在真正接近底部时加载
-                if (isNearBottom && !this.isLoadingMore && this.hasMore) {
+                // 只在真正接近底部且页面可滚动时加载
+                if (canScroll && nearBottom && !this.isLoadingMore && this.hasMore) {
                     console.log('🔵 [滚动] 触发loadMore, 滚动百分比:', scrollPercentage.toFixed(1) + '%');
                     lastLoadTime = now;
                     this.loadMore();
