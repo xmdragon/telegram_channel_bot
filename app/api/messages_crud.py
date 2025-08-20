@@ -81,11 +81,11 @@ async def get_messages(
         # 计算分页参数
         offset = (page - 1) * page_size
         
-        # 根据筛选条件获取消息
+        # 🚀 性能优化：精确数据获取，避免过量数据拉取
         if source_channel:
-            # 从指定频道获取消息
-            fetch_limit = page_size * 3 if status else page_size
-            fetch_offset = offset * 2 if status else offset
+            # 从指定频道获取消息 - 适度冗余以应对去重过滤
+            fetch_limit = page_size * 2 if status else page_size
+            fetch_offset = offset
             
             all_messages = redis_store.get_messages_by_channel(
                 source_channel, 
@@ -93,8 +93,8 @@ async def get_messages(
                 offset=fetch_offset
             )
         else:
-            # 根据状态获取消息
-            fetch_limit = page_size * 5
+            # 根据状态获取消息 - 直接获取所需数量，减少内存占用
+            fetch_limit = page_size * 2 if page > 1 else page_size + 10
             
             if status == "pending":
                 all_messages = redis_store.get_pending_messages(limit=fetch_limit, offset=offset)
@@ -108,35 +108,18 @@ async def get_messages(
                 # 获取所有消息
                 all_messages = redis_store.get_all_messages(limit=fetch_limit, offset=offset)
         
-        # 收集已组合的grouped_id
+        # 🚀 性能优化：单次遍历完成去重和过滤
         combined_group_ids = set()
-        for msg in all_messages:
-            if msg.get('is_combined') and msg.get('grouped_id'):
-                combined_group_ids.add(msg['grouped_id'])
-        
-        # 应用过滤条件
+        grouped_messages = {}  # grouped_id -> combined_message
         filtered_messages = []
+        
+        # 第一次遍历：收集组合消息和应用基础过滤
         for msg in all_messages:
-            # 组消息去重：如果有组合版本，过滤掉单独版本
-            if (not msg.get('is_combined') and 
-                msg.get('grouped_id') and 
-                msg.get('grouped_id') in combined_group_ids):
-                # 找到对应的组合消息，检查是否真的存在
-                found_combined = False
-                for other_msg in all_messages:
-                    if (other_msg.get('is_combined') and 
-                        other_msg.get('grouped_id') == msg.get('grouped_id')):
-                        found_combined = True
-                        break
-                
-                if found_combined:
-                    continue  # 跳过单独消息，显示组合版本
-            
-            # 状态过滤
+            # 状态过滤（提前过滤减少后续处理）
             if status and msg.get('status') != status:
                 continue
             
-            # 搜索过滤
+            # 搜索过滤（提前过滤）
             if search:
                 content = msg.get('content', '')
                 filtered_content = msg.get('filtered_content', '')
@@ -144,7 +127,27 @@ async def get_messages(
                     search.lower() not in filtered_content.lower()):
                     continue
             
-            filtered_messages.append(msg)
+            # 组合消息处理
+            if msg.get('is_combined') and msg.get('grouped_id'):
+                grouped_id = msg.get('grouped_id')
+                combined_group_ids.add(grouped_id)
+                grouped_messages[grouped_id] = msg
+                filtered_messages.append(msg)
+            elif msg.get('grouped_id') and msg.get('grouped_id') not in combined_group_ids:
+                # 单独消息，但还没有对应的组合版本，先添加
+                filtered_messages.append(msg)
+        
+        # 第二次遍历：移除已有组合版本的单独消息
+        final_messages = []
+        for msg in filtered_messages:
+            if (not msg.get('is_combined') and 
+                msg.get('grouped_id') and 
+                msg.get('grouped_id') in combined_group_ids):
+                # 跳过单独消息，使用组合版本
+                continue
+            final_messages.append(msg)
+        
+        filtered_messages = final_messages
         
         # 分页处理
         total_messages = len(filtered_messages)
@@ -154,6 +157,28 @@ async def get_messages(
         
         # 计算总页数
         total_pages = (total_messages + page_size - 1) // page_size if total_messages > 0 else 1
+        
+        # 🚀 性能优化：批量获取重复消息的原始数据
+        duplicate_original_ids = []
+        for message in filtered_messages:
+            if message.get('duplicate_original_id'):
+                duplicate_original_ids.append(message['duplicate_original_id'])
+        
+        # 批量查询重复消息的原始数据（如果有的话）
+        duplicate_data_cache = {}
+        if duplicate_original_ids:
+            try:
+                # 批量获取原始消息数据
+                for original_id in duplicate_original_ids:
+                    original_message = redis_store.get_message_by_id(original_id)
+                    if original_message:
+                        duplicate_data_cache[original_id] = original_message
+            except Exception as e:
+                logger.warning(f"批量获取重复消息原始数据失败: {e}")
+        
+        # 🚀 性能优化：预编译正则表达式
+        import re
+        media_desc_pattern = re.compile(r'\s*\[📎 媒体组:[^]]*\]\s*')
         
         # 处理媒体显示URL和重复消息信息
         for message in filtered_messages:
@@ -204,17 +229,15 @@ async def get_messages(
                     # 使用第一个媒体的类型作为整体类型
                     message['media_type'] = media_group_display[0].get('media_type')
                 
-                # 清理内容中的媒体文本描述（因为现在有真实媒体了）
-                import re
-                media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+                # 清理内容中的媒体文本描述（使用预编译的正则表达式）
                 if message.get('content'):
                     original_content = message['content']
-                    cleaned_content = re.sub(media_desc_pattern, '', original_content).strip()
+                    cleaned_content = media_desc_pattern.sub('', original_content).strip()
                     if cleaned_content != original_content:
                         message['content'] = cleaned_content
                 if message.get('filtered_content'):
                     original_filtered = message['filtered_content']
-                    cleaned_filtered = re.sub(media_desc_pattern, '', original_filtered).strip()
+                    cleaned_filtered = media_desc_pattern.sub('', original_filtered).strip()
                     if cleaned_filtered != original_filtered:
                         message['filtered_content'] = cleaned_filtered
             
@@ -226,11 +249,11 @@ async def get_messages(
                             os.path.basename(media['media_path'])
                         )
             
-            # 处理重复消息的原始消息信息
+            # 🚀 性能优化：使用缓存的重复消息数据
             if message.get('duplicate_original_id'):
                 try:
-                    # 根据duplicate_original_id获取原始消息的完整数据
-                    original_message = redis_store.get_message_by_id(message['duplicate_original_id'])
+                    # 从缓存中获取原始消息数据，避免重复查询
+                    original_message = duplicate_data_cache.get(message['duplicate_original_id'])
                     if original_message:
                         # 处理原始消息的单个媒体URL（支持多种字段名）
                         original_media_path = original_message.get('media_path') or original_message.get('media_url')
