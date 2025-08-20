@@ -1651,6 +1651,10 @@ const MainApp = {
                 event.stopImmediatePropagation();
             }
             
+            // 清理保护标志
+            this._isProcessingAction = false;
+            window._globalProcessingAction = false;
+            
             // 如果message在event中，提取出来（向后兼容）
             if (!message && event && event.target && event.target.dataset) {
                 // 从dataset中重构message对象
