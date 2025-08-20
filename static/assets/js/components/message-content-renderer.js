@@ -252,6 +252,12 @@ const MessageContentRenderer = {
             // 延迟发送事件，确保当前事件循环完成
             this.$nextTick(() => {
                 this.$emit('edit-message', this.message);
+                
+                // 清理保护标志，防止永久阻塞
+                setTimeout(() => {
+                    this.$parent._isProcessingAction = false;
+                    window._globalProcessingAction = false;
+                }, 500);
             });
         },
         

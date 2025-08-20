@@ -818,6 +818,11 @@ const MainApp = {
                 }
             }
             
+            // 检查是否有处理中的操作（解决竞争条件）
+            if (this._isProcessingAction || window._globalProcessingAction) {
+                return;
+            }
+            
             // 点击标签页时，清除频道选择并设置对应的筛选条件
             this.filters.source_channel = '';  // 清除频道选择
             
