@@ -164,6 +164,9 @@ class UnifiedRedisStore(RedisStore):
     def get_all_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         return self.message_store.get_all_messages(limit, offset)
     
+    def get_duplicate_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        return self.message_store.get_duplicate_messages(limit, offset)
+    
     def update_message_status(self, channel_id: str, message_id: int, new_status: str, reviewed_by: str = None) -> bool:
         return self.message_store.update_message_status(channel_id, message_id, new_status, reviewed_by)
     

@@ -67,6 +67,7 @@ async def get_messages(
     status: Optional[str] = Query(None, description="状态筛选"),
     source_channel: Optional[str] = Query(None, description="频道筛选"),
     search: Optional[str] = Query(None, description="搜索关键词"),
+    show_duplicates: bool = Query(False, description="仅显示重复消息"),
     sort_by: str = Query("created_at", description="排序字段"),
     sort_order: str = Query("desc", description="排序方向"),
     user: Dict[str, Any] = Depends(require_auth)
@@ -81,8 +82,11 @@ async def get_messages(
         # 计算分页参数
         offset = (page - 1) * page_size
         
-        # 🚀 性能优化：精确数据获取，无需冗余（单独消息已清理）
-        if source_channel:
+        # 🚀 Linus式性能优化：根据查询类型选择最优方法
+        if show_duplicates:
+            # 🚀 重复消息专用查询，避免扫描所有消息
+            all_messages = redis_store.get_duplicate_messages(limit=page_size, offset=offset)
+        elif source_channel:
             # 从指定频道获取消息
             all_messages = redis_store.get_messages_by_channel(
                 source_channel, 
@@ -100,7 +104,7 @@ async def get_messages(
             elif status == "auto_forwarded":
                 all_messages = redis_store.get_messages_by_status("auto_forwarded", limit=page_size, offset=offset)
             else:
-                # 获取所有消息
+                # 🚀 优化后的get_all_messages（使用索引合并，不再扫描）
                 all_messages = redis_store.get_all_messages(limit=page_size, offset=offset)
         
         # 🚀 性能优化：简化过滤逻辑（单独消息已清理，无需去重）

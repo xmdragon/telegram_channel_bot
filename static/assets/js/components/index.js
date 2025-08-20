@@ -483,13 +483,14 @@ const MainApp = {
             }
             
             try {
-                // 准备请求参数（过滤掉前端专用参数）
+                // 准备请求参数，将_show_duplicates转换为show_duplicates
                 const { _show_duplicates, ...apiFilters } = this.filters;
                 const params = {
                     ...apiFilters,
                     page: this.currentPage,
-                    // 🔧 重复消息模式下增加页面大小，确保获取足够多的消息进行筛选
-                    size: _show_duplicates ? Math.max(this.pageSize * 3, 50) : this.pageSize
+                    size: this.pageSize,
+                    // 🚀 Linus式优化：传递show_duplicates参数到后端专用查询
+                    show_duplicates: _show_duplicates || false
                 };
                 
                 // 只有当status为null或undefined时才使用默认值，空字符串应该被保留
@@ -791,10 +792,11 @@ const MainApp = {
                     this.filters._show_duplicates = false;
                     break;
                 case 'duplicates':
-                    this.filters.status = '';  // 不限制状态，因为重复消息可能有不同状态
+                    // 🚀 Linus式优化：不要清空status，使用专门的show_duplicates参数
+                    // this.filters.status = '';  // ❌ 删除这行，避免触发get_all_messages
                     this.filters.is_ad = null;
-                    this.filters.filter_reason = null;  // 不通过filter_reason筛选
-                    // 🔧 新增：设置特殊标识来显示重复消息对比
+                    this.filters.filter_reason = null;
+                    // 🔧 设置专用标识，后端将使用专门的重复消息查询
                     this.filters._show_duplicates = true;
                     break;
                 case 'chats':

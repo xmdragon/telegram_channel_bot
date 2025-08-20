@@ -99,50 +99,118 @@ class MessageQueryMixin:
             return []
     
     def get_all_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取所有消息列表"""
+        """获取所有消息列表 - Linus式优化：使用索引合并，避免扫描所有key"""
         try:
-            # 获取所有消息key，支持分页
-            all_msg_keys = self.redis.keys("msg:*:*")
-            # 过滤出索引和计数器key，只保留消息数据key
-            msg_keys = [key for key in all_msg_keys 
-                       if not key.startswith('msg:idx:') 
-                       and not key.startswith('msg:count:') 
-                       and not key.startswith('msg:hash:') 
-                       and not key.startswith('msg:group:')]
+            # 🚀 Linus式优化：使用ZUNIONSTORE合并所有状态索引，避免keys()扫描
+            temp_key = f"msg:tmp:all:{id(self)}"
             
-            # 按时间排序（获取创建时间并排序）
-            msg_with_time = []
-            for key in msg_keys:
-                created_at = self.redis.hget(key, 'created_at')
-                if created_at:
-                    try:
-                        timestamp = datetime.fromisoformat(created_at.replace('Z', '+00:00')).timestamp()
-                        msg_with_time.append((key, timestamp))
-                    except:
-                        msg_with_time.append((key, 0))  # 默认时间
+            # 合并所有状态的索引（pending、approved、rejected、auto_forwarded等）
+            status_indexes = [
+                "msg:idx:pending",
+                "msg:idx:approved", 
+                "msg:idx:rejected",
+                "msg:idx:auto_forwarded"
+            ]
             
-            # 按时间倒序排列
-            msg_with_time.sort(key=lambda x: x[1], reverse=True)
+            # 检查哪些索引实际存在
+            existing_indexes = []
+            for idx in status_indexes:
+                if self.redis.exists(idx):
+                    existing_indexes.append(idx)
             
-            # 支持分页：跳过offset，取limit数量
-            selected_keys = [item[0] for item in msg_with_time[offset:offset + limit]]
+            # 同时添加所有频道的索引
+            channel_patterns = self.redis.keys('msg:idx:*')
+            for pattern in channel_patterns:
+                key_str = pattern.decode('utf-8') if isinstance(pattern, bytes) else pattern
+                # 跳过状态索引和临时索引
+                if (not any(key_str.endswith(status) for status in ['pending', 'approved', 'rejected', 'auto_forwarded']) 
+                    and not key_str.startswith('msg:tmp:')):
+                    existing_indexes.append(key_str)
+            
+            if not existing_indexes:
+                logger.debug("没有找到任何消息索引")
+                return []
+            
+            # 使用ZUNIONSTORE合并所有索引，Redis自动按分数排序
+            if len(existing_indexes) == 1:
+                # 只有一个索引，直接使用
+                temp_key = existing_indexes[0]
+                cleanup_temp = False
+            else:
+                # 合并多个索引
+                self.redis.zunionstore(temp_key, existing_indexes)
+                cleanup_temp = True
+                # 设置临时key过期时间（60秒）
+                self.redis.expire(temp_key, 60)
+            
+            # 直接从合并后的有序集合分页获取（按分数倒序）
+            msg_keys = self.redis.zrevrange(temp_key, offset, offset + limit - 1)
             
             messages = []
-            for key in selected_keys:
-                # 从 key 中提取 channel_id 和 message_id
-                parts = key.split(':')
-                if len(parts) == 3:  # msg:channel_id:message_id
-                    channel_id, message_id = parts[1], parts[2]
+            for key in msg_keys:
+                # key格式：channel_id:message_id
+                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                parts = key_str.split(':')
+                if len(parts) == 2:
+                    channel_id, message_id = parts[0], parts[1]
                     msg_data = self.get_message(channel_id, int(message_id), silent=True)
                     if msg_data:
                         messages.append(msg_data)
+                        
+            # 清理临时key
+            if cleanup_temp:
+                self.redis.delete(temp_key)
             
+            logger.debug(f"通过索引合并获取到 {len(messages)} 条消息")
             return messages
             
         except Exception as e:
             logger.error(f"获取所有消息失败: {e}")
             return []
     
+    def get_duplicate_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取重复消息列表 - 专用方法避免扫描所有消息"""
+        try:
+            # 🚀 性能优化：使用专用索引获取重复消息
+            # 从重复消息索引获取消息ID列表
+            duplicate_keys = self.redis.zrevrange("msg:idx:duplicates", offset, offset + limit - 1)
+            
+            messages = []
+            for key in duplicate_keys:
+                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                parts = key_str.split(':')
+                if len(parts) == 2:
+                    channel_id, message_id = parts[0], parts[1]
+                    msg_data = self.get_message(channel_id, int(message_id), silent=True)
+                    if msg_data and msg_data.get('duplicate_original_id'):
+                        messages.append(msg_data)
+            
+            # 如果专用索引为空，回退到扫描方式（用于兼容性）
+            if not messages and offset == 0:
+                logger.debug("重复消息索引为空，回退到状态筛选")
+                # 从各状态索引中查找有duplicate_original_id的消息
+                all_messages = self.get_all_messages(limit=limit * 3, offset=0)  # 多取一些以确保有足够重复消息
+                for msg in all_messages:
+                    if msg.get('duplicate_original_id') and len(messages) < limit:
+                        messages.append(msg)
+                        # 同时补充到重复消息索引中
+                        msg_key = f"{msg.get('source_channel')}:{msg.get('message_id')}"
+                        timestamp = msg.get('created_at')
+                        if timestamp:
+                            try:
+                                from datetime import datetime
+                                ts = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).timestamp()
+                                self.redis.zadd("msg:idx:duplicates", {msg_key: ts})
+                            except:
+                                pass
+            
+            logger.debug(f"获取到 {len(messages)} 条重复消息")
+            return messages
+            
+        except Exception as e:
+            logger.error(f"获取重复消息失败: {e}")
+            return []
+
     def find_duplicate_by_hash(self, media_hash: str) -> List[str]:
         """根据媒体哈希查找重复消息"""
         try:

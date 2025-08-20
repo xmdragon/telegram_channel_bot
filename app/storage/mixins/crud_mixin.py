@@ -73,6 +73,10 @@ class MessageCrudMixin:
             if data.get('grouped_id'):
                 pipe.sadd(f"msg:group:{data['grouped_id']}", f"{channel_id}:{message_id}")
             
+            # 🚀 性能优化：如果是重复消息，添加到重复消息索引
+            if data.get('duplicate_original_id'):
+                pipe.zadd("msg:idx:duplicates", {f"{channel_id}:{message_id}": timestamp})
+            
             # 执行pipeline
             pipe.execute()
             
