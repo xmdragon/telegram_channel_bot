@@ -216,6 +216,7 @@ const MessageContentRenderer = {
         
         // 单个操作方法
         approveMessage() {
+            console.log('🔴 [按钮点击] approveMessage被调用, messageId:', this.message.id);
             this.$emit('approve-message', this.message.id);
         },
         
@@ -825,7 +826,7 @@ const MessageContentRenderer = {
                 <button @click.stop="editMessage" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
-                <button @click.stop="approveMessage" class="btn btn-sm btn-success">
+                <button @click.stop="console.log('⚫ [模板点击] 发布按钮被点击'); approveMessage()" class="btn btn-sm btn-success">
                     📤 发布
                 </button>
                 <button @click.stop="rejectMessage" class="btn btn-sm btn-danger">

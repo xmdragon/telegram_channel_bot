@@ -169,6 +169,12 @@ const MainApp = {
         },
         'filters.source_channel': function(newVal, oldVal) {
             // 频道变化时自动加载消息
+            // 如果正在处理消息操作，跳过自动加载
+            if (this._isProcessingAction) {
+                console.log('🟠 [Watcher] 跳过loadMessages，正在处理操作');
+                return;
+            }
+            console.log('🟠 [Watcher] 频道变化触发loadMessages, 从:', oldVal, '到:', newVal);
             this.loadMessages();
         }
     },
@@ -449,6 +455,8 @@ const MainApp = {
         
         
         async loadMessages(append = false) {
+            console.log('🟡 [加载消息] loadMessages被调用, append:', append);
+            console.trace('调用栈:');
             if (append) {
                 this.isLoadingMore = true;
             } else {
@@ -834,7 +842,11 @@ const MainApp = {
         
         // 发布消息
         async approveMessage(messageId) {
+            console.log('🟢 [父组件] approveMessage收到事件, messageId:', messageId);
             try {
+                // 设置操作标志，防止watcher触发loadMessages
+                this._isProcessingAction = true;
+                
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
                 
@@ -863,17 +875,20 @@ const MainApp = {
                         // 延迟恢复加载状态，防止滚动事件立即触发
                         setTimeout(() => {
                             this.isLoadingMore = wasLoadingMore;
+                            this._isProcessingAction = false; // 清除操作标志
                         }, 100);
                     });
                 } else {
                     MessageManager.error('发布失败: ' + response.data.message);
                     // 恢复加载状态
                     this.isLoadingMore = wasLoadingMore;
+                    this._isProcessingAction = false; // 清除操作标志
                 }
             } catch (error) {
                 MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
                 // 恢复加载状态
                 this.isLoadingMore = false;
+                this._isProcessingAction = false; // 清除操作标志
             }
         },
         
@@ -2127,6 +2142,7 @@ const MainApp = {
                 
                 // 只在真正接近底部时加载
                 if (isNearBottom && !this.isLoadingMore && this.hasMore) {
+                    console.log('🔵 [滚动] 触发loadMore, 滚动百分比:', scrollPercentage.toFixed(1) + '%');
                     lastLoadTime = now;
                     this.loadMore();
                 }
