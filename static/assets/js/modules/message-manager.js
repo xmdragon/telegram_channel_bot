@@ -20,7 +20,7 @@ const MessageManager = {
                 }
             }
 
-            const response = await axios.get(`${API_ENDPOINTS.messages.list}?${params}`);
+            const response = await axios.get(`/api/messages/?${params}`);
             
             if (response.data.success) {
                 return {
@@ -51,7 +51,7 @@ const MessageManager = {
             // 添加到处理中的消息集合
             messageIds.forEach(id => this.processingMessages.add(id));
 
-            const response = await axios.post(API_ENDPOINTS.messages.batchApprove, {
+            const response = await axios.post('/api/messages/batch/approve', {
                 message_ids: messageIds
             });
 
@@ -84,7 +84,7 @@ const MessageManager = {
         try {
             messageIds.forEach(id => this.processingMessages.add(id));
 
-            const response = await axios.post(API_ENDPOINTS.messages.batchReject, {
+            const response = await axios.post('/api/messages/batch/reject', {
                 message_ids: messageIds
             });
 

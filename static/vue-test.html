@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vue 测试页面</title>
+</head>
+<body>
+    <div id="diagnosis">
+        <h1>Vue 加载诊断</h1>
+        <div id="before-load">JavaScript 加载前</div>
+    </div>
+    
+    <div id="app" style="border: 1px solid blue; padding: 10px; margin: 10px;">
+        <h2>Vue 应用区域</h2>
+        <p>状态: {{ status }}</p>
+        <p>时间: {{ time }}</p>
+        <button @click="updateTime">更新时间</button>
+    </div>
+
+    <script>
+        document.getElementById('before-load').innerHTML = 'JavaScript 可执行';
+        console.log('测试页面开始加载');
+    </script>
+    
+    <script src="assets/js/vue.prod.js?v=1755656526"></script>
+    
+    <script>
+        console.log('Vue 脚本已加载');
+        console.log('window.Vue 存在:', !!window.Vue);
+        
+        if (window.Vue) {
+            console.log('Vue.createApp 存在:', !!window.Vue.createApp);
+            
+            try {
+                const app = window.Vue.createApp({
+                    data() {
+                        return {
+                            status: 'Vue 应用运行正常!',
+                            time: new Date().toLocaleTimeString()
+                        };
+                    },
+                    methods: {
+                        updateTime() {
+                            this.time = new Date().toLocaleTimeString();
+                        }
+                    },
+                    mounted() {
+                        console.log('Vue 应用已挂载');
+                    }
+                });
+                
+                app.mount('#app');
+                console.log('Vue 应用挂载成功');
+                
+                document.getElementById('before-load').innerHTML = 'Vue 应用已成功初始化';
+            } catch (error) {
+                console.error('Vue 初始化失败:', error);
+                document.getElementById('before-load').innerHTML = 'Vue 初始化失败: ' + error.message;
+            }
+        } else {
+            document.getElementById('before-load').innerHTML = 'Vue 库未加载';
+        }
+    </script>
+</body>
+</html>

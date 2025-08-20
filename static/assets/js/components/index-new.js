@@ -200,18 +200,28 @@ const MainApp = {
         // 权限初始化
         async initializePermissions() {
             try {
-                const permissions = await authManager.getPermissions();
+                // 使用authManager的权限检查方法
                 this.buttonVisibility = {
-                    edit: permissions.includes('messages.edit'),
-                    approve: permissions.includes('messages.approve'),
-                    reject: permissions.includes('messages.reject'),
-                    markAsAd: permissions.includes('training.mark_ad'),
-                    markAsTail: permissions.includes('training.mark_tail'),
-                    executeFilter: permissions.includes('messages.filter'),
-                    refetchMedia: permissions.includes('messages.refetch_media')
+                    edit: authManager.hasPermission('messages.edit'),
+                    approve: authManager.hasPermission('messages.approve'),
+                    reject: authManager.hasPermission('messages.reject'),
+                    markAsAd: authManager.hasPermission('messages.mark_as_ad'),
+                    markAsTail: authManager.hasPermission('messages.mark_as_tail'),
+                    executeFilter: authManager.hasPermission('messages.filter'),
+                    refetchMedia: authManager.hasPermission('messages.refetch_media')
                 };
             } catch (error) {
                 console.error('权限初始化失败:', error);
+                // 默认权限（如果权限检查失败）
+                this.buttonVisibility = {
+                    edit: true,
+                    approve: true,
+                    reject: true,
+                    markAsAd: true,
+                    markAsTail: true,
+                    executeFilter: true,
+                    refetchMedia: true
+                };
             }
         },
         
@@ -257,7 +267,7 @@ const MainApp = {
         // 加载频道信息
         async loadChannelInfo() {
             try {
-                const response = await axios.get(API_ENDPOINTS.admin.channelInfo);
+                const response = await axios.get('/api/messages/channel-info');
                 if (response.data.success) {
                     this.channelInfo = response.data.data;
                 }
@@ -269,7 +279,7 @@ const MainApp = {
         // 加载统计数据
         async loadStats() {
             try {
-                const response = await axios.get(API_ENDPOINTS.messages.stats);
+                const response = await axios.get('/api/messages/stats/overview');
                 if (response.data.success) {
                     const stats = response.data.data;
                     this.stats.total.value = stats.total || 0;
