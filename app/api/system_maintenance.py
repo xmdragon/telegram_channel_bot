@@ -65,7 +65,7 @@ async def reset_system() -> Dict[str, Any]:
         # 步骤2：停止采集服务 (15%)
         await websocket_manager.broadcast_progress(operation, 15, "停止采集服务...")
         from app.services.config_manager import config_manager
-        await config_manager.set_config('collection.enabled', False, "系统重置时自动禁用采集")
+        await config_manager.set_boolean('collection.enabled', False, "系统重置时自动禁用采集")
         logger.info("已通过配置禁用采集服务")
         
         # 步骤3：连接存储层 (25%)

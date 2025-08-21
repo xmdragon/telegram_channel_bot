@@ -60,8 +60,15 @@ class ConfigManager:
             
             return default
     
-    async def set_config(self, key: str, value: Any, description: str = "", config_type: str = "string") -> bool:
-        """设置配置值"""
+    async def set_config(self, key: str, value: Any, description: str = "", config_type: str = None) -> bool:
+        """
+        设置配置值 - Linus风格重构版本
+        
+        核心原则：消除特殊情况，类型自动推断
+        - 如果key在DEFAULT_CONFIGS中，自动使用其定义的类型
+        - 如果未定义，根据Python类型自动推断
+        - 类型验证，防止错误数据
+        """
         with self._cache_lock:
             # 确保缓存已加载
             if not self._cache_loaded:
@@ -70,8 +77,16 @@ class ConfigManager:
             try:
                 store = self._get_store()
                 
+                # Linus风格改进：智能类型推断（消除特殊情况）
+                actual_config_type = self._determine_config_type(key, value, config_type)
+                
+                # 类型验证
+                if not self._validate_value_type(value, actual_config_type):
+                    logger.error(f"配置{key}类型验证失败：期望{actual_config_type}，得到{type(value).__name__}，值：{value}")
+                    return False
+                
                 # 序列化值
-                serialized_value = self._serialize_value(value, config_type)
+                serialized_value = self._serialize_value(value, actual_config_type)
                 
                 # 获取现有配置信息（保留描述）
                 existing_config = None
@@ -81,7 +96,7 @@ class ConfigManager:
                 # 构建配置数据
                 config_data = {
                     'value': serialized_value,
-                    'config_type': config_type,
+                    'config_type': actual_config_type,
                     'description': description or (existing_config.get('description', '') if existing_config else ''),
                     'is_active': True,
                     'updated_at': datetime.now().isoformat()
@@ -113,6 +128,23 @@ class ConfigManager:
                 logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
                 return False
     
+    # === Linus风格的类型安全便捷方法 ===
+    async def set_boolean(self, key: str, value: bool, description: str = "") -> bool:
+        """设置布尔配置 - 类型安全，无需指定config_type"""
+        return await self.set_config(key, value, description, config_type="boolean")
+    
+    async def set_integer(self, key: str, value: int, description: str = "") -> bool:
+        """设置整数配置 - 类型安全，无需指定config_type"""
+        return await self.set_config(key, value, description, config_type="integer")
+    
+    async def set_string(self, key: str, value: str, description: str = "") -> bool:
+        """设置字符串配置 - 类型安全，无需指定config_type"""
+        return await self.set_config(key, value, description, config_type="string")
+    
+    async def set_json(self, key: str, value: dict, description: str = "") -> bool:
+        """设置JSON配置 - 类型安全，无需指定config_type"""
+        return await self.set_config(key, value, description, config_type="json")
+
     async def get_all_configs(self) -> Dict[str, Dict]:
         """获取所有配置"""
         with self._cache_lock:
@@ -264,6 +296,52 @@ class ConfigManager:
             # 如果加载失败，至少标记为已加载，避免无限循环
             self._cache_loaded = True
     
+    def _determine_config_type(self, key: str, value: Any, explicit_type: str = None) -> str:
+        """
+        Linus风格类型推断：消除手动指定config_type的特殊情况
+        优先级：
+        1. 如果提供了explicit_type，使用它（向后兼容）
+        2. 如果key在DEFAULT_CONFIGS中，使用定义的类型
+        3. 根据Python类型自动推断
+        """
+        # 优先级1：显式指定的类型（向后兼容）
+        if explicit_type is not None:
+            return explicit_type
+            
+        # 优先级2：DEFAULT_CONFIGS中的类型定义（单一真相源）
+        if key in DEFAULT_CONFIGS:
+            return DEFAULT_CONFIGS[key]['config_type']
+            
+        # 优先级3：根据Python类型自动推断
+        return self._infer_type_from_value(value)
+    
+    def _infer_type_from_value(self, value: Any) -> str:
+        """根据Python类型推断配置类型"""
+        type_mapping = {
+            bool: "boolean",
+            int: "integer", 
+            str: "string",
+            list: "list",
+            dict: "json"
+        }
+        return type_mapping.get(type(value), "string")
+    
+    def _validate_value_type(self, value: Any, expected_type: str) -> bool:
+        """验证值是否符合期望的配置类型"""
+        try:
+            if expected_type == "boolean":
+                return isinstance(value, (bool, int, str))  # 允许多种布尔值表示
+            elif expected_type == "integer":
+                return isinstance(value, (int, str)) and str(value).isdigit()
+            elif expected_type == "string":
+                return True  # 所有值都可以转为字符串
+            elif expected_type == "json" or expected_type == "list":
+                return isinstance(value, (dict, list, str))
+            else:
+                return True
+        except:
+            return False
+
     def _serialize_value(self, value: Any, config_type: str) -> str:
         """序列化配置值"""
         if config_type == "json" or config_type == "list":

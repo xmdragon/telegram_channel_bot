@@ -19,10 +19,10 @@ async def start_service(service_name: str) -> Dict[str, Any]:
         from app.services.config_manager import config_manager
         
         if service_name == "collector":
-            await config_manager.set_config('collection.enabled', True, "手动启用采集服务")
+            await config_manager.set_boolean('collection.enabled', True, "手动启用采集服务")
             return {"success": True, "message": "采集服务已启用"}
         elif service_name == "scheduler":
-            await config_manager.set_config('scheduler.enabled', True, "手动启用调度服务") 
+            await config_manager.set_boolean('scheduler.enabled', True, "手动启用调度服务") 
             return {"success": True, "message": "调度服务已启用"}
         else:
             return {"success": False, "message": f"未知服务: {service_name}"}
@@ -38,10 +38,10 @@ async def stop_service(service_name: str) -> Dict[str, Any]:
         from app.services.config_manager import config_manager
         
         if service_name == "collector":
-            await config_manager.set_config('collection.enabled', False, "手动停止采集服务")
+            await config_manager.set_boolean('collection.enabled', False, "手动停止采集服务")
             return {"success": True, "message": "采集服务已停止"}
         elif service_name == "scheduler":
-            await config_manager.set_config('scheduler.enabled', False, "手动停止调度服务")
+            await config_manager.set_boolean('scheduler.enabled', False, "手动停止调度服务")
             return {"success": True, "message": "调度服务已停止"}
         else:
             return {"success": False, "message": f"未知服务: {service_name}"}
@@ -58,18 +58,18 @@ async def restart_service(service_name: str) -> Dict[str, Any]:
         
         if service_name == "collector":
             # 先停止
-            await config_manager.set_config('collection.enabled', False, "重启服务 - 停止阶段")
+            await config_manager.set_boolean('collection.enabled', False, "重启服务 - 停止阶段")
             # 等待一下让服务停止
             import asyncio
             await asyncio.sleep(2)
             # 再启动  
-            await config_manager.set_config('collection.enabled', True, "重启服务 - 启动阶段")
+            await config_manager.set_boolean('collection.enabled', True, "重启服务 - 启动阶段")
             return {"success": True, "message": "采集服务已重启"}
         elif service_name == "scheduler":
-            await config_manager.set_config('scheduler.enabled', False, "重启服务 - 停止阶段")
+            await config_manager.set_boolean('scheduler.enabled', False, "重启服务 - 停止阶段")
             import asyncio
             await asyncio.sleep(2)
-            await config_manager.set_config('scheduler.enabled', True, "重启服务 - 启动阶段")
+            await config_manager.set_boolean('scheduler.enabled', True, "重启服务 - 启动阶段")
             return {"success": True, "message": "调度服务已重启"}
         else:
             return {"success": False, "message": f"未知服务: {service_name}"}
