@@ -339,7 +339,9 @@ const app = createApp({
         },
         
         handleWebSocketMessage(data) {
+            console.log('WebSocket消息:', data);  // 调试日志
             if (data.type === 'operation_progress') {
+                console.log('处理进度消息:', data.data);  // 调试日志
                 this.updateProgress(data.data);
             }
             // 可以添加其他类型的WebSocket消息处理
@@ -376,7 +378,7 @@ const app = createApp({
                 'system_status': '系统状态检查',
                 'system_reset': '系统重置进行中'
             };
-            return titleMap[this.operationProgress.type] || '操作进行中';
+            return titleMap[this.operationProgress.operation] || '操作进行中';
         }
     }
 });
