@@ -868,13 +868,14 @@ class MessageProcessor:
             logger.error(f"重新获取媒体失败 {channel_id}:{message_id}: {e}")
             return False
     
-    async def refilter_message(self, channel_id: str, message_id: int) -> bool:
+    async def refilter_message(self, channel_id: str, message_id: int, filtered_content: str = None) -> bool:
         """
-        重新过滤消息（使用所有过滤器）
+        重新过滤消息（直接更新filtered_content）
         
         Args:
             channel_id: 频道ID
             message_id: 消息ID
+            filtered_content: 过滤后的内容（可选，如果不提供则使用现有过滤逻辑）
             
         Returns:
             bool: 重新过滤是否成功
@@ -894,50 +895,20 @@ class MessageProcessor:
                 logger.error(f"消息不存在: {channel_id}:{message_id}")
                 return False
             
-            # 获取原始内容
-            original_content = message.get('content') or message.get('filtered_content')
-            if not original_content:
-                logger.warning(f"消息没有内容可以过滤: {channel_id}:{message_id}")
-                return True  # 没有内容也算成功
+            # 如果没有提供filtered_content，使用现有的内容
+            if filtered_content is None:
+                filtered_content = message.get('filtered_content') or message.get('content', '')
             
-            # 执行完整的过滤流程
-            from app.services.filters.filter_pipeline import FilterPipeline
-            from app.services.filters.base import FilterContext
-            
-            # 创建过滤器上下文
-            context = FilterContext(
-                message_id=message_id,
-                channel_id=int(channel_id),
-                timestamp=datetime.now().timestamp(),
-                message_type=message.get('media_type', 'text')
-            )
-            
-            # 添加元数据
-            context.add_metadata('is_history', False)
-            context.add_metadata('message_obj', message)
-            context.add_metadata('is_refilter', True)  # 标记为重新过滤
-            
-            # 初始化过滤管道
-            filter_pipeline = FilterPipeline()
-            
-            # 执行过滤
-            filter_result = await filter_pipeline.process(original_content, context)
-            
-            # 更新消息的过滤内容
+            # 直接更新消息的过滤内容
             update_data = {
-                'filtered_content': filter_result.filtered_content,
-                'filter_passed': filter_result.passed,
+                'filtered_content': filtered_content,
                 'updated_at': datetime.utcnow().isoformat(),
                 'refiltered_at': datetime.utcnow().isoformat()
             }
             
-            # 如果有过滤详情，也保存
-            if filter_result.details:
-                update_data['filter_details'] = json.dumps(filter_result.details, ensure_ascii=False)
-            
             success = self.redis_store.update_message(channel_id, message_id, update_data)
             if success:
-                logger.info(f"消息重新过滤成功: {channel_id}:{message_id} - 内容长度: {len(original_content)} -> {len(filter_result.filtered_content)}")
+                logger.info(f"消息重新过滤成功: {channel_id}:{message_id} - 内容长度: {len(filtered_content)}")
                 return True
             else:
                 logger.error(f"更新过滤结果失败: {channel_id}:{message_id}")
