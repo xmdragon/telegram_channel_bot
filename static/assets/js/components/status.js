@@ -119,16 +119,20 @@ const app = createApp({
         
         async loadSystemStatus() {
             try {
-                // 加载系统状态（包含消息统计数据）
+                // 加载系统状态（不包含消息统计）
                 const statusResponse = await axios.get(API.system.systemStatus);
                 
                 if (statusResponse.data) {
                     this.updateSystemStatus(statusResponse.data);
-                    
-                    // 从系统状态中提取消息统计
-                    if (statusResponse.data.stats) {
-                        this.updateMessageStatsFromSystemStatus(statusResponse.data.stats);
-                    }
+                }
+                
+                // 单独加载消息统计（使用与主控制台相同的API和认证）
+                const statsResponse = await axios.get(API.messages.statsOverview, {
+                    headers: authManager.getAuthHeaders()
+                });
+                
+                if (statsResponse.data && statsResponse.data.data) {
+                    this.updateMessageStats(statsResponse.data.data);
                 }
             } catch (error) {
                 MessageManager.error('加载系统状态失败');
@@ -136,7 +140,7 @@ const app = createApp({
         },
         
         updateSystemStatus(data) {
-            // 只更新服务状态和系统信息，统计数据由updateMessageStats处理
+            // 更新服务状态和系统信息
             
             // 更新服务状态
             if (data.services) {
@@ -164,16 +168,6 @@ const app = createApp({
             this.systemStats.chats.value = stats.chats || 0;
         },
         
-        updateMessageStatsFromSystemStatus(stats) {
-            // 更新消息统计数据 - 用于系统状态API数据格式
-            this.systemStats.total.value = stats.total_messages || 0;
-            this.systemStats.pending.value = stats.pending_messages || 0;
-            this.systemStats.approved.value = stats.forwarded_messages || 0;
-            this.systemStats.rejected.value = 0; // 系统状态API暂不包含拒绝数
-            this.systemStats.ads.value = 0;      // 系统状态API暂不包含广告数
-            this.systemStats.duplicates.value = 0; // 系统状态API暂不包含重复数
-            this.systemStats.chats.value = stats.source_channels || 0; // 用频道数作为聊天数
-        },
         
         formatUptime(seconds) {
             const hours = Math.floor(seconds / 3600);
@@ -342,7 +336,11 @@ const app = createApp({
             console.log('WebSocket消息:', data);  // 调试日志
             if (data.type === 'operation_progress') {
                 console.log('处理进度消息:', data.data);  // 调试日志
-                this.updateProgress(data.data);
+                // 只为消息重置操作显示弹窗，忽略系统状态检查
+                if (data.data.operation === 'system_reset') {
+                    this.updateProgress(data.data);
+                }
+                // system_status 操作静默执行，不显示弹窗
             }
             // 可以添加其他类型的WebSocket消息处理
         },
