@@ -101,6 +101,12 @@ async def reset_system() -> Dict[str, Any]:
             ws_keys = redis_store.redis.keys("websocket:*")
             if ws_keys:
                 redis_store.redis.delete(*ws_keys)
+            
+            # 清空频道采集点（checkpoint）- 修复采集问题
+            checkpoint_keys = redis_store.redis.keys("channel:checkpoint*")
+            if checkpoint_keys:
+                redis_store.redis.delete(*checkpoint_keys)
+                logger.info(f"清空了 {len(checkpoint_keys)} 个频道采集点")
         
         # 步骤5：清空临时媒体目录 (65%)
         await websocket_manager.broadcast_progress(operation, 65, "清空临时媒体目录...")

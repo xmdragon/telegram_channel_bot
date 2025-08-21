@@ -75,7 +75,11 @@ class MessageFilterProcessor(MessageProcessor):
             # 步骤5: 检查配置的自动过滤设置
             await self._check_auto_filter_config(context)
             
-            self.logger.info(f"过滤处理完成: 广告={context.is_ad}, 拒绝={context.should_reject}")
+            # 最终状态日志
+            status_summary = f"广告={context.is_ad}, 拒绝={context.should_reject}"
+            if context.should_reject:
+                status_summary += f", 原因={context.reject_reason}"
+            self.logger.info(f"📋 过滤处理完成: {status_summary}")
             return ProcessorResult(True, context)
             
         except Exception as e:
@@ -129,9 +133,16 @@ class MessageFilterProcessor(MessageProcessor):
             
             # 广告检测结果
             ad_detection_result = filter_context.get_metadata('ad_detection_result')
-            context.is_ad = (not pipeline_result.passed) or (
+            # 修复：广告标记应该直接从检测结果获取，与过滤器通过状态无关
+            context.is_ad = bool(
                 ad_detection_result and ad_detection_result.get('is_ad', False)
             )
+            
+            # 调试日志：记录广告检测结果
+            if context.is_ad:
+                self.logger.info(f"🚫 消息被检测为广告: {context.filter_reason}")
+            else:
+                self.logger.debug(f"✅ 消息未检测为广告")
             
             # 更新广告检测原因
             if ad_detection_result and ad_detection_result.get('is_ad', False):
@@ -186,21 +197,30 @@ class MessageFilterProcessor(MessageProcessor):
     
     async def _check_auto_filter_config(self, context: MessageContext):
         """检查配置的自动过滤设置"""
-        if not context.is_ad or context.should_reject:
+        if not context.is_ad:
+            self.logger.debug("消息未被标记为广告，跳过自动拒绝检查")
+            return
+            
+        if context.should_reject:
+            self.logger.debug("消息已被标记为拒绝，跳过自动拒绝检查")
             return
         
         try:
             from app.services.config_manager import config_manager
             auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
             
+            self.logger.info(f"🔧 自动拒绝广告配置: {auto_reject_ads}")
+            
             if auto_reject_ads:
                 context.should_reject = True
                 context.auto_rejected = True
                 context.reject_reason = f"自动拒绝广告消息: {context.filter_reason}"
-                self.logger.info(f"根据配置自动拒绝广告消息: {context.filter_reason}")
+                self.logger.info(f"⚡ 根据配置自动拒绝广告消息: {context.filter_reason}")
+            else:
+                self.logger.info(f"💡 广告消息保持待审核状态（自动拒绝未启用）")
                 
         except Exception as e:
-            self.logger.debug(f"检查自动拒绝广告配置失败: {e}")
+            self.logger.error(f"检查自动拒绝广告配置失败: {e}")
     
     async def _should_reject_pure_ad(self, context: MessageContext) -> Tuple[bool, str]:
         """

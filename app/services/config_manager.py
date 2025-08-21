@@ -462,11 +462,12 @@ async def init_default_configs():
         existing_value = await config_manager.get_config(key)
         # 只有当值为None或空字符串时才初始化（对于cached字段，保留已有的值）
         if existing_value is None or (existing_value == "" and not key.endswith("_cached")):
+            # Linus风格：使用类型推断而不是显式传递config_type
             success = await config_manager.set_config(
                 key=key,
                 value=config_info["value"],
-                description=config_info["description"],
-                config_type=config_info["config_type"]
+                description=config_info["description"]
+                # config_type自动从DEFAULT_CONFIGS推断，消除重复信息
             )
             if success:
                 logger.info(f"已初始化配置: {key}")
@@ -475,3 +476,53 @@ async def init_default_configs():
                 logger.error(f"初始化配置失败: {key}")
     
     logger.info(f"默认配置初始化完成，共初始化 {initialized_count} 个配置项")
+    
+    # 执行配置类型验证（Linus风格防御）
+    await validate_config_types()
+
+
+async def validate_config_types():
+    """
+    Linus风格配置类型验证器
+    启动时验证所有配置的类型是否与DEFAULT_CONFIGS一致
+    发现不一致时自动修复
+    """
+    logger.info("🔍 执行配置类型一致性验证...")
+    
+    fixed_count = 0
+    all_configs = await config_manager.get_all_configs()
+    
+    for key, expected_config in DEFAULT_CONFIGS.items():
+        expected_type = expected_config['config_type']
+        
+        if key in all_configs:
+            stored_config = all_configs[key]
+            
+            # 🚨 Linus风格防护：检查数据类型，避免在字符串上调用.get()
+            if not isinstance(stored_config, dict):
+                logger.error(f"🔧 配置数据格式错误: {key} 不是字典格式，是 {type(stored_config)}")
+                continue
+                
+            actual_type = stored_config.get('config_type', 'unknown')
+            
+            if actual_type != expected_type:
+                logger.warning(f"🔧 配置类型不一致修复: {key} ({actual_type} -> {expected_type})")
+                
+                # 重新保存配置以修复类型
+                current_value = await config_manager.get_config(key)
+                success = await config_manager.set_config(
+                    key=key,
+                    value=current_value if current_value is not None else expected_config['value'],
+                    description=stored_config.get('description', expected_config['description'])
+                )
+                
+                if success:
+                    fixed_count += 1
+                    logger.info(f"✅ 修复完成: {key}")
+                else:
+                    logger.error(f"❌ 修复失败: {key}")
+    
+    if fixed_count > 0:
+        logger.info(f"🎯 配置类型验证完成，修复了 {fixed_count} 个问题")
+    else:
+        logger.info("✅ 所有配置类型验证通过")
