@@ -374,8 +374,7 @@ const MessageContentRenderer = {
                             </div>
                             
                             <!-- 重复消息的文本内容 -->
-                            <div v-if="message.content || message.filtered_content" class="message-text comparison-text">
-                                {{ message.filtered_content || message.content }}
+                            <div v-if="message.content || message.filtered_content" class="message-text comparison-text" v-html="message.filtered_content || message.content">
                             </div>
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无文本内容
@@ -567,8 +566,7 @@ const MessageContentRenderer = {
                             </div>
                             
                             <!-- 过滤后的文本内容 -->
-                            <div v-if="message.filtered_content" class="message-text">
-                                {{ message.filtered_content }}
+                            <div v-if="message.filtered_content" class="message-text" v-html="message.filtered_content">
                             </div>
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无过滤后内容
@@ -751,8 +749,7 @@ const MessageContentRenderer = {
                     </div>
                     
                     <!-- 文本内容 -->
-                    <div v-if="formattedContent" class="message-text">
-                        {{ formattedContent }}
+                    <div v-if="formattedContent" class="message-text" v-html="formattedContent">
                     </div>
                     
                     <!-- 显示被移除的隐藏链接信息 -->
