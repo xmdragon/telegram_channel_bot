@@ -84,39 +84,24 @@ class MessageGrouper:
                 logger.debug(f"使用上游过滤后内容: {len(original_content)}字符")
             else:
                 # 2. 如果没有传入有效的filtered_content，直接从消息提取
-                # 按优先级提取：text -> raw_text -> message -> caption
-                if hasattr(message, 'text') and message.text:
-                    original_content = message.text
+                # 按Telegram官方优先级提取，与message_receiver.py保持一致
+                # 不拼接多个字段，避免重复 - 修复消息#2261重复显示问题
+                # 优先级：message → raw_text → text → caption
+                if hasattr(message, 'message') and message.message:
+                    original_content = message.message.strip()
+                    logger.debug(f"组合器使用message字段: {len(original_content)}字符")
                 elif hasattr(message, 'raw_text') and message.raw_text:
-                    original_content = message.raw_text
-                elif hasattr(message, 'message') and message.message:
-                    original_content = message.message
-                
-                # 3. 🔧 重要：无论是否已有文本，都检查caption
-                caption = ""
-                if hasattr(message, 'caption') and message.caption:
-                    caption = message.caption
-                
-                # 4. 智能组合文本和caption - 避免重复
-                if original_content and caption:
-                    # 检查 text 和 caption 是否相同（忽略前后空白）
-                    original_stripped = original_content.strip()
-                    caption_stripped = caption.strip()
-                    
-                    if original_stripped == caption_stripped:
-                        # 如果内容相同，不拼接，只使用原内容
-                        logger.debug(f"组合器检测到text和caption内容相同，避免重复拼接: {len(original_content)}字符")
-                    elif original_stripped in caption_stripped or caption_stripped in original_stripped:
-                        # 如果一个是另一个的子集，使用较长的那个
-                        original_content = original_stripped if len(original_stripped) > len(caption_stripped) else caption_stripped
-                        logger.debug(f"组合器检测到text/caption包含关系，使用较长内容: {len(original_content)}字符")
-                    else:
-                        # 如果内容不同，才进行拼接
-                        original_content = f"{original_content}\n\n{caption}"
-                        logger.debug(f"组合器中合并不同的文本和caption: text={len(message.text if hasattr(message, 'text') else '')}字符, caption={len(caption)}字符")
-                elif not original_content and caption:
-                    original_content = caption
-                    logger.debug(f"组合器中使用caption: {len(caption)}字符")
+                    original_content = message.raw_text.strip()
+                    logger.debug(f"组合器使用raw_text字段: {len(original_content)}字符")
+                elif hasattr(message, 'text') and message.text:
+                    original_content = message.text.strip()
+                    logger.debug(f"组合器使用text字段: {len(original_content)}字符")
+                elif hasattr(message, 'caption') and message.caption:
+                    original_content = message.caption.strip()
+                    logger.debug(f"组合器使用caption字段: {len(original_content)}字符")
+                else:
+                    original_content = ""
+                    logger.debug("组合器未找到有效文本内容")
                 
                 logger.debug(f"组合器提取原始内容: {len(original_content)}字符")
             
@@ -145,9 +130,21 @@ class MessageGrouper:
         except Exception as e:
             logger.error(f"处理消息组合时出错: {e}")
             # 出错时返回单独消息
+            fallback_content = ""
+            if filtered_content is not None:
+                fallback_content = filtered_content
+            elif hasattr(message, 'message') and message.message:
+                fallback_content = message.message
+            elif hasattr(message, 'raw_text') and message.raw_text:
+                fallback_content = message.raw_text
+            elif hasattr(message, 'text') and message.text:
+                fallback_content = message.text
+            elif hasattr(message, 'caption') and message.caption:
+                fallback_content = message.caption
+            
             return await self._create_single_message(message_data if 'message_data' in locals() else {
                 'message_id': message.id,
-                'content': filtered_content if filtered_content is not None else (message.text or message.caption if hasattr(message, 'caption') else ""),
+                'content': fallback_content,
                 'filtered_content': filtered_content,
                 'is_ad': is_ad,
                 'media_info': media_info,
@@ -782,26 +779,26 @@ class MessageGrouper:
             
             # 准备消息数据
             message_data = {
-                "id": saved_message.id,
-                "message_id": saved_message.message_id,
-                "source_channel": saved_message.source_channel,
-                "content": saved_message.content,
-                "filtered_content": saved_message.filtered_content,
-                "media_type": saved_message.media_type,
-                "media_url": saved_message.media_url,
-                "is_ad": saved_message.is_ad,
-                "is_combined": saved_message.is_combined,
-                "grouped_id": saved_message.grouped_id,
-                "status": saved_message.status,
-                "created_at": format_for_api(saved_message.created_at),
+                "id": saved_message.get('id'),
+                "message_id": saved_message.get('message_id'),
+                "source_channel": saved_message.get('source_channel'),
+                "content": saved_message.get('content'),
+                "filtered_content": saved_message.get('filtered_content'),
+                "media_type": saved_message.get('media_type'),
+                "media_url": saved_message.get('media_url'),
+                "is_ad": saved_message.get('is_ad'),
+                "is_combined": saved_message.get('is_combined'),
+                "grouped_id": saved_message.get('grouped_id'),
+                "status": saved_message.get('status'),
+                "created_at": format_for_api(saved_message.get('created_at')),
                 "media_group_display": self._prepare_media_group_display(saved_message),
-                "media_group": saved_message.media_group,
-                "combined_messages": saved_message.combined_messages
+                "media_group": saved_message.get('media_group'),
+                "combined_messages": saved_message.get('combined_messages')
             }
             
             # 广播到所有WebSocket客户端
             await websocket_manager.broadcast_new_message(message_data)
-            logger.info(f"✅ 成功通知前端组合消息创建: ID:{saved_message.id}")
+            logger.info(f"✅ 成功通知前端组合消息创建: ID:{saved_message.get('id')}")
             
         except ImportError as e:
             logger.warning(f"WebSocket管理器未可用: {e}")
@@ -811,11 +808,11 @@ class MessageGrouper:
     def _prepare_media_group_display(self, db_message):
         """准备媒体组显示数据"""
         try:
-            if not db_message.is_combined or not db_message.media_group:
+            if not db_message.get('is_combined') or not db_message.get('media_group'):
                 return None
                 
             media_display = []
-            for media_item in db_message.media_group:
+            for media_item in db_message.get('media_group', []):
                 # 转换本地文件路径为web访问路径
                 file_path = media_item.get('file_path', '')
                 from app.core.path_config import PathConfig

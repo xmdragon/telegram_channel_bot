@@ -62,8 +62,8 @@ class MessageReceiver(MessageProcessor):
     
     async def _extract_original_content(self, message: TLMessage) -> str:
         """
-        提取消息的原始内容，确保不丢失任何文本
-        同时提取text和caption，优先使用text
+        提取消息的原始内容 - 与Telegram官方保持一致
+        优先使用message字段（纯文本），避免格式化标记和重复拼接
         
         Args:
             message: Telegram消息对象
@@ -71,31 +71,30 @@ class MessageReceiver(MessageProcessor):
         Returns:
             原始内容字符串
         """
-        # Linus式统一文本提取：消除所有特殊情况
-        # 一个函数搞定所有文本提取，不管是什么字段
-        text_parts = []
+        # 按Telegram官方优先级提取，只取第一个有效字段
+        # 不拼接多个字段，避免重复 - 修复消息#2261重复显示问题
         
-        # 提取所有可能的文本字段
-        text_fields = ['text', 'raw_text', 'message', 'caption']
-        for field in text_fields:
-            if hasattr(message, field):
-                value = getattr(message, field)
-                if value and isinstance(value, str) and value.strip():
-                    # 避免重复添加相同内容
-                    if value.strip() not in text_parts:
-                        text_parts.append(value.strip())
+        # 优先级：message → raw_text → text → caption
+        # message字段是Telegram标准纯文本，与官方客户端显示一致
+        if hasattr(message, 'message') and message.message:
+            content = message.message.strip()
+            self.logger.debug(f"使用message字段: {len(content)}字符")
+            return content
+        elif hasattr(message, 'raw_text') and message.raw_text:
+            content = message.raw_text.strip()
+            self.logger.debug(f"使用raw_text字段: {len(content)}字符")
+            return content
+        elif hasattr(message, 'text') and message.text:
+            content = message.text.strip()
+            self.logger.debug(f"使用text字段: {len(content)}字符")
+            return content
+        elif hasattr(message, 'caption') and message.caption:
+            content = message.caption.strip()
+            self.logger.debug(f"使用caption字段: {len(content)}字符")
+            return content
         
-        # 简单连接所有文本，没有复杂的if/else
-        content = '\n\n'.join(text_parts) if text_parts else ""
-        
-        # 记录提取结果
-        if content:
-            self.logger.info(f"提取到原始内容: {len(content)} 字符")
-            self.logger.debug(f"原始内容前100字符: {content[:100]}...")
-        else:
-            self.logger.debug("消息无文本内容（纯媒体）")
-        
-        return content
+        self.logger.debug("未找到有效文本内容")
+        return ""
     
     def _get_media_type(self, media) -> str:
         """获取媒体类型"""
