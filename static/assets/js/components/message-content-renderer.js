@@ -458,8 +458,7 @@ const MessageContentRenderer = {
                             
                             <!-- 原始消息的文本内容 -->
                             <div v-if="message.duplicate_info && (message.duplicate_info.filtered_content || message.duplicate_info.content)" 
-                                 class="message-text comparison-text">
-                                {{ message.duplicate_info.filtered_content || message.duplicate_info.content }}
+                                 class="message-text comparison-text" v-html="message.duplicate_info.filtered_content || message.duplicate_info.content">
                             </div>
                             <div v-else-if="message.duplicate_info && !message.duplicate_info.media_type" class="content-empty">
                                 暂无文本内容
