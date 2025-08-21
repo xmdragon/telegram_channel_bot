@@ -34,7 +34,7 @@ class AdDetector:
         try:
             from app.services.model_cache_manager import get_cached_model
             # 使用缓存管理器获取模型，避免重复下载
-            self.model = get_cached_model('paraphrase-multilingual-MiniLM-L12-v2')
+            self.model = get_cached_model('nano')
             if self.model:
                 self.initialized = True
                 logger.info("✅ 广告检测器初始化成功（使用缓存模型）")
@@ -254,7 +254,7 @@ class AdDetector:
         return {
             "initialized": self.initialized,
             "ad_samples_count": len(self.ad_embeddings),
-            "model_name": "paraphrase-multilingual-MiniLM-L12-v2" if self.initialized else None,
+            "model_name": "all-MiniLM-L6-v2" if self.initialized else None,
             "threshold": 0.75
         }
 

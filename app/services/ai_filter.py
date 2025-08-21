@@ -62,7 +62,7 @@ class IntelligentFilter:
             if mode == 'deep':
                 # 使用深度学习模式
                 from app.services.model_cache_manager import get_cached_model
-                self.model = get_cached_model('paraphrase-multilingual-MiniLM-L12-v2')
+                self.model = get_cached_model('nano')
                 if self.model:
                     self.initialized = True
                     logger.info("✅ AI过滤器初始化成功（深度学习模式）")

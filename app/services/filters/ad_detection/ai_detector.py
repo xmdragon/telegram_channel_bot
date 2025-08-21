@@ -28,7 +28,7 @@ class AIAdDetector:
         try:
             from app.services.model_cache_manager import get_cached_model
             # 使用缓存管理器获取模型，避免重复下载
-            self._model = get_cached_model('paraphrase-multilingual-MiniLM-L12-v2')
+            self._model = get_cached_model('nano')
             self._initialized = True
             logger.info("✅ AI广告检测模型初始化成功")
             
