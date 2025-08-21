@@ -169,6 +169,11 @@ const API_ENDPOINTS = {
         serviceStop: (serviceName) => `/api/system/services/${serviceName}/stop`,       // POST - 停止服务
         serviceRestart: (serviceName) => `/api/system/services/${serviceName}/restart`, // POST - 重启服务
         
+        // 锁状态管理
+        lockStatus: '/api/system/lock-status',                     // GET - 获取Telegram锁状态
+        clearLock: '/api/system/clear-lock',                       // POST - 清理锁
+        autoClearLock: '/api/system/auto-clear-lock',              // POST - 智能清理过期锁
+        
         // 已废弃或重复的端点（保留向后兼容）
         clearCache: '/api/system/clear-cache',                     // POST - 清理缓存（已废弃）
     },

@@ -16,6 +16,7 @@ from .system_monitor import router as system_monitor_router
 from .system_logs import router as system_logs_router
 from .system_maintenance import router as system_maintenance_router
 from .system_admin import router as system_admin_router
+from .system_lock import router as system_lock_router
 from .lock import router as lock_router
 from .admin_auth import router as admin_auth_router
 from .ai_control import router as ai_control_router
@@ -47,6 +48,7 @@ api_router.include_router(system_monitor_router, tags=["system-monitor"])
 api_router.include_router(system_logs_router, tags=["system-logs"])
 api_router.include_router(system_maintenance_router, tags=["system-maintenance"])
 api_router.include_router(system_admin_router, tags=["system-admin"])
+api_router.include_router(system_lock_router, tags=["system-lock"])
 api_router.include_router(lock_router, tags=["lock"])
 api_router.include_router(ai_control_router, tags=["ai-control"])
 api_router.include_router(ai_config_router, tags=["ai-config"])

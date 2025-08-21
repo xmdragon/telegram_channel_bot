@@ -94,6 +94,9 @@ class TelegramCollectorService:
         """初始化采集服务"""
         logger.info("📡 启动Telegram采集服务...")
         
+        # 清理可能存在的残留锁
+        await self._cleanup_stale_locks()
+        
         # 启动健康监控
         from app.services.health_monitor import create_health_monitor
         self.health_monitor = create_health_monitor("telegram_collector")
@@ -249,6 +252,34 @@ class TelegramCollectorService:
                             break
             except KeyboardInterrupt:
                 logger.info("收到停止信号，正在关闭...")
+    
+    async def _cleanup_stale_locks(self):
+        """清理残留锁"""
+        try:
+            logger.info("🔧 检查并清理残留的Telegram锁...")
+            
+            # 使用锁清理工具检查锁状态
+            import subprocess
+            import os
+            
+            # 构建清理脚本路径
+            script_path = os.path.join(os.path.dirname(__file__), "tools", "maintenance", "clear_telegram_lock.py")
+            
+            # 执行自动清理
+            result = subprocess.run([
+                sys.executable, script_path, "--auto"
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                if "没有锁" in result.stdout or "系统正常" in result.stdout:
+                    logger.info("✅ 锁状态正常")
+                elif "自动清理" in result.stdout or "锁清理完成" in result.stdout:
+                    logger.info("🧹 已清理残留锁")
+            else:
+                logger.warning(f"锁清理工具执行异常: {result.stderr}")
+                
+        except Exception as e:
+            logger.warning(f"清理残留锁时出错: {e}")
     
     async def stop(self):
         """停止采集服务"""

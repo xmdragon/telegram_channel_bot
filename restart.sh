@@ -29,10 +29,13 @@ show_help() {
     echo "  2️⃣ 重启Redis缓存服务"
     echo "      🗄️ 数据存储和缓存服务重新启动"
     echo ""
-    echo "  3️⃣ 检查系统状态"
+    echo "  3️⃣ 清理残留锁"
+    echo "      🔧 清理可能存在的Telegram进程锁"
+    echo ""
+    echo "  4️⃣ 检查系统状态"
     echo "      📊 历史错误统计、💾 磁盘使用情况"
     echo ""
-    echo "  4️⃣ 启动所有服务"
+    echo "  5️⃣ 启动所有服务"
     echo "      🌐 Web界面(8000) → 📡 消息采集 → ⏰ 定时调度"
     echo ""
     echo "🛠️ 涉及的服务组件:"
@@ -212,8 +215,17 @@ elif [ "$VERBOSE" = true ]; then
     echo
 fi
 
+# 步骤4：清理残留锁
+echo "3️⃣ 清理残留锁..."
+if python3 tools/maintenance/clear_telegram_lock.py --auto > /dev/null 2>&1; then
+    echo "✅ 锁状态检查完成"
+else
+    echo "⚠️  锁检查异常，但不影响启动"
+fi
+echo
+
 # 步骤5：启动所有服务
-echo "4️⃣ 启动所有服务..."
+echo "5️⃣ 启动所有服务..."
 echo
 
 # 构建启动参数

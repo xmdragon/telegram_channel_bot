@@ -127,6 +127,10 @@ class RouteConfig:
     class System:
         """系统相关路由"""
         # 健康检查
+        lock_status = "/system/lock-status"
+        clear_lock = "/system/clear-lock"
+        auto_clear_lock = "/system/auto-clear-lock"
+        # 其他系统路由
         status = "/system/status"
         status_detailed = "/system/status/detailed"
         health = "/system/health"

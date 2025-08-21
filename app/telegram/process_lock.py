@@ -21,8 +21,8 @@ class TelegramProcessLock:
         self.lock_key = "telegram:process:lock"
         self.lock_owner_key = "telegram:process:owner"
         self.heartbeat_key = "telegram:process:heartbeat"
-        self.lock_timeout = 30  # 锁超时时间（秒）
-        self.heartbeat_interval = 10  # 心跳间隔（秒）
+        self.lock_timeout = 15  # 锁超时时间（秒）
+        self.heartbeat_interval = 5   # 心跳间隔（秒）
         self.process_id = str(uuid.uuid4())  # 进程唯一标识
         self._redis: Optional[redis.Redis] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
@@ -117,14 +117,25 @@ class TelegramProcessLock:
                     await redis_client.expire(self.lock_key, self.lock_timeout)
                     return True
                 
-                # 检查锁是否已经超时（心跳机制）
+                # 检查锁是否已经超时（心跳机制）- 更积极的死锁检测
                 last_heartbeat = await redis_client.get(self.heartbeat_key)
+                current_time = time.time()
+                
                 if last_heartbeat:
                     last_heartbeat_time = float(last_heartbeat)
-                    if time.time() - last_heartbeat_time > self.lock_timeout:
-                        # 锁已超时，尝试强制获取
-                        logger.warning(f"检测到锁超时，尝试强制获取")
-                        await redis_client.delete(self.lock_key)
+                    heartbeat_age = current_time - last_heartbeat_time
+                    
+                    if heartbeat_age > self.lock_timeout:
+                        # 锁已超时，强制清理所有相关键
+                        logger.warning(f"检测到死锁，心跳年龄 {heartbeat_age:.1f}秒 > {self.lock_timeout}秒，强制清理")
+                        await redis_client.delete(self.lock_key, self.lock_owner_key, self.heartbeat_key)
+                        continue
+                else:
+                    # 没有心跳记录，检查锁是否过期
+                    lock_ttl = await redis_client.ttl(self.lock_key)
+                    if lock_ttl == -1:  # 永不过期的锁，可能是残留锁
+                        logger.warning("检测到永不过期的残留锁，强制清理")
+                        await redis_client.delete(self.lock_key, self.lock_owner_key, self.heartbeat_key)
                         continue
                 
                 # 等待一段时间后重试
