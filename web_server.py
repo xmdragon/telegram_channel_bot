@@ -201,6 +201,11 @@ async def lifespan(app: FastAPI):
         # 启动后台初始化任务（不阻塞HTTP服务）
         async def background_init():
             try:
+                # 延迟初始化：规则管理器
+                from app.services.rule_manager import rule_manager
+                await rule_manager.initialize()
+                logger.info("✅ 规则管理器初始化完成")
+                
                 # 延迟初始化：频道ID缓存
                 from app.services.channel_cache import channel_cache
                 await channel_cache.init_cache()

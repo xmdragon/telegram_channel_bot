@@ -4,10 +4,13 @@
 """
 import logging
 import re
+import asyncio
 from typing import Tuple, Optional
 
 from app.services.processors.base import MessageProcessor, ProcessorResult, MessageContext
 from app.services.filters.base import FilterContext
+from app.services.rule_manager import rule_manager
+from app.services.rule_learner import rule_learner
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,8 @@ class MessageFilterProcessor(MessageProcessor):
         super().__init__("MessageFilterProcessor")
         # 延迟初始化过滤管道
         self._filter_pipeline = None
+        # 规则管理器初始化标志
+        self._rule_manager_initialized = False
     
     @property
     def filter_pipeline(self):
@@ -27,6 +32,18 @@ class MessageFilterProcessor(MessageProcessor):
             from app.services.unified_filter_engine import unified_filter_engine
             self._filter_pipeline = unified_filter_engine.filter_pipeline
         return self._filter_pipeline
+    
+    async def _ensure_rule_manager_initialized(self):
+        """确保规则管理器已初始化"""
+        if not self._rule_manager_initialized:
+            try:
+                await rule_manager.initialize()
+                self._rule_manager_initialized = True
+                self.logger.debug("规则管理器初始化完成")
+            except Exception as e:
+                self.logger.error(f"规则管理器初始化失败: {e}")
+                # 即使失败也标记为已尝试，避免重复初始化
+                self._rule_manager_initialized = True
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
@@ -137,6 +154,9 @@ class MessageFilterProcessor(MessageProcessor):
             
             if context.is_ad:
                 self.logger.info(f"检测到广告: {context.filter_reason}")
+                
+                # 调用自动学习机制（异步，不阻塞主流程）
+                asyncio.create_task(self._learn_from_ad_detection(context, ad_detection_result))
             
         except Exception as e:
             self.logger.error(f"内容过滤失败: {e}")
@@ -150,7 +170,7 @@ class MessageFilterProcessor(MessageProcessor):
             return
         
         try:
-            should_reject, reject_reason = self._should_reject_pure_ad(context)
+            should_reject, reject_reason = await self._should_reject_pure_ad(context)
             
             if should_reject:
                 context.should_reject = True
@@ -182,56 +202,24 @@ class MessageFilterProcessor(MessageProcessor):
         except Exception as e:
             self.logger.debug(f"检查自动拒绝广告配置失败: {e}")
     
-    def _should_reject_pure_ad(self, context: MessageContext) -> Tuple[bool, str]:
+    async def _should_reject_pure_ad(self, context: MessageContext) -> Tuple[bool, str]:
         """
         判断是否应该完全拒绝纯广告消息
         
         Returns:
             (是否拒绝, 拒绝原因)
         """
+        # 确保规则管理器已初始化
+        await self._ensure_rule_manager_initialized()
+        
         content = context.processed_content
         filtered_content = context.filtered_content
         media_info = context.media_info
         ocr_result = context.ocr_result or {}
         filter_reason = context.filter_reason
         
-        # 高危广告关键词
-        HIGH_RISK_AD_KEYWORDS = [
-            # 赌博平台相关
-            r'(?:铂莱|博莱|Y3|AG|BBIN).*(?:娱乐|娛樂|国际|國際|平台)',
-            r'(?:USDT|泰达币|虚拟币|加密货币).*(?:娱乐城|娛樂城|平台|充值|提款)',
-            r'(?:博彩|赌场|賭場|棋牌|体育|體育|真人|电子).*(?:平台|官网|官網|娱乐城)',
-            r'(?:首充|首存|二存|三存).*(?:返水|优惠|優惠|赠送|贈送)',
-            r'(?:日出|日入|月入|日赚|日賺).*[0-9]+.*[万萬uU]',
-            r'(?:实力|實力|信誉|信譽).*(?:U盘|U盤|USDT|出款)',
-            r'(?:千万|千萬|巨款|巨额|大额).*(?:无忧|無憂|秒到|提款)',
-            r'777.*(?:老虎机|老虎機|slots|游戏|遊戲)',
-            
-            # 新增：针对具体案例的关键词
-            r'(?:全球玩家|全球|玩家).*(?:首选|首選|权威|權威|综合|綜合).*(?:平台|台)',
-            r'(?:百亿|百億).*(?:资金|資金).*(?:投入|持续投入|持續投入)',
-            r'(?:推广|推廣).*(?:投入|累计|累計).*[0-9]+.*[万萬]',
-            r'(?:提刀|刀|击击|擊擊).*(?:千倍|狗庄|狗莊)',
-            r'(?:重金|巨资|巨資).*(?:打造|铸就|鑄就).*(?:信誉|信譽|标杆|標杆)',
-            r'(?:9Y\.COM|9y\.com|9Y|9y).*(?:com|COM)',
-            r'(?:盘总|盤總|盘|盤).*(?:提刀|刀|千倍)',
-            r'(?:上线|上線).*(?:数月|數月).*(?:百亿|百億)',
-            
-            # 色情相关
-            r'(?:上线|上線).*(?:福利|八大|妹妹)',
-            r'(?:永久|免费|免費).*(?:送|领取|領取|看片)',
-            r'(?:幸运|幸運).*(?:单|單).*(?:奖|獎)',
-            
-            # 诈骗相关
-            r'(?:一个月|一個月).*(?:奔驰|奔馳|宝马|寶馬)',
-            r'(?:三个月|三個月).*(?:套房|房子)',
-            r'(?:汽车|汽車).*(?:违停|違停).*(?:拍照|一张|一張).*[0-9]+',
-            r'(?:想功成名就|胆子大|膽子大).*(?:灰色|看我)',
-            
-            # 特定平台标识
-            r'(?:官方|客服).*(?:QQ|qq|微信|WeChat|wechat).*[0-9]+',
-            r'(?:注册|註冊|登录|登錄).*(?:就送|即送|立即送)',
-        ]
+        # 从规则管理器获取高危关键词
+        high_risk_patterns = rule_manager.get_high_risk_keywords()
         
         # 提取所有文本内容（包括OCR）
         all_text = content
@@ -246,9 +234,9 @@ class MessageFilterProcessor(MessageProcessor):
         if ocr_result.get('ad_score', 0) >= 50:
             return True, f"图片广告内容自动拒绝（OCR分数:{ocr_result.get('ad_score', 0)}）"
         
-        # 优先级2：检查高危关键词
-        for pattern in HIGH_RISK_AD_KEYWORDS:
-            if re.search(pattern, all_text, re.IGNORECASE):
+        # 优先级2：检查高危关键词（从规则管理器获取）
+        for pattern, weight in high_risk_patterns:
+            if pattern.search(all_text):
                 if media_info:
                     return True, "高风险广告自动拒绝（赌博/色情/诈骗+媒体）"
                 elif len(filtered_content.strip()) < 20:
@@ -308,6 +296,40 @@ class MessageFilterProcessor(MessageProcessor):
             
         except Exception as e:
             self.logger.debug(f"保存拒绝样本失败: {e}")
+    
+    async def _learn_from_ad_detection(self, context: MessageContext, ad_detection_result: dict):
+        """从广告检测结果中学习新规则"""
+        try:
+            if not ad_detection_result or not ad_detection_result.get('is_ad', False):
+                return
+            
+            content = context.processed_content
+            confidence = ad_detection_result.get('confidence', 0.0)
+            detection_method = ad_detection_result.get('method', 'unknown')
+            
+            # 根据检测方法确定类别
+            category = 'unknown'
+            if 'AI' in detection_method or 'ai' in detection_method:
+                category = 'ai_detected'
+            elif 'pattern' in detection_method or '模式' in detection_method:
+                category = 'pattern_detected'
+            elif 'ocr' in detection_method or 'OCR' in detection_method:
+                category = 'ocr_detected'
+            
+            # 分析消息并学习模式
+            learning_result = await rule_learner.analyze_ad_message(
+                content=content,
+                confidence=confidence,
+                detection_method=detection_method,
+                category=category
+            )
+            
+            if learning_result.get('learned', False):
+                learned_count = learning_result.get('patterns_learned', 0)
+                self.logger.info(f"从广告检测中学习了 {learned_count} 个新模式")
+            
+        except Exception as e:
+            self.logger.error(f"从广告检测学习失败: {e}")
 
 
 class ContentValidator(MessageProcessor):
