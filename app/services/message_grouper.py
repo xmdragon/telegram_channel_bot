@@ -17,7 +17,7 @@ class MessageGrouper:
         self.pending_groups: Dict[str, List[Dict]] = {}  # 待处理的消息组
         self.completed_groups: Dict[str, Dict] = {}  # 已完成的组合消息数据
         self.group_timers: Dict[str, asyncio.Task] = {}  # 组合超时定时器
-        self.group_timeout = 10  # 消息组合超时时间（秒）- 统一使用10秒
+        self.group_timeout = 30  # Linus式修复：增加到30秒，减少网络延迟导致的丢失
         self.telegram_messages: Dict[str, Any] = {}  # 保存原始Telegram消息对象，用于异步下载
     
     async def process_message(self, message, channel_id: str, media_info: Optional[Dict] = None, filtered_content: Optional[str] = None, is_ad: bool = False, is_batch: bool = False) -> Optional[Dict]:
@@ -158,14 +158,8 @@ class MessageGrouper:
             
             logger.info(f"批量处理消息组 {group_key}，共 {len(messages)} 条消息")
             
-            # 创建组合消息
-            combined_message = await self._create_combined_message(messages, channel_id)
-            
-            # 保存组合消息到数据库
-            await self._save_combined_message(combined_message, channel_id)
-            
-            # 清理
-            del self.pending_groups[group_key]
+            # 使用统一的处理逻辑
+            await self._complete_group_processing(group_key, channel_id, messages)
                 
         except Exception as e:
             logger.error(f"批量处理消息组 {group_key} 时出错: {e}")
@@ -196,24 +190,66 @@ class MessageGrouper:
         
         self.pending_groups[group_key].append(message_data)
         
+        # Linus式改进：检查消息组是否可能已完整，避免不必要的等待
+        current_messages = self.pending_groups[group_key]
+        is_likely_complete = await self._is_group_likely_complete(current_messages)
+        
         # 取消之前的定时器
         if group_key in self.group_timers:
             self.group_timers[group_key].cancel()
         
-        # 设置新的定时器
-        self.group_timers[group_key] = asyncio.create_task(
-            self._process_group_after_timeout(group_key, channel_id)
-        )
+        if is_likely_complete:
+            # 如果检测到组可能已完整，缩短等待时间到5秒
+            timeout = 5
+            logger.info(f"消息组 {grouped_id} 检测到可能已完整（{len(current_messages)}条消息），使用短超时{timeout}秒")
+        else:
+            # 否则使用正常超时
+            timeout = self.group_timeout
+            logger.info(f"消息组 {grouped_id} 当前有 {len(current_messages)} 条消息，使用正常超时{timeout}秒")
         
-        logger.info(f"消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
+        # 设置动态超时的定时器
+        self.group_timers[group_key] = asyncio.create_task(
+            self._process_group_after_dynamic_timeout(group_key, channel_id, timeout)
+        )
         
         # 等待组合完成，不立即返回单独消息
         return None
     
-    async def _process_group_after_timeout(self, group_key: str, channel_id: str):
-        """超时后处理消息组"""
+    async def _is_group_likely_complete(self, messages: List[Dict]) -> bool:
+        """
+        Linus式简单判断：检查消息组是否可能已完整
+        不需要复杂的算法，用简单的启发式规则
+        """
+        if len(messages) < 2:
+            return False
+            
+        # 提取消息ID并排序
+        message_ids = [msg['message_id'] for msg in messages if msg.get('message_id')]
+        if len(message_ids) < 2:
+            return False
+            
+        message_ids.sort()
+        
+        # 检查消息ID是否连续（允许有1-2个间隔）
+        max_gap = 0
+        for i in range(1, len(message_ids)):
+            gap = message_ids[i] - message_ids[i-1]
+            max_gap = max(max_gap, gap)
+        
+        # 如果最大间隔超过3，可能还有消息在传输中
+        if max_gap > 3:
+            return False
+            
+        # 如果已有4个或更多消息，很可能已经完整
+        if len(messages) >= 4:
+            return True
+            
+        return False
+    
+    async def _process_group_after_dynamic_timeout(self, group_key: str, channel_id: str, timeout: float):
+        """动态超时处理"""
         try:
-            await asyncio.sleep(self.group_timeout)
+            await asyncio.sleep(timeout)
             
             if group_key not in self.pending_groups:
                 return
@@ -222,64 +258,16 @@ class MessageGrouper:
             if not messages:
                 return
             
-            logger.info(f"处理消息组 {group_key}，共 {len(messages)} 条消息")
+            logger.info(f"处理消息组 {group_key}，共 {len(messages)} 条消息（超时{timeout}秒）")
             
-            # 创建组合消息
-            combined_message = await self._create_combined_message(messages, channel_id)
+            # 其余逻辑与原来的_process_group_after_timeout相同
+            await self._complete_group_processing(group_key, channel_id, messages)
             
-            # 准备组合消息数据
-            processed_data = await self._save_combined_message(combined_message, channel_id)
-            
-            # 将处理后的数据存储，供后续获取
-            if processed_data:
-                self.completed_groups[group_key] = processed_data
-                
-                # 调用message_processor保存到Redis
-                try:
-                    from app.services.message_processor import MessageProcessor
-                    processor = MessageProcessor()
-                    
-                    # 准备保存数据
-                    save_data = {
-                        'source_channel': channel_id,
-                        'message_id': processed_data['message_id'],
-                        'content': processed_data['content'],
-                        'filtered_content': processed_data.get('filtered_content'),
-                        'media_hash': processed_data.get('combined_media_hash'),
-                        'visual_hash': processed_data.get('visual_hash'),
-                        'grouped_id': processed_data.get('grouped_id'),
-                        'is_combined': True,
-                        'status': 'ads' if processed_data.get('is_ad') else 'pending',
-                        'combined_messages': processed_data.get('combined_messages'),
-                        'media_group': processed_data.get('media_group'),
-                        'created_at': processed_data.get('date', combined_message.get('date'))
-                    }
-                    
-                    # 保存到Redis
-                    saved_message = await processor.process_new_message(save_data)
-                    if saved_message:
-                        logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
-                        
-                        # 通知前端组合消息已创建
-                        await self._notify_combined_message_created(saved_message)
-                    else:
-                        logger.error(f"❌ 组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
-                        
-                except Exception as save_error:
-                    logger.error(f"保存组合消息到Redis时出错: {save_error}")
-            
-            # 清理
-            del self.pending_groups[group_key]
-            if group_key in self.group_timers:
-                del self.group_timers[group_key]
-                
+        except asyncio.CancelledError:
+            logger.debug(f"消息组 {group_key} 的定时器被取消")
         except Exception as e:
-            logger.error(f"处理消息组超时时出错: {e}")
-            # 清理资源
-            if group_key in self.pending_groups:
-                del self.pending_groups[group_key]
-            if group_key in self.group_timers:
-                del self.group_timers[group_key]
+            logger.error(f"处理消息组 {group_key} 超时时发生错误: {e}")
+    
     
     async def _create_combined_message(self, messages: List[Dict], channel_id: str) -> Dict:
         """创建组合消息"""
@@ -594,43 +582,8 @@ class MessageGrouper:
                     
                     logger.info(f"强制处理消息组 {group_key}，共 {len(messages)} 条消息")
                     
-                    # 创建组合消息
-                    combined_message = await self._create_combined_message(messages, channel_id)
-                    
-                    # 准备组合消息数据
-                    processed_data = await self._save_combined_message(combined_message, channel_id)
-                    
-                    # 调用message_processor保存到Redis
-                    if processed_data:
-                        try:
-                            from app.services.message_processor import MessageProcessor
-                            processor = MessageProcessor()
-                            
-                            # 准备保存数据
-                            save_data = {
-                                'source_channel': channel_id,
-                                'message_id': processed_data['message_id'],
-                                'content': processed_data['content'],
-                                'filtered_content': processed_data.get('filtered_content'),
-                                'media_hash': processed_data.get('combined_media_hash'),
-                                'visual_hash': processed_data.get('visual_hash'),
-                                'grouped_id': processed_data.get('grouped_id'),
-                                'is_combined': True,
-                                'status': 'ads' if processed_data.get('is_ad') else 'pending',
-                                'combined_messages': processed_data.get('combined_messages'),
-                                'media_group': processed_data.get('media_group'),
-                                'created_at': processed_data.get('date', combined_message.get('date'))
-                            }
-                            
-                            # 保存到Redis
-                            saved_message = await processor.process_new_message(save_data)
-                            if saved_message:
-                                logger.info(f"✅ 强制完成时组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
-                            else:
-                                logger.error(f"❌ 强制完成时组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
-                                
-                        except Exception as save_error:
-                            logger.error(f"强制完成时保存组合消息到Redis出错: {save_error}")
+                    # 使用统一的处理逻辑
+                    await self._complete_group_processing(group_key, channel_id, messages)
             
             # 清理所有待处理的组
             self.pending_groups.clear()
@@ -837,6 +790,66 @@ class MessageGrouper:
             
         except Exception as e:
             logger.error(f"检查配置并清理单独消息时出错: {e}")
+    
+    async def _complete_group_processing(self, group_key: str, channel_id: str, messages: List[Dict]):
+        """
+        Linus式重构：统一的组处理完成逻辑，消除重复代码
+        """
+        try:
+            # 创建组合消息
+            combined_message = await self._create_combined_message(messages, channel_id)
+            
+            # 准备组合消息数据
+            processed_data = await self._save_combined_message(combined_message, channel_id)
+            
+            # 将处理后的数据存储，供后续获取
+            if processed_data:
+                self.completed_groups[group_key] = processed_data
+                
+                # 调用message_processor保存到Redis
+                try:
+                    from app.services.message_processor import MessageProcessor
+                    processor = MessageProcessor()
+                    
+                    # 准备保存数据
+                    save_data = {
+                        'source_channel': channel_id,
+                        'message_id': processed_data['message_id'],
+                        'content': processed_data['content'],
+                        'filtered_content': processed_data.get('filtered_content'),
+                        'media_hash': processed_data.get('combined_media_hash'),
+                        'visual_hash': processed_data.get('visual_hash'),
+                        'grouped_id': processed_data.get('grouped_id'),
+                        'is_combined': True,
+                        'status': 'ads' if processed_data.get('is_ad') else 'pending',
+                        'combined_messages': processed_data.get('combined_messages'),
+                        'media_group': processed_data.get('media_group'),
+                        'created_at': processed_data.get('date', combined_message.get('date'))
+                    }
+                    
+                    # 保存到Redis
+                    saved_message = await processor.process_new_message(save_data)
+                    if saved_message:
+                        logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
+                        
+                        # 通知前端组合消息已创建
+                        await self._notify_combined_message_created(saved_message)
+                    else:
+                        logger.error(f"❌ 组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
+                        
+                except Exception as save_error:
+                    logger.error(f"保存组合消息到Redis时出错: {save_error}")
+            else:
+                logger.warning(f"组合消息数据处理失败: {group_key}")
+            
+            # 清理完成的消息组
+            if group_key in self.pending_groups:
+                del self.pending_groups[group_key]
+            if group_key in self.group_timers:
+                del self.group_timers[group_key]
+                
+        except Exception as e:
+            logger.error(f"完成组处理时发生错误: {e}")
 
 # 全局消息组合器实例
 message_grouper = MessageGrouper()

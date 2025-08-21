@@ -71,33 +71,22 @@ class MessageReceiver(MessageProcessor):
         Returns:
             原始内容字符串
         """
-        content = ""
+        # Linus式统一文本提取：消除所有特殊情况
+        # 一个函数搞定所有文本提取，不管是什么字段
+        text_parts = []
         
-        # 1. 优先使用text属性
-        if hasattr(message, 'text') and message.text:
-            content = message.text
-        # 2. 尝试raw_text
-        elif hasattr(message, 'raw_text') and message.raw_text:
-            content = message.raw_text
-        # 3. 尝试message属性
-        elif hasattr(message, 'message') and message.message:
-            content = message.message
+        # 提取所有可能的文本字段
+        text_fields = ['text', 'raw_text', 'message', 'caption']
+        for field in text_fields:
+            if hasattr(message, field):
+                value = getattr(message, field)
+                if value and isinstance(value, str) and value.strip():
+                    # 避免重复添加相同内容
+                    if value.strip() not in text_parts:
+                        text_parts.append(value.strip())
         
-        # 4. 🔧 重要修复：无论是否已有文本，都检查caption
-        # 对于媒体消息，caption是描述文字，应该被保留
-        caption = ""
-        if hasattr(message, 'caption') and message.caption:
-            caption = message.caption
-        
-        # 5. 组合文本和caption
-        if content and caption:
-            # 如果既有文本又有caption，合并它们
-            content = f"{content}\n\n{caption}"
-            self.logger.debug(f"合并文本和caption: text={len(message.text)}字符, caption={len(caption)}字符")
-        elif not content and caption:
-            # 如果只有caption，使用caption
-            content = caption
-            self.logger.debug(f"使用caption作为内容: {len(caption)}字符")
+        # 简单连接所有文本，没有复杂的if/else
+        content = '\n\n'.join(text_parts) if text_parts else ""
         
         # 记录提取结果
         if content:
