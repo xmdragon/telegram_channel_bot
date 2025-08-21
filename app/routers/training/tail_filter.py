@@ -178,22 +178,64 @@ async def add_tail_filter_sample(request: dict):
         }
         
         # 检查重复
+        existing_sample = None
         for sample in samples:
             existing_hash = sample.get('content_hash')
             if not existing_hash and sample.get('content'):
                 # 为历史数据生成哈希
                 existing_hash = hashlib.md5(sample.get('content', '').encode()).hexdigest()
             if existing_hash == new_sample['content_hash']:
-                return {"success": False, "message": "训练样本已存在"}
+                existing_sample = sample
+                break
         
-        # 添加样本
-        samples.append(new_sample)
-        if not save_tail_filter_samples(samples):
-            raise HTTPException(status_code=500, detail="保存样本失败")
+        if existing_sample:
+            # 样本已存在，但仍然返回成功，只是不添加重复样本
+            logger.info(f"尾部过滤训练样本已存在，跳过添加: {existing_sample.get('id')}")
+            sample_id = existing_sample.get('id')
+        else:
+            # 添加新样本
+            samples.append(new_sample)
+            if not save_tail_filter_samples(samples):
+                raise HTTPException(status_code=500, detail="保存样本失败")
+            sample_id = new_id
+            logger.info(f"新尾部过滤训练样本已保存: {sample_id}")
         
+        # 如果有message_id，自动重新过滤该消息（无论是否重复）
+        if message_id:
+            try:
+                from app.services.message_processor import MessageProcessor
+                message_processor = MessageProcessor()
+                
+                # 解析消息ID
+                if ':' in message_id:
+                    channel_id, msg_id = message_id.split(':', 1)
+                    success = await message_processor.refilter_message(channel_id, int(msg_id))
+                    if success:
+                        logger.info(f"成功重新过滤消息: {message_id}")
+                        if existing_sample:
+                            return {"success": True, "message": "训练样本已存在，消息重新过滤成功", "id": sample_id}
+                        else:
+                            return {"success": True, "message": "训练样本已提交并自动应用到消息", "id": sample_id}
+                    else:
+                        logger.warning(f"重新过滤消息失败: {message_id}")
+                        if existing_sample:
+                            return {"success": True, "message": "训练样本已存在，但重新过滤失败，请手动重新过滤", "id": sample_id}
+                        else:
+                            return {"success": True, "message": "训练样本已提交，但重新过滤失败，请手动重新过滤", "id": sample_id}
+            except Exception as filter_error:
+                logger.error(f"自动重新过滤失败: {filter_error}")
+                if existing_sample:
+                    return {"success": True, "message": "训练样本已存在，但自动应用失败，请手动重新过滤", "id": sample_id}
+                else:
+                    return {"success": True, "message": "训练样本已提交，但自动应用失败，请手动重新过滤", "id": sample_id}
         
-        logger.info(f"成功添加尾部过滤训练样本: ID={new_id}")
-        return {"success": True, "message": "训练样本已提交并自动应用", "id": new_id}
+        # 返回成功，提供适当的消息
+        if existing_sample:
+            logger.info(f"尾部过滤训练样本已存在: ID={sample_id}")
+            return {"success": True, "message": "训练样本已存在，数据保存成功", "id": sample_id}
+        else:
+            logger.info(f"成功添加尾部过滤训练样本: ID={sample_id}")
+            return {"success": True, "message": "训练样本已提交", "id": sample_id}
             
     except Exception as e:
         raise handle_api_error(e, "添加尾部过滤训练样本")

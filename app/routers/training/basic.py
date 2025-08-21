@@ -150,17 +150,25 @@ async def submit_training(submission: TrainingSubmission):
         }
         
         # 检查重复
+        existing_sample = None
         for sample in samples:
             if sample.get('content_hash') == new_sample['content_hash']:
-                return {"success": False, "message": "训练样本已存在"}
+                existing_sample = sample
+                break
         
-        # 添加样本
-        samples.append(new_sample)
-        if not save_training_data(samples):
-            raise HTTPException(status_code=500, detail="保存训练数据失败")
+        if existing_sample:
+            # 样本已存在，但仍然返回成功，只是不添加重复样本
+            logger.info(f"训练样本已存在，跳过添加: {existing_sample.get('id')}")
+            sample_id = existing_sample.get('id')
+        else:
+            # 添加新样本
+            samples.append(new_sample)
+            if not save_training_data(samples):
+                raise HTTPException(status_code=500, detail="保存训练数据失败")
+            sample_id = new_id
+            logger.info(f"新训练样本已保存: {sample_id}")
         
-        
-        # 尝试立即应用到AI过滤器
+        # 尝试立即应用到AI过滤器（无论是否重复）
         try:
             from app.services.ai_filter import ai_filter
             await ai_filter.learn_channel_pattern(submission.channel_id, [submission.original_message])
@@ -168,7 +176,11 @@ async def submit_training(submission: TrainingSubmission):
         except Exception as e:
             logger.warning(f"AI过滤器学习失败: {e}")
         
-        return {"success": True, "message": "训练样本已保存", "id": new_id}
+        # 返回成功，提供适当的消息
+        if existing_sample:
+            return {"success": True, "message": "训练样本已存在，数据保存成功", "id": sample_id}
+        else:
+            return {"success": True, "message": "训练样本已保存", "id": sample_id}
             
     except Exception as e:
         raise handle_api_error(e, "提交训练数据")
