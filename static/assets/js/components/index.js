@@ -76,6 +76,8 @@ const MainApp = {
             
             // 操作状态
             processingMessages: new Set(),
+            publishingMessages: new Set(), // 正在发布的消息ID集合
+            isBatchPublishing: false, // 批量发布状态
             refetchingMedia: {},
             
             // 对话框状态
@@ -368,6 +370,11 @@ const MainApp = {
     },
     
     methods: {
+        // 发布状态检查方法
+        isPublishing(messageId) {
+            return this.publishingMessages.has(messageId);
+        },
+        
         // 初始化权限
         async initializePermissions() {
             try {
@@ -887,6 +894,14 @@ const MainApp = {
         
         // 发布消息
         async approveMessage(messageId) {
+            // 防止重复点击
+            if (this.publishingMessages.has(messageId)) {
+                return;
+            }
+            
+            // 标记为正在发布
+            this.publishingMessages.add(messageId);
+            
             try {
                 
                 // 保存当前滚动位置
@@ -932,6 +947,9 @@ const MainApp = {
                 setTimeout(() => {
                     this.isLoadingMore = false;
                 }, 500);
+            } finally {
+                // 无论成功或失败，都要移除发布状态
+                this.publishingMessages.delete(messageId);
             }
         },
         
@@ -1730,24 +1748,36 @@ const MainApp = {
                 event.stopPropagation();
                 event.stopImmediatePropagation();
             }
-            if (window.MessageManager) {
-                const result = await window.MessageManager.batchApprove(this.selectedMessages);
-                if (result.success) {
-                    MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
-                    this.selectedMessages = [];
-                    this.loadMessages();
-                    this.loadStats();
+            
+            // 防止重复点击
+            if (this.isBatchPublishing) {
+                return;
+            }
+            
+            // 标记为批量发布中
+            this.isBatchPublishing = true;
+            
+            // 将所有选中的消息标记为正在发布
+            this.selectedMessages.forEach(id => this.publishingMessages.add(id));
+            
+            try {
+                if (window.MessageManager) {
+                    const result = await window.MessageManager.batchApprove(this.selectedMessages);
+                    if (result.success) {
+                        MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
+                        this.selectedMessages = [];
+                        this.loadMessages();
+                        this.loadStats();
+                    } else {
+                        MessageManager.error('批量发布失败: ' + result.error);
+                    }
                 } else {
-                    MessageManager.error('批量发布失败: ' + result.error);
-                }
-            } else {
-                // 降级处理
-                if (this.selectedMessages.length === 0) {
-                    MessageManager.warning('请先选择要发布的消息');
-                    return;
-                }
-                
-                try {
+                    // 降级处理
+                    if (this.selectedMessages.length === 0) {
+                        MessageManager.warning('请先选择要发布的消息');
+                        return;
+                    }
+                    
                     const response = await axios.post(window.API.messages.batchApprove, {
                         message_ids: this.selectedMessages
                     });
@@ -1759,9 +1789,13 @@ const MainApp = {
                     } else {
                         MessageManager.error('批量发布失败: ' + response.data.message);
                     }
-                } catch (error) {
-                    MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
                 }
+            } catch (error) {
+                MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                // 恢复发布状态
+                this.isBatchPublishing = false;
+                this.selectedMessages.forEach(id => this.publishingMessages.delete(id));
             }
         },
         

@@ -813,8 +813,13 @@ const MessageContentRenderer = {
                 <button data-action="editMessage" :data-message-id="message.id" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
-                <button data-action="approveMessage" :data-message-id="message.id" class="btn btn-sm btn-success">
-                    📤 发布
+                <button 
+                    data-action="approveMessage" 
+                    :data-message-id="message.id" 
+                    :disabled="$parent.isPublishing && $parent.isPublishing(message.id)"
+                    :class="['btn', 'btn-sm', 'btn-success', 
+                             $parent.isPublishing && $parent.isPublishing(message.id) ? 'disabled' : '']">
+                    {{ $parent.isPublishing && $parent.isPublishing(message.id) ? '⏳ 发布中...' : '📤 发布' }}
                 </button>
                 <button data-action="rejectMessage" :data-message-id="message.id" class="btn btn-sm btn-danger">
                     ❌ 拒绝
