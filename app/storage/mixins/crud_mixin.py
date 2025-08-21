@@ -66,8 +66,13 @@ class MessageCrudMixin:
             if data.get('media_hash'):
                 pipe.sadd(f"msg:hash:media:{data['media_hash']}", f"{channel_id}:{message_id}")
             
+            # 🚀 Linus式修复：visual_hash可能是复杂对象，不直接用作键名
             if data.get('visual_hash'):
-                pipe.sadd(f"msg:hash:visual:{data['visual_hash']}", f"{channel_id}:{message_id}")
+                # 为复杂的visual_hash生成稳定的键名
+                import hashlib
+                visual_hash_value = str(data['visual_hash'])
+                visual_hash_key = hashlib.md5(visual_hash_value.encode('utf-8')).hexdigest()
+                pipe.sadd(f"msg:hash:visual:{visual_hash_key}", f"{channel_id}:{message_id}")
             
             # 如果是组合消息，添加到组合索引
             if data.get('grouped_id'):
@@ -265,6 +270,13 @@ class MessageCrudMixin:
             # 清理哈希索引
             if msg_data.get('media_hash'):
                 pipe.srem(f"msg:hash:media:{msg_data['media_hash']}", f"{channel_id}:{message_id}")
+            
+            # 🚀 Linus式修复：清理visual_hash索引
+            if msg_data.get('visual_hash'):
+                import hashlib
+                visual_hash_value = str(msg_data['visual_hash'])
+                visual_hash_key = hashlib.md5(visual_hash_value.encode('utf-8')).hexdigest()
+                pipe.srem(f"msg:hash:visual:{visual_hash_key}", f"{channel_id}:{message_id}")
             
             # 清理组合消息索引
             if msg_data.get('grouped_id'):

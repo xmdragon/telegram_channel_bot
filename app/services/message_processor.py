@@ -248,22 +248,36 @@ class MessageProcessor:
             raise
     
     async def _update_visual_index(self, channel_id: str, message_id: int, message_data: dict, message_time):
-        """更新视觉哈希专门索引"""
+        """更新视觉哈希专门索引（不影响消息存储主流程）"""
         try:
             # 检查是否有视觉哈希数据
             visual_hash_str = message_data.get('visual_hash')
             if not visual_hash_str:
+                logger.debug(f"消息无视觉哈希数据，跳过索引更新: {channel_id}:{message_id}")
                 return
             
-            # 解析视觉哈希
+            # 🚀 Linus式健壮解析：支持多种数据格式
+            visual_hashes = None
             if isinstance(visual_hash_str, str):
                 try:
                     visual_hashes = json.loads(visual_hash_str)
-                except json.JSONDecodeError:
-                    # 兼容旧格式
-                    visual_hashes = eval(visual_hash_str)
-            else:
+                except json.JSONDecodeError as json_err:
+                    try:
+                        # 兼容旧格式（但不推荐使用eval）
+                        visual_hashes = eval(visual_hash_str)
+                        logger.debug(f"使用eval解析视觉哈希: {channel_id}:{message_id}")
+                    except Exception as eval_err:
+                        logger.warning(f"视觉哈希解析失败: {json_err}, eval也失败: {eval_err}")
+                        return
+            elif isinstance(visual_hash_str, (dict, list)):
                 visual_hashes = visual_hash_str
+            else:
+                logger.warning(f"不支持的visual_hash类型: {type(visual_hash_str)}")
+                return
+            
+            if not visual_hashes:
+                logger.debug(f"视觉哈希数据为空: {channel_id}:{message_id}")
+                return
             
             # 更新专门的视觉哈希索引
             from app.storage.visual_index_manager import get_visual_index_manager
@@ -282,8 +296,11 @@ class MessageProcessor:
                 logger.warning(f"⚠️ 视觉哈希索引更新失败: {channel_id}:{message_id}")
                 
         except Exception as e:
-            # 视觉索引更新失败不应影响消息保存
-            logger.warning(f"更新视觉哈希索引时出错（不影响消息保存）: {e}")
+            # 🚀 Linus式错误处理：视觉索引是辅助功能，不能影响核心流程
+            logger.warning(f"⚠️ 视觉哈希索引更新异常 {channel_id}:{message_id}: {e} (不影响消息存储)")
+            # 添加详细的错误信息用于调试
+            import traceback
+            logger.debug(f"视觉哈希索引更新异常详情: {traceback.format_exc()}")
 
     async def _check_auto_forward_after_collect(self, saved_message: dict):
         """检查是否需要采集后自动转发到审核群"""

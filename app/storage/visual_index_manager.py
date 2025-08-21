@@ -26,14 +26,14 @@ class VisualIndexManager:
         self.hash_prefix = "visual:hash:"
         
     def add_visual_hash(self, channel_id: str, message_id: int, 
-                       visual_hashes: dict, timestamp: Optional[datetime] = None) -> bool:
+                       visual_hashes, timestamp: Optional[datetime] = None) -> bool:
         """
         添加视觉哈希到索引
         
         Args:
             channel_id: 频道ID
             message_id: 消息ID
-            visual_hashes: 视觉哈希字典
+            visual_hashes: 视觉哈希字典或包含多个字典的列表（组合消息）
             timestamp: 时间戳（可选，默认当前时间）
             
         Returns:
@@ -50,9 +50,28 @@ class VisualIndexManager:
             if hasattr(timestamp, 'tzinfo') and timestamp.tzinfo is not None:
                 timestamp = timestamp.replace(tzinfo=None)
             
-            # 序列化视觉哈希
-            visual_hash_json = json.dumps(visual_hashes, ensure_ascii=False)
             message_key = f"{channel_id}:{message_id}"
+            
+            # 🚀 Linus式类型兼容：处理单个字典或字典列表
+            hash_dicts = []
+            if isinstance(visual_hashes, list):
+                # 组合消息：visual_hashes是多个字典的列表
+                for item in visual_hashes:
+                    if isinstance(item, dict) and item:
+                        hash_dicts.append(item)
+            elif isinstance(visual_hashes, dict):
+                # 单个消息：visual_hashes是字典
+                if visual_hashes:
+                    hash_dicts.append(visual_hashes)
+            else:
+                logger.warning(f"不支持的visual_hashes类型: {type(visual_hashes)}")
+                return False
+            
+            if not hash_dicts:
+                return False
+            
+            # 序列化所有视觉哈希（保持原始数据结构）
+            visual_hash_json = json.dumps(visual_hashes, ensure_ascii=False)
             
             # 使用pipeline提高性能
             pipe = self.redis.pipeline()
@@ -67,16 +86,17 @@ class VisualIndexManager:
             pipe.setex(msg_cache_key, self.ttl_seconds, visual_hash_json)
             
             # 3. 为每个哈希值创建快速查找索引
-            for hash_type, hash_value in visual_hashes.items():
-                if hash_value and hash_type != 'sha256':  # 排除文件哈希
-                    hash_index_key = f"{self.hash_prefix}{hash_type}:{hash_value}"
-                    pipe.sadd(hash_index_key, message_key)
-                    pipe.expire(hash_index_key, self.ttl_seconds)
+            for hash_dict in hash_dicts:
+                for hash_type, hash_value in hash_dict.items():
+                    if hash_value and hash_type != 'sha256':  # 排除文件哈希
+                        hash_index_key = f"{self.hash_prefix}{hash_type}:{hash_value}"
+                        pipe.sadd(hash_index_key, message_key)
+                        pipe.expire(hash_index_key, self.ttl_seconds)
             
             # 执行所有操作
             pipe.execute()
             
-            logger.debug(f"✅ 视觉哈希索引已添加: {message_key}")
+            logger.debug(f"✅ 视觉哈希索引已添加: {message_key} ({len(hash_dicts)}个哈希字典)")
             return True
             
         except Exception as e:
