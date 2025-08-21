@@ -72,9 +72,6 @@ class TelegramBot:
         """处理审核群消息 - 委托给消息处理器"""
         return await self._message_handler.process_review_message(message, chat)
     
-    async def common_message_processing(self, message: TLMessage, channel_id: str, is_history: bool = False):
-        """通用消息处理逻辑 - 委托给消息处理器"""
-        return await self._message_handler.common_message_processing(message, channel_id, is_history)
     
     async def handle_callback(self, event):
         """处理回调按钮 - 委托给事件处理器"""

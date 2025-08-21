@@ -7,7 +7,7 @@
     "updated_at": "2025-08-21T10:09:21.868213",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-21T02:09:21.871092",
+  "updated_at": "2025-08-21T02:57:58.787591",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
@@ -29,7 +29,7 @@
     "config_type": "boolean",
     "description": "是否启用自动转发到目标频道",
     "is_active": true,
-    "updated_at": "2025-08-20T13:37:00.532624",
+    "updated_at": "2025-08-21T10:57:58.779921",
     "created_at": "2025-08-14T22:53:30.664735"
   },
   "review.auto_forward_delay": {
@@ -37,7 +37,7 @@
     "config_type": "integer",
     "description": "自动转发延迟(秒)",
     "is_active": true,
-    "updated_at": "2025-08-20T13:37:00.534088",
+    "updated_at": "2025-08-21T10:57:58.784131",
     "created_at": "2025-08-14T22:53:30.665092"
   },
   "filter.enabled": {
@@ -73,11 +73,11 @@
     "created_at": "2025-08-15T19:03:51.231269"
   },
   "review.auto_reject_ads": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "自动拒绝广告消息",
     "is_active": true,
-    "updated_at": "2025-08-20T13:37:00.534550",
+    "updated_at": "2025-08-21T10:57:58.784885",
     "created_at": "2025-08-15T19:03:51.231615"
   },
   "review.auto_forward_after_collect": {
@@ -149,7 +149,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-21T09:40:10.553869",
+    "updated_at": "2025-08-21T10:57:58.786206",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "review.group_id": {
@@ -157,7 +157,7 @@
     "config_type": "string",
     "description": "审核群ID或链接",
     "is_active": true,
-    "updated_at": "2025-08-20T13:37:00.535429",
+    "updated_at": "2025-08-21T10:57:58.787571",
     "created_at": "2025-08-14T22:53:30.662827"
   },
   "target.channel_link": {
@@ -165,7 +165,7 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-21T09:40:10.554917",
+    "updated_at": "2025-08-21T10:57:58.782507",
     "created_at": "2025-08-19T08:41:29.221316"
   },
   "review.group_link": {
@@ -173,7 +173,7 @@
     "config_type": "string",
     "description": "审核群链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-20T13:37:00.533726",
+    "updated_at": "2025-08-21T10:57:58.783303",
     "created_at": "2025-08-19T08:41:29.221318"
   },
   "storage.delete_single_messages": {

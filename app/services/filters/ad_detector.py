@@ -26,7 +26,7 @@ class AdDetectorFilter(BaseFilter):
         
         # 初始化各个检测器
         self.ai_detector = AIAdDetector(
-            threshold=self.config.get('ai_threshold', 0.75)
+            threshold=self.config.get('ai_threshold', 0.7)  # 提高检测敏感度
         )
         
         self.structural_detector = StructuralAdDetector(
@@ -74,8 +74,18 @@ class AdDetectorFilter(BaseFilter):
                 # 🔧 重要修改：根据配置决定是否early stop
                 # 检查自动拒绝广告配置
                 try:
+                    # 先尝试config_manager
                     from app.services.config_manager import config_manager
                     auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
+                    
+                    # 如果config_manager返回False，直接读取配置文件确认
+                    if not auto_reject_ads:
+                        import json
+                        with open('data/config/system.json', 'r') as f:
+                            config_data = json.load(f)
+                        raw_value = config_data.get('review.auto_reject_ads', {}).get('value', 'false')
+                        auto_reject_ads = (raw_value == 'true')
+                        logger.debug(f"直接读取配置文件: auto_reject_ads = {auto_reject_ads}")
                     
                     if auto_reject_ads:
                         # 启用自动拒绝：拒绝消息并early stop
@@ -178,7 +188,8 @@ class AdDetectorFilter(BaseFilter):
         if 'ai_detection' in detection_results:
             ai_result = detection_results['ai_detection']
             if ai_result.get('is_ad', False):
-                scores.append(ai_result['confidence'] * 0.9)  # AI检测权重较高
+                # 对于AI检测，直接使用原始置信度，不降权
+                scores.append(ai_result['confidence'])  
                 reasons.append(f"AI检测(相似度:{ai_result.get('similarity_score', 0):.2f})")
         
         # 结构化检测结果
