@@ -1585,33 +1585,6 @@ const MainApp = {
             }, 30000); // 30秒心跳
         },
         
-        // 发布消息到目标频道
-        async publishMessage(event, messageId) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果messageId在event中，提取出来
-            if (!messageId && event && event.target && event.target.dataset && event.target.dataset.messageId) {
-                messageId = event.target.dataset.messageId;
-            }
-            try {
-                const response = await axios.post(window.API.messages.publish(messageId));
-                if (response.data.success) {
-                    MessageManager.success('消息已发布到目标频道');
-                    // 从列表中移除消息（消息已发布）
-                    this.messages = this.messages.filter(msg => msg.id !== messageId);
-                    this.loadStats();
-                } else {
-                    MessageManager.error('发布失败: ' + response.data.message);
-                }
-            } catch (error) {
-                MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
         
         // 编辑消息
         editMessage(messageId) {
