@@ -28,7 +28,8 @@ const MessageContentRenderer = {
         'mark-as-ad',
         'train-tail',
         'filter-tail',
-        'refetch-media'
+        'refetch-media',
+        'show-original-message'
     ],
     
     data() {
@@ -46,9 +47,19 @@ const MessageContentRenderer = {
             return this.message.filtered_content || this.message.content || '';
         },
         
-        // 是否为重复消息
+        // 是否为重复消息 - 基于新的 details.is_duplicate 字段
         isDuplicateMessage() {
-            return !!(this.message.duplicate_info && this.message.duplicate_original_id);
+            return !!(this.message.details && this.message.details.is_duplicate);
+        },
+        
+        // 重复消息信息
+        duplicateInfo() {
+            if (!this.isDuplicateMessage) return null;
+            return {
+                originalMessageId: this.message.details.original_message_id,
+                duplicateType: this.message.details.duplicate_type,
+                displayText: this.message.details.duplicate_display_text
+            };
         },
         
         // 是否应该显示左右栏对比（始终显示，只要有内容字段或有媒体）
@@ -305,6 +316,15 @@ const MessageContentRenderer = {
                         {{ statusTag.text }}
                     </span>
                     <span v-if="message.is_ad" class="tag tag-danger">广告</span>
+                    <!-- 重复消息标识 -->
+                    <span v-if="isDuplicateMessage" class="tag tag-warning duplicate-tag">
+                        🔄 重复消息 (原消息: 
+                        <span class="duplicate-message-link" 
+                              :data-message-id="duplicateInfo.originalMessageId"
+                              @click.stop="$emit('show-original-message', duplicateInfo.originalMessageId)">
+                            #{{ duplicateInfo.originalMessageId }}
+                        </span>)
+                    </span>
                     <span v-if="message.filter_reason && message.status === 'rejected'" 
                           class="tag tag-secondary reject-reason" 
                           :title="message.filter_reason">

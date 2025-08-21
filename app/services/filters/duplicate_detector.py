@@ -168,15 +168,18 @@ class DuplicateDetectorFilter(BaseFilter):
                 result.should_early_stop = True  # 关键：设置早停标志
                 result.reason = f"检测到重复内容 ({duplicate_type})"
                 result.confidence = 0.95  # 高置信度
-                result.filtered_content = f'[重复内容，原消息ID: <span class="duplicate-message-link" data-message-id="{original_message_id}">{original_message_id}</span>]'
+                # 保留原始内容，不替换 filtered_content
+                # result.filtered_content 保持原样，让用户能看到消息内容
                 
-                # 详细记录判定依据
+                # 详细记录判定依据 - 前端将根据这些信息显示重复标识
                 result.details = {
                     'duplicate_type': duplicate_type,
                     'original_message_id': original_message_id,
                     'detection_method': self._get_detection_method_details(duplicate_type),
                     'message_id': message_id,
-                    'channel_id': channel_id
+                    'channel_id': channel_id,
+                    'is_duplicate': True,  # 明确标记为重复消息
+                    'duplicate_display_text': f'重复消息 (原消息ID: {original_message_id})'
                 }
                 
                 logger.info(f"✅ 重复检测: {duplicate_type} 重复，原消息ID: {original_message_id}")

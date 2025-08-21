@@ -1421,3 +1421,56 @@ h4 { font-size: 1.125rem; }
     color: var(--text-primary);
 }
 
+/* ===========================
+   Duplicate Message Tag Styles
+   =========================== */
+
+/* 重复消息标签样式 */
+.duplicate-tag {
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7) !important;
+    color: #856404 !important;
+    border: 1px solid #ffeaa7 !important;
+    font-weight: 600;
+    position: relative;
+    padding: 0.375rem 0.75rem !important;
+}
+
+.duplicate-tag::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: -1px;
+    bottom: -1px;
+    width: 4px;
+    background: linear-gradient(to bottom, #f39c12, #e67e22);
+    border-radius: 2px 0 0 2px;
+}
+
+/* 重复消息标签内的链接样式 */
+.duplicate-tag .duplicate-message-link {
+    color: var(--primary-color) !important;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 2px;
+    transition: var(--transition);
+    display: inline-block;
+}
+
+.duplicate-tag .duplicate-message-link:hover {
+    background-color: rgba(91, 99, 211, 0.1);
+    text-decoration: underline;
+    transform: translateY(-1px);
+}
+
+.duplicate-tag .duplicate-message-link:active {
+    transform: translateY(0);
+}
+
+/* 确保重复标签在标签列表中突出显示 */
+.message-tags .duplicate-tag {
+    order: -1; /* 将重复标签排在前面 */
+    margin-right: 0.5rem;
+}
+
