@@ -93,6 +93,13 @@ const MainApp = {
                 filteredContent: '',
                 originalMessage: null
             },
+            originalMessageDialog: {
+                visible: false,
+                messageId: null,
+                message: null,
+                loading: false,
+                error: null
+            },
             
             // 虚拟滚动配置
             useVirtualScroll: true,
@@ -243,6 +250,9 @@ const MainApp = {
             if (window.EventDelegate) {
                 this.eventDelegate = new window.EventDelegate(this);
             }
+            
+            // 初始化原消息链接点击事件委托
+            this.initOriginalMessageEventDelegate();
             
             
             // 初始化权限检查
@@ -747,6 +757,42 @@ const MainApp = {
         // 格式化时间 - 委托给DataUtils
         formatTime(timeStr) {
             return window.DataUtils ? window.DataUtils.formatTime(timeStr) : timeStr;
+        },
+        
+        // 显示原消息详情弹窗
+        async showOriginalMessage(messageId) {
+            this.originalMessageDialog.visible = true;
+            this.originalMessageDialog.messageId = messageId;
+            this.originalMessageDialog.loading = true;
+            this.originalMessageDialog.error = null;
+            this.originalMessageDialog.message = null;
+            
+            try {
+                const response = await axios.get(window.API.messages.getById(messageId));
+                this.originalMessageDialog.message = response.data;
+                this.originalMessageDialog.loading = false;
+            } catch (error) {
+                console.error('获取原消息失败:', error);
+                this.originalMessageDialog.error = '获取原消息失败: ' + (error.response?.data?.detail || error.message);
+                this.originalMessageDialog.loading = false;
+            }
+        },
+        
+        // 初始化原消息链接事件委托
+        initOriginalMessageEventDelegate() {
+            // 使用事件委托在document级别监听点击事件
+            document.addEventListener('click', (event) => {
+                // 检查是否点击了原消息链接
+                if (event.target.classList.contains('duplicate-message-link')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.showOriginalMessage(messageId);
+                    }
+                }
+            });
         },
         
         // 获取原消息链接 - 委托给DataUtils

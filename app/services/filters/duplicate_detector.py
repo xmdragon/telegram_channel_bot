@@ -168,7 +168,7 @@ class DuplicateDetectorFilter(BaseFilter):
                 result.should_early_stop = True  # 关键：设置早停标志
                 result.reason = f"检测到重复内容 ({duplicate_type})"
                 result.confidence = 0.95  # 高置信度
-                result.filtered_content = f"[重复内容，原消息ID: {original_message_id}]"
+                result.filtered_content = f'[重复内容，原消息ID: <span class="duplicate-message-link" data-message-id="{original_message_id}">{original_message_id}</span>]'
                 
                 # 详细记录判定依据
                 result.details = {

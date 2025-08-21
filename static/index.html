@@ -201,6 +201,118 @@
             </div>
         </div>
 
+        <!-- 原消息详情弹窗 -->
+        <div v-if="originalMessageDialog.visible" class="modal-overlay" @click.self="originalMessageDialog.visible = false">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">原消息详情 #{{ originalMessageDialog.messageId }}</h3>
+                    <button class="close-btn" @click="originalMessageDialog.visible = false">×</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="originalMessageDialog.loading" class="loading">
+                        <div class="spinner"></div>
+                        <div class="loading-text">加载中...</div>
+                    </div>
+                    <div v-else-if="originalMessageDialog.error" class="error-message">
+                        <p>{{ originalMessageDialog.error }}</p>
+                    </div>
+                    <div v-else-if="originalMessageDialog.message" class="original-message-content">
+                        <!-- 消息信息 -->
+                        <div class="message-info">
+                            <div class="info-row">
+                                <span class="info-label">消息ID:</span>
+                                <span class="info-value">#{{ originalMessageDialog.message.id }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">时间:</span>
+                                <span class="info-value">{{ formatTime(originalMessageDialog.message.created_at) }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">状态:</span>
+                                <span class="info-value">
+                                    <span :class="['tag', getStatusTagClass(originalMessageDialog.message.status)]">
+                                        {{ getStatusText(originalMessageDialog.message.status) }}
+                                    </span>
+                                </span>
+                            </div>
+                            <div v-if="originalMessageDialog.message.source_channel_link_prefix && originalMessageDialog.message.message_id" class="info-row">
+                                <span class="info-label">原消息:</span>
+                                <span class="info-value">
+                                    <a :href="originalMessageDialog.message.source_channel_link_prefix + '/' + originalMessageDialog.message.message_id" 
+                                       target="_blank" 
+                                       class="original-message-link">
+                                        查看原消息
+                                    </a>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- 媒体内容 -->
+                        <div v-if="originalMessageDialog.message.media_type || (originalMessageDialog.message.is_combined && originalMessageDialog.message.media_group_display)" class="message-media-section">
+                            <!-- 组合消息的媒体组 -->
+                            <div v-if="originalMessageDialog.message.is_combined && originalMessageDialog.message.media_group_display && originalMessageDialog.message.media_group_display.length > 0" 
+                                 class="telegram-media-container">
+                                <div class="telegram-media-grid" :class="'count-' + originalMessageDialog.message.media_group_display.length">
+                                    <div v-for="(media, index) in originalMessageDialog.message.media_group_display" :key="index" class="media-item">
+                                        <img v-if="media.media_type === 'photo' && media.display_url" 
+                                             :src="media.display_url"
+                                             class="media-content"
+                                             @click.stop="openMediaPreview(media.display_url)">
+                                        <video v-else-if="media.media_type === 'video' && media.display_url"
+                                               :src="media.display_url"
+                                               class="media-content media-video"
+                                               controls>
+                                        </video>
+                                        <div v-else class="media-placeholder">
+                                            {{ media.media_type }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 单个媒体 -->
+                            <template v-else>
+                                <img v-if="originalMessageDialog.message.media_type === 'photo' && originalMessageDialog.message.media_display_url" 
+                                     :src="originalMessageDialog.message.media_display_url"
+                                     class="media-image"
+                                     @click.stop="openMediaPreview(originalMessageDialog.message.media_display_url)">
+                                <video v-else-if="originalMessageDialog.message.media_type === 'video' && originalMessageDialog.message.media_display_url"
+                                       :src="originalMessageDialog.message.media_display_url"
+                                       class="media-video"
+                                       controls>
+                                </video>
+                                <div v-else-if="originalMessageDialog.message.media_type && !originalMessageDialog.message.media_display_url" 
+                                     class="media-placeholder">
+                                    <div>
+                                        📷 {{ originalMessageDialog.message.media_type === 'photo' ? '图片' : 
+                                             originalMessageDialog.message.media_type === 'video' ? '视频' : 
+                                             originalMessageDialog.message.media_type }}
+                                        <div class="media-missing-text">媒体文件缺失</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- 消息文本内容 -->
+                        <div v-if="originalMessageDialog.message.filtered_content || originalMessageDialog.message.content" class="message-text-content">
+                            <h4>消息内容:</h4>
+                            <div class="message-text">
+                                {{ originalMessageDialog.message.filtered_content || originalMessageDialog.message.content }}
+                            </div>
+                        </div>
+                        <div v-else-if="!originalMessageDialog.message.media_type" class="content-empty">
+                            暂无文本内容
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="originalMessageDialog.visible = false" class="btn btn-secondary">
+                        关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- 媒体预览（如需要） -->
         <div v-if="mediaPreview && mediaPreview.show" 
              class="modal-overlay" 

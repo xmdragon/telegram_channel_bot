@@ -1295,3 +1295,129 @@ h4 { font-size: 1.125rem; }
     }
 }
 
+/* ===========================
+   Original Message Link Styles
+   =========================== */
+
+/* 重复消息链接样式 */
+.duplicate-message-link {
+    color: var(--primary-color);
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: 500;
+    transition: var(--transition);
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.duplicate-message-link:hover {
+    color: var(--primary-hover);
+    background-color: var(--primary-light);
+    text-decoration: none;
+}
+
+.duplicate-message-link:active {
+    transform: translateY(1px);
+}
+
+/* 原消息详情弹窗样式 */
+.original-message-content {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.original-message-content .message-info {
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 1rem;
+}
+
+.original-message-content .info-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.original-message-content .info-row:last-child {
+    margin-bottom: 0;
+}
+
+.original-message-content .info-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 80px;
+    margin-right: 0.5rem;
+}
+
+.original-message-content .info-value {
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.original-message-content .message-media-section {
+    margin-bottom: 1rem;
+}
+
+.original-message-content .message-text-content h4 {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.original-message-content .message-text {
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: var(--border-radius-sm);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.original-message-content .content-empty {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-style: italic;
+    padding: 2rem;
+}
+
+/* 原消息弹窗中的链接样式 */
+.original-message-content .original-message-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.original-message-content .original-message-link:hover {
+    background-color: var(--primary-light);
+    text-decoration: underline;
+}
+
+/* 弹窗关闭按钮样式优化 */
+.modal-header .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0.25rem;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.modal-header .close-btn:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
