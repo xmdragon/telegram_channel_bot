@@ -225,45 +225,7 @@ class MessageForwarder:
             media_url = getattr(message, 'media_url', None) or message.get('media_url', None)
             grouped_id = getattr(message, 'grouped_id', None) or message.get('grouped_id', None)
             
-            # 🔧 如果不是已标记的组合消息，但有grouped_id，尝试动态组合
-            if not is_combined and grouped_id and grouped_id != '':
-                logger.info(f"检测到组消息ID {grouped_id}，尝试动态构建组合消息")
-                try:
-                    from app.storage.redis_store import get_redis_message_store
-                    redis_store = get_redis_message_store()
-                    
-                    # 获取组内所有消息
-                    group_message_ids = redis_store.redis.smembers(f"msg:group:{grouped_id}")
-                    group_messages = []
-                    
-                    for msg_id_str in group_message_ids:
-                        msg_id_str = msg_id_str.decode('utf-8') if isinstance(msg_id_str, bytes) else str(msg_id_str)
-                        if ':' in msg_id_str:
-                            msg_channel_id, msg_message_id = msg_id_str.split(':', 1)
-                            group_msg = redis_store.get_message(msg_channel_id, int(msg_message_id), silent=True)
-                            if group_msg and group_msg.get('status') == 'approved':
-                                group_messages.append(group_msg)
-                    
-                    if len(group_messages) > 1:
-                        # 按message_id排序
-                        group_messages.sort(key=lambda x: int(x.get('message_id', 0)))
-                        
-                        # 构建media_group
-                        media_group = []
-                        for msg in group_messages:
-                            if msg.get('media_url'):
-                                media_group.append({
-                                    'file_path': msg.get('media_url'),
-                                    'media_type': msg.get('media_type'),
-                                    'message_id': msg.get('message_id')
-                                })
-                        
-                        if media_group:
-                            is_combined = True
-                            logger.info(f"成功构建组合消息，包含 {len(media_group)} 个媒体")
-                        
-                except Exception as e:
-                    logger.error(f"动态构建组合消息失败: {e}")
+            # 🚀 Linus修复：消除特殊情况，消息在采集时就应该正确组合
             
             if is_combined and media_group:
                 # 发送组合消息（媒体组）
@@ -303,33 +265,13 @@ class MessageForwarder:
                             message_id = message.get('message_id')
                             grouped_id = message.get('grouped_id')
                             
-                            # 🔧 如果是组消息，更新组内所有消息的状态
-                            if is_combined and grouped_id and grouped_id != '':
-                                try:
-                                    group_message_ids = redis_store.redis.smembers(f"msg:group:{grouped_id}")
-                                    logger.info(f"更新组内所有消息状态，组ID: {grouped_id}, 消息数: {len(group_message_ids)}")
-                                    
-                                    for msg_id_str in group_message_ids:
-                                        msg_id_str = msg_id_str.decode('utf-8') if isinstance(msg_id_str, bytes) else str(msg_id_str)
-                                        if ':' in msg_id_str:
-                                            msg_channel_id, msg_message_id = msg_id_str.split(':', 1)
-                                            # 更新每个组内消息的target_message_id和forwarded_time
-                                            await redis_store.update_message_field(
-                                                msg_channel_id, int(msg_message_id), 'target_message_id', str(target_msg_id)
-                                            )
-                                            await redis_store.update_message_field(
-                                                msg_channel_id, int(msg_message_id), 'forwarded_time', datetime.now().isoformat()
-                                            )
-                                    
-                                    logger.info(f"已更新组内所有消息的Redis记录: 组ID {grouped_id} -> 目标消息ID: {target_msg_id}")
-                                except Exception as e:
-                                    logger.error(f"更新组消息状态失败: {e}")
-                            elif channel_id and message_id:
+                            # 🚀 Linus修复：只更新主消息，子消息已删除无需更新
+                            if channel_id and message_id:
                                 # 单个消息更新
-                                await redis_store.update_message_field(
+                                redis_store.update_message_field(
                                     channel_id, int(message_id), 'target_message_id', str(target_msg_id)
                                 )
-                                await redis_store.update_message_field(
+                                redis_store.update_message_field(
                                     channel_id, int(message_id), 'forwarded_time', datetime.now().isoformat()
                                 )
                                 logger.info(f"已更新Redis记录: {channel_id}:{message_id} -> 目标消息ID: {target_msg_id}")

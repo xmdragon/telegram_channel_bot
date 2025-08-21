@@ -210,7 +210,7 @@ class MessageCrudMixin:
             logger.error(f"更新消息异常堆栈: {traceback.format_exc()}")
             return False
     
-    async def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:
+    def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:
         """更新消息的任意字段"""
         try:
             msg_key = f"msg:{channel_id}:{message_id}"

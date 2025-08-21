@@ -173,8 +173,8 @@ class UnifiedRedisStore(RedisStore):
     async def update_message_review_id(self, channel_id: str, message_id: int, review_message_id: int) -> bool:
         return await self.message_store.update_message_review_id(channel_id, message_id, review_message_id)
     
-    async def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:
-        return await self.message_store.update_message_field(channel_id, message_id, field, value)
+    def update_message_field(self, channel_id: str, message_id: int, field: str, value: Any) -> bool:
+        return self.message_store.update_message_field(channel_id, message_id, field, value)
     
     async def update_message(self, channel_id: str, message_id: int, update_data: dict) -> bool:
         return await self.message_store.update_message(channel_id, message_id, update_data)
