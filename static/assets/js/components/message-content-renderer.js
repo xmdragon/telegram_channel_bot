@@ -820,7 +820,7 @@ const MessageContentRenderer = {
                     ❌ 拒绝
                 </button>
                 <button data-action="markAsAd" :data-message-id="message.id" class="btn btn-sm btn-warning">
-                    🚫 广告
+                    {{ message.is_ad ? '✅ 不是广告' : '🚫 广告' }}
                 </button>
                 <button data-action="trainTail" :data-message-id="message.id" class="btn btn-sm btn-info">
                     ✂️ 尾部

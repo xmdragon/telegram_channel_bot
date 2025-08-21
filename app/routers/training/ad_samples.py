@@ -315,18 +315,158 @@ async def mark_ad_test(request: dict):
 
 @router.post(ROUTES.training.mark_ad_message)
 async def mark_ad_message(request: dict):
-    """标记广告消息"""
+    """标记/取消标记广告消息并自动调整阈值"""
     try:
         message_id = request.get("message_id")
-        is_ad = request.get("is_ad", True)
+        is_marking_as_ad = request.get("is_marking_as_ad", True)  # 是否标记为广告
         
         if not message_id:
             return {"success": False, "message": "消息ID不能为空"}
         
+        # 获取消息
+        from app.storage.redis_store import get_redis_message_store
+        redis_store = get_redis_message_store()
+        message_data = redis_store.get_message_by_id(message_id)
         
-        return {"success": True, "message": "标记完成"}
+        if not message_data:
+            return {"success": False, "message": "未找到消息"}
+        
+        # 记录阈值反馈
+        threshold_adjustment = _record_threshold_feedback(message_data, is_marking_as_ad)
+        
+        # 更新消息状态
+        update_data = {
+            'is_ad': is_marking_as_ad,
+            'updated_at': datetime.now()
+        }
+        
+        if is_marking_as_ad:
+            # 标记为广告时，通常也拒绝消息
+            update_data['status'] = 'rejected'
+            update_data['reject_reason'] = '用户标记为广告'
+        else:
+            # 取消广告标记时，恢复为未审核状态
+            update_data['status'] = 'pending'
+            update_data['reject_reason'] = None
+        
+        # 拆分完整message_id为channel_id和message_id
+        # message_id格式: "-1002062871756:43481"
+        parts = message_id.split(":")
+        if len(parts) != 2:
+            return {"success": False, "message": "消息ID格式错误"}
+        
+        channel_id = parts[0]
+        msg_id = int(parts[1])
+        
+        # 保存更新
+        success = await redis_store.update_message(channel_id, msg_id, update_data)
+        if not success:
+            return {"success": False, "message": "更新消息失败"}
+        
+        # 如果标记为广告，添加到训练样本
+        if is_marking_as_ad:
+            _add_to_training_samples(message_data, True)
+        
+        # 构建响应
+        response_data = {
+            "success": True,
+            "message": "操作完成",
+            "auto_rejected": is_marking_as_ad,  # 为了兼容现有前端代码
+        }
+        
+        # 包含阈值调整信息
+        if threshold_adjustment:
+            response_data["threshold_adjustment"] = threshold_adjustment
+        
+        return response_data
+        
     except Exception as e:
+        logger.error(f"标记广告消息失败: {e}")
         raise handle_api_error(e, "标记广告消息")
+
+
+def _record_threshold_feedback(message_data: dict, is_marking_as_ad: bool):
+    """记录阈值反馈并触发自动调整"""
+    try:
+        from app.core.threshold_manager import ThresholdManager
+        
+        threshold_manager = ThresholdManager()
+        
+        # 获取原始AI检测分数（如果有的话）
+        # 这里我们需要从消息数据中获取原始的广告检测分数
+        # 如果没有保存原始分数，使用当前is_ad状态推算
+        original_ad_score = message_data.get('ad_confidence_score', 0.5)
+        original_is_ad = message_data.get('is_ad', False)
+        
+        # 判断这是否是误判情况
+        if is_marking_as_ad and not original_is_ad:
+            # 用户手动标记为广告，但AI原本判断不是广告 -> False Negative
+            actual_result = 'positive'
+            feedback_type = "FN: AI误判为正常，用户标记为广告"
+        elif not is_marking_as_ad and original_is_ad:
+            # 用户取消广告标记，AI原本判断是广告 -> False Positive  
+            actual_result = 'negative'
+            feedback_type = "FP: AI误判为广告，用户取消标记"
+        else:
+            # 没有误判，不需要调整
+            return None
+        
+        # 记录反馈到阈值管理器
+        threshold_manager.record_feedback(
+            filter_name='ad_detector',
+            metric_name='classifier',
+            predicted_score=original_ad_score,
+            actual_result=actual_result
+        )
+        
+        logger.info(f"📊 阈值反馈已记录: {feedback_type}, 分数: {original_ad_score}")
+        return feedback_type
+        
+    except Exception as e:
+        logger.error(f"记录阈值反馈失败: {e}")
+        return None
+
+
+def _add_to_training_samples(message_data: dict, is_ad: bool):
+    """添加到训练样本"""
+    try:
+        content = message_data.get('content', '') or message_data.get('filtered_content', '')
+        if not content:
+            return
+        
+        samples = load_ad_samples()
+        
+        # 生成样本ID
+        sample_id = generate_sample_id(content)
+        
+        # 检查是否已存在
+        content_hash = hashlib.md5(content.encode()).hexdigest()
+        for sample in samples:
+            if sample.get('content_hash') == content_hash:
+                return  # 已存在，不重复添加
+        
+        # 创建新样本
+        new_sample = {
+            "id": sample_id,
+            "content": content,
+            "channel_id": message_data.get('source_channel', 'unknown'),
+            "channel_name": message_data.get('source_channel', 'unknown'),
+            "is_ad": is_ad,
+            "confidence_score": 1.0,  # 用户标记的置信度为100%
+            "content_hash": content_hash,
+            "created_by": "user_feedback",
+            "created_at": datetime.now().isoformat(),
+            "message_id": message_data.get('id', ''),
+            "feedback_type": "manual_marking"
+        }
+        
+        samples.append(new_sample)
+        save_ad_samples(samples)
+        
+        logger.info(f"✅ 已添加训练样本: {sample_id}, 类型: {'广告' if is_ad else '正常'}")
+        
+    except Exception as e:
+        logger.error(f"添加训练样本失败: {e}")
 
 @router.post(ROUTES.training.add_ad_sample)
 async def add_ad_sample(request: dict):

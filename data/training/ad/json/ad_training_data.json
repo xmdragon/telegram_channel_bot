@@ -815,12 +815,21 @@
       "channel_name": "",
       "created_at": "2025-08-17T00:56:51.542484",
       "updated_at": "2025-08-17T00:56:51.542490"
+    },
+    {
+      "id": "20364813b319",
+      "content": "\n\n[📎 媒体组: 3个图片 | 可用: 3/3 | ID: 4722, 4723, 4724]",
+      "channel_id": "-1002668816919",
+      "channel_name": "-1002668816919",
+      "is_ad": true,
+      "confidence_score": 1.0,
+      "content_hash": "a41763196d54814fe47da5e6c5e80c60",
+      "created_by": "user_feedback",
+      "created_at": "2025-08-21T15:46:42.490074",
+      "message_id": "",
+      "feedback_type": "manual_marking"
     }
   ],
-  "updated_at": "2025-08-17T00:56:51.542495",
-  "normalized": true,
-  "metadata": {
-    "total_samples": 68,
-    "last_added": "2025-08-17T00:56:51.542499"
-  }
+  "updated_at": "2025-08-21T15:46:42.490090",
+  "total_count": 69
 }

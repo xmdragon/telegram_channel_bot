@@ -1985,7 +1985,7 @@ const MainApp = {
             return statusMap[status] || { text: status, type: 'default' };
         },
 
-        // 标记为广告并加入训练样本
+        // 标记/取消标记广告并加入训练样本
         async markAsAd(messageId) {
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
@@ -1994,25 +1994,47 @@ const MainApp = {
             }
             
             try {
-                if (!confirm('确定将此消息标记为广告吗？这将帮助AI更好地识别广告内容。')) {
+                // 根据当前状态确定操作类型
+                const isCurrentlyAd = message.is_ad;
+                const action = isCurrentlyAd ? '取消广告标记' : '标记为广告';
+                const confirmMsg = isCurrentlyAd ? 
+                    '确定取消此消息的广告标记吗？这将帮助AI减少误判。' : 
+                    '确定将此消息标记为广告吗？这将帮助AI更好地识别广告内容。';
+                
+                if (!confirm(confirmMsg)) {
                     return;
                 }
                 
                 const response = await axios.post(window.API.training.markAdMessage, {
-                    message_id: message.id
+                    message_id: message.id,
+                    is_marking_as_ad: !isCurrentlyAd  // 双向操作标识
                 });
                 
                 if (response.data.success) {
                     const hasAutoRejected = response.data.auto_rejected;
-                    const successMsg = hasAutoRejected ? 
-                        '已标记为广告、自动拒绝并加入训练样本' : 
-                        '已标记为广告并加入训练样本';
+                    let successMsg;
+                    
+                    if (isCurrentlyAd) {
+                        // 取消广告标记
+                        successMsg = '已取消广告标记，消息状态恢复为未审核';
+                    } else {
+                        // 标记为广告
+                        successMsg = hasAutoRejected ? 
+                            '已标记为广告、自动拒绝并加入训练样本' : 
+                            '已标记为广告并加入训练样本';
+                    }
+                    
+                    // 显示阈值调整信息（如果有）
+                    if (response.data.threshold_adjustment) {
+                        successMsg += `\n阈值已自动调整：${response.data.threshold_adjustment}`;
+                    }
+                    
                     MessageManager.success(successMsg);
                     // 重新加载消息列表以反映状态变化
                     await this.loadMessages();
                     await this.loadStats();
                 } else {
-                    MessageManager.error(response.data.message || '标记失败');
+                    MessageManager.error(response.data.message || `${action}失败`);
                 }
             } catch (error) {
                 MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
