@@ -614,5 +614,39 @@ class MessageForwarder:
         except Exception as e:
             logger.error(f"清理消息文件时出错: {e}")
 
+    async def forward_to_target_with_temp_client(self, message):
+        """使用临时客户端转发到目标频道"""
+        from app.telegram.client_manager import client_manager
+        
+        temp_client = None
+        try:
+            # 创建临时客户端，自动获取锁
+            temp_client = await client_manager.create_temp_client_with_lock(timeout=5)
+            
+            # 执行转发
+            await self.forward_to_target(temp_client, message)
+            
+        finally:
+            # 清理临时客户端，自动释放锁
+            if temp_client:
+                await client_manager.cleanup_temp_client(temp_client)
+    
+    async def forward_to_review_with_temp_client(self, message_data: dict):
+        """使用临时客户端转发到审核群"""
+        from app.telegram.client_manager import client_manager
+        
+        temp_client = None
+        try:
+            # 创建临时客户端，自动获取锁
+            temp_client = await client_manager.create_temp_client_with_lock(timeout=5)
+            
+            # 执行转发
+            await self.forward_to_review(temp_client, message_data)
+            
+        finally:
+            # 清理临时客户端，自动释放锁
+            if temp_client:
+                await client_manager.cleanup_temp_client(temp_client)
+
 # 全局转发器实例
 message_forwarder = MessageForwarder()

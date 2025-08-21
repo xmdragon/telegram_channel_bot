@@ -733,23 +733,12 @@ class MessageProcessor:
                 logger.error(f"消息不存在: {message_id}")
                 return False
             
-            # 使用消息转发器转发消息
+            # 使用临时客户端转发消息，避免锁等待
             try:
                 from app.telegram.message_forwarder import message_forwarder
-                from app.telegram.client_manager import client_manager
                 
-                # 确保客户端连接并获取实例
-                if not await client_manager.ensure_connected():
-                    logger.error("Telegram客户端连接失败")
-                    return False
-                
-                client = await client_manager.get_client()
-                if not client:
-                    logger.error("无法获取Telegram客户端实例")
-                    return False
-                
-                # 转发到目标频道
-                await message_forwarder.forward_to_target(client, message)
+                # 使用临时客户端转发（自动管理锁）
+                await message_forwarder.forward_to_target_with_temp_client(message)
                 logger.info(f"消息转发成功: {message_id}")
                 return True
                 

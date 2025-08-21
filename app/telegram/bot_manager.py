@@ -34,9 +34,9 @@ class BotManager:
         while True:
             try:
                 if not self.is_running:
-                    # 尝试连接客户端
+                    # 尝试连接客户端（无锁模式，用于监听）
                     from app.telegram.client_manager import client_manager
-                    if await client_manager.connect():
+                    if await client_manager.connect_without_lock():
                         self.client = await client_manager.get_client()
                         self.is_running = True
                         
@@ -159,7 +159,7 @@ class BotManager:
                     if messages:
                         logger.info(f"发现 {len(messages)} 条消息需要自动转发")
                         
-                        # 直接使用已有的客户端转发消息
+                        # 使用临时客户端进行转发，避免锁冲突
                         from app.telegram.message_forwarder import message_forwarder
                         from app.storage.redis_store import get_redis_message_store
                         redis_store = get_redis_message_store()
@@ -181,8 +181,8 @@ class BotManager:
                                     logger.error(f"无法获取消息详情: {msg_id}")
                                     continue
                                 
-                                # 直接调用转发，使用已连接的客户端和完整消息对象
-                                await message_forwarder.forward_to_target(self.client, full_message)
+                                # 使用临时客户端转发，自动管理锁
+                                await message_forwarder.forward_to_target_with_temp_client(full_message)
                                 
                                 # 只有在没有抛出异常的情况下才更新状态为已发布
                                 redis_store.update_message_status(msg_id, "published", "auto_forward")

@@ -34,7 +34,15 @@ class TelegramClientManager:
         self._disconnection_callbacks.append(callback)
     
     async def connect(self) -> bool:
-        """连接到Telegram"""
+        """连接到Telegram（带锁，适用于发送操作）"""
+        return await self._connect_internal(use_lock=True)
+    
+    async def connect_without_lock(self) -> bool:
+        """连接到Telegram（无锁，适用于监听操作）"""
+        return await self._connect_internal(use_lock=False)
+    
+    async def _connect_internal(self, use_lock: bool = True) -> bool:
+        """内部连接方法"""
         try:
             # 获取认证信息
             api_id = await self.config_manager.get_config("telegram.api_id")
@@ -51,12 +59,15 @@ class TelegramClientManager:
                 logger.warning("Telegram session无效或未认证，请通过Web界面进行认证")
                 return False
             
-            logger.info(f"准备连接Telegram客户端，API ID: {api_id}")
+            logger.info(f"准备连接Telegram客户端，API ID: {api_id}{'（带锁）' if use_lock else '（无锁）'}")
             
-            # 获取进程锁
-            if not await telegram_lock.acquire(timeout=30):
-                logger.error("无法获取Telegram进程锁，可能有其他进程正在使用")
-                return False
+            # 根据参数决定是否获取进程锁
+            lock_acquired = False
+            if use_lock:
+                if not await telegram_lock.acquire(timeout=30):
+                    logger.error("无法获取Telegram进程锁，可能有其他进程正在使用")
+                    return False
+                lock_acquired = True
             
             try:
                 # 创建客户端
@@ -92,7 +103,8 @@ class TelegramClientManager:
                 
             except Exception as e:
                 logger.error(f"启动客户端失败: {e}")
-                await telegram_lock.release()
+                if lock_acquired:
+                    await telegram_lock.release()
                 self.client = None
                 self.is_connected = False
                 raise
@@ -148,6 +160,53 @@ class TelegramClientManager:
         
         logger.info("客户端未连接，尝试重新连接...")
         return await self.connect()
+    
+    async def create_temp_client_with_lock(self, timeout: float = 5.0):
+        """创建临时客户端，带锁保护，用于发送操作"""
+        # 获取认证信息
+        api_id = await self.config_manager.get_config("telegram.api_id")
+        api_hash = await self.config_manager.get_config("telegram.api_hash") 
+        session_string = await self.config_manager.get_config("telegram.session")
+        
+        if not all([api_id, api_hash, session_string]):
+            raise RuntimeError("Telegram认证信息不完整")
+        
+        if len(session_string) < 100 or not session_string.startswith('1'):
+            raise RuntimeError("Telegram session无效")
+        
+        # 获取锁
+        if not await telegram_lock.acquire(timeout=timeout):
+            raise TimeoutError(f"获取Telegram锁超时（{timeout}秒）")
+        
+        try:
+            # 创建临时客户端
+            temp_client = TelegramClient(
+                StringSession(session_string),
+                int(api_id),
+                api_hash
+            )
+            
+            # 启动客户端
+            await temp_client.start()
+            logger.debug("✅ 临时客户端已连接")
+            
+            return temp_client
+            
+        except Exception as e:
+            await telegram_lock.release()  # 出错时释放锁
+            raise RuntimeError(f"创建临时客户端失败: {e}")
+    
+    async def cleanup_temp_client(self, temp_client):
+        """清理临时客户端并释放锁"""
+        try:
+            if temp_client:
+                await temp_client.disconnect()
+                logger.debug("临时客户端已断开")
+        except Exception as e:
+            logger.error(f"断开临时客户端失败: {e}")
+        finally:
+            await telegram_lock.release()  # 确保锁被释放
+            logger.debug("Telegram锁已释放")
     
     async def get_chat_info(self, chat_id: str):
         """获取聊天信息"""
