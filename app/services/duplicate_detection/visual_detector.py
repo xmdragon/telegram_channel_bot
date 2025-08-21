@@ -98,7 +98,63 @@ class VisualDuplicateDetector:
     
     async def _get_recent_messages_with_visual_hash(self, time_threshold: datetime, 
                                                    exclude_message_id: Optional[int] = None) -> List[Dict]:
-        """获取最近有视觉哈希的消息"""
+        """获取最近有视觉哈希的消息（高性能版本）"""
+        if not self.redis_store:
+            return []
+        
+        try:
+            # 🚀 Linus式优化：使用专门的视觉哈希索引，避免扫描所有消息
+            from app.storage.visual_index_manager import get_visual_index_manager
+            
+            visual_index = get_visual_index_manager()
+            recent_visual_hashes = visual_index.get_recent_visual_hashes(
+                time_threshold, 
+                exclude_message_id, 
+                limit=100
+            )
+            
+            if not recent_visual_hashes:
+                return []
+            
+            # 转换为兼容格式
+            messages_with_visual_hash = []
+            for item in recent_visual_hashes:
+                try:
+                    # 检查消息状态（排除被拒绝的消息）
+                    channel_id = item['channel_id']
+                    message_id = item['message_id']
+                    
+                    # 获取消息状态（仅获取状态字段，避免完整数据读取）
+                    msg_key = f"msg:{channel_id}:{message_id}"
+                    status = self.redis_store.redis.hget(msg_key, 'status')
+                    
+                    if status and status.decode() == 'rejected':
+                        continue
+                    
+                    # 转换为兼容的消息数据格式
+                    message_data = {
+                        'channel_id': channel_id,
+                        'message_id': message_id,
+                        'visual_hash': item['visual_hash']
+                    }
+                    
+                    messages_with_visual_hash.append(message_data)
+                    
+                except Exception as e:
+                    logger.debug(f"处理视觉哈希项时出错: {e}")
+                    continue
+            
+            logger.debug(f"🔍 使用高性能索引获取到 {len(messages_with_visual_hash)} 个带视觉哈希的消息")
+            return messages_with_visual_hash
+            
+        except Exception as e:
+            logger.warning(f"高性能索引查询失败，降级到传统方法: {e}")
+            # 降级到传统方法（向后兼容）
+            return await self._get_recent_messages_legacy(time_threshold, exclude_message_id)
+    
+    async def _get_recent_messages_legacy(self, time_threshold: datetime, 
+                                         exclude_message_id: Optional[int] = None) -> List[Dict]:
+        """获取最近有视觉哈希的消息（传统方法，作为降级选项）"""
         if not self.redis_store:
             return []
         
@@ -106,44 +162,58 @@ class VisualDuplicateDetector:
             # 格式化时间
             time_threshold_str = time_threshold.strftime('%Y-%m-%dT%H:%M:%S')
             
-            # 扫描所有消息键
-            message_keys = self.redis_store.redis.keys("msg:*")
-            
+            # 使用SCAN代替KEYS，避免阻塞Redis
             messages_with_visual_hash = []
-            for key in message_keys:
-                try:
-                    # 获取消息数据
-                    message_data = self.redis_store.redis.hgetall(key)
-                    if not message_data:
-                        continue
-                    
-                    # 检查是否有视觉哈希
-                    if not message_data.get('visual_hash'):
-                        continue
-                    
-                    # 检查时间条件
-                    created_at = message_data.get('created_at', '')
-                    if created_at < time_threshold_str:
-                        continue
-                    
-                    # 排除当前消息
-                    msg_id = message_data.get('message_id')
-                    if exclude_message_id and str(msg_id) == str(exclude_message_id):
-                        continue
-                    
-                    # 排除被拒绝的消息
-                    status = message_data.get('status', '')
-                    if status == 'rejected':
-                        continue
-                    
-                    messages_with_visual_hash.append(message_data)
-                    
-                except Exception as e:
-                    logger.debug(f"处理消息键 {key} 时出错: {e}")
-                    continue
+            cursor = 0
+            processed_count = 0
+            max_process = 500  # 限制处理数量
             
-            return messages_with_visual_hash[:100]  # 限制检查数量
+            while True:
+                cursor, keys = self.redis_store.redis.scan(cursor, match="msg:*", count=50)
+                
+                for key in keys:
+                    if processed_count >= max_process:
+                        break
+                    
+                    try:
+                        # 获取消息数据
+                        message_data = self.redis_store.redis.hgetall(key)
+                        if not message_data:
+                            continue
+                        
+                        # 检查是否有视觉哈希
+                        if not message_data.get('visual_hash'):
+                            continue
+                        
+                        # 检查时间条件
+                        created_at = message_data.get('created_at', '')
+                        if created_at < time_threshold_str:
+                            continue
+                        
+                        # 排除当前消息
+                        msg_id = message_data.get('message_id')
+                        if exclude_message_id and str(msg_id) == str(exclude_message_id):
+                            continue
+                        
+                        # 排除被拒绝的消息
+                        status = message_data.get('status', '')
+                        if status == 'rejected':
+                            continue
+                        
+                        messages_with_visual_hash.append(message_data)
+                        processed_count += 1
+                        
+                    except Exception as e:
+                        logger.debug(f"处理消息键 {key} 时出错: {e}")
+                        continue
+                
+                # 检查是否完成或达到限制
+                if cursor == 0 or processed_count >= max_process:
+                    break
+            
+            logger.debug(f"🐌 传统方法获取到 {len(messages_with_visual_hash)} 个消息（处理了 {processed_count} 个）")
+            return messages_with_visual_hash[:100]  # 限制返回数量
             
         except Exception as e:
-            logger.error(f"获取带视觉哈希的消息失败: {e}")
+            logger.error(f"传统方法获取带视觉哈希的消息失败: {e}")
             return []

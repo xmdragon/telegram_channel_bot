@@ -1,6 +1,6 @@
 {
-  "ai_enabled": false,
+  "ai_enabled": true,
   "startup_mode": "lazy",
-  "description": "开发环境AI功能配置 - 默认禁用以提升启动速度",
-  "updated_at": "2025-08-18T10:20:00"
+  "description": "AI功能已启用 - 使用轻量级模型提升性能",
+  "updated_at": "2025-08-21T10:10:00"
 }

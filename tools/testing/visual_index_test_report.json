@@ -1,0 +1,12 @@
+{
+  "test_time": "2025-08-21T02:45:54.863316",
+  "results": {
+    "performance_test": true,
+    "migration_test": true
+  },
+  "summary": {
+    "total_tests": 2,
+    "passed": 2,
+    "failed": 0
+  }
+}

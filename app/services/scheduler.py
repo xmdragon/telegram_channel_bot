@@ -45,6 +45,14 @@ class MessageScheduler:
             id='cleanup_logs'
         )
         
+        # 🚀 Linus式优化：每小时清理过期的视觉哈希索引（96小时前）
+        self.scheduler.add_job(
+            self.cleanup_visual_hash_index,
+            'interval',
+            hours=1,
+            id='cleanup_visual_index'
+        )
+        
         self.scheduler.start()
         logger.info("消息调度器已启动")
     
@@ -278,3 +286,36 @@ class MessageScheduler:
                 
         except Exception as e:
             logger.error(f"清理日志文件失败: {e}")
+    
+    async def cleanup_visual_hash_index(self):
+        """清理过期的视觉哈希索引（96小时前的数据）"""
+        try:
+            from app.storage.visual_index_manager import get_visual_index_manager
+            from datetime import datetime, timedelta
+            
+            # 获取视觉哈希索引管理器
+            visual_index = get_visual_index_manager()
+            
+            # 清理96小时前的数据
+            cutoff_time = datetime.utcnow() - timedelta(hours=96)
+            removed_count = visual_index.cleanup_expired_data(cutoff_time)
+            
+            if removed_count > 0:
+                logger.info(f"🧹 清理视觉哈希索引完成: 删除 {removed_count} 个过期条目")
+            else:
+                logger.debug("视觉哈希索引清理: 无过期数据需要清理")
+                
+            # 获取索引状态信息
+            try:
+                stats = visual_index.get_index_stats()
+                if 'error' not in stats:
+                    timeline_size = stats.get('timeline_size', 0)
+                    time_span = stats.get('time_span_hours', 0)
+                    logger.debug(f"视觉哈希索引状态: {timeline_size} 条记录，时间跨度 {time_span:.1f} 小时")
+                else:
+                    logger.warning(f"获取视觉哈希索引状态失败: {stats['error']}")
+            except Exception as stats_e:
+                logger.debug(f"获取索引状态时出错: {stats_e}")
+                
+        except Exception as e:
+            logger.error(f"清理视觉哈希索引失败: {e}")

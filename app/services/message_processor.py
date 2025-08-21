@@ -1,6 +1,7 @@
 """
 消息处理服务
 """
+import json
 import logging
 import time
 from datetime import datetime, timedelta
@@ -211,6 +212,9 @@ class MessageProcessor:
                     if saved_message:
                         logger.info(f"💾 message_processor: 新消息 {channel_id}:{message_id} 成功保存到Redis [状态: {saved_message.get('status', 'unknown')}]")
                         
+                        # 🚀 Linus式优化：同时更新视觉哈希专门索引
+                        await self._update_visual_index(channel_id, int(message_id), message_data, message_time)
+                        
                         # 检查是否启用采集后自动转发到审核群
                         await self._check_auto_forward_after_collect(saved_message)
                         
@@ -230,6 +234,8 @@ class MessageProcessor:
                         saved_message = self.redis_store.get_message(channel_id, int(message_id))
                         if saved_message:
                             logger.info(f"💾 message_processor: 重试成功，消息 {channel_id}:{message_id} 已保存")
+                            # 🚀 重试成功后也要更新视觉哈希索引
+                            await self._update_visual_index(channel_id, int(message_id), message_data, message_time)
                             return saved_message
                     logger.error(f"重试保存消息失败: {channel_id}:{message_id}")
                 except Exception as retry_error:
@@ -241,6 +247,44 @@ class MessageProcessor:
             logger.error(f"处理新消息时出错: {e}")
             raise
     
+    async def _update_visual_index(self, channel_id: str, message_id: int, message_data: dict, message_time):
+        """更新视觉哈希专门索引"""
+        try:
+            # 检查是否有视觉哈希数据
+            visual_hash_str = message_data.get('visual_hash')
+            if not visual_hash_str:
+                return
+            
+            # 解析视觉哈希
+            if isinstance(visual_hash_str, str):
+                try:
+                    visual_hashes = json.loads(visual_hash_str)
+                except json.JSONDecodeError:
+                    # 兼容旧格式
+                    visual_hashes = eval(visual_hash_str)
+            else:
+                visual_hashes = visual_hash_str
+            
+            # 更新专门的视觉哈希索引
+            from app.storage.visual_index_manager import get_visual_index_manager
+            
+            visual_index = get_visual_index_manager()
+            success = visual_index.add_visual_hash(
+                channel_id, 
+                message_id, 
+                visual_hashes, 
+                message_time
+            )
+            
+            if success:
+                logger.debug(f"✅ 视觉哈希索引已更新: {channel_id}:{message_id}")
+            else:
+                logger.warning(f"⚠️ 视觉哈希索引更新失败: {channel_id}:{message_id}")
+                
+        except Exception as e:
+            # 视觉索引更新失败不应影响消息保存
+            logger.warning(f"更新视觉哈希索引时出错（不影响消息保存）: {e}")
+
     async def _check_auto_forward_after_collect(self, saved_message: dict):
         """检查是否需要采集后自动转发到审核群"""
         try:
