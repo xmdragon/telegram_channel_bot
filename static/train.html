@@ -60,6 +60,16 @@
                             
                             <el-form :model="trainingForm" label-width="120px" label-position="top">
                                 <el-form-item label="原始消息内容" required>
+                                    <!-- 内容类型指示器 -->
+                                    <div v-if="trainingForm.contentType" class="content-type-indicator" 
+                                         :class="trainingForm.contentType === 'filtered' ? 'filtered-content' : 'original-content'">
+                                        <span v-if="trainingForm.contentType === 'filtered'">
+                                            🔍 已加载过滤后内容 - 便于选择尾部特征
+                                        </span>
+                                        <span v-else>
+                                            📄 已加载原始内容
+                                        </span>
+                                    </div>
                                     <el-input
                                         v-model="trainingForm.original_message"
                                         type="textarea"

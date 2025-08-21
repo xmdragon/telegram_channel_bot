@@ -49,6 +49,28 @@
     font-size: 12px;
 }
 
+/* 内容类型指示器 */
+.content-type-indicator {
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.content-type-indicator.filtered-content {
+    background-color: #e1f5fe;
+    color: #0277bd;
+    border: 1px solid #b3e5fc;
+}
+
+.content-type-indicator.original-content {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+    border: 1px solid #e1bee7;
+}
+
 /* 频道选项样式 */
 .channel-option {
     display: flex;

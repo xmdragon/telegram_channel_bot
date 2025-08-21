@@ -25,47 +25,19 @@ START_TIME = datetime.now()
 
 @router.get(ROUTES.system.status)
 async def get_system_status() -> Dict[str, Any]:
-    """获取系统状态 - 通过WebSocket实时推送进度"""
-    operation = "system_status"
-    
+    """获取系统状态 - 快速版本，不包含消息统计"""
     try:
-        # 步骤1：初始化 (5%)
-        await websocket_manager.broadcast_progress(operation, 5, "初始化系统状态检查...")
         uptime_seconds = (datetime.now() - START_TIME).total_seconds()
         
-        # 步骤2：连接存储层 (15%)
-        await websocket_manager.broadcast_progress(operation, 15, "连接存储层...")
+        # 连接存储层（快速检查）
         redis_store = get_redis_message_store()
         channel_store = get_json_channel_store()
         
-        # 步骤3：统计消息数据 (35%)
-        await websocket_manager.broadcast_progress(operation, 35, "统计消息数据...")
-        pending_messages = len(redis_store.get_pending_messages(limit=10000))
-        all_messages_keys = redis_store.redis.keys("msg:*")
-        total_messages = len(all_messages_keys)
-        
-        # 步骤4：统计转发消息 (55%)
-        await websocket_manager.broadcast_progress(operation, 55, "统计转发消息...")
-        forwarded_count = 0
-        limited_keys = all_messages_keys[:500]  # 减少检查数量提高速度
-        for i, key in enumerate(limited_keys):
-            if i % 100 == 0:  # 每100个更新一次进度
-                progress = 55 + (10 * i / len(limited_keys))
-                await websocket_manager.broadcast_progress(operation, int(progress), f"检查消息 {i+1}/{len(limited_keys)}...")
-            try:
-                msg_data = redis_store.redis.hgetall(key)
-                if msg_data.get(b'status') == b'forwarded':
-                    forwarded_count += 1
-            except:
-                continue
-        
-        # 步骤5：获取频道信息 (70%)
-        await websocket_manager.broadcast_progress(operation, 70, "获取频道信息...")
+        # 获取频道信息（快速）
         all_channels = channel_store.get_all_channels()
         source_channels = len([ch for ch in all_channels if ch.get('channel_type') == 'source'])
         
-        # 步骤6：检查服务状态 (85%)
-        await websocket_manager.broadcast_progress(operation, 85, "检查服务状态...")
+        # 检查服务状态（快速）
         telegram_connected = False
         web_server_running = True
         scheduler_running = True
@@ -82,7 +54,6 @@ async def get_system_status() -> Dict[str, Any]:
                     health_obj.get('status') == 'healthy' and
                     health_obj.get('metadata', {}).get('telegram_authenticated', False)
                 )
-                logger.info(f"Telegram状态: {health_obj.get('status')}, 认证: {health_obj.get('metadata', {}).get('telegram_authenticated')}")
             
             scheduler_data = r.get('service_health:message_scheduler')
             if scheduler_data:
@@ -91,34 +62,8 @@ async def get_system_status() -> Dict[str, Any]:
                 
         except Exception as e:
             logger.warning(f"健康监控检查失败: {e}")
-            # 简化的进程检查，带超时
-            if not telegram_connected:
-                try:
-                    # 添加超时控制的进程检查
-                    async def check_processes():
-                        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                            try:
-                                cmdline = ' '.join(proc.info['cmdline'] or [])
-                                if 'telegram_collector.py' in cmdline:
-                                    return True
-                            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                                continue
-                        return False
-                    
-                    telegram_connected = await asyncio.wait_for(check_processes(), timeout=2.0)
-                except Exception as proc_e:
-                    logger.warning(f"进程检查失败: {proc_e}")
-        
-        # 步骤7：完成 (100%)
-        await websocket_manager.broadcast_progress(operation, 100, "系统状态检查完成")
         
         result = {
-            "stats": {
-                "source_channels": source_channels,
-                "total_messages": total_messages,
-                "pending_messages": pending_messages,
-                "forwarded_messages": forwarded_count
-            },
             "services": {
                 "telegram_client": telegram_connected,
                 "message_processor": web_server_running,
@@ -127,23 +72,17 @@ async def get_system_status() -> Dict[str, Any]:
             },
             "system": {
                 "uptime": uptime_seconds,
-                "version": "2.0.0"
+                "version": "2.0.0",
+                "source_channels": source_channels
             }
         }
         
-        logger.info("✅ 系统状态检查完成")
+        logger.info("✅ 系统状态检查完成（快速版本）")
         return result
         
     except Exception as e:
         logger.error(f"获取系统状态失败: {e}")
-        await websocket_manager.broadcast_progress(operation, 100, f"检查失败: {str(e)}")
         return {
-            "stats": {
-                "source_channels": 0,
-                "total_messages": 0,
-                "pending_messages": 0,
-                "forwarded_messages": 0
-            },
             "services": {
                 "telegram_client": False,
                 "message_processor": False,
@@ -152,7 +91,8 @@ async def get_system_status() -> Dict[str, Any]:
             },
             "system": {
                 "uptime": 0,
-                "version": "2.0.0"
+                "version": "2.0.0",
+                "source_channels": 0
             }
         }
 

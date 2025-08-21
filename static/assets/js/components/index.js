@@ -2118,10 +2118,12 @@ const MainApp = {
                 return;
             }
             // 跳转到训练页面，并传递消息信息用于尾部训练
+            // 新增useFiltered参数，指示训练页面优先使用filtered_content
             const params = new URLSearchParams({
                 message_id: message.id,
                 channel_id: message.source_channel,
-                mode: 'tail'
+                mode: 'tail',
+                useFiltered: 'true'  // 指示使用过滤后内容进行尾部训练
             });
             // 使用绝对路径确保正确跳转
             window.location.href = '/static/train.html?' + params.toString();

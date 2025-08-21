@@ -33,7 +33,9 @@ const TrainApp = {
             trainingForm: {
                 original_message: '',
                 tail_content: '',
-                message_id: null  // 添加message_id字段
+                message_id: null,  // 添加message_id字段
+                contentType: '',   // 内容类型说明（原始内容/过滤后内容）
+                mediaGroupInfo: '' // 媒体组信息（隐藏字段）
             },
             
             // 广告训练表单
@@ -87,7 +89,7 @@ const TrainApp = {
         }
         
         // 先检查URL参数
-        this.checkUrlParams();
+        await this.checkUrlParams();
         // 然后初始化
         this.init();
         // 加载训练数据统计
@@ -119,6 +121,7 @@ const TrainApp = {
             // 只有当有message_id参数时才处理
             const messageId = params.get('message_id');
             const channelId = params.get('channel_id');
+            const useFiltered = params.get('useFiltered') === 'true';  // 是否使用过滤后内容
             
             // 如果没有任何参数，直接返回
             if (!messageId && !channelId) {
@@ -140,9 +143,12 @@ const TrainApp = {
             // 如果有消息ID，从API获取消息内容
             if (messageId) {
                 try {
-                    const response = await axios.get(API.messages.getById(messageId));
-                    if (response.data && response.data.success && response.data.message) {
-                        const msg = response.data.message;
+                    const response = await axios.get(API.messages.getById(messageId), {
+                        headers: authManager.getAuthHeaders()
+                    });
+                    
+                    if (response.data && response.data.data) {
+                        const msg = response.data.data;
                         
                         // 根据模式填充不同的表单
                         if (this.trainingMode === 'ad') {
@@ -159,12 +165,33 @@ const TrainApp = {
                             });
                         } else {
                             // 尾部训练模式
-                            // 不再需要设置channel_id，系统是频道无关的
-                            this.trainingForm.original_message = msg.content || msg.filtered_content || '';
+                            // 根据useFiltered参数决定使用原始内容还是过滤后内容
+                            let contentToUse;
+                            let messageType;
                             
-                            // 显示提示信息
+                            if (useFiltered && msg.filtered_content) {
+                                contentToUse = msg.filtered_content;
+                                messageType = '过滤后的内容';
+                                this.trainingForm.contentType = 'filtered';
+                            } else {
+                                contentToUse = msg.content || msg.filtered_content || '';
+                                messageType = '原始内容';
+                                this.trainingForm.contentType = 'original';
+                            }
+                            
+                            // 过滤媒体组信息并保存到隐藏字段
+                            const mediaGroupPattern = /\[📎 媒体组:.*?\]/g;
+                            const mediaGroupInfo = contentToUse.match(mediaGroupPattern) || [];
+                            this.trainingForm.mediaGroupInfo = mediaGroupInfo.join(' ');
+                            
+                            // 显示时去除媒体组信息
+                            const displayContent = contentToUse.replace(mediaGroupPattern, '').trim();
+                            
+                            this.trainingForm.original_message = displayContent;
+                            
+                            // 显示提示信息，说明当前使用的内容类型
                             ElMessage({
-                                message: '已自动填充消息内容，请标记出需要过滤的尾部内容',
+                                message: `已自动填充${messageType}，请标记出需要过滤的尾部内容`,
                                 type: 'info',
                                 offset: 20,
                                 customClass: 'bottom-right-message'
@@ -181,6 +208,9 @@ const TrainApp = {
                         
                         // 切换到训练标签页
                         this.activeTab = 'train';
+                        
+                        // 成功处理后清除URL参数，避免刷新页面时重复处理
+                        window.history.replaceState({}, document.title, window.location.pathname);
                     }
                 } catch (error) {
                     // 如果是404错误，消息不存在
@@ -199,15 +229,10 @@ const TrainApp = {
                             customClass: 'bottom-right-message'
                         });
                     }
-                    // 不再需要设置频道ID
+                    // 出错时不清除URL参数，允许用户重试
                 }
-                
-                // 清除URL参数，避免刷新页面时重复处理
-                window.history.replaceState({}, document.title, window.location.pathname);
             } else if (channelId) {
-                // 只有频道ID，没有消息ID
-                // 不再需要设置频道ID
-                // 清除URL参数
+                // 只有频道ID，没有消息ID时清除参数
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         },
@@ -469,7 +494,9 @@ const TrainApp = {
             this.trainingForm = {
                 original_message: '',
                 tail_content: '',
-                message_id: null
+                message_id: null,
+                contentType: '',
+                mediaGroupInfo: ''
             };
             this.filteredPreview = '';
         },
@@ -521,9 +548,13 @@ const TrainApp = {
                 // // [removed console.log]
                 
                 // 统一提交到tail-filter-samples
+                // 在保存时将媒体组信息附加到内容后面
+                const fullContent = this.trainingForm.original_message + 
+                    (this.trainingForm.mediaGroupInfo ? ' ' + this.trainingForm.mediaGroupInfo : '');
+                    
                 const postData = {
                     description: '尾部过滤训练样本',
-                    content: this.trainingForm.original_message,
+                    content: fullContent,
                     separator: separator,
                     normalPart: normalPart,
                     tailPart: this.trainingForm.tail_content,
