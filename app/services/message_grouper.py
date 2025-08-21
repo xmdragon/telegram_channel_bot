@@ -20,6 +20,51 @@ class MessageGrouper:
         self.group_timeout = 30  # Linus式修复：增加到30秒，减少网络延迟导致的丢失
         self.telegram_messages: Dict[str, Any] = {}  # 保存原始Telegram消息对象，用于异步下载
     
+    def _deduplicate_content(self, texts: List[str]) -> List[str]:
+        """去重文本内容 - 移除重复的段落"""
+        if not texts:
+            return texts
+        
+        # 如果只有一条消息，检查内容是否内部重复
+        if len(texts) == 1:
+            content = texts[0].strip()
+            if not content:
+                return texts
+            
+            # 检查是否整体重复（被双换行分割成相等的两半）
+            parts = content.split('\n\n')
+            
+            # 情况1: 简单的两部分重复
+            if len(parts) == 2 and parts[0].strip() == parts[1].strip():
+                logger.warning(f"检测到单条消息内部重复(简单两部分)，移除重复部分: {len(parts[0])}字符")
+                return [parts[0].strip()]
+            
+            # 情况2: 复杂重复 - 检查是否前一半和后一半相同
+            elif len(parts) > 2 and len(parts) % 2 == 0:
+                mid = len(parts) // 2
+                first_half = '\n\n'.join(parts[:mid])
+                second_half = '\n\n'.join(parts[mid:])
+                
+                if first_half.strip() == second_half.strip():
+                    logger.warning(f"检测到单条消息内部重复(复杂模式)，移除重复部分: {len(first_half)}字符")
+                    return [first_half.strip()]
+            
+            return texts
+        
+        # 多条消息去重
+        unique_texts = []
+        seen_content = set()
+        
+        for text in texts:
+            text_stripped = text.strip()
+            if text_stripped and text_stripped not in seen_content:
+                unique_texts.append(text)
+                seen_content.add(text_stripped)
+            elif text_stripped in seen_content:
+                logger.debug(f"跳过重复内容: {len(text_stripped)}字符")
+        
+        return unique_texts
+    
     async def process_message(self, message, channel_id: str, media_info: Optional[Dict] = None, filtered_content: Optional[str] = None, is_ad: bool = False, is_batch: bool = False) -> Optional[Dict]:
         """
         处理消息，检查是否需要与其他消息组合
@@ -52,10 +97,23 @@ class MessageGrouper:
                 if hasattr(message, 'caption') and message.caption:
                     caption = message.caption
                 
-                # 4. 组合文本和caption
+                # 4. 智能组合文本和caption - 避免重复
                 if original_content and caption:
-                    original_content = f"{original_content}\n\n{caption}"
-                    logger.debug(f"组合器中合并文本和caption: text={len(message.text if hasattr(message, 'text') else '')}字符, caption={len(caption)}字符")
+                    # 检查 text 和 caption 是否相同（忽略前后空白）
+                    original_stripped = original_content.strip()
+                    caption_stripped = caption.strip()
+                    
+                    if original_stripped == caption_stripped:
+                        # 如果内容相同，不拼接，只使用原内容
+                        logger.debug(f"组合器检测到text和caption内容相同，避免重复拼接: {len(original_content)}字符")
+                    elif original_stripped in caption_stripped or caption_stripped in original_stripped:
+                        # 如果一个是另一个的子集，使用较长的那个
+                        original_content = original_stripped if len(original_stripped) > len(caption_stripped) else caption_stripped
+                        logger.debug(f"组合器检测到text/caption包含关系，使用较长内容: {len(original_content)}字符")
+                    else:
+                        # 如果内容不同，才进行拼接
+                        original_content = f"{original_content}\n\n{caption}"
+                        logger.debug(f"组合器中合并不同的文本和caption: text={len(message.text if hasattr(message, 'text') else '')}字符, caption={len(caption)}字符")
                 elif not original_content and caption:
                     original_content = caption
                     logger.debug(f"组合器中使用caption: {len(caption)}字符")
@@ -310,9 +368,17 @@ class MessageGrouper:
                 is_ad = True
                 logger.info(f"🚫 消息组中检测到广告，整组标记为广告")
         
-        # 合并文本内容
-        combined_content = '\n\n'.join(all_texts) if all_texts else ""
-        combined_filtered_content = '\n\n'.join(all_filtered_texts) if all_filtered_texts else ""
+        # 去重并合并文本内容
+        deduplicated_texts = self._deduplicate_content(all_texts)
+        deduplicated_filtered_texts = self._deduplicate_content(all_filtered_texts)
+        
+        combined_content = '\n\n'.join(deduplicated_texts) if deduplicated_texts else ""
+        combined_filtered_content = '\n\n'.join(deduplicated_filtered_texts) if deduplicated_filtered_texts else ""
+        
+        if len(deduplicated_texts) < len(all_texts):
+            logger.info(f"🧹 内容去重：原始 {len(all_texts)} 条 → {len(deduplicated_texts)} 条")
+        if len(deduplicated_filtered_texts) < len(all_filtered_texts):
+            logger.info(f"🧹 过滤后内容去重：原始 {len(all_filtered_texts)} 条 → {len(deduplicated_filtered_texts)} 条")
         
         # 记录文本合并结果
         logger.info(f"组合消息文本合并: {len(messages)}条消息, {text_message_count}条有文本, 原始{len(combined_content)}字符, 过滤后{len(combined_filtered_content)}字符")
