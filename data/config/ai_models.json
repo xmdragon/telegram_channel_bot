@@ -1,0 +1,60 @@
+{
+  "models": {
+    "nano": {
+      "name": "all-MiniLM-L6-v2",
+      "repo": "sentence-transformers/all-MiniLM-L6-v2",
+      "local_path": null,
+      "size_mb": 90,
+      "dimensions": 384,
+      "description": "超轻量级模型，适合资源受限环境",
+      "performance": "较好",
+      "multilingual": false,
+      "enabled": true
+    },
+    "small": {
+      "name": "paraphrase-multilingual-MiniLM-L12-v2",
+      "repo": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "local_path": null,
+      "size_mb": 470,
+      "dimensions": 384, 
+      "description": "多语言小型模型，平衡性能和大小",
+      "performance": "好",
+      "multilingual": true,
+      "enabled": true
+    },
+    "medium": {
+      "name": "all-mpnet-base-v2",
+      "repo": "sentence-transformers/all-mpnet-base-v2",
+      "local_path": null,
+      "size_mb": 420,
+      "dimensions": 768,
+      "description": "中等大小高性能模型",
+      "performance": "很好", 
+      "multilingual": false,
+      "enabled": true
+    },
+    "custom": {
+      "name": "custom-model",
+      "repo": null,
+      "local_path": "/path/to/local/model",
+      "size_mb": 0,
+      "dimensions": 384,
+      "description": "自定义本地模型",
+      "performance": "未知",
+      "multilingual": true,
+      "enabled": false
+    }
+  },
+  "default_model": "nano",
+  "fallback_chain": ["nano", "small"],
+  "cache_settings": {
+    "enabled": true,
+    "max_models_in_memory": 2,
+    "auto_cleanup": true
+  },
+  "download_settings": {
+    "retry_attempts": 3,
+    "timeout_seconds": 300,
+    "offline_mode": false
+  }
+}

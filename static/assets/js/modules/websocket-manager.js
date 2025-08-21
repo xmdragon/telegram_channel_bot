@@ -97,7 +97,6 @@ const WebSocketManager = {
         this.reconnectAttempts++;
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
         
-        console.log(`${delay}ms后尝试第${this.reconnectAttempts}次重连...`);
         
         setTimeout(() => {
             if (!this.isConnected) {

@@ -4,9 +4,9 @@
 const API = window.API;
 
 // 检查依赖是否加载
-// console.log('Vue loaded:', typeof Vue !== 'undefined');
-// console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
-// console.log('Axios loaded:', typeof axios !== 'undefined');
+// // [removed console.log]
+// // [removed console.log]
+// // [removed console.log]
 
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
@@ -93,7 +93,6 @@ const AuthApp = {
                             const data = JSON.parse(event.data);
                             this.handleWebSocketMessage(data);
                         } catch (error) {
-                            // console.error('解析 WebSocket 消息失败:', error);
                         }
                     };
                     
@@ -166,7 +165,6 @@ const AuthApp = {
                             method = 'POST';
                             break;
                         default:
-                            // console.error('未知的 API 操作:', action);
                             return;
                     }
                     
@@ -190,7 +188,6 @@ const AuthApp = {
                         this.handleError(result.detail || '操作失败');
                     }
                 } catch (error) {
-                    // console.error('REST API 请求失败:', error);
                     this.handleError('网络请求失败');
                 }
             },
@@ -258,7 +255,7 @@ const AuthApp = {
                         this.authStatus = '未认证';
                     }
                 } catch (error) {
-                    // console.log('使用模拟认证状态');
+                    // // [removed console.log]
                     this.authStatus = '未认证';
                 }
             },
@@ -419,7 +416,6 @@ const AuthApp = {
                         this.handleError(response.data.error);
                     }
                 } catch (error) {
-                    // console.error('清除认证数据失败:', error);
                     this.handleError('清除认证数据失败');
                 } finally {
                     this.loading = false;
@@ -477,7 +473,7 @@ const AuthApp = {
 
 // 创建并挂载应用
 document.addEventListener('DOMContentLoaded', function() {
-    // console.log('DOM loaded, mounting Vue app...');
+    // // [removed console.log]
     const app = createApp(AuthApp);
     app.use(ElementPlus);
     // 注册导航栏组件
@@ -485,5 +481,5 @@ document.addEventListener('DOMContentLoaded', function() {
         app.component('nav-bar', window.NavBar);
     }
     app.mount('#app');
-    // console.log('Vue app mounted successfully');
+    // // [removed console.log]
 }); 

@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-20T23:38:31.041859",
+    "updated_at": "2025-08-21T09:49:24.668719",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-20T15:38:33.354649",
+  "updated_at": "2025-08-21T01:49:24.671393",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-20T23:38:31.043088",
+    "updated_at": "2025-08-21T09:49:24.671371",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -45,7 +45,7 @@
     "config_type": "boolean",
     "description": "启用内容过滤",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.454620",
+    "updated_at": "2025-08-21T01:50:49.899854",
     "created_at": "2025-08-15T19:03:51.230063"
   },
   "filter.tail_filter_enabled": {
@@ -53,7 +53,7 @@
     "config_type": "boolean",
     "description": "启用尾部过滤",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.455798",
+    "updated_at": "2025-08-21T01:50:49.900582",
     "created_at": "2025-08-15T19:03:51.230655"
   },
   "filter.ocr_enabled": {
@@ -61,7 +61,7 @@
     "config_type": "boolean",
     "description": "启用OCR图片文字识别",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.456838",
+    "updated_at": "2025-08-21T01:50:49.901489",
     "created_at": "2025-08-15T19:03:51.230934"
   },
   "review.require_approval": {
@@ -69,7 +69,7 @@
     "config_type": "boolean",
     "description": "需要人工审核",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.458417",
+    "updated_at": "2025-08-21T01:50:49.902368",
     "created_at": "2025-08-15T19:03:51.231269"
   },
   "review.auto_reject_ads": {
@@ -85,15 +85,15 @@
     "config_type": "boolean",
     "description": "采集消息后自动转发到审核群",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.459782",
+    "updated_at": "2025-08-21T01:50:49.903627",
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "系统重置时自动禁用采集",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.453677",
+    "updated_at": "2025-08-21T01:50:49.898508",
     "created_at": "2025-08-15T19:03:51.231938"
   },
   "collection.interval": {
@@ -125,7 +125,7 @@
     "config_type": "boolean",
     "description": "启用消息调度服务（自动转发、清理）",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.460751",
+    "updated_at": "2025-08-21T01:50:49.904752",
     "created_at": "2025-08-16T22:23:50.891394"
   },
   "source.history_limit": {
@@ -133,7 +133,7 @@
     "config_type": "integer",
     "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.450156",
+    "updated_at": "2025-08-21T01:50:49.894642",
     "created_at": "2025-08-14T22:53:30.663727"
   },
   "target.signature": {
@@ -141,7 +141,7 @@
     "config_type": "string",
     "description": "频道落款内容（支持多行，用\\n分隔）",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.452805",
+    "updated_at": "2025-08-21T01:50:49.897305",
     "created_at": "2025-08-14T22:53:30.665451"
   },
   "target.channel_id": {
@@ -149,7 +149,7 @@
     "config_type": "string",
     "description": "目标频道ID",
     "is_active": true,
-    "updated_at": "2025-08-20T23:38:33.351448",
+    "updated_at": "2025-08-21T09:40:10.553869",
     "created_at": "2025-08-14T22:53:30.663414"
   },
   "review.group_id": {
@@ -165,7 +165,7 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-20T23:38:33.354617",
+    "updated_at": "2025-08-21T09:40:10.554917",
     "created_at": "2025-08-19T08:41:29.221316"
   },
   "review.group_link": {
@@ -181,7 +181,7 @@
     "config_type": "boolean",
     "description": "组合消息保存后删除单独消息（性能优化，可回滚）",
     "is_active": true,
-    "updated_at": "2025-08-20T16:13:22.461584",
+    "updated_at": "2025-08-21T01:50:49.905650",
     "created_at": "2025-08-20T14:46:30.000000"
   },
   "review.auto_forward_enabled": {

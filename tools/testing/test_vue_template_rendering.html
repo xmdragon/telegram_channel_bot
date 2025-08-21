@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue 模板渲染测试</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .file-details-modal {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            min-width: 400px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover { background: #0056b3; }
+        .close-btn {
+            background: #dc3545;
+            float: right;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Vue 模板渲染测试</h1>
+        
+        <div class="test-section">
+            <h3>测试状态</h3>
+            <div :class="['status', testStatus.type]">
+                {{ testStatus.message }}
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>文件详情对话框测试</h3>
+            <button @click="testFileDialog">测试文件详情对话框</button>
+            
+            <div v-if="fileDetailsDialog">
+                <p>对话框状态: {{ fileDetailsDialog.visible ? '显示' : '隐藏' }}</p>
+                <p>数据存在: {{ fileDetailsDialog.details ? 'true' : 'false' }}</p>
+            </div>
+        </div>
+
+        <!-- 文件详情对话框 -->
+        <div v-if="fileDetailsDialog && fileDetailsDialog.visible && fileDetailsDialog.details" 
+             class="modal-overlay" 
+             @click.self="fileDetailsDialog.visible = false">
+            <div class="file-details-modal">
+                <div style="margin-bottom: 20px;">
+                    <h3 style="margin: 0; display: inline-block;">文件详情测试</h3>
+                    <button class="close-btn" @click="fileDetailsDialog.visible = false">×</button>
+                </div>
+                
+                <!-- 调试信息 -->
+                <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px; border-radius: 4px;">
+                    <strong>Vue 响应式状态:</strong><br>
+                    visible: {{ fileDetailsDialog.visible }}<br>
+                    details存在: {{ fileDetailsDialog.details ? 'true' : 'false' }}<br>
+                    fileName: {{ fileDetailsDialog.details?.fileName }}<br>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">文件名</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ fileDetailsDialog.details.fileName || '未知' }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">路径</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ fileDetailsDialog.details.path || '未知' }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">大小</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ fileDetailsDialog.details.size || '未知' }}</td>
+                    </tr>
+                </table>
+                
+                <div style="margin-top: 20px; text-align: center;">
+                    <button @click="fileDetailsDialog.visible = false">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 外部脚本文件 -->
+    <script src="../static/assets/js/vue.prod.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        const app = createApp({
+            data() {
+                return {
+                    testStatus: {
+                        type: 'success',
+                        message: 'Vue应用已成功加载'
+                    },
+                    fileDetailsDialog: {
+                        visible: false,
+                        details: null
+                    }
+                };
+            },
+            methods: {
+                testFileDialog() {
+                    console.log('🔍 开始测试文件对话框');
+                    
+                    const testDetails = {
+                        fileName: 'test-file.jpg',
+                        path: '/media/test/test-file.jpg',
+                        size: '2.5 MB',
+                        type: 'image',
+                        hash: 'abc123def456'
+                    };
+                    
+                    // 测试Vue 3响应式更新
+                    this.fileDetailsDialog.visible = true;
+                    this.fileDetailsDialog.details = { ...testDetails };
+                    
+                    console.log('📊 fileDetailsDialog更新后:', this.fileDetailsDialog);
+                    
+                    this.testStatus = {
+                        type: 'success',
+                        message: '文件对话框已打开，检查是否正确显示数据'
+                    };
+                    
+                    // 测试异步更新
+                    setTimeout(() => {
+                        if (this.fileDetailsDialog.details) {
+                            this.fileDetailsDialog.details.size = '3.2 MB (更新后)';
+                            console.log('📦 文件大小已异步更新');
+                        }
+                    }, 2000);
+                }
+            },
+            mounted() {
+                console.log('✅ Vue测试应用已挂载');
+                console.log('📊 初始状态:', this.fileDetailsDialog);
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>

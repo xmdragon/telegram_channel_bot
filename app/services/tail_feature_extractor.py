@@ -48,13 +48,22 @@ class TailFeatureExtractor:
         self._load_model()
     
     def _load_model(self):
-        """加载sentence-transformers模型"""
+        """加载sentence-transformers模型（使用缓存管理器）"""
         try:
-            from sentence_transformers import SentenceTransformer
-            self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-            logger.info("✅ 特征提取器AI模型加载成功")
+            # 🔧 Linus式解决方案：使用专用模型缓存管理器避免重复下载
+            from app.services.model_cache_manager import ModelCacheManager
+            
+            cache_manager = ModelCacheManager()
+            self.model = cache_manager.get_model()  # 使用配置文件中的模型
+            
+            if self.model:
+                logger.info("✅ 特征提取器AI模型加载成功（使用缓存管理器）")
+            else:
+                logger.warning("⚠️ AI模型加载失败，将使用基础特征提取")
+                
         except Exception as e:
             logger.warning(f"⚠️ AI模型加载失败: {e}")
+            self.model = None
     
     def extract_features(self, text: str) -> Dict:
         """
@@ -124,27 +133,37 @@ class TailFeatureExtractor:
         Returns:
             包含各种得分的字典
         """
-        if features is None:
-            features = self.extract_features(text)
-        
-        # 计算推广得分 (0-1)
-        promotion_score = self._calculate_promotion_score(text, features)
-        
-        # 计算商业化得分 (0-1)
-        commercial_score = self._calculate_commercial_score(text, features)
-        
-        # 计算相关性得分 (与正文的相关性，尾部通常较低)
-        relevance_score = self._calculate_relevance_score(text, features)
-        
-        scores = {
-            "promotion_score": round(promotion_score, 3),
-            "commercial_score": round(commercial_score, 3),
-            "relevance_score": round(relevance_score, 3),
-            "overall_score": round((promotion_score + commercial_score) / 2, 3)
-        }
-        
-        logger.debug(f"计算得分: {scores}")
-        return scores
+        try:
+            if features is None:
+                features = self.extract_features(text)
+            
+            # 计算推广得分 (0-1)
+            promotion_score = self._calculate_promotion_score(text, features)
+            
+            # 计算商业化得分 (0-1)
+            commercial_score = self._calculate_commercial_score(text, features)
+            
+            # 计算相关性得分 (与正文的相关性，尾部通常较低)
+            relevance_score = self._calculate_relevance_score(text, features)
+            
+            scores = {
+                "promotion_score": round(promotion_score, 3),
+                "commercial_score": round(commercial_score, 3),
+                "relevance_score": round(relevance_score, 3),
+                "overall_score": round((promotion_score + commercial_score) / 2, 3)
+            }
+            
+            logger.debug(f"计算得分: {scores}")
+            return scores
+        except Exception as e:
+            logger.error(f"计算得分失败: {e}")
+            # 返回默认得分
+            return {
+                "promotion_score": 0.0,
+                "commercial_score": 0.0,
+                "relevance_score": 0.0,
+                "overall_score": 0.0
+            }
     
     def _empty_features(self) -> Dict:
         """返回空特征字典"""
@@ -269,62 +288,77 @@ class TailFeatureExtractor:
         """计算推广得分"""
         score = 0.0
         
-        # 基于动作词汇 (权重0.3)
-        action_score = min(features["action_word_count"] * 0.1, 0.3)
-        score += action_score
-        
-        # 基于链接和联系方式 (权重0.4)
-        if features["has_telegram_link"]:
-            score += 0.2
-        if features["link_count"] > 0:
-            score += min(features["link_count"] * 0.1, 0.2)
-        
-        # 基于频道/群组提及 (权重0.2)
-        if features["has_channel_mention"] or features["has_group_mention"]:
-            score += 0.2
-        
-        # 基于表情符号密度 (权重0.1)
-        if features["emoji_density"] > 0.05:
-            score += 0.1
-        
-        return min(score, 1.0)
+        # 🔧 Linus风格修复：防御性编程，避免KeyError
+        try:
+            # 基于动作词汇 (权重0.3)
+            action_score = min(features.get("action_word_count", 0) * 0.1, 0.3)
+            score += action_score
+            
+            # 基于链接和联系方式 (权重0.4)
+            if features.get("has_telegram_link", False):
+                score += 0.2
+            if features.get("link_count", 0) > 0:
+                score += min(features.get("link_count", 0) * 0.1, 0.2)
+            
+            # 基于频道/群组提及 (权重0.2)
+            if features.get("has_channel_mention", False) or features.get("has_group_mention", False):
+                score += 0.2
+            
+            # 基于表情符号密度 (权重0.1)
+            if features.get("emoji_density", 0.0) > 0.05:
+                score += 0.1
+            
+            return min(score, 1.0)
+        except Exception as e:
+            logger.error(f"计算推广得分失败: {e}")
+            return 0.0
     
     def _calculate_commercial_score(self, text: str, features: Dict) -> float:
         """计算商业化得分"""
         score = 0.0
         
-        # 基于商业词汇 (权重0.4)
-        business_score = min(features["business_word_count"] * 0.15, 0.4)
-        score += business_score
-        
-        # 基于联系方式数量 (权重0.3)
-        contact_score = min(features["contact_count"] * 0.1, 0.3)
-        score += contact_score
-        
-        # 基于紧急性 (权重0.2)
-        if features["has_urgency"]:
-            score += 0.2
-        
-        # 基于大写字母比例 (权重0.1)
-        if features["uppercase_ratio"] > 0.1:
-            score += 0.1
-        
-        return min(score, 1.0)
+        # 🔧 Linus风格修复：防御性编程，避免KeyError
+        try:
+            # 基于商业词汇 (权重0.4)
+            business_score = min(features.get("business_word_count", 0) * 0.15, 0.4)
+            score += business_score
+            
+            # 基于联系方式数量 (权重0.3)
+            contact_score = min(features.get("contact_count", 0) * 0.1, 0.3)
+            score += contact_score
+            
+            # 基于紧急性 (权重0.2)
+            if features.get("has_urgency", False):
+                score += 0.2
+            
+            # 基于大写字母比例 (权重0.1)
+            if features.get("uppercase_ratio", 0.0) > 0.1:
+                score += 0.1
+            
+            return min(score, 1.0)
+        except Exception as e:
+            logger.error(f"计算商业化得分失败: {e}")
+            return 0.0
     
     def _calculate_relevance_score(self, text: str, features: Dict) -> float:
         """计算与正文的相关性得分（尾部通常相关性较低）"""
-        # 尾部内容与正文相关性通常很低
-        score = 0.1
-        
-        # 如果包含分隔符，相关性更低
-        if features["has_separators"]:
-            score = 0.05
-        
-        # 如果是纯链接或联系方式，相关性极低
-        if features["link_count"] > 0 and features["word_count"] < 5:
-            score = 0.0
-        
-        return score
+        # 🔧 Linus风格修复：防御性编程，避免KeyError
+        try:
+            # 尾部内容与正文相关性通常很低
+            score = 0.1
+            
+            # 如果包含分隔符，相关性更低
+            if features.get("has_separators", False):
+                score = 0.05
+            
+            # 如果是纯链接或联系方式，相关性极低
+            if features.get("link_count", 0) > 0 and features.get("word_count", 0) < 5:
+                score = 0.0
+            
+            return score
+        except Exception as e:
+            logger.error(f"计算相关性得分失败: {e}")
+            return 0.1
     
     def should_filter(self, text: str, threshold: float = 0.7) -> bool:
         """

@@ -202,11 +202,6 @@ const MainApp = {
     
     created() {
         // Linus式"好品味"：确保所有响应式数据正确初始化
-        console.log('🟢 Vue实例创建中，初始状态检查:');
-        console.log('  - messages数组长度:', this.messages ? this.messages.length : 'undefined');
-        console.log('  - filters对象:', this.filters);
-        console.log('  - stats对象:', this.stats);
-        console.log('  - filteredMessages长度:', this.filteredMessages ? this.filteredMessages.length : 'undefined');
         
         // 确保关键对象存在
         if (!this.mediaPreview) {
@@ -226,7 +221,6 @@ const MainApp = {
         if (typeof this.loadMessages !== 'function') {
             console.error('⚠️ loadMessages方法未找到，Vue实例可能不完整');
         } else {
-            console.log('✅ loadMessages方法已确认存在');
         }
     },
     
@@ -239,7 +233,6 @@ const MainApp = {
         },
         'filters.source_channel': function(newVal, oldVal) {
             // 频道变化时自动加载消息
-            console.log('🟠 [Watcher] 频道变化触发loadMessages, 从:', oldVal, '到:', newVal);
             this.loadMessages();
         }
     },
@@ -249,15 +242,8 @@ const MainApp = {
             // 🔥 Linus风格：初始化事件委托系统
             if (window.EventDelegate) {
                 this.eventDelegate = new window.EventDelegate(this);
-                console.log('🔥 事件委托系统已初始化');
             }
             
-            console.log('🟢 Vue实例mounted开始，状态检查:');
-            console.log('  - messages数组长度:', this.messages ? this.messages.length : 'undefined');
-            console.log('  - filters对象:', this.filters);
-            console.log('  - loadMessages方法类型:', typeof this.loadMessages);
-            console.log('  - window.API存在:', !!window.API);
-            console.log('  - axios存在:', typeof axios);
             
             // 初始化权限检查
             const isAuthorized = await authManager.initPageAuth('messages.view');
@@ -265,16 +251,13 @@ const MainApp = {
                 console.error('❌ 权限验证失败，停止初始化');
                 return;
             }
-            console.log('✅ 权限验证通过');
             
             // 初始化权限按钮可见性
             await this.initializePermissions();
-            console.log('✅ 权限按钮初始化完成');
             
             // 初始化状态管理器
             if (window.messageStateManager) {
                 window.messageStateManager.subscribe(this.handleStateUpdates);
-                console.log('✅ 状态管理器已连接');
             }
             
             // 检查是否需要刷新（从训练页面返回）
@@ -284,10 +267,8 @@ const MainApp = {
                 window.history.replaceState({}, document.title, window.location.pathname);
                 // 强制刷新数据
                 this.messages = [];
-                console.log('✅ 检测到刷新参数，已清理消息数据');
             }
             
-            console.log('🔄 开始并行加载初始数据...');
             
             // 并行加载初始数据
             const loadResults = await Promise.allSettled([
@@ -307,18 +288,9 @@ const MainApp = {
             ]);
             
             // 检查加载结果
-            console.log('📊 数据加载结果:');
-            console.log('  - loadMessages:', loadResults[0].status, loadResults[0].status === 'rejected' ? loadResults[0].reason : 'success');
-            console.log('  - loadStats:', loadResults[1].status, loadResults[1].status === 'rejected' ? loadResults[1].reason : 'success');
-            console.log('  - loadChannelInfo:', loadResults[2].status, loadResults[2].status === 'rejected' ? loadResults[2].reason : 'success');
             
             // 在数据加载完成后检查状态
             setTimeout(() => {
-                console.log('🔍 数据加载后状态检查:');
-                console.log('  - messages数组长度:', this.messages ? this.messages.length : 'undefined');
-                console.log('  - filteredMessages长度:', this.filteredMessages ? this.filteredMessages.length : 'undefined');
-                console.log('  - filters:', this.filters);
-                console.log('  - stats:', this.stats);
             }, 1000);
             
             // 建立WebSocket连接（非关键功能，失败不影响使用）
@@ -337,15 +309,8 @@ const MainApp = {
                 }
             }, 10000);
             
-            // 页面获得焦点时立即刷新
-            window.addEventListener('focus', () => {
-                this.loadMessages().catch(err => {
-                    console.error('焦点刷新失败:', err);
-                });
-                this.loadStats().catch(err => {
-                    console.error('统计刷新失败:', err);
-                });
-            });
+            // 🔥 Linus原则：删除过于主动的焦点刷新
+            // 用户切换窗口不应该触发自动加载，让用户自己控制何时刷新
             
             // 添加滚动监听
             this.setupScrollListener();
@@ -359,7 +324,6 @@ const MainApp = {
         // 🔥 Linus风格：销毁事件委托系统
         if (this.eventDelegate && typeof this.eventDelegate.destroy === 'function') {
             this.eventDelegate.destroy();
-            console.log('🔥 事件委托系统已销毁');
         }
         
         // 标记组件正在卸载，避免重连
@@ -564,11 +528,9 @@ const MainApp = {
         
         
         async loadMessages(append = false) {
-            console.log('📡 loadMessages开始，模式:', append ? '追加' : '重新加载');
             
             if (append) {
                 this.isLoadingMore = true;
-                console.log('🔄 设置加载更多模式');
             } else {
                 // 立即清空消息数据和设置加载状态
                 this.messages = [];  
@@ -578,7 +540,6 @@ const MainApp = {
                 this.hasMore = true;  // 重置hasMore状态
                 this.loading = true;
                 this.loadingMessage = '正在加载消息数据...';
-                console.log('🔄 清空状态并设置加载模式');
             }
             
             try {
@@ -607,14 +568,11 @@ const MainApp = {
                     params.search = this.searchKeyword.trim();
                 }
                 
-                console.log('🌐 准备API请求, 参数:', params);
-                console.log('🌐 API端点:', window.API ? window.API.messages?.list : '未定义');
                 
                 const response = await axios.get(window.API.messages.list, {
                     params: params
                 });
                 
-                console.log('📥 API响应状态:', response.status);
                 console.log('📥 API响应数据结构:', {
                     hasData: !!response.data,
                     hasDataData: !!(response.data && response.data.data),
@@ -625,7 +583,6 @@ const MainApp = {
                 
                 if (response.data && response.data.data && response.data.data.messages && Array.isArray(response.data.data.messages)) {
                     const newMessages = response.data.data.messages;
-                    console.log('✅ 获取到', newMessages.length, '条消息');
                     
                     // 检查是否还有更多数据
                     this.hasMore = newMessages.length === this.pageSize;
@@ -651,8 +608,6 @@ const MainApp = {
                         
                         // 🔍 调试: 分析消息对比显示问题
                         if (window.MessageComparisonDebug && window.MessageComparisonDebug.enableDebug) {
-                            console.log('🔍 [调试] 消息加载完成，开始分析对比显示问题...');
-                            console.log('📊 加载的消息数量:', newMessages.length);
                             
                             // 分析消息数据
                             setTimeout(() => {
@@ -685,7 +640,6 @@ const MainApp = {
                     });
                 } else {
                     console.warn('❌ API返回格式异常或无消息数据');
-                    console.log('📄 完整API响应:', response.data);
                     this.messages = [];
                     if (this.previousMessageIds.size === 0) {
                         MessageManager.warning('暂无消息数据');
@@ -716,7 +670,7 @@ const MainApp = {
         async loadMore() {
             // 双重检查，防止重复加载
             if (this.isLoadingMore || !this.hasMore) {
-                // console.log('跳过加载更多:', { isLoadingMore: this.isLoadingMore, hasMore: this.hasMore });
+                // // [removed console.log]
                 return;
             }
             
@@ -724,8 +678,8 @@ const MainApp = {
             this.isLoadingMore = true;
             
             try {
-                // console.log('容器滚动触发加载更多');
-                // console.log(`加载更多消息，当前页: ${this.currentPage} -> ${this.currentPage + 1}`);
+                // // [removed console.log]
+                // // [removed console.log]
                 this.currentPage++;
                 await this.loadMessages(true);
                 
@@ -734,7 +688,7 @@ const MainApp = {
                 const expectedMessages = this.currentPage * this.pageSize;
                 if (this.messages.length < expectedMessages - this.pageSize) {
                     this.hasMore = false;
-                    // console.log('已加载所有消息，总数:', this.messages.length);
+                    // // [removed console.log]
                 }
             } finally {
                 // 确保加载状态被重置
@@ -758,7 +712,6 @@ const MainApp = {
                     this.stats.chats.value = stats.chats || 0;
                 }
             } catch (error) {
-                // console.error('加载统计信息失败:', error);
             }
         },
 
@@ -983,7 +936,6 @@ const MainApp = {
                             // 调用删除审核群消息的API
                             await axios.delete(window.API.messages.deleteReviewById(messageId));
                         } catch (error) {
-                            // console.error('删除审核群消息失败:', error);
                         }
                     }
                 } else {
@@ -1263,7 +1215,6 @@ const MainApp = {
         
         // 显示文件详情对话框
         showFileDetailsDialog(details) {
-            console.log('🔍 显示文件详情对话框:', details);
             
             // 确保fileDetailsDialog存在并且是响应式的
             if (!this.fileDetailsDialog) {
@@ -1278,11 +1229,9 @@ const MainApp = {
             this.fileDetailsDialog.visible = true;
             this.fileDetailsDialog.details = { ...details };
             
-            console.log('📊 fileDetailsDialog更新后:', this.fileDetailsDialog);
             
             // 强制Vue重新渲染以确保UI更新
             this.$nextTick(() => {
-                console.log('✅ Vue nextTick: 文件详情对话框应该已显示');
             });
             
             // 异步获取文件大小
@@ -1298,7 +1247,6 @@ const MainApp = {
                     const sizeInBytes = parseInt(size);
                     // Vue 3响应式更新：直接修改属性
                     this.fileDetailsDialog.details.size = this.formatFileSize(sizeInBytes);
-                    console.log('📦 文件大小已更新:', this.fileDetailsDialog.details.size);
                 }
             } catch (error) {
                 console.warn('获取文件大小失败:', error);
@@ -1315,7 +1263,6 @@ const MainApp = {
 
         // 处理媒体加载错误
         handleMediaError(event, message) {
-            // console.error('媒体加载失败:', message.id, event.target.src);
             
             // 创建错误占位符
             const placeholder = document.createElement('div');
@@ -1462,7 +1409,6 @@ const MainApp = {
                         // console.log('未知WebSocket消息类型:', data.type);
                 }
             } catch (error) {
-                // console.error('处理WebSocket消息失败:', error);
             }
         },
 
@@ -1508,9 +1454,9 @@ const MainApp = {
                 if (shouldAddMessage) {
                     // 新消息，添加到列表顶部
                     this.messages.unshift(messageData);
-                    // console.log('✅ 新消息已添加到列表, 当前列表长度:', this.messages.length);
+                    // // [removed console.log]
                 } else {
-                    // console.log('⚠️ 新消息未添加到列表, 原因:', filterReason);
+                    // // [removed console.log]
                 }
                 
                 // 显示通知（无论是否添加到列表）
@@ -1524,11 +1470,11 @@ const MainApp = {
                 this.$nextTick(() => {
                     // 确保媒体URL被正确加载
                     if (messageData.media_display_url || messageData.media_group_display) {
-                        // console.log('🎨 新消息包含媒体，触发重新渲染');
+                        // // [removed console.log]
                     }
                 });
             } else {
-                // console.log('⚠️ 消息已存在，跳过添加');
+                // // [removed console.log]
             }
         },
 
@@ -1553,7 +1499,7 @@ const MainApp = {
                     // console.log(`消息 ${updateData.message_id} 已从列表中移除（状态: ${updateData.status}）`);
                 } else {
                     this.messages[messageIndex].status = updateData.status;
-                    // console.log(`消息 ${updateData.message_id} 状态更新为: ${updateData.status}`);
+                    // // [removed console.log]
                 }
             }
         },
@@ -1648,7 +1594,6 @@ const MainApp = {
                     filtered_content: this.editDialog.filteredContent
                 });
                 
-                console.log('编辑响应:', response.data);
                 
                 if (response.data.success) {
                     MessageManager.success('消息已编辑并保存');
@@ -2024,7 +1969,6 @@ const MainApp = {
                     MessageManager.error(response.data.message || '标记失败');
                 }
             } catch (error) {
-                // console.error('标记广告失败:', error);
                 MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
             }
         },

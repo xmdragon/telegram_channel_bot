@@ -131,7 +131,6 @@ const app = createApp({
                     }
                 }
             } catch (error) {
-                // console.error('加载系统状态失败:', error);
                 MessageManager.error('加载系统状态失败');
             }
         },
@@ -242,7 +241,6 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('重启服务失败:', error);
                     MessageManager.error('重启服务失败');
                 }
             } finally {
@@ -286,7 +284,6 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('重置系统失败:', error);
                     MessageManager.error('重置系统失败');
                 }
             } finally {

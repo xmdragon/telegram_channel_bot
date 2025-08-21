@@ -242,10 +242,14 @@ class IntelligentTailFilter:
         """生成过滤原因说明"""
         reasons = []
         
-        if scores['promotion_score'] > 0.7:
-            reasons.append(f"推广得分较高({scores['promotion_score']:.2f})")
-        if scores['commercial_score'] > 0.7:
-            reasons.append(f"商业化得分较高({scores['commercial_score']:.2f})")
+        # 🔧 Linus风格修复：防御性编程，避免KeyError
+        promotion_score = scores.get('promotion_score', 0.0)
+        commercial_score = scores.get('commercial_score', 0.0)
+        
+        if promotion_score > 0.7:
+            reasons.append(f"推广得分较高({promotion_score:.2f})")
+        if commercial_score > 0.7:
+            reasons.append(f"商业化得分较高({commercial_score:.2f})")
         if features.get('has_telegram_link'):
             reasons.append("包含Telegram链接")
         if features.get('link_count', 0) > 2:

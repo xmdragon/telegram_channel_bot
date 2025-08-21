@@ -100,7 +100,7 @@ class ChannelIdResolver:
             return None
     
     async def update_channel_id(self, channel_name: str, resolved_id: str) -> bool:
-        """更新JSON存储中的频道ID"""
+        """更新JSON存储中的频道ID（仅更新已存在的频道记录）"""
         try:
             channel_store = get_json_channel_store()
             
@@ -119,21 +119,10 @@ class ChannelIdResolver:
                     logger.error(f"保存频道配置失败: {channel_name}")
                     return False
             else:
-                # 创建新的频道记录
-                new_channel = {
-                    'channel_name': channel_name,
-                    'channel_id': resolved_id,
-                    'channel_type': 'source',  # 默认为源频道
-                    'is_active': True
-                }
-                success = channel_store.save_channel(channel_name, new_channel)
-                
-                if success:
-                    logger.info(f"已创建频道 {channel_name} 并设置ID为: {resolved_id}")
-                    return True
-                else:
-                    logger.error(f"创建频道配置失败: {channel_name}")
-                    return False
+                # 🚀 Linus式修复：channel_id_resolver只负责解析ID，不创建频道记录
+                # 避免目标频道被错误创建为源频道类型
+                logger.debug(f"频道 {channel_name} 不存在于频道列表中，跳过创建记录")
+                return True  # 返回True表示解析成功，即使没有更新记录
                     
         except Exception as e:
             logger.error(f"更新频道ID失败: {e}")

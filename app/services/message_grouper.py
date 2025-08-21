@@ -824,8 +824,7 @@ class MessageGrouper:
         """🚀 根据配置决定是否清理已经被组合的单独消息"""
         try:
             # 检查配置开关
-            from app.services.config_manager import get_config_manager
-            config_manager = get_config_manager()
+            from app.services.config_manager import config_manager
             delete_enabled = await config_manager.get_config('storage.delete_single_messages', False)
             
             if not delete_enabled:

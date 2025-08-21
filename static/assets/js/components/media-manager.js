@@ -112,7 +112,6 @@ const app = createApp({
                 // 不再显示加载成功提示，避免频繁打扰用户
                 // ElMessage.success(`加载了 ${this.mediaFiles.length} 个媒体文件`);
             } catch (error) {
-                // console.error('加载媒体文件失败:', error);
                 ElMessage({
                     message: '加载媒体文件失败',
                     type: 'error',
@@ -208,7 +207,6 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('删除文件失败:', error);
                     ElMessage({
                         message: '删除文件失败',
                         type: 'error',
@@ -379,7 +377,6 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('清理未引用文件失败:', error);
                     ElMessage({
                         message: '清理失败',
                         type: 'error',
@@ -495,7 +492,6 @@ const app = createApp({
                     customClass: 'bottom-right-message'
                 });
             } catch (error) {
-                // console.error('导出媒体文件失败:', error);
                 ElMessage({
                     message: '导出失败',
                     type: 'error',
@@ -544,7 +540,6 @@ const app = createApp({
                     throw new Error(response.data.error || '检测失败');
                 }
             } catch (error) {
-                // console.error('检测重复失败:', error);
                 ElMessage({
                     message: error.message || '检测重复失败',
                     type: 'error',
@@ -610,7 +605,6 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('去重失败:', error);
                     ElMessage({
                         message: error.message || '去重失败',
                         type: 'error',
@@ -652,7 +646,6 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('重建视觉哈希失败:', error);
                     ElMessage({
                         message: error.message || '重建视觉哈希失败',
                         type: 'error',

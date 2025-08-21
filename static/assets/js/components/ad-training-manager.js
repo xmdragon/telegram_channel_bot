@@ -77,7 +77,6 @@ const app = createApp({
                 // 加载统计信息
                 await this.loadStatistics();
             } catch (error) {
-                // console.error('加载广告样本数据失败:', error);
                 ElMessage.error('加载样本数据失败');
             } finally {
                 this.loading = false;
@@ -98,7 +97,6 @@ const app = createApp({
                     };
                 }
             } catch (error) {
-                // console.error('加载统计信息失败:', error);
             }
         },
         
@@ -181,7 +179,6 @@ const app = createApp({
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('批量删除失败:', error);
                     ElMessage.error('批量删除失败');
                 }
             }
@@ -265,7 +262,6 @@ const app = createApp({
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('去重失败:', error);
                     ElMessage.error('去重失败');
                 }
             }
@@ -292,7 +288,6 @@ const app = createApp({
                 await this.loadStatistics();
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('优化存储失败:', error);
                     ElMessage.error('优化存储失败');
                 }
             }

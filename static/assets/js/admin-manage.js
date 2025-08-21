@@ -97,10 +97,9 @@ createApp({
             try {
                 const response = await axios.get(API.adminAuth.admins);
                 this.admins = response.data.admins;
-                // console.log('加载的管理员列表:', this.admins);
+                // // [removed console.log]
             } catch (error) {
                 ElMessage.error('加载管理员列表失败');
-                // console.error(error);
             }
         },
         
@@ -111,7 +110,6 @@ createApp({
                 this.availablePermissions = response.data.permissions;
             } catch (error) {
                 ElMessage.error('加载权限列表失败');
-                // console.error(error);
             }
         },
         

@@ -39,11 +39,19 @@ class TailVectorManager:
         self._load_vectors()
     
     def _load_model(self):
-        """加载sentence-transformers模型"""
+        """加载sentence-transformers模型（使用缓存管理器）"""
         try:
-            from sentence_transformers import SentenceTransformer
-            self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-            logger.info("✅ 向量管理器AI模型加载成功")
+            # 🔧 Linus式解决方案：使用专用模型缓存管理器避免重复下载
+            from app.services.model_cache_manager import ModelCacheManager
+            
+            cache_manager = ModelCacheManager()
+            self.model = cache_manager.get_model()  # 使用配置文件中的模型
+            
+            if self.model:
+                logger.info("✅ 向量管理器AI模型加载成功（使用缓存管理器）")
+            else:
+                logger.error("❌ 向量管理器AI模型加载失败，向量功能不可用")
+                
         except Exception as e:
             logger.error(f"❌ AI模型加载失败: {e}")
             self.model = None

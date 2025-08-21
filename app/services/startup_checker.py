@@ -301,9 +301,14 @@ class StartupChecker:
                     result['error'] = "未配置目标频道"
                     logger.error("  - 未配置目标频道")
             else:
-                # 检查是否为用户名而非ID
-                if target_channel.startswith('@') or not target_channel.startswith('-100'):
-                    # 这是用户名或格式不正确的ID，需要解析
+                # 🔧 Linus风格修复：如果已有有效ID，无需重新解析
+                if target_channel_id.startswith('-100'):
+                    # 已有有效的频道ID，直接使用
+                    result['channel_id'] = target_channel_id
+                    result['status'] = f"目标频道ID已缓存: {target_channel_id}"
+                    logger.info(f"    ✅ 使用已缓存ID: {target_channel_id}")
+                else:
+                    # ID格式不正确，需要解析
                     logger.info(f"  - 目标频道 {target_channel} 需要解析ID...")
                     resolved_id = await channel_id_resolver.resolve_channel_id(target_channel)
                     
@@ -318,10 +323,6 @@ class StartupChecker:
                     else:
                         result['error'] = f"目标频道 {target_channel} ID解析失败"
                         logger.error(f"    ❌ 解析失败")
-                else:
-                    # 已经是正确格式的ID
-                    result['channel_id'] = target_channel
-                    logger.info(f"  - 目标频道: {target_channel} (已配置)")
                 
         except Exception as e:
             result['error'] = f"检查目标频道失败: {str(e)}"

@@ -24,8 +24,8 @@ class VersionManager:
         """获取配置管理器实例"""
         if self._config_manager is None:
             try:
-                from app.services.config_manager import get_config_manager
-                self._config_manager = get_config_manager()
+                from app.services.config_manager import config_manager
+                self._config_manager = config_manager
             except Exception as e:
                 logger.error(f"获取配置管理器失败: {e}")
         return self._config_manager
@@ -41,7 +41,7 @@ class VersionManager:
         logger.info(f"生成新版本号: {version}")
         return version
     
-    def save_version(self, version: str) -> None:
+    async def save_version(self, version: str) -> None:
         """
         保存版本号到system.json配置
         
@@ -52,7 +52,7 @@ class VersionManager:
             config_manager = self._get_config_manager()
             if config_manager:
                 # 更新auto_version字段
-                config_manager.set_config('system.auto_version', version, config_type='string', 
+                await config_manager.set_config('system.auto_version', version, config_type='string', 
                                         description='系统自动生成的版本号')
                 self._current_version = None  # 重置缓存，强制重新获取
                 logger.info(f"版本号已保存到system.json: {version}")
@@ -65,7 +65,7 @@ class VersionManager:
             # 如果保存失败，仍然使用内存中的版本
             self._current_version = version
     
-    def load_version(self) -> Optional[str]:
+    async def load_version(self) -> Optional[str]:
         """
         从system.json加载版本号
         优先级：手动设置的version > 自动生成的auto_version
@@ -77,13 +77,13 @@ class VersionManager:
             config_manager = self._get_config_manager()
             if config_manager:
                 # 优先使用手动设置的version
-                manual_version = config_manager.get_config('system.version')
+                manual_version = await config_manager.get_config('system.version')
                 if manual_version and manual_version.strip():
                     logger.info(f"使用手动设置的版本号: {manual_version}")
                     return manual_version.strip()
                 
                 # 如果没有手动设置，使用auto_version
-                auto_version = config_manager.get_config('system.auto_version')
+                auto_version = await config_manager.get_config('system.auto_version')
                 if auto_version and auto_version.strip():
                     logger.info(f"使用自动生成的版本号: {auto_version}")
                     return auto_version.strip()
@@ -91,7 +91,7 @@ class VersionManager:
             logger.warning(f"从配置加载版本号失败: {e}")
         return None
     
-    def get_current_version(self) -> str:
+    async def get_current_version(self) -> str:
         """
         获取当前版本号
         优先级：手动设置的version > 自动生成的auto_version > 新生成版本号
@@ -101,16 +101,16 @@ class VersionManager:
         """
         if self._current_version is None:
             # 尝试从配置加载
-            self._current_version = self.load_version()
+            self._current_version = await self.load_version()
             
             # 如果配置中都不存在，生成新版本号
             if self._current_version is None:
                 self._current_version = self.generate_version()
-                self.save_version(self._current_version)
+                await self.save_version(self._current_version)
         
         return self._current_version
     
-    def refresh_version(self) -> str:
+    async def refresh_version(self) -> str:
         """
         刷新版本号（生成新的版本号并保存到auto_version）
         
@@ -119,11 +119,11 @@ class VersionManager:
         """
         old_version = self._current_version
         new_version = self.generate_version()
-        self.save_version(new_version)
+        await self.save_version(new_version)
         logger.info(f"版本号已刷新: {old_version} -> {new_version}")
         return new_version
     
-    def set_manual_version(self, version: str) -> bool:
+    async def set_manual_version(self, version: str) -> bool:
         """
         设置手动版本号（保存到system.version）
         
@@ -136,7 +136,7 @@ class VersionManager:
         try:
             config_manager = self._get_config_manager()
             if config_manager:
-                config_manager.set_config('system.version', version.strip(), config_type='string', 
+                await config_manager.set_config('system.version', version.strip(), config_type='string', 
                                         description='手动设置的前端资源版本号')
                 self._current_version = None  # 重置缓存，强制重新获取
                 logger.info(f"手动版本号已设置: {version}")
@@ -148,7 +148,7 @@ class VersionManager:
             logger.error(f"设置手动版本号失败: {e}")
             return False
     
-    def clear_manual_version(self) -> bool:
+    async def clear_manual_version(self) -> bool:
         """
         清除手动设置的版本号（删除system.version配置项）
         
@@ -158,7 +158,7 @@ class VersionManager:
         try:
             config_manager = self._get_config_manager()
             if config_manager:
-                config_manager.delete_config('system.version')
+                await config_manager.delete_config('system.version')
                 self._current_version = None  # 重置缓存，强制重新获取
                 logger.info("手动版本号已清除，将使用自动生成的版本号")
                 return True
@@ -169,7 +169,7 @@ class VersionManager:
             logger.error(f"清除手动版本号失败: {e}")
             return False
     
-    def update_html_files(self, html_dir: str = "static") -> int:
+    async def update_html_files(self, html_dir: str = "static") -> int:
         """
         更新所有HTML文件中的版本号
         
@@ -182,7 +182,7 @@ class VersionManager:
         import re
         import os
         
-        current_version = self.get_current_version()
+        current_version = await self.get_current_version()
         html_dir_path = Path(html_dir)
         
         if not html_dir_path.exists():
@@ -222,6 +222,6 @@ def get_version_manager() -> VersionManager:
     """获取全局版本管理器实例"""
     return version_manager
 
-def get_frontend_version() -> str:
+async def get_frontend_version() -> str:
     """获取前端资源版本号"""
-    return version_manager.get_current_version()
+    return await version_manager.get_current_version()

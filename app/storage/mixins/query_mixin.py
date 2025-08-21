@@ -118,14 +118,8 @@ class MessageQueryMixin:
                 if self.redis.exists(idx):
                     existing_indexes.append(idx)
             
-            # 同时添加所有频道的索引
-            channel_patterns = self.redis.keys('msg:idx:*')
-            for pattern in channel_patterns:
-                key_str = pattern.decode('utf-8') if isinstance(pattern, bytes) else pattern
-                # 跳过状态索引和临时索引
-                if (not any(key_str.endswith(status) for status in ['pending', 'approved', 'rejected', 'auto_forwarded']) 
-                    and not key_str.startswith('msg:tmp:')):
-                    existing_indexes.append(key_str)
+            # 🚀 Linus式修复：get_all_messages只应该合并状态索引，不合并频道索引
+            # 频道索引应该通过get_messages_by_channel单独查询
             
             if not existing_indexes:
                 logger.debug("没有找到任何消息索引")

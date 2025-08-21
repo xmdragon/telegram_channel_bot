@@ -19,7 +19,7 @@ async def get_version():
     """
     try:
         version_manager = get_version_manager()
-        version = version_manager.get_current_version()
+        version = await version_manager.get_current_version()
         
         # 获取详细信息
         config_manager = version_manager._get_config_manager()
@@ -27,8 +27,8 @@ async def get_version():
         auto_version = None
         
         if config_manager:
-            manual_version = config_manager.get_config('system.version')
-            auto_version = config_manager.get_config('system.auto_version')
+            manual_version = await config_manager.get_config('system.version')
+            auto_version = await config_manager.get_config('system.auto_version')
         
         return {
             "success": True,
@@ -61,10 +61,10 @@ async def refresh_version():
         version_manager = get_version_manager()
         
         # 生成新版本号
-        new_version = version_manager.refresh_version()
+        new_version = await version_manager.refresh_version()
         
         # 更新HTML文件
-        updated_count = version_manager.update_html_files()
+        updated_count = await version_manager.update_html_files()
         
         logger.info(f"手动刷新版本号: {new_version}, 更新了 {updated_count} 个文件")
         
@@ -100,12 +100,12 @@ async def set_version(request: Dict[str, Any] = Body(...)):
         version_manager = get_version_manager()
         
         # 设置手动版本号
-        success = version_manager.set_manual_version(version)
+        success = await version_manager.set_manual_version(version)
         if not success:
             raise HTTPException(status_code=500, detail="设置手动版本号失败")
         
         # 更新HTML文件
-        updated_count = version_manager.update_html_files()
+        updated_count = await version_manager.update_html_files()
         
         logger.info(f"设置手动版本号: {version}, 更新了 {updated_count} 个文件")
         
@@ -140,15 +140,15 @@ async def clear_manual_version():
         version_manager = get_version_manager()
         
         # 清除手动版本号
-        success = version_manager.clear_manual_version()
+        success = await version_manager.clear_manual_version()
         if not success:
             raise HTTPException(status_code=500, detail="清除手动版本号失败")
         
         # 获取当前生效的版本号
-        current_version = version_manager.get_current_version()
+        current_version = await version_manager.get_current_version()
         
         # 更新HTML文件
-        updated_count = version_manager.update_html_files()
+        updated_count = await version_manager.update_html_files()
         
         logger.info(f"清除手动版本号，当前版本: {current_version}, 更新了 {updated_count} 个文件")
         

@@ -45,15 +45,9 @@ window.MessageComparisonDebug = {
         // 在控制台输出重要信息
         if (analysis.shouldShowComparison) {
             console.group(`🔍 消息 #${message.id} - 应显示对比`);
-            console.log('消息数据:', message);
-            console.log('分析结果:', analysis);
             console.groupEnd();
         } else if (analysis.hasContent && analysis.hasFilteredContent && !analysis.contentEqual) {
             console.group(`⚠️ 消息 #${message.id} - 有内容差异但未显示对比`);
-            console.log('原始内容:', message.content);
-            console.log('过滤内容:', message.filtered_content);
-            console.log('内容相等:', analysis.contentEqual);
-            console.log('分析结果:', analysis);
             console.groupEnd();
         }
         
@@ -84,7 +78,6 @@ window.MessageComparisonDebug = {
     
     // 分析所有消息
     analyzeAllMessages(messages) {
-        console.log('🔍 开始分析消息对比显示问题...');
         this.debugLog = [];
         
         messages.forEach((message, index) => {
@@ -94,11 +87,6 @@ window.MessageComparisonDebug = {
         // 统计分析
         const stats = this.getAnalysisStats();
         console.group('📊 消息分析统计');
-        console.log('总消息数:', messages.length);
-        console.log('应显示对比的消息:', stats.shouldShowComparison);
-        console.log('有内容但未显示对比的消息:', stats.hasContentButNoComparison);
-        console.log('重复消息:', stats.duplicateMessages);
-        console.log('纯媒体消息:', stats.mediaOnlyMessages);
         console.groupEnd();
         
         // 显示详细报告
@@ -152,15 +140,7 @@ window.MessageComparisonDebug = {
             console.group('❗ 问题消息详细报告');
             problematicMessages.forEach(analysis => {
                 console.group(`消息 #${analysis.messageId}`);
-                console.log('状态:', analysis.status);
-                console.log('是否为广告:', analysis.isAd);
-                console.log('过滤原因:', analysis.filterReason);
-                console.log('内容长度差异:', analysis.contentComparison?.lengthDifference);
-                console.log('是否仅空白字符变化:', analysis.contentComparison?.hasWhitespaceOnlyChanges);
-                console.log('是否有显著变化:', analysis.contentComparison?.hasSignificantChanges);
                 if (analysis.contentComparison) {
-                    console.log('原始内容预览:', analysis.contentComparison.originalPreview);
-                    console.log('过滤内容预览:', analysis.contentComparison.filteredPreview);
                 }
                 console.groupEnd();
             });
@@ -190,7 +170,6 @@ window.MessageComparisonDebug = {
                 childList: true,
                 subtree: true
             });
-            console.log('🔍 开始监控消息渲染...');
         }
         
         return observer;
@@ -240,7 +219,6 @@ window.MessageComparisonDebug = {
         a.click();
         URL.revokeObjectURL(url);
         
-        console.log('📄 调试报告已导出');
     },
     
     // 测试特定消息
@@ -252,7 +230,6 @@ window.MessageComparisonDebug = {
         }
         
         console.group(`🧪 测试消息 #${messageId}`);
-        console.log('消息数据:', message);
         
         // 测试各种条件
         const tests = {
@@ -263,18 +240,12 @@ window.MessageComparisonDebug = {
             shouldShowComparison: this.shouldShowContentComparison(message)
         };
         
-        console.log('测试结果:', tests);
         
         // 详细比较
         if (tests.hasContent && tests.hasFilteredContent) {
-            console.log('原始内容:', `"${message.content}"`);
-            console.log('过滤内容:', `"${message.filtered_content}"`);
-            console.log('内容相等(===):', message.content === message.filtered_content);
-            console.log('内容相等(trim):', message.content.trim() === message.filtered_content.trim());
             
             // 字符级比较
             if (message.content !== message.filtered_content) {
-                console.log('字符差异分析:');
                 this.compareStrings(message.content, message.filtered_content);
             }
         }
@@ -285,14 +256,10 @@ window.MessageComparisonDebug = {
     
     // 字符串差异比较
     compareStrings(str1, str2) {
-        console.log('长度:', str1.length, 'vs', str2.length);
         
         // 找出第一个不同的位置
         for (let i = 0; i < Math.min(str1.length, str2.length); i++) {
             if (str1[i] !== str2[i]) {
-                console.log(`第${i}个字符不同:`, `"${str1[i]}" vs "${str2[i]}"`);
-                console.log('上下文:', str1.substring(Math.max(0, i-10), i+10));
-                console.log('vs:', str2.substring(Math.max(0, i-10), i+10));
                 break;
             }
         }
@@ -301,7 +268,6 @@ window.MessageComparisonDebug = {
         if (str1.length !== str2.length) {
             const longer = str1.length > str2.length ? str1 : str2;
             const shorter = str1.length > str2.length ? str2 : str1;
-            console.log('长度差异:', longer.substring(shorter.length));
         }
     }
 };
@@ -309,11 +275,5 @@ window.MessageComparisonDebug = {
 // 在窗口加载完成后初始化
 window.addEventListener('load', () => {
     if (window.MessageComparisonDebug.enableDebug) {
-        console.log('🔍 消息对比调试工具已加载');
-        console.log('使用方法:');
-        console.log('1. MessageComparisonDebug.analyzeAllMessages(messages) - 分析所有消息');
-        console.log('2. MessageComparisonDebug.testMessage(messageId, messages) - 测试特定消息');
-        console.log('3. MessageComparisonDebug.monitorMessageRendering() - 监控消息渲染');
-        console.log('4. MessageComparisonDebug.exportDebugReport() - 导出调试报告');
     }
 });

@@ -7,10 +7,11 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <!-- 外部样式文件 -->
-    <link rel="stylesheet" href="assets/css/element-plus.css">
-    <link rel="stylesheet" href="assets/css/element-plus-fixes.css">
-    <link rel="stylesheet" href="assets/css/modern-ui.css">
-    <link rel="stylesheet" href="assets/css/components/config.css">
+    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/components/config.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/components/inline-styles.css?v=1755738345">
     
     <!-- 外部脚本文件 -->
     <script src="assets/js/vue.prod.js"></script>
@@ -51,7 +52,7 @@
                                             </el-input>
                                         </el-form-item>
                                         <el-form-item>
-                                            <div style="color: #909399; font-size: 12px;">
+                                            <div class="text-info text-12">
                                                 <i class="el-icon-info"></i> 
                                                 频道ID和标题会自动解析，无需手动填写
                                             </div>
@@ -79,7 +80,7 @@
                                     </el-form>
                                     
                                     <!-- 批量添加结果 -->
-                                    <div v-if="batchChannel.results" style="margin-top: 20px;">
+                                    <div v-if="batchChannel.results" class="mt-20">
                                         <el-alert 
                                             :title="batchChannel.message" 
                                             :type="batchChannel.success ? 'success' : 'warning'"
@@ -88,35 +89,35 @@
                                         </el-alert>
                                         
                                         <!-- 添加成功的频道 -->
-                                        <div v-if="batchChannel.results.added && batchChannel.results.added.length > 0" style="margin-top: 10px;">
+                                        <div v-if="batchChannel.results.added && batchChannel.results.added.length > 0" class="mt-10">
                                             <h5>✅ 成功添加的频道：</h5>
-                                            <el-tag v-for="channel in batchChannel.results.added" :key="channel.channel_name" style="margin: 2px;">
+                                            <el-tag v-for="channel in batchChannel.results.added" :key="channel.channel_name" class="m-2">
                                                 {{ channel.channel_title }} ({{ channel.channel_name }})
                                             </el-tag>
                                         </div>
                                         
                                         <!-- 已存在的频道 -->
-                                        <div v-if="batchChannel.results.existed && batchChannel.results.existed.length > 0" style="margin-top: 10px;">
+                                        <div v-if="batchChannel.results.existed && batchChannel.results.existed.length > 0" class="mt-10">
                                             <h5>ℹ️ 已存在的频道：</h5>
-                                            <el-tag v-for="channel in batchChannel.results.existed" :key="channel" type="info" style="margin: 2px;">
+                                            <el-tag v-for="channel in batchChannel.results.existed" :key="channel" type="info" class="m-2">
                                                 {{ channel }}
                                             </el-tag>
                                         </div>
                                         
                                         <!-- 自动订阅的频道 -->
-                                        <div v-if="batchChannel.results.subscribed && batchChannel.results.subscribed.length > 0" style="margin-top: 10px;">
+                                        <div v-if="batchChannel.results.subscribed && batchChannel.results.subscribed.length > 0" class="mt-10">
                                             <h5>🔔 自动订阅的频道：</h5>
-                                            <el-tag v-for="channel in batchChannel.results.subscribed" :key="channel" type="success" style="margin: 2px;">
+                                            <el-tag v-for="channel in batchChannel.results.subscribed" :key="channel" type="success" class="m-2">
                                                 {{ channel }}
                                             </el-tag>
                                         </div>
                                         
                                         <!-- 添加失败的频道 -->
-                                        <div v-if="batchChannel.results.failed && batchChannel.results.failed.length > 0" style="margin-top: 10px;">
+                                        <div v-if="batchChannel.results.failed && batchChannel.results.failed.length > 0" class="mt-10">
                                             <h5>❌ 添加失败的频道：</h5>
-                                            <div v-for="item in batchChannel.results.failed" :key="item.channel_name" style="margin: 5px 0;">
+                                            <div v-for="item in batchChannel.results.failed" :key="item.channel_name" class="m-5">
                                                 <el-tag type="danger">{{ item.channel_name }}</el-tag>
-                                                <span style="color: #F56C6C; margin-left: 10px;">{{ item.reason }}</span>
+                                                <span class="text-danger ml-10">{{ item.reason }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -125,7 +126,7 @@
                         </div>
 
                         <!-- 搜索Telegram频道（暂时隐藏） -->
-                        <div class="search-channel-form" style="margin-top: 20px; padding: 15px; border: 1px solid #e4e7ed; border-radius: 4px; display: none;">
+                        <div class="search-channel-form no-display">
                             <h4>搜索Telegram频道</h4>
                             <el-form :model="searchForm" label-width="100px">
                                 <el-form-item label="搜索关键词">
@@ -143,14 +144,14 @@
                             </el-form>
                             
                             <!-- 搜索结果 -->
-                            <div v-if="searchForm.results.length > 0" class="search-results" style="margin-top: 15px;">
+                            <div v-if="searchForm.results.length > 0" class="search-results mt-15">
                                 <h5>搜索结果：</h5>
-                                <div v-for="result in searchForm.results" :key="result.id" class="search-result-item" style="padding: 10px; margin: 5px 0; border: 1px solid #e4e7ed; border-radius: 4px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div v-for="result in searchForm.results" :key="result.id" class="search-result-item">
+                                    <div class="flex-between">
                                         <div>
                                             <strong>{{ result.title }}</strong>
-                                            <span style="color: #909399; margin-left: 10px;">ID: {{ result.id }}</span>
-                                            <el-tag size="small" style="margin-left: 10px;">{{ result.participants_count || 'N/A' }} 成员</el-tag>
+                                            <span class="text-info ml-10">ID: {{ result.id }}</span>
+                                            <el-tag size="small" class="ml-10">{{ result.participants_count || 'N/A' }} 成员</el-tag>
                                         </div>
                                         <el-button 
                                             size="small" 
@@ -159,14 +160,14 @@
                                             添加监听
                                         </el-button>
                                     </div>
-                                    <div v-if="result.description" style="color: #606266; margin-top: 5px; font-size: 13px;">
+                                    <div v-if="result.description" class="text-13 mt-5" style="color: #606266;">
                                         {{ result.description }}
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- 无结果提示 -->
-                            <div v-else-if="searchForm.searched && searchForm.results.length === 0" style="margin-top: 15px; text-align: center; color: #909399;">
+                            <div v-else-if="searchForm.searched && searchForm.results.length === 0" class="mt-15 text-center text-info">
                                 没有找到相关频道
                             </div>
                         </div>
@@ -174,36 +175,36 @@
                         <h3>监听频道列表</h3>
                         
                         <!-- 频道搜索过滤 -->
-                        <div style="margin-bottom: 20px;">
+                        <div class="mb-20">
                             <el-input 
                                 v-model="channelSearchFilter" 
                                 placeholder="搜索频道名称或标题..."
                                 clearable
                                 prefix-icon="Search"
-                                style="width: 300px;">
+                                class="w-300">
                             </el-input>
-                            <span style="margin-left: 10px; color: #909399;">
+                            <span class="ml-10 text-info">
                                 共 {{ filteredChannels.length }} / {{ channels.length }} 个频道
                             </span>
                         </div>
                         
                         <div class="channel-list">
-                            <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e4e7ed;">
-                                <div class="channel-info" style="flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap;">
-                                    <span class="channel-title" style="font-weight: 500;">
+                            <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item flex-between p-12 border-bottom">
+                                <div class="channel-info flex-1 min-width-0 flex-center flex-wrap">
+                                    <span class="channel-title font-medium">
                                         {{ channel.title || '未设置标题' }}
                                     </span>
-                                    <span class="channel-name" style="color: #606266; margin-left: 8px;">
+                                    <span class="channel-name ml-8" style="color: #606266;">
                                         ({{ channel.name && channel.name.startsWith('@') ? channel.name : '@' + (channel.name || '') }})
                                     </span>
-                                    <span v-if="!channel.channel_id" class="channel-id no-id" style="margin-left: 8px; color: #F56C6C; font-size: 12px;">[无ID]</span>
-                                    <span v-else class="channel-id has-id" style="color: #909399; margin-left: 8px; font-size: 12px;">[{{ channel.channel_id }}]</span>
+                                    <span v-if="!channel.channel_id" class="channel-id no-id ml-8 text-danger text-12">[无ID]</span>
+                                    <span v-else class="channel-id has-id text-info ml-8 text-12">[{{ channel.channel_id }}]</span>
                                 </div>
-                                <div class="channel-actions" style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
+                                <div class="channel-actions flex-gap-8 flex-shrink-0 flex-center">
                                     <el-tag 
                                         :type="channel.status === 'active' ? 'success' : 'danger'" 
                                         size="small"
-                                        style="cursor: pointer;"
+                                        class="clickable"
                                         @click="toggleChannelStatus(channel)">
                                         {{ channel.status === 'active' ? '活跃' : '停用' }}
                                     </el-tag>
@@ -225,7 +226,7 @@
                             <el-button type="primary" @click="resolveAllChannels" icon="Refresh">
                                 批量解析所有频道ID
                             </el-button>
-                            <el-text type="info" style="margin-left: 10px;">
+                            <el-text type="info" class="ml-10">
                                 <small>包括源频道、目标频道、审核群</small>
                             </el-text>
                         </div>
@@ -318,7 +319,7 @@
                         <el-form :model="systemConfig" label-width="150px">
                             <el-form-item label="历史消息采集数">
                                 <el-input-number v-model="systemConfig.history_message_limit" :min="1" :max="1000" placeholder="50"></el-input-number>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     首次采集或重启后从频道获取的历史消息条数
                                 </div>
                             </el-form-item>
@@ -329,7 +330,7 @@
                                     placeholder="输入频道落款内容，支持多行（用回车换行）"
                                     :rows="4">
                                 </el-input>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     消息经过智能去除尾部内容后，会自动添加此落款到消息尾部
                                 </div>
                             </el-form-item>
@@ -338,9 +339,9 @@
                                     v-model="systemConfig.collection_enabled"
                                     active-text="启用采集"
                                     inactive-text="禁用采集"
-                                    style="margin-left: 10px;">
+                                    class="ml-10">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     控制是否开启Telegram消息采集，关闭后系统将暂停从监听频道采集新消息
                                 </div>
                             </el-form-item>
@@ -352,7 +353,7 @@
                                     active-text="启用"
                                     inactive-text="禁用">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     启用智能内容过滤，检测和过滤广告等不合规内容
                                 </div>
                             </el-form-item>
@@ -363,7 +364,7 @@
                                     active-text="启用"
                                     inactive-text="禁用">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     自动去除消息尾部的推广内容、联系方式等
                                 </div>
                             </el-form-item>
@@ -374,7 +375,7 @@
                                     active-text="启用"
                                     inactive-text="禁用">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     对图片进行文字识别，用于广告检测和内容过滤
                                 </div>
                             </el-form-item>
@@ -386,7 +387,7 @@
                                     active-text="启用"
                                     inactive-text="禁用">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     消息需要人工审核通过后才会转发到目标频道
                                 </div>
                             </el-form-item>
@@ -397,7 +398,7 @@
                                     active-text="启用"
                                     inactive-text="禁用">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     消息采集后立即转发到审核群，供人工审核
                                 </div>
                             </el-form-item>
@@ -409,7 +410,7 @@
                                     active-text="启用"
                                     inactive-text="禁用">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     后台调度服务，处理自动转发和数据清理任务
                                 </div>
                             </el-form-item>
@@ -420,7 +421,7 @@
                                     active-text="启用"
                                     inactive-text="禁用">
                                 </el-switch>
-                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                <div class="help-text">
                                     组合消息保存后删除单独消息（性能优化，可回滚）
                                 </div>
                             </el-form-item>

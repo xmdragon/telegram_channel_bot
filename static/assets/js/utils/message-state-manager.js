@@ -19,7 +19,6 @@ class MessageStateManager {
         messages.forEach(msg => {
             this.messageMap.set(msg.id, { ...msg });
         });
-        console.log(`MessageStateManager initialized with ${messages.length} messages`);
     }
     
     // 添加单个消息

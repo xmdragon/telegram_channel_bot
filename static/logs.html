@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📋 系统日志</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755704291">
-    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755704291">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755704291">
+    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/components/inline-styles.css?v=1755738345">
 </head>
 <body>
     <div id="app">
@@ -19,9 +20,9 @@
                         <el-row :gutter="20" class="control-bar">
                             <el-col :span="24">
                                 <el-card shadow="never">
-                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div class="flex-gap-15">
                                         <!-- 日志类型选择 -->
-                                        <el-select v-model="selectedLogType" placeholder="选择日志类型" @change="changeLogType" style="width: 160px;">
+                                        <el-select v-model="selectedLogType" placeholder="选择日志类型" @change="changeLogType" class="w-160">
                                             <el-option label="📡 Telegram采集" value="collector"></el-option>
                                             <el-option label="🌐 Web服务" value="web"></el-option>
                                             <el-option label="⏰ 调度服务" value="scheduler"></el-option>
@@ -30,7 +31,7 @@
                                         </el-select>
                                         
                                         <!-- 日志级别选择 -->
-                                        <el-select v-model="selectedLevel" placeholder="选择日志级别" clearable @change="filterLogs" style="width: 140px;">
+                                        <el-select v-model="selectedLevel" placeholder="选择日志级别" clearable @change="filterLogs" class="w-140">
                                             <el-option label="全部" value=""></el-option>
                                             <el-option label="DEBUG" value="DEBUG"></el-option>
                                             <el-option label="INFO" value="INFO"></el-option>
@@ -45,7 +46,7 @@
                                             placeholder="搜索日志内容..." 
                                             @input="filterLogs"
                                             clearable
-                                            style="flex: 1; max-width: 400px;"
+                                            class="flex-1 max-w-400"
                                         >
                                             <template #prefix>
                                                 <el-icon><search></search></el-icon>
@@ -53,7 +54,7 @@
                                         </el-input>
                                         
                                         <!-- 按钮组 -->
-                                        <div style="margin-left: auto; display: flex; gap: 10px;">
+                                        <div class="margin-auto flex-gap-10">
                                             <el-button @click="toggleAutoRefresh" :type="autoRefresh ? 'success' : 'info'" size="default">
                                                 <el-icon><timer></timer></el-icon>
                                                 {{ autoRefresh ? '停止自动刷新' : '开始自动刷新' }}
@@ -72,7 +73,7 @@
                         <el-card shadow="never" class="logs-display">
                             <div class="logs-header">
                                 <h3>{{ getLogTypeLabel() }}日志 <span class="timestamp">{{ lastUpdate }}</span></h3>
-                                <p style="margin: 0; font-size: 12px; color: #909399;">
+                                <p class="text-12 text-info" style="margin: 0;">
                                     📌 最新日志显示在顶部，按时间倒序排列 | 当前显示: {{ getLogTypeLabel() }}
                                 </p>
                             </div>
@@ -102,13 +103,13 @@
     </div>
 
     <!-- Vue 和 ElementPlus -->
-    <script src="assets/js/vue.prod.js?v=1755704291"></script>
-    <script src="assets/js/element-plus.js?v=1755704291"></script>
-    <script src="assets/js/axios.js?v=1755704291"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755704291"></script>
-    <script src="assets/js/components/navbar.js?v=1755704291"></script>
+    <script src="assets/js/vue.prod.js?v=1755738345"></script>
+    <script src="assets/js/element-plus.js?v=1755738345"></script>
+    <script src="assets/js/axios.js?v=1755738345"></script>
+    <script src="assets/js/config/api-endpoints.js?v=1755738345"></script>
+    <script src="assets/js/components/navbar.js?v=1755738345"></script>
     
     <!-- 页面脚本 -->
-    <script src="assets/js/components/logs.js?v=1755704291"></script>
+    <script src="assets/js/components/logs.js?v=1755738345"></script>
 </body>
 </html>

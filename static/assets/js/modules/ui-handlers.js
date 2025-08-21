@@ -6,7 +6,6 @@ const UIHandlers = {
         if (window.ElMessage) {
             window.ElMessage.success(message);
         } else {
-            console.log('✅', message);
         }
     },
 

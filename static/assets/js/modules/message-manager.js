@@ -122,7 +122,6 @@ const MessageManager = {
         if (typeof ElMessage !== 'undefined') {
             ElMessage.success(message);
         } else {
-            console.log('SUCCESS:', message);
         }
     },
 

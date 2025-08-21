@@ -59,7 +59,6 @@ window.MessageManager = {
             } else if (type === 'warning') {
                 console.warn(`[警告] ${message}`);
             } else {
-                console.log(`[${type.toUpperCase()}] ${message}`);
             }
         }
     },

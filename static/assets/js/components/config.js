@@ -4,9 +4,9 @@
 const API = window.API;
 
 // 检查依赖是否加载
-// console.log('Vue loaded:', typeof Vue !== 'undefined');
-// console.log('ElementPlus loaded:', typeof ElementPlus !== 'undefined');
-// console.log('Axios loaded:', typeof axios !== 'undefined');
+// // [removed console.log]
+// // [removed console.log]
+// // [removed console.log]
 
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
@@ -194,7 +194,6 @@ const ConfigApp = {
                     this.channels = response.data.channels;
                 }
             } catch (error) {
-                // console.error('加载频道列表失败:', error);
                 // 使用模拟数据
                 this.channels = [
                     { id: 1, name: '测试频道1', title: '测试频道标题1', status: 'active' },
@@ -220,7 +219,6 @@ const ConfigApp = {
                         review_group_id: configs['review.group_id']?.value || ''
                     };
                     
-                    console.log('加载的转发配置:', this.forwardingConfig);
                 }
             } catch (error) {
                 console.error('加载转发配置失败:', error);
@@ -260,7 +258,6 @@ const ConfigApp = {
                         delete_single_messages: this.parseBooleanValue(configs['storage.delete_single_messages']?.value, true)
                     };
                     
-                    console.log('加载的系统配置:', this.systemConfig);
                 }
             } catch (error) {
                 console.error('加载系统配置失败:', error);
@@ -300,7 +297,6 @@ const ConfigApp = {
                     MessageManager.error('频道添加失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                // console.error('添加频道错误:', error);
                 MessageManager.error('频道添加失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -309,11 +305,11 @@ const ConfigApp = {
         
         async removeChannel(channelId) {
             try {
-                // console.log('删除频道ID:', channelId);
+                // // [removed console.log]
                 
                 const response = await axios.delete(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channelId)));
                 
-                // console.log('删除频道响应:', response.data);
+                // // [removed console.log]
                 
                 if (response.data.success) {
                     MessageManager.success('频道删除成功');
@@ -322,7 +318,6 @@ const ConfigApp = {
                     MessageManager.error('频道删除失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                // console.error('删除频道错误:', error);
                 MessageManager.error('频道删除失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -381,7 +376,6 @@ const ConfigApp = {
                     }
                 }
             } catch (error) {
-                // console.error('批量添加频道错误:', error);
                 MessageManager.error('批量添加频道失败: ' + (error.response?.data?.detail || error.message));
                 this.batchChannel.results = null;
             } finally {
@@ -411,13 +405,13 @@ const ConfigApp = {
                 const newStatus = channel.status === 'active' ? 'inactive' : 'active';
                 const isActive = newStatus === 'active';
                 
-                // console.log('切换频道状态:', channel.channel_id || channel.name, '从', channel.status, '到', newStatus);
+                // // [removed console.log]
                 
                 const response = await axios.put(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channel.name)), {
                     is_active: isActive
                 });
                 
-                // console.log('状态切换响应:', response.data);
+                // // [removed console.log]
                 
                 if (response.data.success) {
                     MessageManager.success(`频道状态已切换为${newStatus === 'active' ? '活跃' : '停用'}`);
@@ -426,7 +420,6 @@ const ConfigApp = {
                     MessageManager.error('状态切换失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                // console.error('状态切换错误:', error);
                 MessageManager.error('状态切换失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -446,7 +439,6 @@ const ConfigApp = {
                 };
                 
                 // 调试日志
-                console.log('保存配置数据:', configData);
                 
                 const response = await axios.post(API.admin.configBatch, configData);
                 
@@ -484,7 +476,6 @@ const ConfigApp = {
                 };
                 
                 // 调试日志
-                console.log('保存系统配置数据:', configData);
                 
                 // 批量保存配置
                 const response = await axios.post(API.admin.configBatch, configData);
@@ -589,7 +580,6 @@ const ConfigApp = {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
             } catch (error) {
-                // console.error('手动解析目标频道失败:', error);
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -619,7 +609,6 @@ const ConfigApp = {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
             } catch (error) {
-                // console.error('手动解析审核群失败:', error);
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -644,7 +633,6 @@ const ConfigApp = {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
             } catch (error) {
-                // console.error('批量解析频道失败:', error);
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
@@ -680,7 +668,6 @@ const ConfigApp = {
                     MessageManager.error(response.data.message || '搜索失败');
                 }
             } catch (error) {
-                // console.error('搜索频道失败:', error);
                 MessageManager.error('搜索频道失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.searchForm.loading = false;
@@ -711,7 +698,6 @@ const ConfigApp = {
                     MessageManager.error(response.data.message || '添加失败');
                 }
             } catch (error) {
-                // console.error('添加频道失败:', error);
                 MessageManager.error('添加频道失败: ' + (error.response?.data?.detail || error.message));
             }
         }
@@ -720,11 +706,11 @@ const ConfigApp = {
 
 // 等待 DOM 加载完成
 document.addEventListener('DOMContentLoaded', function() {
-    // console.log('DOM loaded, mounting Vue app...');
+    // // [removed console.log]
     
     // 创建应用实例
-    // console.log('Vue version:', Vue.version);
-    // console.log('ElementPlus version:', ElementPlus.version);
+    // // [removed console.log]
+    // // [removed console.log]
 
     try {
         const app = createApp(ConfigApp);
@@ -737,22 +723,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 添加错误处理
         app.config.errorHandler = (err, vm, info) => {
-            // console.error('Vue Error:', err);
-            // console.error('Error Info:', info);
         };
 
         // 检查目标元素是否存在
         const targetElement = document.getElementById('app');
         if (!targetElement) {
-            // console.error('Target element #app not found!');
             return;
         }
 
         // 挂载应用
         app.mount('#app');
-        // console.log('Vue app mounted successfully');
+        // // [removed console.log]
     } catch (error) {
-        // console.error('Failed to mount Vue app:', error);
         document.body.innerHTML = '<div style="color: red; padding: 20px;">Vue 应用挂载失败: ' + error.message + '</div>';
     }
 }); 

@@ -488,7 +488,6 @@ const TrainApp = {
             }
             
             this.submitting = true;
-            console.log('🛠️ 开始处理提交数据...');
             
             try {
                 // 提取分隔符（尾部内容的第一行作为分隔符）
@@ -518,8 +517,8 @@ const TrainApp = {
                 
                 // 检查token
                 const token = localStorage.getItem('admin_token');
-                // console.log('当前Token:', token ? '存在 (' + token.substring(0, 20) + '...)' : '不存在');
-                // console.log('Authorization header:', axios.defaults.headers.common['Authorization']);
+                // // [removed console.log]+ '...)' : '不存在');
+                // // [removed console.log]
                 
                 // 统一提交到tail-filter-samples
                 const postData = {
@@ -549,7 +548,6 @@ const TrainApp = {
                 });
                 
                 if (response.data.success) {
-                    console.log('✅ API请求成功');
                     // 显示实际的响应消息
                     ElMessage({
                         message: response.data.message || '训练样本已提交并自动应用',
@@ -559,10 +557,8 @@ const TrainApp = {
                     });
                     
                     // 检查是否需要自动返回主控制台
-                    console.log('检查自动返回参数:', this.autoReturnParams);
                     
                     if (this.autoReturnParams.enabled) {
-                        console.log('满足自动返回条件，1秒后返回主控制台');
                         // 立即返回，不需要刷新历史记录
                         setTimeout(() => {
                             window.location.href = '/static/index.html?refresh=true';
@@ -599,7 +595,6 @@ const TrainApp = {
                     customClass: 'bottom-right-message'
                 });
             } finally {
-                console.log('🏁 提交过程结束');
                 this.submitting = false;
             }
         },
@@ -637,7 +632,6 @@ const TrainApp = {
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    // console.error('删除失败:', error);
                 }
             }
         },
@@ -678,7 +672,6 @@ const TrainApp = {
                     storageSize: 0  // 暂时不统计存储空间
                 };
             } catch (error) {
-                // console.error('加载训练数据统计失败:', error);
                 this.trainingDataStats = {
                     totalSamples: 0,
                     uniqueSamples: 0,
@@ -690,7 +683,7 @@ const TrainApp = {
 
         // 打开训练数据管理界面
         openTrainingManager(type = null) {
-            // console.log('openTrainingManager called with type:', type);
+            // // [removed console.log]
             // 根据类型跳转到不同的独立页面
             let url;
             if (type === 'tail') {
@@ -701,7 +694,7 @@ const TrainApp = {
                 // 默认跳转到广告管理页面
                 url = '/static/ad-training-manager.html';
             }
-            // console.log('Navigating to:', url);
+            // // [removed console.log]
             // 在当前页面打开，而不是新窗口
             window.location.href = url;
         },
@@ -732,8 +725,7 @@ document.addEventListener('DOMContentLoaded', function() {
             app.component('training-nav', window.TrainingNav);
         }
         app.mount('#app');
-        // console.log('训练页面初始化成功');
+        // // [removed console.log]
     } catch (error) {
-        // console.error('训练页面初始化失败:', error);
     }
 });

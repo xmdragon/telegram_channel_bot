@@ -117,7 +117,6 @@ class AuthManager {
                 this.redirectToLogin();
                 return false;
             }
-            // console.error('验证认证失败:', error);
             return false;
         }
     }

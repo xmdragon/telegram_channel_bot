@@ -54,7 +54,6 @@ createApp({
                     this.separatorPatterns = response.data.patterns;
                 }
             } catch (error) {
-                // console.error('加载模式失败:', error);
             }
         },
         
@@ -137,7 +136,6 @@ createApp({
                         break;
                     }
                 } catch (e) {
-                    // console.error('正则表达式错误:', e);
                 }
             }
             
@@ -154,7 +152,6 @@ createApp({
                 const response = await axios.get(API.training.tailFilterSamples);
                 this.trainingSamples = response.data.samples || [];
             } catch (error) {
-                // console.error('加载样本失败:', error);
             }
         },
         
