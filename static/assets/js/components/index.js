@@ -307,7 +307,24 @@ const MainApp = {
             
             // 建立WebSocket连接（非关键功能，失败不影响使用）
             try {
-                this.connectWebSocket();
+                if (window.WebSocketManager) {
+                    // 使用模块化的WebSocket管理器
+                    window.WebSocketManager.init({
+                        onMessage: this.handleWebSocketMessage.bind(this),
+                        onStatusChange: (isConnected) => {
+                            this.websocketConnected = isConnected;
+                            this.systemStatus = isConnected ? '在线' : '离线';
+                        },
+                        onError: (error) => {
+                            console.warn('WebSocket连接错误:', error);
+                            this.websocketConnected = false;
+                            this.systemStatus = '连接错误';
+                        }
+                    });
+                } else {
+                    // 降级到原有方法
+                    this.connectWebSocket();
+                }
             } catch (err) {
                 console.warn('WebSocket连接失败，实时更新功能将不可用:', err);
             }
@@ -315,7 +332,16 @@ const MainApp = {
             // 定期检查WebSocket连接状态
             this.connectionCheckInterval = setInterval(() => {
                 try {
-                    this.checkWebSocketConnection();
+                    if (window.WebSocketManager) {
+                        // 检查模块化WebSocket的连接状态
+                        if (!window.WebSocketManager.isConnected) {
+                            this.websocketConnected = false;
+                            this.systemStatus = '离线';
+                        }
+                    } else {
+                        // 降级检查
+                        this.checkWebSocketConnection();
+                    }
                 } catch (err) {
                     console.warn('WebSocket连接检查失败:', err);
                 }
