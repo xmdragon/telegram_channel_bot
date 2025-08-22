@@ -197,9 +197,9 @@ class TailVectorManager:
                 similarity = similarities[idx]
                 if similarity >= threshold:
                     results.append({
-                        'sample_id': self.sample_ids[idx],
+                        'sample_id': int(self.sample_ids[idx]),  # 转换numpy类型为Python int
                         'similarity': round(float(similarity), 4),
-                        'vector_index': idx
+                        'vector_index': int(idx)  # 转换numpy类型为Python int
                     })
             
             logger.debug(f"🔍 找到 {len(results)} 个相似样本")

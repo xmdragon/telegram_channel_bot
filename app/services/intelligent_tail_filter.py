@@ -167,7 +167,7 @@ class IntelligentTailFilter:
         
         # 调整得分
         if similar_samples:
-            avg_confidence = np.mean([s['similarity'] for s in similar_samples])
+            avg_confidence = float(np.mean([s['similarity'] for s in similar_samples]))  # 转换numpy类型为Python float
             if avg_confidence > 0.8:
                 scores['overall_score'] = min(scores['overall_score'] + 0.2, 1.0)
         
