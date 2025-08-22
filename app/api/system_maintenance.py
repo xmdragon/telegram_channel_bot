@@ -8,6 +8,7 @@ import logging
 import psutil
 import shutil
 import asyncio
+import subprocess
 from pathlib import Path
 from app.core.path_config import PathConfig
 from app.storage.redis_store import get_redis_message_store
@@ -24,14 +25,41 @@ router = APIRouter(tags=["system-maintenance"])
 async def restart_services() -> Dict[str, Any]:
     """重启服务"""
     try:
-        # 重启Telegram客户端连接
-        if auth_manager and auth_manager.client:
-            try:
+        # 重启Telegram采集器进程
+        try:
+            # 先停止telegram_collector.py进程
+            collector_stopped = False
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info['cmdline']
+                    if cmdline and any('telegram_collector.py' in str(arg) for arg in cmdline):
+                        logger.info(f"停止Telegram采集器进程 PID: {proc.info['pid']}")
+                        proc.terminate()
+                        proc.wait(timeout=5)  # 等待进程优雅退出
+                        collector_stopped = True
+                        break
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                    continue
+            
+            # 重新启动telegram_collector.py
+            if collector_stopped:
+                # 使用nohup在后台启动
+                result = subprocess.Popen(
+                    ['nohup', 'python3', 'telegram_collector.py'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                logger.info(f"重启Telegram采集器进程: PID {result.pid}")
+            
+            # 同时重启内部客户端连接（兼容性）
+            if auth_manager and auth_manager.client:
                 await auth_manager.client.disconnect()
                 await auth_manager.ensure_connected()
-                logger.info("Telegram客户端已重启")
-            except Exception as e:
-                logger.error(f"重启Telegram客户端失败: {e}")
+                logger.info("Telegram内部客户端连接已重启")
+                
+        except Exception as e:
+            logger.error(f"重启Telegram服务失败: {e}")
         
         # 重启系统监控
         try:
