@@ -160,28 +160,29 @@ class LinusStatsStore(RedisBaseStore):
             logger.error(f"更新消息状态失败: {e}")
     
     def get_global_stats(self) -> MessageStats:
-        """获取全局统计 - O(1)操作"""
+        """
+        获取全局统计 - Linus式单一数据源版本
+        直接从索引计算，消除数据不一致问题
+        """
         try:
-            stats_data = self.redis.hgetall(self.GLOBAL_STATS_KEY)
-            if not stats_data:
-                return MessageStats(0, 0, 0, 0)
+            # 🔥 Linus方式：索引就是唯一真相源
+            pending = self.redis.zcard("msg:idx:pending")      # O(1)
+            approved = self.redis.zcard("msg:idx:approved")    # O(1)
+            accepted = self.redis.zcard("msg:idx:accepted")    # O(1)
+            rejected = self.redis.zcard("msg:idx:rejected")    # O(1)
+            auto_forwarded = self.redis.zcard("msg:idx:auto_forwarded")  # O(1)
             
-            # 处理字节字符串和普通字符串两种情况
-            def get_value(key):
-                # 尝试字节字符串键
-                byte_key = key.encode() if isinstance(key, str) else key
-                str_key = key.decode() if isinstance(key, bytes) else key
-                
-                value = stats_data.get(byte_key) or stats_data.get(str_key) or 0
-                if isinstance(value, bytes):
-                    value = value.decode()
-                return int(value)
+            # 合并approved和accepted（历史兼容）
+            total_accepted = approved + accepted
+            total = pending + total_accepted + rejected + auto_forwarded
+            
+            logger.debug(f"📊 从索引计算统计: pending={pending}, accepted={total_accepted}, rejected={rejected}, total={total}")
             
             return MessageStats(
-                total=get_value('total'),
-                pending=get_value('pending'),
-                accepted=get_value('accepted'),
-                rejected=get_value('rejected')
+                total=total,
+                pending=pending,
+                accepted=total_accepted,  # 合并approved+accepted
+                rejected=rejected
             )
         except Exception as e:
             logger.error(f"获取全局统计失败: {e}")
@@ -216,27 +217,46 @@ class LinusStatsStore(RedisBaseStore):
             return MessageStats(0, 0, 0, 0)
     
     def get_rejection_stats(self) -> RejectionStats:
-        """获取拒绝原因统计 - O(1)操作"""
+        """
+        获取拒绝原因统计 - Linus式单一数据源版本
+        从实际rejected消息计算，确保100%准确
+        """
         try:
-            stats_data = self.redis.hgetall(self.REJECTION_STATS_KEY)
-            if not stats_data:
-                return RejectionStats(0, 0, 0, 0)
+            # 🔥 Linus方式：从实际数据实时聚合
+            # 获取所有rejected消息的键
+            rejected_keys = self.redis.zrange("msg:idx:rejected", 0, -1)
             
-            # 处理字节字符串和普通字符串两种情况
-            def get_value(key):
-                byte_key = key.encode() if isinstance(key, str) else key
-                str_key = key.decode() if isinstance(key, bytes) else key
+            # 统计各种拒绝原因
+            reason_counts = {'ad': 0, 'duplicate': 0, 'chat': 0, 'other': 0}
+            
+            if rejected_keys:
+                # 批量获取拒绝原因
+                pipe = self.redis.pipeline()
+                for key in rejected_keys:
+                    # key格式: "channel_id:message_id"
+                    msg_key = f"msg:{key}"
+                    pipe.hget(msg_key, 'rejection_reason')
                 
-                value = stats_data.get(byte_key) or stats_data.get(str_key) or 0
-                if isinstance(value, bytes):
-                    value = value.decode()
-                return int(value)
+                reasons = pipe.execute()
+                
+                # 统计原因分布
+                for reason in reasons:
+                    if isinstance(reason, bytes):
+                        reason = reason.decode()
+                    
+                    reason = reason or 'other'  # 默认为other
+                    if reason in reason_counts:
+                        reason_counts[reason] += 1
+                    else:
+                        reason_counts['other'] += 1
+            
+            logger.debug(f"📊 从实际数据计算拒绝原因: {reason_counts}")
             
             return RejectionStats(
-                ad=get_value('ad'),
-                duplicate=get_value('duplicate'),
-                chat=get_value('chat'),
-                other=get_value('other')
+                ad=reason_counts['ad'],
+                duplicate=reason_counts['duplicate'], 
+                chat=reason_counts['chat'],
+                other=reason_counts['other']
             )
         except Exception as e:
             logger.error(f"获取拒绝原因统计失败: {e}")

@@ -12,8 +12,6 @@ from .redis_client import RedisBaseStore
 from .mixins import (
     MessageCrudMixin,
     MessageQueryMixin,
-    MessageStatusMixin,
-    MessageStatsMixin,
     MessageMaintenanceMixin,
     MessageCompatibilityMixin
 )
@@ -24,8 +22,6 @@ logger = logging.getLogger(__name__)
 class RedisMessageStore(
     MessageCrudMixin,
     MessageQueryMixin,
-    MessageStatusMixin,
-    MessageStatsMixin,
     MessageMaintenanceMixin,
     MessageCompatibilityMixin,
     RedisBaseStore
@@ -35,8 +31,6 @@ class RedisMessageStore(
     通过继承多个Mixin类实现功能拆分：
     - MessageCrudMixin: 基础CRUD操作
     - MessageQueryMixin: 查询和检索功能
-    - MessageStatusMixin: 状态管理
-    - MessageStatsMixin: 统计和计数
     - MessageMaintenanceMixin: 维护和清理
     - MessageCompatibilityMixin: 向后兼容方法
     

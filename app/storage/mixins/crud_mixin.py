@@ -238,6 +238,81 @@ class MessageCrudMixin:
             logger.error(f"更新消息字段失败 {channel_id}:{message_id}.{field}: {e}")
             return False
     
+    def _update_message_status_core(self, channel_id: str, message_id: int, new_status: str, 
+                            reviewed_by: str = None) -> bool:
+        """更新消息状态核心逻辑 - Linus式单一数据源版本"""
+        try:
+            msg_key = f"msg:{channel_id}:{message_id}"
+            
+            # 检查消息是否存在
+            if not self.redis.exists(msg_key):
+                logger.warning(f"消息不存在: {channel_id}:{message_id}")
+                return False
+            
+            # 获取当前状态
+            old_status = self.redis.hget(msg_key, 'status') or 'pending'
+            
+            # 如果状态没变，直接返回
+            if old_status == new_status:
+                logger.debug(f"状态未变: {channel_id}:{message_id} 保持 {old_status}")
+                return True
+            
+            pipe = self.redis.pipeline()
+            
+            # 更新消息数据
+            update_data = {
+                'status': new_status,
+                'updated_at': get_current_time().isoformat()
+            }
+            
+            if reviewed_by:
+                update_data['reviewed_by'] = reviewed_by
+                update_data['review_time'] = get_current_time().isoformat()
+            
+            pipe.hset(msg_key, mapping=update_data)
+            
+            # 更新索引 - 这是唯一的真相源
+            timestamp = datetime.now().timestamp()
+            key = f"{channel_id}:{message_id}"
+            
+            # 从旧状态索引移除
+            pipe.zrem(f"msg:idx:{old_status}", key)
+            
+            # 添加到新状态索引
+            pipe.zadd(f"msg:idx:{new_status}", {key: timestamp})
+            
+            # 暂时同步Linus统计（过渡期，后续会删除）
+            from app.storage.linus_stats_store import get_linus_stats_store
+            stats_store = get_linus_stats_store()
+            
+            # 使用Linus统计的原子更新
+            if old_status == 'pending':
+                stats_store.decrement_pending()
+            elif old_status == 'approved' or old_status == 'accepted':
+                stats_store.decrement_accepted()
+            elif old_status == 'rejected':
+                stats_store.decrement_rejected()
+                
+            if new_status == 'pending':
+                stats_store.increment_pending()
+            elif new_status == 'approved' or new_status == 'accepted':
+                stats_store.increment_accepted()
+            elif new_status == 'rejected':
+                stats_store.increment_rejected()
+                # 获取拒绝原因并更新
+                msg_data = self.redis.hgetall(msg_key)
+                rejection_reason = msg_data.get('rejection_reason', 'other')
+                stats_store.increment_rejection_reason(rejection_reason)
+            
+            pipe.execute()
+            
+            logger.debug(f"✅ 消息状态已更新: {channel_id}:{message_id} {old_status} -> {new_status}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新消息状态失败 {channel_id}:{message_id}: {e}")
+            return False
+    
     def _delete_message_core(self, channel_id: str, message_id: int) -> bool:
         """删除消息核心逻辑"""
         try:
