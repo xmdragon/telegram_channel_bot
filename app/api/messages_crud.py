@@ -520,6 +520,45 @@ async def reject_message(
         logger.error(f"拒绝消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"拒绝消息失败: {str(e)}")
 
+@router.post(ROUTES.messages.restore)
+@check_permission("message.restore")
+async def restore_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    恢复被拒绝的消息到未审核状态
+    """
+    try:
+        redis_store = get_redis_message_store()
+        message = redis_store.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 检查消息当前状态
+        current_status = message.get("status", "pending")
+        if current_status != "rejected":
+            raise HTTPException(status_code=400, detail=f"只能恢复已拒绝的消息，当前状态: {current_status}")
+        
+        # 恢复消息状态为未审核
+        success = redis_store.update_message_status(message_id, "pending", user.get('user_id'))
+        if not success:
+            raise HTTPException(status_code=500, detail="恢复消息状态失败")
+        
+        logger.info(f"消息已恢复到未审核状态: {message_id}, 操作者: {user.get('user_id')}")
+        
+        return {
+            "success": True,
+            "message": "消息已恢复到未审核状态",
+            "timestamp": format_for_api(get_current_time())
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"恢复消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"恢复消息失败: {str(e)}")
+
 @router.delete(ROUTES.messages.delete)
 @check_permission("message.delete")
 async def delete_message(

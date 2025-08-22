@@ -20,6 +20,7 @@ class RouteConfig:
         # 核心操作 - action-first模式
         approve = "/messages/approve/{message_id}"
         reject = "/messages/reject/{message_id}"
+        restore = "/messages/restore/{message_id}"
         delete = "/messages/delete/{message_id}"
         update = "/messages/update/{message_id}"
         

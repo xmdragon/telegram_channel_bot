@@ -1040,6 +1040,56 @@ const MainApp = {
             }
         },
         
+        // 恢复被拒绝的消息
+        async restoreMessage(messageId) {
+            try {
+                // 保存当前滚动位置
+                const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // 临时禁用滚动加载，防止DOM变化触发意外的loadMore
+                const wasLoadingMore = this.isLoadingMore;
+                this.isLoadingMore = true;
+                
+                const response = await axios.post(window.API.messages.restoreById(messageId));
+                if (response.data.success) {
+                    MessageManager.success('消息已恢复到未审核状态');
+                    
+                    // 如果当前筛选状态是"已拒绝"，从列表中移除消息
+                    // 如果筛选状态是"待审核"，则更新消息状态
+                    if (this.filters.status === 'rejected') {
+                        // 从已拒绝列表中移除消息
+                        this.messages = this.messages.filter(msg => msg.id !== messageId);
+                    } else if (this.filters.status === 'pending') {
+                        // 更新消息状态为待审核
+                        const msgIndex = this.messages.findIndex(msg => msg.id === messageId);
+                        if (msgIndex !== -1) {
+                            this.messages[msgIndex].status = 'pending';
+                        }
+                    }
+                    
+                    this.loadStats();
+                    
+                    // 下一帧恢复滚动位置和加载状态
+                    this.$nextTick(() => {
+                        setTimeout(() => {
+                            // 恢复滚动位置
+                            window.scrollTo(0, scrollPosition);
+                            // 恢复加载状态
+                            this.isLoadingMore = wasLoadingMore;
+                        }, 100);
+                    });
+                } else {
+                    MessageManager.error('恢复失败: ' + response.data.message);
+                    // 恢复加载状态
+                    this.isLoadingMore = wasLoadingMore;
+                }
+            } catch (error) {
+                MessageManager.error('恢复失败: ' + (error.response?.data?.detail || error.message));
+                // 恢复加载状态
+                this.isLoadingMore = false;
+            }
+        },
+        
         // 搜索消息
         searchMessages() {
             // 直接加载消息，不设置最小长度限制

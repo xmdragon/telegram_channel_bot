@@ -840,6 +840,13 @@ const MessageContentRenderer = {
                     🔄 补抓
                 </button>
             </div>
+            
+            <!-- 已拒绝消息的恢复按钮 -->
+            <div v-else-if="message.status === 'rejected'" class="message-actions">
+                <button data-action="restoreMessage" :data-message-id="message.id" class="btn btn-sm btn-warning">
+                    🔄 恢复
+                </button>
+            </div>
         </div>
     `
 };
