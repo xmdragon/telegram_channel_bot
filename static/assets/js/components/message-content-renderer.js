@@ -225,28 +225,24 @@ const MessageContentRenderer = {
                    !this.mediaLoadError;
         },
         
-        // Linus式"好品味"：检测是否有媒体缺失（与后端逻辑一致）
+        // Linus式"好品味"：检测是否有媒体缺失（消除边界情况）
         hasMediaMissing() {
-            // 首先检查消息是否应该有媒体（与后端逻辑保持一致）
-            const hasSingleMedia = !!this.message.media_type;
-            const hasMediaGroup = !!(this.message.media_group_display && this.message.media_group_display.length > 0);
-            
-            // 如果消息本身就没有媒体，不显示补抓按钮
-            if (!hasSingleMedia && !hasMediaGroup) {
-                return false;
-            }
-            
-            // 检查媒体是否真的缺失
-            if (this.isCombinedMessage && hasMediaGroup) {
-                // 组合消息：检查是否有任何媒体缺失
-                return this.message.media_group_display.some(media => 
+            // 组合消息和单个媒体互斥检查，避免重叠判断
+            if (this.isCombinedMessage) {
+                // 组合消息：检查媒体组是否有缺失
+                const mediaGroup = this.message.media_group_display;
+                if (!mediaGroup || !Array.isArray(mediaGroup) || mediaGroup.length === 0) {
+                    return false; // 没有媒体组就不需要补抓
+                }
+                return mediaGroup.some(media => 
                     !media.display_url || media.display_url.trim() === ''
                 );
-            } else if (hasSingleMedia) {
+            } else if (this.message.media_type) {
                 // 单个媒体：检查是否缺失
                 return !this.mediaExists();
             }
             
+            // 没有任何媒体，不需要补抓
             return false;
         },
         
