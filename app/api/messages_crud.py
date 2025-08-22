@@ -436,7 +436,7 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
         if task_result:
             if task_result.get("success"):
                 # 任务成功，更新状态为已发布
-                redis_store.update_message_status(message_id, "published", user_id)
+                redis_store.update_message_status(message_id, "approved", user_id)
                 logger.info(f"消息发布成功: {message_id}")
             else:
                 # 任务失败
