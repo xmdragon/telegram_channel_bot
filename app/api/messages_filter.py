@@ -133,43 +133,10 @@ async def filter_message_tail(
             }
             redis_store.redis.hset(msg_key, mapping=update_data)
             
-            # 保存尾部训练数据到文件
+            # Linus风格：移除不必要的I/O操作 - 手动过滤只需要过滤，不需要保存训练数据
+            # 训练数据应该从实时和历史采集中收集，而不是每次手动过滤都写文件
             if removed_tail:
-                from app.core.path_config import PathConfig
-                
-                # 加载现有数据
-                tail_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
-                try:
-                    with open(tail_file, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        samples = data.get('samples', [])
-                except:
-                    samples = []
-                
-                # 简化的样本结构 - 只保留尾部
-                new_sample = {
-                    "id": len(samples) + 1,
-                    "tail_part": removed_tail,  # 只保留尾部内容
-                    "created_at": datetime.now().isoformat()
-                }
-                samples.append(new_sample)
-                
-                # 保存数据
-                os.makedirs(os.path.dirname(tail_file), exist_ok=True)
-                with open(tail_file, 'w', encoding='utf-8') as f:
-                    json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
-                
-                # 🔥 实时向量化新样本（5-20ms，不影响性能）
-                try:
-                    from app.services.tail_vector_manager import tail_vector_manager
-                    if tail_vector_manager.model and removed_tail:
-                        tail_vector_manager.add_vector(removed_tail, new_sample["id"])
-                        tail_vector_manager.save()
-                        logger.info(f"✅ 样本 {new_sample['id']} 已完成向量化")
-                except Exception as e:
-                    logger.warning(f"⚠️ 向量化失败，不影响过滤功能: {e}")
-                
-                logger.info(f"✂️ 尾部训练数据已保存: {len(removed_tail)} 字符")
+                logger.info(f"✂️ 尾部过滤完成: 移除 {len(removed_tail)} 字符")
         
         return {
             "success": True,

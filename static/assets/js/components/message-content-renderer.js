@@ -830,8 +830,13 @@ const MessageContentRenderer = {
                 <button data-action="trainTail" :data-message-id="message.id" class="btn btn-sm btn-info">
                     ✂️ 尾部
                 </button>
-                <button data-action="filterTail" :data-message-id="message.id" class="btn btn-sm btn-primary">
-                    🎯 过滤
+                <button 
+                    data-action="filterTail" 
+                    :data-message-id="message.id" 
+                    :disabled="$parent.isFiltering && $parent.isFiltering(message.id)"
+                    :class="['btn', 'btn-sm', 'btn-primary', 
+                             $parent.isFiltering && $parent.isFiltering(message.id) ? 'disabled' : '']">
+                    {{ $parent.isFiltering && $parent.isFiltering(message.id) ? '🔄 过滤中...' : '🎯 过滤' }}
                 </button>
                 <button v-if="message.media_type && !mediaExists()" 
                         data-action="refetchMedia" 

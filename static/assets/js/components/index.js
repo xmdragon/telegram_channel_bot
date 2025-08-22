@@ -67,6 +67,7 @@ const MainApp = {
             // 操作状态
             processingMessages: new Set(),
             publishingMessages: new Set(), // 正在发布的消息ID集合
+            filteringMessages: new Set(), // 正在过滤的消息ID集合 - Linus风格状态管理
             isBatchPublishing: false, // 批量发布状态
             refetchingMedia: {},
             
@@ -386,6 +387,11 @@ const MainApp = {
         // 发布状态检查方法
         isPublishing(messageId) {
             return this.publishingMessages.has(messageId);
+        },
+        
+        // 过滤状态检查方法 - Linus风格：与isPublishing保持一致
+        isFiltering(messageId) {
+            return this.filteringMessages.has(messageId);
         },
         
         // 初始化权限
@@ -2131,13 +2137,22 @@ const MainApp = {
             window.location.href = '/static/train.html?' + params.toString();
         },
         
-        // 手动执行尾部过滤 - Linus风格
+        // 手动执行尾部过滤 - Linus风格：消除重复点击的特殊情况
         async filterTail(messageId) {
+            // 防重复点击保护 - 没有if分支，直接返回
+            if (this.filteringMessages.has(messageId)) {
+                return;
+            }
+            
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
                 MessageManager.error('未找到消息');
                 return;
             }
+            
+            // 标记正在过滤
+            this.filteringMessages.add(messageId);
+            
             try {
                 // 🚀 Linus风格：依赖axios拦截器自动处理认证（消除特殊情况）
                 const response = await axios.post(
@@ -2162,6 +2177,9 @@ const MainApp = {
             } catch (error) {
                 console.error('尾部过滤失败:', error);
                 MessageManager.error('尾部过滤失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                // 确保总是清理状态
+                this.filteringMessages.delete(messageId);
             }
         },
         
