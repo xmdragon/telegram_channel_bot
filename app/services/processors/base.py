@@ -138,10 +138,10 @@ class MessagePipeline:
                     self.logger.error(f"处理器 {processor.name} 失败: {result.error}")
                     return result
                 
-                # 检查是否应该提前终止处理
+                # 记录拒绝状态但继续处理（确保消息被保存）
                 if context.should_reject:
                     self.logger.info(f"消息被 {processor.name} 标记为拒绝: {context.reject_reason}")
-                    break
+                    # 继续执行，确保消息被保存到存储
                 
                 self.logger.debug(f"处理器 {processor.name} 执行成功")
             

@@ -74,15 +74,12 @@
             
             <!-- 批量操作面板 -->
             <batch-operation-panel
+                v-show="selectedMessages.length > 0"
                 :selected-messages="selectedMessages"
                 :total-messages="filteredMessages.length"
                 :button-visibility="buttonVisibility"
                 :filtered-messages="filteredMessages"
-                @smart-select-all="smartSelectAll"
-                @invert-selection="invertSelection"
                 @clear-selection="clearSelection"
-                @quick-select-mode-change="handleQuickSelectModeChange"
-                @quick-select-by-condition="handleQuickSelectByCondition"
                 @batch-operation-complete="handleBatchOperationComplete"
                 @progress-update="handleProgressUpdate"
             ></batch-operation-panel>
@@ -397,6 +394,10 @@
     <script src="assets/js/modules/message-manager.js?v=1755738345"></script>
     <script src="assets/js/modules/ui-handlers.js?v=1755738345"></script>
     <script src="assets/js/modules/event-handlers.js?v=1755738345"></script>
+    
+    <!-- Linus式架构核心模块 -->
+    <script src="assets/js/core/state-manager.js?v=1755738345"></script>
+    <script src="assets/js/core/request-manager.js?v=1755738345"></script>
     
     <!-- Vue组件 -->
     <script src="assets/js/components/navbar.js?v=1755738345"></script>

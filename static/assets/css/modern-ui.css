@@ -135,7 +135,7 @@ h4 { font-size: 1.125rem; }
 .container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 0 1rem;
 }
 
 /* Cards */
@@ -833,7 +833,7 @@ h4 { font-size: 1.125rem; }
 /* Responsive */
 @media (max-width: 768px) {
     .container {
-        padding: 1rem;
+        padding: 0.5rem;
     }
     
     .navbar {

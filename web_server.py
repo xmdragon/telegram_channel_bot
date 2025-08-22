@@ -216,6 +216,11 @@ async def lifespan(app: FastAPI):
                 await auth_manager.initialize()
                 logger.info("✅ Telegram认证管理器初始化完成")
                 
+                # 启动统计数据广播器（Linus式主动推送）
+                from app.services.stats_broadcaster import init_stats_broadcaster
+                await init_stats_broadcaster()
+                logger.info("✅ 统计数据广播器已启动")
+                
                 # 检查尾部向量同步状态
                 try:
                     from app.services.tail_vector_manager import tail_vector_manager

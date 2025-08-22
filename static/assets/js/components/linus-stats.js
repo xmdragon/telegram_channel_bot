@@ -1,14 +1,15 @@
 /**
- * Linus式统计组件
- * 清晰分离两个维度的统计展示
+ * Linus式统计组件 - 重构版本
  * 
- * 设计原则：
- * 1. 消息处理状态和拒绝原因分析分离显示
- * 2. 数据100%一致，不会出现神秘数字
- * 3. 简洁明了，消除用户困惑
+ * 重构理念：
+ * - 消除轮询特殊情况，统一使用订阅模式
+ * - 数据通过WebSocket主动推送，而不是客户端拉取
+ * - 智能缓存，避免重复请求
+ * 
+ * "好的架构让复杂性消失，而不是把它隐藏起来"
  */
 
-// Linus式统计组件
+// Linus式统计组件 - 无轮询版本
 const LinusStatsComponent = {
     data() {
         return {
@@ -58,197 +59,445 @@ const LinusStatsComponent = {
             // 错误状态
             error: null,
             
-            // 自动刷新
-            autoRefresh: true,
-            refreshInterval: null
+            // 连接状态
+            connected: false,
+            lastUpdate: null,
+            
+            // 订阅ID
+            subscriptionId: null,
+            
+            // 页面可见性
+            isVisible: true
         };
     },
     
     mounted() {
-        this.loadStats();
-        this.startAutoRefresh();
+        this.initializeComponent();
+        this.setupVisibilityDetection();
     },
     
     beforeUnmount() {
-        this.stopAutoRefresh();
+        this.cleanup();
     },
     
     methods: {
-        async loadStats() {
+        /**
+         * 初始化组件 - Linus式干净启动
+         */
+        async initializeComponent() {
             try {
-                this.loading = true;
+                // 1. 订阅状态管理器
+                this.subscribeToStatsUpdates();
+                
+                // 2. 初始加载数据
+                await this.loadInitialData();
+                
+                // 3. 设置WebSocket监听
+                this.setupWebSocketListeners();
+                
+                console.log('[LinusStats] 组件初始化完成 - 无轮询架构');
+                
+            } catch (error) {
+                console.error('[LinusStats] 初始化失败:', error);
+                this.error = '组件初始化失败';
+            }
+        },
+        
+        /**
+         * 订阅统计数据更新
+         */
+        subscribeToStatsUpdates() {
+            if (!window.StateManager) {
+                console.error('[LinusStats] StateManager未找到');
+                return;
+            }
+            
+            this.subscriptionId = window.StateManager.subscribe(
+                'linus_stats',
+                (newStats, oldStats) => {
+                    this.handleStatsUpdate(newStats);
+                },
+                {
+                    immediate: true,
+                    component: 'linus-stats'
+                }
+            );
+        },
+        
+        /**
+         * 处理统计数据更新
+         */
+        handleStatsUpdate(stats) {
+            if (!stats) return;
+            
+            try {
+                // 更新消息状态统计
+                if (stats.message_status) {
+                    this.messageStatus = { ...this.messageStatus, ...stats.message_status };
+                }
+                
+                // 更新拒绝原因分析
+                if (stats.rejection_analysis) {
+                    this.rejectionAnalysis = { ...this.rejectionAnalysis, ...stats.rejection_analysis };
+                }
+                
+                // 更新一致性状态
+                if (stats.consistency) {
+                    this.consistency = stats.consistency;
+                }
+                
+                // 更新系统信息
+                if (stats.system_info) {
+                    this.systemInfo = { ...this.systemInfo, ...stats.system_info };
+                }
+                
+                this.lastUpdate = new Date();
                 this.error = null;
+                this.loading = false;
                 
-                // 调用Linus式统计API
-                const response = await axios.get('/api/stats/linus-overview', {
-                    headers: authManager.getAuthHeaders()
-                });
+                console.log('[LinusStats] 统计数据已更新');
                 
-                if (response.data.success) {
-                    const data = response.data.data;
+            } catch (error) {
+                console.error('[LinusStats] 处理统计更新失败:', error);
+                this.error = '数据更新失败';
+            }
+        },
+        
+        /**
+         * 设置WebSocket监听器
+         */
+        setupWebSocketListeners() {
+            if (!window.WebSocketManager) {
+                console.warn('[LinusStats] WebSocket管理器未找到，将使用HTTP请求');
+                return;
+            }
+            
+            // 监听连接状态
+            const originalConnect = window.WebSocketManager.handleOpen;
+            window.WebSocketManager.handleOpen = (event) => {
+                originalConnect?.call(window.WebSocketManager, event);
+                this.connected = true;
+                console.log('[LinusStats] WebSocket已连接');
+            };
+            
+            const originalDisconnect = window.WebSocketManager.handleClose;
+            window.WebSocketManager.handleClose = (event) => {
+                originalDisconnect?.call(window.WebSocketManager, event);
+                this.connected = false;
+                console.log('[LinusStats] WebSocket连接断开');
+            };
+            
+            // 监听数据推送
+            const originalMessage = window.WebSocketManager.handleMessage;
+            window.WebSocketManager.handleMessage = (event) => {
+                originalMessage?.call(window.WebSocketManager, event);
+                
+                try {
+                    const data = JSON.parse(event.data);
                     
-                    // 更新消息状态统计
-                    this.messageStatus = data.message_status;
-                    
-                    // 更新拒绝原因分析
-                    this.rejectionAnalysis = data.rejection_analysis;
-                    
-                    // 更新一致性状态
-                    this.consistency = data.consistency || { consistent: true };
-                    
-                    // 更新系统信息
-                    this.systemInfo = data.system_info || this.systemInfo;
-                    
+                    if (data.type === 'data_update' && data.data?.stats) {
+                        // 服务器主动推送的统计数据
+                        window.StateManager.setState('linus_stats', data.data.stats);
+                    } else if (data.type === 'stats_response') {
+                        // WebSocket请求的响应
+                        if (data.success && data.data) {
+                            window.StateManager.setState('linus_stats', data.data);
+                        }
+                    }
+                } catch (error) {
+                    // 忽略非JSON消息
+                }
+            };
+        },
+        
+        /**
+         * 初始加载数据 - 智能选择请求方式
+         */
+        async loadInitialData() {
+            this.loading = true;
+            this.error = null;
+            
+            try {
+                let stats = null;
+                
+                // 优先尝试从缓存获取
+                if (window.StateManager && window.StateManager.has('linus_stats')) {
+                    stats = window.StateManager.get('linus_stats');
+                    console.log('[LinusStats] 使用缓存数据');
                 } else {
-                    this.error = response.data.error || '获取统计数据失败';
+                    // 智能选择请求方式
+                    stats = await this.requestStatsData();
+                }
+                
+                if (stats) {
+                    // 更新状态管理器
+                    if (window.StateManager) {
+                        window.StateManager.setState('linus_stats', stats);
+                    } else {
+                        // 降级处理
+                        this.handleStatsUpdate(stats);
+                    }
                 }
                 
             } catch (error) {
-                console.error('加载统计数据失败:', error);
-                this.error = '网络错误，请稍后重试';
-            } finally {
+                console.error('[LinusStats] 加载初始数据失败:', error);
+                this.error = '加载数据失败';
                 this.loading = false;
             }
         },
         
-        async validateConsistency() {
-            try {
-                const response = await axios.post('/api/stats/validate-consistency', {}, {
-                    headers: authManager.getAuthHeaders()
+        /**
+         * 请求统计数据 - 智能选择方式
+         */
+        async requestStatsData() {
+            // 优先使用WebSocket请求（如果可用）
+            if (window.WebSocketManager && window.WebSocketManager.isConnected && window.RequestManager) {
+                try {
+                    return await window.RequestManager.requestViaWebSocket('request_stats');
+                } catch (error) {
+                    console.warn('[LinusStats] WebSocket请求失败，降级到HTTP:', error);
+                }
+            }
+            
+            // 降级到HTTP请求
+            if (window.RequestManager) {
+                return await window.RequestManager.request('/api/stats/linus-overview', {
+                    method: 'GET',
+                    headers: window.authManager?.getAuthHeaders?.() || {}
                 });
-                
-                if (response.data.success) {
-                    this.consistency = response.data.data;
-                    this.$message.success('数据一致性验证完成');
-                } else {
-                    this.$message.error('一致性验证失败');
+            } else {
+                // 最后的降级方案
+                const response = await axios.get('/api/stats/linus-overview', {
+                    headers: window.authManager?.getAuthHeaders?.() || {}
+                });
+                return response.data?.data;
+            }
+        },
+        
+        /**
+         * 手动刷新数据
+         */
+        async refreshStats() {
+            if (this.loading) return;
+            
+            try {
+                const stats = await this.requestStatsData();
+                if (stats && window.StateManager) {
+                    window.StateManager.setState('linus_stats', stats, { force: true });
                 }
             } catch (error) {
-                console.error('验证一致性失败:', error);
-                this.$message.error('验证失败');
+                console.error('[LinusStats] 手动刷新失败:', error);
+                this.error = '刷新失败';
             }
         },
         
-        startAutoRefresh() {
-            if (this.autoRefresh) {
-                this.refreshInterval = setInterval(() => {
-                    this.loadStats();
-                }, 5000); // 每5秒刷新
+        /**
+         * 验证数据一致性
+         */
+        async validateConsistency() {
+            try {
+                if (window.RequestManager) {
+                    const result = await window.RequestManager.request('/api/stats/validate-consistency', {
+                        method: 'POST'
+                    });
+                    
+                    if (result?.success) {
+                        this.consistency = result.data;
+                        this.$message.success('一致性验证完成');
+                    }
+                } else {
+                    // 降级方案
+                    const response = await axios.post('/api/stats/validate-consistency', {}, {
+                        headers: window.authManager?.getAuthHeaders?.() || {}
+                    });
+                    
+                    if (response.data?.success) {
+                        this.consistency = response.data.data;
+                        this.$message.success('一致性验证完成');
+                    }
+                }
+            } catch (error) {
+                console.error('[LinusStats] 一致性验证失败:', error);
+                this.$message.error('一致性验证失败');
             }
         },
         
-        stopAutoRefresh() {
-            if (this.refreshInterval) {
-                clearInterval(this.refreshInterval);
-                this.refreshInterval = null;
-            }
-        },
-        
-        toggleAutoRefresh() {
-            this.autoRefresh = !this.autoRefresh;
-            if (this.autoRefresh) {
-                this.startAutoRefresh();
-            } else {
-                this.stopAutoRefresh();
-            }
-        },
-        
-        // 计算拒绝率
-        getRejectionRate() {
-            if (this.messageStatus.total === 0) return 0;
-            return ((this.messageStatus.rejected / this.messageStatus.total) * 100).toFixed(1);
-        },
-        
-        // 计算接受率
-        getAcceptanceRate() {
-            if (this.messageStatus.total === 0) return 0;
-            return ((this.messageStatus.accepted / this.messageStatus.total) * 100).toFixed(1);
-        },
-        
-        // 获取最主要的拒绝原因
-        getTopRejectionReason() {
-            const reasons = this.rejectionAnalysis;
-            let maxCount = 0;
-            let topReason = 'unknown';
-            
-            Object.keys(reasons).forEach(key => {
-                if (key !== 'labels' && reasons[key] > maxCount) {
-                    maxCount = reasons[key];
-                    topReason = key;
+        /**
+         * 设置页面可见性检测
+         */
+        setupVisibilityDetection() {
+            // 页面可见性API
+            document.addEventListener('visibilitychange', () => {
+                this.isVisible = !document.hidden;
+                
+                if (this.isVisible) {
+                    // 页面重新可见时，请求最新数据
+                    setTimeout(() => {
+                        this.refreshStats();
+                    }, 500);
                 }
             });
             
-            return {
-                reason: topReason,
-                count: maxCount,
-                label: reasons.labels[topReason] || topReason
-            };
+            // 窗口焦点事件
+            window.addEventListener('focus', () => {
+                this.isVisible = true;
+                setTimeout(() => {
+                    this.refreshStats();
+                }, 500);
+            });
+            
+            window.addEventListener('blur', () => {
+                this.isVisible = false;
+            });
         },
         
-        // 获取状态样式
-        getStatusClass(status) {
-            const statusClasses = {
-                pending: 'warning',
-                accepted: 'success', 
-                rejected: 'danger'
-            };
-            return statusClasses[status] || 'info';
+        /**
+         * 清理资源
+         */
+        cleanup() {
+            // 取消订阅
+            if (this.subscriptionId && window.StateManager) {
+                window.StateManager.unsubscribe('linus_stats', this.subscriptionId);
+            }
+            
+            console.log('[LinusStats] 组件已清理');
         },
         
-        // 获取拒绝原因样式
-        getRejectionClass(reason) {
-            const reasonClasses = {
-                ad: 'danger',
-                duplicate: 'warning',
-                chat: 'info',
-                other: 'secondary'
-            };
-            return reasonClasses[reason] || 'secondary';
+        /**
+         * 获取格式化的最后更新时间
+         */
+        getLastUpdateText() {
+            if (!this.lastUpdate) return '从未更新';
+            
+            const diff = Date.now() - this.lastUpdate.getTime();
+            const seconds = Math.floor(diff / 1000);
+            
+            if (seconds < 60) return `${seconds}秒前`;
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}分钟前`;
+            const hours = Math.floor(minutes / 60);
+            return `${hours}小时前`;
         }
     },
     
     template: `
-        <div class="stats-grid">
-            <!-- 使用unified-stats.css的badge样式 -->
-            <div class="stat-badge total" data-stat-key="total">
-                <span class="stat-badge-label">总消息</span>
-                <span class="stat-badge-number">{{ messageStatus.total }}</span>
+        <div class="linus-stats-container">
+            <!-- 标题栏 -->
+            <div class="stats-header">
+                <h3>
+                    <i class="el-icon-data-analysis"></i>
+                    Linus式统计分析
+                </h3>
+                <div class="header-actions">
+                    <el-button 
+                        @click="refreshStats" 
+                        :loading="loading"
+                        icon="el-icon-refresh"
+                        size="small"
+                        type="primary">
+                        刷新
+                    </el-button>
+                    <span class="connection-status" :class="{ connected }">
+                        {{ connected ? '实时连接' : '离线模式' }}
+                    </span>
+                </div>
             </div>
             
-            <div class="stat-badge pending" data-stat-key="pending">
-                <span class="stat-badge-label">待审核</span>
-                <span class="stat-badge-number">{{ messageStatus.pending }}</span>
+            <!-- 错误提示 -->
+            <el-alert v-if="error" 
+                :title="error" 
+                type="error" 
+                show-icon 
+                :closable="false"
+                style="margin-bottom: 20px;">
+            </el-alert>
+            
+            <!-- 加载状态 -->
+            <div v-if="loading && !messageStatus.total" class="loading-container">
+                <el-skeleton :rows="4" animated />
             </div>
             
-            <div class="stat-badge approved" data-stat-key="approved">
-                <span class="stat-badge-label">已发布</span>
-                <span class="stat-badge-number">{{ messageStatus.accepted }}</span>
-            </div>
-            
-            <div class="stat-badge rejected" data-stat-key="rejected">
-                <span class="stat-badge-label">已拒绝</span>
-                <span class="stat-badge-number">{{ messageStatus.rejected }}</span>
-            </div>
-            
-            <div class="stat-badge ads" data-stat-key="ads">
-                <span class="stat-badge-label">广告消息</span>
-                <span class="stat-badge-number">{{ rejectionAnalysis.ad }}</span>
-            </div>
-            
-            <div class="stat-badge duplicates" data-stat-key="duplicates">
-                <span class="stat-badge-label">重复消息</span>
-                <span class="stat-badge-number">{{ rejectionAnalysis.duplicate }}</span>
-            </div>
-            
-            <div class="stat-badge chats" data-stat-key="chats">
-                <span class="stat-badge-label">聊天消息</span>
-                <span class="stat-badge-number">{{ rejectionAnalysis.chat }}</span>
+            <!-- 统计内容 -->
+            <div v-else class="stats-content">
+                <!-- 消息处理状态 -->
+                <el-card class="stats-card" shadow="hover">
+                    <template #header>
+                        <span class="card-title">消息处理状态</span>
+                    </template>
+                    <div class="status-grid">
+                        <div v-for="(value, key) in messageStatus" 
+                             :key="key"
+                             v-if="key !== 'labels'"
+                             class="status-item"
+                             :class="key">
+                            <div class="status-value">{{ value.toLocaleString() }}</div>
+                            <div class="status-label">{{ messageStatus.labels[key] }}</div>
+                        </div>
+                    </div>
+                </el-card>
+                
+                <!-- 拒绝原因分析 -->
+                <el-card class="stats-card" shadow="hover">
+                    <template #header>
+                        <span class="card-title">拒绝原因分析</span>
+                        <span class="card-subtitle">（仅统计已拒绝消息）</span>
+                    </template>
+                    <div class="rejection-grid">
+                        <div v-for="(value, key) in rejectionAnalysis" 
+                             :key="key"
+                             v-if="key !== 'labels'"
+                             class="rejection-item">
+                            <div class="rejection-value">{{ value.toLocaleString() }}</div>
+                            <div class="rejection-label">{{ rejectionAnalysis.labels[key] }}</div>
+                        </div>
+                    </div>
+                </el-card>
+                
+                <!-- 系统信息 -->
+                <el-card class="stats-card" shadow="hover">
+                    <template #header>
+                        <span class="card-title">系统信息</span>
+                        <el-button 
+                            @click="validateConsistency"
+                            size="mini"
+                            type="text"
+                            icon="el-icon-check">
+                            验证一致性
+                        </el-button>
+                    </template>
+                    <div class="system-info">
+                        <div class="info-item">
+                            <span class="info-label">数据模型:</span>
+                            <span class="info-value">{{ systemInfo.data_model }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">性能:</span>
+                            <span class="info-value">{{ systemInfo.performance }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">准确性:</span>
+                            <span class="info-value">{{ systemInfo.accuracy }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">一致性:</span>
+                            <span class="info-value" :class="{ 'error': !consistency.consistent }">
+                                {{ consistency.consistent ? '✓ 一致' : '✗ 不一致' }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">最后更新:</span>
+                            <span class="info-value">{{ getLastUpdateText() }}</span>
+                        </div>
+                    </div>
+                </el-card>
             </div>
         </div>
     `
 };
 
-// 导出组件以供其他模块使用
-if (typeof window !== 'undefined') {
-    window.LinusStatsComponent = LinusStatsComponent;
+// 注册组件
+if (typeof Vue !== 'undefined') {
+    Vue.component('linus-stats', LinusStatsComponent);
 }
+
+export default LinusStatsComponent;

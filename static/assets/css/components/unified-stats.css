@@ -4,10 +4,10 @@
 .stats-grid {
     display: flex;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 0px;
     flex-wrap: wrap;
     justify-content: flex-start;
-    padding: 12px 0; /* 为角标留出空间 */
+    padding: 8px 0 0 0; /* 为角标留出空间 */
 }
 
 /* 统一的小标签样式 - 带右上角数字角标 */

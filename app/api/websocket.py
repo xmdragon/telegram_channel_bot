@@ -112,19 +112,106 @@ class WebSocketManager:
 # 全局WebSocket管理器实例
 websocket_manager = WebSocketManager()
 
+async def handle_websocket_message(websocket: WebSocket, message: str):
+    """处理WebSocket消息 - Linus式双向通信"""
+    try:
+        data = json.loads(message)
+        msg_type = data.get("type")
+        request_id = data.get("request_id")
+        
+        if msg_type == "ping":
+            # 心跳响应
+            response = {
+                "type": "pong",
+                "request_id": request_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            await websocket_manager.send_personal_message(json.dumps(response), websocket)
+            
+        elif msg_type == "request_stats":
+            # 请求统计数据
+            from app.api.messages_stats import get_linus_stats_overview
+            try:
+                stats = await get_linus_stats_overview()
+                response = {
+                    "type": "stats_response",
+                    "request_id": request_id,
+                    "data": stats.get("data") if stats.get("success") else None,
+                    "success": stats.get("success", False),
+                    "error": stats.get("error") if not stats.get("success") else None,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            except Exception as e:
+                response = {
+                    "type": "stats_response", 
+                    "request_id": request_id,
+                    "success": False,
+                    "error": str(e),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            await websocket_manager.send_personal_message(json.dumps(response), websocket)
+            
+        elif msg_type == "request_system_status":
+            # 请求系统状态
+            from app.api.system_health import get_system_health
+            try:
+                status = await get_system_health()
+                response = {
+                    "type": "system_status_response",
+                    "request_id": request_id,
+                    "data": status,
+                    "success": True,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            except Exception as e:
+                response = {
+                    "type": "system_status_response",
+                    "request_id": request_id,
+                    "success": False,
+                    "error": str(e),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            await websocket_manager.send_personal_message(json.dumps(response), websocket)
+            
+        elif msg_type == "subscribe":
+            # 订阅特定数据流
+            channel = data.get("channel")
+            response = {
+                "type": "subscribe_response",
+                "request_id": request_id,
+                "channel": channel,
+                "success": True,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            await websocket_manager.send_personal_message(json.dumps(response), websocket)
+            logger.info(f"客户端订阅频道: {channel}")
+            
+        else:
+            # 未知消息类型
+            response = {
+                "type": "error",
+                "request_id": request_id,
+                "error": f"未知消息类型: {msg_type}",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            await websocket_manager.send_personal_message(json.dumps(response), websocket)
+            
+    except json.JSONDecodeError:
+        logger.error("WebSocket消息JSON解析失败")
+    except Exception as e:
+        logger.error(f"WebSocket消息处理失败: {e}")
+
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket端点"""
+    """WebSocket端点 - 支持双向通信"""
     await websocket_manager.connect(websocket)
     try:
         while True:
-            # 保持连接活跃，接收客户端消息（可选）
+            # 接收客户端消息进行双向通信
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
-                if data == "ping":
-                    pong_response = json.dumps({"type": "pong", "timestamp": datetime.utcnow().isoformat()})
-                    await websocket_manager.send_personal_message(pong_response, websocket)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                await handle_websocket_message(websocket, data)
             except asyncio.TimeoutError:
-                # 超时是正常的，继续保持连接
+                # 超时继续循环，保持连接
                 continue
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket)

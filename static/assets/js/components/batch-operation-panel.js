@@ -30,7 +30,6 @@ const BatchOperationPanel = {
                 status: '',
                 visible: false
             },
-            quickSelectMode: false,
             smartFilterEnabled: false
         };
     },
@@ -107,15 +106,6 @@ const BatchOperationPanel = {
     },
     
     methods: {
-        // 智能全选 - 根据当前筛选条件选择
-        async smartSelectAll() {
-            this.$emit('smart-select-all');
-        },
-        
-        // 反选
-        invertSelection() {
-            this.$emit('invert-selection');
-        },
         
         // 清空选择
         clearSelection() {
@@ -318,16 +308,6 @@ const BatchOperationPanel = {
             });
         },
         
-        // 快速选择模式切换
-        toggleQuickSelect() {
-            this.quickSelectMode = !this.quickSelectMode;
-            this.$emit('quick-select-mode-change', this.quickSelectMode);
-        },
-        
-        // 根据条件快速选择
-        quickSelectByCondition(condition) {
-            this.$emit('quick-select-by-condition', condition);
-        }
     },
     
     template: `
@@ -341,24 +321,10 @@ const BatchOperationPanel = {
                 </div>
                 
                 <div class="selection-actions">
-                    <el-button size="small" @click="smartSelectAll" :disabled="!canSelectAll">
-                        {{ isAllSelected ? '取消全选' : '智能全选' }}
-                    </el-button>
-                    <el-button size="small" @click="invertSelection" :disabled="totalMessages === 0">
-                        反选
-                    </el-button>
+                    <!-- 智能全选和反选按钮已删除 -->
                 </div>
             </div>
             
-            <!-- 快速选择 -->
-            <div class="quick-select-area" v-if="quickSelectMode">
-                <el-button-group size="small">
-                    <el-button @click="quickSelectByCondition('today')">今日消息</el-button>
-                    <el-button @click="quickSelectByCondition('ads')">疑似广告</el-button>
-                    <el-button @click="quickSelectByCondition('no-media')">无媒体</el-button>
-                    <el-button @click="quickSelectByCondition('long-text')">长文本</el-button>
-                </el-button-group>
-            </div>
             
             <!-- 批量操作区 -->
             <div class="batch-operations" v-if="hasSelection">
@@ -394,21 +360,13 @@ const BatchOperationPanel = {
                     </el-button>
                     
                     <el-button 
-                        size="small"
+                        type="info"
                         @click="clearSelection" 
                         :disabled="!hasSelection"
                     >
-                        清空
+                        🗑️ 清空
                     </el-button>
                 </el-button-group>
-                
-                <el-button 
-                    size="small" 
-                    @click="toggleQuickSelect"
-                    :type="quickSelectMode ? 'primary' : 'default'"
-                >
-                    {{ quickSelectMode ? '关闭快选' : '快速选择' }}
-                </el-button>
             </div>
             
             <!-- 进度条 -->
