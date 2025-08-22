@@ -5,8 +5,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional, Dict, Any
-from datetime import datetime
-from app.utils.timezone import get_current_time, format_for_api
+from datetime import datetime, timezone
+from app.utils.timezone import get_current_time
 import logging
 import json
 import os
@@ -185,7 +185,7 @@ async def filter_message_tail(
                 "filter_details": filter_result.details
             },
             "message": "尾部过滤已执行" if has_tail else "未检测到尾部内容",
-            "timestamp": format_for_api(get_current_time())
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except HTTPException:
@@ -220,7 +220,7 @@ async def refilter_message(
         return {
             "success": True,
             "message": "消息已重新过滤",
-            "timestamp": format_for_api(get_current_time())
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except HTTPException:
@@ -290,7 +290,7 @@ async def train_message_tail(
                 "tail_length": len(tail_content),
                 "total_samples": len(samples)
             },
-            "timestamp": format_for_api(get_current_time())
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except HTTPException:
@@ -325,7 +325,7 @@ async def mark_not_ad(
         return {
             "success": True,
             "message": "消息已标记为非广告",
-            "timestamp": format_for_api(get_current_time())
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except HTTPException:
@@ -373,7 +373,7 @@ async def submit_filter_feedback(
                 "feedback_id": f"{message_id}_{datetime.now().timestamp()}",
                 "feedback_type": feedback_type
             },
-            "timestamp": format_for_api(get_current_time())
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except HTTPException:
