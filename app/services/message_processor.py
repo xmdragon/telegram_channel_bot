@@ -667,9 +667,12 @@ class MessageProcessor:
                 logger.error(f"消息不存在: {channel_id}:{message_id}")
                 return False
             
-            # 检查消息是否有媒体类型
-            if not message.get('media_type'):
-                logger.warning(f"消息没有媒体类型: {channel_id}:{message_id}")
+            # Linus式"好品味"：检查消息是否有任何形式的媒体（消除特殊情况）
+            has_single_media = bool(message.get('media_type'))
+            has_media_group = bool(message.get('media_group_display'))
+            
+            if not has_single_media and not has_media_group:
+                logger.warning(f"消息没有任何媒体内容: {channel_id}:{message_id}")
                 return False
             
             # 使用媒体处理器重新下载媒体
