@@ -216,7 +216,7 @@ const MessageContentRenderer = {
         mediaExists() {
             if (this.isCombinedMessage) {
                 return this.message.media_group_display.some(media => 
-                    media.display_url && media.display_url.trim() !== ''
+                    media.url && media.url.trim() !== ''
                 );
             }
             
@@ -235,7 +235,7 @@ const MessageContentRenderer = {
                     return false; // 没有媒体组就不需要补抓
                 }
                 return mediaGroup.some(media => 
-                    !media.display_url || media.display_url.trim() === ''
+                    !media.url || media.url.trim() === ''
                 );
             } else if (this.message.media_type) {
                 // 单个媒体：检查是否缺失
@@ -374,12 +374,12 @@ const MessageContentRenderer = {
                                      class="telegram-media-container comparison-media">
                                     <div class="telegram-media-grid" :class="telegramMediaGridClass">
                                         <div v-for="(media, index) in message.media_group_display" :key="index" class="media-item">
-                                            <img v-if="media.media_type === 'photo' && media.display_url" 
-                                                 :src="media.display_url"
+                                            <img v-if="media.media_type === 'photo' && media.url" 
+                                                 :src="media.url"
                                                  class="media-content"
-                                                 @click.stop="openMediaPreview(media.display_url)">
-                                            <video v-else-if="media.media_type === 'video' && media.display_url"
-                                                   :src="media.display_url"
+                                                 @click.stop="openMediaPreview(media.url)">
+                                            <video v-else-if="media.media_type === 'video' && media.url"
+                                                   :src="media.url"
                                                    class="media-content media-video"
                                                    controls>
                                             </video>
@@ -458,12 +458,12 @@ const MessageContentRenderer = {
                                      class="telegram-media-container comparison-media">
                                     <div class="telegram-media-grid" :class="'count-' + message.duplicate_info.media_group_display.length">
                                         <div v-for="(media, index) in message.duplicate_info.media_group_display" :key="index" class="media-item">
-                                            <img v-if="media.media_type === 'photo' && media.display_url" 
-                                                 :src="media.display_url"
+                                            <img v-if="media.media_type === 'photo' && media.url" 
+                                                 :src="media.url"
                                                  class="media-content"
-                                                 @click.stop="openMediaPreview(media.display_url)">
-                                            <video v-else-if="media.media_type === 'video' && media.display_url"
-                                                   :src="media.display_url"
+                                                 @click.stop="openMediaPreview(media.url)">
+                                            <video v-else-if="media.media_type === 'video' && media.url"
+                                                   :src="media.url"
                                                    class="media-content media-video"
                                                    controls>
                                             </video>
@@ -556,14 +556,14 @@ const MessageContentRenderer = {
                                     <div class="telegram-media-grid" :class="telegramMediaGridClass">
                                         <div v-for="(media, index) in message.media_group_display" :key="index" class="media-item">
                                             <!-- 组合消息中的图片 -->
-                                            <img v-if="media.media_type === 'photo' && media.display_url" 
-                                                 :src="media.display_url"
+                                            <img v-if="media.media_type === 'photo' && media.url" 
+                                                 :src="media.url"
                                                  class="media-content"
-                                                 @click.stop="openMediaPreview(media.display_url)">
+                                                 @click.stop="openMediaPreview(media.url)">
                                             
                                             <!-- 组合消息中的视频 -->
-                                            <video v-else-if="media.media_type === 'video' && media.display_url"
-                                                   :src="media.display_url"
+                                            <video v-else-if="media.media_type === 'video' && media.url"
+                                                   :src="media.url"
                                                    class="media-content media-video"
                                                    controls>
                                             </video>
@@ -639,14 +639,14 @@ const MessageContentRenderer = {
                                     <div class="telegram-media-grid" :class="telegramMediaGridClass">
                                         <div v-for="(media, index) in message.media_group_display" :key="index" class="media-item">
                                             <!-- 组合消息中的图片 -->
-                                            <img v-if="media.media_type === 'photo' && media.display_url" 
-                                                 :src="media.display_url"
+                                            <img v-if="media.media_type === 'photo' && media.url" 
+                                                 :src="media.url"
                                                  class="media-content"
-                                                 @click.stop="openMediaPreview(media.display_url)">
+                                                 @click.stop="openMediaPreview(media.url)">
                                             
                                             <!-- 组合消息中的视频 -->
-                                            <video v-else-if="media.media_type === 'video' && media.display_url"
-                                                   :src="media.display_url"
+                                            <video v-else-if="media.media_type === 'video' && media.url"
+                                                   :src="media.url"
                                                    class="media-content media-video"
                                                    controls>
                                             </video>
@@ -712,16 +712,16 @@ const MessageContentRenderer = {
                                      class="media-item">
                                     
                                     <!-- 图片 -->
-                                    <img v-if="media.media_type === 'photo' && media.display_url" 
-                                         :src="media.display_url"
+                                    <img v-if="media.media_type === 'photo' && media.url" 
+                                         :src="media.url"
                                          class="media-content"
                                          loading="lazy"
-                                         @click.stop="openMediaPreview(media.display_url)"
+                                         @click.stop="openMediaPreview(media.url)"
                                          @error="handleMediaError">
                                     
                                     <!-- 视频 -->
-                                    <video v-else-if="media.media_type === 'video' && media.display_url"
-                                           :src="media.display_url"
+                                    <video v-else-if="media.media_type === 'video' && media.url"
+                                           :src="media.url"
                                            class="media-content media-video"
                                            controls
                                            preload="none">
@@ -736,13 +736,13 @@ const MessageContentRenderer = {
                                                '❓' }}
                                         </div>
                                         <div>{{ media.media_type }}</div>
-                                        <div v-if="!media.display_url" style="color: #ff6b6b; font-size: 10px;">缺失</div>
+                                        <div v-if="!media.url" style="color: #ff6b6b; font-size: 10px;">缺失</div>
                                     </div>
                                     
                                     <!-- 剩余媒体计数覆盖层 -->
                                     <div v-if="media.isLast && media.remainingCount > 0" 
                                          class="remaining-count"
-                                         @click.stop="openMediaPreview(media.display_url)">
+                                         @click.stop="openMediaPreview(media.url)">
                                         +{{ media.remainingCount }}
                                     </div>
                                 </div>

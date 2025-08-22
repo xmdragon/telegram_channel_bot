@@ -880,7 +880,7 @@ class MessageGrouper:
                     
                 media_display.append({
                     'media_type': media_item.get('media_type'),
-                    'display_url': web_path,  # 统一使用display_url字段名
+                    'url': web_path,
                     'file_size': media_item.get('file_size'),
                     'mime_type': media_item.get('mime_type')
                 })
