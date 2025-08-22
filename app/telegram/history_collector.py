@@ -143,10 +143,10 @@ class HistoryCollector:
             
             # 按时间顺序（旧的在前）处理消息，这样媒体组能正确组合
             collected_messages.reverse()
-            if is_new_channel:
-                logger.info(f"新频道收集到 {len(collected_messages)} 条历史消息，开始处理...")
-            else:
-                logger.info(f"增量采集到 {len(collected_messages)} 条新消息，开始处理...")
+            
+            # 🔥 Linus式简化：不需要区分新频道还是增量，统一日志
+            collection_type = "历史消息" if not checkpoint_id else "增量消息"
+            logger.info(f"收集到 {len(collected_messages)} 条{collection_type}，开始处理...")
             
             # 处理收集到的消息
             collected = 0
