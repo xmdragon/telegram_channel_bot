@@ -48,6 +48,8 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
 def check_permission(permission_name: str):
     """检查权限装饰器"""
     def decorator(func):
+        import functools
+        @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # 这里可以添加具体的权限检查逻辑
             return await func(*args, **kwargs)
