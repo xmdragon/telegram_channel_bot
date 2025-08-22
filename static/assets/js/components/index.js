@@ -2139,12 +2139,10 @@ const MainApp = {
                 return;
             }
             try {
-                // 获取认证headers（修复422认证错误）
-                const authHeaders = window.authManager ? window.authManager.getAuthHeaders() : {};
+                // 🚀 Linus风格：依赖axios拦截器自动处理认证（消除特殊情况）
                 const response = await axios.post(
                     window.API.messages.filterTail(message.id),
-                    {}, // 空body
-                    { headers: authHeaders } // 添加认证headers
+                    {} // 让拦截器自动添加认证头，避免手动覆盖
                 );
                 
                 if (response.data.success) {
