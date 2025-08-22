@@ -355,6 +355,8 @@ class MessageProcessor:
                         "approved": 0,
                         "rejected": 0,
                         "auto_forwarded": 0,
+                        "published": 0,
+                        "processing": 0,
                         "ads": 0,
                         "duplicates": 0,
                         "channels": 0
@@ -367,14 +369,17 @@ class MessageProcessor:
                 "approved": self.redis_store.get_message_count(status="approved"),
                 "rejected": self.redis_store.get_message_count(status="rejected"),
                 "auto_forwarded": self.redis_store.get_message_count(status="auto_forwarded"),
+                "published": self.redis_store.get_message_count(status="published"),
+                "processing": self.redis_store.get_message_count(status="processing"),
                 "ads": 0,
                 "duplicates": 0,
                 "chats": 0,
                 "channels": 0
             }
             
-            # 计算总数
-            stats["total"] = stats["pending"] + stats["approved"] + stats["rejected"] + stats["auto_forwarded"]
+            # 计算总数（包含所有状态）
+            stats["total"] = (stats["pending"] + stats["approved"] + stats["rejected"] + 
+                            stats["auto_forwarded"] + stats["published"] + stats["processing"])
             
             # 获取所有频道的计数器键
             pattern = "msg:count:*:total"
