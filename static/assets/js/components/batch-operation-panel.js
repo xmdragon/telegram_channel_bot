@@ -14,6 +14,10 @@ const BatchOperationPanel = {
         buttonVisibility: {
             type: Object,
             default: () => ({})
+        },
+        filteredMessages: {
+            type: Array,
+            default: () => []
         }
     },
     
@@ -46,6 +50,59 @@ const BatchOperationPanel = {
         
         hasSelection() {
             return this.selectedCount > 0;
+        },
+        
+        // 分析选中消息的状态分布
+        selectedMessageDetails() {
+            if (!this.hasSelection || !this.filteredMessages.length) {
+                return {
+                    pending: 0,
+                    approved: 0,
+                    rejected: 0,
+                    total: 0
+                };
+            }
+            
+            const details = {
+                pending: 0,
+                approved: 0,
+                rejected: 0,
+                total: this.selectedCount
+            };
+            
+            // 根据选中的消息ID找到对应的消息对象
+            const selectedMessageObjs = this.filteredMessages.filter(msg => 
+                this.selectedMessages.includes(msg.id)
+            );
+            
+            selectedMessageObjs.forEach(msg => {
+                switch (msg.status) {
+                    case 'pending':
+                        details.pending++;
+                        break;
+                    case 'approved':
+                        details.approved++;
+                        break;
+                    case 'rejected':
+                        details.rejected++;
+                        break;
+                }
+            });
+            
+            return details;
+        },
+        
+        // 按钮显示控制
+        shouldShowApprove() {
+            return this.hasSelection && this.selectedMessageDetails.pending > 0;
+        },
+        
+        shouldShowReject() {
+            return this.hasSelection && this.selectedMessageDetails.pending > 0;
+        },
+        
+        shouldShowDelete() {
+            return this.hasSelection && (this.selectedMessageDetails.approved > 0 || this.selectedMessageDetails.rejected > 0);
         }
     },
     
@@ -278,7 +335,7 @@ const BatchOperationPanel = {
             <!-- 选择控制区 -->
             <div class="selection-controls">
                 <div class="selection-info">
-                    <span class="selected-count" :class="{ 'has-selection': hasSelection }">
+                    <span class="selected-count" :class="{ 'has-selection': hasSelection }" v-if="hasSelection">
                         已选择: {{ selectedCount }} / {{ totalMessages }}
                     </span>
                 </div>
@@ -289,9 +346,6 @@ const BatchOperationPanel = {
                     </el-button>
                     <el-button size="small" @click="invertSelection" :disabled="totalMessages === 0">
                         反选
-                    </el-button>
-                    <el-button size="small" @click="clearSelection" :disabled="!hasSelection">
-                        清空
                     </el-button>
                 </div>
             </div>
@@ -310,30 +364,41 @@ const BatchOperationPanel = {
             <div class="batch-operations" v-if="hasSelection">
                 <el-button-group>
                     <el-button 
+                        v-if="shouldShowApprove"
                         type="success" 
                         :disabled="isProcessing || !buttonVisibility.approve"
                         @click="batchApprove($event)"
                         :loading="isProcessing && operationProgress.status.includes('发布')"
                     >
-                        📤 发布 ({{ selectedCount }})
+                        📤 发布 ({{ selectedMessageDetails.pending }})
                     </el-button>
                     
                     <el-button 
+                        v-if="shouldShowReject"
                         type="warning" 
                         :disabled="isProcessing || !buttonVisibility.reject"
                         @click="batchReject"
                         :loading="isProcessing && operationProgress.status.includes('拒绝')"
                     >
-                        ❌ 拒绝 ({{ selectedCount }})
+                        ❌ 拒绝 ({{ selectedMessageDetails.pending }})
                     </el-button>
                     
                     <el-button 
+                        v-if="shouldShowDelete"
                         type="danger" 
                         :disabled="isProcessing || !buttonVisibility.delete"
                         @click="batchDelete"
                         :loading="isProcessing && operationProgress.status.includes('删除')"
                     >
-                        🗑️ 删除 ({{ selectedCount }})
+                        🗑️ 删除 ({{ selectedMessageDetails.approved + selectedMessageDetails.rejected }})
+                    </el-button>
+                    
+                    <el-button 
+                        size="small"
+                        @click="clearSelection" 
+                        :disabled="!hasSelection"
+                    >
+                        清空
                     </el-button>
                 </el-button-group>
                 

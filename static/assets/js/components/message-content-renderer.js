@@ -161,9 +161,7 @@ const MessageContentRenderer = {
     methods: {
         // 切换消息选择状态
         toggleSelect() {
-            if (this.message.status === 'pending') {
-                this.$emit('toggle-select', this.message.id);
-            }
+            this.$emit('toggle-select', this.message.id);
         },
         
         // 格式化时间
@@ -314,7 +312,6 @@ const MessageContentRenderer = {
                 <div class="message-info">
                     <!-- 选择框 -->
                     <input type="checkbox" 
-                           v-if="message.status === 'pending'"
                            :checked="$emit('is-selected', message.id)"
                            @click.stop
                            @change="toggleSelect">
@@ -348,12 +345,12 @@ const MessageContentRenderer = {
                             #{{ duplicateInfo.originalMessageId }}
                         </span>)
                     </span>
-                    <span v-if="message.filter_reason && message.status === 'rejected'" 
+                    <span v-if="(message.filter_reason || message.rejection_reason) && message.status === 'rejected'" 
                           class="tag tag-secondary reject-reason" 
-                          :title="message.filter_reason">
-                        拒因: {{ message.filter_reason.length > 15 ? 
-                                message.filter_reason.substring(0, 15) + '...' : 
-                                message.filter_reason }}
+                          :title="message.filter_reason || message.rejection_reason">
+                        拒因: {{ (message.filter_reason || message.rejection_reason).length > 15 ? 
+                                (message.filter_reason || message.rejection_reason).substring(0, 15) + '...' : 
+                                (message.filter_reason || message.rejection_reason) }}
                     </span>
                 </div>
             </div>
