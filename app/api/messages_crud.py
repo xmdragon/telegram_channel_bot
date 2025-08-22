@@ -421,18 +421,42 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
     if not message:
         raise HTTPException(status_code=404, detail="消息不存在")
     
-    # 转发消息到目标频道
-    message_processor = get_message_processor()
+    # 通过队列异步转发消息到目标频道
     try:
-        await message_processor.forward_message(message_id)
+        from app.services.message_forward_queue import forward_queue
+        import asyncio
         
-        # 转发成功后更新状态为已发布
-        redis_store.update_message_status(message_id, "published", user_id)
+        # 提交转发任务到队列
+        task_id = await forward_queue.submit_forward_task(message_id, "forward_to_target")
+        logger.info(f"发布任务已提交到队列: {message_id}, 任务ID: {task_id}")
+        
+        # 等待任务结果（短超时，避免阻塞用户响应）
+        task_result = await forward_queue.get_task_result(message_id, timeout=5)
+        
+        if task_result:
+            if task_result.get("success"):
+                # 任务成功，更新状态为已发布
+                redis_store.update_message_status(message_id, "published", user_id)
+                logger.info(f"消息发布成功: {message_id}")
+            else:
+                # 任务失败
+                error_msg = task_result.get("error_message", "未知错误")
+                logger.error(f"消息发布失败: {message_id}, 错误: {error_msg}")
+                return {
+                    "success": False,
+                    "message": f"消息发布失败: {error_msg}",
+                    "timestamp": format_for_api(get_current_time())
+                }
+        else:
+            # 任务还在处理中或超时，先更新为处理中状态
+            redis_store.update_message_status(message_id, "processing", user_id)
+            logger.info(f"消息发布任务处理中: {message_id}")
+            
     except Exception as e:
-        logger.error(f"消息发布失败: {message_id}, 错误: {e}")
+        logger.error(f"提交发布任务失败: {message_id}, 错误: {e}")
         return {
             "success": False,
-            "message": f"消息发布失败: {str(e)}",
+            "message": f"提交发布任务失败: {str(e)}",
             "timestamp": format_for_api(get_current_time())
         }
     
