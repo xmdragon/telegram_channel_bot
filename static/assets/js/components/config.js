@@ -4,9 +4,6 @@
 const API = window.API;
 
 // 检查依赖是否加载
-// // [removed console.log]
-// // [removed console.log]
-// // [removed console.log]
 
 const { createApp } = Vue;
 const { ElMessage } = ElementPlus;
@@ -305,11 +302,9 @@ const ConfigApp = {
         
         async removeChannel(channelId) {
             try {
-                // // [removed console.log]
                 
                 const response = await axios.delete(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channelId)));
                 
-                // // [removed console.log]
                 
                 if (response.data.success) {
                     MessageManager.success('频道删除成功');
@@ -405,13 +400,11 @@ const ConfigApp = {
                 const newStatus = channel.status === 'active' ? 'inactive' : 'active';
                 const isActive = newStatus === 'active';
                 
-                // // [removed console.log]
                 
                 const response = await axios.put(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channel.name)), {
                     is_active: isActive
                 });
                 
-                // // [removed console.log]
                 
                 if (response.data.success) {
                     MessageManager.success(`频道状态已切换为${newStatus === 'active' ? '活跃' : '停用'}`);
@@ -706,11 +699,8 @@ const ConfigApp = {
 
 // 等待 DOM 加载完成
 document.addEventListener('DOMContentLoaded', function() {
-    // // [removed console.log]
     
     // 创建应用实例
-    // // [removed console.log]
-    // // [removed console.log]
 
     try {
         const app = createApp(ConfigApp);
@@ -733,7 +723,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 挂载应用
         app.mount('#app');
-        // // [removed console.log]
     } catch (error) {
         document.body.innerHTML = '<div style="color: red; padding: 20px;">Vue 应用挂载失败: ' + error.message + '</div>';
     }

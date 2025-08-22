@@ -1,0 +1,363 @@
+/**
+ * Linus式统计组件样式
+ * 清晰分离的两维度统计展示样式
+ * 
+ * 设计原则：
+ * 1. 视觉层次清晰，两个维度明显分离
+ * 2. 颜色语义化，状态一目了然
+ * 3. 响应式设计，适配不同屏幕尺寸
+ */
+
+.linus-stats-container {
+    padding: 20px;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+.loading-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: #666;
+    gap: 16px;
+}
+
+/* 主要统计网格布局 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 统计区域 */
+.stats-section {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e8ecef;
+}
+
+.section-header {
+    margin-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 12px;
+}
+
+.section-header h3 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.section-description {
+    font-size: 14px;
+    color: #7f8c8d;
+}
+
+/* 消息状态卡片 */
+.status-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    position: relative;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-number {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.stat-percentage {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* 状态颜色 */
+.stat-card.total {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-card.pending {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.stat-card.accepted {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-card.rejected {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+/* 拒绝原因卡片 */
+.rejection-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.rejection-card {
+    padding: 16px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #e8ecef;
+    transition: all 0.3s ease;
+}
+
+.rejection-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rejection-number {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.rejection-label {
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.rejection-percentage {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+/* 拒绝原因颜色 */
+.rejection-card.danger {
+    background-color: #fee;
+    border-color: #fcc;
+    color: #c53030;
+}
+
+.rejection-card.warning {
+    background-color: #fffbf0;
+    border-color: #fed7aa;
+    color: #c05621;
+}
+
+.rejection-card.info {
+    background-color: #ebf8ff;
+    border-color: #bee3f8;
+    color: #2b6cb0;
+}
+
+.rejection-card.secondary {
+    background-color: #f7fafc;
+    border-color: #e2e8f0;
+    color: #4a5568;
+}
+
+/* 无拒绝消息状态 */
+.no-rejections {
+    text-align: center;
+    padding: 40px;
+    color: #28a745;
+    font-size: 16px;
+    background: #f0f9ff;
+    border-radius: 8px;
+    border: 1px solid #bee3f8;
+}
+
+/* 验证信息 */
+.validation-info {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #495057;
+}
+
+.validation-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.validation-check::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    background: #28a745;
+    border-radius: 50%;
+}
+
+/* 主要拒绝原因 */
+.top-reason {
+    background: #fff3cd;
+    border: 1px solid #ffecb5;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #856404;
+}
+
+.top-reason-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.top-reason-text strong {
+    color: #6c4400;
+}
+
+/* 系统信息区域 */
+.system-info-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e8ecef;
+}
+
+.system-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.system-info-header h4 {
+    margin: 0;
+    font-size: 16px;
+    color: #2c3e50;
+}
+
+.refresh-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.system-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.metric-label {
+    font-size: 13px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.metric-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.metric-value.consistent {
+    color: #28a745;
+}
+
+.metric-value.inconsistent {
+    color: #dc3545;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .linus-stats-container {
+        padding: 12px;
+    }
+    
+    .stats-section {
+        padding: 16px;
+    }
+    
+    .status-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .rejection-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .system-info-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .refresh-controls {
+        align-self: stretch;
+        justify-content: flex-end;
+    }
+    
+    .system-metrics {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .status-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .rejection-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-card {
+        padding: 16px;
+    }
+    
+    .stat-number {
+        font-size: 24px;
+    }
+}

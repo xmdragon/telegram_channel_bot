@@ -527,15 +527,17 @@ const TrainApp = {
                     ? this.trainingForm.original_message.substring(0, tailIndex).trim()
                     : this.trainingForm.original_message;
                 
-                console.log('📊 数据处理结果:', {
-                    separator: separator.substring(0, 20) + '...',
-                    normalPartLength: normalPart.length,
-                    tailIndex: tailIndex,
-                    tailLinesCount: tailLines.length
-                });
+                // 数据处理结果（调试模式下显示）
+                if (window.DEBUG) {
+                    console.log('📊 数据处理结果:', {
+                        separator: separator.substring(0, 20) + '...',
+                        normalPartLength: normalPart.length,
+                        tailIndex: tailIndex,
+                        tailLinesCount: tailLines.length
+                    });
+                }
                 
                 // 打印调试信息
-                // console.log('提交数据:', {
                 //     content: this.trainingForm.original_message,
                 //     separator: separator,
                 //     normalPart: normalPart,
@@ -544,8 +546,6 @@ const TrainApp = {
                 
                 // 检查token
                 const token = localStorage.getItem('admin_token');
-                // // [removed console.log]+ '...)' : '不存在');
-                // // [removed console.log]
                 
                 // 统一提交到tail-filter-samples
                 // 在保存时将媒体组信息附加到内容后面
@@ -561,22 +561,28 @@ const TrainApp = {
                     message_id: this.trainingForm.message_id  // 传递message_id
                 };
                 
-                console.log('📡 发送API请求:', {
-                    url: API.training.tailFilterSamples,
-                    method: 'POST',
-                    dataKeys: Object.keys(postData),
-                    contentLength: postData.content.length,
-                    tailPartLength: postData.tailPart.length
-                });
+                // 发送API请求（调试模式下显示）
+                if (window.DEBUG) {
+                    console.log('📡 发送API请求:', {
+                        url: API.training.tailFilterSamples,
+                        method: 'POST',
+                        dataKeys: Object.keys(postData),
+                        contentLength: postData.content.length,
+                        tailPartLength: postData.tailPart.length
+                    });
+                }
                 
                 const response = await axios.post(API.training.tailFilterSamples, postData);
                 
-                console.log('📥 收到API响应:', {
-                    status: response.status,
-                    success: response.data.success,
-                    message: response.data.message,
-                    id: response.data.id
-                });
+                // 收到API响应（调试模式下显示）
+                if (window.DEBUG) {
+                    console.log('📥 收到API响应:', {
+                        status: response.status,
+                        success: response.data.success,
+                        message: response.data.message,
+                        id: response.data.id
+                    });
+                }
                 
                 if (response.data.success) {
                     // 显示实际的响应消息
@@ -714,7 +720,6 @@ const TrainApp = {
 
         // 打开训练数据管理界面
         openTrainingManager(type = null) {
-            // // [removed console.log]
             // 根据类型跳转到不同的独立页面
             let url;
             if (type === 'tail') {
@@ -725,7 +730,6 @@ const TrainApp = {
                 // 默认跳转到广告管理页面
                 url = '/static/ad-training-manager.html';
             }
-            // // [removed console.log]
             // 在当前页面打开，而不是新窗口
             window.location.href = url;
         },
@@ -756,7 +760,6 @@ document.addEventListener('DOMContentLoaded', function() {
             app.component('training-nav', window.TrainingNav);
         }
         app.mount('#app');
-        // // [removed console.log]
     } catch (error) {
     }
 });

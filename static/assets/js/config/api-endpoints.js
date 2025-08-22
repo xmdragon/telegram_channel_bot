@@ -17,6 +17,7 @@ const API_ENDPOINTS = {
         list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
         stats: '/api/messages/stats/overview',                      // GET - 获取消息统计信息（修复：使用正确的端点）
         statsOverview: '/api/messages/stats/overview',              // GET - 获取消息统计概览
+        linusStatsOverview: '/api/stats/linus-overview',            // GET - Linus式统计概览（新增）
         testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
         getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
@@ -31,7 +32,6 @@ const API_ENDPOINTS = {
         batchReject: '/api/messages/batch/reject',                 // POST - 批量拒绝消息
         batchDelete: '/api/messages/batch/delete',                 // POST - 批量删除消息
         reset: '/api/messages/reset',                              // POST - 重置消息
-        export: '/api/messages/export',                            // GET - 导出消息数据
         
         // 消息操作端点
         notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
@@ -199,18 +199,10 @@ const API_ENDPOINTS = {
         configBatch: '/api/admin/config/batch'                     // POST - 批量配置
     },
 
-    // 进程锁模块 - /api/lock
-    lock: {
-        status: '/api/lock/status',                                // GET - 锁状态
-        acquire: '/api/lock/acquire',                              // POST - 获取锁
-        release: '/api/lock/release'                               // POST - 释放锁
-    },
 
     // WebSocket端点
     websocket: {
-        main: '/api/websocket',                                    // WebSocket - 主要连接
-        messages: '/api/ws/messages',                              // WebSocket - 消息推送
-        notifications: '/api/ws/notifications'                     // WebSocket - 通知连接
+        main: '/ws',                                               // WebSocket - 主要连接（实际使用的端点）
     },
 
     // AI配置模块 - /api/ai-config

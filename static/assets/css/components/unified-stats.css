@@ -1,0 +1,176 @@
+/* Linus式统一统计标签 - 消除样式特殊情况 */
+
+/* 统计网格布局 */
+.stats-grid {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 12px 0; /* 为角标留出空间 */
+}
+
+/* 统一的小标签样式 - 带右上角数字角标 */
+.stat-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 2px solid #cbd5e1;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 80px;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin: 8px; /* 为角标预留空间，防止被裁剪 */
+    overflow: visible; /* 确保角标不被裁剪 */
+}
+
+/* 标签文本 */
+.stat-badge-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+/* 右上角数字角标 */
+.stat-badge-number {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 12px;
+    min-width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    line-height: 1;
+    z-index: 10;
+    border: 2px solid white; /* 白色边框让角标更突出 */
+}
+
+/* 不同状态的颜色主题 */
+.stat-badge.total {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border-color: #94a3b8;
+}
+
+.stat-badge.total .stat-badge-number {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+.stat-badge.pending {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-color: #f59e0b;
+}
+
+.stat-badge.pending .stat-badge-number {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.stat-badge.approved {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-color: #22c55e;
+}
+
+.stat-badge.approved .stat-badge-number {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.stat-badge.rejected {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #ef4444;
+}
+
+.stat-badge.rejected .stat-badge-number {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.stat-badge.ads {
+    background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+    border-color: #ec4899;
+}
+
+.stat-badge.ads .stat-badge-number {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+}
+
+.stat-badge.duplicates {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-color: #0ea5e9;
+}
+
+.stat-badge.duplicates .stat-badge-number {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+}
+
+.stat-badge.chats {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border-color: #8b5cf6;
+}
+
+.stat-badge.chats .stat-badge-number {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+/* 悬停效果 */
+.stat-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #94a3b8;
+}
+
+.stat-badge:hover .stat-badge-number {
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(59, 130, 246, 0.4);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .stats-grid {
+        justify-content: center;
+        gap: 12px;
+    }
+    
+    .stat-badge {
+        min-width: 70px;
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .stat-badge-label {
+        font-size: 12px;
+    }
+    
+    .stat-badge-number {
+        font-size: 10px;
+        padding: 1px 4px;
+        min-width: 16px;
+        height: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .stat-badge {
+        width: 100%;
+        max-width: 200px;
+    }
+}

@@ -60,7 +60,7 @@ class EventDelegate {
         }
         
         // 只有在不是交互元素的情况下，才查找统计卡片
-        const statCard = target.closest('.stat-card');
+        const statCard = target.closest('.stat-card, .stat-badge');
         if (!statCard) return null;
         
         // 返回数据属性中的统计键

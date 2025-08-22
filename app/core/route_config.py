@@ -47,13 +47,6 @@ class RouteConfig:
         
         # 统计相关
         stats_overview = "/messages/stats/overview"
-        stats_channel = "/messages/stats/channel/{channel_id}"
-        stats_performance = "/messages/stats/performance"
-        stats_filters = "/messages/stats/filters"
-        stats_trending = "/messages/stats/trending"
-        health_check = "/messages/health-check"
-        metrics = "/messages/metrics"
-        reports_generate = "/messages/reports/generate"
     
     class Admin:
         """管理员相关路由"""

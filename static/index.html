@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755738345">
     <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755738345">
     <link rel="stylesheet" href="assets/css/components/index.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/components/unified-stats.css?v=1755738345">
     <link rel="stylesheet" href="assets/css/components/performance-ui.css?v=1755738345">
     <link rel="stylesheet" href="assets/css/components/media-group.css?v=1755738345">
     <link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=1755738345">
@@ -21,16 +22,11 @@
         <nav-bar page-title="🏠 主控制台"></nav-bar>
 
         <div class="stats-container">
-            <!-- 统计面板 -->
-            <div class="stats-grid">
-                <div v-for="(stat, key) in stats" :key="key" 
-                     class="stat-card" 
-                     :data-stat-key="key">
-                    <div class="stat-value">{{ stat.value }}</div>
-                    <div class="stat-label">{{ stat.label }}</div>
-                </div>
-            </div>
+            <!-- 统计面板 - 使用Linus式统计组件 -->
+            <linus-stats ref="linusStats"></linus-stats>
+        </div>
 
+        <div class="container">
             <!-- 工具栏 -->
             <div class="toolbar">
                 <div class="filter-group">
@@ -404,6 +400,7 @@
     <!-- Vue组件 -->
     <script src="assets/js/components/navbar.js?v=1755738345"></script>
     <script src="assets/js/components/message-content-renderer.js?v=1755738345"></script>
+    <script src="assets/js/components/linus-stats.js?v=1755738345"></script>
     
     <!-- 兼容性工具（保留现有功能） -->
     <script src="assets/js/utils/permission-checker.js?v=1755738345"></script>

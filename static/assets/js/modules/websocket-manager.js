@@ -44,7 +44,7 @@ const WebSocketManager = {
 
     // 处理连接打开
     handleOpen(event) {
-        console.log('WebSocket连接已建立');
+        // WebSocket连接已建立（生产环境已移除日志）
         this.isConnected = true;
         this.reconnectAttempts = 0;
         
@@ -69,7 +69,7 @@ const WebSocketManager = {
 
     // 处理连接关闭
     handleClose(event) {
-        console.log('WebSocket连接已关闭:', event.code, event.reason);
+        // WebSocket连接已关闭（生产环境已移除日志）
         this.isConnected = false;
         
         if (this.callbacks.onStatusChange) {

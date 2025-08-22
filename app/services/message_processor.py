@@ -341,173 +341,37 @@ class MessageProcessor:
             # 不抛出异常，避免影响消息保存流程
     
     async def get_message_stats(self) -> dict:
-        """获取消息统计信息"""
+        """获取消息统计信息 - 使用Linus O(1)计数器"""
         try:
-            # 确保redis_store已初始化
-            if self.redis_store is None:
-                try:
-                    self.redis_store = get_redis_message_store()
-                except RuntimeError:
-                    logger.warning("Redis存储未初始化，返回默认统计")
-                    return {
-                        "total": 0,
-                        "pending": 0,
-                        "approved": 0,
-                        "rejected": 0,
-                        "auto_forwarded": 0,
-                        "published": 0,
-                        "processing": 0,
-                        "ads": 0,
-                        "duplicates": 0,
-                        "channels": 0
-                    }
+            from app.storage.linus_stats_store import get_linus_stats_store
+            stats_store = get_linus_stats_store()
             
-            # 使用Redis计数器获取统计数据
-            stats = {
-                "total": 0,
-                "pending": self.redis_store.get_message_count(status="pending"),
-                "approved": self.redis_store.get_message_count(status="approved"),
-                "rejected": self.redis_store.get_message_count(status="rejected"),
-                "auto_forwarded": self.redis_store.get_message_count(status="auto_forwarded"),
-                "published": self.redis_store.get_message_count(status="published"),
-                "processing": self.redis_store.get_message_count(status="processing"),
-                "ads": 0,
-                "duplicates": 0,
-                "chats": 0,
-                "channels": 0
+            # 获取Linus统计数据
+            message_stats = stats_store.get_global_stats()
+            rejection_stats = stats_store.get_rejection_stats()
+            
+            # 转换为旧格式以保持兼容性
+            return {
+                "total": message_stats.total,
+                "pending": message_stats.pending,
+                "approved": message_stats.accepted,  # Linus: accepted -> 旧系统: approved
+                "rejected": message_stats.rejected,
+                "ads": rejection_stats.ad,
+                "duplicates": rejection_stats.duplicate,
+                "chats": rejection_stats.chat,
+                "channels": 0,  # TODO: 从频道服务获取
+                "auto_forwarded": 0,  # 暂不支持
+                "published": 0,      # 暂不支持
+                "processing": 0      # 暂不支持
             }
             
-            # 计算总数（包含所有状态）
-            stats["total"] = (stats["pending"] + stats["approved"] + stats["rejected"] + 
-                            stats["auto_forwarded"] + stats["published"] + stats["processing"])
-            
-            # 获取所有频道的计数器键
-            pattern = "msg:count:*:total"
-            total_keys = self.redis_store.redis.keys(pattern)
-            
-            # 计算广告数量和重复数量（需要遍历所有消息）
-            ad_count = 0
-            duplicate_count = 0
-            channel_set = set()
-            
-            # 从所有频道计数器中提取频道ID
-            for key in total_keys:
-                # key格式: msg:count:channel_id:total
-                parts = key.split(':')
-                if len(parts) >= 3:
-                    channel_id = parts[2]
-                    channel_set.add(channel_id)
-            
-            # 获取活跃源频道数量
-            try:
-                from app.services.unified_channel_service import unified_channel_service
-                active_channels = await unified_channel_service.get_all_channels(channel_type="source", active_only=True)
-                stats["channels"] = len(active_channels)
-            except Exception as e:
-                logger.warning(f"获取活跃频道数失败，使用消息频道数: {e}")
-                stats["channels"] = len(channel_set)
-            
-            # 🔧 修复：通过采样方式估算广告、重复和聊天数量（避免遍历所有消息）
-            sample_size = min(500, stats["total"])  # 增加采样数量提高准确性
-            chat_count = 0
-            
-            if sample_size > 0:
-                # 获取不同状态的消息样本进行分析
-                sample_messages = []
-                
-                # 从不同状态中采样
-                pending_sample = self.redis_store.get_pending_messages(limit=min(200, sample_size // 2))
-                sample_messages.extend(pending_sample)
-                
-                # 获取被拒绝的消息样本（包含聊天消息）
-                try:
-                    rejected_sample = self.redis_store.get_messages_by_status("rejected", limit=min(300, sample_size))
-                    sample_messages.extend(rejected_sample)
-                except:
-                    # 降级方案：直接查询rejected消息
-                    pattern = "msg:*"
-                    keys = self.redis_store.redis.keys(pattern)
-                    rejected_keys = []
-                    for key in keys[:500]:  # 限制检查数量
-                        try:
-                            msg_data = self.redis_store.redis.hgetall(key)
-                            if msg_data.get(b'status') == b'rejected':
-                                rejected_keys.append(key)
-                                if len(rejected_keys) >= 300:
-                                    break
-                        except:
-                            continue
-                    
-                    # 解析rejected消息
-                    for key in rejected_keys:
-                        try:
-                            msg_data = self.redis_store.redis.hgetall(key)
-                            # 转换为统一格式
-                            msg = {}
-                            for k, v in msg_data.items():
-                                if isinstance(k, bytes):
-                                    k = k.decode('utf-8')
-                                if isinstance(v, bytes):
-                                    v = v.decode('utf-8')
-                                msg[k] = v
-                            sample_messages.append(msg)
-                        except:
-                            continue
-                
-                # 分析样本消息
-                for msg in sample_messages:
-                    filter_reason = msg.get('filter_reason', '')
-                    reject_reason = msg.get('reject_reason', '')
-                    all_reasons = f"{filter_reason} {reject_reason}".lower()
-                    
-                    # 🔧 修复：检查广告标记 - 包含自动拒绝的广告
-                    is_ad = msg.get('is_ad', False)
-                    if isinstance(is_ad, str):
-                        is_ad = is_ad.lower() == 'true'
-                    
-                    # 广告识别：直接标记为广告 OR 拒绝原因包含广告关键词
-                    if (is_ad or '广告' in all_reasons or 'ad' in all_reasons or 
-                        '高风险广告' in all_reasons or '赌博' in all_reasons or 
-                        '色情' in all_reasons or '诈骗' in all_reasons):
-                        ad_count += 1
-                    
-                    # 检查重复标记
-                    elif '重复' in all_reasons or 'duplicate' in all_reasons:
-                        duplicate_count += 1
-                    
-                    # 🔧 检查聊天内容标记
-                    elif ('聊天内容' in all_reasons or 'chat' in all_reasons or 
-                          'chatcontentfilter' in all_reasons.replace('_', '').replace(' ', '') or
-                          '检测到聊天内容' in all_reasons):
-                        chat_count += 1
-                
-                # 按比例推算全局数量
-                if len(sample_messages) > 0:
-                    ratio = stats["total"] / len(sample_messages)
-                    stats["ads"] = int(ad_count * ratio)
-                    stats["duplicates"] = int(duplicate_count * ratio)
-                    stats["chats"] = int(chat_count * ratio)
-                    
-                    logger.info(f"📊 消息统计采样: 样本{len(sample_messages)}条, 聊天{chat_count}条, 广告{ad_count}条, 重复{duplicate_count}条")
-                else:
-                    stats["chats"] = 0
-            
-            logger.debug(f"消息统计: {stats}")
-            return stats
-            
         except Exception as e:
-            logger.error(f"获取消息统计失败: {e}")
+            logger.error(f"获取Linus统计失败: {e}")
             # 返回默认统计
             return {
-                "total": 0,
-                "pending": 0,
-                "approved": 0,
-                "rejected": 0,
-                "ads": 0,
-                "duplicates": 0,
-                "chats": 0,
-                "channels": 0,
-                "auto_forwarded": 0
+                "total": 0, "pending": 0, "approved": 0, "rejected": 0,
+                "ads": 0, "duplicates": 0, "chats": 0, "channels": 0,
+                "auto_forwarded": 0, "published": 0, "processing": 0
             }
     
     async def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:

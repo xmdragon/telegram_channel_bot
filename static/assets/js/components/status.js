@@ -58,16 +58,6 @@ const app = createApp({
                 type: ''  // 'system_status' 或 'system_reset'
             },
             
-            // 系统统计 - 与主控制台保持一致
-            systemStats: {
-                total: { label: '总消息', value: 0 },
-                pending: { label: '待审核', value: 0 },
-                approved: { label: '已发布', value: 0 },
-                rejected: { label: '已拒绝', value: 0 },
-                ads: { label: '广告消息', value: 0 },
-                duplicates: { label: '重复消息', value: 0 },
-                chats: { label: '聊天消息', value: 0 }
-            },
             
             // 服务状态
             services: [
@@ -126,14 +116,7 @@ const app = createApp({
                     this.updateSystemStatus(statusResponse.data);
                 }
                 
-                // 单独加载消息统计（使用与主控制台相同的API和认证）
-                const statsResponse = await axios.get(API.messages.statsOverview, {
-                    headers: authManager.getAuthHeaders()
-                });
-                
-                if (statsResponse.data && statsResponse.data.data) {
-                    this.updateMessageStats(statsResponse.data.data);
-                }
+                // 系统状态页面不需要消息统计数据
             } catch (error) {
                 MessageManager.error('加载系统状态失败');
             }
@@ -156,18 +139,6 @@ const app = createApp({
                 this.systemInfo.lastUpdate = new Date().toLocaleString('zh-CN');
             }
         },
-        
-        updateMessageStats(stats) {
-            // 更新消息统计数据 - 用于主控制台API数据格式
-            this.systemStats.total.value = stats.total || 0;
-            this.systemStats.pending.value = stats.pending || 0;
-            this.systemStats.approved.value = stats.approved || 0;
-            this.systemStats.rejected.value = stats.rejected || 0;
-            this.systemStats.ads.value = stats.ads || 0;
-            this.systemStats.duplicates.value = stats.duplicates || 0;
-            this.systemStats.chats.value = stats.chats || 0;
-        },
-        
         
         formatUptime(seconds) {
             const hours = Math.floor(seconds / 3600);
@@ -294,7 +265,7 @@ const app = createApp({
                 this.ws = new WebSocket(wsUrl);
                 
                 this.ws.onopen = () => {
-                    console.log('WebSocket 连接已建立');
+                    // WebSocket连接已建立
                 };
                 
                 this.ws.onmessage = (event) => {
@@ -307,7 +278,7 @@ const app = createApp({
                 };
                 
                 this.ws.onclose = () => {
-                    console.log('WebSocket 连接已关闭，尝试重连...');
+                    // WebSocket连接已关闭，准备重连
                     // 5秒后重连
                     setTimeout(() => {
                         if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
@@ -333,9 +304,9 @@ const app = createApp({
         },
         
         handleWebSocketMessage(data) {
-            console.log('WebSocket消息:', data);  // 调试日志
+            // 处理WebSocket消息（生产环境已移除调试日志）
             if (data.type === 'operation_progress') {
-                console.log('处理进度消息:', data.data);  // 调试日志
+                // 处理进度消息
                 // 只为消息重置操作显示弹窗，忽略系统状态检查
                 if (data.data.operation === 'system_reset') {
                     this.updateProgress(data.data);
@@ -377,7 +348,8 @@ const app = createApp({
                 'system_reset': '系统重置进行中'
             };
             return titleMap[this.operationProgress.operation] || '操作进行中';
-        }
+        },
+        
     }
 });
 

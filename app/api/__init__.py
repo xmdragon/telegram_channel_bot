@@ -7,6 +7,7 @@ from .messages_crud import router as messages_crud_router
 from .messages_batch import router as messages_batch_router
 from .messages_filter import router as messages_filter_router
 from .messages_stats import router as messages_stats_router
+from .linus_stats_api import router as linus_stats_router
 from .admin import router as admin_router
 from .config import router as config_router
 from .telegram_auth import router as auth_router
@@ -17,7 +18,6 @@ from .system_logs import router as system_logs_router
 from .system_maintenance import router as system_maintenance_router
 from .system_admin import router as system_admin_router
 from .system_lock import router as system_lock_router
-from .lock import router as lock_router
 from .admin_auth import router as admin_auth_router
 from .ai_control import router as ai_control_router
 from .ai_config import router as ai_config_router
@@ -33,6 +33,7 @@ api_router.include_router(messages_crud_router, tags=["messages-crud"])
 api_router.include_router(messages_batch_router, tags=["messages-batch"])  
 api_router.include_router(messages_filter_router, tags=["messages-filter"])
 api_router.include_router(messages_stats_router, tags=["messages-stats"])
+api_router.include_router(linus_stats_router, tags=["linus-stats"])
 
 # 保留原有消息路由作为备用
 # 旧的messages_router已删除
@@ -49,7 +50,6 @@ api_router.include_router(system_logs_router, tags=["system-logs"])
 api_router.include_router(system_maintenance_router, tags=["system-maintenance"])
 api_router.include_router(system_admin_router, tags=["system-admin"])
 api_router.include_router(system_lock_router, tags=["system-lock"])
-api_router.include_router(lock_router, tags=["lock"])
 api_router.include_router(ai_control_router, tags=["ai-control"])
 api_router.include_router(ai_config_router, tags=["ai-config"])
 api_router.include_router(version_router, tags=["version"])

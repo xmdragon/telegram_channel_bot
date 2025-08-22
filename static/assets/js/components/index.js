@@ -63,16 +63,6 @@ const MainApp = {
                 _show_duplicates: false
             },
             
-            // 统计状态 - 确保stats对象完整初始化
-            stats: {
-                total: { value: 0, label: '总消息' },
-                pending: { value: 0, label: '待审核' },
-                approved: { value: 0, label: '已发布' },
-                rejected: { value: 0, label: '已拒绝' },
-                ads: { value: 0, label: '广告消息' },
-                duplicates: { value: 0, label: '重复消息' },
-                chats: { value: 0, label: '聊天消息' }
-            },
             
             // 操作状态
             processingMessages: new Set(),
@@ -289,10 +279,7 @@ const MainApp = {
                     MessageManager.error('加载消息失败，请刷新页面重试');
                     throw err;
                 }),
-                this.loadStats().catch(err => {
-                    console.error('❌ 加载统计失败:', err);
-                    throw err;
-                }),
+                // 统计数据由linus-stats组件自动加载
                 this.loadChannelInfo().catch(err => {
                     console.error('❌ 加载频道信息失败:', err);
                     throw err;
@@ -616,13 +603,7 @@ const MainApp = {
                     params: params
                 });
                 
-                console.log('📥 API响应数据结构:', {
-                    hasData: !!response.data,
-                    hasDataData: !!(response.data && response.data.data),
-                    hasMessages: !!(response.data && response.data.data && response.data.data.messages),
-                    messagesType: response.data && response.data.data && response.data.data.messages ? typeof response.data.data.messages : 'undefined',
-                    messagesLength: response.data && response.data.data && response.data.data.messages && Array.isArray(response.data.data.messages) ? response.data.data.messages.length : 'N/A'
-                });
+                // API响应数据结构检查（生产环境已移除调试日志）
                 
                 if (response.data && response.data.data && response.data.data.messages && Array.isArray(response.data.data.messages)) {
                     const newMessages = response.data.data.messages;
@@ -713,7 +694,6 @@ const MainApp = {
         async loadMore() {
             // 双重检查，防止重复加载
             if (this.isLoadingMore || !this.hasMore) {
-                // // [removed console.log]
                 return;
             }
             
@@ -721,8 +701,6 @@ const MainApp = {
             this.isLoadingMore = true;
             
             try {
-                // // [removed console.log]
-                // // [removed console.log]
                 this.currentPage++;
                 await this.loadMessages(true);
                 
@@ -731,7 +709,6 @@ const MainApp = {
                 const expectedMessages = this.currentPage * this.pageSize;
                 if (this.messages.length < expectedMessages - this.pageSize) {
                     this.hasMore = false;
-                    // // [removed console.log]
                 }
             } finally {
                 // 确保加载状态被重置
@@ -739,22 +716,10 @@ const MainApp = {
             }
         },
         
-        async loadStats() {
-            try {
-                const response = await axios.get(window.API.messages.statsOverview, {
-                    headers: authManager.getAuthHeaders()
-                });
-                if (response.data) {
-                    const stats = response.data.data || response.data;
-                    this.stats.total.value = stats.total || 0;
-                    this.stats.pending.value = stats.pending || 0;
-                    this.stats.approved.value = stats.approved || 0;
-                    this.stats.rejected.value = stats.rejected || 0;
-                    this.stats.ads.value = stats.ads || 0;
-                    this.stats.duplicates.value = stats.duplicates || 0;
-                    this.stats.chats.value = stats.chats || 0;
-                }
-            } catch (error) {
+        refreshStats() {
+            // 调用Linus统计组件的刷新方法
+            if (this.$refs.linusStats) {
+                this.$refs.linusStats.loadStats();
             }
         },
 
@@ -950,7 +915,7 @@ const MainApp = {
                             this.messages[messageIndex].status = 'approved';
                         }
                     }
-                    this.loadStats();
+                    this.refreshStats();
                     
                     // 下一帧恢复滚动位置和加载状态
                     this.$nextTick(() => {
@@ -1009,7 +974,7 @@ const MainApp = {
                         this.messages = this.messages.filter(msg => msg.id !== messageId);
                     }
                     
-                    this.loadStats();
+                    this.refreshStats();
                     
                     // 下一帧恢复滚动位置和加载状态
                     this.$nextTick(() => {
@@ -1067,7 +1032,7 @@ const MainApp = {
                         }
                     }
                     
-                    this.loadStats();
+                    this.refreshStats();
                     
                     // 下一帧恢复滚动位置和加载状态
                     this.$nextTick(() => {
@@ -1127,7 +1092,7 @@ const MainApp = {
                     MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
-                    this.loadStats();
+                    this.refreshStats();
                 } else {
                     MessageManager.error('批量发布失败: ' + result.error);
                 }
@@ -1146,7 +1111,7 @@ const MainApp = {
                         MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
-                        this.loadStats();
+                        this.refreshStats();
                     } else {
                         MessageManager.error('批量发布失败: ' + response.data.message);
                     }
@@ -1546,7 +1511,6 @@ const MainApp = {
                         // 心跳响应，不需要处理
                         break;
                     default:
-                        // console.log('未知WebSocket消息类型:', data.type);
                 }
             } catch (error) {
             }
@@ -1554,7 +1518,6 @@ const MainApp = {
 
         // 处理新消息
         handleNewMessage(messageData) {
-            // console.log('📨 收到WebSocket新消息:', {
             //     id: messageData.id,
             //     status: messageData.status,
             //     is_ad: messageData.is_ad,
@@ -1594,9 +1557,7 @@ const MainApp = {
                 if (shouldAddMessage) {
                     // 新消息，添加到列表顶部
                     this.messages.unshift(messageData);
-                    // // [removed console.log]
                 } else {
-                    // // [removed console.log]
                 }
                 
                 // 显示通知（无论是否添加到列表）
@@ -1604,17 +1565,15 @@ const MainApp = {
                 MessageManager.success(`收到新消息: ${contentPreview}`);
                 
                 // 刷新统计信息
-                this.loadStats();
+                this.refreshStats();
                 
                 // 强制Vue重新渲染媒体元素
                 this.$nextTick(() => {
                     // 确保媒体URL被正确加载
                     if (messageData.media_display_url || messageData.media_group_display) {
-                        // // [removed console.log]
                     }
                 });
             } else {
-                // // [removed console.log]
             }
         },
 
@@ -1636,10 +1595,8 @@ const MainApp = {
                 if (this.filters.status === 'pending' && 
                     (updateData.status === 'approved' || updateData.status === 'rejected')) {
                     this.messages.splice(messageIndex, 1);
-                    // console.log(`消息 ${updateData.message_id} 已从列表中移除（状态: ${updateData.status}）`);
                 } else {
                     this.messages[messageIndex].status = updateData.status;
-                    // // [removed console.log]
                 }
             }
         },
@@ -1647,7 +1604,6 @@ const MainApp = {
         // 检查WebSocket连接状态
         checkWebSocketConnection() {
             if (!this.websocketConnected && (!this.websocket || this.websocket.readyState === WebSocket.CLOSED)) {
-                // console.log('WebSocket断开，尝试重连...');
                 this.connectWebSocket();
             }
         },
@@ -1695,11 +1651,7 @@ const MainApp = {
                 return;
             }
             
-            console.log('开始编辑消息:', {
-                messageId: this.editDialog.messageId,
-                content: this.editDialog.filteredContent,
-                url: window.API.messages.editPublish(this.editDialog.messageId)
-            });
+            // 开始编辑消息（生产环境已移除调试日志）
             
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
@@ -1816,7 +1768,7 @@ const MainApp = {
                         MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
-                        this.loadStats();
+                        this.refreshStats();
                     } else {
                         MessageManager.error('批量发布失败: ' + result.error);
                     }
@@ -1834,7 +1786,7 @@ const MainApp = {
                         MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
-                        this.loadStats();
+                        this.refreshStats();
                     } else {
                         MessageManager.error('批量发布失败: ' + response.data.message);
                     }
@@ -1862,7 +1814,7 @@ const MainApp = {
                     MessageManager.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
-                    this.loadStats();
+                    this.refreshStats();
                 } else {
                     MessageManager.error('批量拒绝失败: ' + result.error);
                 }
@@ -1881,7 +1833,7 @@ const MainApp = {
                         MessageManager.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
-                        this.loadStats();
+                        this.refreshStats();
                     } else {
                         MessageManager.error('批量拒绝失败: ' + response.data.message);
                     }
@@ -1968,7 +1920,7 @@ const MainApp = {
                 if (response.data.success) {
                     MessageManager.success('消息已重置为待审核状态');
                     this.loadMessages();
-                    this.loadStats();
+                    this.refreshStats();
                 } else {
                     MessageManager.error('重置失败: ' + response.data.message);
                 }
@@ -2000,7 +1952,7 @@ const MainApp = {
                     MessageManager.success(`成功删除 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
-                    this.loadStats();
+                    this.refreshStats();
                 } else {
                     MessageManager.error('批量删除失败: ' + result.error);
                 }
@@ -2014,7 +1966,7 @@ const MainApp = {
                         MessageManager.success(`成功删除 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
-                        this.loadStats();
+                        this.refreshStats();
                     } else {
                         MessageManager.error('批量删除失败: ' + response.data.message);
                     }
@@ -2115,7 +2067,7 @@ const MainApp = {
                     MessageManager.success(successMsg);
                     // 重新加载消息列表以反映状态变化
                     await this.loadMessages();
-                    await this.loadStats();
+                    this.refreshStats();
                 } else {
                     MessageManager.error(response.data.message || `${action}失败`);
                 }
@@ -2151,7 +2103,7 @@ const MainApp = {
                     // 重新加载消息以获取最新的过滤内容
                     // 因为后端已应用了尾部过滤和推广链接过滤
                     await this.loadMessages();
-                    await this.loadStats();
+                    this.refreshStats();
                 } else {
                     MessageManager.error(response.data.message || '操作失败');
                 }
@@ -2449,7 +2401,7 @@ const MainApp = {
         handleBatchOperationComplete(result) {
             // 刷新数据
             this.loadMessages();
-            this.loadStats();
+            this.refreshStats();
         },
         
         // 处理进度更新
@@ -2586,6 +2538,13 @@ function initializeVueApp() {
             app.component('nav-bar', window.NavBar);
         } else {
             console.warn('导航栏组件未加载，使用降级UI');
+        }
+
+        // 注册Linus统计组件
+        if (window.LinusStatsComponent) {
+            app.component('linus-stats', window.LinusStatsComponent);
+        } else {
+            console.warn('Linus统计组件未加载');
         }
         
         // 注册全局错误边界组件
