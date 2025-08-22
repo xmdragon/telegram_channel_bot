@@ -704,7 +704,7 @@ class MessageProcessor:
                 'not_ad_marked_at': datetime.utcnow().isoformat()
             }
             
-            success = self.redis_store.update_message(channel_id, message_id, update_data)
+            success = await self.redis_store.update_message(channel_id, message_id, update_data)
             if not success:
                 logger.error(f"更新消息状态失败: {channel_id}:{message_id}")
                 return False
@@ -849,7 +849,7 @@ class MessageProcessor:
                     'refetch_time': datetime.utcnow().isoformat()
                 }
                 
-                success = self.redis_store.update_message(channel_id, message_id, update_data)
+                success = await self.redis_store.update_message(channel_id, message_id, update_data)
                 if success:
                     logger.info(f"媒体重新获取成功: {channel_id}:{message_id}")
                     return True
@@ -940,7 +940,7 @@ class MessageProcessor:
                 'refiltered_at': datetime.utcnow().isoformat()
             }
             
-            success = self.redis_store.update_message(channel_id, message_id, update_data)
+            success = await self.redis_store.update_message(channel_id, message_id, update_data)
             if success:
                 logger.info(f"消息重新过滤成功: {channel_id}:{message_id} - 内容长度: {len(filtered_content)}")
                 return True

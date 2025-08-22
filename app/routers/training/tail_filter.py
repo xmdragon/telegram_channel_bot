@@ -200,34 +200,44 @@ async def add_tail_filter_sample(request: dict):
             sample_id = new_id
             logger.info(f"新尾部过滤训练样本已保存: {sample_id}")
         
-        # 如果有message_id，自动重新过滤该消息（无论是否重复）
-        if message_id:
+        # 如果有message_id，直接使用用户编辑的内容更新filtered_content
+        if message_id and normal_part:
             try:
-                from app.services.message_processor import MessageProcessor
-                message_processor = MessageProcessor()
+                # 确保Redis存储层已初始化
+                from app.storage.redis_store import init_redis_stores
+                if not init_redis_stores():
+                    logger.error("Redis存储层初始化失败，无法更新消息")
+                    return {"success": True, "message": "训练样本已提交，但Redis连接失败，请手动刷新页面", "id": sample_id}
+                
+                from app.storage.redis_store import get_redis_store
+                redis_store = get_redis_store()
                 
                 # 解析消息ID
                 if ':' in message_id:
                     channel_id, msg_id = message_id.split(':', 1)
-                    success = await message_processor.refilter_message(channel_id, int(msg_id))
+                    
+                    # 直接更新filtered_content为用户编辑的内容
+                    update_data = {"filtered_content": normal_part}
+                    success = await redis_store.update_message(channel_id, int(msg_id), update_data)
+                    
                     if success:
-                        logger.info(f"成功重新过滤消息: {message_id}")
+                        logger.info(f"成功更新消息的filtered_content: {message_id}")
                         if existing_sample:
-                            return {"success": True, "message": "训练样本已存在，消息重新过滤成功", "id": sample_id}
+                            return {"success": True, "message": "训练样本已存在，消息内容已更新", "id": sample_id}
                         else:
                             return {"success": True, "message": "训练样本已提交并自动应用到消息", "id": sample_id}
                     else:
-                        logger.warning(f"重新过滤消息失败: {message_id}")
+                        logger.warning(f"更新消息内容失败: {message_id}")
                         if existing_sample:
-                            return {"success": True, "message": "训练样本已存在，但重新过滤失败，请手动重新过滤", "id": sample_id}
+                            return {"success": True, "message": "训练样本已存在，但内容更新失败，请手动刷新页面", "id": sample_id}
                         else:
-                            return {"success": True, "message": "训练样本已提交，但重新过滤失败，请手动重新过滤", "id": sample_id}
-            except Exception as filter_error:
-                logger.error(f"自动重新过滤失败: {filter_error}")
+                            return {"success": True, "message": "训练样本已提交，但内容更新失败，请手动刷新页面", "id": sample_id}
+            except Exception as update_error:
+                logger.error(f"更新消息内容失败: {update_error}")
                 if existing_sample:
-                    return {"success": True, "message": "训练样本已存在，但自动应用失败，请手动重新过滤", "id": sample_id}
+                    return {"success": True, "message": "训练样本已存在，但内容更新失败，请手动刷新页面", "id": sample_id}
                 else:
-                    return {"success": True, "message": "训练样本已提交，但自动应用失败，请手动重新过滤", "id": sample_id}
+                    return {"success": True, "message": "训练样本已提交，但内容更新失败，请手动刷新页面", "id": sample_id}
         
         # 返回成功，提供适当的消息
         if existing_sample:
