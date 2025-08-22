@@ -846,6 +846,17 @@ const MessageContentRenderer = {
                 <button data-action="restoreMessage" :data-message-id="message.id" class="btn btn-sm btn-warning">
                     🔄 恢复
                 </button>
+                <!-- 调试信息 -->
+                <span style="font-size: 12px; color: #666; margin-left: 10px;">
+                    [调试: status={{message.status}}]
+                </span>
+            </div>
+            
+            <!-- 其他状态的调试信息 -->
+            <div v-else class="message-actions">
+                <span style="font-size: 12px; color: #999;">
+                    [调试: 当前状态={{message.status}}, 不显示操作按钮]
+                </span>
             </div>
         </div>
     `
