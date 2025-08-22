@@ -2139,7 +2139,13 @@ const MainApp = {
                 return;
             }
             try {
-                const response = await axios.post(window.API.messages.filterTail(message.id));
+                // 获取认证headers（修复422认证错误）
+                const authHeaders = window.authManager ? window.authManager.getAuthHeaders() : {};
+                const response = await axios.post(
+                    window.API.messages.filterTail(message.id),
+                    {}, // 空body
+                    { headers: authHeaders } // 添加认证headers
+                );
                 
                 if (response.data.success) {
                     if (response.data.removed_length && response.data.removed_length > 0) {
