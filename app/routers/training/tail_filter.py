@@ -199,6 +199,19 @@ async def add_tail_filter_sample(request: dict):
                 raise HTTPException(status_code=500, detail="保存样本失败")
             sample_id = new_id
             logger.info(f"新尾部过滤训练样本已保存: {sample_id}")
+            
+            # 🔥 实时向量化新样本（5-20ms，不影响性能）
+            try:
+                from app.services.tail_vector_manager import tail_vector_manager
+                if tail_vector_manager.model and tail_part:
+                    tail_vector_manager.add_vector(tail_part, new_id)
+                    tail_vector_manager.save_vectors()
+                    logger.info(f"✅ 样本 {sample_id} 已完成向量化")
+                else:
+                    logger.warning(f"⚠️ 向量模型未加载或尾部内容为空，跳过向量化")
+            except Exception as e:
+                logger.error(f"❌ 向量化失败，但不影响样本保存: {e}")
+                # 不抛出异常，向量化失败不应阻止样本保存
         
         # 如果有message_id，直接使用用户编辑的内容更新filtered_content
         if message_id and normal_part:
@@ -467,3 +480,23 @@ async def deduplicate_tail_filter_samples(request: dict):
         }
     except Exception as e:
         return handle_api_error(e, "去重尾部过滤样本")
+
+@router.post(ROUTES.training.tail_filter_rebuild_vectors)
+async def rebuild_tail_vectors():
+    """重建尾部过滤向量索引"""
+    try:
+        from app.services.tail_vector_manager import tail_vector_manager
+        
+        logger.info("开始重建尾部过滤向量索引...")
+        result = tail_vector_manager.rebuild_vectors_from_samples_file()
+        
+        if result.get("success"):
+            logger.info(f"向量重建成功: {result}")
+        else:
+            logger.error(f"向量重建失败: {result}")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"重建向量索引时发生错误: {e}")
+        return handle_api_error(e, "重建尾部过滤向量索引")

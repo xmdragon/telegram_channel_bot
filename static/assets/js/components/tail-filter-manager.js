@@ -1,6 +1,6 @@
 // 尾部过滤数据管理组件
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
+const { ElMessage, ElMessageBox, ElLoading } = ElementPlus;
 
 const app = createApp({
     data() {
@@ -44,9 +44,13 @@ const app = createApp({
         async loadSamples() {
             this.loading = true;
             try {
-                const response = await axios.get(API.training.tailFilterSamples);
+                // 并行加载样本数据和统计数据
+                const [samplesResponse, statsResponse] = await Promise.all([
+                    axios.get(API.training.tailFilterSamples),
+                    axios.get(API.training.tailFilterStatistics)
+                ]);
                 
-                this.allSamples = response.data.samples || [];
+                this.allSamples = samplesResponse.data.samples || [];
                 this.totalCount = this.allSamples.length;
                 
                 // 按创建时间倒序排序（最新的在前）
@@ -56,8 +60,15 @@ const app = createApp({
                     return timeB - timeA;
                 });
                 
-                // 计算统计信息
-                this.calculateStats();
+                // 使用统一的统计API数据（Linus式单一数据源）
+                if (statsResponse.data.success) {
+                    this.totalSamples = statsResponse.data.total_samples;
+                    this.validSamples = statsResponse.data.valid_samples;
+                    this.todayAdded = statsResponse.data.today_added;
+                } else {
+                    // 降级到本地计算（保持向后兼容）
+                    this.calculateStats();
+                }
                 
                 // 更新当前页数据
                 this.updatePageData();
@@ -271,6 +282,41 @@ const app = createApp({
                 this.duplicateDialog = false;
             } finally {
                 this.duplicateLoading = false;
+            }
+        },
+        
+        // 同步向量索引
+        async syncVectors() {
+            try {
+                await ElMessageBox.confirm(
+                    '同步向量将重建尾部样本的AI向量索引，确保AI过滤功能使用最新的训练数据。\n此操作需要几秒钟时间，确认执行吗？',
+                    '同步向量索引',
+                    {
+                        confirmButtonText: '确认同步',
+                        cancelButtonText: '取消',
+                        type: 'info'
+                    }
+                );
+                
+                const loadingInstance = ElLoading.service({ 
+                    lock: true, 
+                    text: '正在同步向量索引...' 
+                });
+                
+                const response = await axios.post(API.training.tailFilterRebuildVectors);
+                
+                if (response.data.success) {
+                    ElMessage.success(`向量同步成功！处理了 ${response.data.vectorized_samples} 个样本`);
+                } else {
+                    ElMessage.error('向量同步失败: ' + (response.data.message || '未知错误'));
+                }
+                
+                loadingInstance.close();
+            } catch (error) {
+                if (error !== 'cancel') {
+                    console.error('同步向量失败:', error);
+                    ElMessage.error('同步向量失败: ' + (error.response?.data?.message || error.message));
+                }
             }
         },
         

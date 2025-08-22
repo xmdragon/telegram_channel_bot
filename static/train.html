@@ -284,35 +284,6 @@
                     </div>
                 </el-tab-pane>
                 
-                <!-- 训练历史 -->
-                <el-tab-pane label="📊 训练历史" name="history" v-if="trainingMode === 'tail'">
-                    <div class="config-section">
-                        <el-table :data="trainingHistory" stripe border class="data-table">
-                            <el-table-column prop="channel_name" label="频道名称" width="300"></el-table-column>
-                            <el-table-column prop="tail_length" label="过滤字符数" width="150">
-                                <template #default="scope">
-                                    <el-tag type="info">{{ scope.row.tail_length }} 字符</el-tag>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="created_at" label="训练时间">
-                                <template #default="scope">
-                                    {{ formatTime(scope.row.created_at) }}
-                                </template>
-                            </el-table-column>
-                            <el-table-column label="操作" width="100">
-                                <template #default="scope">
-                                    <el-button type="danger" size="small" @click="deleteTraining(scope.row.id)">
-                                        删除
-                                    </el-button>
-                                </template>
-                            </el-table-column>
-                        </el-table>
-                        
-                        <div v-if="trainingHistory.length === 0" class="empty-message">
-                            暂无训练记录
-                        </div>
-                    </div>
-                </el-tab-pane>
 
                 <!-- 使用说明 -->
                 <el-tab-pane label="📖 使用说明" name="help">

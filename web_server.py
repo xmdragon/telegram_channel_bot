@@ -216,6 +216,18 @@ async def lifespan(app: FastAPI):
                 await auth_manager.initialize()
                 logger.info("✅ Telegram认证管理器初始化完成")
                 
+                # 检查尾部向量同步状态
+                try:
+                    from app.services.tail_vector_manager import tail_vector_manager
+                    sync_status = tail_vector_manager.check_sync_status()
+                    if sync_status.get('sync_needed', False):
+                        logger.warning(f"🔄 向量数据库需要同步: 缺少 {sync_status.get('missing_vectors', 0)} 个向量")
+                        logger.info("💡 建议在尾部过滤管理页面点击'同步向量'按钮")
+                    else:
+                        logger.info(f"✅ 向量数据库已同步: {sync_status.get('total_vectors', 0)} 个向量")
+                except Exception as e:
+                    logger.warning(f"⚠️ 向量同步检查失败: {e}")
+                
             except Exception as e:
                 logger.error(f"❌ 后台初始化失败: {e}")
         

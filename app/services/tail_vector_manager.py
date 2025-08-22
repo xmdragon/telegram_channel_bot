@@ -367,6 +367,45 @@ class TailVectorManager:
                 logger.error(f"❌ 重建向量数据库失败: {e}")
                 raise
     
+    def rebuild_vectors_from_samples_file(self):
+        """
+        🔥 从训练样本文件重建向量索引
+        便捷方法，用于API调用
+        """
+        try:
+            from app.routers.training.base import load_tail_filter_samples
+            samples = load_tail_filter_samples()
+            
+            # 过滤出有效样本（有尾部内容的）
+            valid_samples = [s for s in samples if s.get('tail_part')]
+            
+            logger.info(f"📋 从文件加载了 {len(samples)} 个样本，其中 {len(valid_samples)} 个有效")
+            
+            if not valid_samples:
+                logger.warning("⚠️ 没有找到有效的尾部样本")
+                return {"success": False, "message": "没有找到有效的尾部样本"}
+            
+            # 重建向量
+            self.rebuild_from_samples(valid_samples)
+            
+            # 保存到文件
+            self.save()
+            
+            result = {
+                "success": True,
+                "message": f"成功重建 {len(valid_samples)} 个向量",
+                "total_samples": len(samples),
+                "vectorized_samples": len(valid_samples),
+                "vector_count": len(self.sample_ids)
+            }
+            
+            logger.info(f"✅ 向量重建完成: {result}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ 向量重建失败: {e}")
+            return {"success": False, "message": f"重建失败: {str(e)}"}
+    
     def get_statistics(self) -> Dict:
         """
         获取向量数据库统计信息
@@ -409,6 +448,56 @@ class TailVectorManager:
         ])
         
         return health
+    
+    def check_sync_status(self) -> Dict:
+        """
+        检查向量数据库与样本文件的同步状态
+        
+        Returns:
+            同步状态信息
+        """
+        try:
+            from app.routers.training.base import load_tail_filter_samples
+            samples = load_tail_filter_samples()
+            
+            # 过滤出有效样本（有尾部内容的）
+            valid_samples = [s for s in samples if s.get('tail_part')]
+            sample_ids = {s['id'] for s in valid_samples}
+            
+            # 检查向量数据库状态
+            vector_ids = set(self.sample_ids) if self.sample_ids else set()
+            
+            # 计算差异
+            missing_in_vectors = sample_ids - vector_ids  # 样本有但向量没有
+            extra_in_vectors = vector_ids - sample_ids    # 向量有但样本没有
+            
+            is_synced = len(missing_in_vectors) == 0 and len(extra_in_vectors) == 0
+            
+            status = {
+                'is_synced': is_synced,
+                'total_samples': len(valid_samples),
+                'total_vectors': len(self.sample_ids),
+                'missing_vectors': len(missing_in_vectors),
+                'extra_vectors': len(extra_in_vectors),
+                'sync_needed': not is_synced,
+                'last_vector_update': self.index_file.stat().st_mtime if self.index_file.exists() else None,
+                'last_samples_update': PathConfig.TAIL_FILTER_SAMPLES_FILE.stat().st_mtime if PathConfig.TAIL_FILTER_SAMPLES_FILE.exists() else None
+            }
+            
+            if not is_synced:
+                logger.warning(f"🔄 向量数据库不同步: 缺少 {len(missing_in_vectors)} 个向量，多余 {len(extra_in_vectors)} 个向量")
+            else:
+                logger.info(f"✅ 向量数据库已同步: {len(valid_samples)} 个样本")
+            
+            return status
+            
+        except Exception as e:
+            logger.error(f"❌ 检查同步状态失败: {e}")
+            return {
+                'is_synced': False,
+                'error': str(e),
+                'sync_needed': True
+            }
 
 
 # 懒加载全局实例

@@ -157,10 +157,24 @@ async def filter_message_tail(
                 with open(tail_file, 'w', encoding='utf-8') as f:
                     json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
                 
+                # 🔥 实时向量化新样本（5-20ms，不影响性能）
+                try:
+                    from app.services.tail_vector_manager import tail_vector_manager
+                    if tail_vector_manager.model and removed_tail:
+                        tail_vector_manager.add_vector(removed_tail, new_sample["id"])
+                        tail_vector_manager.save()
+                        logger.info(f"✅ 样本 {new_sample['id']} 已完成向量化")
+                except Exception as e:
+                    logger.warning(f"⚠️ 向量化失败，不影响过滤功能: {e}")
+                
                 logger.info(f"✂️ 尾部训练数据已保存: {len(removed_tail)} 字符")
         
         return {
             "success": True,
+            "filtered_content": filtered_content,
+            "removed_length": len(original_content) - len(filtered_content) if has_tail else 0,
+            "removed_tail": removed_tail,
+            "has_tail": has_tail,
             "data": {
                 "original_content": original_content,
                 "filtered_content": filtered_content,

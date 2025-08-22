@@ -91,6 +91,7 @@ const API_ENDPOINTS = {
         tailFilterHistory: '/api/training/tail-filter-history',  // GET - 获取尾部过滤历史
         tailFilterDetectDuplicates: '/api/training/tail-filter-samples/detect-duplicates', // POST - 检测重复尾部样本
         tailFilterDeduplicate: '/api/training/tail-filter-samples/deduplicate', // POST - 去重尾部样本
+        tailFilterRebuildVectors: '/api/training/tail-filter-rebuild-vectors', // POST - 重建尾部过滤向量索引
 
         // 媒体文件管理
         mediaFiles: '/api/training/media-files',                 // GET - 获取媒体文件列表

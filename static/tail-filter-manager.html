@@ -67,6 +67,10 @@
                                         <el-icon><copy-document></copy-document></el-icon>
                                         检测重复
                                     </el-button>
+                                    <el-button @click="syncVectors" type="info" class="btn-info">
+                                        <el-icon><Refresh></Refresh></el-icon>
+                                        同步向量
+                                    </el-button>
                                     <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
                                         <el-icon><delete></delete></el-icon>
                                         批量删除 ({{ selectedSamples.length }})
