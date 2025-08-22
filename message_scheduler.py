@@ -200,13 +200,23 @@ class MessageSchedulerService:
 scheduler_service = None
 
 def signal_handler(signum, frame):
-    """信号处理器"""
+    """信号处理器 - Linus式修复：避免创建新事件循环"""
     logger.info(f"收到信号 {signum}，正在关闭服务...")
     if scheduler_service:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(scheduler_service.stop())
-        loop.close()
+        try:
+            # 尝试获取当前事件循环
+            loop = asyncio.get_running_loop()
+            # 在当前循环中调度停止任务
+            loop.create_task(scheduler_service.stop())
+        except RuntimeError:
+            # 如果没有运行中的循环，创建新的（最后的选择）
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(scheduler_service.stop())
+                loop.close()
+            except Exception as e:
+                logger.error(f"停止服务失败: {e}")
     sys.exit(0)
 
 async def main():

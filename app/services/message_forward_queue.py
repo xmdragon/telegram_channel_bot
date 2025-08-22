@@ -2,6 +2,7 @@
 消息转发任务队列服务
 通过Redis队列实现Web服务器与Telegram采集器之间的消息转发任务通信
 """
+import asyncio
 import json
 import logging
 import uuid
@@ -115,10 +116,10 @@ class MessageForwardQueue:
             raise
     
     def get_pending_task(self, timeout: int = 1) -> Optional[MessageForwardTask]:
-        """获取待处理的转发任务（阻塞式）
+        """获取待处理的转发任务（非阻塞式，兼容异步环境）
         
         Args:
-            timeout: 阻塞超时时间（秒）
+            timeout: 超时时间（秒）- 此版本中忽略，使用非阻塞方式
             
         Returns:
             转发任务对象，如果没有任务则返回None
@@ -126,12 +127,11 @@ class MessageForwardQueue:
         try:
             self._ensure_redis()
             
-            # 从队列中获取任务ID（阻塞式）
-            result = self.redis.brpop(self.TASK_QUEUE_KEY, timeout=timeout)
-            if not result:
+            # 使用非阻塞方式获取任务ID (Linus式修复：消除阻塞特殊情况)
+            task_id = self.redis.rpop(self.TASK_QUEUE_KEY)
+            if not task_id:
                 return None
             
-            task_id = result[1]
             if isinstance(task_id, bytes):
                 task_id = task_id.decode('utf-8')
             
@@ -160,6 +160,19 @@ class MessageForwardQueue:
         except Exception as e:
             logger.error(f"获取转发任务失败: {e}")
             return None
+            
+    async def get_pending_task_async(self) -> Optional[MessageForwardTask]:
+        """异步版本：获取待处理的转发任务
+        
+        Returns:
+            转发任务对象，如果没有任务则返回None
+        """
+        # 在异步环境中，我们仍然使用同步Redis客户端，但添加小延迟避免CPU占用
+        task = self.get_pending_task()
+        if not task:
+            # 如果没有任务，短暂休眠避免忙等待
+            await asyncio.sleep(0.1)
+        return task
     
     def complete_task(self, task: MessageForwardTask, success: bool, result: Any = None, error_message: str = None):
         """完成转发任务

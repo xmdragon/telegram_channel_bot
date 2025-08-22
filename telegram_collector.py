@@ -311,9 +311,9 @@ class TelegramCollectorService:
             try:
                 processed_any = False
                 
-                # 🔧 新增：优先处理转发任务（实时性要求高）
+                # 🔧 新增：优先处理转发任务（实时性要求高） - 异步版本修复
                 try:
-                    forward_task = forward_queue.get_pending_task(timeout=1)
+                    forward_task = await forward_queue.get_pending_task_async()
                     if forward_task:
                         logger.info(f"处理消息转发任务: {forward_task.task_id} for message {forward_task.message_id}")
                         await self.process_forward_task(forward_task)
@@ -557,13 +557,23 @@ class TelegramCollectorService:
 collector_service = None
 
 def signal_handler(signum, frame):
-    """信号处理器"""
+    """信号处理器 - Linus式修复：避免创建新事件循环"""
     logger.info(f"收到信号 {signum}，正在关闭服务...")
     if collector_service:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(collector_service.stop())
-        loop.close()
+        try:
+            # 尝试获取当前事件循环
+            loop = asyncio.get_running_loop()
+            # 在当前循环中调度停止任务
+            loop.create_task(collector_service.stop())
+        except RuntimeError:
+            # 如果没有运行中的循环，创建新的（最后的选择）
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(collector_service.stop())
+                loop.close()
+            except Exception as e:
+                logger.error(f"停止服务失败: {e}")
     sys.exit(0)
 
 async def main():
