@@ -12,7 +12,7 @@
       "feedback_stats": {
         "tp": 0,
         "fp": 434,
-        "tn": 79,
+        "tn": 80,
         "fn": 0
       },
       "last_updated": null
@@ -27,7 +27,7 @@
         0.45
       ],
       "feedback_stats": {
-        "tp": 1792,
+        "tp": 1794,
         "fp": 0,
         "tn": 23,
         "fn": 0

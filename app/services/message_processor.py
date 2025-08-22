@@ -870,12 +870,12 @@ class MessageProcessor:
     
     async def refilter_message(self, channel_id: str, message_id: int, filtered_content: str = None) -> bool:
         """
-        重新过滤消息（直接更新filtered_content）
+        重新过滤消息
         
         Args:
             channel_id: 频道ID
             message_id: 消息ID
-            filtered_content: 过滤后的内容（可选，如果不提供则使用现有过滤逻辑）
+            filtered_content: 过滤后的内容（可选，如果不提供则重新执行过滤逻辑）
             
         Returns:
             bool: 重新过滤是否成功
@@ -895,11 +895,45 @@ class MessageProcessor:
                 logger.error(f"消息不存在: {channel_id}:{message_id}")
                 return False
             
-            # 如果没有提供filtered_content，使用现有的内容
+            # 如果没有提供filtered_content，重新执行过滤逻辑
             if filtered_content is None:
-                filtered_content = message.get('filtered_content') or message.get('content', '')
+                original_content = message.get('content') or message.get('filtered_content', '')
+                if not original_content:
+                    logger.warning(f"消息没有内容可以过滤: {channel_id}:{message_id}")
+                    return True
+                
+                # 执行尾部过滤
+                from app.services.filters.tail_filter import TailFilter
+                from app.services.filters.base import FilterContext
+                
+                # 创建过滤器上下文
+                context = FilterContext(
+                    message_id=message_id,
+                    channel_id=int(channel_id),
+                    timestamp=datetime.now().timestamp(),
+                    message_type=message.get('media_type', 'text')
+                )
+                
+                # 添加元数据
+                context.add_metadata('is_history', False)
+                context.add_metadata('message_obj', message)
+                context.add_metadata('is_refilter', True)
+                
+                # 初始化尾部过滤器
+                tail_filter = TailFilter({
+                    'intelligent_threshold': 0.6,
+                    'semantic_threshold': 0.45,
+                    'enable_intelligent': True,
+                    'enable_semantic': True
+                })
+                
+                # 执行过滤
+                filter_result = await tail_filter.filter(original_content, context)
+                filtered_content = filter_result.filtered_content
+                
+                logger.info(f"重新过滤: {channel_id}:{message_id} - {len(original_content)} -> {len(filtered_content)} 字符")
             
-            # 直接更新消息的过滤内容
+            # 更新消息的过滤内容
             update_data = {
                 'filtered_content': filtered_content,
                 'updated_at': datetime.utcnow().isoformat(),
