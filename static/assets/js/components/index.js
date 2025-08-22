@@ -1613,7 +1613,7 @@ const MainApp = {
                 }
                 
                 // 清除加载状态
-                this.$delete(this.refetchingMedia, messageId);
+                delete this.refetchingMedia[messageId];
                 
                 // 强制更新视图
                 this.messages = [...this.messages];
@@ -2271,7 +2271,7 @@ const MainApp = {
             
             try {
                 // 立即设置状态，防止重复点击
-                this.$set(this.refetchingMedia, message.id, true);
+                this.refetchingMedia[message.id] = true;
                 
                 // 直接执行（Linus风格：减少用户交互）
                 const response = await axios.post(window.API.messages.refetchMedia(message.id));
@@ -2281,12 +2281,12 @@ const MainApp = {
                     // 不再轮询，等待WebSocket通知
                 } else {
                     MessageManager.error(response.data.message || '补抓失败');
-                    this.$delete(this.refetchingMedia, message.id);
+                    delete this.refetchingMedia[message.id];
                 }
             } catch (error) {
                 console.error('补抓媒体失败:', error);
                 MessageManager.error('补抓失败: ' + (error.response?.data?.detail || error.message));
-                this.$delete(this.refetchingMedia, message.id);
+                delete this.refetchingMedia[message.id];
             }
         },
         
