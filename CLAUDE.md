@@ -375,6 +375,37 @@ app/
 - 检查模块依赖关系
 - 备份重要数据
 
+## 🔍 消息诊断工具
+
+### 查询本地消息
+当用户提供类似 `-1002557968812:2251` 的消息ID时，使用：
+```bash
+python3 tools/testing/get_local_message.py -1002557968812:2251
+python3 tools/testing/get_local_message.py -1002557968812:2251 --raw      # 原始JSON
+python3 tools/testing/get_local_message.py -1002557968812:2251 --media    # 媒体详情
+python3 tools/testing/get_local_message.py -1002557968812:2251 --related  # 相关消息
+```
+
+### 抓取Telegram原始消息
+当用户提供Telegram链接如 `https://t.me/cn_zhm0/2247` 时，使用：
+```bash
+python3 tools/testing/fetch_telegram_message.py https://t.me/cn_zhm0/2247
+python3 tools/testing/fetch_telegram_message.py https://t.me/cn_zhm0/2247 --json     # JSON格式
+python3 tools/testing/fetch_telegram_message.py https://t.me/cn_zhm0/2247 --compare  # 与系统对比
+```
+
+### 诊断流程
+1. **先查本地**：`get_local_message.py` 查看系统中的消息状态
+2. **再查原始**：`fetch_telegram_message.py` 获取Telegram原始消息
+3. **对比分析**：使用 `--compare` 参数自动对比差异，定位问题根源
+
+### 使用场景
+- 消息内容丢失或显示异常
+- 组合消息不完整
+- 媒体文件缺失
+- 文本过滤异常
+- 需要验证消息采集的准确性
+
 ## 🔧 配置导入导出
 
 ```bash
@@ -438,6 +469,10 @@ python3 tools/git/auto_commit.py  # 自动提交
 
 # 清理维护
 python3 tools/maintenance/cleanup_redundant_files.py --analyze  # 分析冗余
+
+# 消息诊断
+python3 tools/testing/get_local_message.py CHANNEL_ID:MSG_ID     # 查询本地消息
+python3 tools/testing/fetch_telegram_message.py TELEGRAM_URL    # 抓取原始消息
 ```
 
 ### 文件位置速查
@@ -448,6 +483,8 @@ python3 tools/maintenance/cleanup_redundant_files.py --analyze  # 分析冗余
 - 配置文件：`data/config/`
 - 日志文件：`logs/`
 - 测试脚本：`tools/testing/`
+- 本地消息查询：`tools/testing/get_local_message.py`
+- Telegram消息抓取：`tools/testing/fetch_telegram_message.py`
 
 ### 故障排查步骤
 1. 检查服务状态：`./dev.sh --status`

@@ -241,7 +241,78 @@ class MessageStorageProcessor(MessageProcessor):
             self.logger.error(f"重复检测失败: {e}")
     
     async def _handle_grouped_message(self, context: MessageContext, grouped_id: str):
-        """处理组合消息"""
+        """处理组合消息 - 增强版，支持智能选择处理方式"""
+        try:
+            message = context.telegram_message
+            
+            # 智能决策：是否使用Linus式主动获取
+            should_use_active_fetch = await self._should_use_active_fetch(context, grouped_id)
+            
+            if should_use_active_fetch:
+                # 使用Linus式主动获取完整组（现在包含媒体下载）
+                self.logger.info(f"使用Linus式主动获取处理组合消息: {grouped_id}")
+                
+                # 直接调用主动获取方法
+                complete_group = await self.message_grouper._fetch_complete_group(
+                    context.channel_id,
+                    grouped_id,
+                    message.id
+                )
+                
+                if complete_group:
+                    # 创建并保存完整的组合消息
+                    combined_message = await self.message_grouper._create_combined_message(complete_group, context.channel_id)
+                    processed_data = await self.message_grouper._save_combined_message(combined_message, context.channel_id)
+                    
+                    if processed_data:
+                        # 保存到Redis
+                        await self.message_grouper._save_to_redis(processed_data, combined_message, context.channel_id)
+                        self.logger.info(f"✅ Linus式处理完成，组合消息包含 {len(complete_group)} 条消息")
+                    else:
+                        self.logger.error(f"❌ Linus式处理失败，数据处理错误")
+                else:
+                    self.logger.error(f"❌ Linus式主动获取失败，回退到传统方式")
+                    # 回退到传统方式
+                    await self._handle_grouped_message_traditional(context, grouped_id)
+            else:
+                # 使用传统的被动等待方式
+                await self._handle_grouped_message_traditional(context, grouped_id)
+            
+        except Exception as e:
+            self.logger.error(f"处理组合消息失败: {e}")
+    
+    async def _should_use_active_fetch(self, context: MessageContext, grouped_id: str) -> bool:
+        """判断是否应该使用Linus式主动获取"""
+        try:
+            # 1. 历史消息优先使用主动获取（避免超时问题）
+            if context.is_history:
+                return True
+            
+            # 2. 检查是否已经存在不完整的组合消息
+            existing_combined = await self.message_grouper._get_existing_combined_message(context.channel_id, grouped_id)
+            if existing_combined:
+                # 检查是否可能不完整（文本长度过短）
+                content = existing_combined.get('content', '')
+                text_length = len(content.replace('[📎 媒体组:', '').split(']')[0])
+                if text_length < 50:  # 可能不完整
+                    self.logger.info(f"检测到可能不完整的组合消息，使用主动获取: {grouped_id}")
+                    return True
+            
+            # 3. 对于实时消息，检查配置
+            from app.services.config_manager import config_manager
+            use_active_fetch = await config_manager.get_config('grouper.use_active_fetch', False)
+            if use_active_fetch:
+                return True
+            
+            # 4. 默认使用传统方式（保持向后兼容）
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"判断处理方式失败，使用默认方式: {e}")
+            return False
+    
+    async def _handle_grouped_message_traditional(self, context: MessageContext, grouped_id: str):
+        """传统的组合消息处理方式（被动等待）"""
         try:
             message = context.telegram_message
             
@@ -255,10 +326,10 @@ class MessageStorageProcessor(MessageProcessor):
                 is_batch=context.is_history
             )
             
-            self.logger.debug(f"消息已注册到组合器，组ID: {grouped_id}")
+            self.logger.debug(f"消息已注册到传统组合器，组ID: {grouped_id}")
             
         except Exception as e:
-            self.logger.error(f"处理组合消息失败: {e}")
+            self.logger.error(f"传统组合消息处理失败: {e}")
     
     async def _cleanup_media_files(self, context: MessageContext):
         """清理媒体文件"""

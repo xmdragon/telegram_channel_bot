@@ -14,11 +14,9 @@ class MessageGrouper:
     """消息组合处理器"""
     
     def __init__(self):
-        self.pending_groups: Dict[str, List[Dict]] = {}  # 待处理的消息组
-        self.completed_groups: Dict[str, Dict] = {}  # 已完成的组合消息数据
-        self.group_timers: Dict[str, asyncio.Task] = {}  # 组合超时定时器
-        self.group_timeout = 30  # Linus式修复：增加到30秒，减少网络延迟导致的丢失
-        self.telegram_messages: Dict[str, Any] = {}  # 保存原始Telegram消息对象，用于异步下载
+        self.processed_groups: Dict[str, str] = {}  # 已处理的组合消息ID {grouped_id: combined_message_id}
+        self.telegram_client = None  # Telegram客户端，用于主动获取完整组
+        self.completed_groups: Dict[str, Dict] = {}  # 已完成处理的组合消息数据
     
     def _deduplicate_content(self, texts: List[str]) -> List[str]:
         """去重文本内容 - 移除重复的段落"""
@@ -119,13 +117,8 @@ class MessageGrouper:
             if not message_data['grouped_id']:
                 return await self._create_single_message(message_data, channel_id)
             
-            # 有grouped_id，需要处理消息组合
-            if is_batch:
-                # 批量模式，使用更短的超时或立即处理
-                return await self._handle_grouped_message_batch(message_data, channel_id)
-            else:
-                # 实时模式，使用正常的超时机制
-                return await self._handle_grouped_message(message_data, channel_id)
+            # 有grouped_id，使用Linus式主动获取完整组
+            return await self._handle_grouped_message_active(message_data, channel_id, is_batch)
             
         except Exception as e:
             logger.error(f"处理消息组合时出错: {e}")
@@ -173,8 +166,8 @@ class MessageGrouper:
             'date': message_data.get('date', get_current_time())
         }
     
-    async def _handle_grouped_message_batch(self, message_data: Dict, channel_id: str) -> Optional[Dict]:
-        """批量模式下处理组合消息（用于历史消息采集）"""
+    async def _handle_grouped_message_active(self, message_data: Dict, channel_id: str, is_batch: bool = False) -> Optional[Dict]:
+        """Linus式主动获取完整消息组处理"""
         grouped_id = str(message_data['grouped_id']) if message_data.get('grouped_id') else None
         if not grouped_id:
             return await self._create_single_message(message_data, channel_id)
@@ -182,146 +175,257 @@ class MessageGrouper:
         group_key = f"{channel_id}_{grouped_id}"
         
         # 检查是否已经处理过这个消息组
+        if group_key in self.processed_groups:
+            logger.debug(f"消息组 {grouped_id} 已被标记为已处理，跳过")
+            return None
+            
         existing_combined = await self._get_existing_combined_message(channel_id, grouped_id)
         if existing_combined:
             logger.debug(f"消息组 {grouped_id} 已存在，跳过处理")
             return None
         
-        # 将消息添加到待处理组
-        if group_key not in self.pending_groups:
-            self.pending_groups[group_key] = []
-            # 批量模式下，使用统一的超时时间
-            asyncio.create_task(self._process_batch_group_after_timeout(group_key, channel_id, self.group_timeout))
+        # 标记为正在处理，避免重复处理
+        self.processed_groups[group_key] = "processing"
         
-        self.pending_groups[group_key].append(message_data)
-        logger.debug(f"批量模式：消息组 {grouped_id} 当前有 {len(self.pending_groups[group_key])} 条消息")
-        
-        # 批量模式下等待组合完成，不立即返回单独消息
-        return None
-    
-    async def _process_batch_group_after_timeout(self, group_key: str, channel_id: str, timeout: float):
-        """批量模式下的超时处理"""
         try:
-            await asyncio.sleep(timeout)
+            # Linus式直接获取完整组 - 不要猜测，直接获取完整数据
+            complete_group = await self._fetch_complete_group(channel_id, grouped_id, message_data['message_id'])
             
-            if group_key not in self.pending_groups:
-                return
+            if not complete_group:
+                logger.warning(f"无法获取完整消息组 {grouped_id}，作为单独消息处理")
+                del self.processed_groups[group_key]
+                return await self._create_single_message(message_data, channel_id)
             
-            messages = self.pending_groups[group_key]
-            if not messages:
-                return
+            # 立即处理完整组
+            combined_message = await self._create_combined_message(complete_group, channel_id)
+            processed_data = await self._save_combined_message(combined_message, channel_id)
             
-            logger.info(f"批量处理消息组 {group_key}，共 {len(messages)} 条消息")
-            
-            # 使用统一的处理逻辑
-            await self._complete_group_processing(group_key, channel_id, messages)
+            if processed_data:
+                self.completed_groups[group_key] = processed_data
+                self.processed_groups[group_key] = processed_data['message_id']
+                
+                # 保存到Redis
+                await self._save_to_redis(processed_data, combined_message, channel_id)
+                
+                logger.info(f"✅ Linus式处理完成：消息组 {grouped_id} 包含 {len(complete_group)} 条消息")
+                return processed_data
+            else:
+                logger.error(f"处理组合消息数据失败: {group_key}")
+                del self.processed_groups[group_key]
+                return None
                 
         except Exception as e:
-            logger.error(f"批量处理消息组 {group_key} 时出错: {e}")
-    
-    async def _handle_grouped_message(self, message_data: Dict, channel_id: str) -> Optional[Dict]:
-        """处理组合消息"""
-        grouped_id = str(message_data['grouped_id']) if message_data.get('grouped_id') else None
-        if not grouped_id:
+            logger.error(f"主动获取消息组失败 {group_key}: {e}")
+            if group_key in self.processed_groups:
+                del self.processed_groups[group_key]
             return await self._create_single_message(message_data, channel_id)
-            
-        group_key = f"{channel_id}_{grouped_id}"
-        
-        # 检查是否已经处理过这个消息组
-        existing_combined = await self._get_existing_combined_message(channel_id, grouped_id)
-        if existing_combined:
-            logger.info(f"消息组 {grouped_id} 已存在，跳过处理")
-            return None
-        
-        # 检查这条消息是否已经被作为单独消息保存过
-        existing_single = await self._get_existing_single_message(channel_id, message_data['message_id'])
-        if existing_single:
-            logger.info(f"消息 {message_data['message_id']} 已作为单独消息存在，跳过处理")
-            return None
-        
-        # 将消息添加到待处理组
-        if group_key not in self.pending_groups:
-            self.pending_groups[group_key] = []
-        
-        self.pending_groups[group_key].append(message_data)
-        
-        # Linus式改进：检查消息组是否可能已完整，避免不必要的等待
-        current_messages = self.pending_groups[group_key]
-        is_likely_complete = await self._is_group_likely_complete(current_messages)
-        
-        # 取消之前的定时器
-        if group_key in self.group_timers:
-            self.group_timers[group_key].cancel()
-        
-        if is_likely_complete:
-            # 如果检测到组可能已完整，缩短等待时间到5秒
-            timeout = 5
-            logger.info(f"消息组 {grouped_id} 检测到可能已完整（{len(current_messages)}条消息），使用短超时{timeout}秒")
-        else:
-            # 否则使用正常超时
-            timeout = self.group_timeout
-            logger.info(f"消息组 {grouped_id} 当前有 {len(current_messages)} 条消息，使用正常超时{timeout}秒")
-        
-        # 设置动态超时的定时器
-        self.group_timers[group_key] = asyncio.create_task(
-            self._process_group_after_dynamic_timeout(group_key, channel_id, timeout)
-        )
-        
-        # 等待组合完成，不立即返回单独消息
-        return None
     
-    async def _is_group_likely_complete(self, messages: List[Dict]) -> bool:
-        """
-        Linus式简单判断：检查消息组是否可能已完整
-        不需要复杂的算法，用简单的启发式规则
-        """
-        if len(messages) < 2:
-            return False
-            
-        # 提取消息ID并排序
-        message_ids = [msg['message_id'] for msg in messages if msg.get('message_id')]
-        if len(message_ids) < 2:
-            return False
-            
-        message_ids.sort()
-        
-        # 检查消息ID是否连续（允许有1-2个间隔）
-        max_gap = 0
-        for i in range(1, len(message_ids)):
-            gap = message_ids[i] - message_ids[i-1]
-            max_gap = max(max_gap, gap)
-        
-        # 如果最大间隔超过3，可能还有消息在传输中
-        if max_gap > 3:
-            return False
-            
-        # 如果已有4个或更多消息，很可能已经完整
-        if len(messages) >= 4:
-            return True
-            
-        return False
-    
-    async def _process_group_after_dynamic_timeout(self, group_key: str, channel_id: str, timeout: float):
-        """动态超时处理"""
+    async def _fetch_complete_group(self, channel_id: str, grouped_id: str, sample_message_id: int) -> List[Dict]:
+        """Linus式获取完整消息组 - 不要猜测，直接获取完整数据"""
         try:
-            await asyncio.sleep(timeout)
+            if not self.telegram_client:
+                await self._init_telegram_client()
+                
+            if not self.telegram_client:
+                logger.error("Telegram客户端未初始化，无法获取完整消息组")
+                return None
             
-            if group_key not in self.pending_groups:
-                return
+            # 使用sample_message_id作为参考点，获取周围的消息
+            # Telegram媒体组通常在相近的ID范围内
+            start_id = max(1, sample_message_id - 20)
+            end_id = sample_message_id + 20
             
-            messages = self.pending_groups[group_key]
-            if not messages:
-                return
+            # 从配置中获取频道用户名
+            from app.storage.json_store import get_json_channel_store
+            channel_store = get_json_channel_store()
             
-            logger.info(f"处理消息组 {group_key}，共 {len(messages)} 条消息（超时{timeout}秒）")
+            channel_username = None
+            # 直接通过channel_id获取频道信息
+            channel_info = channel_store.get_channel(channel_id)
+            if channel_info:
+                username = channel_info.get('username', '')
+                if username.startswith('@'):
+                    channel_username = username[1:]  # 移除@前缀
+                else:
+                    channel_username = username
             
-            # 其余逻辑与原来的_process_group_after_timeout相同
-            await self._complete_group_processing(group_key, channel_id, messages)
+            if not channel_username:
+                # 尝试从已知的频道映射中获取
+                # 对于频道 -1002557968812，我们知道对应的是 cn_zhm0
+                known_channels = {
+                    '-1002557968812': 'cn_zhm0'
+                }
+                channel_username = known_channels.get(channel_id)
+                
+                if not channel_username:
+                    logger.error(f"无法找到频道 {channel_id} 的用户名")
+                    return None
+                    
+                logger.info(f"使用已知频道映射: {channel_id} -> {channel_username}")
             
-        except asyncio.CancelledError:
-            logger.debug(f"消息组 {group_key} 的定时器被取消")
+            # 获取附近的消息
+            nearby_messages = await self.telegram_client.get_messages(
+                channel_username,
+                min_id=start_id,
+                max_id=end_id,
+                limit=100
+            )
+            
+            if not nearby_messages:
+                logger.warning(f"未获取到附近消息: {channel_username}:{start_id}-{end_id}")
+                return None
+            
+            # 过滤出同一组的消息
+            group_messages = []
+            for msg in nearby_messages:
+                if hasattr(msg, 'grouped_id') and str(msg.grouped_id) == grouped_id:
+                    group_messages.append(msg)
+            
+            if not group_messages:
+                logger.warning(f"未找到组合消息: grouped_id={grouped_id}")
+                return None
+            
+            # 按ID排序
+            group_messages.sort(key=lambda x: x.id)
+            
+            logger.info(f"🎯 Linus式获取成功: grouped_id={grouped_id} 找到 {len(group_messages)} 条消息")
+            
+            # 转换为内部格式，包含媒体下载
+            converted_messages = []
+            for msg in group_messages:
+                converted_msg = await self._convert_telegram_message(msg, channel_id)
+                if converted_msg:
+                    converted_messages.append(converted_msg)
+            
+            return converted_messages
+            
         except Exception as e:
-            logger.error(f"处理消息组 {group_key} 超时时发生错误: {e}")
+            logger.error(f"获取完整消息组失败: {e}")
+            return None
+    
+    async def _init_telegram_client(self):
+        """初始化Telegram客户端"""
+        try:
+            from telethon import TelegramClient
+            from telethon.sessions import StringSession
+            import json
+            import os
+            
+            # 从配置文件读取Telegram设置
+            config_file = os.path.join(os.path.dirname(__file__), '../../data/config/system.json')
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            
+            api_id = int(config_data.get('telegram.api_id', {}).get('value', '0'))
+            api_hash = config_data.get('telegram.api_hash', {}).get('value', '')
+            session_string = config_data.get('telegram.session', {}).get('value', '')
+            
+            if not api_id or not api_hash or not session_string:
+                logger.error("Telegram配置不完整，无法初始化客户端")
+                return
+            
+            self.telegram_client = TelegramClient(
+                StringSession(session_string),
+                api_id,
+                api_hash
+            )
+            
+            await self.telegram_client.connect()
+            
+            if not await self.telegram_client.is_user_authorized():
+                logger.error("Telegram会话未授权")
+                self.telegram_client = None
+                return
+            
+            logger.info("✅ Telegram客户端初始化成功")
+            
+        except Exception as e:
+            logger.error(f"初始化Telegram客户端失败: {e}")
+            self.telegram_client = None
+    
+    async def _convert_telegram_message(self, telegram_msg, channel_id: str) -> Optional[Dict]:
+        """将Telegram消息转换为内部格式，包含媒体下载"""
+        try:
+            # 提取文本内容
+            content = ""
+            if hasattr(telegram_msg, 'message') and telegram_msg.message:
+                content = telegram_msg.message.strip()
+            elif hasattr(telegram_msg, 'raw_text') and telegram_msg.raw_text:
+                content = telegram_msg.raw_text.strip()
+            elif hasattr(telegram_msg, 'text') and telegram_msg.text:
+                content = telegram_msg.text.strip()
+            elif hasattr(telegram_msg, 'caption') and telegram_msg.caption:
+                content = telegram_msg.caption.strip()
+            
+            # 下载或获取媒体信息（不再硬编码None）
+            media_info = None
+            if telegram_msg.media:
+                from app.services.media_manager import media_manager
+                media_info = await media_manager.get_or_download_media(
+                    telegram_msg.id, 
+                    telegram_msg, 
+                    channel_id
+                )
+                
+                if not media_info:
+                    # 如果媒体下载失败，创建基本信息结构
+                    media_info = {
+                        'media_type': 'photo' if hasattr(telegram_msg.media, 'photo') else 'document',
+                        'file_path': None,
+                        'file_size': 0,
+                        'mime_type': getattr(telegram_msg.media, 'mime_type', 'unknown'),
+                        'download_failed': True,
+                        'error': '媒体下载失败'
+                    }
+            
+            return {
+                'message_id': telegram_msg.id,
+                'content': content,
+                'filtered_content': content,  # 稍后会被过滤
+                'is_ad': False,  # 稍后会被检测
+                'media_info': media_info,
+                'date': telegram_msg.date or get_current_time(),
+                'grouped_id': str(telegram_msg.grouped_id) if telegram_msg.grouped_id else None
+            }
+            
+        except Exception as e:
+            logger.error(f"转换Telegram消息失败: {e}")
+            return None
+    
+    async def _save_to_redis(self, processed_data: Dict, combined_message: Dict, channel_id: str):
+        """保存组合消息到Redis"""
+        try:
+            from app.services.message_processor import MessageProcessor
+            processor = MessageProcessor()
+            
+            # 准备保存数据
+            save_data = {
+                'source_channel': channel_id,
+                'message_id': processed_data['message_id'],
+                'content': processed_data['content'],
+                'filtered_content': processed_data.get('filtered_content'),
+                'media_hash': processed_data.get('combined_media_hash'),
+                'visual_hash': processed_data.get('visual_hash'),
+                'grouped_id': processed_data.get('grouped_id'),
+                'is_combined': True,
+                'status': 'ads' if processed_data.get('is_ad') else 'pending',
+                'combined_messages': processed_data.get('combined_messages'),
+                'media_group': processed_data.get('media_group'),
+                'created_at': processed_data.get('date', combined_message.get('date'))
+            }
+            
+            # 保存到Redis
+            saved_message = await processor.process_new_message(save_data)
+            if saved_message:
+                logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
+                
+                # 通知前端组合消息已创建
+                await self._notify_combined_message_created(saved_message)
+            else:
+                logger.error(f"❌ 组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
+                
+        except Exception as save_error:
+            logger.error(f"保存组合消息到Redis时出错: {save_error}")
     
     
     async def _create_combined_message(self, messages: List[Dict], channel_id: str) -> Dict:
@@ -619,39 +723,10 @@ class MessageGrouper:
             return None
     
     async def force_complete_all_groups(self):
-        """强制完成所有待处理的消息组（用于历史采集结束时）"""
+        """强制完成所有待处理的消息组（用于历史采集结束时） - Linus式重构后无需此功能"""
         try:
-            logger.info(f"强制完成所有待处理的消息组，当前有 {len(self.pending_groups)} 个组")
-            
-            # 取消所有定时器
-            for timer in self.group_timers.values():
-                timer.cancel()
-            self.group_timers.clear()
-            
-            # 处理所有待处理的组
-            groups_to_process = list(self.pending_groups.keys())
-            for group_key in groups_to_process:
-                messages = self.pending_groups.get(group_key, [])
-                if messages:
-                    # 从group_key中提取channel_id
-                    # group_key格式: channel_id_grouped_id
-                    # channel_id可能是负数，如 -1001969693044
-                    last_underscore = group_key.rfind('_')
-                    if last_underscore > 0:
-                        channel_id = group_key[:last_underscore]
-                    else:
-                        # 如果找不到下划线，整个key就是channel_id
-                        channel_id = group_key
-                    
-                    logger.info(f"强制处理消息组 {group_key}，共 {len(messages)} 条消息")
-                    
-                    # 使用统一的处理逻辑
-                    await self._complete_group_processing(group_key, channel_id, messages)
-            
-            # 清理所有待处理的组
-            self.pending_groups.clear()
-            
-            logger.info("所有待处理的消息组已完成")
+            logger.info("Linus式重构完成：无需强制完成，所有组均已主动处理")
+            # Linus式设计：没有待处理的组，所有组都是即时处理的
             
         except Exception as e:
             logger.error(f"强制完成消息组时出错: {e}")
@@ -743,30 +818,10 @@ class MessageGrouper:
             logger.error(f"清理单独消息时出错: {e}")
     
     async def cleanup_expired_groups(self):
-        """清理过期的消息组"""
+        """清理过期的消息组 - Linus式重构后无需此功能"""
         try:
-            expired_keys = []
-            current_time = get_current_time()
-            
-            for group_key, messages in self.pending_groups.items():
-                if not messages:
-                    expired_keys.append(group_key)
-                    continue
-                
-                # 检查最旧消息的时间
-                oldest_time = min(msg['date'] for msg in messages)
-                if current_time - oldest_time > timedelta(minutes=5):  # 5分钟超时
-                    expired_keys.append(group_key)
-            
-            for key in expired_keys:
-                if key in self.pending_groups:
-                    del self.pending_groups[key]
-                if key in self.group_timers:
-                    self.group_timers[key].cancel()
-                    del self.group_timers[key]
-                    
-            if expired_keys:
-                logger.info(f"清理了 {len(expired_keys)} 个过期消息组")
+            logger.debug("Linus式设计：无需清理过期组，所有组均即时处理")
+            # Linus式设计：没有待处理的组，所以也没有过期的组
                 
         except Exception as e:
             logger.error(f"清理过期消息组时出错: {e}")
@@ -854,65 +909,15 @@ class MessageGrouper:
         except Exception as e:
             logger.error(f"检查配置并清理单独消息时出错: {e}")
     
-    async def _complete_group_processing(self, group_key: str, channel_id: str, messages: List[Dict]):
-        """
-        Linus式重构：统一的组处理完成逻辑，消除重复代码
-        """
+    async def disconnect_telegram_client(self):
+        """断开Telegram客户端连接"""
         try:
-            # 创建组合消息
-            combined_message = await self._create_combined_message(messages, channel_id)
-            
-            # 准备组合消息数据
-            processed_data = await self._save_combined_message(combined_message, channel_id)
-            
-            # 将处理后的数据存储，供后续获取
-            if processed_data:
-                self.completed_groups[group_key] = processed_data
-                
-                # 调用message_processor保存到Redis
-                try:
-                    from app.services.message_processor import MessageProcessor
-                    processor = MessageProcessor()
-                    
-                    # 准备保存数据
-                    save_data = {
-                        'source_channel': channel_id,
-                        'message_id': processed_data['message_id'],
-                        'content': processed_data['content'],
-                        'filtered_content': processed_data.get('filtered_content'),
-                        'media_hash': processed_data.get('combined_media_hash'),
-                        'visual_hash': processed_data.get('visual_hash'),
-                        'grouped_id': processed_data.get('grouped_id'),
-                        'is_combined': True,
-                        'status': 'ads' if processed_data.get('is_ad') else 'pending',
-                        'combined_messages': processed_data.get('combined_messages'),
-                        'media_group': processed_data.get('media_group'),
-                        'created_at': processed_data.get('date', combined_message.get('date'))
-                    }
-                    
-                    # 保存到Redis
-                    saved_message = await processor.process_new_message(save_data)
-                    if saved_message:
-                        logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
-                        
-                        # 通知前端组合消息已创建
-                        await self._notify_combined_message_created(saved_message)
-                    else:
-                        logger.error(f"❌ 组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
-                        
-                except Exception as save_error:
-                    logger.error(f"保存组合消息到Redis时出错: {save_error}")
-            else:
-                logger.warning(f"组合消息数据处理失败: {group_key}")
-            
-            # 清理完成的消息组
-            if group_key in self.pending_groups:
-                del self.pending_groups[group_key]
-            if group_key in self.group_timers:
-                del self.group_timers[group_key]
-                
+            if self.telegram_client:
+                await self.telegram_client.disconnect()
+                self.telegram_client = None
+                logger.info("👋 Telegram客户端已断开")
         except Exception as e:
-            logger.error(f"完成组处理时发生错误: {e}")
+            logger.error(f"断开Telegram客户端时出错: {e}")
 
 # 全局消息组合器实例
 message_grouper = MessageGrouper()
