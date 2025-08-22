@@ -287,6 +287,47 @@ class LinusStatsStore(RedisBaseStore):
         except Exception as e:
             logger.error(f"重置统计失败: {e}")
     
+    # 添加缺少的方法以保持向后兼容
+    def increment_pending(self):
+        """增加pending计数"""
+        self.increment_message(MessageState.PENDING)
+        
+    def increment_accepted(self):
+        """增加accepted计数"""  
+        self.increment_message(MessageState.ACCEPTED)
+        
+    def increment_rejected(self):
+        """增加rejected计数"""
+        self.increment_message(MessageState.REJECTED)
+        
+    def decrement_pending(self):
+        """减少pending计数（暂时兼容，实际上不需要了）"""
+        try:
+            self.redis.hincrby(self.GLOBAL_STATS_KEY, 'pending', -1)
+        except Exception as e:
+            logger.error(f"减少pending计数失败: {e}")
+            
+    def decrement_accepted(self):
+        """减少accepted计数（暂时兼容，实际上不需要了）"""
+        try:
+            self.redis.hincrby(self.GLOBAL_STATS_KEY, 'accepted', -1)
+        except Exception as e:
+            logger.error(f"减少accepted计数失败: {e}")
+            
+    def decrement_rejected(self):
+        """减少rejected计数（暂时兼容，实际上不需要了）"""
+        try:
+            self.redis.hincrby(self.GLOBAL_STATS_KEY, 'rejected', -1)
+        except Exception as e:
+            logger.error(f"减少rejected计数失败: {e}")
+            
+    def increment_rejection_reason(self, reason: str):
+        """增加拒绝原因计数（暂时兼容，实际上不需要了）"""
+        try:
+            self.redis.hincrby(self.REJECTION_STATS_KEY, reason, 1)
+        except Exception as e:
+            logger.error(f"增加拒绝原因计数失败: {e}")
+    
     def validate_consistency(self) -> Dict[str, Any]:
         """验证统计数据一致性"""
         try:

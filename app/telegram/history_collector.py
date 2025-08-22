@@ -82,59 +82,29 @@ class HistoryCollector:
                 logger.error(f"无法获取Redis消息存储，跳过频道 {channel_name}")
                 return
             
-            # 检查现有消息数量
-            existing_count = message_store.get_message_count(channel_id)
-            logger.info(f"频道 {channel_name} 现有消息数量: {existing_count}")
-            
-            # 获取最后采集的消息ID (优先从Redis checkpoint，否则使用历史消息采集数配置)
+            # 🔥 Linus式简化：checkpoint是唯一真相源
             from app.storage.redis_store import get_redis_channel_store
             from app.services.config_manager import config_manager
             
             redis_channel_store = get_redis_channel_store()
             checkpoint_id = redis_channel_store.get_checkpoint(channel_id)
             
-            # 优先使用Redis checkpoint
-            if checkpoint_id is not None:
-                last_collected_id = checkpoint_id
-                is_new_channel = False
-                logger.info(f"使用Redis采集点: {last_collected_id}")
+            if checkpoint_id:
+                # 继续增量采集
+                logger.info(f"从checkpoint {checkpoint_id} 继续增量采集")
+                min_id = checkpoint_id
+                batch_limit = 500  # 增量采集限制
             else:
-                # 如果没有Redis采集点，按新频道处理，采集指定数量的历史消息
-                last_collected_id = 0
-                is_new_channel = True
-                logger.info(f"没有Redis采集点，将采集历史消息")
-            
-            if is_new_channel:
-                # 没有Redis采集点的频道：根据配置采集指定数量的历史消息
+                # 首次采集历史消息
                 history_limit = await config_manager.get_config('source.history_limit', 50)
-                
-                if existing_count >= history_limit:
-                    logger.info(f"频道 {channel_name} 已有 {existing_count} 条消息，超过配置限制 {history_limit}，跳过历史采集")
-                    # 获取最新的消息ID并设置为Redis采集点
-                    latest_messages = message_store.get_messages_by_channel(channel_id, limit=1)
-                    if latest_messages:
-                        max_message_id = latest_messages[0].get('message_id')
-                        if max_message_id:
-                            # 设置Redis采集点
-                            redis_channel_store.set_checkpoint(channel_id, max_message_id)
-                            logger.info(f"设置Redis采集点: {channel_id} -> {max_message_id}")
-                    return
-                    
-                need_collect = history_limit - existing_count
-                logger.info(f"频道 {channel_name} 需要采集 {need_collect} 条历史消息（配置限制: {history_limit}）")
-                min_id = 0  # 从最早的消息开始
-            else:
-                # 已有频道：增量采集，从上次采集位置继续
-                logger.info(f"频道 {channel_name} 上次采集到消息ID: {last_collected_id}，开始增量采集")
-                need_collect = None  # 增量采集不限制数量，采集所有新消息
-                min_id = last_collected_id  # 从上次位置继续
+                logger.info(f"首次采集，获取最近 {history_limit} 条历史消息")
+                min_id = 0
+                batch_limit = history_limit
             
             # 采集历史消息 - 先收集到列表，然后按时间顺序处理
             collected_messages = []
-            latest_message_id = last_collected_id
+            latest_message_id = checkpoint_id or 0
             
-            # 使用min_id参数实现增量采集
-            batch_limit = need_collect if need_collect else 500  # 增量采集每次最多500条
             logger.info(f"开始采集，min_id={min_id}, limit={batch_limit}")
             
             message_count = 0
@@ -151,18 +121,8 @@ class HistoryCollector:
                     # 记录最新的消息ID
                     if message.id and message.id > latest_message_id:
                         latest_message_id = message.id
-                        
-                    # 检查消息是否已存在（静默模式，避免产生不必要的警告）
-                    existing_message = message_store.get_message(channel_id, message.id, silent=True)
-                    if existing_message:
-                        logger.debug(f"消息ID {message.id} 已存在，跳过")
-                        continue  # 消息已存在，跳过
                     
                     collected_messages.append(message)
-                    
-                    # 如果是新频道且达到采集限制，停止
-                    if is_new_channel and need_collect is not None and len(collected_messages) >= need_collect:
-                        break
                         
                 except Exception as e:
                     logger.error(f"收集历史消息失败: {e}")
