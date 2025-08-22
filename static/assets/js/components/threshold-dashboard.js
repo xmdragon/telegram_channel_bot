@@ -170,7 +170,7 @@ const app = createApp({
                     { type: 'warning' }
                 );
 
-                this.$set(this.resetting, key, true);
+                this.resetting[key] = true;
                 
                 const response = await axios.post(API.training.thresholdsReset(filterName, metricName), {}, {
                     headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
@@ -186,7 +186,7 @@ const app = createApp({
                     ElMessage.error('重置失败: ' + (error.response?.data?.detail || error.message));
                 }
             } finally {
-                this.$set(this.resetting, key, false);
+                this.resetting[key] = false;
             }
         },
 

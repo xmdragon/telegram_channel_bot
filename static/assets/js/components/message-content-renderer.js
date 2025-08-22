@@ -225,16 +225,29 @@ const MessageContentRenderer = {
                    !this.mediaLoadError;
         },
         
-        // Linus式"好品味"：检测是否有媒体缺失（包括部分缺失）
+        // Linus式"好品味"：检测是否有媒体缺失（与后端逻辑一致）
         hasMediaMissing() {
-            if (this.isCombinedMessage) {
+            // 首先检查消息是否应该有媒体（与后端逻辑保持一致）
+            const hasSingleMedia = !!this.message.media_type;
+            const hasMediaGroup = !!(this.message.media_group_display && this.message.media_group_display.length > 0);
+            
+            // 如果消息本身就没有媒体，不显示补抓按钮
+            if (!hasSingleMedia && !hasMediaGroup) {
+                return false;
+            }
+            
+            // 检查媒体是否真的缺失
+            if (this.isCombinedMessage && hasMediaGroup) {
                 // 组合消息：检查是否有任何媒体缺失
                 return this.message.media_group_display.some(media => 
                     !media.display_url || media.display_url.trim() === ''
                 );
+            } else if (hasSingleMedia) {
+                // 单个媒体：检查是否缺失
+                return !this.mediaExists();
             }
-            // 单个媒体：复用原有逻辑
-            return this.message.media_type && !this.mediaExists();
+            
+            return false;
         },
         
         // 🔥 Linus风格：操作方法被事件委托取代，不再需要Vue事件
