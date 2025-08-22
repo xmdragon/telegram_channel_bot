@@ -1,6 +1,6 @@
 // 尾部过滤数据管理组件
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox, ElLoading } = ElementPlus;
+const { ElMessage, ElMessageBox } = ElementPlus;
 
 const app = createApp({
     data() {
@@ -298,10 +298,8 @@ const app = createApp({
                     }
                 );
                 
-                const loadingInstance = ElLoading.service({ 
-                    lock: true, 
-                    text: '正在同步向量索引...' 
-                });
+                // 使用现有的loading状态变量（Linus式统一模式）
+                this.loading = true;
                 
                 const response = await axios.post(API.training.tailFilterRebuildVectors);
                 
@@ -311,12 +309,14 @@ const app = createApp({
                     ElMessage.error('向量同步失败: ' + (response.data.message || '未知错误'));
                 }
                 
-                loadingInstance.close();
             } catch (error) {
                 if (error !== 'cancel') {
                     console.error('同步向量失败:', error);
                     ElMessage.error('同步向量失败: ' + (error.response?.data?.message || error.message));
                 }
+            } finally {
+                // 确保无论成功还是失败都重置loading状态
+                this.loading = false;
             }
         },
         
