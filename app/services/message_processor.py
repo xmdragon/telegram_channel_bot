@@ -699,31 +699,87 @@ class MessageProcessor:
                     logger.error(f"无法获取原始消息: {channel_id}:{message_id}")
                     return False
                 
-                telegram_message = original_message[0]
+                # Linus式"好品味"：统一处理单个媒体和组合消息
+                if has_media_group:
+                    # 处理组合消息：下载所有子消息的媒体
+                    media_group = []
+                    combined_messages = message.get('combined_messages', [])
+                    
+                    if not combined_messages:
+                        logger.error(f"组合消息缺少combined_messages数据: {channel_id}:{message_id}")
+                        return False
+                    
+                    for msg_info in combined_messages:
+                        msg_id = msg_info.get('message_id')
+                        if not msg_id:
+                            continue
+                            
+                        # 获取每个子消息的原始Telegram消息
+                        try:
+                            sub_messages = await client.get_messages(
+                                int(channel_id), ids=[int(msg_id)]
+                            )
+                            
+                            if sub_messages and sub_messages[0] and sub_messages[0].media:
+                                # 下载该子消息的媒体
+                                media_info = await media_handler.download_media(
+                                    client, sub_messages[0], msg_id, timeout=60
+                                )
+                                if media_info:
+                                    # 生成显示URL
+                                    file_name = media_info.get('file_path', '').split('/')[-1]
+                                    media_group.append({
+                                        'message_id': msg_id,
+                                        'media_type': media_info.get('media_type'),
+                                        'file_path': media_info.get('file_path'),
+                                        'media_hash': media_info.get('hash'),
+                                        'display_url': f'/media/{file_name}' if file_name else None
+                                    })
+                                    logger.info(f"组合消息子媒体下载成功: {channel_id}:{msg_id}")
+                        except Exception as sub_error:
+                            logger.warning(f"下载组合消息子媒体失败 {channel_id}:{msg_id}: {sub_error}")
+                            continue
+                    
+                    # 更新组合消息的媒体组信息
+                    update_data = {
+                        'media_group': media_group,
+                        'media_group_display': media_group,  # 直接使用，已包含display_url
+                        'refetch_time': datetime.utcnow().isoformat()
+                    }
+                    
+                else:
+                    # 处理单个媒体（保持原有逻辑）
+                    telegram_message = original_message[0]
+                    
+                    # 重新下载媒体
+                    media_info = await media_handler.download_media(
+                        client, 
+                        telegram_message, 
+                        message_id,
+                        timeout=60  # 60秒超时
+                    )
+                    
+                    if not media_info:
+                        logger.error(f"重新下载媒体失败: {channel_id}:{message_id}")
+                        return False
+                    
+                    # 更新单个媒体信息
+                    file_name = media_info.get('file_path', '').split('/')[-1]
+                    update_data = {
+                        'media_url': media_info.get('file_path'),
+                        'media_path': media_info.get('file_path'),
+                        'media_hash': media_info.get('hash'),
+                        'media_display_url': f'/media/{file_name}' if file_name else None,
+                        'refetch_time': datetime.utcnow().isoformat()
+                    }
                 
-                # 重新下载媒体
-                media_info = await media_handler.download_media(
-                    client, 
-                    telegram_message, 
-                    message_id,
-                    timeout=60  # 60秒超时
-                )
-                
-                if not media_info:
-                    logger.error(f"重新下载媒体失败: {channel_id}:{message_id}")
-                    return False
-                
-                # 更新消息的媒体信息
-                update_data = {
-                    'media_url': media_info.get('file_path'),
-                    'media_path': media_info.get('file_path'),
-                    'media_hash': media_info.get('hash'),
-                    'refetch_time': datetime.utcnow().isoformat()
-                }
-                
-                success = await self.redis_store.update_message(channel_id, message_id, update_data)
+                # 统一更新Redis
+                success = self.redis_store.update_message(channel_id, message_id, update_data)
                 if success:
                     logger.info(f"媒体重新获取成功: {channel_id}:{message_id}")
+                    
+                    # 通过WebSocket通知前端
+                    await self._notify_media_refetched(channel_id, message_id, update_data)
                     return True
                 else:
                     logger.error(f"更新媒体信息失败: {channel_id}:{message_id}")
@@ -739,6 +795,37 @@ class MessageProcessor:
         except Exception as e:
             logger.error(f"重新获取媒体失败 {channel_id}:{message_id}: {e}")
             return False
+    
+    async def _notify_media_refetched(self, channel_id: str, message_id: int, media_data: dict):
+        """通过WebSocket通知前端媒体补抓完成"""
+        try:
+            from app.services.websocket_manager import websocket_manager
+            
+            # 构造通知数据
+            notification_data = {
+                "type": "media_refetched",
+                "data": {
+                    "message_id": f"{channel_id}:{message_id}",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            }
+            
+            # 添加媒体数据
+            if media_data.get('media_url'):
+                notification_data["data"]["media_url"] = media_data["media_url"]
+                notification_data["data"]["media_display_url"] = media_data.get("media_display_url")
+            
+            if media_data.get('media_group_display'):
+                notification_data["data"]["media_group_display"] = media_data["media_group_display"]
+            
+            # 广播通知
+            await websocket_manager.broadcast(notification_data)
+            logger.info(f"WebSocket通知已发送: 媒体补抓完成 {channel_id}:{message_id}")
+            
+        except ImportError:
+            logger.warning("WebSocket管理器不可用，跳过媒体补抓通知")
+        except Exception as e:
+            logger.error(f"发送媒体补抓WebSocket通知失败: {e}")
     
     async def refilter_message(self, channel_id: str, message_id: int, filtered_content: str = None) -> bool:
         """

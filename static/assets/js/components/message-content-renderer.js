@@ -853,8 +853,10 @@ const MessageContentRenderer = {
                 <button v-if="hasMediaMissing" 
                         data-action="refetchMedia" 
                         :data-message-id="message.id"
-                        class="btn btn-sm btn-primary">
-                    🔄 补抓
+                        :disabled="$parent.isRefetching && $parent.isRefetching(message.id)"
+                        :class="['btn', 'btn-sm', 'btn-primary', 
+                                 $parent.isRefetching && $parent.isRefetching(message.id) ? 'disabled' : '']">
+                    {{ $parent.isRefetching && $parent.isRefetching(message.id) ? '🔄 补抓中...' : '🔄 补抓' }}
                 </button>
             </div>
             

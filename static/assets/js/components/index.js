@@ -1513,6 +1513,9 @@ const MainApp = {
                     case 'message_status_update':
                         this.handleMessageStatusUpdate(data.data);
                         break;
+                    case 'media_refetched':
+                        this.handleMediaRefetched(data.data);
+                        break;
                     case 'pong':
                         // 心跳响应，不需要处理
                         break;
@@ -1591,6 +1594,37 @@ const MainApp = {
             this.stats.rejected.value = statsData.rejected || 0;
             this.stats.ads.value = statsData.ads || 0;
             this.stats.channels.value = statsData.channels || 0;
+        },
+        
+        // 处理媒体补抓完成通知
+        handleMediaRefetched(data) {
+            const messageId = data.message_id;
+            
+            // 找到并更新消息
+            const message = this.messages.find(msg => msg.id === messageId);
+            if (message) {
+                // 更新媒体信息
+                if (data.media_url) {
+                    message.media_url = data.media_url;
+                    message.media_display_url = data.media_display_url || data.media_url;
+                }
+                if (data.media_group_display) {
+                    message.media_group_display = data.media_group_display;
+                }
+                
+                // 清除加载状态
+                this.$delete(this.refetchingMedia, messageId);
+                
+                // 强制更新视图
+                this.messages = [...this.messages];
+                
+                // 显示成功通知
+                MessageManager.success(`消息 #${messageId} 的媒体补抓成功！`);
+                
+                console.log('媒体补抓完成:', data);
+            } else {
+                console.warn('未找到对应的消息:', messageId);
+            }
         },
 
         // 处理消息状态更新
@@ -2221,41 +2255,44 @@ const MainApp = {
             }
         },
         
-        // 补抓媒体文件 - Linus风格
+        // Linus式媒体补抓 - 防重复点击，WebSocket通知
         async refetchMedia(messageId) {
+            // Linus式防重复点击
+            if (this.refetchingMedia[messageId]) {
+                MessageManager.warning('正在补抓中，请稍候...');
+                return;
+            }
+            
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
                 MessageManager.error('未找到消息');
                 return;
             }
+            
             try {
-                // 设置加载状态
-                this.refetchingMedia[message.id] = true;
+                // 立即设置状态，防止重复点击
+                this.$set(this.refetchingMedia, message.id, true);
                 
-                // 确认操作
-                if (!confirm(`确定要重新下载消息 #${message.id} 的媒体文件吗？`)) {
-                    delete this.refetchingMedia[message.id];
-                    return;
-                }
-                
-                // 提交补抓任务
+                // 直接执行（Linus风格：减少用户交互）
                 const response = await axios.post(window.API.messages.refetchMedia(message.id));
                 
                 if (response.data.success) {
-                    const taskId = response.data.task_id;
-                    MessageManager.success('媒体补抓任务已提交，正在处理中...');
-                    
-                    // 轮询任务状态
-                    await this.pollRefetchTaskStatus(taskId, message);
+                    MessageManager.success('正在补抓媒体文件...');
+                    // 不再轮询，等待WebSocket通知
                 } else {
                     MessageManager.error(response.data.message || '补抓失败');
-                    delete this.refetchingMedia[message.id];
+                    this.$delete(this.refetchingMedia, message.id);
                 }
             } catch (error) {
                 console.error('补抓媒体失败:', error);
                 MessageManager.error('补抓失败: ' + (error.response?.data?.detail || error.message));
-                delete this.refetchingMedia[message.id];
+                this.$delete(this.refetchingMedia, message.id);
             }
+        },
+        
+        // 检查消息是否正在补抓中（供子组件使用）
+        isRefetching(messageId) {
+            return !!this.refetchingMedia[messageId];
         },
 
         // 轮询补抓任务状态
