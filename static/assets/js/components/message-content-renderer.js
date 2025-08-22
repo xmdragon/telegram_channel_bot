@@ -225,6 +225,18 @@ const MessageContentRenderer = {
                    !this.mediaLoadError;
         },
         
+        // Linus式"好品味"：检测是否有媒体缺失（包括部分缺失）
+        hasMediaMissing() {
+            if (this.isCombinedMessage) {
+                // 组合消息：检查是否有任何媒体缺失
+                return this.message.media_group_display.some(media => 
+                    !media.display_url || media.display_url.trim() === ''
+                );
+            }
+            // 单个媒体：复用原有逻辑
+            return this.message.media_type && !this.mediaExists();
+        },
+        
         // 🔥 Linus风格：操作方法被事件委托取代，不再需要Vue事件
         
         // 频道过滤方法
@@ -838,7 +850,7 @@ const MessageContentRenderer = {
                              $parent.isFiltering && $parent.isFiltering(message.id) ? 'disabled' : '']">
                     {{ $parent.isFiltering && $parent.isFiltering(message.id) ? '🔄 过滤中...' : '🎯 过滤' }}
                 </button>
-                <button v-if="message.media_type && !mediaExists()" 
+                <button v-if="hasMediaMissing" 
                         data-action="refetchMedia" 
                         :data-message-id="message.id"
                         class="btn btn-sm btn-primary">
