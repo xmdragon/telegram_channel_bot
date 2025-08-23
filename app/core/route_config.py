@@ -250,6 +250,10 @@ class RouteConfig:
         media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
         media_files_ocr = "/training/media-files/ocr/{file_hash}"
         media_files_by_hash = "/training/media-files/{file_hash}"
+        
+        # 推广链接训练
+        promo_samples = "/training/promo-samples"
+        preview_promo_filter = "/training/preview-promo-filter"
     
     def __init__(self):
         self.messages = self.Messages()

@@ -10,6 +10,8 @@ import json
 import logging
 from datetime import datetime
 
+from app.core.route_config import ROUTES
+
 # 设置日志
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ class PromoFilterPreviewRequest(BaseModel):
     """推广过滤预览请求"""
     content: str  # 要预览过滤的内容
 
-@router.post("/promo-samples")
+@router.post(ROUTES.training.promo_samples)
 async def add_promo_sample(request: PromoTrainingRequest):
     """
     添加推广链接训练样本
@@ -73,7 +75,7 @@ async def add_promo_sample(request: PromoTrainingRequest):
         logger.error(f"添加推广链接训练样本失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
-@router.post("/preview-promo-filter")
+@router.post(ROUTES.training.preview_promo_filter)
 async def preview_promo_filter(request: PromoFilterPreviewRequest):
     """
     预览推广过滤效果
@@ -142,7 +144,7 @@ async def preview_promo_filter(request: PromoFilterPreviewRequest):
         logger.error(f"预览推广过滤失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
-@router.get("/promo-samples")
+@router.get(ROUTES.training.promo_samples)
 async def get_promo_samples():
     """
     获取推广链接训练样本列表
