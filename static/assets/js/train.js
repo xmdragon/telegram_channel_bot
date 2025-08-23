@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 this.submitting = true;
                 try {
-                    const response = await axios.post(API.training.tailSamples, {
+                    const response = await axios.post(API.training.tailFilterSamples, {
                         original_message: this.trainingForm.original_message,
                         tail_content: this.trainingForm.tail_content
                     });
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 this.submitting = true;
                 try {
-                    const response = await axios.post(API.training.adSamples, {
+                    const response = await axios.post(API.training.addAdSample, {
                         content: this.adTrainingForm.content,
                         is_ad: this.adTrainingForm.is_ad,
                         description: this.adTrainingForm.description
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 加载统计数据
             async loadStats() {
                 try {
-                    const response = await axios.get(API.training.stats);
+                    const response = await axios.get(API.training.tailFilterStatistics);
                     this.stats = response.data;
                 } catch (error) {
                     console.error('加载统计数据失败:', error);
@@ -250,7 +250,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // 加载训练数据统计
             async loadTrainingDataStats() {
                 try {
-                    const response = await axios.get(API.training.dataStats);
+                    // 删除不存在的API调用
+                    // const response = await axios.get(API.training.dataStats);
+                    const response = { data: { totalSamples: 0, uniqueSamples: 0, mediaFiles: 0, storageSize: 0 } };
                     this.trainingDataStats = response.data;
                 } catch (error) {
                     console.error('加载训练数据统计失败:', error);
@@ -326,6 +328,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 3000);
             },
             
+            // 加载频道列表
+            async loadChannels() {
+                try {
+                    const response = await axios.get(API.training.channels);
+                    // 处理频道数据但不存储（train.html可能不需要）
+                } catch (error) {
+                    this.showMessage('加载频道列表失败', 'error');
+                }
+            },
+            
+            // 推广过滤预览
+            async previewPromoFilter() {
+                if (!this.promoTrainingForm.full_content) {
+                    this.showMessage('请先输入完整消息内容', 'warning');
+                    return;
+                }
+                
+                try {
+                    const response = await axios.post(API.training.previewPromoFilter, {
+                        content: this.promoTrainingForm.full_content,
+                        separator_type: this.promoTrainingForm.separator_type
+                    });
+                    
+                    if (response.data.success) {
+                        this.promoFilteredPreview = response.data.filtered_content || response.data.data?.filtered_content;
+                    } else {
+                        this.showMessage('预览失败: ' + response.data.message, 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('预览失败: ' + error.message, 'error');
+                }
+            },
+            
+            // 加载分隔符模式
+            async loadSeparatorPatterns() {
+                try {
+                    const response = await axios.get(API.training.separatorPatterns);
+                    if (response.data.success && response.data.patterns) {
+                        this.separatorPatterns = response.data.patterns;
+                    }
+                } catch (error) {
+                    this.showMessage('加载分隔符配置失败', 'error');
+                }
+            },
+            
             // 检查认证状态
             async checkAuth() {
                 try {
@@ -358,6 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 加载初始数据
             await this.loadStats();
             await this.loadTrainingDataStats();
+            await this.loadSeparatorPatterns();
             
             // 设置axios拦截器
             if (typeof setupAxiosAuth === 'function') {
