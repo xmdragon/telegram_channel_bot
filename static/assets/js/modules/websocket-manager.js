@@ -116,7 +116,6 @@ const WebSocketManager = {
                 return false;
             }
         } else {
-            console.warn('WebSocket未连接，无法发送消息');
             return false;
         }
     },
@@ -170,7 +169,6 @@ const WebSocketManager = {
         
         this.connectionTimeout = setTimeout(() => {
             if (this.instance && this.instance.readyState === WebSocket.CONNECTING) {
-                console.warn('WebSocket连接超时，关闭连接');
                 this.instance.close();
             }
         }, timeout);

@@ -137,7 +137,6 @@ const MessageManager = {
         if (typeof ElMessage !== 'undefined') {
             ElMessage.info(message);
         } else {
-            console.info('INFO:', message);
         }
     },
 
@@ -145,7 +144,6 @@ const MessageManager = {
         if (typeof ElMessage !== 'undefined') {
             ElMessage.warning(message);
         } else {
-            console.warn('WARNING:', message);
         }
     },
 

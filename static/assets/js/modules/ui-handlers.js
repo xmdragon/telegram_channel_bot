@@ -23,7 +23,6 @@ const UIHandlers = {
         if (window.ElMessage) {
             window.ElMessage.warning(message);
         } else {
-            console.warn('⚠️', message);
         }
     },
 
@@ -32,7 +31,6 @@ const UIHandlers = {
         if (window.ElMessage) {
             window.ElMessage.info(message);
         } else {
-            console.info('ℹ️', message);
         }
     },
 

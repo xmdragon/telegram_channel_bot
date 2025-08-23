@@ -57,7 +57,6 @@ window.MessageManager = {
                 console.error(`[错误] ${message}`);
                 alert(`错误: ${message}`);
             } else if (type === 'warning') {
-                console.warn(`[警告] ${message}`);
             } else {
             }
         }

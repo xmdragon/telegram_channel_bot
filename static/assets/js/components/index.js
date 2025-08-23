@@ -120,7 +120,6 @@ const MainApp = {
                 // 合并状态，确保所有字段都存在
                 return { ...baseState, ...stateManagerState };
             } catch (error) {
-                console.warn('StateManager初始化失败，使用基础状态:', error);
             }
         }
         
@@ -304,7 +303,6 @@ const MainApp = {
                             this.systemStatus = isConnected ? '在线' : '离线';
                         },
                         onError: (error) => {
-                            console.warn('WebSocket连接错误:', error);
                             this.websocketConnected = false;
                             this.systemStatus = '连接错误';
                         }
@@ -314,7 +312,6 @@ const MainApp = {
                     this.connectWebSocket();
                 }
             } catch (err) {
-                console.warn('WebSocket连接失败，实时更新功能将不可用:', err);
             }
             
             // 定期检查WebSocket连接状态
@@ -331,7 +328,6 @@ const MainApp = {
                         this.checkWebSocketConnection();
                     }
                 } catch (err) {
-                    console.warn('WebSocket连接检查失败:', err);
                 }
             }, 10000);
             
@@ -410,7 +406,6 @@ const MainApp = {
                             this.buttonVisibility = window.permissionChecker.getButtonVisibility();
                         } else {
                             // 初始化失败，使用降级权限
-                            console.warn('权限检查器初始化失败，使用降级权限');
                             this.setFallbackPermissions('limited');
                         }
                     } catch (error) {
@@ -420,7 +415,6 @@ const MainApp = {
                     }
                 } else {
                     // 权限检查器不存在，根据用户角色设置基础权限
-                    console.warn('权限检查器未加载，使用基础权限');
                     if (adminInfo && adminInfo.role) {
                         // 根据角色设置权限
                         if (adminInfo.role === 'super_admin') {
@@ -555,7 +549,6 @@ const MainApp = {
                     
                     this.channelInfo = channelInfo;
                 } else {
-                    console.warn('频道信息API返回失败:', response.data);
                 }
             } catch (error) {
                 console.error('加载频道信息失败:', error);
@@ -669,7 +662,6 @@ const MainApp = {
                         setTimeout(() => this.setupScrollListener(), 100);
                     });
                 } else {
-                    console.warn('❌ API返回格式异常或无消息数据');
                     this.messages = [];
                     if (this.previousMessageIds.size === 0) {
                         MessageManager.warning('暂无消息数据');
@@ -1329,7 +1321,6 @@ const MainApp = {
             
             // 确保fileDetailsDialog存在并且是响应式的
             if (!this.fileDetailsDialog) {
-                console.warn('fileDetailsDialog不存在，重新初始化');
                 this.fileDetailsDialog = {
                     visible: false,
                     details: null
@@ -1360,7 +1351,6 @@ const MainApp = {
                     this.fileDetailsDialog.details.size = this.formatFileSize(sizeInBytes);
                 }
             } catch (error) {
-                console.warn('获取文件大小失败:', error);
                 if (this.fileDetailsDialog && this.fileDetailsDialog.details) {
                     this.fileDetailsDialog.details.size = '未知';
                 }
@@ -1419,7 +1409,6 @@ const MainApp = {
                 // 设置超时检测
                 const connectionTimeout = setTimeout(() => {
                     if (this.websocket.readyState === WebSocket.CONNECTING) {
-                        console.warn('WebSocket连接超时，关闭连接');
                         this.websocket.close();
                     }
                 }, 10000); // 10秒超时
@@ -1466,14 +1455,12 @@ const MainApp = {
                             }
                         }, delay);
                     } else {
-                        console.warn('WebSocket重连次数已达上限，停止重连');
                         this.systemStatus = '连接断开（已停止重试）';
                     }
                 };
                 
                 this.websocket.onerror = (error) => {
                     clearTimeout(connectionTimeout);
-                    console.warn('WebSocket连接错误，将尝试重连');
                     this.websocketConnected = false;
                     this.systemStatus = '连接错误';
                 };
@@ -1499,7 +1486,6 @@ const MainApp = {
                 try {
                     data = JSON.parse(event.data);
                 } catch (parseError) {
-                    // console.warn('收到非JSON格式的WebSocket消息:', event.data);
                     return;
                 }
                 
@@ -1621,9 +1607,7 @@ const MainApp = {
                 // 显示成功通知
                 MessageManager.success(`消息 #${messageId} 的媒体补抓成功！`);
                 
-                console.log('媒体补抓完成:', data);
             } else {
-                console.warn('未找到对应的消息:', messageId);
             }
         },
 
@@ -2587,7 +2571,6 @@ function initializeVueApp() {
         
         // 配置全局警告处理
         app.config.warnHandler = (msg, instance, trace) => {
-            console.warn('Vue警告:', msg);
         };
         
         app.use(ElementPlus);
@@ -2596,14 +2579,12 @@ function initializeVueApp() {
         if (window.NavBar) {
             app.component('nav-bar', window.NavBar);
         } else {
-            console.warn('导航栏组件未加载，使用降级UI');
         }
 
         // 注册Linus统计组件
         if (window.LinusStatsComponent) {
             app.component('linus-stats', window.LinusStatsComponent);
         } else {
-            console.warn('Linus统计组件未加载');
         }
         
         // 注册全局错误边界组件

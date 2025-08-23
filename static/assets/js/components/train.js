@@ -529,12 +529,7 @@ const TrainApp = {
                 
                 // 数据处理结果（调试模式下显示）
                 if (window.DEBUG) {
-                    console.log('📊 数据处理结果:', {
-                        separator: separator.substring(0, 20) + '...',
-                        normalPartLength: normalPart.length,
-                        tailIndex: tailIndex,
-                        tailLinesCount: tailLines.length
-                    });
+                    // 调试信息可在此处添加
                 }
                 
                 // 打印调试信息
@@ -563,25 +558,14 @@ const TrainApp = {
                 
                 // 发送API请求（调试模式下显示）
                 if (window.DEBUG) {
-                    console.log('📡 发送API请求:', {
-                        url: API.training.tailFilterSamples,
-                        method: 'POST',
-                        dataKeys: Object.keys(postData),
-                        contentLength: postData.content.length,
-                        tailPartLength: postData.tailPart.length
-                    });
+                    // API调用信息可在此处添加
                 }
                 
                 const response = await axios.post(API.training.tailFilterSamples, postData);
                 
                 // 收到API响应（调试模式下显示）
                 if (window.DEBUG) {
-                    console.log('📥 收到API响应:', {
-                        status: response.status,
-                        success: response.data.success,
-                        message: response.data.message,
-                        id: response.data.id
-                    });
+                    // API响应信息可在此处添加
                 }
                 
                 if (response.data.success) {
@@ -618,12 +602,6 @@ const TrainApp = {
                 }
             } catch (error) {
                 console.error('❌ 提交训练数据失败:', error);
-                console.error('错误详情:', {
-                    message: error.message,
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    responseData: error.response?.data
-                });
                 
                 ElMessage({
                     message: '提交失败: ' + (error.response?.data?.message || error.response?.data?.detail || error.message),

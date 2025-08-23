@@ -97,7 +97,6 @@ createApp({
             try {
                 const response = await axios.get(API.adminAuth.admins);
                 this.admins = response.data.admins;
-                // // [removed console.log]
             } catch (error) {
                 ElMessage.error('加载管理员列表失败');
             }

@@ -134,7 +134,6 @@ class AuthManager {
                     }
                 });
             } catch (e) {
-                console.warn('AuthManager: 服务端登出失败，但继续清理本地数据:', e.message);
             }
         }
         

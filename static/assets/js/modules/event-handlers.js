@@ -336,7 +336,6 @@ const EventHandlers = {
                         this.handleStatsUpdated(context, data.data);
                         break;
                     default:
-                        console.log('未知WebSocket消息类型:', data.type);
                 }
             } catch (error) {
                 console.error('处理WebSocket消息失败:', error);

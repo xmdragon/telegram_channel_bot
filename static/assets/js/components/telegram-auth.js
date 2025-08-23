@@ -68,7 +68,6 @@ const AuthApp = {
                 try {
                     // 检查是否支持 WebSocket
                     if (!window.WebSocket) {
-                        // console.warn('浏览器不支持 WebSocket，将使用 REST API');
                         this.connected = false;
                         return;
                     }
@@ -96,14 +95,12 @@ const AuthApp = {
                     };
                     
                     this.websocket.onerror = (error) => {
-                        // console.warn('WebSocket 连接失败，将使用 REST API 模式:', error);
                         this.connected = false;
                         // 不显示错误，静默降级到 REST API
                         // 立即尝试使用 REST API 检查状态
                         this.checkAuthStatus();
                     };
                 } catch (error) {
-                    // console.warn('WebSocket 初始化失败，将使用 REST API 模式');
                     this.connected = false;
                 }
             },
@@ -123,7 +120,6 @@ const AuthApp = {
                     };
                     this.websocket.send(JSON.stringify(message));
                 } else {
-                    // console.warn('WebSocket 未连接，使用 REST API');
                     this.sendRestApiRequest(action, data);
                 }
             },

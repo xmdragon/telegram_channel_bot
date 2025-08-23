@@ -181,11 +181,7 @@ window.MessageComparisonDebug = {
         const hasComparison = messageElement.querySelector('.message-content-comparison');
         const hasDuplicateComparison = messageElement.querySelector('.duplicate-comparison-layout');
         
-        console.log(`🔍 检查渲染消息 #${messageId}:`, {
-            hasComparison: !!hasComparison,
-            hasDuplicateComparison: !!hasDuplicateComparison,
-            element: messageElement
-        });
+        // 调试信息已清理
     },
     
     // 从DOM元素提取消息ID

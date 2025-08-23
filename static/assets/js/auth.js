@@ -1,5 +1,4 @@
 // 临时重定向文件 - auth.js 已重命名为 admin-auth.js
-console.warn('auth.js 已重命名为 admin-auth.js，请更新引用或清除浏览器缓存');
 
 // 动态加载正确的文件
 (function() {

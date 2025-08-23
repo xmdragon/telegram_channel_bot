@@ -205,6 +205,63 @@ class MessageQueryMixin:
             logger.error(f"获取重复消息失败: {e}")
             return []
 
+    def get_message_count(self, channel_id: str = None, status: str = None) -> int:
+        """获取消息计数 - Linus式实现：使用Redis索引高效统计
+        
+        Args:
+            channel_id: 频道ID，为空时获取全部频道
+            status: 状态筛选 (pending, approved, rejected, auto_forwarded)，为空时获取全部状态
+            
+        Returns:
+            消息数量
+        """
+        try:
+            # 情况1：按频道和状态双重筛选
+            if channel_id and status:
+                # 使用Redis集合交集操作，高效获取同时满足频道和状态的消息数
+                channel_key = f"msg:idx:{channel_id}"
+                status_key = f"msg:idx:{status}"
+                
+                if not self.redis.exists(channel_key) or not self.redis.exists(status_key):
+                    return 0
+                    
+                # 使用临时key存储交集结果
+                temp_key = f"msg:tmp:count:{channel_id}:{status}:{id(self)}"
+                self.redis.zinterstore(temp_key, [channel_key, status_key])
+                count = self.redis.zcard(temp_key)
+                self.redis.delete(temp_key)  # 立即清理临时key
+                return count
+            
+            # 情况2：只按频道筛选
+            elif channel_id:
+                channel_key = f"msg:idx:{channel_id}"
+                return self.redis.zcard(channel_key)
+            
+            # 情况3：只按状态筛选
+            elif status:
+                status_key = f"msg:idx:{status}"
+                return self.redis.zcard(status_key)
+            
+            # 情况4：获取全部消息数量 - 合并所有状态索引
+            else:
+                status_indexes = [
+                    "msg:idx:pending",
+                    "msg:idx:approved", 
+                    "msg:idx:rejected",
+                    "msg:idx:auto_forwarded"
+                ]
+                
+                total_count = 0
+                for idx in status_indexes:
+                    if self.redis.exists(idx):
+                        total_count += self.redis.zcard(idx)
+                        
+                return total_count
+                
+        except Exception as e:
+            logger.error(f"获取消息计数失败 (channel:{channel_id}, status:{status}): {e}")
+            return 0
+
     def find_duplicate_by_hash(self, media_hash: str) -> List[str]:
         """根据媒体哈希查找重复消息"""
         try:
