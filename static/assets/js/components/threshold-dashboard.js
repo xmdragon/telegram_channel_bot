@@ -123,12 +123,12 @@ const app = createApp({
                     this.updateCharts();
                     
                     if (!silent) {
-                        window.SimpleUI.showMessage('数据刷新成功');
+                        this.showMessage('数据刷新成功');
                     }
                 }
             } catch (error) {
                 console.error('获取数据失败:', error);
-                window.SimpleUI.showMessage('获取数据失败: ' + (error.response?.data?.detail || error.message));
+                this.showMessage('获取数据失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
             }
@@ -145,11 +145,11 @@ const app = createApp({
                     this.stats = response.data.data;
                     await this.$nextTick();
                     this.updateCharts();
-                    window.SimpleUI.showMessage('阈值优化完成');
+                    this.showMessage('阈值优化完成');
                 }
             } catch (error) {
                 console.error('优化失败:', error);
-                window.SimpleUI.showMessage('优化失败: ' + (error.response?.data?.detail || error.message));
+                this.showMessage('优化失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.optimizing = false;
             }
@@ -172,12 +172,12 @@ const app = createApp({
                 
                 if (response.data.success) {
                     await this.refreshData(true);
-                    window.SimpleUI.showMessage('阈值重置成功');
+                    this.showMessage('阈值重置成功');
                 }
             } catch (error) {
                 if (error !== 'cancel') {
                     console.error('重置失败:', error);
-                    window.SimpleUI.showMessage('重置失败: ' + (error.response?.data?.detail || error.message));
+                    this.showMessage('重置失败: ' + (error.response?.data?.detail || error.message));
                 }
             } finally {
                 this.resetting[key] = false;
@@ -212,11 +212,11 @@ const app = createApp({
                 if (response.data.success) {
                     this.feedbackDialog.visible = false;
                     await this.refreshData(true);
-                    window.SimpleUI.showMessage('反馈提交成功');
+                    this.showMessage('反馈提交成功');
                 }
             } catch (error) {
                 console.error('提交反馈失败:', error);
-                window.SimpleUI.showMessage('提交反馈失败: ' + (error.response?.data?.detail || error.message));
+                this.showMessage('提交反馈失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.feedbackDialog.submitting = false;
             }
@@ -227,7 +227,7 @@ const app = createApp({
         },
 
         saveOptimizeSettings() {
-            window.SimpleUI.showMessage('优化设置已保存');
+            this.showMessage('优化设置已保存');
             this.optimizeDialog.visible = false;
         },
 
@@ -246,9 +246,9 @@ const app = createApp({
                 a.click();
                 URL.revokeObjectURL(url);
                 
-                window.SimpleUI.showMessage('配置导出成功');
+                this.showMessage('配置导出成功');
             } catch (error) {
-                window.SimpleUI.showMessage('导出失败: ' + error.message);
+                this.showMessage('导出失败: ' + error.message);
             }
         },
 
@@ -351,6 +351,23 @@ const app = createApp({
             return names[metricName] || metricName;
         },
 
+        getFilterStatusClass(filterData) {
+            const accuracies = [];
+            for (const metricData of Object.values(filterData)) {
+                if (metricData.accuracy !== undefined) {
+                    accuracies.push(metricData.accuracy);
+                }
+            }
+            
+            if (accuracies.length === 0) return 'status-warning';
+            
+            const avgAccuracy = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+            
+            if (avgAccuracy >= 0.9) return 'status-success';
+            if (avgAccuracy >= 0.7) return 'status-warning';
+            return 'status-danger';
+        },
+
         getFilterStatusType(filterData) {
             const metrics = Object.values(filterData);
             const avgAccuracy = metrics.reduce((sum, m) => sum + (m.accuracy || 0), 0) / metrics.length;
@@ -379,6 +396,58 @@ const app = createApp({
             if (!timestamp) return '未更新';
             const date = new Date(timestamp);
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5);
+        },
+
+        // 显示消息提示 - 从train.js原样复制
+        showMessage(message, type = 'info') {
+            // 创建消息提示元素
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message-toast message-${type}`;
+            messageDiv.textContent = message;
+            
+            // 添加样式
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 6px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transition: all 0.3s ease;
+                transform: translateX(0);
+            `;
+            
+            // 根据类型设置颜色
+            switch (type) {
+                case 'success':
+                    messageDiv.style.backgroundColor = '#67c23a';
+                    break;
+                case 'warning':
+                    messageDiv.style.backgroundColor = '#e6a23c';
+                    break;
+                case 'error':
+                    messageDiv.style.backgroundColor = '#f56c6c';
+                    break;
+                default:
+                    messageDiv.style.backgroundColor = '#409eff';
+            }
+            
+            // 添加到页面
+            document.body.appendChild(messageDiv);
+            
+            // 3秒后移除
+            setTimeout(() => {
+                messageDiv.style.transform = 'translateX(100%)';
+                messageDiv.style.opacity = '0';
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 300);
+            }, 3000);
         }
     },
     
