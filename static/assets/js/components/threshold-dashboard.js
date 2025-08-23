@@ -123,12 +123,12 @@ const app = createApp({
                     this.updateCharts();
                     
                     if (!silent) {
-                        window.SimpleUI.showMessage('数据刷新成功');
+                        window.SimpleUI.Message.success('数据刷新成功');
                     }
                 }
             } catch (error) {
                 console.error('获取数据失败:', error);
-                window.SimpleUI.showMessage('获取数据失败: ' + (error.response?.data?.detail || error.message), 'error');
+                window.SimpleUI.Message.error('获取数据失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
             }
@@ -145,11 +145,11 @@ const app = createApp({
                     this.stats = response.data.data;
                     await this.$nextTick();
                     this.updateCharts();
-                    window.SimpleUI.showMessage('阈值优化完成');
+                    window.SimpleUI.Message.success('阈值优化完成');
                 }
             } catch (error) {
                 console.error('优化失败:', error);
-                window.SimpleUI.showMessage('优化失败: ' + (error.response?.data?.detail || error.message), 'error');
+                window.SimpleUI.Message.error('优化失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.optimizing = false;
             }
@@ -159,7 +159,7 @@ const app = createApp({
             const key = filterName + '_' + metricName;
             
             try {
-                const confirmed = await window.SimpleUI.confirm(
+                const confirmed = await window.SimpleUI.MessageBox.confirm(
                     `确定要重置 ${this.getFilterDisplayName(filterName)} - ${this.getMetricDisplayName(metricName)} 的阈值吗？`
                 );
                 if (!confirmed) return;
@@ -172,12 +172,12 @@ const app = createApp({
                 
                 if (response.data.success) {
                     await this.refreshData(true);
-                    window.SimpleUI.showMessage('阈值重置成功');
+                    window.SimpleUI.Message.success('阈值重置成功');
                 }
             } catch (error) {
                 if (error !== 'cancel') {
                     console.error('重置失败:', error);
-                    window.SimpleUI.showMessage('重置失败: ' + (error.response?.data?.detail || error.message), 'error');
+                    window.SimpleUI.Message.error('重置失败: ' + (error.response?.data?.detail || error.message));
                 }
             } finally {
                 this.resetting[key] = false;
@@ -212,11 +212,11 @@ const app = createApp({
                 if (response.data.success) {
                     this.feedbackDialog.visible = false;
                     await this.refreshData(true);
-                    window.SimpleUI.showMessage('反馈提交成功');
+                    window.SimpleUI.Message.success('反馈提交成功');
                 }
             } catch (error) {
                 console.error('提交反馈失败:', error);
-                window.SimpleUI.showMessage('提交反馈失败: ' + (error.response?.data?.detail || error.message), 'error');
+                window.SimpleUI.Message.error('提交反馈失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.feedbackDialog.submitting = false;
             }
@@ -235,7 +235,7 @@ const app = createApp({
         },
 
         saveOptimizeSettings() {
-            window.SimpleUI.showMessage('优化设置已保存');
+            window.SimpleUI.Message.success('优化设置已保存');
             this.optimizeDialog.visible = false;
         },
 
@@ -254,9 +254,9 @@ const app = createApp({
                 a.click();
                 URL.revokeObjectURL(url);
                 
-                window.SimpleUI.showMessage('配置导出成功');
+                window.SimpleUI.Message.success('配置导出成功');
             } catch (error) {
-                window.SimpleUI.showMessage('导出失败: ' + error.message, 'error');
+                window.SimpleUI.Message.error('导出失败: ' + error.message);
             }
         },
 
