@@ -375,18 +375,17 @@
         </div>
     </div>
     
-    <!-- 核心库 - 立即加载确保优先级 -->
+    <!-- 🔥 第1层：核心库 - 立即加载确保优先级 -->
     <script src="assets/js/vue.prod.js?v=1755809999"></script>
     <script src="assets/js/axios.js?v=1755809999"></script>
+    
+    <!-- 📋 第2层：配置和工具 - 立即加载 -->
+    <script src="assets/js/config/api-endpoints.js?v=1755809999"></script>
+    <script src="assets/js/admin-auth.js?v=1755809999"></script>
+    
+    <!-- ⚙️ 第3层：模块化组件 - defer延迟加载 -->
     <script defer src="assets/js/config/axios-config.js?v=1755809999"></script>
-    <!-- 轻量级UI系统 -->
     <script defer src="assets/js/core/simple-ui.js?v=1755809999"></script>
-    
-    <!-- 配置和认证 -->
-    <script defer src="assets/js/config/api-endpoints.js?v=1755809999"></script>
-    <script defer src="assets/js/admin-auth.js?v=1755809999"></script>
-    
-    <!-- Linus风格核心系统 -->
     <script defer src="assets/js/core/event-delegate.js?v=1755809999"></script>
     
     <!-- 模块化工具类 - 延迟加载 -->
