@@ -225,8 +225,8 @@ class DevSupervisor:
         self.service_configs = {
             "web": ServiceConfig(
                 name="web",
-                command=["python3", "web_server.py"],
-                description="Web服务器 (FastAPI + 静态文件)"
+                command=["./start_web.sh", "prod"],  # Linus式改进：使用生产级启动
+                description="Web服务器 (Gunicorn + UvicornWorker)"
             ),
             "collector": ServiceConfig(
                 name="collector", 

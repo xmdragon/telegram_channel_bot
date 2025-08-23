@@ -144,11 +144,17 @@ class MessageSchedulerService:
             bot_module.message_scheduler = scheduler
             self.message_scheduler = scheduler
             
+            # 启动统计数据广播器（从web_server迁移而来）
+            from app.services.stats_broadcaster import init_stats_broadcaster
+            await init_stats_broadcaster()
+            logger.info("✅ 统计数据广播器已启动（scheduler负责）")
+            
             # 设置健康状态
             await self.health_monitor.set_healthy({
                 "scheduler_running": True,
                 "auto_forward_enabled": True,
-                "cleanup_jobs": ["old_data", "temp_media", "logs"]
+                "cleanup_jobs": ["old_data", "temp_media", "logs"],
+                "stats_broadcaster": True
             })
             
             logger.info("✅ 消息调度服务启动完成")
@@ -185,6 +191,14 @@ class MessageSchedulerService:
         """停止调度服务"""
         logger.info("⏰ 正在关闭消息调度服务...")
         self.is_running = False
+        
+        # 停止统计数据广播器
+        try:
+            from app.services.stats_broadcaster import shutdown_stats_broadcaster
+            await shutdown_stats_broadcaster()
+            logger.info("统计数据广播器已停止")
+        except Exception as e:
+            logger.error(f"停止统计数据广播器失败: {e}")
         
         # 停止消息调度器
         if self.message_scheduler:

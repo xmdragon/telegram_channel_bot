@@ -36,10 +36,10 @@ class StatsBroadcaster:
         self.is_running = False
         self.task = None
         
-        # 配置参数
-        self.check_interval = 10.0  # 检查间隔（秒）
-        self.min_broadcast_interval = 5.0  # 最小广播间隔
-        self.max_broadcast_interval = 60.0  # 最大广播间隔
+        # 配置参数 - Linus式优化：降低无必要的轮询频率
+        self.check_interval = 30.0  # 检查间隔（秒）- 从10秒优化到30秒
+        self.min_broadcast_interval = 15.0  # 最小广播间隔 - 从5秒优化到15秒
+        self.max_broadcast_interval = 120.0  # 最大广播间隔 - 从60秒优化到120秒
         
         # 差异阈值
         self.change_threshold = 0.01  # 数值变化阈值（1%）

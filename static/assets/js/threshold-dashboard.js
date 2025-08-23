@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 
+                // WebSocket连接
+                websocket: null,
+                wsConnected: false,
+                
                 // 优化设置对话框
                 optimizeDialog: {
                     visible: false,
@@ -132,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
             async refreshData() {
                 this.loading = true;
                 try {
-                    const response = await axios.get(API.threshold.stats);
+                    const response = await axios.get(API.training.thresholdsStats);
                     this.stats = response.data;
                 } catch (error) {
                     console.error('刷新数据失败:', error);
@@ -146,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function() {
             async optimizeAllThresholds() {
                 this.optimizing = true;
                 try {
-                    const response = await axios.post(API.threshold.optimize);
+                    const response = await axios.post(API.training.thresholdsOptimize);
                     this.showMessage('批量优化完成！', 'success');
                     await this.refreshData();
                 } catch (error) {
@@ -163,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.resetting = { ...this.resetting, [key]: true };
                 
                 try {
-                    const response = await axios.post(API.threshold.reset, {
+                    const response = await axios.post(API.training.thresholdsReset(filterName, metricName), {
                         filter_name: filterName,
                         metric_name: metricName
                     });
@@ -206,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 this.feedbackDialog.submitting = true;
                 try {
-                    const response = await axios.post(API.threshold.feedback, {
+                    const response = await axios.post(API.training.thresholdsFeedback, {
                         filter_name: this.feedbackDialog.filterName,
                         metric_name: this.feedbackDialog.metricName,
                         predicted_score: parseFloat(this.feedbackDialog.form.predicted_score),
@@ -241,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 加载优化设置
             async loadOptimizeSettings() {
                 try {
-                    const response = await axios.get(API.threshold.optimizeSettings);
+                    const response = await axios.get(API.training.thresholdsOptimizeSettings);
                     this.optimizeDialog.settings = response.data;
                 } catch (error) {
                     console.error('加载优化设置失败:', error);
@@ -251,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 保存优化设置
             async saveOptimizeSettings() {
                 try {
-                    const response = await axios.post(API.threshold.optimizeSettings, this.optimizeDialog.settings);
+                    const response = await axios.post(API.training.thresholdsOptimizeSettings, this.optimizeDialog.settings);
                     this.showMessage('优化设置保存成功！', 'success');
                     this.closeOptimizeDialog();
                 } catch (error) {
@@ -431,6 +435,71 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     return false;
                 }
+            },
+            
+            // WebSocket连接管理
+            initWebSocket() {
+                // 检查依赖是否就绪
+                if (!window.API || !window.API.websocket || !window.WebSocketFactory) {
+                    console.warn('WebSocket依赖未就绪，1秒后重试');
+                    setTimeout(() => this.initWebSocket(), 1000);
+                    return;
+                }
+                
+                try {
+                    this.websocket = WebSocketFactory.create('main');
+                    
+                    this.websocket.onopen = () => {
+                        this.wsConnected = true;
+                        console.log('WebSocket连接已建立');
+                    };
+                    
+                    this.websocket.onmessage = (event) => {
+                        this.handleWebSocketMessage(JSON.parse(event.data));
+                    };
+                    
+                    this.websocket.onclose = () => {
+                        this.wsConnected = false;
+                        console.log('WebSocket连接已关闭');
+                        
+                        // 3秒后尝试重连
+                        setTimeout(() => {
+                            if (!this.wsConnected) {
+                                this.initWebSocket();
+                            }
+                        }, 3000);
+                    };
+                    
+                    this.websocket.onerror = (error) => {
+                        console.error('WebSocket连接错误:', error);
+                    };
+                } catch (error) {
+                    console.error('WebSocket初始化失败:', error);
+                    // 5秒后重试
+                    setTimeout(() => this.initWebSocket(), 5000);
+                }
+            },
+            
+            // 处理WebSocket消息
+            handleWebSocketMessage(message) {
+                switch (message.type) {
+                    case 'thresholds_update':
+                        // 阈值数据更新
+                        console.log('收到阈值更新消息:', message.data);
+                        this.refreshData();
+                        break;
+                    default:
+                        console.log('未知WebSocket消息类型:', message.type);
+                }
+            },
+            
+            // 清理WebSocket连接
+            cleanupWebSocket() {
+                if (this.websocket) {
+                    this.websocket.close();
+                    this.websocket = null;
+                    this.wsConnected = false;
+                }
             }
         },
         
@@ -449,12 +518,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 setupAxiosAuth();
             }
             
-            // 设置定时刷新
-            setInterval(() => {
-                if (!this.loading && !this.optimizing) {
-                    this.refreshData();
-                }
-            }, 30000); // 每30秒刷新一次
+            // 🔥 Linus: 删除垃圾轮询！使用WebSocket实时推送
+            // 旧的30秒轮询已移除，现在使用WebSocket实时更新
+            
+            // 初始化WebSocket连接
+            this.initWebSocket();
+        },
+        
+        beforeUnmount() {
+            // 清理WebSocket连接
+            this.cleanupWebSocket();
         }
     });
     

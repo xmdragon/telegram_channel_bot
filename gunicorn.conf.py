@@ -1,0 +1,53 @@
+# Gunicorn配置文件 - Linus式生产级部署
+# "正确的工具做正确的事" - Gunicorn管理进程，uvicorn处理异步
+
+import multiprocessing
+import os
+
+# 进程管理
+bind = "0.0.0.0:8000"
+workers = int(os.getenv("WORKERS", multiprocessing.cpu_count()))
+worker_class = "uvicorn.workers.UvicornWorker"
+worker_connections = 1000
+
+# 超时配置 - Linus式：保守但实用的值
+timeout = 120           # 请求处理超时
+graceful_timeout = 30   # 优雅关闭超时
+keepalive = 5          # HTTP keep-alive
+
+# 进程重启策略
+max_requests = 1000         # 处理1000个请求后重启worker，防止内存泄露
+max_requests_jitter = 50    # 随机化重启时间，避免同时重启
+
+# 预处理和热重载
+preload_app = True      # 预加载应用，节省内存
+reload = False          # 生产环境禁用热重载
+
+# 日志配置
+accesslog = "./logs/gunicorn_access.log"
+errorlog = "./logs/gunicorn_error.log" 
+loglevel = "info"
+
+# 安全配置
+limit_request_line = 4096       # 限制请求行大小
+limit_request_fields = 100      # 限制请求头字段数量
+limit_request_field_size = 8192 # 限制请求头字段大小
+
+# 进程名称
+proc_name = "telegram-bot-gunicorn"
+
+# 用户和组（生产环境可配置）
+# user = "www-data"
+# group = "www-data"
+
+def when_ready(server):
+    """服务器就绪回调"""
+    server.log.info("🚀 Gunicorn生产服务器已就绪")
+
+def worker_int(worker):
+    """Worker接收到SIGINT信号"""
+    worker.log.info(f"Worker {worker.pid} 接收到中断信号")
+
+def on_exit(server):
+    """服务器退出回调"""
+    server.log.info("🛑 Gunicorn服务器正在关闭")
