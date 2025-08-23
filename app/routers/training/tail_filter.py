@@ -263,6 +263,37 @@ async def add_tail_filter_sample(request: dict):
     except Exception as e:
         raise handle_api_error(e, "添加尾部过滤训练样本")
 
+@router.get(ROUTES.training.tail_filter_samples_by_id)
+async def get_tail_filter_sample_by_id(sample_id: int):
+    """获取单个尾部过滤训练样本"""
+    try:
+        samples = load_tail_filter_samples()
+        
+        # 查找指定ID的样本
+        for sample in samples:
+            if sample.get('id') == sample_id:
+                return {
+                    "success": True,
+                    "sample": {
+                        "id": sample.get('id'),
+                        "tail_part": sample.get('tail_part', ''),
+                        "original_message": sample.get('content', ''),  # 支持旧字段名
+                        "created_at": sample.get('created_at', ''),
+                        "updated_at": sample.get('updated_at', ''),
+                        "channel_id": sample.get('channel_id', ''),
+                        "channel_name": sample.get('channel_name', '')
+                    }
+                }
+        
+        # 样本不存在
+        raise HTTPException(status_code=404, detail="训练样本不存在")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取尾部过滤训练样本失败: {e}")
+        raise HTTPException(status_code=500, detail="获取训练样本失败")
+
 @router.put(ROUTES.training.tail_filter_samples_by_id)
 async def update_tail_filter_sample(sample_id: int, request: dict):
     """更新尾部过滤训练样本"""

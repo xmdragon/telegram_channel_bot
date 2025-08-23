@@ -376,19 +376,63 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             
+            // 加载尾部过滤样本数据
+            async loadTailSample(sampleId) {
+                try {
+                    this.loading = true;
+                    const response = await axios.get(API.training.tailFilterSampleById(sampleId));
+                    
+                    if (response.data.success && response.data.sample) {
+                        const sample = response.data.sample;
+                        
+                        // 填充训练表单
+                        this.trainingForm.tail_content = sample.tail_part || '';
+                        
+                        // 如果有原始消息，也填充
+                        if (sample.original_message) {
+                            this.trainingForm.original_message = sample.original_message;
+                            this.trainingForm.contentType = 'original';
+                        }
+                        
+                        // 更新预览
+                        this.updatePreview();
+                        
+                        this.showMessage('样本数据已加载', 'success');
+                    } else {
+                        this.showMessage('样本不存在或已被删除', 'warning');
+                    }
+                } catch (error) {
+                    console.error('加载样本失败:', error);
+                    if (error.response && error.response.status === 404) {
+                        this.showMessage('样本不存在', 'warning');
+                    } else {
+                        this.showMessage('加载样本失败', 'error');
+                    }
+                } finally {
+                    this.loading = false;
+                }
+            },
+            
             // 检查URL参数并设置训练模式
             async checkUrlParams() {
                 const params = new URLSearchParams(window.location.search);
                 const mode = params.get('mode');
+                const sampleId = params.get('sampleId');
                 
                 if (mode) {
                     // 根据URL参数设置训练模式
                     if (['ad', 'tail', 'promo', 'separator', 'data'].includes(mode)) {
                         this.trainingMode = mode;
                     }
-                    // 清理URL参数，避免页面刷新时重复处理
-                    window.history.replaceState({}, document.title, window.location.pathname);
                 }
+                
+                // 如果有sampleId，加载样本数据
+                if (sampleId && mode === 'tail') {
+                    await this.loadTailSample(sampleId);
+                }
+                
+                // 清理URL参数，避免页面刷新时重复处理
+                window.history.replaceState({}, document.title, window.location.pathname);
             },
             
             // 检查认证状态

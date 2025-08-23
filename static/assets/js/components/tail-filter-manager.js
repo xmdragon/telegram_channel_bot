@@ -235,8 +235,12 @@ const app = createApp({
         },
         
         // 跳转到训练页面
-        goToTrainingPage() {
-            window.location.href = '/static/ad-training-manager.html';
+        goToTrainingPage(sample = null) {
+            let url = API.pages.train + '?mode=tail';
+            if (sample && sample.id) {
+                url += `&sampleId=${sample.id}`;
+            }
+            window.location.href = url;
         },
         
         // 处理搜索
