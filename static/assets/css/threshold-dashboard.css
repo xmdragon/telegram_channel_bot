@@ -14,27 +14,7 @@ body {
     line-height: 1.6;
 }
 
-/* 导航栏 */
-.navbar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 1rem 2rem;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-}
-
-.navbar-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.navbar-title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-}
+/* 导航栏样式已移至modern-ui.css统一管理 */
 
 .btn-back {
     background: rgba(255,255,255,0.2);
