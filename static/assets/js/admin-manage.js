@@ -1,5 +1,4 @@
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
 
 createApp({
     data() {
@@ -71,7 +70,7 @@ createApp({
             
         } catch (error) {
             console.error('管理员页面初始化失败:', error);
-            ElMessage.error(`页面初始化失败: ${error.message}`);
+            SimpleUI.Message.error(`页面初始化失败: ${error.message}`);
         }
     },
     
@@ -83,7 +82,7 @@ createApp({
                 this.currentAdmin = response.data;
             } catch (error) {
                 console.error('加载管理员信息失败:', error);
-                ElMessage.error('加载管理员信息失败');
+                SimpleUI.Message.error('加载管理员信息失败');
                 
                 // 如果是401错误，可能需要重新登录
                 if (error.response && error.response.status === 401) {
@@ -98,7 +97,7 @@ createApp({
                 const response = await axios.get(API.adminAuth.admins);
                 this.admins = response.data.admins;
             } catch (error) {
-                ElMessage.error('加载管理员列表失败');
+                SimpleUI.Message.error('加载管理员列表失败');
             }
         },
         
@@ -108,7 +107,7 @@ createApp({
                 const response = await axios.get(API.adminAuth.permissions);
                 this.availablePermissions = response.data.permissions;
             } catch (error) {
-                ElMessage.error('加载权限列表失败');
+                SimpleUI.Message.error('加载权限列表失败');
             }
         },
         
@@ -122,23 +121,29 @@ createApp({
             this.changePasswordDialog.visible = true;
         },
         
+        // 关闭修改密码对话框
+        closeChangePasswordDialog() {
+            this.changePasswordDialog.visible = false;
+            this.changePasswordDialog.loading = false;
+        },
+        
         // 修改密码
         async changePassword() {
             const form = this.changePasswordDialog.form;
             
             // 验证表单
             if (!form.old_password || !form.new_password) {
-                ElMessage.warning('请填写所有必填项');
+                SimpleUI.Message.warning('请填写所有必填项');
                 return;
             }
             
             if (form.new_password.length < 6) {
-                ElMessage.warning('新密码长度至少6位');
+                SimpleUI.Message.warning('新密码长度至少6位');
                 return;
             }
             
             if (form.new_password !== form.confirm_password) {
-                ElMessage.warning('两次输入的新密码不一致');
+                SimpleUI.Message.warning('两次输入的新密码不一致');
                 return;
             }
             
@@ -149,7 +154,7 @@ createApp({
                     new_password: form.new_password
                 });
                 
-                ElMessage.success('密码修改成功，请重新登录');
+                SimpleUI.Message.success('密码修改成功，请重新登录');
                 this.changePasswordDialog.visible = false;
                 
                 // 2秒后跳转到登录页
@@ -158,9 +163,9 @@ createApp({
                 }, 2000);
             } catch (error) {
                 if (error.response?.data?.detail) {
-                    ElMessage.error(error.response.data.detail);
+                    SimpleUI.Message.error(error.response.data.detail);
                 } else {
-                    ElMessage.error('密码修改失败');
+                    SimpleUI.Message.error('密码修改失败');
                 }
             } finally {
                 this.changePasswordDialog.loading = false;
@@ -178,37 +183,43 @@ createApp({
             this.createAdminDialog.visible = true;
         },
         
+        // 关闭创建管理员对话框
+        closeCreateAdminDialog() {
+            this.createAdminDialog.visible = false;
+            this.createAdminDialog.loading = false;
+        },
+        
         // 创建管理员
         async createAdmin() {
             const form = this.createAdminDialog.form;
             
             // 验证表单
             if (!form.username || !form.password) {
-                ElMessage.warning('请填写用户名和密码');
+                SimpleUI.Message.warning('请填写用户名和密码');
                 return;
             }
             
             if (form.password.length < 6) {
-                ElMessage.warning('密码长度至少6位');
+                SimpleUI.Message.warning('密码长度至少6位');
                 return;
             }
             
             if (!form.is_super_admin && form.permissions.length === 0) {
-                ElMessage.warning('普通管理员至少需要分配一个权限');
+                SimpleUI.Message.warning('普通管理员至少需要分配一个权限');
                 return;
             }
             
             this.createAdminDialog.loading = true;
             try {
                 await axios.post(API.adminAuth.admins, form);
-                ElMessage.success('管理员创建成功');
+                SimpleUI.Message.success('管理员创建成功');
                 this.createAdminDialog.visible = false;
                 await this.loadAdmins();
             } catch (error) {
                 if (error.response?.data?.detail) {
-                    ElMessage.error(error.response.data.detail);
+                    SimpleUI.Message.error(error.response.data.detail);
                 } else {
-                    ElMessage.error('创建管理员失败');
+                    SimpleUI.Message.error('创建管理员失败');
                 }
             } finally {
                 this.createAdminDialog.loading = false;
@@ -227,6 +238,12 @@ createApp({
             this.editAdminDialog.visible = true;
         },
         
+        // 关闭编辑管理员对话框
+        closeEditAdminDialog() {
+            this.editAdminDialog.visible = false;
+            this.editAdminDialog.loading = false;
+        },
+        
         // 更新管理员
         async updateAdmin() {
             const form = this.editAdminDialog.form;
@@ -234,12 +251,12 @@ createApp({
             
             // 如果设置了密码，验证长度
             if (form.password && form.password.length < 6) {
-                ElMessage.warning('密码长度至少6位');
+                SimpleUI.Message.warning('密码长度至少6位');
                 return;
             }
             
             if (!form.is_super_admin && form.permissions.length === 0) {
-                ElMessage.warning('普通管理员至少需要分配一个权限');
+                SimpleUI.Message.warning('普通管理员至少需要分配一个权限');
                 return;
             }
             
@@ -257,14 +274,14 @@ createApp({
             this.editAdminDialog.loading = true;
             try {
                 await axios.put(API.adminAuth.adminById(adminId), updateData);
-                ElMessage.success('管理员信息更新成功');
+                SimpleUI.Message.success('管理员信息更新成功');
                 this.editAdminDialog.visible = false;
                 await this.loadAdmins();
             } catch (error) {
                 if (error.response?.data?.detail) {
-                    ElMessage.error(error.response.data.detail);
+                    SimpleUI.Message.error(error.response.data.detail);
                 } else {
-                    ElMessage.error('更新管理员失败');
+                    SimpleUI.Message.error('更新管理员失败');
                 }
             } finally {
                 this.editAdminDialog.loading = false;
@@ -274,26 +291,26 @@ createApp({
         // 删除管理员
         async deleteAdmin(admin) {
             try {
-                await ElMessageBox.confirm(
+                await SimpleUI.MessageBox.confirm(
                     `确定要删除管理员 "${admin.username}" 吗？此操作不可恢复。`,
                     '删除确认',
                     {
                         confirmButtonText: '确定删除',
                         cancelButtonText: '取消',
-                        type: 'warning'
+                        type: 'danger'
                     }
                 );
                 
                 await axios.delete(API.adminAuth.adminById(admin.id));
-                ElMessage.success('管理员删除成功');
+                SimpleUI.Message.success('管理员删除成功');
                 await this.loadAdmins();
             } catch (error) {
                 if (error === 'cancel') return;
                 
                 if (error.response?.data?.detail) {
-                    ElMessage.error(error.response.data.detail);
+                    SimpleUI.Message.error(error.response.data.detail);
                 } else {
-                    ElMessage.error('删除管理员失败');
+                    SimpleUI.Message.error('删除管理员失败');
                 }
             }
         },
@@ -343,4 +360,4 @@ createApp({
     components: {
         'nav-bar': NavBar
     }
-}).use(ElementPlus).mount('#app');
+}).mount('#app');

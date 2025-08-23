@@ -101,6 +101,62 @@
     font-size: 12px;
 }
 
+/* 标签样式 */
+.tag {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.tag-primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.tag-success {
+    background: #67c23a;
+    color: white;
+    border-color: #67c23a;
+}
+
+.tag-warning {
+    background: #e6a23c;
+    color: white;
+    border-color: #e6a23c;
+}
+
+.tag-danger {
+    background: #f56c6c;
+    color: white;
+    border-color: #f56c6c;
+}
+
+.tag-info {
+    background: #909399;
+    color: white;
+    border-color: #909399;
+}
+
+.tag-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* 小按钮样式 */
+.btn-small {
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
 /* 原生表格样式 */
 .table-wrapper {
     overflow-x: auto;

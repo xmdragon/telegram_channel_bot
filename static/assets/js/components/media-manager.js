@@ -1,6 +1,43 @@
 // 媒体文件管理组件
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
+
+// 原生消息和对话框工具
+const showMessage = (message, type = 'info', duration = 3000) => {
+    if (window.SimpleUI && window.SimpleUI.showNotification) {
+        window.SimpleUI.showNotification(message, type, { duration });
+    } else {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+};
+
+const showConfirm = (message, title = '确认', options = {}) => {
+    return new Promise((resolve, reject) => {
+        if (window.SimpleUI && window.SimpleUI.showConfirm) {
+            window.SimpleUI.showConfirm(title, message, options)
+                .then(() => resolve(true))
+                .catch(() => reject('cancel'));
+        } else {
+            const confirmed = confirm(`${title}\n\n${message}`);
+            if (confirmed) {
+                resolve(true);
+            } else {
+                reject('cancel');
+            }
+        }
+    });
+};
+
+const showAlert = (message, title = '提示', options = {}) => {
+    return new Promise((resolve) => {
+        if (window.SimpleUI && window.SimpleUI.showAlert) {
+            window.SimpleUI.showAlert(title, message, options)
+                .then(() => resolve());
+        } else {
+            alert(`${title}\n\n${message}`);
+            resolve();
+        }
+    });
+};
 
 const app = createApp({
     data() {
@@ -80,6 +117,11 @@ const app = createApp({
             const start = (this.currentPage - 1) * this.pageSize;
             const end = start + this.pageSize;
             return this.filteredFiles.slice(start, end);
+        },
+        
+        // 总页数
+        totalPages() {
+            return Math.ceil(this.filteredFiles.length / this.pageSize);
         }
     },
     
@@ -110,14 +152,9 @@ const app = createApp({
                 });
                 
                 // 不再显示加载成功提示，避免频繁打扰用户
-                // ElMessage.success(`加载了 ${this.mediaFiles.length} 个媒体文件`);
+                // showMessage(`加载了 ${this.mediaFiles.length} 个媒体文件`, 'success');
             } catch (error) {
-                ElMessage({
-                    message: '加载媒体文件失败',
-                    type: 'error',
-                    offset: 20,
-                    customClass: 'bottom-right-message'
-                });
+                showMessage('加载媒体文件失败', 'error');
             } finally {
                 this.loading = false;
             }
@@ -178,41 +215,40 @@ const app = createApp({
             return 'success';
         },
         
+        // 获取广告分数CSS类
+        getAdScoreClass(score) {
+            if (score >= 70) return 'tag-high-score';
+            if (score >= 50) return 'tag-medium-score';
+            return 'tag-low-score';
+        },
+        
+        // 关闭详情对话框
+        closeDetailDialog() {
+            this.detailDialog = false;
+            this.currentFile = null;
+        },
+        
         // 删除文件
         async deleteFile(file) {
             try {
-                await ElMessageBox.confirm(
+                await showConfirm(
                     `确定要删除文件 ${file.name} 吗？`,
                     '删除确认',
-                    {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消',
-                        type: 'warning',
-                    }
+                    { type: 'warning' }
                 );
                 
                 const response = await axios.delete(API.training.mediaFileById(file.hash));
                 
                 if (response.data.success) {
                     // 删除成功后不显示提示，直接刷新列表
-                    // ElMessage.success('文件已删除');
+                    // showMessage('文件已删除', 'success');
                     this.loadMediaFiles();
                 } else {
-                    ElMessage({
-                        message: response.data.error || '删除失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage(response.data.error || '删除失败', 'error');
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage({
-                        message: '删除文件失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage('删除文件失败', 'error');
                 }
             }
         },
@@ -338,51 +374,27 @@ const app = createApp({
                 const orphanedCount = this.mediaFiles.filter(f => f.messageIds.length === 0).length;
                 
                 if (orphanedCount === 0) {
-                    ElMessage({
-                        message: '没有未引用的文件',
-                        type: 'info',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage('没有未引用的文件', 'info');
                     return;
                 }
                 
-                await ElMessageBox.confirm(
+                await showConfirm(
                     `发现 ${orphanedCount} 个未引用的文件，是否清理？`,
                     '清理确认',
-                    {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消',
-                        type: 'warning',
-                    }
+                    { type: 'warning' }
                 );
                 
                 const response = await axios.post(API.training.mediaFilesCleanOrphaned);
                 
                 if (response.data.success) {
-                    ElMessage({
-                        message: `清理了 ${response.data.deleted} 个文件`,
-                        type: 'success',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage(`清理了 ${response.data.deleted} 个文件`, 'success');
                     this.loadMediaFiles();
                 } else {
-                    ElMessage({
-                        message: response.data.error || '清理失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage(response.data.error || '清理失败', 'error');
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage({
-                        message: '清理失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage('清理失败', 'error');
                 }
             }
         },
