@@ -14,7 +14,6 @@
         document.write('<link rel="stylesheet" href="assets/css/components/inline-styles.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/training-common.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
-        document.write('<link rel="stylesheet" href="assets/css/train.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
@@ -26,14 +25,29 @@
             <!-- 子导航 -->
             <training-nav active-tab="separator"></training-nav>
             
+            <!-- 标签页导航 -->
+            <div class="tab-nav">
+                <button 
+                    class="tab-btn" 
+                    :class="{ active: activeTab === 'config' }"
+                    @click="activeTab = 'config'">
+                    ⚙️ 分隔符模式配置
+                </button>
+                <button 
+                    class="tab-btn" 
+                    :class="{ active: activeTab === 'examples' }"
+                    @click="activeTab = 'examples'">
+                    📝 常用分隔符示例
+                </button>
+            </div>
+            
             <!-- 分隔符配置表单 -->
-            <div class="config-section">
+            <div class="config-section" v-show="activeTab === 'config'">
                 <div class="form-card">
                     <div class="card-header">
                         <h3>⚙️ 分隔符模式配置</h3>
-                        <button class="btn btn-primary btn-small" @click="saveSeparatorPatterns" :disabled="loading">
-                            <span v-if="loading">保存中...</span>
-                            <span v-else>保存配置</span>
+                        <button class="btn btn-primary btn-small" @click="saveSeparatorPatterns">
+                            保存配置
                         </button>
                     </div>
                     
@@ -64,11 +78,17 @@
                             + 添加分隔符模式
                         </button>
                     </div>
-                    
-                    <div class="divider"></div>
+                </div>
+            </div>
+            
+            <!-- 分隔符示例页面 -->
+            <div class="config-section" v-show="activeTab === 'examples'">
+                <div class="form-card">
+                    <div class="card-header">
+                        <h3>📝 常用分隔符示例</h3>
+                    </div>
                     
                     <div class="help-section">
-                        <h4>📝 常用分隔符示例</h4>
                         <ul class="help-list">
                             <li><code>━{10,}</code> - 连续10个或以上的横线</li>
                             <li><code>═{10,}</code> - 连续10个或以上的双线</li>
@@ -118,13 +138,8 @@
             </div>
             
             <!-- 消息提示已使用 SimpleUI -->
+            
         </div>
-    </div>
-
-    <!-- 加载指示器 -->
-    <div v-if="loading" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">{{ loadingText }}</div>
     </div>
     <!-- 动态加载JavaScript文件 -->
     <script>

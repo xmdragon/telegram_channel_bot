@@ -532,17 +532,21 @@
     margin-bottom: 0;
 }
 
-/* 表单提示样式 - 移除margin-top */
+/* 表单提示样式 - 优化为行内显示 */
 .form-hint {
-    margin-left: 12px;
-    padding: 12px;
+    margin: 0;
+    padding: 8px 12px;
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
     border: 1px solid #bae6fd;
     border-radius: 6px;
     color: #0c4a6e;
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.4;
     border-left: 3px solid #0ea5e9;
+    white-space: nowrap;
+    width: fit-content;
+    flex-shrink: 0;
+    max-width: none;
 }
 
 .form-hint small {
@@ -664,12 +668,34 @@
     max-width: 200px;
 }
 
+/* 输入行容器 - 包含输入框组合和提示信息 */
+.input-line {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* 输入行容器中的普通输入框样式 */
+.input-line .form-input {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* 输入行容器中的开关控件样式 */
+.input-line .switch-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
 /* 输入框与按钮组合 */
 .input-with-button {
     display: flex;
-    gap: 8px;
+    gap: 0;
     align-items: stretch;
-    max-width: 600px;
+    flex-shrink: 0;
+    min-width: 400px;
 }
 
 .input-with-button .form-input {

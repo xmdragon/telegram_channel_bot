@@ -7,28 +7,18 @@ const API = window.API;
 
 const { createApp } = Vue;
 
-// 消息管理器 - 使用轻量级SimpleMessage
-const MessageManager = {
-    success(message) {
-        SimpleMessage.success(message);
-    },
-    error(message) {
-        SimpleMessage.error(message);
-    },
-    warning(message) {
-        SimpleMessage.warning(message);
-    },
-    info(message, options = {}) {
-        SimpleMessage.info(message);
-    }
+// 消息管理器 - 使用SimpleUI消息系统
+const MessageManager = window.SimpleUI ? window.SimpleUI.Message : {
+    success: (message) => console.log('SUCCESS:', message),
+    error: (message) => console.error('ERROR:', message),
+    warning: (message) => console.warn('WARNING:', message),
+    info: (message) => console.info('INFO:', message)
 };
 
 // 配置应用组件
 const ConfigApp = {
     data() {
         return {
-            loading: false,
-            loadingMessage: '',
             statusMessage: '',
             statusType: 'success',
             configStatus: '在线',
@@ -138,9 +128,6 @@ const ConfigApp = {
         },
         
         async loadConfigData() {
-            this.loading = true;
-            this.loadingMessage = '正在加载配置数据...';
-            
             try {
                 // 加载频道列表
                 await this.loadChannels();
@@ -154,11 +141,8 @@ const ConfigApp = {
                 // 加载过滤配置
                 await this.loadFilterConfig();
                 
-                MessageManager.success('配置数据加载完成');
             } catch (error) {
                 MessageManager.error('加载配置数据失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                this.loading = false;
             }
         },
         
@@ -253,9 +237,6 @@ const ConfigApp = {
                     channelName = '@' + channelName;
                 }
                 
-                this.loading = true;
-                this.loadingMessage = '正在解析频道信息...';
-                
                 const response = await axios.post(API.admin.channels, {
                     channel_id: "",  // 自动解析
                     channel_name: channelName,
@@ -273,8 +254,6 @@ const ConfigApp = {
                 }
             } catch (error) {
                 MessageManager.error('频道添加失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                this.loading = false;
             }
         },
         
@@ -297,8 +276,6 @@ const ConfigApp = {
         
         async resolveChannelIds() {
             try {
-                this.loading = true;
-                this.loadingMessage = '正在解析频道ID...';
                 
                 const response = await axios.post(API.admin.resolveChannelIds);
                 
@@ -311,7 +288,7 @@ const ConfigApp = {
             } catch (error) {
                 MessageManager.error('频道ID解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
-                this.loading = false;
+                // 操作完成
             }
         },
         
@@ -536,7 +513,6 @@ const ConfigApp = {
             }
             
             try {
-                this.loading = true;
                 const response = await axios.post(API.admin.resolveChannelId, {
                     channel_name: this.forwardingConfig.target_channel
                 });
@@ -553,7 +529,7 @@ const ConfigApp = {
             } catch (error) {
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
-                this.loading = false;
+                // 操作完成
             }
         },
         
@@ -565,7 +541,6 @@ const ConfigApp = {
             }
             
             try {
-                this.loading = true;
                 const response = await axios.post(API.admin.resolveReviewGroup, {
                     review_group_config: this.forwardingConfig.review_group
                 });
@@ -582,15 +557,13 @@ const ConfigApp = {
             } catch (error) {
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
-                this.loading = false;
+                // 操作完成
             }
         },
         
         // 批量解析所有频道
         async resolveAllChannels() {
             try {
-                this.loading = true;
-                this.loadingMessage = '正在解析所有频道ID...';
                 
                 const response = await axios.post(API.admin.resolveChannelIds);
                 
@@ -606,7 +579,7 @@ const ConfigApp = {
             } catch (error) {
                 MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
             } finally {
-                this.loading = false;
+                // 操作完成
             }
         },
         

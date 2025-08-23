@@ -13,9 +13,6 @@ const { createApp } = Vue;
 const app = createApp({
     data() {
         return {
-            loading: false,
-            submitting: false,
-            
             // 推广链接训练表单
             promoTrainingForm: {
                 full_content: '',
@@ -33,11 +30,10 @@ const app = createApp({
         // 提交推广链接训练
         async submitPromoTraining() {
             if (!this.promoTrainingForm.full_content || !this.promoTrainingForm.promo_section) {
-                this.showMessage('请填写完整的推广链接训练内容', 'warning');
+                window.SimpleUI.Message.warning('请填写完整的推广链接训练内容');
                 return;
             }
             
-            this.submitting = true;
             try {
                 const response = await axios.post(API.training.promoSamples, {
                     full_content: this.promoTrainingForm.full_content,
@@ -46,13 +42,11 @@ const app = createApp({
                     promo_features: this.promoTrainingForm.promo_features
                 });
                 
-                this.showMessage('推广链接训练样本提交成功！', 'success');
+                window.SimpleUI.Message.success('推广链接训练样本提交成功！');
                 this.clearPromoForm();
             } catch (error) {
                 console.error('提交推广链接训练样本失败:', error);
-                this.showMessage(error.response?.data?.detail || '提交失败', 'error');
-            } finally {
-                this.submitting = false;
+                window.SimpleUI.Message.error(error.response?.data?.detail || '提交失败');
             }
         },
         
@@ -67,8 +61,9 @@ const app = createApp({
             this.promoFilteredPreview = '';
         },
         
-        // 显示消息提示 - 从train.js原样复制
-        showMessage(message, type = 'info') {
+        // 消息提示已统一使用 window.SimpleUI.Message
+        // showMessage 方法已废弃，请使用 window.SimpleUI.Message.success/error/warning/info
+        showMessage_deprecated(message, type = 'info') {
             // 创建消息提示元素
             const messageDiv = document.createElement('div');
             messageDiv.className = `message-toast message-${type}`;

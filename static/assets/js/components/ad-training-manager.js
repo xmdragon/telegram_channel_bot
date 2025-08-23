@@ -28,13 +28,24 @@ const app = createApp({
             searchText: '',
             filterType: 'all',
             
+            // 选择和排序
+            selectedSampleIds: [],
+            allSelected: false,
+            sortField: '',
+            sortOrder: 'desc',
+            
             // 对话框
             detailDialog: false,
             currentSample: null,
             duplicateDialog: false,
             duplicateLoading: false,
             duplicateGroups: [],
-            duplicateSamplesCount: 0
+            duplicateSamplesCount: 0,
+            
+            // 媒体预览
+            mediaPreviewDialog: false,
+            currentMediaList: [],
+            currentMediaIndex: 0
         }
     },
     
@@ -47,6 +58,11 @@ const app = createApp({
                 return admin.is_super_admin || (admin.permissions && admin.permissions.includes('training.manage'));
             }
             return false;
+        },
+        
+        // 计算总页数
+        totalPages() {
+            return Math.ceil(this.totalCount / this.pageSize);
         }
     },
     
@@ -76,7 +92,8 @@ const app = createApp({
                 // 加载统计信息
                 await this.loadStatistics();
             } catch (error) {
-                window.SimpleUI.showMessage('加载样本数据失败');
+                console.error('加载样本数据失败:', error);
+                window.SimpleUI.Message.error('加载样本数据失败');
             } finally {
                 this.loading = false;
             }
@@ -86,21 +103,83 @@ const app = createApp({
         async loadStatistics() {
             try {
                 const response = await axios.get(API.training.adStatistics);
-                if (response.data.success) {
+                if (response.data.success && response.data.statistics) {
+                    const stats = response.data.statistics;
                     this.stats = {
-                        totalSamples: response.data.total_samples || 0,
-                        uniqueSamples: response.data.unique_samples || response.data.total_samples || 0,
-                        mediaFiles: response.data.media_files || 0,
-                        storageSize: response.data.storage_size || 0
+                        totalSamples: stats.total_samples || 0,
+                        uniqueSamples: stats.total_samples || 0,  // 使用总样本数作为去重后数量
+                        mediaFiles: stats.media_files || 0,
+                        storageSize: stats.storage_size || 0
                     };
                 }
             } catch (error) {
+                console.error('加载统计信息失败:', error);
             }
         },
         
         // 处理选择变化
         handleSelectionChange(selection) {
             this.selectedSamples = selection;
+        },
+        
+        // 全选处理
+        selectAll(event) {
+            if (event.target.checked) {
+                this.selectedSampleIds = this.samples.map(s => s.id);
+                this.selectedSamples = [...this.samples];
+            } else {
+                this.selectedSampleIds = [];
+                this.selectedSamples = [];
+            }
+        },
+        
+        // 单个选择处理
+        handleSampleSelection(event) {
+            const sampleId = event.target.value.id;
+            if (event.target.checked) {
+                if (!this.selectedSampleIds.includes(sampleId)) {
+                    this.selectedSampleIds.push(sampleId);
+                    this.selectedSamples.push(event.target.value);
+                }
+            } else {
+                this.selectedSampleIds = this.selectedSampleIds.filter(id => id !== sampleId);
+                this.selectedSamples = this.selectedSamples.filter(s => s.id !== sampleId);
+            }
+            
+            // 更新全选状态
+            this.allSelected = this.selectedSampleIds.length === this.samples.length && this.samples.length > 0;
+        },
+        
+        // 排序处理
+        sortBy(field) {
+            if (this.sortField === field) {
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortOrder = 'desc';
+            }
+            
+            this.samples.sort((a, b) => {
+                let valueA = a[field];
+                let valueB = b[field];
+                
+                if (field === 'created_at') {
+                    valueA = new Date(valueA || 0).getTime();
+                    valueB = new Date(valueB || 0).getTime();
+                }
+                
+                if (this.sortOrder === 'asc') {
+                    return valueA > valueB ? 1 : -1;
+                } else {
+                    return valueA < valueB ? 1 : -1;
+                }
+            });
+        },
+        
+        // 清除搜索
+        clearSearch() {
+            this.searchText = '';
+            this.loadSamples();
         },
         
         // 处理分页
@@ -121,11 +200,11 @@ const app = createApp({
                 // 现在所有样本都有统一的样本ID
                 const sampleId = sample.id;
                 if (!sampleId) {
-                    window.SimpleUI.showMessage('样本ID缺失，无法删除');
+                    window.SimpleUI.Message.info('样本ID缺失，无法删除');
                     return;
                 }
                 
-                await window.SimpleUI.showMessageBox.confirm(
+                await window.SimpleUI.MessageBox.confirm(
                     '确定要删除这个广告训练样本吗？',
                     '确认删除',
                     {
@@ -138,15 +217,15 @@ const app = createApp({
                 const response = await axios.delete(API.training.adSampleById(sampleId));
                 
                 if (response.data.success) {
-                    window.SimpleUI.showMessage('删除成功');
+                    window.SimpleUI.Message.success('删除成功');
                 } else {
-                    window.SimpleUI.showMessage(response.data.message || '删除可能失败');
+                    window.SimpleUI.Message.info(response.data.message || '删除可能失败');
                 }
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
                     console.error('删除失败:', error);
-                    window.SimpleUI.showMessage('删除失败: ' + (error.response?.data?.message || error.message));
+                    window.SimpleUI.Message.info('删除失败: ' + (error.response?.data?.message || error.message));
                 }
             }
         },
@@ -156,7 +235,7 @@ const app = createApp({
             if (!this.selectedSamples.length) return;
             
             try {
-                await window.SimpleUI.showMessageBox.confirm(
+                await window.SimpleUI.MessageBox.confirm(
                     `确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`,
                     '批量删除确认',
                     {
@@ -168,16 +247,16 @@ const app = createApp({
                 
                 const ids = this.selectedSamples.map(s => s.id).filter(id => id);
                 if (ids.length === 0) {
-                    window.SimpleUI.showMessage('所选样本ID缺失，无法删除');
+                    window.SimpleUI.Message.info('所选样本ID缺失，无法删除');
                     return;
                 }
                 await axios.delete(API.training.adSamplesBatch, { data: { ids } });
                 
-                window.SimpleUI.showMessage('批量删除成功');
+                window.SimpleUI.Message.success('批量删除成功');
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    window.SimpleUI.showMessage('批量删除失败');
+                    window.SimpleUI.Message.info('批量删除失败');
                 }
             }
         },
@@ -196,16 +275,16 @@ const app = createApp({
                     this.duplicateSamplesCount = response.data.total_duplicates || 0;
                     
                     if (!this.duplicateGroups.length) {
-                        window.SimpleUI.showMessage('没有发现重复的样本');
+                        window.SimpleUI.Message.info('没有发现重复的样本');
                         this.duplicateDialog = false;
                     }
                 } else {
-                    window.SimpleUI.showMessage('检测重复失败: ' + (response.data.error || '未知错误'));
+                    window.SimpleUI.Message.info('检测重复失败: ' + (response.data.error || '未知错误'));
                     this.duplicateDialog = false;
                 }
             } catch (error) {
                 console.error('检测重复失败:', error);
-                window.SimpleUI.showMessage('检测重复失败: ' + (error.response?.data?.message || error.message));
+                window.SimpleUI.Message.info('检测重复失败: ' + (error.response?.data?.message || error.message));
                 this.duplicateDialog = false;
             } finally {
                 this.duplicateLoading = false;
@@ -237,11 +316,11 @@ const app = createApp({
                 });
                 
                 if (!toDelete.length) {
-                    window.SimpleUI.showMessage('没有选择要删除的样本');
+                    window.SimpleUI.Message.info('没有选择要删除的样本');
                     return;
                 }
                 
-                await window.SimpleUI.showMessageBox.confirm(
+                await window.SimpleUI.MessageBox.confirm(
                     `将删除 ${toDelete.length} 个重复样本，是否继续？`,
                     '去重确认',
                     {
@@ -255,12 +334,12 @@ const app = createApp({
                     remove_ids: toDelete
                 });
                 
-                window.SimpleUI.showMessage(response.data.message);
+                window.SimpleUI.Message.info(response.data.message);
                 this.duplicateDialog = false;
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    window.SimpleUI.showMessage('去重失败');
+                    window.SimpleUI.Message.info('去重失败');
                 }
             }
         },
@@ -268,7 +347,7 @@ const app = createApp({
         // 优化存储
         async optimizeStorage() {
             try {
-                await window.SimpleUI.showMessageBox.confirm(
+                await window.SimpleUI.MessageBox.confirm(
                     '优化存储将：\n1. 转换视频为快照\n2. 压缩图片\n3. 清理无效文件\n\n是否继续？',
                     '优化存储',
                     {
@@ -279,14 +358,14 @@ const app = createApp({
                     }
                 );
                 
-                window.SimpleUI.showMessage('正在优化存储，请稍候...');
+                window.SimpleUI.Message.info('正在优化存储，请稍候...');
                 const response = await axios.post(API.training.optimizeStorage);
                 
-                window.SimpleUI.showMessage(`优化完成！节省空间: ${this.formatSize(response.data.saved_space)}`);
+                window.SimpleUI.Message.info(`优化完成！节省空间: ${this.formatSize(response.data.saved_space)}`);
                 await this.loadStatistics();
             } catch (error) {
                 if (error !== 'cancel') {
-                    window.SimpleUI.showMessage('优化存储失败');
+                    window.SimpleUI.Message.info('优化存储失败');
                 }
             }
         },
@@ -335,13 +414,59 @@ const app = createApp({
         // 检查权限
         checkPermission() {
             if (!this.isAdmin) {
-                window.SimpleUI.showMessage('您没有权限访问此页面');
+                window.SimpleUI.Message.info('您没有权限访问此页面');
                 setTimeout(() => {
                     window.location.href = '/';
                 }, 1500);
                 return false;
             }
             return true;
+        },
+        
+        // 关闭详情对话框
+        closeDetailDialog() {
+            this.detailDialog = false;
+            this.currentSample = null;
+        },
+        
+        // 关闭重复检测对话框
+        closeDuplicateDialog() {
+            this.duplicateDialog = false;
+            this.duplicateGroups = [];
+            this.duplicateSamplesCount = 0;
+        },
+        
+        // 媒体预览
+        previewMedia(mediaList, index) {
+            this.currentMediaList = mediaList;
+            this.currentMediaIndex = index;
+            this.mediaPreviewDialog = true;
+        },
+        
+        // 关闭媒体预览
+        closeMediaPreview() {
+            this.mediaPreviewDialog = false;
+            this.currentMediaList = [];
+            this.currentMediaIndex = 0;
+        },
+        
+        // 上一张媒体
+        previousMedia() {
+            if (this.currentMediaIndex > 0) {
+                this.currentMediaIndex--;
+            }
+        },
+        
+        // 下一张媒体
+        nextMedia() {
+            if (this.currentMediaIndex < this.currentMediaList.length - 1) {
+                this.currentMediaIndex++;
+            }
+        },
+        
+        // 图片加载错误处理
+        handleImageError(event) {
+            event.target.style.display = 'none';
         }
     },
     
@@ -360,16 +485,12 @@ const app = createApp({
         // 初始加载数据
         this.loadSamples();
         
-        // 定期刷新统计信息
-        this.statsInterval = setInterval(() => {
-            this.loadStatistics();
-        }, 30000); // 30秒刷新一次
+        // 加载统计信息（只加载一次）
+        this.loadStatistics();
     },
     
     beforeUnmount() {
-        if (this.statsInterval) {
-            clearInterval(this.statsInterval);
-        }
+        // 组件销毁时清理资源
     }
 });
 

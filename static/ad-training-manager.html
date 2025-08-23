@@ -207,6 +207,23 @@
                     <button class="modal-close" @click="closeDetailDialog">✖️</button>
                 </div>
                 <div class="modal-body" v-if="currentSample">
+                    <div class="detail-section">
+                        <h4>内容：</h4>
+                        <div class="detail-content">{{ currentSample.content }}</div>
+                    </div>
+                    
+                    <div v-if="currentSample.media_files && currentSample.media_files.length" class="detail-section">
+                        <h4>媒体文件：</h4>
+                        <div class="media-grid">
+                            <img v-for="(media, idx) in currentSample.media_files" 
+                                 :key="idx"
+                                 :src="'/media/' + media"
+                                 class="media-preview-large"
+                                 @click="previewMedia(currentSample.media_files, idx)"
+                                 @error="handleImageError">
+                        </div>
+                    </div>
+                    
                     <div class="detail-info">
                         <div class="detail-grid">
                             <div class="detail-item">
@@ -227,23 +244,6 @@
                                 <label>创建时间:</label>
                                 <span>{{ formatTime(currentSample.created_at) }}</span>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>内容：</h4>
-                        <div class="detail-content">{{ currentSample.content }}</div>
-                    </div>
-                    
-                    <div v-if="currentSample.media_files && currentSample.media_files.length" class="detail-section">
-                        <h4>媒体文件：</h4>
-                        <div class="media-grid">
-                            <img v-for="(media, idx) in currentSample.media_files" 
-                                 :key="idx"
-                                 :src="'/media/' + media"
-                                 class="media-preview-large"
-                                 @click="previewMedia(currentSample.media_files, idx)"
-                                 @error="handleImageError">
                         </div>
                     </div>
                 </div>

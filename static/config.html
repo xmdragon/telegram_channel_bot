@@ -54,28 +54,27 @@
                                     <form class="native-form" @submit.prevent="addChannel">
                                         <div class="form-group">
                                             <label class="form-label">频道名称</label>
-                                            <div class="input-with-button">
-                                                <input 
-                                                    class="form-input" 
-                                                    type="text"
-                                                    v-model="newChannel.name" 
-                                                    placeholder="输入频道名称（如：@channelname 或 channelname）"
-                                                    @keyup.enter="addChannel">
-                                                <button 
-                                                    type="button"
-                                                    class="btn btn-primary" 
-                                                    @click="addChannel" 
-                                                    :disabled="loading">
-                                                    <span v-if="loading">⏳</span>
-                                                    <span v-else>➕</span>
-                                                    添加
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <div class="form-hint">
-                                                <span class="info-icon">ℹ️</span> 
-                                                频道ID和标题会自动解析，无需手动填写
+                                            <div class="input-line">
+                                                <div class="input-with-button">
+                                                    <input 
+                                                        class="form-input" 
+                                                        type="text"
+                                                        v-model="newChannel.name" 
+                                                        placeholder="输入频道名称（如：@channelname 或 channelname）"
+                                                        @keyup.enter="addChannel">
+                                                    <button 
+                                                        type="button"
+                                                        class="btn btn-primary" 
+                                                        @click="addChannel" 
+>
+                                                        ➕
+                                                        添加
+                                                    </button>
+                                                </div>
+                                                <div class="form-hint">
+                                                    <span class="info-icon">ℹ️</span> 
+                                                    频道ID和标题会自动解析，无需手动填写
+                                                </div>
                                             </div>
                                         </div>
                                     </form>
@@ -277,26 +276,30 @@
                         <form class="native-form">
                             <div class="form-group">
                                 <label class="form-label">启用自动转发</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="forwardingConfig.enabled">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                                <div class="form-hint">
-                                    启用后，消息会在指定延迟时间后自动转发到目标频道
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="forwardingConfig.enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="form-hint">
+                                        启用后，消息会在指定延迟时间后自动转发到目标频道
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">目标频道</label>
-                                <input 
-                                    class="form-input"
-                                    type="text"
-                                    v-model="forwardingConfig.target_channel" 
-                                    placeholder="输入用户名（如：@bigeventsinsea 或 bigeventsinsea）">
-                                <div class="form-hint">
-                                    💡 输入频道用户名，系统会自动解析为数字ID用于消息发送
+                                <div class="input-line">
+                                    <input 
+                                        class="form-input"
+                                        type="text"
+                                        v-model="forwardingConfig.target_channel" 
+                                        placeholder="输入用户名（如：@bigeventsinsea 或 bigeventsinsea）">
+                                    <div class="form-hint">
+                                        💡 输入频道用户名，系统会自动解析为数字ID用于消息发送
+                                    </div>
                                 </div>
                             </div>
                             
@@ -321,13 +324,15 @@
                             
                             <div class="form-group">
                                 <label class="form-label">审核群</label>
-                                <input 
-                                    class="form-input"
-                                    type="text"
-                                    v-model="forwardingConfig.review_group" 
-                                    placeholder="输入群组链接（如：https://t.me/+HPbDzWj3ID01OTJl）">
-                                <div class="form-hint">
-                                    💡 输入私有群组链接，系统会自动解析为数字ID用于消息发送
+                                <div class="input-line">
+                                    <input 
+                                        class="form-input"
+                                        type="text"
+                                        v-model="forwardingConfig.review_group" 
+                                        placeholder="输入群组链接（如：https://t.me/+HPbDzWj3ID01OTJl）">
+                                    <div class="form-hint">
+                                        💡 输入私有群组链接，系统会自动解析为数字ID用于消息发送
+                                    </div>
                                 </div>
                             </div>
                             
@@ -352,27 +357,31 @@
                             
                             <div class="form-group">
                                 <label class="form-label">转发延迟（秒）</label>
-                                <input 
-                                    class="form-input number-input"
-                                    type="number"
-                                    v-model.number="forwardingConfig.delay" 
-                                    min="0" 
-                                    max="3600">
-                                <div class="form-hint">
-                                    消息在审核群中停留多长时间后自动转发（0表示不自动转发）
+                                <div class="input-line">
+                                    <input 
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model.number="forwardingConfig.delay" 
+                                        min="0" 
+                                        max="3600">
+                                    <div class="form-hint">
+                                        消息在审核群中停留多长时间后自动转发（0表示不自动转发）
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">自动拒绝广告</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="forwardingConfig.auto_reject_ads">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                                <div class="form-hint">
-                                    启用后，检测到的广告消息将被自动拒绝，不会进入自动转发队列
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="forwardingConfig.auto_reject_ads">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="form-hint">
+                                        启用后，检测到的广告消息将被自动拒绝，不会进入自动转发队列
+                                    </div>
                                 </div>
                             </div>
                             
@@ -392,15 +401,17 @@
                         <form class="native-form">
                             <div class="form-group">
                                 <label class="form-label">历史消息采集数</label>
-                                <input 
-                                    class="form-input number-input"
-                                    type="number"
-                                    v-model.number="systemConfig.history_message_limit" 
-                                    min="1" 
-                                    max="1000" 
-                                    placeholder="50">
-                                <div class="form-hint">
-                                    首次采集或重启后从频道获取的历史消息条数
+                                <div class="input-line">
+                                    <input 
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model.number="systemConfig.history_message_limit" 
+                                        min="1" 
+                                        max="1000" 
+                                        placeholder="50">
+                                    <div class="form-hint">
+                                        首次采集或重启后从频道获取的历史消息条数
+                                    </div>
                                 </div>
                             </div>
                             
@@ -419,116 +430,132 @@
                             
                             <div class="form-group">
                                 <label class="form-label">Telegram采集开关</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.collection_enabled">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.collection_enabled ? '启用采集' : '禁用采集' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    控制是否开启Telegram消息采集，关闭后系统将暂停从监听频道采集新消息
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.collection_enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.collection_enabled ? '启用采集' : '禁用采集' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        控制是否开启Telegram消息采集，关闭后系统将暂停从监听频道采集新消息
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- 过滤设置 -->
                             <div class="form-group">
                                 <label class="form-label">内容过滤</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.filter_enabled">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.filter_enabled ? '启用' : '禁用' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    启用智能内容过滤，检测和过滤广告等不合规内容
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.filter_enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.filter_enabled ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        启用智能内容过滤，检测和过滤广告等不合规内容
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">尾部过滤</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.tail_filter_enabled">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.tail_filter_enabled ? '启用' : '禁用' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    自动去除消息尾部的推广内容、联系方式等
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.tail_filter_enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.tail_filter_enabled ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        自动去除消息尾部的推广内容、联系方式等
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">OCR图片识别</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.ocr_enabled">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.ocr_enabled ? '启用' : '禁用' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    对图片进行文字识别，用于广告检测和内容过滤
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.ocr_enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.ocr_enabled ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        对图片进行文字识别，用于广告检测和内容过滤
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- 审核设置 -->
                             <div class="form-group">
                                 <label class="form-label">人工审核</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.require_approval">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.require_approval ? '启用' : '禁用' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    消息需要人工审核通过后才会转发到目标频道
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.require_approval">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.require_approval ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        消息需要人工审核通过后才会转发到目标频道
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">采集后自动转发审核群</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.auto_forward_after_collect">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.auto_forward_after_collect ? '启用' : '禁用' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    消息采集后立即转发到审核群，供人工审核
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.auto_forward_after_collect">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.auto_forward_after_collect ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        消息采集后立即转发到审核群，供人工审核
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- 系统设置 -->
                             <div class="form-group">
                                 <label class="form-label">消息调度服务</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.scheduler_enabled">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.scheduler_enabled ? '启用' : '禁用' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    后台调度服务，处理自动转发和数据清理任务
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.scheduler_enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.scheduler_enabled ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        后台调度服务，处理自动转发和数据清理任务
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">单独消息删除</label>
-                                <div class="switch-container">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="systemConfig.delete_single_messages">
-                                        <span class="slider"></span>
-                                    </label>
-                                    <span class="switch-label">{{ systemConfig.delete_single_messages ? '启用' : '禁用' }}</span>
-                                </div>
-                                <div class="form-hint">
-                                    组合消息保存后删除单独消息（性能优化，可回滚）
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="systemConfig.delete_single_messages">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ systemConfig.delete_single_messages ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        组合消息保存后删除单独消息（性能优化，可回滚）
+                                    </div>
                                 </div>
                             </div>
                             
@@ -551,14 +578,19 @@
             {{ statusMessage }}
         </div>
         
-        <!-- 加载遮罩 -->
-        <div v-if="loading" class="loading-overlay">
-            <div class="loading-content">
-                <div class="loading-spinner"></div>
-                <p>{{ loadingMessage }}</p>
-            </div>
-        </div>
     </div>
+
+    <!-- 动态加载JavaScript文件 -->
+    <script>
+        document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+    </script>
 
 </body>
 </html> 
