@@ -415,9 +415,9 @@
                                     <h5>尾部过滤数据</h5>
                                 </div>
                                 <p class="data-type-desc">管理频道尾部推广内容的训练样本</p>
-                                <el-button size="small" type="primary" class="btn-primary" @click="openTrainingManager('tail')">
+                                <button class="btn btn-primary btn-sm" @click="openTrainingManager('tail')">
                                     管理尾部数据
-                                </el-button>
+                                </button>
                             </div>
                             <div class="data-type-card">
                                 <div class="data-type-header">
@@ -425,9 +425,9 @@
                                     <h5>广告检测数据</h5>
                                 </div>
                                 <p class="data-type-desc">管理广告内容识别的训练样本</p>
-                                <el-button size="small" type="primary" class="btn-primary" @click="openTrainingManager('ad')">
+                                <button class="btn btn-primary btn-sm" @click="openTrainingManager('ad')">
                                     管理广告数据
-                                </el-button>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -480,10 +480,10 @@
                         </div>
                     </div>
 
-                    <el-alert type="warning" class="warning-alert" :closable="false">
-                        <template #title>
+                    <div class="alert alert-warning">
+                        <div class="alert-header">
                             <strong>⚠️ 注意事项</strong>
-                        </template>
+                        </div>
                         <div class="alert-content">
                             <div class="alert-item">⚠️ 删除操作不可恢复，请谨慎操作</div>
                             <div class="alert-item">🔍 去重前建议先查看重复检测结果</div>
@@ -491,14 +491,14 @@
                             <div class="alert-item">⚙️ 模型重载会短暂影响检测服务</div>
                             <div class="alert-item">💾 定期备份重要训练数据</div>
                         </div>
-                    </el-alert>
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- 底部加载指示器 -->
         <div v-if="loading" class="loading-overlay">
-            <el-icon class="is-loading"><Loading /></el-icon>
+            <div class="loading-spinner"></div>
             <span>{{ loadingText }}</span>
         </div>
     </div>

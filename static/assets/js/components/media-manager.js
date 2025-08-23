@@ -405,12 +405,7 @@ const app = createApp({
                 const videoCount = this.mediaFiles.filter(f => f.type === 'video').length;
                 
                 if (videoCount === 0) {
-                    ElMessage({
-                        message: '没有视频文件需要优化',
-                        type: 'info',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage('没有视频文件需要优化', 'info');
                     return;
                 }
                 
