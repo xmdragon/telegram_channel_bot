@@ -1,15 +1,15 @@
 /**
- * Linus式极简UI库 - 6KB解决2.1MB的问题
+ * SimpleUI - 极简UI库
  * "好代码没有特殊情况" - Linus Torvalds
  * 
  * 功能：
- * - 完全替代Element Plus的消息提示和对话框
- * - API兼容，无需修改现有代码
- * - 零依赖，纯原生实现
- * - 体积：6KB vs Element Plus 2.1MB
+ * - 轻量级消息提示系统
+ * - 简洁的确认对话框
+ * - 纯原生实现，零依赖
+ * - 体积：4KB，完全替代Element Plus
  */
 
-// ============= 1. 消息提示系统 (替代ElMessage) =============
+// ============= 1. 消息提示系统 =============
 class SimpleMessage {
     static container = null;
     static queue = [];
@@ -112,64 +112,8 @@ class SimpleMessage {
         document.head.appendChild(style);
     }
     
-    static show(text, type = 'info', duration = 3000) {
-        this.init();
-        
-        // 限制消息数量
-        if (this.queue.length >= this.maxMessages) {
-            const oldest = this.queue.shift();
-            this.remove(oldest);
-        }
-        
-        const msg = document.createElement('div');
-        msg.className = `simple-message simple-message-${type}`;
-        msg.textContent = text;
-        
-        this.container.appendChild(msg);
-        this.queue.push(msg);
-        
-        // 自动移除
-        if (duration > 0) {
-            setTimeout(() => this.remove(msg), duration);
-        }
-        
-        return msg;
-    }
-    
-    static remove(msg) {
-        if (!msg || !msg.parentNode) return;
-        
-        msg.classList.add('fade-out');
-        setTimeout(() => {
-            if (msg.parentNode) {
-                msg.parentNode.removeChild(msg);
-            }
-            const index = this.queue.indexOf(msg);
-            if (index > -1) {
-                this.queue.splice(index, 1);
-            }
-        }, 300);
-    }
-    
-    // Element Plus兼容API
-    static success(text, duration) { 
-        return this.show(text, 'success', duration); 
-    }
-    
-    static error(text, duration) { 
-        return this.show(text, 'error', duration); 
-    }
-    
-    static warning(text, duration) { 
-        return this.show(text, 'warning', duration); 
-    }
-    
-    static info(text, duration) { 
-        return this.show(text, 'info', duration); 
-    }
-    
-    // 支持对象参数（Element Plus风格）
     static show(textOrOptions, type = 'info', duration = 3000) {
+        // 支持对象参数
         if (typeof textOrOptions === 'object') {
             const options = textOrOptions;
             return this.show(
@@ -201,9 +145,40 @@ class SimpleMessage {
         
         return msg;
     }
+    
+    static remove(msg) {
+        if (!msg || !msg.parentNode) return;
+        
+        msg.classList.add('fade-out');
+        setTimeout(() => {
+            if (msg.parentNode) {
+                msg.parentNode.removeChild(msg);
+            }
+            const index = this.queue.indexOf(msg);
+            if (index > -1) {
+                this.queue.splice(index, 1);
+            }
+        }, 300);
+    }
+    
+    static success(text, duration) { 
+        return this.show(text, 'success', duration); 
+    }
+    
+    static error(text, duration) { 
+        return this.show(text, 'error', duration); 
+    }
+    
+    static warning(text, duration) { 
+        return this.show(text, 'warning', duration); 
+    }
+    
+    static info(text, duration) { 
+        return this.show(text, 'info', duration); 
+    }
 }
 
-// ============= 2. 确认对话框 (替代ElMessageBox) =============
+// ============= 2. 确认对话框 =============
 class SimpleMessageBox {
     static dialogCount = 0;
     static initialized = false;
@@ -445,23 +420,15 @@ class SimpleMessageBox {
         });
     }
     
-    // Element Plus兼容的其他方法
     static alert(message, title, options = {}) {
-        const alertOptions = {
+        return this.confirm(message, title, {
             ...options,
-            cancelButtonText: null, // 隐藏取消按钮
+            cancelButtonText: null,
             showCancelButton: false
-        };
-        
-        return new Promise((resolve) => {
-            this.confirm(message, title, alertOptions)
-                .then(resolve)
-                .catch(resolve); // alert不区分确认和取消
-        });
+        }).catch(() => {}); // alert不区分确认和取消
     }
     
     static prompt(message, title, options = {}) {
-        // 简化实现，使用原生prompt
         return new Promise((resolve, reject) => {
             const result = window.prompt(message, options.inputValue || '');
             if (result !== null) {
@@ -474,18 +441,13 @@ class SimpleMessageBox {
 }
 
 // ============= 3. 全局API注册 =============
-// 立即注册全局对象
 window.SimpleUI = {
     Message: SimpleMessage,
     MessageBox: SimpleMessageBox,
-    version: '1.0.0'
+    version: '2.0.0'
 };
 
-// Element Plus兼容API
-window.ElMessage = SimpleMessage;
-window.ElMessageBox = SimpleMessageBox;
-
-// Vue 3集成（如果Vue存在）
+// Vue 3集成
 if (typeof Vue !== 'undefined' && Vue.config) {
     const setupVueIntegration = () => {
         const globalProperties = Vue.config.globalProperties || {};
@@ -495,26 +457,18 @@ if (typeof Vue !== 'undefined' && Vue.config) {
         globalProperties.$prompt = SimpleMessageBox.prompt;
     };
     
-    // 立即设置或等待Vue准备就绪
     if (Vue.config.globalProperties) {
         setupVueIntegration();
     } else {
-        // 延迟设置，等待Vue完全加载
         setTimeout(setupVueIntegration, 100);
     }
 }
 
-// 自动初始化
-document.addEventListener('DOMContentLoaded', () => {
-    // SimpleUI初始化完成
-});
-
-// ES模块导出（如果支持）
+// ES模块和CommonJS导出
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { SimpleMessage, SimpleMessageBox };
 }
 
-// CommonJS导出
 if (typeof exports !== 'undefined') {
     exports.SimpleMessage = SimpleMessage;
     exports.SimpleMessageBox = SimpleMessageBox;
