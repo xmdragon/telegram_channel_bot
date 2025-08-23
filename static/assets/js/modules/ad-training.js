@@ -6,7 +6,6 @@
 const API = window.API;
 
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
 
 createApp({
     data() {
@@ -65,12 +64,12 @@ createApp({
                 });
                 
                 if (response.data.success) {
-                    ElMessage.success('分隔符模式已保存');
+                    window.SimpleUI.showMessage('分隔符模式已保存', 'success');
                 } else {
-                    ElMessage.error('保存失败');
+                    window.SimpleUI.showMessage('保存失败', 'error');
                 }
             } catch (error) {
-                ElMessage.error('保存失败: ' + error.message);
+                window.SimpleUI.showMessage('保存失败: ' + error.message, 'error');
             }
         },
         
@@ -100,13 +99,13 @@ createApp({
                 { regex: '频道广告赞助商', description: '文字标记' },
                 { regex: '\\[广告\\]|\\[推广\\]', description: '方括号标记' }
             ];
-            ElMessage.success('已加载默认模式');
+            window.SimpleUI.showMessage('已加载默认模式', 'success');
         },
         
         // 测试分隔符检测
         testPatterns() {
             if (!this.testMessage) {
-                ElMessage.warning('请输入测试消息');
+                window.SimpleUI.showMessage('请输入测试消息', 'warning');
                 return;
             }
             
@@ -158,7 +157,7 @@ createApp({
         // 添加训练样本
         async addSample() {
             if (!this.newSample.fullContent || !this.newSample.separator) {
-                ElMessage.warning('请填写完整信息');
+                window.SimpleUI.showMessage('请填写完整信息', 'warning');
                 return;
             }
             
@@ -166,7 +165,7 @@ createApp({
                 // 分割内容
                 const separatorIndex = this.newSample.fullContent.indexOf(this.newSample.separator);
                 if (separatorIndex === -1) {
-                    ElMessage.error('在内容中未找到指定的分隔符');
+                    window.SimpleUI.showMessage('在内容中未找到指定的分隔符', 'error');
                     return;
                 }
                 
@@ -183,7 +182,7 @@ createApp({
                 });
                 
                 if (response.data.success) {
-                    ElMessage.success('样本已添加');
+                    window.SimpleUI.showMessage('样本已添加', 'success');
                     this.showAddSample = false;
                     this.newSample = {
                         description: '',
@@ -192,10 +191,10 @@ createApp({
                     };
                     await this.loadSamples();
                 } else {
-                    ElMessage.error('添加失败');
+                    window.SimpleUI.showMessage('添加失败', 'error');
                 }
             } catch (error) {
-                ElMessage.error('添加失败: ' + error.message);
+                window.SimpleUI.showMessage('添加失败: ' + error.message, 'error');
             }
         },
         
@@ -217,24 +216,21 @@ createApp({
         // 删除样本
         async deleteSample(id) {
             try {
-                await ElMessageBox.confirm('确定要删除这个训练样本吗？', '确认删除', {
-                    confirmButtonText: '删除',
-                    cancelButtonText: '取消',
-                    type: 'warning'
-                });
+                const confirmed = await window.SimpleUI.confirm('确定要删除这个训练样本吗？');
+                if (!confirmed) {
+                    return;
+                }
                 
                 const response = await axios.delete(API.training.tailFilterSampleById(id));
                 
                 if (response.data.success) {
-                    ElMessage.success('样本已删除');
+                    window.SimpleUI.showMessage('样本已删除', 'success');
                     await this.loadSamples();
                 } else {
-                    ElMessage.error('删除失败');
+                    window.SimpleUI.showMessage('删除失败', 'error');
                 }
             } catch (error) {
-                if (error !== 'cancel') {
-                    ElMessage.error('删除失败: ' + error.message);
-                }
+                window.SimpleUI.showMessage('删除失败: ' + error.message, 'error');
             }
         },
         
@@ -243,4 +239,4 @@ createApp({
             window.location.href = '/';
         }
     }
-}).use(ElementPlus).mount('#app');
+}).mount('#app');

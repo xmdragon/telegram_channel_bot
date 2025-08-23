@@ -6,7 +6,6 @@
 const API = window.API;
 
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
 
 const TrainApp = {
     data() {
@@ -157,12 +156,7 @@ const TrainApp = {
                             this.adTrainingForm.is_ad = true; // 默认标记为广告
                             
                             // 显示提示信息
-                            ElMessage({
-                                message: '已自动填充消息内容，请选择是否为广告',
-                                type: 'info',
-                                offset: 20,
-                                customClass: 'bottom-right-message'
-                            });
+                            window.SimpleUI.showMessage('已自动填充消息内容，请选择是否为广告', 'info');
                         } else {
                             // 尾部训练模式
                             // 根据useFiltered参数决定使用原始内容还是过滤后内容
@@ -190,7 +184,7 @@ const TrainApp = {
                             this.trainingForm.original_message = displayContent;
                             
                             // 显示提示信息，说明当前使用的内容类型
-                            ElMessage({
+                            window.SimpleUI.showMessage({
                                 message: `已自动填充${messageType}，请标记出需要过滤的尾部内容`,
                                 type: 'info',
                                 offset: 20,
@@ -215,14 +209,14 @@ const TrainApp = {
                 } catch (error) {
                     // 如果是404错误，消息不存在
                     if (error.response && error.response.status === 404) {
-                        ElMessage({
+                        window.SimpleUI.showMessage({
                             message: '消息不存在或已被删除',
                             type: 'error',
                             offset: 20,
                             customClass: 'bottom-right-message'
                         });
                     } else {
-                        ElMessage({
+                        window.SimpleUI.showMessage({
                             message: '获取消息内容失败，请手动输入',
                             type: 'error',
                             offset: 20,
@@ -281,12 +275,12 @@ const TrainApp = {
                 });
                 
                 if (response.data.success) {
-                    ElMessage.success('分隔符模式已保存');
+                    window.SimpleUI.showMessage('分隔符模式已保存', 'success');
                 } else {
-                    ElMessage.error('保存失败');
+                    window.SimpleUI.showMessage('保存失败', 'error');
                 }
             } catch (error) {
-                ElMessage.error('保存失败: ' + error.message);
+                window.SimpleUI.showMessage('保存失败: ' + error.message, 'error');
             }
         },
         
@@ -313,7 +307,7 @@ const TrainApp = {
         // 提交广告训练
         async submitAdTraining() {
             if (!this.adTrainingForm.content) {
-                ElMessage.warning('请输入训练内容');
+                window.SimpleUI.showMessage('请输入训练内容', 'warning');
                 return;
             }
             
@@ -328,7 +322,7 @@ const TrainApp = {
                 });
                 
                 if (response.data.success) {
-                    ElMessage.success('广告样本已添加');
+                    window.SimpleUI.showMessage('广告样本已添加');
                     this.adTrainingForm = {
                         content: '',
                         is_ad: true,
@@ -336,10 +330,10 @@ const TrainApp = {
                     };
                     await this.loadStats();
                 } else {
-                    ElMessage.error(response.data.message || '添加失败');
+                    window.SimpleUI.showMessage(response.data.message || '添加失败');
                 }
             } catch (error) {
-                ElMessage.error('提交失败: ' + error.message);
+                window.SimpleUI.showMessage('提交失败: ' + error.message);
             } finally {
                 this.submitting = false;
             }
@@ -348,17 +342,17 @@ const TrainApp = {
         // 推广链接训练相关方法
         async submitPromoTraining() {
             if (!this.promoTrainingForm.full_content) {
-                ElMessage.warning('请输入完整消息内容');
+                window.SimpleUI.showMessage('请输入完整消息内容');
                 return;
             }
             
             if (!this.promoTrainingForm.promo_section) {
-                ElMessage.warning('请输入推广链接部分');
+                window.SimpleUI.showMessage('请输入推广链接部分');
                 return;
             }
             
             if (this.promoTrainingForm.promo_features.length === 0) {
-                ElMessage.warning('请选择至少一个推广特征');
+                window.SimpleUI.showMessage('请选择至少一个推广特征');
                 return;
             }
             
@@ -372,14 +366,14 @@ const TrainApp = {
                 });
                 
                 if (response.data.success) {
-                    ElMessage.success('推广链接训练样本已添加');
+                    window.SimpleUI.showMessage('推广链接训练样本已添加');
                     this.clearPromoForm();
                     await this.loadStats();
                 } else {
-                    ElMessage.error(response.data.message || '添加失败');
+                    window.SimpleUI.showMessage(response.data.message || '添加失败');
                 }
             } catch (error) {
-                ElMessage.error('提交失败: ' + error.message);
+                window.SimpleUI.showMessage('提交失败: ' + error.message);
             } finally {
                 this.submitting = false;
             }
@@ -397,7 +391,7 @@ const TrainApp = {
         
         async previewPromoFilter() {
             if (!this.promoTrainingForm.full_content) {
-                ElMessage.warning('请先输入完整消息内容');
+                window.SimpleUI.showMessage('请先输入完整消息内容');
                 return;
             }
             
@@ -410,10 +404,10 @@ const TrainApp = {
                 if (response.data.success) {
                     this.promoFilteredPreview = response.data.filtered_content;
                 } else {
-                    ElMessage.error('预览失败: ' + response.data.message);
+                    window.SimpleUI.showMessage('预览失败: ' + response.data.message);
                 }
             } catch (error) {
-                ElMessage.error('预览失败: ' + error.message);
+                window.SimpleUI.showMessage('预览失败: ' + error.message);
             }
         },
         
@@ -422,7 +416,7 @@ const TrainApp = {
                 const response = await axios.get(API.training.channels);
                 this.channels = response.data.channels || [];
             } catch (error) {
-                ElMessage({
+                window.SimpleUI.showMessage({
                     message: '加载频道列表失败',
                     type: 'error',
                     offset: 20,
@@ -505,7 +499,7 @@ const TrainApp = {
             // 移除频道选择验证，系统现在是频道无关的
             
             if (!this.trainingForm.original_message || !this.trainingForm.tail_content) {
-                ElMessage({
+                window.SimpleUI.showMessage({
                     message: '请填写完整的训练数据',
                     type: 'warning',
                     offset: 20,
@@ -558,7 +552,7 @@ const TrainApp = {
                 
                 if (response.data.success) {
                     // 显示实际的响应消息
-                    ElMessage({
+                    window.SimpleUI.showMessage({
                         message: response.data.message || '训练样本已提交并自动应用',
                         type: 'success',
                         offset: 20,
@@ -581,7 +575,7 @@ const TrainApp = {
                     
                     // 不再需要更新频道训练计数
                 } else {
-                    ElMessage({
+                    window.SimpleUI.showMessage({
                         message: response.data.message || '提交失败',
                         type: 'error',
                         offset: 20,
@@ -591,7 +585,7 @@ const TrainApp = {
             } catch (error) {
                 console.error('❌ 提交训练数据失败:', error);
                 
-                ElMessage({
+                window.SimpleUI.showMessage({
                     message: '提交失败: ' + (error.response?.data?.message || error.response?.data?.detail || error.message),
                     type: 'error',
                     offset: 20,
@@ -605,7 +599,7 @@ const TrainApp = {
         
         async deleteTraining(id) {
             try {
-                await ElMessageBox.confirm(
+                await window.SimpleUI.showMessageBox.confirm(
                     '确定要删除这条训练记录吗？',
                     '确认删除',
                     {
@@ -618,7 +612,7 @@ const TrainApp = {
                 // 统一删除tail-filter-samples中的记录
                 const response = await axios.delete(API.training.tailFilterSampleById(id));
                 if (response.data.success) {
-                    ElMessage({
+                    window.SimpleUI.showMessage({
                         message: '删除成功',
                         type: 'success',
                         offset: 20,
@@ -626,7 +620,7 @@ const TrainApp = {
                     });
                     // 不再加载历史和统计数据
                 } else {
-                    ElMessage({
+                    window.SimpleUI.showMessage({
                         message: response.data.message || '删除失败',
                         type: 'error',
                         offset: 20,
@@ -718,7 +712,6 @@ window.TrainApp = TrainApp;
 document.addEventListener('DOMContentLoaded', function() {
     try {
         const app = createApp(TrainApp);
-        app.use(ElementPlus);
         if (window.NavBar) {
             app.component('nav-bar', window.NavBar);
         }

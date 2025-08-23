@@ -167,8 +167,8 @@ class AuthManager {
             return true;
         } else if (error.response && error.response.status === 403) {
             // 无权限
-            if (typeof ElementPlus !== 'undefined') {
-                ElementPlus.ElMessage.error('您没有权限执行此操作');
+            if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+                window.SimpleUI.showMessage('您没有权限执行此操作', 'error');
             } else {
                 alert('您没有权限执行此操作');
             }
@@ -189,8 +189,8 @@ class AuthManager {
         
         // 检查特定权限
         if (requiredPermission && !this.hasPermission(requiredPermission)) {
-            if (typeof ElementPlus !== 'undefined') {
-                ElementPlus.ElMessage.error('您没有权限访问此页面');
+            if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+                window.SimpleUI.showMessage('您没有权限访问此页面', 'error');
             } else {
                 alert('您没有权限访问此页面');
             }

@@ -8,7 +8,7 @@
  */
 
 // 确保全局依赖可用
-let createApp, ElMessage;
+let createApp;
 
 // 延迟初始化函数
 function initializeGlobals() {
@@ -19,7 +19,6 @@ function initializeGlobals() {
             createApp = Vue.createApp;
         }
     }
-    if (!ElMessage && window.ElementPlus) ElMessage = window.ElementPlus.ElMessage;
 }
 
 // 主应用协调器 - 纯协调层，不包含具体业务逻辑
@@ -2551,7 +2550,6 @@ function initializeVueApp() {
     // 检查必要的依赖
     const missingDeps = [];
     if (typeof createApp === 'undefined' && !window.Vue?.createApp) missingDeps.push('Vue');
-    if (typeof ElementPlus === 'undefined') missingDeps.push('ElementPlus');
     if (typeof axios === 'undefined') missingDeps.push('axios');
     
     if (missingDeps.length > 0) {
@@ -2586,7 +2584,6 @@ function initializeVueApp() {
         app.config.warnHandler = (msg, instance, trace) => {
         };
         
-        app.use(ElementPlus);
         
         // 注册导航栏组件（可选）
         if (window.NavBar) {

@@ -4,7 +4,6 @@
 const API = window.API;
 
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
 
 const app = createApp({
     data() {
@@ -77,7 +76,7 @@ const app = createApp({
                 // 加载统计信息
                 await this.loadStatistics();
             } catch (error) {
-                ElMessage.error('加载样本数据失败');
+                window.SimpleUI.showMessage('加载样本数据失败');
             } finally {
                 this.loading = false;
             }
@@ -123,11 +122,11 @@ const app = createApp({
                 // 现在所有样本都有统一的样本ID
                 const sampleId = sample.id;
                 if (!sampleId) {
-                    ElMessage.error('样本ID缺失，无法删除');
+                    window.SimpleUI.showMessage('样本ID缺失，无法删除');
                     return;
                 }
                 
-                await ElMessageBox.confirm(
+                await window.SimpleUI.showMessageBox.confirm(
                     '确定要删除这个广告训练样本吗？',
                     '确认删除',
                     {
@@ -140,15 +139,15 @@ const app = createApp({
                 const response = await axios.delete(API.training.adSampleById(sampleId));
                 
                 if (response.data.success) {
-                    ElMessage.success('删除成功');
+                    window.SimpleUI.showMessage('删除成功');
                 } else {
-                    ElMessage.warning(response.data.message || '删除可能失败');
+                    window.SimpleUI.showMessage(response.data.message || '删除可能失败');
                 }
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
                     console.error('删除失败:', error);
-                    ElMessage.error('删除失败: ' + (error.response?.data?.message || error.message));
+                    window.SimpleUI.showMessage('删除失败: ' + (error.response?.data?.message || error.message));
                 }
             }
         },
@@ -158,7 +157,7 @@ const app = createApp({
             if (!this.selectedSamples.length) return;
             
             try {
-                await ElMessageBox.confirm(
+                await window.SimpleUI.showMessageBox.confirm(
                     `确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`,
                     '批量删除确认',
                     {
@@ -170,16 +169,16 @@ const app = createApp({
                 
                 const ids = this.selectedSamples.map(s => s.id).filter(id => id);
                 if (ids.length === 0) {
-                    ElMessage.error('所选样本ID缺失，无法删除');
+                    window.SimpleUI.showMessage('所选样本ID缺失，无法删除');
                     return;
                 }
                 await axios.delete(API.training.adSamplesBatch, { data: { ids } });
                 
-                ElMessage.success('批量删除成功');
+                window.SimpleUI.showMessage('批量删除成功');
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage.error('批量删除失败');
+                    window.SimpleUI.showMessage('批量删除失败');
                 }
             }
         },
@@ -198,16 +197,16 @@ const app = createApp({
                     this.duplicateSamplesCount = response.data.total_duplicates || 0;
                     
                     if (!this.duplicateGroups.length) {
-                        ElMessage.info('没有发现重复的样本');
+                        window.SimpleUI.showMessage('没有发现重复的样本');
                         this.duplicateDialog = false;
                     }
                 } else {
-                    ElMessage.error('检测重复失败: ' + (response.data.error || '未知错误'));
+                    window.SimpleUI.showMessage('检测重复失败: ' + (response.data.error || '未知错误'));
                     this.duplicateDialog = false;
                 }
             } catch (error) {
                 console.error('检测重复失败:', error);
-                ElMessage.error('检测重复失败: ' + (error.response?.data?.message || error.message));
+                window.SimpleUI.showMessage('检测重复失败: ' + (error.response?.data?.message || error.message));
                 this.duplicateDialog = false;
             } finally {
                 this.duplicateLoading = false;
@@ -239,11 +238,11 @@ const app = createApp({
                 });
                 
                 if (!toDelete.length) {
-                    ElMessage.warning('没有选择要删除的样本');
+                    window.SimpleUI.showMessage('没有选择要删除的样本');
                     return;
                 }
                 
-                await ElMessageBox.confirm(
+                await window.SimpleUI.showMessageBox.confirm(
                     `将删除 ${toDelete.length} 个重复样本，是否继续？`,
                     '去重确认',
                     {
@@ -257,12 +256,12 @@ const app = createApp({
                     remove_ids: toDelete
                 });
                 
-                ElMessage.success(response.data.message);
+                window.SimpleUI.showMessage(response.data.message);
                 this.duplicateDialog = false;
                 await this.loadSamples();
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage.error('去重失败');
+                    window.SimpleUI.showMessage('去重失败');
                 }
             }
         },
@@ -270,7 +269,7 @@ const app = createApp({
         // 优化存储
         async optimizeStorage() {
             try {
-                await ElMessageBox.confirm(
+                await window.SimpleUI.showMessageBox.confirm(
                     '优化存储将：\n1. 转换视频为快照\n2. 压缩图片\n3. 清理无效文件\n\n是否继续？',
                     '优化存储',
                     {
@@ -281,14 +280,14 @@ const app = createApp({
                     }
                 );
                 
-                ElMessage.info('正在优化存储，请稍候...');
+                window.SimpleUI.showMessage('正在优化存储，请稍候...');
                 const response = await axios.post(API.training.optimizeStorage);
                 
-                ElMessage.success(`优化完成！节省空间: ${this.formatSize(response.data.saved_space)}`);
+                window.SimpleUI.showMessage(`优化完成！节省空间: ${this.formatSize(response.data.saved_space)}`);
                 await this.loadStatistics();
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage.error('优化存储失败');
+                    window.SimpleUI.showMessage('优化存储失败');
                 }
             }
         },
@@ -337,7 +336,7 @@ const app = createApp({
         // 检查权限
         checkPermission() {
             if (!this.isAdmin) {
-                ElMessage.warning('您没有权限访问此页面');
+                window.SimpleUI.showMessage('您没有权限访问此页面');
                 setTimeout(() => {
                     window.location.href = '/';
                 }, 1500);
@@ -375,7 +374,6 @@ const app = createApp({
     }
 });
 
-app.use(ElementPlus);
 if (window.NavBar) {
     app.component('nav-bar', window.NavBar);
 }

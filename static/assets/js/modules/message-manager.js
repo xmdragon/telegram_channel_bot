@@ -119,31 +119,34 @@ const MessageManager = {
 
     // 消息提示方法
     success(message) {
-        if (typeof ElMessage !== 'undefined') {
-            ElMessage.success(message);
+        if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'success');
         } else {
+            console.log('✅', message);
         }
     },
 
     error(message) {
-        if (typeof ElMessage !== 'undefined') {
-            ElMessage.error(message);
+        if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'error');
         } else {
             console.error('ERROR:', message);
         }
     },
 
     info(message) {
-        if (typeof ElMessage !== 'undefined') {
-            ElMessage.info(message);
+        if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'info');
         } else {
+            console.log('ℹ️', message);
         }
     },
 
     warning(message) {
-        if (typeof ElMessage !== 'undefined') {
-            ElMessage.warning(message);
+        if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'warning');
         } else {
+            console.warn('⚠️', message);
         }
     },
 

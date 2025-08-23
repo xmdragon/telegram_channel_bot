@@ -6,7 +6,6 @@ const API = window.API;
 // 检查依赖是否加载
 
 const { createApp } = Vue;
-const { ElMessage } = ElementPlus;
 
 // 认证应用组件
 const AuthApp = {
@@ -50,7 +49,7 @@ const AuthApp = {
                 }
             } catch (error) {
                 console.error('管理员认证失败:', error);
-                ElMessage.error('请先登录管理员账户');
+                window.SimpleUI.showMessage('请先登录管理员账户');
                 return;
             }
             
@@ -421,9 +420,9 @@ const AuthApp = {
                     this.authStatus = '重新认证';
                     this.errorMessage = '';
                     
-                    ElMessage.info('开始重新认证流程');
+                    window.SimpleUI.showMessage('开始重新认证流程');
                 } else {
-                    ElMessage.warning('请输入 API ID 和 API Hash');
+                    window.SimpleUI.showMessage('请输入 API ID 和 API Hash');
                 }
             },
             
@@ -453,7 +452,7 @@ const AuthApp = {
                 this.errorMessage = message;
                 this.loading = false;
                 this.verifying = false;
-                ElMessage.error(message);
+                window.SimpleUI.showMessage(message);
             }
         }
 };
@@ -461,8 +460,7 @@ const AuthApp = {
 // 创建并挂载应用
 document.addEventListener('DOMContentLoaded', function() {
     const app = createApp(AuthApp);
-    app.use(ElementPlus);
-    // 注册导航栏组件
+        // 注册导航栏组件
     if (window.NavBar) {
         app.component('nav-bar', window.NavBar);
     }

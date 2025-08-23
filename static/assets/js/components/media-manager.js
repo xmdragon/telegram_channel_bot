@@ -589,7 +589,6 @@ const app = createApp({
     }
 });
 
-// app.use(ElementPlus); // 已移除Element Plus依赖
 
 // 确保组件加载navbar
 if (window.NavBar) {

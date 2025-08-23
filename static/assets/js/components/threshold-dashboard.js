@@ -8,13 +8,8 @@ if (!window.Vue) {
     console.error('Vue 未加载!');
 }
 
-if (!window.ElementPlus) {
-    console.error('ElementPlus 未加载!');
-}
 
 const { createApp } = Vue;
-// 尝试重新启用Element Plus
-const { ElMessage, ElMessageBox } = window.ElementPlus || {};
 
 const app = createApp({
     data() {
@@ -128,12 +123,12 @@ const app = createApp({
                     this.updateCharts();
                     
                     if (!silent) {
-                        ElMessage.success('数据刷新成功');
+                        window.SimpleUI.showMessage('数据刷新成功');
                     }
                 }
             } catch (error) {
                 console.error('获取数据失败:', error);
-                ElMessage.error('获取数据失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.showMessage('获取数据失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
             }
@@ -150,11 +145,11 @@ const app = createApp({
                     this.stats = response.data.data;
                     await this.$nextTick();
                     this.updateCharts();
-                    ElMessage.success('阈值优化完成');
+                    window.SimpleUI.showMessage('阈值优化完成');
                 }
             } catch (error) {
                 console.error('优化失败:', error);
-                ElMessage.error('优化失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.showMessage('优化失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.optimizing = false;
             }
@@ -164,11 +159,10 @@ const app = createApp({
             const key = filterName + '_' + metricName;
             
             try {
-                await ElMessageBox.confirm(
-                    `确定要重置 ${this.getFilterDisplayName(filterName)} - ${this.getMetricDisplayName(metricName)} 的阈值吗？`,
-                    '确认重置',
-                    { type: 'warning' }
+                const confirmed = await window.SimpleUI.confirm(
+                    `确定要重置 ${this.getFilterDisplayName(filterName)} - ${this.getMetricDisplayName(metricName)} 的阈值吗？`
                 );
+                if (!confirmed) return;
 
                 this.resetting[key] = true;
                 
@@ -178,12 +172,12 @@ const app = createApp({
                 
                 if (response.data.success) {
                     await this.refreshData(true);
-                    ElMessage.success('阈值重置成功');
+                    window.SimpleUI.showMessage('阈值重置成功');
                 }
             } catch (error) {
                 if (error !== 'cancel') {
                     console.error('重置失败:', error);
-                    ElMessage.error('重置失败: ' + (error.response?.data?.detail || error.message));
+                    window.SimpleUI.showMessage('重置失败: ' + (error.response?.data?.detail || error.message));
                 }
             } finally {
                 this.resetting[key] = false;
@@ -218,11 +212,11 @@ const app = createApp({
                 if (response.data.success) {
                     this.feedbackDialog.visible = false;
                     await this.refreshData(true);
-                    ElMessage.success('反馈提交成功');
+                    window.SimpleUI.showMessage('反馈提交成功');
                 }
             } catch (error) {
                 console.error('提交反馈失败:', error);
-                ElMessage.error('提交反馈失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.showMessage('提交反馈失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.feedbackDialog.submitting = false;
             }
@@ -233,7 +227,7 @@ const app = createApp({
         },
 
         saveOptimizeSettings() {
-            ElMessage.success('优化设置已保存');
+            window.SimpleUI.showMessage('优化设置已保存');
             this.optimizeDialog.visible = false;
         },
 
@@ -252,9 +246,9 @@ const app = createApp({
                 a.click();
                 URL.revokeObjectURL(url);
                 
-                ElMessage.success('配置导出成功');
+                window.SimpleUI.showMessage('配置导出成功');
             } catch (error) {
-                ElMessage.error('导出失败: ' + error.message);
+                window.SimpleUI.showMessage('导出失败: ' + error.message);
             }
         },
 
@@ -404,9 +398,6 @@ app.component('nav-bar', NavBar);
 app.component('training-nav', TrainingNav);
 
 // 注册Element Plus组件
-if (window.ElementPlus) {
-    app.use(ElementPlus);
-}
 
 // 挂载应用
 app.mount('#app');

@@ -32,32 +32,19 @@ window.MessageManager = {
         // 显示消息
         let messageComponent = null;
         
-        // 尝试从多个位置获取消息组件
-        if (typeof ElMessage !== 'undefined') {
-            messageComponent = ElMessage;
-        } else if (typeof ElementPlus !== 'undefined' && ElementPlus.ElMessage) {
-            messageComponent = ElementPlus.ElMessage;
-        } else if (typeof window !== 'undefined' && window.ElementPlus && window.ElementPlus.ElMessage) {
-            messageComponent = window.ElementPlus.ElMessage;
-        }
-        
-        if (messageComponent && typeof messageComponent[type] === 'function') {
-            messageComponent[type]({
-                message,
-                duration,
-                offset: 20,
-                grouping: true,
-                showClose: true,
-                customClass: 'message-toast-bottom-right',
-                ...options
-            });
+        // 使用SimpleUI显示消息
+        if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, type, duration);
         } else {
-            // 降级处理，如果Element Plus不可用则使用原生alert
+            // 降级处理，如果SimpleUI不可用则使用原生alert
             if (type === 'error') {
                 console.error(`[错误] ${message}`);
                 alert(`错误: ${message}`);
             } else if (type === 'warning') {
+                console.warn(`[警告] ${message}`);
+                alert(`警告: ${message}`);
             } else {
+                console.log(`[${type}] ${message}`);
             }
         }
     },

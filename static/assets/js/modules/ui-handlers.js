@@ -3,16 +3,17 @@
 const UIHandlers = {
     // 显示成功消息
     showSuccess(message) {
-        if (window.ElMessage) {
-            window.ElMessage.success(message);
+        if (window.SimpleUI && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'success');
         } else {
+            console.log('✅', message);
         }
     },
 
     // 显示错误消息
     showError(message) {
-        if (window.ElMessage) {
-            window.ElMessage.error(message);
+        if (window.SimpleUI && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'error');
         } else {
             console.error('❌', message);
         }
@@ -20,30 +21,27 @@ const UIHandlers = {
 
     // 显示警告消息
     showWarning(message) {
-        if (window.ElMessage) {
-            window.ElMessage.warning(message);
+        if (window.SimpleUI && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'warning');
         } else {
+            console.warn('⚠️', message);
         }
     },
 
     // 显示信息消息
     showInfo(message) {
-        if (window.ElMessage) {
-            window.ElMessage.info(message);
+        if (window.SimpleUI && window.SimpleUI.showMessage) {
+            window.SimpleUI.showMessage(message, 'info');
         } else {
+            console.info('ℹ️', message);
         }
     },
 
     // 确认对话框
     async confirm(message, title = '确认操作') {
-        if (window.ElMessageBox) {
+        if (window.SimpleUI && window.SimpleUI.confirm) {
             try {
-                await window.ElMessageBox.confirm(message, title, {
-                    confirmButtonText: '确定',
-                    cancelButtonText: '取消',
-                    type: 'warning'
-                });
-                return true;
+                return await window.SimpleUI.confirm(message);
             } catch {
                 return false;
             }
