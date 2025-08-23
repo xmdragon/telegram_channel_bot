@@ -46,15 +46,21 @@ const app = createApp({
     },
     
     methods: {
-        // 加载样本数据
+        // 加载样本数据 - 带超时处理的优化版本
         async loadSamples() {
             this.loading = true;
             try {
-                // 并行加载样本数据和统计数据
-                const [samplesResponse, statsResponse] = await Promise.all([
-                    axios.get(API.training.tailFilterSamples),
-                    axios.get(API.training.tailFilterStatistics)
-                ]);
+                // 使用带超时的Promise.all并行加载
+                const [samplesResponse, statsResponse] = await (window.PromiseAllWithTimeout ? 
+                    window.PromiseAllWithTimeout([
+                        axios.get(API.training.tailFilterSamples),
+                        axios.get(API.training.tailFilterStatistics)
+                    ], 12000) : // 12秒超时
+                    Promise.all([
+                        axios.get(API.training.tailFilterSamples),
+                        axios.get(API.training.tailFilterStatistics)
+                    ])
+                );
                 
                 this.allSamples = samplesResponse.data.samples || [];
                 this.totalCount = this.allSamples.length;
@@ -78,12 +84,78 @@ const app = createApp({
                 
                 // 更新当前页数据
                 this.updatePageData();
+                
+                // 清除页面加载超时检测
+                if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.clearPageLoadTimeout) {
+                    window.AxiosConfig.clearPageLoadTimeout();
+                }
+                
             } catch (error) {
                 console.error('加载尾部过滤样本失败:', error);
-                SimpleUI.showMessage('加载数据失败', 'error');
+                
+                // 判断错误类型并给出不同提示
+                let errorMessage = '加载数据失败';
+                if (error.message === '并行请求超时') {
+                    errorMessage = '数据加载超时，请检查网络连接';
+                } else if (error.code === 'ECONNABORTED') {
+                    errorMessage = '网络请求超时，请重试';
+                }
+                
+                SimpleUI.showMessage(errorMessage, 'error');
+                
+                // 提供重试按钮
+                this.addRetryButton();
             } finally {
                 this.loading = false;
             }
+        },
+        
+        // 添加重试按钮
+        addRetryButton() {
+            const existingButton = document.getElementById('data-retry-button');
+            if (existingButton) return;
+            
+            const button = document.createElement('button');
+            button.id = 'data-retry-button';
+            button.innerHTML = '🔄 重新加载数据';
+            button.className = 'btn btn-primary';
+            button.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 10002;
+                padding: 10px 20px;
+                background: #409eff;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            button.addEventListener('click', async () => {
+                button.textContent = '加载中...';
+                button.disabled = true;
+                
+                try {
+                    await this.loadSamples();
+                    button.remove();
+                } catch (e) {
+                    button.textContent = '🔄 重新加载数据';
+                    button.disabled = false;
+                }
+            });
+            
+            document.body.appendChild(button);
+            
+            // 5秒后自动移除按钮
+            setTimeout(() => {
+                if (button.parentNode) {
+                    button.remove();
+                }
+            }, 30000);
         },
         
         // 更新当前页显示的数据

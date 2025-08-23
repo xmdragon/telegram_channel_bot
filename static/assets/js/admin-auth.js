@@ -178,32 +178,107 @@ class AuthManager {
     }
     
     /**
-     * 初始化页面权限检查
+     * 初始化页面权限检查 - 带超时处理
      */
     async initPageAuth(requiredPermission = null) {
-        // 验证登录状态
-        const isValid = await this.verifyAuth();
-        if (!isValid) {
-            return false;
-        }
-        
-        // 检查特定权限
-        if (requiredPermission && !this.hasPermission(requiredPermission)) {
-            if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
-                window.SimpleUI.showMessage('您没有权限访问此页面', 'error');
-            } else {
-                alert('您没有权限访问此页面');
+        try {
+            // 开始页面加载超时检测
+            if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.startPageLoadTimeout) {
+                window.AxiosConfig.startPageLoadTimeout();
             }
+            
+            // 验证登录状态
+            const isValid = await this.verifyAuth();
+            if (!isValid) {
+                return false;
+            }
+            
+            // 检查特定权限
+            if (requiredPermission && !this.hasPermission(requiredPermission)) {
+                if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+                    window.SimpleUI.showMessage('您没有权限访问此页面', 'error');
+                } else {
+                    alert('您没有权限访问此页面');
+                }
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+                return false;
+            }
+            
+            // 配置axios
+            this.configureAxios();
+            
+            // 清除页面加载超时检测
+            if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.clearPageLoadTimeout) {
+                window.AxiosConfig.clearPageLoadTimeout();
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('页面权限检查失败:', error);
+            
+            // 清除页面加载超时检测
+            if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.clearPageLoadTimeout) {
+                window.AxiosConfig.clearPageLoadTimeout();
+            }
+            
+            // 显示错误信息并提供重试
+            if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+                window.SimpleUI.showMessage('权限检查失败，请刷新页面重试', 'error', 8000);
+            }
+            
+            // 3秒后提供刷新按钮
             setTimeout(() => {
-                window.location.href = '/';
-            }, 1500);
+                this.addRetryButton();
+            }, 3000);
+            
             return false;
         }
+    }
+    
+    /**
+     * 添加重试按钮
+     */
+    addRetryButton() {
+        const existingButton = document.getElementById('auth-retry-button');
+        if (existingButton) return;
         
-        // 配置axios
-        this.configureAxios();
+        const button = document.createElement('button');
+        button.id = 'auth-retry-button';
+        button.innerHTML = '🔄 重试认证';
+        button.style.cssText = `
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            z-index: 10001;
+            padding: 8px 16px;
+            background: #67c23a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        `;
         
-        return true;
+        button.addEventListener('click', async () => {
+            button.textContent = '重试中...';
+            button.disabled = true;
+            
+            try {
+                const isValid = await this.initPageAuth();
+                if (isValid) {
+                    button.remove();
+                    window.location.reload();
+                }
+            } catch (e) {
+                button.textContent = '🔄 重试认证';
+                button.disabled = false;
+            }
+        });
+        
+        document.body.appendChild(button);
     }
 }
 
