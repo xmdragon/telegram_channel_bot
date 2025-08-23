@@ -438,13 +438,13 @@ const LinusStatsComponent = {
                     <template #header>
                         <span class="card-title">消息处理状态</span>
                     </template>
-                    <div class="status-grid">
+                    <div class="stats-grid">
                         <template v-for="(value, key) in messageStatus" :key="key">
                             <div v-if="key !== 'labels'" 
-                                 class="status-item"
+                                 class="stat-badge"
                                  :class="key">
-                                <div class="status-value">{{ value.toLocaleString() }}</div>
-                                <div class="status-label">{{ messageStatus.labels[key] }}</div>
+                                <span class="badge-number">{{ value.toLocaleString() }}</span>
+                                <span class="badge-label">{{ messageStatus.labels[key] }}</span>
                             </div>
                         </template>
                     </div>
@@ -456,12 +456,13 @@ const LinusStatsComponent = {
                         <span class="card-title">拒绝原因分析</span>
                         <span class="card-subtitle">（仅统计已拒绝消息）</span>
                     </template>
-                    <div class="rejection-grid">
+                    <div class="stats-grid">
                         <template v-for="(value, key) in rejectionAnalysis" :key="key">
                             <div v-if="key !== 'labels'"
-                                 class="rejection-item">
-                                <div class="rejection-value">{{ value.toLocaleString() }}</div>
-                                <div class="rejection-label">{{ rejectionAnalysis.labels[key] }}</div>
+                                 class="stat-badge"
+                                 :class="key">
+                                <span class="badge-number">{{ value.toLocaleString() }}</span>
+                                <span class="badge-label">{{ rejectionAnalysis.labels[key] }}</span>
                             </div>
                         </template>
                     </div>
