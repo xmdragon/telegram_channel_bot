@@ -231,7 +231,15 @@ const API_ENDPOINTS = {
         auth: '/static/telegram-auth.html',                        // Telegram认证页面
         status: '/static/status.html',                             // 状态页面
         train: '/static/train.html',                               // 训练页面
-        login: '/static/login.html'                                // 登录页面
+        login: '/static/login.html',                               // 登录页面
+        
+        // 训练模块页面
+        tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
+        adTrainingManager: '/static/ad-training-manager.html',     // 广告检测训练管理页面
+        promoTraining: '/static/promo-training.html',              // 推广链接训练页面
+        separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
+        mediaManager: '/static/media-manager.html',                // 媒体文件管理页面
+        thresholdDashboard: '/static/threshold-dashboard.html'     // 阈值监控面板页面
     }
 };
 

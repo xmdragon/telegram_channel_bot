@@ -10,12 +10,12 @@ const TrainingNav = {
     data() {
         return {
             tabs: [
-                { key: 'tail', label: '尾部过滤训练', url: '/static/tail-filter-manager.html' },
-                { key: 'ad', label: '广告检测训练', url: '/static/ad-training-manager.html' },
-                { key: 'promo', label: '推广链接训练', url: '/static/train.html?mode=promo' },
-                { key: 'separator', label: '分隔符配置', url: '/static/train.html?mode=separator' },
-                { key: 'media', label: '媒体文件管理', url: '/static/media-manager.html' },
-                { key: 'threshold', label: '阈值监控', url: '/static/threshold-dashboard.html' }
+                { key: 'tail', label: '尾部过滤训练', url: API.pages.tailFilterManager },
+                { key: 'ad', label: '广告检测训练', url: API.pages.adTrainingManager },
+                { key: 'promo', label: '推广链接训练', url: API.pages.promoTraining },
+                { key: 'separator', label: '分隔符配置', url: API.pages.separatorConfig },
+                { key: 'media', label: '媒体文件管理', url: API.pages.mediaManager },
+                { key: 'threshold', label: '阈值监控', url: API.pages.thresholdDashboard }
             ]
         };
     },
