@@ -54,5 +54,5 @@ api_router.include_router(ai_control_router, tags=["ai-control"])
 api_router.include_router(ai_config_router, tags=["ai-config"])
 api_router.include_router(version_router, tags=["version"])
 # 使用重构后的训练路由
-api_router.include_router(training_router, tags=["training"])
+api_router.include_router(training_router, prefix="/training", tags=["training"])
 # api_router.include_router(channel_resolver_router, prefix="/channel-resolver", tags=["channel-resolver"])  # 暂时禁用

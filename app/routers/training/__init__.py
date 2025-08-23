@@ -11,6 +11,7 @@ from .ad_samples import router as ad_samples_router
 from .ocr import router as ocr_router
 from .admin import router as admin_router
 from .thresholds import router as thresholds_router
+from .promo_training import router as promo_training_router
 
 # 创建主路由器（不设置prefix，由主API路由器设置）
 router = APIRouter(tags=["training"])
@@ -39,6 +40,9 @@ def register_training_routes():
     
     # 阈值管理
     router.include_router(thresholds_router, tags=["training-thresholds"])
+    
+    # 推广链接训练
+    router.include_router(promo_training_router, tags=["training-promo"])
 
 # 执行路由注册
 register_training_routes()
