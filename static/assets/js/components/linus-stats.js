@@ -122,14 +122,27 @@ const LinusStatsComponent = {
         },
         
         /**
-         * 处理统计数据更新
+         * 处理统计数据更新 - Linus式修复：直接映射后端数据格式
          */
         handleStatsUpdate(stats) {
             if (!stats) return;
             
-            
             try {
-                // 更新消息状态统计（使用后端labels）
+                // 直接映射后端数据格式到前端显示
+                if (stats.total_messages !== undefined) {
+                    this.messageStatus.total = stats.total_messages;
+                }
+                if (stats.pending_count !== undefined) {
+                    this.messageStatus.pending = stats.pending_count;
+                }
+                if (stats.approved_count !== undefined) {
+                    this.messageStatus.accepted = stats.approved_count; // approved -> accepted
+                }
+                if (stats.rejected_count !== undefined) {
+                    this.messageStatus.rejected = stats.rejected_count;
+                }
+                
+                // 兼容旧格式（如果存在）
                 if (stats.message_status) {
                     this.messageStatus = { ...this.messageStatus, ...stats.message_status };
                 }
@@ -413,30 +426,27 @@ const LinusStatsComponent = {
             
             <!-- 统计内容 -->
             <div v-else class="stats-content">
-                <!-- 消息处理状态 -->
-                    <div class="stats-grid">
-                        <template v-for="(value, key) in messageStatus" :key="key">
-                            <div v-if="key !== 'labels'" 
-                                 class="stat-badge"
-                                 :class="key">
-                                <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
-                                <span class="stat-badge-label">{{ messageStatus.labels[key] }}</span>
-                            </div>
-                        </template>
-                    </div>
-                
-                <!-- 拒绝原因分析 -->
-                    <div class="stats-grid">
-                        <template v-for="(value, key) in rejectionAnalysis" :key="key">
-                            <div v-if="key !== 'labels'"
-                                 class="stat-badge"
-                                 :class="key">
-                                <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
-                                <span class="stat-badge-label">{{ rejectionAnalysis.labels[key] }}</span>
-                            </div>
-                        </template>
-                    </div>
-                
+                <div class="stats-grid">
+                    <!-- 消息处理状态 -->
+                    <template v-for="(value, key) in messageStatus" :key="'status-'+key">
+                        <div v-if="key !== 'labels'" 
+                             class="stat-badge"
+                             :class="'status-'+key">
+                            <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
+                            <span class="stat-badge-label">{{ messageStatus.labels[key] }}</span>
+                        </div>
+                    </template>
+                    
+                    <!-- 拒绝原因分析 -->
+                    <template v-for="(value, key) in rejectionAnalysis" :key="'rejection-'+key">
+                        <div v-if="key !== 'labels'"
+                             class="stat-badge"
+                             :class="'rejection-'+key">
+                            <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
+                            <span class="stat-badge-label">{{ rejectionAnalysis.labels[key] }}</span>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
     `
