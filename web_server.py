@@ -360,12 +360,23 @@ if __name__ == "__main__":
     import uvicorn
     logger.info("🌐 启动独立Web服务器...")
     
-    # 直接传递app对象而不是字符串，避免模块重复导入导致的日志重复
-    uvicorn.run(
-        app,  # 直接传递app对象，避免重复导入
-        host="0.0.0.0",
-        port=8000,
-        reload=False,  # 禁用热重载
-        workers=4,     # 多worker并发模式，解决GIL阻塞问题
-        log_config=None  # 禁用uvicorn默认日志配置，使用我们自己的
-    )
+    # 多worker模式必须传递字符串而不是app对象
+    if os.getenv("WORKERS", "4") == "1":
+        # 单worker模式：直接传递app对象，避免重复导入
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            reload=False,
+            log_config=None
+        )
+    else:
+        # 多worker模式：必须传递模块字符串
+        uvicorn.run(
+            "web_server:app",  # 必须是字符串格式，让uvicorn自行导入
+            host="0.0.0.0",
+            port=8000,
+            reload=False,
+            workers=4,     # 多worker并发模式，解决GIL阻塞问题
+            log_config=None
+        )
