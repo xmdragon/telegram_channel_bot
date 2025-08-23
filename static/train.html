@@ -19,14 +19,8 @@
         </nav>
         
         <div class="container">
-            <!-- 子导航 -->
-            <div class="training-nav">
-                <button class="nav-btn" :class="{active: trainingMode === 'tail'}" @click="setTrainingMode('tail')">📏 尾部训练</button>
-                <button class="nav-btn" :class="{active: trainingMode === 'ad'}" @click="setTrainingMode('ad')">🚫 广告训练</button>
-                <button class="nav-btn" :class="{active: trainingMode === 'separator'}" @click="setTrainingMode('separator')">⚙️ 分隔符</button>
-                <button class="nav-btn" :class="{active: trainingMode === 'promo'}" @click="setTrainingMode('promo')">🔗 推广链接</button>
-                <button class="nav-btn" :class="{active: trainingMode === 'data'}" @click="setTrainingMode('data')">📁 数据管理</button>
-            </div>
+            <!-- 子导航 - 使用统一组件 -->
+            <training-nav :active-tab="trainingMode"></training-nav>
             
             <!-- 训练标签页 -->
             <div class="training-tabs" v-if="trainingMode !== 'data'">
@@ -507,6 +501,7 @@
     <script src="assets/js/axios.js?v=1755809999"></script>
     <script src="assets/js/config/api-endpoints.js?v=1755809999"></script>
     <script src="assets/js/admin-auth.js?v=1755809999"></script>
+    <script defer src="assets/js/components/training-nav.js?v=1755809999"></script>
     <script src="assets/js/train.js?v=1755809999"></script>
     
 

@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const { createApp } = Vue;
     
     trainApp = createApp({
+        components: {
+            'training-nav': TrainingNav
+        },
         data() {
             return {
                 // 训练模式
@@ -373,6 +376,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             
+            // 检查URL参数并设置训练模式
+            async checkUrlParams() {
+                const params = new URLSearchParams(window.location.search);
+                const mode = params.get('mode');
+                
+                if (mode) {
+                    // 根据URL参数设置训练模式
+                    if (['ad', 'tail', 'promo', 'separator', 'data'].includes(mode)) {
+                        this.trainingMode = mode;
+                    }
+                    // 清理URL参数，避免页面刷新时重复处理
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            },
+            
             // 检查认证状态
             async checkAuth() {
                 try {
@@ -396,6 +414,9 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         
         async mounted() {
+            // 先检查URL参数
+            await this.checkUrlParams();
+            
             // 检查认证状态
             const isAuthenticated = await this.checkAuth();
             if (!isAuthenticated) {
