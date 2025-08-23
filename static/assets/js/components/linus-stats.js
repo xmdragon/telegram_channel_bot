@@ -468,43 +468,6 @@ const LinusStatsComponent = {
                     </div>
                 </el-card>
                 
-                <!-- 系统信息 -->
-                <el-card class="stats-card" shadow="hover">
-                    <template #header>
-                        <span class="card-title">系统信息</span>
-                        <el-button 
-                            @click="validateConsistency"
-                            size="mini"
-                            type="text"
-                            icon="el-icon-check">
-                            验证一致性
-                        </el-button>
-                    </template>
-                    <div class="system-info">
-                        <div class="info-item">
-                            <span class="info-label">数据模型:</span>
-                            <span class="info-value">{{ systemInfo.data_model }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">性能:</span>
-                            <span class="info-value">{{ systemInfo.performance }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">准确性:</span>
-                            <span class="info-value">{{ systemInfo.accuracy }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">一致性:</span>
-                            <span class="info-value" :class="{ 'error': !consistency.consistent }">
-                                {{ consistency.consistent ? '✓ 一致' : '✗ 不一致' }}
-                            </span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">最后更新:</span>
-                            <span class="info-value">{{ getLastUpdateText() }}</span>
-                        </div>
-                    </div>
-                </el-card>
             </div>
         </div>
     `
