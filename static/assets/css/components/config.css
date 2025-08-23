@@ -26,7 +26,7 @@
     font-weight: 500;
 }
 
-/* 配置标签页 */
+/* 配置标签页 - 现代化设计 */
 .config-tabs {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -36,13 +36,45 @@
     overflow: hidden;
 }
 
-.config-tabs .el-tabs__header {
+/* 标签页头部 */
+.tabs-header {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    padding: 0;
     margin: 0;
 }
 
-.config-tabs .el-tabs__content {
+/* 标签页按钮 */
+.tab-button {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 16px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    border-bottom: 3px solid transparent;
+    font-family: inherit;
+}
+
+.tab-button:hover {
+    color: #374151;
+    background: rgba(91, 99, 211, 0.05);
+}
+
+.tab-button.active {
+    color: #5b63d3;
+    background: #ffffff;
+    border-bottom-color: #5b63d3;
+    font-weight: 600;
+}
+
+/* 标签页内容 */
+.tab-content {
     padding: 24px;
     background: #ffffff;
 }

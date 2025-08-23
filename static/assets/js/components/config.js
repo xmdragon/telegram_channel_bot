@@ -6,42 +6,20 @@ const API = window.API;
 // 检查依赖是否加载
 
 const { createApp } = Vue;
-const { ElMessage } = ElementPlus;
 
-// 消息管理器 - 右下角显示
+// 消息管理器 - 使用轻量级SimpleMessage
 const MessageManager = {
     success(message) {
-        ElMessage({
-            message: message,
-            type: 'success',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
+        SimpleMessage.success(message);
     },
     error(message) {
-        ElMessage({
-            message: message,
-            type: 'error',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
+        SimpleMessage.error(message);
     },
     warning(message) {
-        ElMessage({
-            message: message,
-            type: 'warning',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
+        SimpleMessage.warning(message);
     },
     info(message, options = {}) {
-        ElMessage({
-            message: message,
-            type: 'info',
-            offset: 20,
-            customClass: 'bottom-right-message',
-            ...options
-        });
+        SimpleMessage.info(message);
     }
 };
 
@@ -704,7 +682,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     try {
         const app = createApp(ConfigApp);
-        app.use(ElementPlus);
         
         // 注册导航栏组件
         if (window.NavBar) {

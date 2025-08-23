@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>尾部过滤数据管理</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <!-- 轻量级UI样式 -->
+    
     <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755809999">
     <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755809999">
     <link rel="stylesheet" href="assets/css/training-common.css?v=1755809999">
@@ -45,35 +47,35 @@
                     <div class="toolbar-content">
                         <div class="toolbar">
                             <div class="toolbar-left">
-                                <el-input 
-                                    v-model="searchText" 
-                                    placeholder="搜索尾部过滤样本..." 
-                                    class="search-input"
-                                    @input="handleSearch"
-                                    clearable>
-                                    <template #prefix>
-                                        <el-icon><search></search></el-icon>
-                                    </template>
-                                </el-input>
+                                <div class="search-container">
+                                    <input 
+                                        v-model="searchText" 
+                                        @input="handleSearch"
+                                        placeholder="搜索尾部过滤样本..." 
+                                        class="search-input"
+                                        type="text">
+                                    <span class="search-icon">🔍</span>
+                                    <button v-if="searchText" @click="searchText = ''; handleSearch()" class="clear-btn" type="button">×</button>
+                                </div>
                             </div>
                             <div class="toolbar-right">
                                 <div class="btn-group">
-                                    <el-button @click="goToTrainingPage" type="primary" class="btn-primary">
-                                        <el-icon><plus></plus></el-icon>
+                                    <button @click="goToTrainingPage" class="btn btn-primary">
+                                        <span class="btn-icon">➕</span>
                                         前往添加样本
-                                    </el-button>
-                                    <el-button @click="showDuplicates" type="warning" class="btn-warning">
-                                        <el-icon><copy-document></copy-document></el-icon>
+                                    </button>
+                                    <button @click="showDuplicates" class="btn btn-warning">
+                                        <span class="btn-icon">📋</span>
                                         检测重复
-                                    </el-button>
-                                    <el-button @click="syncVectors" type="info" class="btn-info">
-                                        <el-icon><Refresh></Refresh></el-icon>
+                                    </button>
+                                    <button @click="syncVectors" class="btn btn-info">
+                                        <span class="btn-icon">🔄</span>
                                         同步向量
-                                    </el-button>
-                                    <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
-                                        <el-icon><delete></delete></el-icon>
+                                    </button>
+                                    <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedSamples.length">
+                                        <span class="btn-icon">🗑️</span>
                                         批量删除 ({{ selectedSamples.length }})
-                                    </el-button>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -88,131 +90,201 @@
                         <h3 class="table-title">📝 尾部过滤样本数据</h3>
                     </div>
                     <div class="table-content">
-                        <el-table 
-                            :data="samples" 
-                            stripe 
-                            border
-                            v-loading="loading"
-                            @selection-change="handleSelectionChange"
-                            row-key="id"
-                            class="data-table">
-                    
-                    <el-table-column type="selection" width="55"></el-table-column>
-                    
-                    <el-table-column prop="id" label="ID" width="80" sortable></el-table-column>
-                    
-                    
-                    <el-table-column label="尾部内容" min-width="400">
-                        <template #default="scope">
-                            <div v-if="scope.row.tail_part" class="content-preview clickable highlight-blue" @click="showDetail(scope.row)">
-                                {{ truncateText(scope.row.tail_part, 100) }}
-                            </div>
-                            <span v-else>-</span>
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column prop="created_at" label="创建时间" min-width="160" sortable>
-                        <template #default="scope">
-                            {{ formatTime(scope.row.created_at) }}
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column label="操作" width="160">
-                        <template #default="scope">
-                            <el-button type="primary" size="small" @click="editSample(scope.row)" class="mr-8">
-                                编辑
-                            </el-button>
-                            <el-button type="danger" size="small" class="btn-danger" @click="deleteSample(scope.row)">
-                                删除
-                            </el-button>
-                        </template>
-                    </el-table-column>
-                        </el-table>
+                        <div v-if="loading" class="loading-spinner">
+                            <div class="spinner"></div>
+                            <span>加载中...</span>
+                        </div>
+                        <table v-else class="data-table">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-col">
+                                        <input type="checkbox" @change="selectAll" :checked="allSelected" />
+                                    </th>
+                                    <th class="id-col sortable" @click="sortBy('id')">
+                                        ID
+                                        <span class="sort-icon" :class="getSortClass('id')">↕️</span>
+                                    </th>
+                                    <th class="content-col">尾部内容</th>
+                                    <th class="time-col sortable" @click="sortBy('created_at')">
+                                        创建时间
+                                        <span class="sort-icon" :class="getSortClass('created_at')">↕️</span>
+                                    </th>
+                                    <th class="action-col">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(sample, index) in samples" :key="sample.id" :class="{ 'even': index % 2 === 0 }">
+                                    <td>
+                                        <input type="checkbox" :value="sample" @change="handleSampleSelection" :checked="selectedSamples.includes(sample)" />
+                                    </td>
+                                    <td>{{ sample.id }}</td>
+                                    <td>
+                                        <div v-if="sample.tail_part" class="content-preview clickable" @click="showDetail(sample)">
+                                            {{ truncateText(sample.tail_part, 100) }}
+                                        </div>
+                                        <span v-else>-</span>
+                                    </td>
+                                    <td>{{ formatTime(sample.created_at) }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button @click="editSample(sample)" class="btn btn-sm btn-primary">
+                                                编辑
+                                            </button>
+                                            <button @click="deleteSample(sample)" class="btn btn-sm btn-danger">
+                                                删除
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr v-if="samples.length === 0">
+                                    <td colspan="5" class="empty-row">暂无数据</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                     
                     <!-- 分页 -->
                     <div class="pagination-section" v-if="totalCount > 0">
-                        <el-pagination
-                            @current-change="handlePageChange"
-                            v-model:current-page="currentPage"
-                            :page-size="pageSize"
-                            :total="totalCount"
-                            layout="total, prev, pager, next, jumper"
-                            class="pagination">
-                        </el-pagination>
+                        <div class="pagination">
+                            <div class="pagination-info">
+                                共 {{ totalCount }} 条记录
+                            </div>
+                            <div class="pagination-controls">
+                                <button @click="handlePageChange(1)" :disabled="currentPage === 1" class="btn btn-sm">首页</button>
+                                <button @click="handlePageChange(currentPage - 1)" :disabled="currentPage === 1" class="btn btn-sm">上一页</button>
+                                
+                                <span class="page-numbers">
+                                    <button 
+                                        v-for="page in getPageNumbers()" 
+                                        :key="page"
+                                        @click="handlePageChange(page)"
+                                        :class="{ 'active': page === currentPage }"
+                                        class="btn btn-sm page-btn">
+                                        {{ page }}
+                                    </button>
+                                </span>
+                                
+                                <button @click="handlePageChange(currentPage + 1)" :disabled="currentPage >= totalPages" class="btn btn-sm">下一页</button>
+                                <button @click="handlePageChange(totalPages)" :disabled="currentPage >= totalPages" class="btn btn-sm">末页</button>
+                                
+                                <div class="jump-to">
+                                    跳转到 <input type="number" v-model.number="jumpToPage" @keyup.enter="jumpToPageHandler" min="1" :max="totalPages" class="page-input"> 页
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 详情对话框 -->
-        <el-dialog v-model="detailDialog" title="尾部内容详情" width="60%">
-            <div v-if="currentSample">
-                <el-descriptions :column="1" border>
-                    <el-descriptions-item label="ID">{{ currentSample.id }}</el-descriptions-item>
-                    <el-descriptions-item label="创建时间">{{ formatTime(currentSample.created_at) }}</el-descriptions-item>
-                </el-descriptions>
-                
-                <div v-if="currentSample.tail_part">
-                    <el-divider></el-divider>
-                    <h4>完整尾部内容：</h4>
-                    <div class="detail-content">{{ currentSample.tail_part }}</div>
+        <!-- 详情模态框 -->
+        <div v-if="detailDialog" class="modal-overlay" @click="detailDialog = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3 class="modal-title">尾部内容详情</h3>
+                    <button @click="detailDialog = false" class="modal-close">×</button>
                 </div>
-            </div>
-        </el-dialog>
-
-        <!-- 编辑对话框 -->
-        <el-dialog v-model="editDialog" title="编辑尾部过滤样本" width="60%">
-            <el-form v-if="editingSample" :model="editingSample" label-width="120px">
-                <el-form-item label="尾部内容" required>
-                    <el-input
-                        v-model="editingSample.tail_part"
-                        type="textarea"
-                        :rows="8"
-                        placeholder="编辑尾部内容..."
-                    ></el-input>
-                    <div class="char-count">{{ editingSample.tail_part ? editingSample.tail_part.length : 0 }} 字符</div>
-                </el-form-item>
-            </el-form>
-            
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="editDialog = false">取消</el-button>
-                    <el-button type="primary" @click="saveEdit" :loading="submitting">
-                        保存
-                    </el-button>
-                </span>
-            </template>
-        </el-dialog>
-
-        <!-- 重复检测对话框 -->
-        <el-dialog v-model="duplicateDialog" title="重复样本检测" width="80%">
-            <div v-loading="duplicateLoading">
-                <el-alert v-if="duplicateGroups.length" type="warning" :closable="false" class="mb-4">
-                    发现 {{ duplicateGroups.length }} 组重复/相似样本，共 {{ duplicateSamplesCount }} 个样本
-                </el-alert>
-                
-                <div v-for="(group, idx) in duplicateGroups" :key="idx" class="duplicate-group">
-                    <div class="group-header">
-                        <span>相似组 #{{ idx + 1 }} (相似度: {{ group.similarity }}%)</span>
-                        <el-button type="danger" size="small" @click="mergeGroup(group)">
-                            合并为一个
-                        </el-button>
-                    </div>
-                    <div class="group-samples">
-                        <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
-                            <el-checkbox v-model="sample.keep">保留</el-checkbox>
-                            <span class="sample-id">ID: {{ sample.id }}</span>
-                            <span class="sample-preview">{{ truncateText(sample.tail_part, 50) }}</span>
+                <div class="modal-body">
+                    <div v-if="currentSample">
+                        <div class="detail-info">
+                            <div class="info-row">
+                                <label>ID:</label>
+                                <span>{{ currentSample.id }}</span>
+                            </div>
+                            <div class="info-row">
+                                <label>创建时间:</label>
+                                <span>{{ formatTime(currentSample.created_at) }}</span>
+                            </div>
+                        </div>
+                        
+                        <div v-if="currentSample.tail_part" class="content-section">
+                            <h4>完整尾部内容：</h4>
+                            <div class="detail-content">{{ currentSample.tail_part }}</div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div v-if="duplicateGroups.length" class="text-center mt-4">
-                    <el-button type="primary" @click="applyDeduplicate">应用去重</el-button>
+        <!-- 编辑模态框 -->
+        <div v-if="editDialog" class="modal-overlay" @click="editDialog = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3 class="modal-title">编辑尾部过滤样本</h3>
+                    <button @click="editDialog = false" class="modal-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <form v-if="editingSample" @submit.prevent="saveEdit">
+                        <div class="form-group">
+                            <label class="form-label required">尾部内容</label>
+                            <textarea
+                                v-model="editingSample.tail_part"
+                                class="form-textarea"
+                                rows="8"
+                                placeholder="编辑尾部内容..."
+                                required
+                            ></textarea>
+                            <div class="char-count">{{ editingSample.tail_part ? editingSample.tail_part.length : 0 }} 字符</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button @click="editDialog = false" class="btn btn-secondary">取消</button>
+                    <button @click="saveEdit" :disabled="submitting" class="btn btn-primary">
+                        <span v-if="submitting" class="loading-text">保存中...</span>
+                        <span v-else>保存</span>
+                    </button>
                 </div>
             </div>
-        </el-dialog>
+        </div>
+
+        <!-- 重复检测模态框 -->
+        <div v-if="duplicateDialog" class="modal-overlay" @click="duplicateDialog = false">
+            <div class="modal-content large-modal" @click.stop>
+                <div class="modal-header">
+                    <h3 class="modal-title">重复样本检测</h3>
+                    <button @click="duplicateDialog = false" class="modal-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="duplicateLoading" class="loading-spinner">
+                        <div class="spinner"></div>
+                        <span>检测中...</span>
+                    </div>
+                    <div v-else>
+                        <div v-if="duplicateGroups.length" class="alert alert-warning">
+                            ⚠️ 发现 {{ duplicateGroups.length }} 组重复/相似样本，共 {{ duplicateSamplesCount }} 个样本
+                        </div>
+                        
+                        <div v-for="(group, idx) in duplicateGroups" :key="idx" class="duplicate-group">
+                            <div class="group-header">
+                                <span>相似组 #{{ idx + 1 }} (相似度: {{ group.similarity }}%)</span>
+                                <button @click="mergeGroup(group)" class="btn btn-sm btn-danger">
+                                    合并为一个
+                                </button>
+                            </div>
+                            <div class="group-samples">
+                                <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" v-model="sample.keep">
+                                        保留
+                                    </label>
+                                    <span class="sample-id">ID: {{ sample.id }}</span>
+                                    <span class="sample-preview">{{ truncateText(sample.tail_part, 50) }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="duplicateGroups.length" class="text-center mt-4">
+                            <button @click="applyDeduplicate" class="btn btn-primary">应用去重</button>
+                        </div>
+                        
+                        <div v-if="!duplicateGroups.length && !duplicateLoading" class="no-duplicates">
+                            ✅ 未发现重复或相似样本
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
 
