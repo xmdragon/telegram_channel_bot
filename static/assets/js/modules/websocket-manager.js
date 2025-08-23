@@ -26,10 +26,8 @@ const WebSocketManager = {
         }
 
         try {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws`;
-            
-            this.instance = new WebSocket(wsUrl);
+            // Linus风格：使用统一的WebSocket工厂，消除重复代码
+            this.instance = WebSocketFactory.create('main');
             
             this.instance.onopen = this.handleOpen.bind(this);
             this.instance.onmessage = this.handleMessage.bind(this);

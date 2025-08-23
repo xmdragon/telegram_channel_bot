@@ -1408,15 +1408,13 @@ const MainApp = {
                     return;
                 }
                 
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}${window.API.websocket.main}`;
-                
                 // 创建新连接前清理旧连接
                 if (this.websocket) {
                     this.websocket.close();
                 }
                 
-                this.websocket = new WebSocket(wsUrl);
+                // Linus风格：使用统一的WebSocket工厂，消除重复代码
+                this.websocket = WebSocketFactory.create('main');
                 
                 // 设置超时检测
                 const connectionTimeout = setTimeout(() => {

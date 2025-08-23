@@ -366,6 +366,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=False,  # 禁用热重载
-        workers=1,     # 单worker模式
+        workers=4,     # 多worker并发模式，解决GIL阻塞问题
         log_config=None  # 禁用uvicorn默认日志配置，使用我们自己的
     )

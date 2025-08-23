@@ -67,8 +67,7 @@ const API_ENDPOINTS = {
         info: '/api/telegram-auth/info',                            // GET - 获取认证信息
         clear: '/api/telegram-auth/clear',                          // POST - 清理认证
         disconnect: '/api/telegram-auth/disconnect',                // POST - 断开连接
-        logout: '/api/telegram-auth/logout',                        // POST - 登出Telegram
-        websocket: '/api/telegram-auth/ws/auth'                     // WebSocket - 认证WebSocket连接
+        logout: '/api/telegram-auth/logout'                         // POST - 登出Telegram
     },
 
     // 训练数据模块 - /api/training
@@ -201,9 +200,10 @@ const API_ENDPOINTS = {
     },
 
 
-    // WebSocket端点
+    // WebSocket端点 - Linus式统一管理：所有WebSocket连接必须使用WebSocketFactory.create()
+    // 禁止直接构造WebSocket，统一使用：WebSocketFactory.create('main')
     websocket: {
-        main: '/ws',                                               // WebSocket - 主要连接（实际使用的端点）
+        main: '/ws',                                               // WebSocket - 主要连接（通过WebSocketFactory使用）
     },
 
     // AI配置模块 - /api/ai-config

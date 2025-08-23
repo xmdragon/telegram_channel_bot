@@ -165,9 +165,8 @@ const app = createApp({
             }
 
             try {
-                // 使用API配置中的WebSocket URL
-                const wsUrl = window.API ? window.API.websocket.main : 'ws://localhost:8000/ws';
-                this.websocket = new WebSocket(wsUrl);
+                // Linus风格：使用统一的WebSocket工厂，消除重复代码和硬编码备用URL
+                this.websocket = WebSocketFactory.create('main');
 
                 this.websocket.onopen = () => {
                     this.isWebSocketConnected = true;

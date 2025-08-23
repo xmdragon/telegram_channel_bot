@@ -71,11 +71,8 @@ const AuthApp = {
                         return;
                     }
                     
-                    // 根据当前协议选择WebSocket协议
-                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${protocol}//${window.location.host}${API.telegramAuth.websocket}`;
-                    
-                    this.websocket = new WebSocket(wsUrl);
+                    // Linus风格：使用统一的WebSocket工厂，消除重复代码
+                    this.websocket = WebSocketFactory.create('main');
                     
                     this.websocket.onopen = () => {
                         this.connected = true;
