@@ -495,6 +495,9 @@ const LinusStatsComponent = {
     `
 };
 
+// 注册到window对象供index.js使用
+window.LinusStatsComponent = LinusStatsComponent;
+
 // 注册组件
 if (typeof Vue !== 'undefined') {
     Vue.component('linus-stats', LinusStatsComponent);
