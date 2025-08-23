@@ -9,8 +9,12 @@
     <!-- 动态版本号 - 防缓存 -->
     <script>window.RESOURCE_VERSION = Date.now();</script>
     <script>
-        document.write('<link rel="stylesheet" href="assets/css/train.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/inline-styles.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-common.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/train.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
@@ -91,7 +95,7 @@
             </div>
             
             <!-- 统计信息 -->
-            <div class="config-section" v-if="stats">
+            <div class="config-section">
                 <div class="stats-card">
                     <div class="stats-header">
                         <h3>📊 配置统计</h3>
@@ -102,21 +106,18 @@
                             <div class="stat-label">配置的模式数</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">{{ stats.totalSamples || 0 }}</div>
+                            <div class="stat-value">-</div>
                             <div class="stat-label">训练样本数</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">{{ stats.accuracy || 0 }}%</div>
+                            <div class="stat-value">-</div>
                             <div class="stat-label">识别准确率</div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- 消息提示 -->
-            <div v-if="message.text" :class="['message', `message-${message.type}`]" class="message">
-                {{ message.text }}
-            </div>
+            <!-- 消息提示已使用 SimpleUI -->
         </div>
     </div>
 

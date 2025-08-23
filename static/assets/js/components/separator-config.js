@@ -51,66 +51,16 @@ const app = createApp({
                     patterns: this.separatorPatterns.filter(p => p.regex && p.description)
                 });
                 
-                this.showMessage('分隔符配置保存成功！', 'success');
+                window.SimpleUI.Message.success('分隔符配置保存成功！');
             } catch (error) {
                 console.error('保存分隔符配置失败:', error);
-                this.showMessage(error.response?.data?.detail || '保存失败', 'error');
+                window.SimpleUI.Message.error(error.response?.data?.detail || '保存失败');
             } finally {
                 this.loading = false;
             }
         },
         
-        // 显示消息提示 - 从train.js原样复制
-        showMessage(message, type = 'info') {
-            // 创建消息提示元素
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message-toast message-${type}`;
-            messageDiv.textContent = message;
-            
-            // 添加样式
-            messageDiv.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 12px 20px;
-                border-radius: 6px;
-                color: white;
-                font-weight: 500;
-                z-index: 10000;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                transition: all 0.3s ease;
-                transform: translateX(0);
-            `;
-            
-            // 根据类型设置颜色
-            switch (type) {
-                case 'success':
-                    messageDiv.style.backgroundColor = '#67c23a';
-                    break;
-                case 'warning':
-                    messageDiv.style.backgroundColor = '#e6a23c';
-                    break;
-                case 'error':
-                    messageDiv.style.backgroundColor = '#f56c6c';
-                    break;
-                default:
-                    messageDiv.style.backgroundColor = '#409eff';
-            }
-            
-            // 添加到页面
-            document.body.appendChild(messageDiv);
-            
-            // 3秒后移除
-            setTimeout(() => {
-                messageDiv.style.transform = 'translateX(100%)';
-                messageDiv.style.opacity = '0';
-                setTimeout(() => {
-                    if (messageDiv.parentNode) {
-                        messageDiv.parentNode.removeChild(messageDiv);
-                    }
-                }, 300);
-            }, 3000);
-        }
+        // 消息提示已统一使用 window.SimpleUI.Message
     },
     
     mounted() {
