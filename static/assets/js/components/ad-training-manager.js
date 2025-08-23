@@ -88,11 +88,10 @@ const app = createApp({
                 const response = await axios.get(API.training.adStatistics);
                 if (response.data.success) {
                     this.stats = {
-                        totalSamples: response.data.total_samples,
-                        adSamples: response.data.ad_samples,
-                        normalSamples: response.data.normal_samples,
-                        todayAdded: response.data.today_added,
-                        accuracy: response.data.accuracy
+                        totalSamples: response.data.total_samples || 0,
+                        uniqueSamples: response.data.unique_samples || response.data.total_samples || 0,
+                        mediaFiles: response.data.media_files || 0,
+                        storageSize: response.data.storage_size || 0
                     };
                 }
             } catch (error) {

@@ -35,6 +35,7 @@ Claude Code 工作指导文档。
 
 ## 重大变更历史
 
+- 2025-08-23: 🎯 **Element Plus完全移除** - 全项目UI重构完成，彻底删除Element Plus依赖，使用轻量化SimpleUI系统
 - 2025-08-17: 🔧 **API路由安全优化** - 解决危险的通配符路由，引入路由配置统一管理
 - 2025-08-17: 📚 **开发规范完善** - 添加命名规范、代码组织、清理工具指南
 - 2025-08-16 (v4.0): 🚀 **服务分离架构重构** - 解决开发体验痛点，性能大幅提升
@@ -274,6 +275,12 @@ API_ENDPOINTS = {
 - **禁止硬编码文件路径**：必须从PathConfig类引用
 - **无需向后兼容**：始终选择最优方案，不考虑兼容性约束
 - **自适应阈值**：AI检测阈值动态优化，禁止硬编码阈值参数
+- **🚨 严禁Element Plus**：项目已完全移除Element Plus，禁止任何形式的重新引入
+  - ❌ 禁止使用任何`el-*`组件（el-button、el-table、el-dialog等）
+  - ❌ 禁止添加Element Plus CSS/JS引用
+  - ❌ 禁止使用`ElementPlus`、`ElMessage`、`ElMessageBox`等API
+  - ✅ 必须使用SimpleUI系统：`SimpleUI.showMessage()`、`SimpleUI.confirm()`
+  - ✅ 必须使用原生HTML标签配合自定义CSS类
 - **代码分离原则**：严格禁止HTML内联JavaScript和CSS
   - ❌ 禁止使用`<script>`标签内联JS代码
   - ❌ 禁止使用`<style>`标签内联CSS代码

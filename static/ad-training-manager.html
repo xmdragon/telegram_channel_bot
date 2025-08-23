@@ -47,37 +47,38 @@
                     <div class="toolbar-content">
                         <!-- 搜索栏 -->
                         <div class="search-bar">
-                            <el-input 
-                                v-model="searchText" 
-                                placeholder="搜索广告训练样本..." 
-                                class="search-input"
-                                @keyup.enter="loadSamples"
-                                clearable>
-                                <template #prefix>
-                                    <el-icon><search /></el-icon>
-                                </template>
-                            </el-input>
-                            <el-select v-model="filterType" placeholder="筛选类型" class="filter-select" @change="loadSamples">
-                                <el-option label="全部" value="all"></el-option>
-                                <el-option label="有媒体" value="with_media"></el-option>
-                                <el-option label="纯文本" value="text_only"></el-option>
-                                <el-option label="疑似重复" value="duplicate"></el-option>
-                            </el-select>
+                            <div class="search-input-container">
+                                <input 
+                                    type="text" 
+                                    v-model="searchText" 
+                                    placeholder="搜索广告训练样本..." 
+                                    class="search-input"
+                                    @keyup.enter="loadSamples">
+                                <button class="search-btn" @click="loadSamples" title="搜索">
+                                    🔍
+                                </button>
+                                <button v-if="searchText" class="clear-btn" @click="clearSearch" title="清除">
+                                    ✖️
+                                </button>
+                            </div>
+                            <select v-model="filterType" class="filter-select" @change="loadSamples">
+                                <option value="all">全部</option>
+                                <option value="with_media">有媒体</option>
+                                <option value="text_only">纯文本</option>
+                                <option value="duplicate">疑似重复</option>
+                            </select>
                         </div>
                         <!-- 按钮栏 -->
                         <div class="button-bar">
-                            <el-button @click="showDuplicates" type="warning" class="btn-warning">
-                                <el-icon><copy-document /></el-icon>
-                                检测重复
-                            </el-button>
-                            <el-button @click="optimizeStorage" type="info">
-                                <el-icon><folder-opened /></el-icon>
-                                优化存储
-                            </el-button>
-                            <el-button @click="deleteSelected" type="danger" class="btn-danger" :disabled="!selectedSamples.length">
-                                <el-icon><delete /></el-icon>
-                                批量删除 ({{ selectedSamples.length }})
-                            </el-button>
+                            <button @click="showDuplicates" class="btn btn-warning">
+                                📄 检测重复
+                            </button>
+                            <button @click="optimizeStorage" class="btn btn-info">
+                                📁 优化存储
+                            </button>
+                            <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedSamples.length">
+                                🗑️ 批量删除 ({{ selectedSamples.length }})
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -90,154 +91,238 @@
                         <h3 class="table-title">🎯 广告检测样本数据</h3>
                     </div>
                     <div class="table-content">
-                        <el-table 
-                            :data="samples" 
-                            stripe 
-                            border
-                            v-loading="loading"
-                            @selection-change="handleSelectionChange"
-                            row-key="id"
-                            class="data-table">
-                    
-                    <el-table-column type="selection" width="55"></el-table-column>
-                    
-                    <el-table-column prop="id" label="ID" width="80" sortable></el-table-column>
-                    
-                    <el-table-column label="内容预览" min-width="400">
-                        <template #default="scope">
-                            <div class="content-preview" @click="showDetail(scope.row)">
-                                {{ truncateText(scope.row.content, 100) }}
+                        <div v-if="loading" class="loading-container">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-text">正在加载数据...</div>
+                        </div>
+                        <div v-else class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="checkbox-column">
+                                            <input type="checkbox" @change="selectAll" v-model="allSelected">
+                                        </th>
+                                        <th class="id-column" @click="sortBy('id')">
+                                            ID
+                                            <span class="sort-indicator" v-if="sortField === 'id'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                                        </th>
+                                        <th class="content-column">内容预览</th>
+                                        <th class="media-column">媒体</th>
+                                        <th class="source-column">来源</th>
+                                        <th class="time-column" @click="sortBy('created_at')">
+                                            创建时间
+                                            <span class="sort-indicator" v-if="sortField === 'created_at'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                                        </th>
+                                        <th class="action-column">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="sample in samples" :key="sample.id" class="table-row">
+                                        <td class="checkbox-cell">
+                                            <input type="checkbox" :value="sample" @change="handleSampleSelection" v-model="selectedSampleIds" :true-value="sample.id">
+                                        </td>
+                                        <td class="id-cell">{{ sample.id }}</td>
+                                        <td class="content-cell">
+                                            <div class="content-preview" @click="showDetail(sample)">
+                                                {{ truncateText(sample.content, 100) }}
+                                            </div>
+                                            <div v-if="sample.similarity_group" class="similarity-tag">
+                                                <span class="tag tag-warning">
+                                                    相似组 #{{ sample.similarity_group }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="media-cell">
+                                            <div v-if="sample.media_files && sample.media_files.length" class="media-preview">
+                                                <img v-for="(media, idx) in sample.media_files.slice(0, 2)" 
+                                                     :key="idx"
+                                                     :src="'/media/' + media"
+                                                     class="media-preview-thumb"
+                                                     @click="previewMedia(sample.media_files, idx)"
+                                                     @error="handleImageError">
+                                                <span v-if="sample.media_files.length > 2" class="media-count">
+                                                    +{{ sample.media_files.length - 2 }}
+                                                </span>
+                                            </div>
+                                            <span v-else class="no-media">无</span>
+                                        </td>
+                                        <td class="source-cell">
+                                            <span :class="'tag tag-' + getSourceType(sample.source)">
+                                                {{ formatSource(sample.source) }}
+                                            </span>
+                                        </td>
+                                        <td class="time-cell">{{ formatTime(sample.created_at) }}</td>
+                                        <td class="action-cell">
+                                            <button class="btn btn-danger btn-small" @click="deleteSample(sample)">
+                                                删除
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div v-if="!samples.length" class="empty-state">
+                                <div class="empty-icon">📄</div>
+                                <div class="empty-text">暂无训练数据</div>
                             </div>
-                            <div v-if="scope.row.similarity_group" class="similarity-tag">
-                                <el-tag type="warning" size="small">
-                                    相似组 #{{ scope.row.similarity_group }}
-                                </el-tag>
-                            </div>
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column label="媒体" width="120">
-                        <template #default="scope">
-                            <div v-if="scope.row.media_files && scope.row.media_files.length" class="media-preview">
-                                <el-image 
-                                    v-for="(media, idx) in scope.row.media_files.slice(0, 2)" 
-                                    :key="idx"
-                                    :src="'/media/' + media"
-                                    :preview-src-list="scope.row.media_files.map(m => '/media/' + m)"
-                                    fit="cover"
-                                    class="media-preview-thumb">
-                                </el-image>
-                                <span v-if="scope.row.media_files.length > 2" class="media-count">
-                                    +{{ scope.row.media_files.length - 2 }}
-                                </span>
-                            </div>
-                            <span v-else class="no-media">无</span>
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column prop="source" label="来源" width="150">
-                        <template #default="scope">
-                            <el-tag :type="getSourceType(scope.row.source)">
-                                {{ formatSource(scope.row.source) }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column prop="created_at" label="创建时间" width="180" sortable>
-                        <template #default="scope">
-                            {{ formatTime(scope.row.created_at) }}
-                        </template>
-                    </el-table-column>
-                    
-                    <el-table-column label="操作" width="150" fixed="right">
-                        <template #default="scope">
-                            <el-button type="danger" size="small" class="btn-danger" @click="deleteSample(scope.row)">
-                                删除
-                            </el-button>
-                        </template>
-                    </el-table-column>
-                        </el-table>
+                        </div>
                     </div>
                     
                     <!-- 分页 -->
                     <div class="pagination-section" v-if="totalCount > pageSize">
-                        <el-pagination
-                            @current-change="handlePageChange"
-                            :current-page="currentPage"
-                            :page-size="pageSize"
-                            :total="totalCount"
-                            layout="total, prev, pager, next"
-                            class="pagination">
-                        </el-pagination>
+                        <div class="pagination">
+                            <div class="pagination-info">
+                                共 {{ totalCount }} 条记录
+                            </div>
+                            <div class="pagination-controls">
+                                <button class="btn btn-outline" 
+                                        @click="handlePageChange(currentPage - 1)" 
+                                        :disabled="currentPage <= 1">
+                                    上一页
+                                </button>
+                                <span class="pagination-current">
+                                    第 {{ currentPage }} / {{ totalPages }} 页
+                                </span>
+                                <button class="btn btn-outline" 
+                                        @click="handlePageChange(currentPage + 1)" 
+                                        :disabled="currentPage >= totalPages">
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 详情对话框 -->
-        <el-dialog v-model="detailDialog" title="样本详情" width="60%">
-            <div v-if="currentSample">
-                <el-descriptions :column="2" border>
-                    <el-descriptions-item label="ID">{{ currentSample.id }}</el-descriptions-item>
-                    <el-descriptions-item label="来源">
-                        <el-tag :type="getSourceType(currentSample.source)">
-                            {{ formatSource(currentSample.source) }}
-                        </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="描述">{{ currentSample.description || '无' }}</el-descriptions-item>
-                    <el-descriptions-item label="创建时间">{{ formatTime(currentSample.created_at) }}</el-descriptions-item>
-                </el-descriptions>
-                
-                <el-divider></el-divider>
-                
-                <h4>内容：</h4>
-                <div class="detail-content">{{ currentSample.content }}</div>
-                
-                <div v-if="currentSample.media_files && currentSample.media_files.length">
-                    <el-divider></el-divider>
-                    <h4>媒体文件：</h4>
-                    <div class="media-grid">
-                        <el-image 
-                            v-for="(media, idx) in currentSample.media_files" 
-                            :key="idx"
-                            :src="'/media/' + media"
-                            :preview-src-list="currentSample.media_files.map(m => '/media/' + m)"
-                            fit="cover"
-                            class="media-preview-large">
-                        </el-image>
-                    </div>
+        <!-- 详情模态框 -->
+        <div v-if="detailDialog" class="modal-overlay" @click="closeDetailDialog">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3>样本详情</h3>
+                    <button class="modal-close" @click="closeDetailDialog">✖️</button>
                 </div>
-            </div>
-        </el-dialog>
-
-        <!-- 重复检测对话框 -->
-        <el-dialog v-model="duplicateDialog" title="重复样本检测" width="80%">
-            <div v-loading="duplicateLoading">
-                <el-alert v-if="duplicateGroups.length" type="warning" :closable="false" class="mb-4">
-                    发现 {{ duplicateGroups.length }} 组重复/相似样本，共 {{ duplicateSamplesCount }} 个样本
-                </el-alert>
-                
-                <div v-for="(group, idx) in duplicateGroups" :key="idx" class="duplicate-group">
-                    <div class="group-header">
-                        <span>相似组 #{{ idx + 1 }} (相似度: {{ group.similarity }}%)</span>
-                        <el-button type="danger" size="small" @click="mergeGroup(group)">
-                            合并为一个
-                        </el-button>
+                <div class="modal-body" v-if="currentSample">
+                    <div class="detail-info">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>ID:</label>
+                                <span>{{ currentSample.id }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>来源:</label>
+                                <span :class="'tag tag-' + getSourceType(currentSample.source)">
+                                    {{ formatSource(currentSample.source) }}
+                                </span>
+                            </div>
+                            <div class="detail-item">
+                                <label>描述:</label>
+                                <span>{{ currentSample.description || '无' }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>创建时间:</label>
+                                <span>{{ formatTime(currentSample.created_at) }}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="group-samples">
-                        <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
-                            <el-checkbox v-model="sample.keep">保留</el-checkbox>
-                            <span class="sample-id">ID: {{ sample.id }}</span>
-                            <span class="sample-preview">{{ truncateText(sample.content, 50) }}</span>
+                    
+                    <div class="detail-section">
+                        <h4>内容：</h4>
+                        <div class="detail-content">{{ currentSample.content }}</div>
+                    </div>
+                    
+                    <div v-if="currentSample.media_files && currentSample.media_files.length" class="detail-section">
+                        <h4>媒体文件：</h4>
+                        <div class="media-grid">
+                            <img v-for="(media, idx) in currentSample.media_files" 
+                                 :key="idx"
+                                 :src="'/media/' + media"
+                                 class="media-preview-large"
+                                 @click="previewMedia(currentSample.media_files, idx)"
+                                 @error="handleImageError">
                         </div>
                     </div>
                 </div>
-
-                <div v-if="duplicateGroups.length" class="text-center mt-4">
-                    <el-button type="primary" @click="applyDeduplicate">应用去重</el-button>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" @click="closeDetailDialog">关闭</button>
                 </div>
             </div>
-        </el-dialog>
+        </div>
+
+        <!-- 重复检测模态框 -->
+        <div v-if="duplicateDialog" class="modal-overlay" @click="closeDuplicateDialog">
+            <div class="modal-content modal-large" @click.stop>
+                <div class="modal-header">
+                    <h3>重复样本检测</h3>
+                    <button class="modal-close" @click="closeDuplicateDialog">✖️</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="duplicateLoading" class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">正在检测重复样本...</div>
+                    </div>
+                    <div v-else>
+                        <div v-if="duplicateGroups.length" class="alert alert-warning">
+                            发现 {{ duplicateGroups.length }} 组重复/相似样本，共 {{ duplicateSamplesCount }} 个样本
+                        </div>
+                        
+                        <div v-for="(group, idx) in duplicateGroups" :key="idx" class="duplicate-group">
+                            <div class="group-header">
+                                <span class="group-title">相似组 #{{ idx + 1 }} (相似度: {{ group.similarity }}%)</span>
+                                <button class="btn btn-danger btn-small" @click="mergeGroup(group)">
+                                    合并为一个
+                                </button>
+                            </div>
+                            <div class="group-samples">
+                                <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" v-model="sample.keep">
+                                        保留
+                                    </label>
+                                    <span class="sample-id">ID: {{ sample.id }}</span>
+                                    <span class="sample-preview">{{ truncateText(sample.content, 50) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" v-if="!duplicateLoading && duplicateGroups.length">
+                    <button class="btn btn-outline" @click="closeDuplicateDialog">取消</button>
+                    <button class="btn btn-primary" @click="applyDeduplicate">应用去重</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 媒体预览模态框 -->
+        <div v-if="mediaPreviewDialog" class="modal-overlay" @click="closeMediaPreview">
+            <div class="modal-content modal-media" @click.stop>
+                <div class="modal-header">
+                    <h3>媒体预览</h3>
+                    <button class="modal-close" @click="closeMediaPreview">✖️</button>
+                </div>
+                <div class="modal-body modal-media-body">
+                    <div v-if="currentMediaList.length" class="media-preview-container">
+                        <img :src="'/media/' + currentMediaList[currentMediaIndex]" 
+                             class="media-preview-full"
+                             @error="handleImageError">
+                        <div class="media-controls" v-if="currentMediaList.length > 1">
+                            <button class="btn btn-outline" 
+                                    @click="previousMedia" 
+                                    :disabled="currentMediaIndex <= 0">
+                                上一张
+                            </button>
+                            <span class="media-indicator">
+                                {{ currentMediaIndex + 1 }} / {{ currentMediaList.length }}
+                            </span>
+                            <button class="btn btn-outline" 
+                                    @click="nextMedia" 
+                                    :disabled="currentMediaIndex >= currentMediaList.length - 1">
+                                下一张
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script defer src="assets/js/vue.prod.js?v=1755809999"></script>
