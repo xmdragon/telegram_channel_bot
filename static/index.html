@@ -6,14 +6,17 @@
     <title>🏠 主控制台</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
-    <!-- 轻量级UI样式 -->
-    <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/components/index.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/components/unified-stats.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/components/performance-ui.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/components/media-group.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=1755809999">
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/index.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/unified-stats.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/performance-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/media-group.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=' + RESOURCE_VERSION + '">');
+    </script>
 </head>
 <body>
     <div id="app">
@@ -375,45 +378,33 @@
         </div>
     </div>
     
-    <!-- 🔥 第1层：核心库 - 立即加载确保优先级 -->
-    <script src="assets/js/vue.prod.js?v=1755809999"></script>
-    <script src="assets/js/axios.js?v=1755809999"></script>
-    
-    <!-- 📋 第2层：配置和工具 - 立即加载 -->
-    <script src="assets/js/config/api-endpoints.js?v=1755809999"></script>
-    <script src="assets/js/admin-auth.js?v=1755809999"></script>
-    
-    <!-- ⚙️ 第3层：模块化组件 -延迟加载 -->
-    <script src="assets/js/config/axios-config.js?v=1755809999"></script>
-    <script src="assets/js/core/simple-ui.js?v=1755809999"></script>
-    <script src="assets/js/core/event-delegate.js?v=1755809999"></script>
-    
-    <!-- 模块化工具类 - 延迟加载 -->
-    <script src="assets/js/modules/data-utils.js?v=1755809999"></script>
-    <script src="assets/js/modules/api-client.js?v=1755809999"></script>
-    <script src="assets/js/modules/websocket-manager.js?v=1755809999"></script>
-    <script src="assets/js/modules/message-manager.js?v=1755809999"></script>
-    <script src="assets/js/modules/ui-handlers.js?v=1755809999"></script>
-    <script src="assets/js/modules/event-handlers.js?v=1755809999"></script>
-    
-    <!-- Linus式架构核心模块 - 延迟加载 -->
-    <script src="assets/js/core/state-manager.js?v=1755809999"></script>
-    <script src="assets/js/core/request-manager.js?v=1755809999"></script>
-    
-    <!-- Vue组件 - 延迟加载 -->
-    <script src="assets/js/components/navbar.js?v=1755809999"></script>
-    <script src="assets/js/components/message-content-renderer.js?v=1755809999"></script>
-    <script src="assets/js/components/linus-stats.js?v=1755809999"></script>
-    
-    <!-- 兼容性工具 - 延迟加载 -->
-    <script src="assets/js/utils/websocket-factory.js?v=1755809999"></script>
-    <script src="assets/js/utils/permission-checker.js?v=1755809999"></script>
-    <script src="assets/js/utils/message-state-manager.js?v=1755809999"></script>
-    <script src="assets/js/components/virtual-list.js?v=1755809999"></script>
-    <script src="assets/js/components/batch-operation-panel.js?v=1755809999"></script>
-    
-    <!-- 主应用 - 最后加载 -->
-    <script src="assets/js/components/index.js?v=1755809999"></script>
+    <!-- 动态加载JavaScript文件 -->
+    <script>
+        document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/event-delegate.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/modules/data-utils.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/modules/api-client.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/modules/websocket-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/modules/message-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/modules/ui-handlers.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/modules/event-handlers.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/state-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/request-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/message-content-renderer.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/linus-stats.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/utils/websocket-factory.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/utils/permission-checker.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/utils/message-state-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/virtual-list.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/batch-operation-panel.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/index.js?v=' + RESOURCE_VERSION + '"><\/script>');
+    </script>
     
 </body>
 </html>

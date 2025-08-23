@@ -399,5 +399,12 @@ app.component('training-nav', TrainingNav);
 
 // 注册Element Plus组件
 
-// 挂载应用
-app.mount('#app');
+// 挂载应用 - 确保DOM就绪
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        app.mount('#app');
+    });
+} else {
+    // DOM已准备就绪
+    app.mount('#app');
+}

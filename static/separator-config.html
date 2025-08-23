@@ -6,8 +6,12 @@
     <title>⚙️ 分隔符配置 - AI训练中心</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
-    <link rel="stylesheet" href="assets/css/train.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/training-nav.css?v=1755809999">
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/train.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
+    </script>
 </head>
 <body>
     <div id="app">
@@ -121,14 +125,17 @@
         <div class="loading-spinner"></div>
         <div class="loading-text">{{ loadingText }}</div>
     </div>
-
-    <!-- 脚本引入 -->
-    <script src="assets/js/vue.prod.js?v=1755809999"></script>
-    <script src="assets/js/axios.js?v=1755809999"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755809999"></script>
-    <script src="assets/js/admin-auth.js?v=1755809999"></script>
-    <script src="assets/js/components/navbar.js?v=1755809999"></script>
-    <script src="assets/js/components/training-nav.js?v=1755809999"></script>
-    <script src="assets/js/separator-config.js?v=1755809999"></script>
+    <!-- 动态加载JavaScript文件 -->
+    <script>
+        document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/separator-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+    </script>
 </body>
 </html>

@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>尾部过滤数据管理</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <!-- 轻量级UI样式 -->
-    
-    <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/training-common.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/training-manager.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/training-nav.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/components/tail-filter-manager.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/components/inline-styles.css?v=1755809999">
+
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-common.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-manager.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/tail-filter-manager.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/inline-styles.css?v=' + RESOURCE_VERSION + '">');
+    </script>
 </head>
 <body>
     <div id="app">
@@ -287,18 +290,17 @@
         </div>
 
     </div>
-
-    <!-- 🔥 Linus式核心库：立即加载确保API对象可用 -->
-    <script src="assets/js/vue.prod.js?v=1755809999"></script>
-    <!-- 轻量级UI系统 -->
-    <script src="assets/js/core/simple-ui.js?v=1755809999"></script>
-    <script src="assets/js/axios.js?v=1755809999"></script>
-    <script src="assets/js/config/axios-config.js?v=1755809999"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755809999"></script>
-    <script src="assets/js/admin-auth.js?v=1755809999"></script>
-    <script src="assets/js/components/navbar.js?v=1755809999"></script>
-    <script src="assets/js/components/training-nav.js?v=1755809999"></script>
-    <script src="assets/js/components/tail-filter-manager.js?v=1755809999"></script>
-
+    <!-- 动态加载JavaScript文件 -->
+    <script>
+        document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/tail-filter-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+    </script>
 </body>
 </html>

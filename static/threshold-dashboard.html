@@ -5,7 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>阈值监控 - AI训练中心</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/threshold-dashboard.css?v=1755809999">
+    
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/inline-styles.css?v=' + RESOURCE_VERSION + '">');
+    </script>
 </head>
 <body>
     <div id="app">
@@ -298,18 +305,19 @@
             </div>
         </div>
     </div>
-
-    <!-- 引入依赖 -->
-    <script src="assets/js/vue.prod.js?v=1755809999"></script>
-    <script src="assets/js/axios.js?v=1755809999"></script>
-    <script src="assets/js/chart.js?v=1755809999"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755809999"></script>
-    <script src="assets/js/utils/websocket-factory.js?v=1755809999"></script>
-    <script src="assets/js/admin-auth.js?v=1755809999"></script>
-    <script src="assets/js/components/navbar.js?v=1755809999"></script>
-    <script src="assets/js/components/training-nav.js?v=1755809999"></script>
-    <script src="assets/js/threshold-dashboard.js?v=1755809999"></script>
-    <script src="assets/js/components/threshold-dashboard.js?v=1755809999"></script>
-
+    <!-- 动态加载JavaScript文件 -->
+    <script>
+        document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/chart.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/utils/websocket-factory.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/threshold-dashboard.js?v=' + RESOURCE_VERSION + '"><\/script>');
+    </script>
 </body>
 </html>

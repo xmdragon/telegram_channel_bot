@@ -6,22 +6,15 @@
     <title>⚙️ 系统配置中心</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
-    <!-- 外部样式文件 -->
-    <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755962745">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755962745">
-    <link rel="stylesheet" href="assets/css/components/config.css?v=1755962745">
-    <link rel="stylesheet" href="assets/css/components/inline-styles.css?v=1755962745">
-    
-    <!-- 外部脚本文件 -->
-    <script src="assets/js/vue.prod.js"></script>
-    <!-- 轻量级UI系统 -->
-    <script src="assets/js/core/simple-ui.js?v=1755962745"></script>
-    <script src="assets/js/axios.js"></script>
-    <script src="assets/js/config/api-endpoints.js"></script>
-    <script src="assets/js/admin-auth.js"></script>
-    <script src="assets/js/components/navbar.js"></script>
-    <script src="assets/js/message-manager.js"></script>
-    <script src="assets/js/components/config.js?v=1755962745"></script>
+
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/config.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/inline-styles.css?v=' + RESOURCE_VERSION + '">');
+    </script>
 </head>
 <body>
     <div id="app">

@@ -138,6 +138,7 @@ class WebSocketFactory {
 }
 
 // 导出到全局
+// 全局暴露（浏览器环境）
 if (typeof window !== 'undefined') {
     window.WebSocketFactory = WebSocketFactory;
 }
