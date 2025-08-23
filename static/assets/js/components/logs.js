@@ -2,42 +2,13 @@
 const API = window.API;
 
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
 
-// 消息管理器 - 右下角显示
-const MessageManager = {
-    success(message) {
-        ElMessage({
-            message: message,
-            type: 'success',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    error(message) {
-        ElMessage({
-            message: message,
-            type: 'error',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    warning(message) {
-        ElMessage({
-            message: message,
-            type: 'warning',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    info(message) {
-        ElMessage({
-            message: message,
-            type: 'info',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    }
+// SimpleUI消息管理器
+const MessageManager = window.SimpleUI ? window.SimpleUI.MessageManager : {
+    success: (message) => console.log('SUCCESS:', message),
+    error: (message) => console.error('ERROR:', message),
+    warning: (message) => console.warn('WARNING:', message),
+    info: (message) => console.info('INFO:', message)
 };
 
 const app = createApp({
@@ -137,22 +108,14 @@ const app = createApp({
         },
         
         async clearLogs() {
-            try {
-                await ElMessageBox.confirm('确定要清空所有日志吗？', '警告', {
-                    confirmButtonText: '确定',
-                    cancelButtonText: '取消',
-                    type: 'warning'
-                });
-                
-                // 目前没有清空日志API，只清空前端显示
-                this.logs = [];
-                this.filteredLogs = [];
-                MessageManager.success('日志显示已清空');
-            } catch (error) {
-                if (error !== 'cancel') {
-                    MessageManager.error('清空日志失败');
-                }
+            if (!confirm('确定要清空所有日志吗？')) {
+                return;
             }
+            
+            // 目前没有清空日志API，只清空前端显示
+            this.logs = [];
+            this.filteredLogs = [];
+            MessageManager.success('日志显示已清空');
         },
         
         toggleAutoRefresh() {
@@ -270,7 +233,6 @@ const app = createApp({
     }
 });
 
-app.use(ElementPlus);
 // 注册导航栏组件
 if (window.NavBar) {
     app.component('nav-bar', window.NavBar);

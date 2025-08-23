@@ -31,8 +31,8 @@
                     <div class="info-row">
                         <span class="label">角色：</span>
                         <span class="value">
-                            <el-tag v-if="currentAdmin.is_super_admin" type="danger">超级管理员</el-tag>
-                            <el-tag v-else>普通管理员</el-tag>
+                            <span v-if="currentAdmin.is_super_admin" class="tag tag-danger">超级管理员</span>
+                            <span v-else class="tag tag-info">普通管理员</span>
                         </span>
                     </div>
                     <div class="info-row">
@@ -40,7 +40,7 @@
                         <span class="value">{{ formatDateTime(currentAdmin.last_login) }}</span>
                     </div>
                     <div class="action-buttons">
-                        <el-button type="primary" @click="showChangePasswordDialog">修改密码</el-button>
+                        <button class="btn btn-primary" @click="showChangePasswordDialog">修改密码</button>
                     </div>
                 </div>
             </div>
@@ -49,64 +49,68 @@
             <div v-if="currentAdmin.is_super_admin" class="admin-list-card">
                 <div class="card-header">
                     <h3>管理员列表</h3>
-                    <el-button type="primary" @click="showCreateAdminDialog">+ 添加管理员</el-button>
+                    <button class="btn btn-primary" @click="showCreateAdminDialog">+ 添加管理员</button>
                 </div>
                 <div class="card-body">
-                    <el-table :data="admins" class="w-100" stripe>
-                        <el-table-column prop="username" label="用户名" width="150" show-overflow-tooltip></el-table-column>
-                        <el-table-column label="角色" width="120">
-                            <template #default="scope">
-                                <el-tag v-if="scope.row.is_super_admin" type="danger">超级管理员</el-tag>
-                                <el-tag v-else>普通管理员</el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="状态" width="100">
-                            <template #default="scope">
-                                <el-tag :type="scope.row.is_active ? 'success' : 'info'">
-                                    {{ scope.row.is_active ? '启用' : '禁用' }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="权限" min-width="200">
-                            <template #default="scope">
-                                <div v-if="scope.row.is_super_admin">
-                                    <el-tag type="danger">所有权限</el-tag>
-                                </div>
-                                <div v-else>
-                                    <el-tag v-for="perm in scope.row.permissions" :key="perm" 
-                                            class="m-2">
-                                        {{ getPermissionLabel(perm) }}
-                                    </el-tag>
-                                </div>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="最后登录" width="180">
-                            <template #default="scope">
-                                {{ formatDateTime(scope.row.last_login) || '从未登录' }}
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="创建时间" width="180">
-                            <template #default="scope">
-                                {{ formatDateTime(scope.row.created_at) }}
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="200" fixed="right">
-                            <template #default="scope">
-                                <el-button v-if="scope.row.id !== currentAdmin.id" 
-                                         size="small" 
-                                         @click="showEditAdminDialog(scope.row)">
-                                    编辑
-                                </el-button>
-                                <el-button v-if="scope.row.id !== currentAdmin.id" 
-                                         size="small" 
-                                         type="danger" 
-                                         @click="deleteAdmin(scope.row)">
-                                    删除
-                                </el-button>
-                                <span v-else class="text-muted">当前账号</span>
-                            </template>
-                        </el-table-column>
-                    </el-table>
+                    <div class="table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>用户名</th>
+                                    <th>角色</th>
+                                    <th>状态</th>
+                                    <th>权限</th>
+                                    <th>最后登录</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="admin in admins" :key="admin.id" class="admin-row">
+                                    <td class="username-cell">{{ admin.username }}</td>
+                                    <td class="role-cell">
+                                        <span v-if="admin.is_super_admin" class="tag tag-danger">超级管理员</span>
+                                        <span v-else class="tag tag-info">普通管理员</span>
+                                    </td>
+                                    <td class="status-cell">
+                                        <span :class="admin.is_active ? 'tag tag-success' : 'tag tag-warning'">
+                                            {{ admin.is_active ? '启用' : '禁用' }}
+                                        </span>
+                                    </td>
+                                    <td class="permissions-cell">
+                                        <div v-if="admin.is_super_admin">
+                                            <span class="tag tag-danger">所有权限</span>
+                                        </div>
+                                        <div v-else class="permission-tags">
+                                            <span v-for="perm in admin.permissions" :key="perm" 
+                                                  class="tag tag-secondary permission-tag">
+                                                {{ getPermissionLabel(perm) }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="datetime-cell">
+                                        {{ formatDateTime(admin.last_login) || '从未登录' }}
+                                    </td>
+                                    <td class="datetime-cell">
+                                        {{ formatDateTime(admin.created_at) }}
+                                    </td>
+                                    <td class="actions-cell">
+                                        <div v-if="admin.id !== currentAdmin.id" class="action-buttons">
+                                            <button class="btn btn-small btn-primary" 
+                                                    @click="showEditAdminDialog(admin)">
+                                                编辑
+                                            </button>
+                                            <button class="btn btn-small btn-danger" 
+                                                    @click="deleteAdmin(admin)">
+                                                删除
+                                            </button>
+                                        </div>
+                                        <span v-else class="current-admin-note">当前账号</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -130,116 +134,210 @@
         </div>
 
         <!-- 修改密码对话框 -->
-        <el-dialog v-model="changePasswordDialog.visible" title="修改密码" width="400px">
-            <el-form :model="changePasswordDialog.form" label-width="100px">
-                <el-form-item label="原密码" required>
-                    <el-input v-model="changePasswordDialog.form.old_password" 
-                            type="password" 
-                            placeholder="请输入原密码"
-                            show-password></el-input>
-                </el-form-item>
-                <el-form-item label="新密码" required>
-                    <el-input v-model="changePasswordDialog.form.new_password" 
-                            type="password" 
-                            placeholder="请输入新密码（至少6位）"
-                            show-password></el-input>
-                </el-form-item>
-                <el-form-item label="确认密码" required>
-                    <el-input v-model="changePasswordDialog.form.confirm_password" 
-                            type="password" 
-                            placeholder="请再次输入新密码"
-                            show-password></el-input>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="changePasswordDialog.visible = false">取消</el-button>
-                <el-button type="primary" @click="changePassword" :loading="changePasswordDialog.loading">
-                    确定
-                </el-button>
-            </template>
-        </el-dialog>
+        <div v-if="changePasswordDialog.visible" class="modal-overlay" @click="closeChangePasswordDialog">
+            <div class="modal-dialog" @click.stop>
+                <div class="modal-header">
+                    <h3>修改密码</h3>
+                    <button class="modal-close-btn" @click="closeChangePasswordDialog">×</button>
+                </div>
+                <div class="modal-body">
+                    <form class="form" @submit.prevent="changePassword">
+                        <div class="form-row">
+                            <label class="form-label">原密码 <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <input type="password" 
+                                       v-model="changePasswordDialog.form.old_password"
+                                       placeholder="请输入原密码"
+                                       class="form-input"
+                                       required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">新密码 <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <input type="password" 
+                                       v-model="changePasswordDialog.form.new_password"
+                                       placeholder="请输入新密码（至少6位）"
+                                       class="form-input"
+                                       minlength="6"
+                                       required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">确认密码 <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <input type="password" 
+                                       v-model="changePasswordDialog.form.confirm_password"
+                                       placeholder="请再次输入新密码"
+                                       class="form-input"
+                                       required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @click="closeChangePasswordDialog">取消</button>
+                    <button class="btn btn-primary" 
+                            @click="changePassword" 
+                            :disabled="changePasswordDialog.loading">
+                        <span v-if="changePasswordDialog.loading">修改中...</span>
+                        <span v-else>确定</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- 创建管理员对话框 -->
-        <el-dialog v-model="createAdminDialog.visible" title="添加管理员" width="80%">
-            <el-form :model="createAdminDialog.form" label-width="100px">
-                <el-form-item label="用户名" required>
-                    <el-input v-model="createAdminDialog.form.username" 
-                            placeholder="请输入用户名"></el-input>
-                </el-form-item>
-                <el-form-item label="密码" required>
-                    <el-input v-model="createAdminDialog.form.password" 
-                            type="password" 
-                            placeholder="请输入密码（至少6位）"
-                            show-password></el-input>
-                </el-form-item>
-                <el-form-item label="角色">
-                    <el-switch v-model="createAdminDialog.form.is_super_admin"
-                             active-text="超级管理员"
-                             inactive-text="普通管理员"></el-switch>
-                </el-form-item>
-                <el-form-item v-if="!createAdminDialog.form.is_super_admin" label="权限">
-                    <el-checkbox-group v-model="createAdminDialog.form.permissions" class="permission-checkbox-group">
-                        <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
-                            <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
-                            <div class="permission-checkbox-grid">
-                                <el-checkbox v-for="perm in perms" :key="perm.name" :label="perm.name" class="permission-checkbox-item">
-                                    {{ perm.description }}
-                                </el-checkbox>
+        <div v-if="createAdminDialog.visible" class="modal-overlay" @click="closeCreateAdminDialog">
+            <div class="modal-dialog modal-lg" @click.stop>
+                <div class="modal-header">
+                    <h3>添加管理员</h3>
+                    <button class="modal-close-btn" @click="closeCreateAdminDialog">×</button>
+                </div>
+                <div class="modal-body">
+                    <form class="form" @submit.prevent="createAdmin">
+                        <div class="form-row">
+                            <label class="form-label">用户名 <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <input type="text" 
+                                       v-model="createAdminDialog.form.username"
+                                       placeholder="请输入用户名"
+                                       class="form-input"
+                                       required>
                             </div>
                         </div>
-                    </el-checkbox-group>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="createAdminDialog.visible = false">取消</el-button>
-                <el-button type="primary" @click="createAdmin" :loading="createAdminDialog.loading">
-                    创建
-                </el-button>
-            </template>
-        </el-dialog>
+                        <div class="form-row">
+                            <label class="form-label">密码 <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <input type="password" 
+                                       v-model="createAdminDialog.form.password"
+                                       placeholder="请输入密码（至少6位）"
+                                       class="form-input"
+                                       minlength="6"
+                                       required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">角色</label>
+                            <div class="switch-wrapper">
+                                <label class="switch">
+                                    <input type="checkbox" v-model="createAdminDialog.form.is_super_admin">
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="switch-label">
+                                    {{ createAdminDialog.form.is_super_admin ? '超级管理员' : '普通管理员' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div v-if="!createAdminDialog.form.is_super_admin" class="form-row">
+                            <label class="form-label">权限分配</label>
+                            <div class="permission-checkbox-group">
+                                <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
+                                    <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
+                                    <div class="permission-checkbox-grid">
+                                        <label v-for="perm in perms" :key="perm.name" class="checkbox-wrapper">
+                                            <input type="checkbox" 
+                                                   :value="perm.name"
+                                                   v-model="createAdminDialog.form.permissions">
+                                            <span class="checkbox-label">{{ perm.description }}</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @click="closeCreateAdminDialog">取消</button>
+                    <button class="btn btn-primary" 
+                            @click="createAdmin" 
+                            :disabled="createAdminDialog.loading">
+                        <span v-if="createAdminDialog.loading">创建中...</span>
+                        <span v-else>创建</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- 编辑管理员对话框 -->
-        <el-dialog v-model="editAdminDialog.visible" title="编辑管理员" width="80%">
-            <el-form :model="editAdminDialog.form" label-width="100px">
-                <el-form-item label="用户名">
-                    <el-input :value="editAdminDialog.admin?.username" disabled></el-input>
-                </el-form-item>
-                <el-form-item label="新密码">
-                    <el-input v-model="editAdminDialog.form.password" 
-                            type="password" 
-                            placeholder="留空则不修改密码"
-                            show-password></el-input>
-                </el-form-item>
-                <el-form-item label="状态">
-                    <el-switch v-model="editAdminDialog.form.is_active"
-                             active-text="启用"
-                             inactive-text="禁用"></el-switch>
-                </el-form-item>
-                <el-form-item label="角色">
-                    <el-switch v-model="editAdminDialog.form.is_super_admin"
-                             active-text="超级管理员"
-                             inactive-text="普通管理员"></el-switch>
-                </el-form-item>
-                <el-form-item v-if="!editAdminDialog.form.is_super_admin" label="权限">
-                    <el-checkbox-group v-model="editAdminDialog.form.permissions" class="permission-checkbox-group">
-                        <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
-                            <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
-                            <div class="permission-checkbox-grid">
-                                <el-checkbox v-for="perm in perms" :key="perm.name" :label="perm.name" class="permission-checkbox-item">
-                                    {{ perm.description }}
-                                </el-checkbox>
+        <div v-if="editAdminDialog.visible" class="modal-overlay" @click="closeEditAdminDialog">
+            <div class="modal-dialog modal-lg" @click.stop>
+                <div class="modal-header">
+                    <h3>编辑管理员</h3>
+                    <button class="modal-close-btn" @click="closeEditAdminDialog">×</button>
+                </div>
+                <div class="modal-body">
+                    <form class="form" @submit.prevent="updateAdmin">
+                        <div class="form-row">
+                            <label class="form-label">用户名</label>
+                            <div class="input-wrapper">
+                                <input type="text" 
+                                       :value="editAdminDialog.admin?.username"
+                                       class="form-input" disabled>
                             </div>
                         </div>
-                    </el-checkbox-group>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="editAdminDialog.visible = false">取消</el-button>
-                <el-button type="primary" @click="updateAdmin" :loading="editAdminDialog.loading">
-                    保存
-                </el-button>
-            </template>
-        </el-dialog>
+                        <div class="form-row">
+                            <label class="form-label">新密码</label>
+                            <div class="input-wrapper">
+                                <input type="password" 
+                                       v-model="editAdminDialog.form.password"
+                                       placeholder="留空则不修改密码"
+                                       class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">状态</label>
+                            <div class="switch-wrapper">
+                                <label class="switch">
+                                    <input type="checkbox" v-model="editAdminDialog.form.is_active">
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="switch-label">
+                                    {{ editAdminDialog.form.is_active ? '启用' : '禁用' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">角色</label>
+                            <div class="switch-wrapper">
+                                <label class="switch">
+                                    <input type="checkbox" v-model="editAdminDialog.form.is_super_admin">
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="switch-label">
+                                    {{ editAdminDialog.form.is_super_admin ? '超级管理员' : '普通管理员' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div v-if="!editAdminDialog.form.is_super_admin" class="form-row">
+                            <label class="form-label">权限分配</label>
+                            <div class="permission-checkbox-group">
+                                <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
+                                    <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
+                                    <div class="permission-checkbox-grid">
+                                        <label v-for="perm in perms" :key="perm.name" class="checkbox-wrapper">
+                                            <input type="checkbox" 
+                                                   :value="perm.name"
+                                                   v-model="editAdminDialog.form.permissions">
+                                            <span class="checkbox-label">{{ perm.description }}</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @click="closeEditAdminDialog">取消</button>
+                    <button class="btn btn-primary" 
+                            @click="updateAdmin" 
+                            :disabled="editAdminDialog.loading">
+                        <span v-if="editAdminDialog.loading">保存中...</span>
+                        <span v-else>保存</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 外部脚本文件 -->

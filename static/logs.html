@@ -16,96 +16,102 @@
         <div class="container">
             <div class="logs-container">
                         <!-- 控制栏 -->
-                        <el-row :gutter="20" class="control-bar">
-                            <el-col :span="24">
-                                <el-card shadow="never">
+                        <div class="control-bar">
+                            <div class="card">
+                                <div class="card-content">
                                     <div class="flex-gap-15">
                                         <!-- 日志类型选择 -->
-                                        <el-select v-model="selectedLogType" placeholder="选择日志类型" @change="changeLogType" class="w-160">
-                                            <el-option label="📡 Telegram采集" value="collector"></el-option>
-                                            <el-option label="🌐 Web服务" value="web"></el-option>
-                                            <el-option label="⏰ 调度服务" value="scheduler"></el-option>
-                                            <el-option label="❌ 错误日志" value="error"></el-option>
-                                            <el-option label="📄 全部日志" value="all"></el-option>
-                                        </el-select>
+                                        <select v-model="selectedLogType" @change="changeLogType" class="select w-160">
+                                            <option value="collector">📡 Telegram采集</option>
+                                            <option value="web">🌐 Web服务</option>
+                                            <option value="scheduler">⏰ 调度服务</option>
+                                            <option value="error">❌ 错误日志</option>
+                                            <option value="all">📄 全部日志</option>
+                                        </select>
                                         
                                         <!-- 日志级别选择 -->
-                                        <el-select v-model="selectedLevel" placeholder="选择日志级别" clearable @change="filterLogs" class="w-140">
-                                            <el-option label="全部" value=""></el-option>
-                                            <el-option label="DEBUG" value="DEBUG"></el-option>
-                                            <el-option label="INFO" value="INFO"></el-option>
-                                            <el-option label="WARNING" value="WARNING"></el-option>
-                                            <el-option label="ERROR" value="ERROR"></el-option>
-                                            <el-option label="CRITICAL" value="CRITICAL"></el-option>
-                                        </el-select>
+                                        <select v-model="selectedLevel" @change="filterLogs" class="select w-140">
+                                            <option value="">全部</option>
+                                            <option value="DEBUG">DEBUG</option>
+                                            <option value="INFO">INFO</option>
+                                            <option value="WARNING">WARNING</option>
+                                            <option value="ERROR">ERROR</option>
+                                            <option value="CRITICAL">CRITICAL</option>
+                                        </select>
                                         
                                         <!-- 搜索框 -->
-                                        <el-input 
-                                            v-model="searchText" 
-                                            placeholder="搜索日志内容..." 
-                                            @input="filterLogs"
-                                            clearable
-                                            class="flex-1 max-w-400"
-                                        >
-                                            <template #prefix>
-                                                <el-icon><search></search></el-icon>
-                                            </template>
-                                        </el-input>
+                                        <div class="input-group flex-1 max-w-400">
+                                            <span class="input-icon">🔍</span>
+                                            <input 
+                                                v-model="searchText" 
+                                                @input="filterLogs"
+                                                placeholder="搜索日志内容..." 
+                                                class="input"
+                                                type="text"
+                                            />
+                                            <button v-if="searchText" @click="searchText = ''; filterLogs();" class="clear-btn">×</button>
+                                        </div>
                                         
                                         <!-- 按钮组 -->
                                         <div class="margin-auto flex-gap-10">
-                                            <el-button @click="toggleAutoRefresh" :type="autoRefresh ? 'success' : 'info'" size="default">
-                                                <el-icon><timer></timer></el-icon>
+                                            <button @click="toggleAutoRefresh" :class="'btn ' + (autoRefresh ? 'btn-success' : 'btn-info')">
+                                                <span class="btn-icon">⏰</span>
                                                 {{ autoRefresh ? '停止自动刷新' : '开始自动刷新' }}
-                                            </el-button>
-                                            <el-button @click="clearLogs" type="warning" size="default">
-                                                <el-icon><delete></delete></el-icon>
+                                            </button>
+                                            <button @click="clearLogs" class="btn btn-warning">
+                                                <span class="btn-icon">🗑️</span>
                                                 清空日志
-                                            </el-button>
+                                            </button>
                                         </div>
                                     </div>
-                                </el-card>
-                            </el-col>
-                        </el-row>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- 日志显示区域 -->
-                        <el-card shadow="never" class="logs-display">
-                            <div class="logs-header">
-                                <h3>{{ getLogTypeLabel() }}日志 <span class="timestamp">{{ lastUpdate }}</span></h3>
-                                <p class="text-12 text-info" style="margin: 0;">
-                                    📌 最新日志显示在顶部，按时间倒序排列 | 当前显示: {{ getLogTypeLabel() }}
-                                </p>
+                        <div class="card logs-display">
+                            <div class="card-header">
+                                <div class="logs-header">
+                                    <h3>{{ getLogTypeLabel() }}日志 <span class="timestamp">{{ lastUpdate }}</span></h3>
+                                    <p class="text-12 text-info" style="margin: 0;">
+                                        📌 最新日志显示在顶部，按时间倒序排列 | 当前显示: {{ getLogTypeLabel() }}
+                                    </p>
+                                </div>
                             </div>
                             
-                            <div class="logs-content" ref="logsContainer">
-                                <div v-if="filteredLogs.length === 0" class="no-logs">
-                                    <el-empty description="暂无日志数据"></el-empty>
-                                </div>
-                                
-                                <div 
-                                    v-for="(log, index) in filteredLogs" 
-                                    :key="index" 
-                                    class="log-entry"
-                                    :class="'log-level-' + (log.level || 'info').toLowerCase()"
-                                >
-                                    <div class="log-compact">
-                                        <span class="log-time">{{ formatTime(log.timestamp || log.time || '') }}</span>
-                                        <span :class="'log-level log-level-' + (log.level || 'info').toLowerCase()">{{ log.level || 'INFO' }}</span>
-                                        <span class="log-text">{{ log.message || log.content || 'No message' }}</span>
+                            <div class="card-content">
+                                <div class="logs-content" ref="logsContainer">
+                                    <div v-if="filteredLogs.length === 0" class="no-logs">
+                                        <div class="empty-state">
+                                            <div class="empty-icon">📄</div>
+                                            <div class="empty-text">暂无日志数据</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div 
+                                        v-for="(log, index) in filteredLogs" 
+                                        :key="index" 
+                                        class="log-entry"
+                                        :class="'log-level-' + (log.level || 'info').toLowerCase()"
+                                    >
+                                        <div class="log-compact">
+                                            <span class="log-time">{{ formatTime(log.timestamp || log.time || '') }}</span>
+                                            <span :class="'log-level log-level-' + (log.level || 'info').toLowerCase()">{{ log.level || 'INFO' }}</span>
+                                            <span class="log-text">{{ log.message || log.content || 'No message' }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </el-card>
+                        </div>
 
             </div>
         </div>
     </div>
 
-    <!-- Vue 和 ElementPlus -->
+    <!-- Vue -->
     <script defer src="assets/js/vue.prod.js?v=1755809999"></script>
     <!-- 轻量级UI系统 -->
     <script defer src="assets/js/core/simple-ui.js?v=1755809999"></script>
-    <script defer src="assets/js/core/ui-wrapper.js?v=1755809999"></script>
     <script defer src="assets/js/axios.js?v=1755809999"></script>
     <script defer src="assets/js/config/api-endpoints.js?v=1755809999"></script>
     <script defer src="assets/js/components/navbar.js?v=1755809999"></script>

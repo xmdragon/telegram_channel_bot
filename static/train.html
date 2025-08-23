@@ -6,62 +6,72 @@
     <title>🤖 AI训练中心</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
-    <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/training-common.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/training-manager.css?v=1755809999">
     <link rel="stylesheet" href="assets/css/train.css?v=1755809999">
-    <link rel="stylesheet" href="assets/css/training-nav.css?v=1755809999">
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="🤖 AI训练中心"></nav-bar>
+        <nav class="navbar">
+            <div class="navbar-content">
+                <h1 class="navbar-title">🤖 AI训练中心</h1>
+                <button class="btn-back" onclick="window.location.href='/static/admin.html'">← 返回</button>
+            </div>
+        </nav>
         
         <div class="container">
             <!-- 子导航 -->
-            <training-nav :active-tab="trainingMode"></training-nav>
+            <div class="training-nav">
+                <button class="nav-btn" :class="{active: trainingMode === 'tail'}" @click="setTrainingMode('tail')">📏 尾部训练</button>
+                <button class="nav-btn" :class="{active: trainingMode === 'ad'}" @click="setTrainingMode('ad')">🚫 广告训练</button>
+                <button class="nav-btn" :class="{active: trainingMode === 'separator'}" @click="setTrainingMode('separator')">⚙️ 分隔符</button>
+                <button class="nav-btn" :class="{active: trainingMode === 'promo'}" @click="setTrainingMode('promo')">🔗 推广链接</button>
+                <button class="nav-btn" :class="{active: trainingMode === 'data'}" @click="setTrainingMode('data')">📁 数据管理</button>
+            </div>
             
-            <!-- AI训练标签页 -->
-            <el-tabs v-model="activeTab" type="border-card" class="config-tabs" v-if="trainingMode !== 'data'">
+            <!-- 训练标签页 -->
+            <div class="training-tabs" v-if="trainingMode !== 'data'">
+                <div class="tab-nav">
+                    <button class="tab-btn" :class="{active: activeTab === 'train'}" @click="activeTab = 'train'">✏️ 手动训练</button>
+                    <button class="tab-btn" :class="{active: activeTab === 'help'}" @click="activeTab = 'help'">📖 使用说明</button>
+                </div>
+                
                 <!-- 手动训练 -->
-                <el-tab-pane label="✏️ 手动训练" name="train">
+                <div class="tab-pane" v-show="activeTab === 'train'">
                     <div class="config-section" v-if="trainingMode === 'tail'">
                         <!-- 统计信息栏 -->
-                        <div class="stats-section compact">
-                            <div class="stats-inline">
-                                <div class="stat-item-inline">
-                                    <span class="stat-label">总样本数:</span>
-                                    <span class="stat-value">{{ stats.totalChannels }}</span>
+                        <div class="stats-section">
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-label">总样本数</div>
+                                    <div class="stat-value">{{ stats.totalChannels }}</div>
                                 </div>
-                                <div class="stat-item-inline">
-                                    <span class="stat-label">有效样本:</span>
-                                    <span class="stat-value">{{ stats.trainedChannels }}</span>
+                                <div class="stat-card">
+                                    <div class="stat-label">有效样本</div>
+                                    <div class="stat-value">{{ stats.trainedChannels }}</div>
                                 </div>
-                                <div class="stat-item-inline">
-                                    <span class="stat-label">包含分隔符:</span>
-                                    <span class="stat-value">{{ stats.totalSamples }}</span>
+                                <div class="stat-card">
+                                    <div class="stat-label">包含分隔符</div>
+                                    <div class="stat-value">{{ stats.totalSamples }}</div>
                                 </div>
-                                <div class="stat-item-inline">
-                                    <span class="stat-label">今日新增:</span>
-                                    <span class="stat-value">{{ stats.todayTraining }}</span>
+                                <div class="stat-card">
+                                    <div class="stat-label">今日新增</div>
+                                    <div class="stat-value">{{ stats.todayTraining }}</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- 训练表单 -->
-                        <el-card class="training-form-card">
-                            <template #header>
-                                <div class="card-header">
-                                    <span>📝 添加训练样本</span>
-                                </div>
-                            </template>
+                        <div class="form-card">
+                            <div class="card-header">
+                                <h3>📝 添加训练样本</h3>
+                            </div>
                             
-                            <el-form :model="trainingForm" label-width="120px" label-position="top">
-                                <el-form-item label="原始消息内容" required>
+                            <form class="training-form">
+                                <div class="form-group">
+                                    <label class="form-label required">原始消息内容</label>
                                     <!-- 内容类型指示器 -->
-                                    <div v-if="trainingForm.contentType" class="content-type-indicator" 
-                                         :class="trainingForm.contentType === 'filtered' ? 'filtered-content' : 'original-content'">
+                                    <div v-if="trainingForm.contentType" class="content-indicator" 
+                                         :class="trainingForm.contentType === 'filtered' ? 'filtered' : 'original'">
                                         <span v-if="trainingForm.contentType === 'filtered'">
                                             🔍 已加载过滤后内容 - 便于选择尾部特征
                                         </span>
@@ -69,137 +79,139 @@
                                             📄 已加载原始内容
                                         </span>
                                     </div>
-                                    <el-input
+                                    <textarea
+                                        class="form-textarea"
                                         v-model="trainingForm.original_message"
-                                        type="textarea"
-                                        :rows="8"
+                                        rows="8"
                                         placeholder="粘贴完整的原始消息内容，包括正文和尾部推广..."
-                                        @input="updatePreview">
-                                    </el-input>
+                                        @input="updatePreview"></textarea>
                                     <div class="char-count">{{ trainingForm.original_message.length }} 字符</div>
-                                </el-form-item>
+                                </div>
                                 
-                                <el-form-item label="推广尾部内容" required>
-                                    <el-input
+                                <div class="form-group">
+                                    <label class="form-label required">推广尾部内容</label>
+                                    <textarea
+                                        class="form-textarea"
                                         v-model="trainingForm.tail_content"
-                                        type="textarea"
-                                        :rows="6"
-                                        placeholder="粘贴需要过滤的尾部内容，如：
-👌订阅频道：@miandianDs
-👌投稿爆料：@QianQian106
-👌海外交友：@tmiandianKs"
-                                        @input="updatePreview">
-                                    </el-input>
+                                        rows="6"
+                                        placeholder="粘贴需要过滤的尾部内容，如：&#10;👌订阅频道：@miandianDs&#10;👌投稿爆料：@QianQian106&#10;👌海外交友：@tmiandianKs"
+                                        @input="updatePreview"></textarea>
                                     <div class="char-count">{{ trainingForm.tail_content.length }} 字符</div>
-                                </el-form-item>
+                                </div>
                                 
                                 <!-- 预览区域 -->
-                                <el-form-item label="过滤后预览" v-if="filteredPreview">
+                                <div class="form-group" v-if="filteredPreview">
+                                    <label class="form-label">过滤后预览</label>
                                     <div class="preview-box">
                                         <pre>{{ filteredPreview }}</pre>
                                     </div>
-                                </el-form-item>
+                                </div>
                                 
-                                <el-form-item>
-                                    <el-button @click="clearForm">清空</el-button>
-                                    <el-button type="primary" @click="submitTraining" :loading="submitting">
-                                        提交训练样本
-                                    </el-button>
-                                </el-form-item>
-                            </el-form>
-                        </el-card>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-secondary" @click="clearForm">清空</button>
+                                    <button type="button" class="btn btn-primary" @click="submitTraining" :disabled="submitting">
+                                        <span v-if="submitting">提交中...</span>
+                                        <span v-else>提交训练样本</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                     
                     <!-- 广告检测训练表单 -->
                     <div class="config-section" v-if="trainingMode === 'ad'">
-                        <el-card class="training-form-card">
-                            <template #header>
-                                <div class="card-header">
-                                    <span>🚫 广告检测训练</span>
-                                </div>
-                            </template>
+                        <div class="form-card">
+                            <div class="card-header">
+                                <h3>🚫 广告检测训练</h3>
+                            </div>
                             
-                            <el-form :model="adTrainingForm" label-width="120px" label-position="top">
-                                <el-form-item label="训练内容" required>
-                                    <el-input
+                            <form class="training-form">
+                                <div class="form-group">
+                                    <label class="form-label required">训练内容</label>
+                                    <textarea
+                                        class="form-textarea"
                                         v-model="adTrainingForm.content"
-                                        type="textarea"
-                                        :rows="8"
-                                        placeholder="粘贴需要训练的消息内容（广告或正常消息）...">
-                                    </el-input>
-                                </el-form-item>
+                                        rows="8"
+                                        placeholder="粘贴需要训练的消息内容（广告或正常消息）..."></textarea>
+                                </div>
                                 
-                                <el-form-item label="标记类型" required>
-                                    <el-radio-group v-model="adTrainingForm.is_ad">
-                                        <el-radio :label="true">🚫 这是广告</el-radio>
-                                        <el-radio :label="false">✅ 这是正常消息</el-radio>
-                                    </el-radio-group>
-                                </el-form-item>
+                                <div class="form-group">
+                                    <label class="form-label required">标记类型</label>
+                                    <div class="radio-group">
+                                        <label class="radio-item">
+                                            <input type="radio" v-model="adTrainingForm.is_ad" :value="true">
+                                            <span class="radio-label">🚫 这是广告</span>
+                                        </label>
+                                        <label class="radio-item">
+                                            <input type="radio" v-model="adTrainingForm.is_ad" :value="false">
+                                            <span class="radio-label">✅ 这是正常消息</span>
+                                        </label>
+                                    </div>
+                                </div>
                                 
-                                <el-form-item label="描述说明">
-                                    <el-input
+                                <div class="form-group">
+                                    <label class="form-label">描述说明</label>
+                                    <textarea
+                                        class="form-textarea"
                                         v-model="adTrainingForm.description"
-                                        type="textarea"
-                                        :rows="3"
-                                        placeholder="可选：描述这条消息的特征，如'频道推广列表'、'隐藏按钮广告'等">
-                                    </el-input>
-                                </el-form-item>
+                                        rows="3"
+                                        placeholder="可选：描述这条消息的特征，如'频道推广列表'、'隐藏按钮广告'等"></textarea>
+                                </div>
                                 
-                                <el-form-item>
-                                    <el-button @click="adTrainingForm = {content: '', is_ad: true, description: ''}">清空</el-button>
-                                    <el-button type="primary" @click="submitAdTraining" :loading="submitting">
-                                        提交广告训练样本
-                                    </el-button>
-                                </el-form-item>
-                            </el-form>
-                        </el-card>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-secondary" @click="adTrainingForm = {content: '', is_ad: true, description: ''}">清空</button>
+                                    <button type="button" class="btn btn-primary" @click="submitAdTraining" :disabled="submitting">
+                                        <span v-if="submitting">提交中...</span>
+                                        <span v-else>提交广告训练样本</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                     
                     <!-- 分隔符配置表单 -->
                     <div class="config-section" v-if="trainingMode === 'separator'">
-                        <el-card class="training-form-card">
-                            <template #header>
-                                <div class="card-header">
-                                    <span>⚙️ 分隔符模式配置</span>
-                                    <el-button type="primary" size="small" @click="saveSeparatorPatterns">
-                                        保存配置
-                                    </el-button>
-                                </div>
-                            </template>
+                        <div class="form-card">
+                            <div class="card-header">
+                                <h3>⚙️ 分隔符模式配置</h3>
+                                <button class="btn btn-primary btn-small" @click="saveSeparatorPatterns">
+                                    保存配置
+                                </button>
+                            </div>
                             
                             <div class="separator-patterns">
                                 <div v-for="(pattern, index) in separatorPatterns" :key="index" class="pattern-item">
-                                    <el-row :gutter="10">
-                                        <el-col :span="10">
-                                            <el-input
+                                    <div class="pattern-row">
+                                        <div class="pattern-col">
+                                            <input
+                                                class="form-input"
                                                 v-model="pattern.regex"
                                                 placeholder="正则表达式，如：━{10,}">
-                                            </el-input>
-                                        </el-col>
-                                        <el-col :span="10">
-                                            <el-input
+                                        </div>
+                                        <div class="pattern-col">
+                                            <input
+                                                class="form-input"
                                                 v-model="pattern.description"
                                                 placeholder="描述，如：横线分隔符">
-                                            </el-input>
-                                        </el-col>
-                                        <el-col :span="4">
-                                            <el-button type="danger" @click="removeSeparatorPattern(index)">
+                                        </div>
+                                        <div class="pattern-col-small">
+                                            <button class="btn btn-danger" @click="removeSeparatorPattern(index)">
                                                 删除
-                                            </el-button>
-                                        </el-col>
-                                    </el-row>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 
-                                <el-button @click="addSeparatorPattern" class="mt-2">
+                                <button class="btn btn-secondary add-pattern" @click="addSeparatorPattern">
                                     + 添加分隔符模式
-                                </el-button>
+                                </button>
                             </div>
                             
-                            <el-divider></el-divider>
+                            <div class="divider"></div>
                             
-                            <div class="help-text">
+                            <div class="help-section">
                                 <h4>📝 常用分隔符示例</h4>
-                                <ul>
+                                <ul class="help-list">
                                     <li><code>━{10,}</code> - 连续10个或以上的横线</li>
                                     <li><code>═{10,}</code> - 连续10个或以上的双线</li>
                                     <li><code>─{10,}</code> - 连续10个或以上的细线</li>
@@ -207,90 +219,108 @@
                                     <li><code>-{10,}</code> - 连续10个或以上的短横线</li>
                                 </ul>
                             </div>
-                        </el-card>
+                        </div>
                     </div>
                     
                     <!-- 推广链接训练表单 -->
                     <div class="config-section" v-if="trainingMode === 'promo'">
-                        <el-card class="training-form-card">
-                            <template #header>
-                                <div class="card-header">
-                                    <span>🔗 推广链接训练</span>
-                                </div>
-                            </template>
+                        <div class="form-card">
+                            <div class="card-header">
+                                <h3>🔗 推广链接训练</h3>
+                            </div>
                             
-                            <el-form :model="promoTrainingForm" label-width="120px" label-position="top">
-                                <el-form-item label="完整消息内容" required>
-                                    <el-input
+                            <form class="training-form">
+                                <div class="form-group">
+                                    <label class="form-label required">完整消息内容</label>
+                                    <textarea
+                                        class="form-textarea"
                                         v-model="promoTrainingForm.full_content"
-                                        type="textarea"
-                                        :rows="10"
-                                        placeholder="粘贴包含尾部推广链接的完整消息内容...">
-                                    </el-input>
+                                        rows="10"
+                                        placeholder="粘贴包含尾部推广链接的完整消息内容..."></textarea>
                                     <div class="char-count">{{ promoTrainingForm.full_content.length }} 字符</div>
-                                </el-form-item>
+                                </div>
                                 
-                                <el-form-item label="推广链接部分" required>
-                                    <el-input
+                                <div class="form-group">
+                                    <label class="form-label required">推广链接部分</label>
+                                    <textarea
+                                        class="form-textarea"
                                         v-model="promoTrainingForm.promo_section"
-                                        type="textarea"
-                                        :rows="6"
-                                        placeholder="标记需要过滤的推广链接部分，例如：
-🔔 订阅📡东南亚曝光台
-🔗  t.me/dny9527
-☎️ 投稿曝料：@stan0505">
-                                    </el-input>
+                                        rows="6"
+                                        placeholder="标记需要过滤的推广链接部分，例如：&#10;🔔 订阅📡东南亚曝光台&#10;🔗  t.me/dny9527&#10;☎️ 投稿曝料：@stan0505"></textarea>
                                     <div class="char-count">{{ promoTrainingForm.promo_section.length }} 字符</div>
-                                </el-form-item>
+                                </div>
                                 
-                                <el-form-item label="分隔符类型">
-                                    <el-select v-model="promoTrainingForm.separator_type" placeholder="选择分隔符类型">
-                                        <el-option label="横线类 (━━━)" value="line_separator"></el-option>
-                                        <el-option label="等号类 (===)" value="equal_separator"></el-option>
-                                        <el-option label="加号类 (+++)" value="plus_separator"></el-option>
-                                        <el-option label="Emoji分隔" value="emoji_separator"></el-option>
-                                        <el-option label="无明显分隔符" value="no_separator"></el-option>
-                                    </el-select>
-                                </el-form-item>
+                                <div class="form-group">
+                                    <label class="form-label">分隔符类型</label>
+                                    <select class="form-select" v-model="promoTrainingForm.separator_type">
+                                        <option value="">选择分隔符类型</option>
+                                        <option value="line_separator">横线类 (━━━)</option>
+                                        <option value="equal_separator">等号类 (===)</option>
+                                        <option value="plus_separator">加号类 (+++)</option>
+                                        <option value="emoji_separator">Emoji分隔</option>
+                                        <option value="no_separator">无明显分隔符</option>
+                                    </select>
+                                </div>
                                 
-                                <el-form-item label="推广特征" required>
-                                    <el-checkbox-group v-model="promoTrainingForm.promo_features">
-                                        <el-checkbox label="订阅频道">订阅频道链接</el-checkbox>
-                                        <el-checkbox label="投稿爆料">投稿爆料联系</el-checkbox>
-                                        <el-checkbox label="商务合作">商务合作联系</el-checkbox>
-                                        <el-checkbox label="多个@用户名">多个@用户名</el-checkbox>
-                                        <el-checkbox label="Markdown链接">Markdown格式链接</el-checkbox>
-                                        <el-checkbox label="直接链接">直接URL链接</el-checkbox>
-                                    </el-checkbox-group>
-                                </el-form-item>
+                                <div class="form-group">
+                                    <label class="form-label required">推广特征</label>
+                                    <div class="checkbox-group">
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" v-model="promoTrainingForm.promo_features" value="订阅频道">
+                                            <span class="checkbox-label">订阅频道链接</span>
+                                        </label>
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" v-model="promoTrainingForm.promo_features" value="投稿爆料">
+                                            <span class="checkbox-label">投稿爆料联系</span>
+                                        </label>
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" v-model="promoTrainingForm.promo_features" value="商务合作">
+                                            <span class="checkbox-label">商务合作联系</span>
+                                        </label>
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" v-model="promoTrainingForm.promo_features" value="多个@用户名">
+                                            <span class="checkbox-label">多个@用户名</span>
+                                        </label>
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" v-model="promoTrainingForm.promo_features" value="Markdown链接">
+                                            <span class="checkbox-label">Markdown格式链接</span>
+                                        </label>
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" v-model="promoTrainingForm.promo_features" value="直接链接">
+                                            <span class="checkbox-label">直接URL链接</span>
+                                        </label>
+                                    </div>
+                                </div>
                                 
                                 <!-- 预览区域 -->
-                                <el-form-item label="过滤后预览" v-if="promoFilteredPreview">
+                                <div class="form-group" v-if="promoFilteredPreview">
+                                    <label class="form-label">过滤后预览</label>
                                     <div class="preview-box">
                                         <pre>{{ promoFilteredPreview }}</pre>
                                     </div>
-                                </el-form-item>
+                                </div>
                                 
-                                <el-form-item>
-                                    <el-button @click="clearPromoForm">清空</el-button>
-                                    <el-button type="primary" @click="submitPromoTraining" :loading="submitting">
-                                        提交推广链接训练样本
-                                    </el-button>
-                                    <el-button @click="previewPromoFilter">预览过滤效果</el-button>
-                                </el-form-item>
-                            </el-form>
-                        </el-card>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-secondary" @click="clearPromoForm">清空</button>
+                                    <button type="button" class="btn btn-primary" @click="submitPromoTraining" :disabled="submitting">
+                                        <span v-if="submitting">提交中...</span>
+                                        <span v-else>提交推广链接训练样本</span>
+                                    </button>
+                                    <button type="button" class="btn btn-tertiary" @click="previewPromoFilter">预览过滤效果</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </el-tab-pane>
+                </div>
                 
 
                 <!-- 使用说明 -->
-                <el-tab-pane label="📖 使用说明" name="help">
+                <div class="tab-pane" v-show="activeTab === 'help'">
                     <div class="config-section">
-                        <el-card>
+                        <div class="card">
                             <h3>🎯 AI训练使用指南</h3>
                             
-                            <el-divider></el-divider>
+                            <hr class="divider">
                             
                             <h4>1. 手动训练步骤</h4>
                             <ol>
@@ -302,7 +332,7 @@
                                 <li>重复多次以增加训练效果（建议至少5-10个样本）</li>
                             </ol>
                             
-                            <el-divider></el-divider>
+                            <hr class="divider">
                             
                             <h4>2. 自动应用</h4>
                             <ul>
@@ -311,7 +341,7 @@
                                 <li>结合规则过滤，提供双重保障</li>
                             </ul>
                             
-                            <el-divider></el-divider>
+                            <hr class="divider">
                             
                             <h4>3. 常见推广格式示例</h4>
                             <pre class="example-box">
@@ -324,7 +354,7 @@
 🔗 更多精彩 t.me/xxx
                             </pre>
                             
-                            <el-divider></el-divider>
+                            <hr class="divider">
                             
                             <h4>4. 注意事项</h4>
                             <ul>
@@ -333,10 +363,10 @@
                                 <li>训练样本越多，AI识别越准确</li>
                                 <li>可以随时查看和删除训练历史</li>
                             </ul>
-                        </el-card>
+                        </div>
                     </div>
-                </el-tab-pane>
-            </el-tabs>
+                </div>
+            </div>
             
             <!-- 数据管理界面 (独立于标签页) -->
             <div v-if="trainingMode === 'data'" class="config-section">
@@ -350,7 +380,7 @@
                         </div>
                     </div>
 
-                    <el-divider></el-divider>
+                    <hr class="divider">
 
                     <!-- 统计信息栏 -->
                     <div class="stats-section compact">
@@ -374,7 +404,7 @@
                         </div>
                     </div>
 
-                    <el-divider></el-divider>
+                    <hr class="divider">
 
                     <h4 class="section-title">🛠️ 数据类型</h4>
                     <div class="data-type-section">
@@ -402,7 +432,7 @@
                         </div>
                     </div>
 
-                    <el-divider></el-divider>
+                    <hr class="divider">
 
                     <h4 class="section-title">🔧 管理功能</h4>
                     <div class="feature-list">

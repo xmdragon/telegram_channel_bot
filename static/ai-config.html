@@ -4,240 +4,233 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI配置管理 - Telegram消息采集审核系统</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
-    <!-- Element Plus CSS -->
     <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755809999">
-    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755809999">
     <link rel="stylesheet" href="assets/css/ai-config.css?v=1755809999">
 </head>
 <body>
     <div id="app">
-        <el-container class="ai-config-container">
-            <!-- 顶部导航 -->
-            <el-header class="header">
-                <div class="header-left">
-                    <h1 class="page-title">
-                        <i class="el-icon-cpu"></i>
-                        AI配置管理
-                    </h1>
-                </div>
-                <div class="header-right">
-                    <el-button @click="refreshStatus" :loading="loading">
-                        <i class="el-icon-refresh"></i>
-                        刷新状态
-                    </el-button>
-                    <el-button @click="goBack" type="primary">
-                        <i class="el-icon-back"></i>
-                        返回主页
-                    </el-button>
-                </div>
-            </el-header>
+        <!-- 导航栏 -->
+        <nav-bar page-title="🤖 AI配置管理">
+            <template #actions>
+                <button class="btn btn-secondary" @click="refreshStatus" :disabled="loading">
+                    <span class="btn-icon">🔄</span>
+                    刷新状态
+                </button>
+                <button class="btn btn-primary" @click="goBack">
+                    <span class="btn-icon">←</span>
+                    返回主页
+                </button>
+            </template>
+        </nav-bar>
 
-            <!-- 主内容区 -->
-            <el-main class="main-content">
+        <div class="container">
+            <div class="ai-config-container">
+
                 <!-- 状态概览 -->
-                <el-card class="status-overview" shadow="hover">
-                    <template #header>
-                        <div class="card-header">
-                            <span>系统状态概览</span>
-                            <el-tag :type="aiStatus.ai_enabled ? 'success' : 'danger'">
-                                AI功能{{ aiStatus.ai_enabled ? '已启用' : '已禁用' }}
-                            </el-tag>
-                        </div>
-                    </template>
+                <div class="card status-overview mb-24">
+                    <div class="card-header">
+                        <h3>系统状态概览</h3>
+                        <span class="badge" :class="aiStatus.ai_enabled ? 'badge-success' : 'badge-danger'">
+                            AI功能{{ aiStatus.ai_enabled ? '已启用' : '已禁用' }}
+                        </span>
+                    </div>
                     
-                    <el-row :gutter="20">
-                        <el-col :span="8">
-                            <div class="status-item">
-                                <div class="status-label">启动模式</div>
-                                <div class="status-value">{{ aiStatus.startup_mode || '未知' }}</div>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">启动模式</div>
+                            <div class="status-value">{{ aiStatus.startup_mode || '未知' }}</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">深度学习支持</div>
+                            <div class="status-value">
+                                <span class="badge" :class="aiStatus.dependencies?.sentence_transformers ? 'badge-success' : 'badge-warning'">
+                                    {{ aiStatus.dependencies?.sentence_transformers ? '可用' : '不可用' }}
+                                </span>
                             </div>
-                        </el-col>
-                        <el-col :span="8">
-                            <div class="status-item">
-                                <div class="status-label">深度学习支持</div>
-                                <div class="status-value">
-                                    <el-tag :type="aiStatus.dependencies?.sentence_transformers ? 'success' : 'warning'">
-                                        {{ aiStatus.dependencies?.sentence_transformers ? '可用' : '不可用' }}
-                                    </el-tag>
-                                </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">轻量级模式</div>
+                            <div class="status-value">
+                                <span class="badge badge-success">始终可用</span>
                             </div>
-                        </el-col>
-                        <el-col :span="8">
-                            <div class="status-item">
-                                <div class="status-label">轻量级模式</div>
-                                <div class="status-value">
-                                    <el-tag type="success">始终可用</el-tag>
-                                </div>
-                            </div>
-                        </el-col>
-                    </el-row>
-                </el-card>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- 全局配置 -->
-                <el-card class="global-config" shadow="hover">
-                    <template #header>
-                        <div class="card-header">
-                            <span>全局AI配置</span>
-                        </div>
-                    </template>
-                    
-                    <el-form :model="globalConfig" inline>
-                        <el-form-item label="AI运行模式">
-                            <el-select v-model="globalConfig.ai_mode" placeholder="选择AI模式">
-                                <el-option label="自动模式" value="auto"></el-option>
-                                <el-option label="轻量级模式" value="lightweight"></el-option>
-                                <el-option label="深度学习模式" value="deep"></el-option>
-                                <el-option label="禁用AI" value="disabled"></el-option>
-                            </el-select>
-                        </el-form-item>
-                        
-                        <el-form-item>
-                            <el-button type="primary" @click="updateGlobalConfig" :loading="saving">
-                                应用配置
-                            </el-button>
-                        </el-form-item>
-                    </el-form>
-                    
-                    <div class="mode-description">
-                        <el-alert
-                            :title="getModeDescription(globalConfig.ai_mode)"
-                            type="info"
-                            :closable="false"
-                            show-icon>
-                        </el-alert>
+                <div class="card global-config mb-24">
+                    <div class="card-header">
+                        <h3>全局AI配置</h3>
                     </div>
-                </el-card>
+                    
+                    <div class="form-inline">
+                        <div class="form-group">
+                            <label class="form-label">AI运行模式</label>
+                            <select class="form-select" v-model="globalConfig.ai_mode">
+                                <option value="auto">自动模式</option>
+                                <option value="lightweight">轻量级模式</option>
+                                <option value="deep">深度学习模式</option>
+                                <option value="disabled">禁用AI</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn btn-primary" @click="updateGlobalConfig" :disabled="saving">
+                            <span v-if="saving" class="btn-icon">⏳</span>
+                            应用配置
+                        </button>
+                    </div>
+                    
+                    <div class="alert alert-info mt-16">
+                        <span class="alert-icon">ℹ️</span>
+                        {{ getModeDescription(globalConfig.ai_mode) }}
+                    </div>
+                </div>
 
                 <!-- AI模块配置 -->
-                <el-card class="modules-config" shadow="hover">
-                    <template #header>
-                        <div class="card-header">
-                            <span>AI模块配置</span>
-                        </div>
-                    </template>
+                <div class="card modules-config mb-24">
+                    <div class="card-header">
+                        <h3>AI模块配置</h3>
+                    </div>
                     
-                    <el-table :data="moduleList" stripe>
-                        <el-table-column prop="name" label="模块名称" width="200"></el-table-column>
-                        <el-table-column prop="description" label="模块描述" width="250"></el-table-column>
-                        
-                        <el-table-column label="启用状态" width="120">
-                            <template #default="scope">
-                                <el-switch
-                                    v-model="scope.row.enabled"
-                                    @change="updateModuleConfig(scope.row.name, scope.row.enabled, scope.row.mode)">
-                                </el-switch>
-                            </template>
-                        </el-table-column>
-                        
-                        <el-table-column label="运行模式" width="150">
-                            <template #default="scope">
-                                <el-select 
-                                    v-model="scope.row.mode" 
-                                    size="small"
-                                    @change="updateModuleConfig(scope.row.name, scope.row.enabled, scope.row.mode)"
-                                    :disabled="!scope.row.enabled"
-                                >
-                                    <el-option label="自动" value="auto"></el-option>
-                                    <el-option label="轻量级" value="lightweight"></el-option>
-                                    <el-option label="深度学习" value="deep"></el-option>
-                                    <el-option label="规则基础" value="rule_based"></el-option>
-                                </el-select>
-                            </template>
-                        </el-table-column>
-                        
-                        <el-table-column label="实际模式" width="120">
-                            <template #default="scope">
-                                <el-tag :type="getActualModeType(scope.row.actual_mode)">
-                                    {{ scope.row.actual_mode }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        
-                        <el-table-column label="工作状态" width="120">
-                            <template #default="scope">
-                                <el-tag :type="scope.row.is_working ? 'success' : 'danger'">
-                                    {{ scope.row.is_working ? '正常' : '停用' }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                </el-card>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>模块名称</th>
+                                    <th>模块描述</th>
+                                    <th>启用状态</th>
+                                    <th>运行模式</th>
+                                    <th>实际模式</th>
+                                    <th>工作状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="module in moduleList" :key="module.name">
+                                    <td class="font-weight-bold">{{ module.name }}</td>
+                                    <td>{{ module.description }}</td>
+                                    <td>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" 
+                                                   v-model="module.enabled"
+                                                   @change="updateModuleConfig(module.name, module.enabled, module.mode)">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm" 
+                                                v-model="module.mode" 
+                                                @change="updateModuleConfig(module.name, module.enabled, module.mode)"
+                                                :disabled="!module.enabled">
+                                            <option value="auto">自动</option>
+                                            <option value="lightweight">轻量级</option>
+                                            <option value="deep">深度学习</option>
+                                            <option value="rule_based">规则基础</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="getActualModeBadgeClass(module.actual_mode)">
+                                            {{ module.actual_mode }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="module.is_working ? 'badge-success' : 'badge-danger'">
+                                            {{ module.is_working ? '正常' : '停用' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
                 <!-- 模型缓存管理 -->
-                <el-card class="cache-management" shadow="hover" v-if="aiStatus.dependencies?.sentence_transformers">
-                    <template #header>
-                        <div class="card-header">
-                            <span>模型缓存管理</span>
-                        </div>
-                    </template>
+                <div class="card cache-management mb-24" v-if="aiStatus.dependencies?.sentence_transformers">
+                    <div class="card-header">
+                        <h3>模型缓存管理</h3>
+                    </div>
                     
-                    <el-row :gutter="20">
-                        <el-col :span="12">
-                            <div class="cache-info">
-                                <p><strong>缓存目录：</strong>{{ aiStatus.cache_info?.cache_dir || '未设置' }}</p>
-                                <p><strong>缓存大小：</strong>{{ aiStatus.cache_info?.cache_size_mb || 0 }} MB</p>
-                                <p><strong>已缓存模型：</strong>{{ (aiStatus.cache_info?.cached_models || []).length }} 个</p>
+                    <div class="cache-grid">
+                        <div class="cache-info">
+                            <div class="info-item">
+                                <span class="info-label">缓存目录：</span>
+                                <span class="info-value">{{ aiStatus.cache_info?.cache_dir || '未设置' }}</span>
                             </div>
-                        </el-col>
-                        <el-col :span="12">
-                            <div class="cache-actions">
-                                <el-button @click="clearModelCache" :loading="clearing" type="warning">
-                                    <i class="el-icon-delete"></i>
-                                    清理缓存
-                                </el-button>
-                                <el-button @click="trainLightweight" :loading="training" type="success">
-                                    <i class="el-icon-cpu"></i>
-                                    训练轻量级模型
-                                </el-button>
+                            <div class="info-item">
+                                <span class="info-label">缓存大小：</span>
+                                <span class="info-value">{{ aiStatus.cache_info?.cache_size_mb || 0 }} MB</span>
                             </div>
-                        </el-col>
-                    </el-row>
-                </el-card>
-
-                <!-- 配置建议 -->
-                <el-card class="recommendations" shadow="hover" v-if="recommendations.length > 0">
-                    <template #header>
-                        <div class="card-header">
-                            <span>配置建议</span>
+                            <div class="info-item">
+                                <span class="info-label">已缓存模型：</span>
+                                <span class="info-value">{{ (aiStatus.cache_info?.cached_models || []).length }} 个</span>
+                            </div>
                         </div>
-                    </template>
-                    
-                    <div v-for="rec in recommendations" :key="rec.title" class="recommendation-item">
-                        <el-alert
-                            :title="rec.title"
-                            :description="rec.message"
-                            :type="rec.type"
-                            show-icon
-                            :closable="false"
-                        >
-                        </el-alert>
-                        
-                        <div class="recommendation-action" v-if="rec.action">
-                            <el-button 
-                                size="small" 
-                                :type="rec.action.type === 'install' ? 'primary' : 'success'"
-                                @click="applyRecommendation(rec)"
-                            >
-                                {{ rec.action.description }}
-                            </el-button>
+                        <div class="cache-actions">
+                            <button class="btn btn-warning" @click="clearModelCache" :disabled="clearing">
+                                <span class="btn-icon">🗑️</span>
+                                <span v-if="clearing" class="btn-icon">⏳</span>
+                                清理缓存
+                            </button>
+                            <button class="btn btn-success" @click="trainLightweight" :disabled="training">
+                                <span class="btn-icon">🤖</span>
+                                <span v-if="training" class="btn-icon">⏳</span>
+                                训练轻量级模型
+                            </button>
                         </div>
                     </div>
-                </el-card>
-            </el-main>
-        </el-container>
+                </div>
+
+                <!-- 配置建议 -->
+                <div class="card recommendations mb-24" v-if="recommendations.length > 0">
+                    <div class="card-header">
+                        <h3>配置建议</h3>
+                    </div>
+                    
+                    <div v-for="rec in recommendations" :key="rec.title" class="recommendation-item mb-16">
+                        <div class="alert" :class="getAlertClass(rec.type)">
+                            <span class="alert-icon">{{ getAlertIcon(rec.type) }}</span>
+                            <div class="alert-content">
+                                <div class="alert-title">{{ rec.title }}</div>
+                                <div class="alert-message">{{ rec.message }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="recommendation-action mt-8" v-if="rec.action">
+                            <button class="btn btn-sm" 
+                                    :class="rec.action.type === 'install' ? 'btn-primary' : 'btn-success'"
+                                    @click="applyRecommendation(rec)">
+                                {{ rec.action.description }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态消息 -->
+        <div v-if="statusMessage" class="status-message" :class="statusType">
+            {{ statusMessage }}
+        </div>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">{{ loadingMessage }}</p>
+            </div>
+        </div>
     </div>
 
-    <!-- Vue 3 和 Element Plus -->
     <script defer src="assets/js/vue.prod.js?v=1755809999"></script>
     <!-- 轻量级UI系统 -->
     <script defer src="assets/js/core/simple-ui.js?v=1755809999"></script>
     <script defer src="assets/js/core/ui-wrapper.js?v=1755809999"></script>
     <script defer src="assets/js/axios.js?v=1755809999"></script>
-    
-    <!-- API配置 -->
     <script defer src="assets/js/config/api-endpoints.js?v=1755809999"></script>
-    <!-- AI配置管理脚本 -->
+    <script defer src="assets/js/admin-auth.js?v=1755809999"></script>
+    <script defer src="assets/js/components/navbar.js?v=1755809999"></script>
     <script defer src="assets/js/components/ai-config.js?v=1755809999"></script>
 
 </body>

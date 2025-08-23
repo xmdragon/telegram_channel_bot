@@ -27,18 +27,17 @@
                         <div class="service-item" v-for="service in services" :key="service.name" 
                              :class="{ 'service-running': service.status === 'running', 'service-stopped': service.status !== 'running' }">
                             <div class="service-header">
-                                <div class="service-icon">
-                                    <i :class="getServiceIcon(service.name)"></i>
+                                <div class="service-icon" :class="getServiceIcon(service.name)">
                                 </div>
                                 <div class="service-info">
                                     <div class="service-name">{{ service.name }}</div>
                                     <div class="service-description">{{ service.description }}</div>
                                 </div>
                                 <div class="service-status">
-                                    <el-tag :type="service.status === 'running' ? 'success' : 'danger'" size="large" effect="dark">
-                                        <i :class="service.status === 'running' ? 'el-icon-check' : 'el-icon-close'"></i>
+                                    <div class="status-badge" :class="service.status === 'running' ? 'status-success' : 'status-danger'">
+                                        <span class="status-icon" :class="service.status === 'running' ? 'icon-check' : 'icon-close'"></span>
                                         {{ service.status === 'running' ? '运行中' : '已停止' }}
-                                    </el-tag>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -75,18 +74,18 @@
 
             <!-- 操作按钮 -->
             <div class="text-center mt-30">
-                <el-button @click="refreshStatus" type="primary">
-                    <el-icon><el-icon-refresh></el-icon-refresh></el-icon>
+                <button @click="refreshStatus" class="btn btn-primary">
+                    <span class="btn-icon">🔄</span>
                     刷新状态
-                </el-button>
-                <el-button @click="restartServices" type="warning">
-                    <el-icon><el-icon-refresh-right></el-icon-refresh-right></el-icon>
+                </button>
+                <button @click="restartServices" class="btn btn-warning">
+                    <span class="btn-icon">↻</span>
                     重启服务
-                </el-button>
-                <el-button @click="resetMessages" type="danger">
-                    <el-icon><el-icon-delete></el-icon-delete></el-icon>
+                </button>
+                <button @click="resetMessages" class="btn btn-danger">
+                    <span class="btn-icon">🗑️</span>
                     消息重置
-                </el-button>
+                </button>
             </div>
         </div>
         
@@ -105,13 +104,12 @@
                 <h3 style="margin-bottom: 20px; color: #00ff41; text-align: center;">
                     {{ getProgressTitle() }}
                 </h3>
-                <el-progress 
-                    :percentage="operationProgress.progress" 
-                    :stroke-width="20" 
-                    :color="progressColors"
-                    :show-text="true"
-                    :format="() => `${operationProgress.progress}%`">
-                </el-progress>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" :style="{width: operationProgress.progress + '%'}"></div>
+                    </div>
+                    <span class="progress-text">{{ operationProgress.progress }}%</span>
+                </div>
                 <p style="margin-top: 15px; color: #00ff41; text-align: center; font-size: 14px;">
                     {{ operationProgress.message }}
                 </p>
@@ -119,11 +117,10 @@
         </div>
     </div>
 
-    <!-- Vue 和 ElementPlus -->
+    <!-- Vue -->
     <script defer src="assets/js/vue.prod.js?v=1755809999"></script>
     <!-- 轻量级UI系统 -->
     <script defer src="assets/js/core/simple-ui.js?v=1755809999"></script>
-    <script defer src="assets/js/core/ui-wrapper.js?v=1755809999"></script>
     <script defer src="assets/js/axios.js?v=1755809999"></script>
     <script defer src="assets/js/config/api-endpoints.js?v=1755809999"></script>
     <script defer src="assets/js/admin-auth.js?v=1755809999"></script>

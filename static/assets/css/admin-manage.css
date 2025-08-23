@@ -101,61 +101,308 @@
     font-size: 12px;
 }
 
-/* Element Plus 样式覆盖 */
-.el-table {
+/* 原生表格样式 */
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
     font-size: 14px;
-}
-
-.el-table th {
-    background: var(--bg-secondary) !important;
-    color: var(--text-primary) !important;
-    font-weight: 500;
-}
-
-.el-table tr {
     background: var(--bg-primary);
 }
 
-.el-table tr:hover {
-    background: var(--bg-secondary) !important;
+.admin-table th {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 2px solid var(--border-color);
+    font-size: 13px;
+    letter-spacing: 0.5px;
 }
 
-.el-table td {
-    border-bottom: 1px solid var(--border-color) !important;
+.admin-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
 }
 
-.el-tag {
-    margin: 2px;
+.admin-row:hover {
+    background: var(--bg-hover);
 }
 
-.el-dialog {
-    border-radius: 12px !important;
-    max-width: 1200px;
+.username-cell {
+    font-weight: 500;
+    color: var(--text-primary);
 }
 
-.el-dialog__header {
+.role-cell, .status-cell {
+    text-align: center;
+}
+
+.permissions-cell {
+    max-width: 200px;
+}
+
+.permission-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.permission-tag {
+    font-size: 11px;
+    padding: 2px 6px;
+}
+
+.datetime-cell {
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.actions-cell {
+    text-align: center;
+}
+
+.current-admin-note {
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 12px;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-dialog {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-width: 600px;
+    width: 90vw;
+}
+
+.modal-lg {
+    max-width: 800px;
+}
+
+.modal-header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
-    padding: 15px 20px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.el-dialog__title {
-    color: white !important;
+.modal-header h3 {
+    margin: 0;
     font-size: 16px;
+    font-weight: 500;
 }
 
-.el-dialog__headerbtn .el-dialog__close {
-    color: white !important;
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
 }
 
-.el-form-item__label {
+.modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* 表单样式 */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.required {
+    color: var(--danger);
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.form-input:disabled {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+/* 开关样式 */
+.switch-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--primary);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+.switch-label {
     font-size: 14px;
     color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* 复选框样式 */
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.checkbox-wrapper:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.checkbox-label {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.4;
+    cursor: pointer;
 }
 
 /* 权限复选框网格布局 */
 .permission-checkbox-group {
     width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .permission-module-group {
@@ -174,40 +421,50 @@
 
 .permission-checkbox-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-}
-
-.permission-checkbox-item {
-    margin: 0 !important;
-    padding: 8px 12px;
-    background: var(--bg-primary);
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    transition: all 0.3s;
-}
-
-.permission-checkbox-item:hover {
-    border-color: var(--primary);
-    background: var(--bg-hover);
-}
-
-.permission-checkbox-item .el-checkbox__label {
-    font-size: 13px;
-    white-space: normal;
-    line-height: 1.4;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 8px;
 }
 
 /* 针对小屏幕的权限布局调整 */
 @media (max-width: 1200px) {
     .permission-checkbox-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    
+    .modal-lg {
+        max-width: 95vw;
     }
 }
 
 @media (max-width: 768px) {
     .permission-checkbox-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .modal-dialog {
+        width: 95vw;
+        max-height: 95vh;
+    }
+    
+    .admin-table {
+        font-size: 12px;
+    }
+    
+    .admin-table th,
+    .admin-table td {
+        padding: 8px 12px;
+    }
+    
+    .form-row {
+        gap: 8px;
+    }
+    
+    .modal-body {
+        padding: 16px;
+    }
+    
+    .modal-footer {
+        padding: 12px 16px;
     }
 }
 
@@ -221,7 +478,23 @@
         grid-template-columns: 1fr;
     }
     
-    .el-table {
-        font-size: 12px;
+    .card-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    
+    .table-wrapper {
+        font-size: 11px;
+    }
+    
+    .actions-cell .action-buttons {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .btn-small {
+        padding: 4px 8px;
+        font-size: 11px;
     }
 }

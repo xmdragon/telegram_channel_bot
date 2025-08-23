@@ -2,42 +2,13 @@
 const API = window.API;
 
 const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
 
-// 消息管理器 - 右下角显示
-const MessageManager = {
-    success(message) {
-        ElMessage({
-            message: message,
-            type: 'success',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    error(message) {
-        ElMessage({
-            message: message,
-            type: 'error',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    warning(message) {
-        ElMessage({
-            message: message,
-            type: 'warning',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    },
-    info(message) {
-        ElMessage({
-            message: message,
-            type: 'info',
-            offset: 20,
-            customClass: 'bottom-right-message'
-        });
-    }
+// SimpleUI消息管理器
+const MessageManager = window.SimpleUI ? window.SimpleUI.MessageManager : {
+    success: (message) => console.log('SUCCESS:', message),
+    error: (message) => console.error('ERROR:', message),
+    warning: (message) => console.warn('WARNING:', message),
+    info: (message) => console.info('INFO:', message)
 };
 
 const app = createApp({
@@ -74,7 +45,7 @@ const app = createApp({
                 lastUpdate: new Date().toLocaleString('zh-CN')
             },
             
-            // 进度条颜色配置
+            // 进度条颜色配置（保留数据结构用于可能的扩展）
             progressColors: [
                 { color: '#f56565', percentage: 20 },
                 { color: '#ed8936', percentage: 40 },
@@ -98,13 +69,14 @@ const app = createApp({
     
     methods: {
         getServiceIcon(serviceName) {
+            // 返回CSS类名而不是emoji，以便在CSS中控制显示
             const iconMap = {
-                'Telegram客户端': 'el-icon-message',
-                '消息处理器': 'el-icon-cpu',
-                '调度器': 'el-icon-timer',
-                'Redis存储': 'el-icon-coin'
+                'Telegram客户端': 'service-icon-telegram',
+                '消息处理器': 'service-icon-processor', 
+                '调度器': 'service-icon-scheduler',
+                'Redis存储': 'service-icon-storage'
             };
-            return iconMap[serviceName] || 'el-icon-service';
+            return iconMap[serviceName] || 'service-icon-default';
         },
         
         async loadSystemStatus() {
@@ -180,20 +152,14 @@ const app = createApp({
         },
         
         async restartServices() {
+            if (!confirm('确定要重启所有服务吗？这可能会暂时中断消息处理。')) {
+                return;
+            }
+                
+            this.loading = true;
+            this.loadingMessage = '正在重启服务...';
+            
             try {
-                await ElMessageBox.confirm(
-                    '确定要重启所有服务吗？这可能会暂时中断消息处理。',
-                    '重启确认',
-                    {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消',
-                        type: 'warning'
-                    }
-                );
-                
-                this.loading = true;
-                this.loadingMessage = '正在重启服务...';
-                
                 const response = await axios.post(API.system.restart);
                 if (response.data.success) {
                     MessageManager.success('服务重启成功');
@@ -205,35 +171,28 @@ const app = createApp({
                     MessageManager.error(response.data.message || '重启失败');
                 }
             } catch (error) {
-                if (error !== 'cancel') {
-                    MessageManager.error('重启服务失败');
-                }
+                MessageManager.error('重启服务失败');
             } finally {
                 this.loading = false;
             }
         },
         
         async resetMessages() {
+            const confirmMessage = '⚠️ 警告：此操作将执行以下危险操作：\n\n' +
+                '• 停止Telegram消息采集器\n' +
+                '• 清空所有消息数据\n' +
+                '• 清空临时媒体文件\n' +
+                '• 重置所有频道采集点为0\n\n' +
+                '此操作不可逆转！确定要继续吗？';
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            this.loading = true;
+            this.loadingMessage = '正在重置系统...';
+            
             try {
-                await ElMessageBox.confirm(
-                    '⚠️ 警告：此操作将执行以下危险操作：\n\n' +
-                    '• 停止Telegram消息采集器\n' +
-                    '• 清空所有消息数据\n' +
-                    '• 清空临时媒体文件\n' +
-                    '• 重置所有频道采集点为0\n\n' +
-                    '此操作不可逆转！确定要继续吗？',
-                    '🚨 消息重置确认',
-                    {
-                        confirmButtonText: '确定重置',
-                        cancelButtonText: '取消',
-                        type: 'error',
-                        dangerouslyUseHTMLString: true
-                    }
-                );
-                
-                this.loading = true;
-                this.loadingMessage = '正在重置系统...';
-                
                 const response = await axios.post(API.system.reset);
                 if (response.data.success) {
                     MessageManager.success(
@@ -248,9 +207,7 @@ const app = createApp({
                     MessageManager.error(response.data.message || '重置失败');
                 }
             } catch (error) {
-                if (error !== 'cancel') {
-                    MessageManager.error('重置系统失败');
-                }
+                MessageManager.error('重置系统失败');
             } finally {
                 this.loading = false;
             }
@@ -353,7 +310,6 @@ const app = createApp({
     }
 });
 
-app.use(ElementPlus);
 // 注册导航栏组件
 if (window.NavBar) {
     app.component('nav-bar', window.NavBar);
