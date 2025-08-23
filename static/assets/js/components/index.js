@@ -629,14 +629,6 @@ const MainApp = {
                         // 替换整个列表
                         this.messages = newMessages;
                         
-                        // 🔍 调试: 分析消息对比显示问题
-                        if (window.MessageComparisonDebug && window.MessageComparisonDebug.enableDebug) {
-                            
-                            // 分析消息数据
-                            setTimeout(() => {
-                                window.MessageComparisonDebug.analyzeAllMessages(newMessages);
-                            }, 1000);
-                        }
                         
                         // 强制Vue重新渲染
                         this.$nextTick(() => {

@@ -527,10 +527,6 @@ const TrainApp = {
                     ? this.trainingForm.original_message.substring(0, tailIndex).trim()
                     : this.trainingForm.original_message;
                 
-                // 数据处理结果（调试模式下显示）
-                if (window.DEBUG) {
-                    // 调试信息可在此处添加
-                }
                 
                 // 打印调试信息
                 //     content: this.trainingForm.original_message,
@@ -556,17 +552,9 @@ const TrainApp = {
                     message_id: this.trainingForm.message_id  // 传递message_id
                 };
                 
-                // 发送API请求（调试模式下显示）
-                if (window.DEBUG) {
-                    // API调用信息可在此处添加
-                }
                 
                 const response = await axios.post(API.training.tailFilterSamples, postData);
                 
-                // 收到API响应（调试模式下显示）
-                if (window.DEBUG) {
-                    // API响应信息可在此处添加
-                }
                 
                 if (response.data.success) {
                     // 显示实际的响应消息
