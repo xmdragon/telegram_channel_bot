@@ -128,14 +128,16 @@ const LinusStatsComponent = {
             if (!stats) return;
             
             try {
-                // 更新消息状态统计
+                // 更新消息状态统计（保护labels）
                 if (stats.message_status) {
-                    this.messageStatus = { ...this.messageStatus, ...stats.message_status };
+                    const { labels, ...statusData } = stats.message_status;
+                    Object.assign(this.messageStatus, statusData);
                 }
                 
-                // 更新拒绝原因分析
+                // 更新拒绝原因分析（保护labels）
                 if (stats.rejection_analysis) {
-                    this.rejectionAnalysis = { ...this.rejectionAnalysis, ...stats.rejection_analysis };
+                    const { labels, ...analysisData } = stats.rejection_analysis;
+                    Object.assign(this.rejectionAnalysis, analysisData);
                 }
                 
                 // 更新一致性状态
