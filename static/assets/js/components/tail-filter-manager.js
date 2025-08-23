@@ -164,7 +164,7 @@ const app = createApp({
         
         // 跳转到训练页面
         goToTrainingPage() {
-            window.location.href = '/static/train.html';
+            window.location.href = '/static/ad-training-manager.html';
         },
         
         // 处理搜索
