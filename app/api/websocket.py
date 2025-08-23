@@ -37,17 +37,20 @@ class WebSocketManager:
             self.disconnect(websocket)
             
     async def broadcast(self, message: str):
-        """广播消息给所有连接"""
+        """广播消息给所有连接 - Linus式：使用副本消除并发问题"""
         if not self.active_connections:
             return
             
-        disconnected = set()
-        for connection in self.active_connections:
+        # 创建连接集合的副本，避免"Set changed size during iteration"错误
+        connections_copy = list(self.active_connections)
+        disconnected = []
+        
+        for connection in connections_copy:
             try:
                 await connection.send_text(message)
             except Exception as e:
                 logger.error(f"广播消息失败: {e}")
-                disconnected.add(connection)
+                disconnected.append(connection)
                 
         # 清理断开的连接
         for connection in disconnected:
@@ -115,7 +118,14 @@ websocket_manager = WebSocketManager()
 async def handle_websocket_message(websocket: WebSocket, message: str):
     """处理WebSocket消息 - Linus式双向通信"""
     try:
+        # Linus式错误处理：垃圾输入优雅丢弃，不报错
+        if not isinstance(message, str):
+            return  # 直接忽略非字符串消息
+            
         data = json.loads(message)
+        if not isinstance(data, dict):
+            return  # 忽略非字典格式的消息
+            
         msg_type = data.get("type")
         request_id = data.get("request_id")
         

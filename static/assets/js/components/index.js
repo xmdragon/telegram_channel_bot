@@ -78,7 +78,16 @@ const MainApp = {
             },
             fileDetailsDialog: {
                 visible: false,
-                details: null
+                details: {
+                    fileName: '',
+                    originalFileName: '',
+                    path: '',
+                    type: '',
+                    size: '',
+                    hash: '',
+                    createTime: '',
+                    tags: []
+                }
             },
             editDialog: {
                 visible: false,
@@ -207,7 +216,19 @@ const MainApp = {
             this.mediaPreview = { show: false, url: null };
         }
         if (!this.fileDetailsDialog) {
-            this.fileDetailsDialog = { visible: false, details: null };
+            this.fileDetailsDialog = {
+                visible: false,
+                details: {
+                    fileName: '',
+                    originalFileName: '',
+                    path: '',
+                    type: '',
+                    size: '',
+                    hash: '',
+                    createTime: '',
+                    tags: []
+                }
+            };
         }
         if (!this.editDialog) {
             this.editDialog = { visible: false, messageId: null, filteredContent: '', originalMessage: null };
@@ -1628,7 +1649,7 @@ const MainApp = {
         startHeartbeat() {
             this.heartbeatInterval = setInterval(() => {
                 if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-                    this.websocket.send('ping');
+                    this.websocket.send(JSON.stringify({type: 'ping'}));
                 }
             }, 30000); // 30秒心跳
         },

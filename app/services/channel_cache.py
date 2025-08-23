@@ -99,8 +99,12 @@ class ChannelCache:
                         target_channel_id = resolved_id
             
             if target_channel_id:
-                self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
-                logger.info(f"目标频道ID已缓存: {target_channel_id}")
+                # Linus式：Redis不可用时优雅降级，不阻塞服务启动
+                try:
+                    self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
+                    logger.info(f"目标频道ID已缓存: {target_channel_id}")
+                except Exception as cache_error:
+                    logger.warning(f"目标频道ID缓存失败（Redis不可用）: {cache_error}")
             
             # 解析并缓存审核群（优先使用已保存的ID）
             review_group_id = await self.config_manager.get_config('review.group_id', '')
@@ -112,8 +116,11 @@ class ChannelCache:
                         review_group_id = resolved_id
             
             if review_group_id:
-                self.redis_store.redis.set('cache:review_group_id', review_group_id)
-                logger.info(f"审核群ID已缓存: {review_group_id}")
+                try:
+                    self.redis_store.redis.set('cache:review_group_id', review_group_id)
+                    logger.info(f"审核群ID已缓存: {review_group_id}")
+                except Exception as cache_error:
+                    logger.warning(f"审核群ID缓存失败（Redis不可用）: {cache_error}")
             
             # 解析并缓存所有监听频道
             from app.storage.json_store import get_json_channel_store
@@ -131,7 +138,11 @@ class ChannelCache:
                             logger.info(f"监听频道ID已缓存: {channel_name} -> {resolved_id}")
                 
                 if cache_data:
-                    await self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
+                    try:
+                        await self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
+                        logger.info(f"监听频道缓存已保存: {len(cache_data)}个频道")
+                    except Exception as cache_error:
+                        logger.warning(f"监听频道缓存失败（Redis不可用）: {cache_error}")
             
             logger.info("频道ID缓存初始化完成")
             

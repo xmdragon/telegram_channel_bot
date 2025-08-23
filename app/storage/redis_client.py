@@ -37,7 +37,7 @@ def get_redis_client(redis_url: str = None):
                 _redis_client.ping()
                 logger.info("Redis连接池初始化成功")
             except Exception as ping_error:
-                logger.warning(f"Redis暂时不可用，服务将在后台重试: {ping_error}")
+                logger.debug(f"Redis启动时序延迟，服务将自动重试: {ping_error}")
                 # 继续启动，不阻塞服务
             
         except Exception as e:

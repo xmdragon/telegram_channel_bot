@@ -49,7 +49,8 @@ const app = createApp({
             selectedLogType: 'collector', // 默认选择Telegram采集日志
             searchText: '',
             autoRefresh: true,
-            refreshInterval: null,
+            websocket: null,
+            isWebSocketConnected: false,
             lastUpdate: new Date().toLocaleString('zh-CN')
         };
     },
@@ -166,18 +167,13 @@ const app = createApp({
         },
         
         startAutoRefresh() {
-            if (this.autoRefresh && !this.refreshInterval) {
-                this.refreshInterval = setInterval(() => {
-                    this.loadLogs();
-                }, 1000); // 每1秒刷新一次，实现更实时的效果
+            if (this.autoRefresh && !this.isWebSocketConnected) {
+                this.connectWebSocket();
             }
         },
         
         stopAutoRefresh() {
-            if (this.refreshInterval) {
-                clearInterval(this.refreshInterval);
-                this.refreshInterval = null;
-            }
+            this.disconnectWebSocket();
         },
         
         async changeLogType() {
@@ -197,6 +193,79 @@ const app = createApp({
                 'all': '全部日志'
             };
             return labels[this.selectedLogType] || 'Telegram采集';
+        },
+
+        // WebSocket连接管理 - Linus式推送替代轮询
+        connectWebSocket() {
+            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                return; // 已连接，无需重复连接
+            }
+
+            try {
+                // 使用API配置中的WebSocket URL
+                const wsUrl = window.API ? window.API.websocket.main : 'ws://localhost:8000/ws';
+                this.websocket = new WebSocket(wsUrl);
+
+                this.websocket.onopen = () => {
+                    this.isWebSocketConnected = true;
+                    MessageManager.success('实时日志推送已启用');
+                    
+                    // 订阅日志更新
+                    this.websocket.send(JSON.stringify({
+                        type: 'subscribe',
+                        channel: 'logs',
+                        log_type: this.selectedLogType
+                    }));
+                };
+
+                this.websocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        this.handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.warn('WebSocket消息解析失败:', error);
+                    }
+                };
+
+                this.websocket.onclose = () => {
+                    this.isWebSocketConnected = false;
+                    this.websocket = null;
+                    
+                    // 如果是自动刷新模式且页面还在，尝试重连
+                    if (this.autoRefresh) {
+                        setTimeout(() => this.connectWebSocket(), 3000);
+                    }
+                };
+
+                this.websocket.onerror = (error) => {
+                    console.error('WebSocket错误:', error);
+                    MessageManager.error('实时日志连接失败，已回退到手动刷新');
+                };
+
+            } catch (error) {
+                console.error('WebSocket连接失败:', error);
+                MessageManager.error('无法建立实时连接');
+            }
+        },
+
+        disconnectWebSocket() {
+            if (this.websocket) {
+                this.websocket.close();
+                this.websocket = null;
+                this.isWebSocketConnected = false;
+            }
+        },
+
+        handleWebSocketMessage(data) {
+            if (data.type === 'log_update' && data.data && data.data.logs) {
+                // 服务器推送的日志更新
+                if (data.data.log_type === this.selectedLogType) {
+                    // 添加新日志到列表顶部
+                    this.logs = [...data.data.logs, ...this.logs].slice(0, 100); // 保持100条限制
+                    this.filterLogs();
+                    this.lastUpdate = new Date().toLocaleString('zh-CN');
+                }
+            }
         }
     }
 });

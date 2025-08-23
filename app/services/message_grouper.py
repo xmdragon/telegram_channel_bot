@@ -414,15 +414,33 @@ class MessageGrouper:
                 'created_at': processed_data.get('date', combined_message.get('date'))
             }
             
-            # 保存到Redis
-            saved_message = await processor.process_new_message(save_data)
-            if saved_message:
-                logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
-                
-                # 通知前端组合消息已创建
-                await self._notify_combined_message_created(saved_message)
-            else:
-                logger.error(f"❌ 组合消息保存到Redis失败: {channel_id}:{processed_data['message_id']}")
+            # 保存到Redis - Linus式：提供详细失败原因
+            try:
+                saved_message = await processor.process_new_message(save_data)
+                if saved_message:
+                    logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
+                    
+                    # 通知前端组合消息已创建
+                    await self._notify_combined_message_created(saved_message)
+                else:
+                    # 获取详细失败原因
+                    from app.storage.redis_store import redis_message_store
+                    if redis_message_store is None:
+                        failure_reason = "Redis存储未初始化"
+                    else:
+                        # 检查具体可能的原因
+                        try:
+                            redis_message_store.ping()
+                            failure_reason = "消息处理器返回None - 可能数据格式不匹配或过滤条件不满足"
+                        except Exception as redis_error:
+                            failure_reason = f"Redis连接失败: {redis_error}"
+                    
+                    logger.error(f"❌ 组合消息保存失败: {channel_id}:{processed_data['message_id']} - 原因: {failure_reason}")
+                    logger.error(f"保存数据概况: content={len(save_data.get('content', ''))}字符, "
+                               f"status={save_data.get('status')}, "
+                               f"media={bool(save_data.get('media_hash'))}")
+            except Exception as process_error:
+                logger.error(f"❌ 组合消息保存过程异常: {channel_id}:{processed_data['message_id']} - 错误: {process_error}")
                 
         except Exception as save_error:
             logger.error(f"保存组合消息到Redis时出错: {save_error}")
