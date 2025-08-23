@@ -226,6 +226,14 @@ const app = createApp({
             this.optimizeDialog.visible = true;
         },
 
+        closeFeedbackDialog() {
+            this.feedbackDialog.visible = false;
+        },
+
+        closeOptimizeDialog() {
+            this.optimizeDialog.visible = false;
+        },
+
         saveOptimizeSettings() {
             this.showMessage('优化设置已保存');
             this.optimizeDialog.visible = false;
