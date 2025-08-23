@@ -180,7 +180,6 @@ class RequestManager {
             // 记录失败
             if (retries >= maxRetries) {
                 this.stats.failedRequests++;
-                console.error(`[RequestManager] 请求最终失败: ${url}`, error);
                 throw error;
             }
             
@@ -188,8 +187,6 @@ class RequestManager {
             if (this._shouldRetry(error, retries)) {
                 this.stats.retriedRequests++;
                 const delay = this._calculateRetryDelay(retries);
-                
-                console.warn(`[RequestManager] 请求重试 ${retries + 1}/${maxRetries}: ${url}, 延迟 ${delay}ms`);
                 
                 await this._sleep(delay);
                 

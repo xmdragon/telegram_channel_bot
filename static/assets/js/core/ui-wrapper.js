@@ -40,7 +40,6 @@ class UIWrapper {
             this.initialized = true;
             
         } catch (error) {
-            console.warn('⚠️ UI兼容层初始化出现问题:', error);
             this.scheduleRetry();
         }
     }
@@ -51,7 +50,6 @@ class UIWrapper {
     static setupGlobalAPIs() {
         // 确保SimpleUI存在
         if (!window.SimpleUI) {
-            console.warn('⚠️ SimpleUI未找到，使用降级方案');
             this.createFallbackUI();
             return;
         }
@@ -209,7 +207,7 @@ class UIWrapper {
                 appElement.__vue__.$confirm = window.ElMessageBox.confirm;
             }
         } catch (error) {
-            console.warn('🔧 Vue实例修补跳过:', error.message);
+            // Vue实例修补跳过
         }
     }
     
@@ -275,7 +273,6 @@ class UIWrapper {
         
         window.onerror = (message, source, lineno, colno, error) => {
             if (message.includes('ElMessage') || message.includes('$message')) {
-                console.warn('🔧 检测到UI调用错误，尝试修复:', message);
                 this.handleUIError(error);
             }
             
@@ -287,7 +284,6 @@ class UIWrapper {
         // 捕获Promise错误
         window.addEventListener('unhandledrejection', (event) => {
             if (event.reason && event.reason.toString().includes('ElMessage')) {
-                console.warn('🔧 检测到UI Promise错误，尝试修复');
                 this.handleUIError(event.reason);
             }
         });
@@ -310,7 +306,6 @@ class UIWrapper {
      */
     static scheduleRetry() {
         if (this.retryCount >= this.maxRetries) {
-            console.error('❌ UI兼容层初始化失败，已达到最大重试次数');
             this.createFallbackUI();
             return;
         }

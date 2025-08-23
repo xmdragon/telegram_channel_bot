@@ -227,7 +227,7 @@ class StateManager {
                 subscription.callback(newValue, oldValue);
                 notifiedCount++;
             } catch (error) {
-                console.error(`[StateManager] 订阅者回调错误 (${key}):`, error);
+                // 忽略订阅者回调错误，避免影响其他订阅者
             }
         }
         

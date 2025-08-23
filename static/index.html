@@ -415,21 +415,5 @@
     <!-- 主应用 - 最后加载 -->
     <script defer src="assets/js/components/index.js?v=1755809999"></script>
     
-    <!-- 加载性能优化提示 -->
-    <script>
-        console.log('🚀 Linus式优化加载中 - Element Plus 2.1MB → Simple UI 6KB');
-        
-        // 页面加载性能统计
-        window.addEventListener('DOMContentLoaded', function() {
-            const domTime = performance.now();
-            console.log(`⚙️ DOM加载完成: ${domTime.toFixed(2)}ms`);
-        });
-        
-        window.addEventListener('load', function() {
-            const loadTime = performance.now();
-            console.log(`✨ 页面加载完成: ${loadTime.toFixed(2)}ms`);
-            console.log(`🏆 估计节省加载时间: ${(loadTime * 0.7).toFixed(2)}ms`);
-        });
-    </script>
 </body>
 </html>

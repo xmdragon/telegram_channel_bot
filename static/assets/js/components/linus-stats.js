@@ -95,10 +95,8 @@ const LinusStatsComponent = {
                 // 3. 设置WebSocket监听
                 this.setupWebSocketListeners();
                 
-                console.log('[LinusStats] 组件初始化完成 - 无轮询架构');
                 
             } catch (error) {
-                console.error('[LinusStats] 初始化失败:', error);
                 this.error = '组件初始化失败';
             }
         },
@@ -108,7 +106,6 @@ const LinusStatsComponent = {
          */
         subscribeToStatsUpdates() {
             if (!window.StateManager) {
-                console.error('[LinusStats] StateManager未找到');
                 return;
             }
             
@@ -155,10 +152,8 @@ const LinusStatsComponent = {
                 this.error = null;
                 this.loading = false;
                 
-                console.log('[LinusStats] 统计数据已更新');
                 
             } catch (error) {
-                console.error('[LinusStats] 处理统计更新失败:', error);
                 this.error = '数据更新失败';
             }
         },
@@ -168,7 +163,6 @@ const LinusStatsComponent = {
          */
         setupWebSocketListeners() {
             if (!window.WebSocketManager) {
-                console.warn('[LinusStats] WebSocket管理器未找到，将使用HTTP请求');
                 return;
             }
             
@@ -177,14 +171,12 @@ const LinusStatsComponent = {
             window.WebSocketManager.handleOpen = (event) => {
                 originalConnect?.call(window.WebSocketManager, event);
                 this.connected = true;
-                console.log('[LinusStats] WebSocket已连接');
             };
             
             const originalDisconnect = window.WebSocketManager.handleClose;
             window.WebSocketManager.handleClose = (event) => {
                 originalDisconnect?.call(window.WebSocketManager, event);
                 this.connected = false;
-                console.log('[LinusStats] WebSocket连接断开');
             };
             
             // 监听数据推送
@@ -223,7 +215,6 @@ const LinusStatsComponent = {
                 // 优先尝试从缓存获取
                 if (window.StateManager && window.StateManager.has('linus_stats')) {
                     stats = window.StateManager.get('linus_stats');
-                    console.log('[LinusStats] 使用缓存数据');
                 } else {
                     // 智能选择请求方式
                     stats = await this.requestStatsData();
@@ -240,27 +231,50 @@ const LinusStatsComponent = {
                 }
                 
             } catch (error) {
-                console.error('[LinusStats] 加载初始数据失败:', error);
                 this.error = '加载数据失败';
                 this.loading = false;
             }
         },
         
         /**
+         * 等待RequestManager初始化完成
+         */
+        async waitForRequestManager(maxRetries = 10) {
+            return new Promise((resolve) => {
+                let retries = 0;
+                const checkInterval = setInterval(() => {
+                    if (window.RequestManager && 
+                        typeof window.RequestManager.request === 'function' && 
+                        typeof window.RequestManager.requestViaWebSocket === 'function') {
+                        clearInterval(checkInterval);
+                        resolve(true);
+                    } else if (retries >= maxRetries) {
+                        clearInterval(checkInterval);
+                        resolve(false);
+                    }
+                    retries++;
+                }, 50);
+            });
+        },
+        
+        /**
          * 请求统计数据 - 智能选择方式
          */
         async requestStatsData() {
+            // 等待RequestManager初始化完成
+            const requestManagerReady = await this.waitForRequestManager();
+            
             // 优先使用WebSocket请求（如果可用）
-            if (window.WebSocketManager && window.WebSocketManager.isConnected && window.RequestManager) {
+            if (requestManagerReady && window.WebSocketManager && window.WebSocketManager.isConnected) {
                 try {
                     return await window.RequestManager.requestViaWebSocket('request_stats');
                 } catch (error) {
-                    console.warn('[LinusStats] WebSocket请求失败，降级到HTTP:', error);
+                    // WebSocket请求失败，降级到HTTP
                 }
             }
             
             // 降级到HTTP请求
-            if (window.RequestManager) {
+            if (requestManagerReady) {
                 return await window.RequestManager.request('/api/stats/linus-overview', {
                     method: 'GET',
                     headers: window.authManager?.getAuthHeaders?.() || {}
@@ -286,7 +300,6 @@ const LinusStatsComponent = {
                     window.StateManager.setState('linus_stats', stats, { force: true });
                 }
             } catch (error) {
-                console.error('[LinusStats] 手动刷新失败:', error);
                 this.error = '刷新失败';
             }
         },
@@ -296,7 +309,9 @@ const LinusStatsComponent = {
          */
         async validateConsistency() {
             try {
-                if (window.RequestManager) {
+                const requestManagerReady = await this.waitForRequestManager();
+                
+                if (requestManagerReady) {
                     const result = await window.RequestManager.request('/api/stats/validate-consistency', {
                         method: 'POST'
                     });
@@ -317,7 +332,6 @@ const LinusStatsComponent = {
                     }
                 }
             } catch (error) {
-                console.error('[LinusStats] 一致性验证失败:', error);
                 this.$message.error('一致性验证失败');
             }
         },
@@ -360,7 +374,6 @@ const LinusStatsComponent = {
                 window.StateManager.unsubscribe('linus_stats', this.subscriptionId);
             }
             
-            console.log('[LinusStats] 组件已清理');
         },
         
         /**
