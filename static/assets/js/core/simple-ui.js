@@ -27,11 +27,14 @@ class SimpleMessage {
         this.container.className = 'simple-message-container';
         this.container.style.cssText = `
             position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 20px;
+            right: 20px;
             z-index: 9999;
             pointer-events: none;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 10px;
+            max-width: 400px;
         `;
         document.body.appendChild(this.container);
         this.initialized = true;
@@ -85,12 +88,12 @@ class SimpleMessage {
             
             @keyframes messageSlideIn {
                 from {
-                    transform: translateY(-30px);
+                    transform: translateX(100%);
                     opacity: 0;
                     scale: 0.95;
                 }
                 to {
-                    transform: translateY(0);
+                    transform: translateX(0);
                     opacity: 1;
                     scale: 1;
                 }
@@ -98,14 +101,31 @@ class SimpleMessage {
             
             @keyframes messageSlideOut {
                 from {
-                    transform: translateY(0);
+                    transform: translateX(0);
                     opacity: 1;
                     scale: 1;
                 }
                 to {
-                    transform: translateY(-30px);
+                    transform: translateX(100%);
                     opacity: 0;
                     scale: 0.95;
+                }
+            }
+            
+            /* 移动端适配 */
+            @media (max-width: 768px) {
+                .simple-message-container {
+                    bottom: 10px !important;
+                    right: 10px !important;
+                    left: 10px !important;
+                    max-width: none !important;
+                }
+                
+                .simple-message {
+                    max-width: none !important;
+                    margin-bottom: 8px;
+                    font-size: 13px;
+                    padding: 10px 16px;
                 }
             }
         `;
