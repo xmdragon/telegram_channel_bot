@@ -127,6 +127,7 @@ const LinusStatsComponent = {
         handleStatsUpdate(stats) {
             if (!stats) return;
             
+            
             try {
                 // 更新消息状态统计（使用后端labels）
                 if (stats.message_status) {
@@ -438,14 +439,14 @@ const LinusStatsComponent = {
                         <span class="card-title">消息处理状态</span>
                     </template>
                     <div class="status-grid">
-                        <div v-for="(value, key) in messageStatus" 
-                             :key="key"
-                             v-if="key !== 'labels'"
-                             class="status-item"
-                             :class="key">
-                            <div class="status-value">{{ value.toLocaleString() }}</div>
-                            <div class="status-label">{{ messageStatus.labels[key] }}</div>
-                        </div>
+                        <template v-for="(value, key) in messageStatus" :key="key">
+                            <div v-if="key !== 'labels'" 
+                                 class="status-item"
+                                 :class="key">
+                                <div class="status-value">{{ value.toLocaleString() }}</div>
+                                <div class="status-label">{{ messageStatus.labels[key] }}</div>
+                            </div>
+                        </template>
                     </div>
                 </el-card>
                 
@@ -456,13 +457,13 @@ const LinusStatsComponent = {
                         <span class="card-subtitle">（仅统计已拒绝消息）</span>
                     </template>
                     <div class="rejection-grid">
-                        <div v-for="(value, key) in rejectionAnalysis" 
-                             :key="key"
-                             v-if="key !== 'labels'"
-                             class="rejection-item">
-                            <div class="rejection-value">{{ value.toLocaleString() }}</div>
-                            <div class="rejection-label">{{ rejectionAnalysis.labels[key] }}</div>
-                        </div>
+                        <template v-for="(value, key) in rejectionAnalysis" :key="key">
+                            <div v-if="key !== 'labels'"
+                                 class="rejection-item">
+                                <div class="rejection-value">{{ value.toLocaleString() }}</div>
+                                <div class="rejection-label">{{ rejectionAnalysis.labels[key] }}</div>
+                            </div>
+                        </template>
                     </div>
                 </el-card>
                 
