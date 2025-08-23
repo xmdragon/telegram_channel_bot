@@ -20,7 +20,12 @@
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="🎯 阈值监控"></nav-bar>
+        <nav class="navbar">
+            <div class="navbar-content">
+                <h1 class="navbar-title">🎯 阈值监控</h1>
+                <button class="btn-back" onclick="window.location.href='/static/admin.html'">← 返回</button>
+            </div>
+        </nav>
         
         <div class="container">
             <!-- 子导航 -->
@@ -318,7 +323,6 @@
         document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/utils/websocket-factory.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
-        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/threshold-dashboard.js?v=' + RESOURCE_VERSION + '"><\/script>');
     </script>

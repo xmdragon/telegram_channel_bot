@@ -471,7 +471,6 @@ const app = createApp({
 });
 
 // 注册组件
-app.component('nav-bar', NavBar);
 app.component('training-nav', TrainingNav);
 
 // 注册Element Plus组件
