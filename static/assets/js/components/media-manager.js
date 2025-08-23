@@ -409,14 +409,10 @@ const app = createApp({
                     return;
                 }
                 
-                await ElMessageBox.confirm(
+                await showConfirm(
                     `发现 ${videoCount} 个视频文件，转换为快照可节省约95%空间，是否继续？`,
                     '优化确认',
-                    {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消',
-                        type: 'warning',
-                    }
+                    { type: 'warning' }
                 );
                 
                 // 显示进度对话框
@@ -443,25 +439,14 @@ const app = createApp({
                     // 重新加载文件列表
                     this.loadMediaFiles();
                     
-                    ElMessage({
-                        message: `优化完成：处理了 ${response.data.processed_videos || 0} 个视频，清理了 ${response.data.cleaned_files || 0} 个文件，节省空间 ${this.optimizeProgress.savedMb.toFixed(2)} MB`,
-                        type: 'success',
-                        offset: 20,
-                        customClass: 'bottom-right-message',
-                        duration: 5000
-                    });
+                    showMessage(`优化完成：处理了 ${response.data.processed_videos || 0} 个视频，清理了 ${response.data.cleaned_files || 0} 个文件，节省空间 ${this.optimizeProgress.savedMb.toFixed(2)} MB`, 'success', 5000);
                 } else {
                     throw new Error(response.data.error || '优化失败');
                 }
                 
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage({
-                        message: error.message || '优化失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage(error.message || '优化失败', 'error');
                 }
             } finally {
                 this.optimizing = false;
