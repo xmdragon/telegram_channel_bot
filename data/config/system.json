@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-23T07:28:02.512778",
+    "updated_at": "2025-08-23T09:04:34.841686",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-22T23:40:24.823508",
+  "updated_at": "2025-08-23T01:04:34.844941",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-23T07:28:02.515149",
+    "updated_at": "2025-08-23T09:04:34.844910",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
@@ -45,7 +45,7 @@
     "config_type": "boolean",
     "description": "启用内容过滤",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.204298",
+    "updated_at": "2025-08-23T07:53:45.999563",
     "created_at": "2025-08-15T19:03:51.230063"
   },
   "filter.tail_filter_enabled": {
@@ -53,7 +53,7 @@
     "config_type": "boolean",
     "description": "启用尾部过滤",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.205644",
+    "updated_at": "2025-08-23T07:53:46.000915",
     "created_at": "2025-08-15T19:03:51.230655"
   },
   "filter.ocr_enabled": {
@@ -61,7 +61,7 @@
     "config_type": "boolean",
     "description": "启用OCR图片文字识别",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.206884",
+    "updated_at": "2025-08-23T07:53:46.002104",
     "created_at": "2025-08-15T19:03:51.230934"
   },
   "review.require_approval": {
@@ -69,7 +69,7 @@
     "config_type": "boolean",
     "description": "需要人工审核",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.208186",
+    "updated_at": "2025-08-23T07:53:46.003630",
     "created_at": "2025-08-15T19:03:51.231269"
   },
   "review.auto_reject_ads": {
@@ -85,15 +85,15 @@
     "config_type": "boolean",
     "description": "采集消息后自动转发到审核群",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.209555",
+    "updated_at": "2025-08-23T07:53:46.005074",
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "系统重置时自动禁用采集",
     "is_active": true,
-    "updated_at": "2025-08-23T07:40:24.822995",
+    "updated_at": "2025-08-23T07:53:45.998854",
     "created_at": "2025-08-15T19:03:51.231938"
   },
   "collection.interval": {
@@ -125,7 +125,7 @@
     "config_type": "boolean",
     "description": "启用消息调度服务（自动转发、清理）",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.210681",
+    "updated_at": "2025-08-23T07:53:46.006610",
     "created_at": "2025-08-16T22:23:50.891394"
   },
   "source.history_limit": {
@@ -133,7 +133,7 @@
     "config_type": "integer",
     "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.199271",
+    "updated_at": "2025-08-23T07:53:45.995111",
     "created_at": "2025-08-14T22:53:30.663727"
   },
   "target.signature": {
@@ -141,7 +141,7 @@
     "config_type": "string",
     "description": "频道落款内容（支持多行，用\\n分隔）",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.201503",
+    "updated_at": "2025-08-23T07:53:45.997759",
     "created_at": "2025-08-14T22:53:30.665451"
   },
   "target.channel_id": {
@@ -181,7 +181,7 @@
     "config_type": "boolean",
     "description": "组合消息保存后删除单独消息（性能优化，可回滚）",
     "is_active": true,
-    "updated_at": "2025-08-21T23:16:15.211608",
+    "updated_at": "2025-08-23T07:53:46.007849",
     "created_at": "2025-08-20T14:46:30.000000"
   },
   "review.auto_forward_enabled": {

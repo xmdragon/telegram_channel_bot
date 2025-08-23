@@ -88,18 +88,9 @@ class TailFilter(BaseFilter):
         logger.info(f"   智能阈值: {self.intelligent_threshold}, 语义阈值: {self.semantic_threshold}")
     
     async def pre_filter(self, content: str, context: FilterContext) -> bool:
-        """过滤前预检查"""
-        # 跳过空内容或过短内容
-        if not content or len(content.strip()) < 20:
-            logger.debug("内容为空或过短，跳过尾部过滤")
-            return False
-        
-        # 检查行数，少于3行的内容通常不需要尾部过滤
-        lines = content.split('\n')
-        if len(lines) < 3:
-            logger.debug(f"内容行数不足({len(lines)}行)，跳过尾部过滤")
-            return False
-        
+        """过滤前预检查 - Linus式简化：消除特殊情况，让过滤器自然处理所有输入"""
+        # 移除所有预检查限制，让过滤器内部逻辑自行判断
+        # 空内容、短内容、少行数内容都应该被处理，而不是预先跳过
         return True
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:

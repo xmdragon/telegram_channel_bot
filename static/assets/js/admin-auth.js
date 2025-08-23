@@ -127,9 +127,14 @@ class AuthManager {
     async logout() {
         if (this.token) {
             try {
-                await axios.post(getAPI().adminAuth?.logout || '/api/admin/auth/logout');
+                // 携带认证头发送登出请求
+                await axios.post(getAPI().adminAuth?.logout || '/api/admin/auth/logout', {}, {
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`
+                    }
+                });
             } catch (e) {
-                // 忽略错误
+                console.warn('AuthManager: 服务端登出失败，但继续清理本地数据:', e.message);
             }
         }
         

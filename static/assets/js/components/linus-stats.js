@@ -498,9 +498,9 @@ const LinusStatsComponent = {
 // 注册到window对象供index.js使用
 window.LinusStatsComponent = LinusStatsComponent;
 
-// 注册组件
-if (typeof Vue !== 'undefined') {
-    Vue.component('linus-stats', LinusStatsComponent);
-}
+// Vue 3 - 组件通过全局变量提供给app实例注册
 
-export default LinusStatsComponent;
+// 注册为全局变量
+if (typeof window !== 'undefined') {
+    window.LinusStatsComponent = LinusStatsComponent;
+}

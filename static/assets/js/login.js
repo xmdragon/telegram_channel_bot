@@ -7,8 +7,6 @@
 const API = window.API;
 
 const { createApp } = Vue;
-const { ElMessage } = ElementPlus;
-const { User, Lock } = ElementPlusIconsVue;
 
 const LoginApp = {
     data() {
@@ -16,16 +14,6 @@ const LoginApp = {
             loginData: {
                 username: '',
                 password: ''
-            },
-            rules: {
-                username: [
-                    { required: true, message: '请输入用户名', trigger: 'blur' },
-                    { min: 2, max: 20, message: '用户名长度在 2 到 20 个字符', trigger: 'blur' }
-                ],
-                password: [
-                    { required: true, message: '请输入密码', trigger: 'blur' },
-                    { min: 6, message: '密码长度至少 6 个字符', trigger: 'blur' }
-                ]
             },
             loading: false,
             errorMessage: ''
@@ -59,51 +47,71 @@ const LoginApp = {
             }
         },
         
+        validateForm() {
+            if (!this.loginData.username.trim()) {
+                this.errorMessage = '请输入用户名';
+                return false;
+            }
+            if (this.loginData.username.length < 2 || this.loginData.username.length > 20) {
+                this.errorMessage = '用户名长度在 2 到 20 个字符';
+                return false;
+            }
+            if (!this.loginData.password.trim()) {
+                this.errorMessage = '请输入密码';
+                return false;
+            }
+            if (this.loginData.password.length < 6) {
+                this.errorMessage = '密码长度至少 6 个字符';
+                return false;
+            }
+            return true;
+        },
+        
         async handleLogin() {
-            this.$refs.loginForm.validate(async (valid) => {
-                if (!valid) return;
-                
-                this.loading = true;
-                this.errorMessage = '';
-                
-                try {
-                    const response = await axios.post(API.adminAuth.login, this.loginData);
+            if (!this.validateForm()) return;
+            
+            this.loading = true;
+            this.errorMessage = '';
+            
+            try {
+                const response = await axios.post(API.adminAuth.login, this.loginData);
+                if (response.data && response.data.success) {
+                    // 保存token和用户信息
+                    localStorage.setItem('admin_token', response.data.token);
+                    localStorage.setItem('admin_info', JSON.stringify(response.data.admin));
                     
-                    if (response.data.success) {
-                        // 保存token和用户信息
-                        localStorage.setItem('admin_token', response.data.token);
-                        localStorage.setItem('admin_info', JSON.stringify(response.data.admin));
-                        
-                        ElMessage({
-                            message: '登录成功',
-                            type: 'success',
-                            duration: 1500
-                        });
-                        
-                        // 跳转到首页
-                        setTimeout(() => {
-                            this.redirectToHome();
-                        }, 500);
-                    }
-                } catch (error) {
-                    if (error.response && error.response.status === 401) {
-                        this.errorMessage = '用户名或密码错误';
-                    } else {
-                        this.errorMessage = error.response?.data?.detail || '登录失败，请稍后重试';
+                    // 使用SimpleUI显示成功消息
+                    if (window.SimpleMessage) {
+                        window.SimpleMessage.success('登录成功');
                     }
                     
-                    // 清空密码
-                    this.loginData.password = '';
-                } finally {
-                    this.loading = false;
+                    // 立即跳转，不用setTimeout
+                    this.redirectToHome();
+                } else {
+                    console.error('登录响应异常:', response.data);
+                    this.errorMessage = '登录响应异常';
                 }
-            });
+            } catch (error) {
+                if (error.response && error.response.status === 401) {
+                    this.errorMessage = '用户名或密码错误';
+                } else {
+                    this.errorMessage = error.response?.data?.detail || '登录失败，请稍后重试';
+                }
+                
+                // 清空密码
+                this.loginData.password = '';
+            } finally {
+                this.loading = false;
+            }
         },
         
         redirectToHome() {
             // 检查是否有返回URL
             const urlParams = new URLSearchParams(window.location.search);
-            const returnUrl = urlParams.get('return') || './index.html';
+            const returnUrl = urlParams.get('return') || '/static/index.html';
+            
+            
+            // 使用绝对路径跳转
             window.location.href = returnUrl;
         },
         
@@ -116,14 +124,7 @@ const LoginApp = {
 };
 
 // 页面加载完成后初始化Vue应用
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
     const app = createApp(LoginApp);
-    app.use(ElementPlus);
-    
-    // 注册图标
-    for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-        app.component(key, component);
-    }
-    
     app.mount('#app');
 });

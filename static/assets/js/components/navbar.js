@@ -55,15 +55,46 @@ const NavBar = {
         },
         async handleLogout() {
             try {
-                await axios.post(getAPI().adminAuth?.logout || '/api/admin/auth/logout');
-                // 清除本地存储的token
+                // 获取token
+                const token = localStorage.getItem('admin_token');
+                
+                if (token) {
+                    // 携带认证头发送登出请求
+                    await axios.post(getAPI().adminAuth?.logout || '/api/admin/auth/logout', {}, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                }
+                
+                // 清除本地存储
                 localStorage.removeItem('admin_token');
-                // 跳转到登录页
-                window.location.href = '/static/login.html';
+                localStorage.removeItem('admin_info');
+                
+                // 显示登出成功消息
+                if (window.SimpleMessage) {
+                    window.SimpleMessage.success('已成功登出');
+                }
+                
+                // 延时跳转，让用户看到成功消息
+                setTimeout(() => {
+                    window.location.href = '/static/login.html';
+                }, 1000);
+                
             } catch (error) {
-                // 即使失败也清除token并跳转
+                console.error('登出请求失败:', error);
+                
+                // 即使服务端登出失败，也清除本地token并跳转
                 localStorage.removeItem('admin_token');
-                window.location.href = '/static/login.html';
+                localStorage.removeItem('admin_info');
+                
+                if (window.SimpleMessage) {
+                    window.SimpleMessage.warning('登出完成');
+                }
+                
+                setTimeout(() => {
+                    window.location.href = '/static/login.html';
+                }, 1000);
             }
         }
     }

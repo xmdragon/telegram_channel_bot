@@ -107,7 +107,6 @@ class StateManager {
         // 通知订阅者
         this._notifySubscribers(key, value, oldValue);
         
-        console.log(`[StateManager] 状态更新: ${key}, 变化: ${hasChanged}`);
     }
     
     /**
@@ -175,7 +174,6 @@ class StateManager {
             this._notifySubscribers(key, value, oldValue);
         });
         
-        console.log(`[StateManager] 批量更新: ${changedKeys.length} 个状态`);
     }
     
     /**
@@ -209,7 +207,6 @@ class StateManager {
         }
         
         if (cleanedCount > 0) {
-            console.log(`[StateManager] 清理过期缓存: ${cleanedCount} 个`);
         }
         
         return cleanedCount;
@@ -235,7 +232,6 @@ class StateManager {
         }
         
         if (notifiedCount > 0) {
-            console.log(`[StateManager] 通知订阅者: ${key}, 数量: ${notifiedCount}`);
         }
     }
     
@@ -281,19 +277,19 @@ class StateManager {
 }
 
 // 创建全局单例
-window.StateManager = window.StateManager || new StateManager();
-
-// 自动清理过期缓存（每分钟）
-setInterval(() => {
-    window.StateManager.cleanupExpiredCache();
-}, 60000);
-
-// 页面卸载时清理资源
-window.addEventListener('beforeunload', () => {
-    window.StateManager.state.clear();
-    window.StateManager.subscribers.clear();
-    window.StateManager.cache.clear();
-    window.StateManager.cacheExpiry.clear();
-});
-
-export default StateManager;
+if (typeof window !== 'undefined') {
+    window.StateManager = window.StateManager || new StateManager();
+    
+    // 自动清理过期缓存（每分钟）
+    setInterval(() => {
+        window.StateManager.cleanupExpiredCache();
+    }, 60000);
+    
+    // 页面卸载时清理资源
+    window.addEventListener('beforeunload', () => {
+        window.StateManager.state.clear();
+        window.StateManager.subscribers.clear();
+        window.StateManager.cache.clear();
+        window.StateManager.cacheExpiry.clear();
+    });
+}

@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 系统状态</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755738345">
-    <link rel="stylesheet" href="assets/css/element-plus-fixes.css?v=1755738345">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755738345">
-    <link rel="stylesheet" href="assets/css/components/unified-stats.css?v=1755738345">
-    <link rel="stylesheet" href="assets/css/components/inline-styles.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755809999">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755809999">
+    <link rel="stylesheet" href="assets/css/components/unified-stats.css?v=1755809999">
+    <link rel="stylesheet" href="assets/css/components/inline-styles.css?v=1755809999">
 </head>
 <body>
     <div id="app">
@@ -121,15 +120,26 @@
     </div>
 
     <!-- Vue 和 ElementPlus -->
-    <script src="assets/js/vue.prod.js?v=1755738345"></script>
-    <script src="assets/js/element-plus.js?v=1755738345"></script>
-    <script src="assets/js/axios.js?v=1755738345"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755738345"></script>
-    <script src="assets/js/admin-auth.js?v=1755738345"></script>
-    <script src="assets/js/components/navbar.js?v=1755738345"></script>
-    <script src="assets/js/message-manager.js?v=1755738345"></script>
+    <script defer src="assets/js/vue.prod.js?v=1755809999"></script>
+    <!-- 轻量级UI系统 -->
+    <script defer src="assets/js/core/simple-ui.js?v=1755809999"></script>
+    <script defer src="assets/js/core/ui-wrapper.js?v=1755809999"></script>
+    <script defer src="assets/js/axios.js?v=1755809999"></script>
+    <script defer src="assets/js/config/api-endpoints.js?v=1755809999"></script>
+    <script defer src="assets/js/admin-auth.js?v=1755809999"></script>
+    <script defer src="assets/js/components/navbar.js?v=1755809999"></script>
+    <script defer src="assets/js/message-manager.js?v=1755809999"></script>
     
     <!-- 页面脚本 -->
-    <script src="assets/js/components/status.js?v=1755738345"></script>
+    <script defer src="assets/js/components/status.js?v=1755809999"></script>
+
+    <!-- 性能监控 -->
+    <script>
+        console.log('🚀 Linus式轻量级UI - Element Plus 2.1MB → Simple UI 6KB');
+        window.addEventListener('load', function() {
+            const loadTime = performance.now();
+            console.log(`⚡ 页面加载完成: ${loadTime.toFixed(2)}ms`);
+        });
+    </script>
 </body>
 </html> 

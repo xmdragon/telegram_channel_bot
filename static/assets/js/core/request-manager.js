@@ -62,7 +62,6 @@ class RequestManager {
         // 检查是否有相同的进行中请求
         if (this.pendingRequests.has(requestKey)) {
             this.stats.deduplicatedRequests++;
-            console.log(`[RequestManager] 请求去重: ${url}`);
             return await this.pendingRequests.get(requestKey);
         }
         
@@ -70,7 +69,6 @@ class RequestManager {
         const cached = this._getCachedResponse(requestKey);
         if (cached && !options.ignoreCache) {
             this.stats.cacheHits++;
-            console.log(`[RequestManager] 缓存命中: ${url}`);
             return cached.data;
         }
         
@@ -304,7 +302,6 @@ class RequestManager {
         expired.forEach(key => this.requestCache.delete(key));
         
         if (expired.length > 0) {
-            console.log(`[RequestManager] 清理过期缓存: ${expired.length} 个`);
         }
     }
     
@@ -342,7 +339,6 @@ class RequestManager {
      */
     clearCache() {
         this.requestCache.clear();
-        console.log('[RequestManager] 缓存已清空');
     }
     
     /**
@@ -350,17 +346,16 @@ class RequestManager {
      */
     cancelAllRequests() {
         this.pendingRequests.clear();
-        console.log('[RequestManager] 所有请求已取消');
     }
 }
 
 // 创建全局单例
-window.RequestManager = window.RequestManager || new RequestManager();
-
-// 页面卸载时清理资源
-window.addEventListener('beforeunload', () => {
-    window.RequestManager.cancelAllRequests();
-    window.RequestManager.clearCache();
-});
-
-export default RequestManager;
+if (typeof window !== 'undefined') {
+    window.RequestManager = window.RequestManager || new RequestManager();
+    
+    // 页面卸载时清理资源
+    window.addEventListener('beforeunload', () => {
+        window.RequestManager.cancelAllRequests();
+        window.RequestManager.clearCache();
+    });
+}

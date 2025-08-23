@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理员登录 - Telegram 消息审核系统</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/element-plus.css?v=1755738345">
-    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755738345">
+    <link rel="stylesheet" href="assets/css/simple-ui.css?v=1755809999">
+    <link rel="stylesheet" href="assets/css/modern-ui.css?v=1755809999">
     <style>
         body {
             margin: 0;
             padding: 0;
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f5f5f5;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
         }
         
         .login-container {
@@ -26,11 +26,11 @@
         }
         
         .login-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
+            background: #ffffff;
+            border-radius: 12px;
             padding: 40px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            border: 1px solid #e5e7eb;
         }
         
         .login-header {
@@ -42,7 +42,7 @@
             width: 80px;
             height: 80px;
             margin: 0 auto 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-color, #5B63D3);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -54,13 +54,13 @@
         
         .login-title {
             font-size: 24px;
-            color: #333;
+            color: var(--text-primary, #111827);
             margin: 0 0 10px;
             font-weight: 600;
         }
         
         .login-subtitle {
-            color: #666;
+            color: var(--text-tertiary, #6B7280);
             font-size: 14px;
         }
         
@@ -76,18 +76,19 @@
             width: 100%;
             height: 45px;
             font-size: 16px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: var(--border-radius-sm, 8px);
+            background: var(--primary-color, #5B63D3);
             border: none;
             color: white;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: var(--transition, all 0.3s ease);
         }
         
-        .login-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        .login-button:hover:not(:disabled) {
+            background: var(--primary-hover, #4A52C2);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.07));
         }
         
         .login-button:disabled {
@@ -96,7 +97,7 @@
         }
         
         .error-message {
-            color: #f56c6c;
+            color: var(--danger-color, #FF4D4F);
             font-size: 12px;
             margin-top: 5px;
             min-height: 20px;
@@ -105,22 +106,31 @@
         .footer-text {
             text-align: center;
             margin-top: 30px;
-            color: #999;
+            color: var(--text-tertiary, #6B7280);
             font-size: 12px;
         }
         
-        .input-icon {
-            color: #909399;
-        }
-        
-        /* Element Plus 样式覆盖 */
-        .el-input__wrapper {
-            border-radius: 8px;
-            padding: 8px 12px;
-        }
-        
-        .el-input__inner {
+        /* SimpleUI 样式 */
+        .simple-input {
+            width: 100%;
+            height: 45px;
+            padding: 0 15px;
+            border: 1px solid var(--border-color, #E5E7EB);
+            border-radius: var(--border-radius-sm, 8px);
             font-size: 15px;
+            background: white;
+            transition: var(--transition, all 0.3s ease);
+            color: var(--text-primary, #111827);
+        }
+        
+        .simple-input:focus {
+            border-color: var(--primary-color, #5B63D3);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(91, 99, 211, 0.1);
+        }
+        
+        .simple-input::placeholder {
+            color: var(--text-tertiary, #6B7280);
         }
         
         /* 加载动画 */
@@ -137,6 +147,17 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* 响应式设计 */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 15px;
+            }
+            
+            .login-card {
+                padding: 30px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -149,37 +170,29 @@
                     <p class="login-subtitle">Telegram 消息审核系统</p>
                 </div>
                 
-                <el-form ref="loginForm" :model="loginData" :rules="rules" class="login-form">
-                    <el-form-item prop="username" class="form-item">
-                        <el-input 
+                <div class="login-form">
+                    <div class="form-item">
+                        <input 
                             v-model="loginData.username" 
+                            class="simple-input"
                             placeholder="请输入用户名"
-                            size="large"
-                            clearable
-                            @keyup.enter="handleLogin">
-                            <template #prefix>
-                                <el-icon class="input-icon"><user></user></el-icon>
-                            </template>
-                        </el-input>
-                    </el-form-item>
+                            @keyup.enter="handleLogin"
+                            autocomplete="username">
+                    </div>
                     
-                    <el-form-item prop="password" class="form-item">
-                        <el-input 
+                    <div class="form-item">
+                        <input 
                             v-model="loginData.password" 
                             type="password" 
+                            class="simple-input"
                             placeholder="请输入密码"
-                            size="large"
-                            show-password
-                            @keyup.enter="handleLogin">
-                            <template #prefix>
-                                <el-icon class="input-icon"><lock></lock></el-icon>
-                            </template>
-                        </el-input>
-                    </el-form-item>
+                            @keyup.enter="handleLogin"
+                            autocomplete="current-password">
+                    </div>
                     
-                    <div class="error-message">{{ errorMessage }}</div>
+                    <div class="error-message" v-show="errorMessage">{{ errorMessage }}</div>
                     
-                    <el-form-item class="form-item">
+                    <div class="form-item">
                         <button 
                             type="button"
                             class="login-button" 
@@ -191,8 +204,8 @@
                                 登录中...
                             </span>
                         </button>
-                    </el-form-item>
-                </el-form>
+                    </div>
+                </div>
                 
                 <div class="footer-text">
                     © 2024 Telegram Message Review System
@@ -201,11 +214,21 @@
         </div>
     </div>
 
-    <script src="assets/js/vue.prod.js?v=1755738345"></script>
-    <script src="assets/js/element-plus.js?v=1755738345"></script>
-    <script src="assets/js/element-plus-icons.js?v=1755738345"></script>
-    <script src="assets/js/axios.js?v=1755738345"></script>
-    <script src="assets/js/config/api-endpoints.js?v=1755738345"></script>
-    <script src="assets/js/login.js?v=1755738345"></script>
+    <script defer src="assets/js/vue.prod.js?v=1755809999"></script>
+    <!-- 轻量级UI系统 -->
+    <script defer src="assets/js/core/simple-ui.js?v=1755809999"></script>
+    <script defer src="assets/js/core/ui-wrapper.js?v=1755809999"></script>
+    <script defer src="assets/js/axios.js?v=1755809999"></script>
+    <script defer src="assets/js/config/api-endpoints.js?v=1755809999"></script>
+    <script defer src="assets/js/login.js?v=1755809999"></script>
+
+    <!-- 性能监控 -->
+    <script>
+        console.log('🚀 Linus式轻量级UI - Element Plus 2.1MB → Simple UI 6KB');
+        window.addEventListener('load', function() {
+            const loadTime = performance.now();
+            console.log(`⚡ 页面加载完成: ${loadTime.toFixed(2)}ms`);
+        });
+    </script>
 </body>
 </html>

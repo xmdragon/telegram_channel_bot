@@ -455,12 +455,12 @@ class MessageGrouper:
                 all_texts.append(content.strip())
                 logger.debug(f"消息{i+1}原始内容: {len(content)}字符")
             
-            # 过滤后内容处理
+            # 过滤后内容处理 - Linus式修复：确保数据一致性
             if has_filtered:
                 all_filtered_texts.append(filtered_content.strip())
                 logger.debug(f"消息{i+1}过滤后内容: {len(filtered_content)}字符")
             elif has_content:
-                # 如果没有过滤后内容但有原始内容，使用原始内容
+                # 临时方案：如果没有过滤内容，使用原始内容（确保系统正常运行）
                 all_filtered_texts.append(content.strip())
                 logger.debug(f"消息{i+1}使用原始内容作为过滤后内容: {len(content)}字符")
             

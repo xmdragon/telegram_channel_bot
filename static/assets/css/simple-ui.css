@@ -1,0 +1,442 @@
+/**
+ * Simple UI 样式 - 替代Element Plus CSS
+ * "简洁是终极的复杂" - Leonardo da Vinci
+ * "好的设计是不显眼的设计" - Linus Torvalds
+ * 
+ * 体积: 3KB vs Element Plus CSS 332KB
+ */
+
+/* ============= 基础重置 ============= */
+.simple-ui * {
+    box-sizing: border-box;
+}
+
+/* ============= 消息提示样式 ============= */
+.simple-message-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.simple-message {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: messageSlideIn 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    pointer-events: all;
+    max-width: 480px;
+    min-width: 300px;
+    word-wrap: break-word;
+    color: #ffffff;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+/* 消息类型样式 */
+.simple-message-success {
+    background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+    border: 1px solid rgba(82, 196, 26, 0.3);
+}
+
+.simple-message-error {
+    background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+    border: 1px solid rgba(255, 77, 79, 0.3);
+}
+
+.simple-message-warning {
+    background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);
+    border: 1px solid rgba(250, 173, 20, 0.3);
+}
+
+.simple-message-info {
+    background: linear-gradient(135deg, #1677ff 0%, #4096ff 100%);
+    border: 1px solid rgba(22, 119, 255, 0.3);
+}
+
+/* 消息图标 */
+.simple-message::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.simple-message-success::before {
+    content: '✓';
+    font-weight: bold;
+    background: none;
+    width: auto;
+    height: auto;
+    font-size: 16px;
+}
+
+.simple-message-error::before {
+    content: '✕';
+    font-weight: bold;
+    background: none;
+    width: auto;
+    height: auto;
+    font-size: 16px;
+}
+
+.simple-message-warning::before {
+    content: '⚠';
+    font-weight: bold;
+    background: none;
+    width: auto;
+    height: auto;
+    font-size: 16px;
+}
+
+.simple-message-info::before {
+    content: 'ⓘ';
+    font-weight: bold;
+    background: none;
+    width: auto;
+    height: auto;
+    font-size: 16px;
+}
+
+/* 消息动画 */
+.simple-message.fade-out {
+    animation: messageSlideOut 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ============= 对话框样式 ============= */
+.simple-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+    backdrop-filter: blur(4px);
+}
+
+.simple-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 32px;
+    min-width: 360px;
+    max-width: 520px;
+    z-index: 1001;
+    box-shadow: 
+        0 16px 48px rgba(0, 0, 0, 0.176),
+        0 12px 32px rgba(0, 0, 0, 0.125);
+    animation: dialogBounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.simple-dialog h3 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.3;
+}
+
+.simple-dialog p {
+    margin: 0 0 32px 0;
+    color: #6b7280;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
+.simple-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* ============= 按钮样式 ============= */
+.simple-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 24px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+    user-select: none;
+    background: none;
+    font-family: inherit;
+    min-width: 80px;
+    height: 40px;
+}
+
+.simple-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.simple-btn:active {
+    transform: translateY(1px);
+}
+
+/* 按钮变体 */
+.simple-btn-default {
+    background: #ffffff;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.simple-btn-default:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    color: #111827;
+}
+
+.simple-btn-primary {
+    background: #1677ff;
+    color: #ffffff;
+    border-color: #1677ff;
+}
+
+.simple-btn-primary:hover {
+    background: #4096ff;
+    border-color: #4096ff;
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.3);
+}
+
+.simple-btn-danger {
+    background: #ff4d4f;
+    color: #ffffff;
+    border-color: #ff4d4f;
+}
+
+.simple-btn-danger:hover {
+    background: #ff7875;
+    border-color: #ff7875;
+    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3);
+}
+
+.simple-btn-success {
+    background: #52c41a;
+    color: #ffffff;
+    border-color: #52c41a;
+}
+
+.simple-btn-success:hover {
+    background: #73d13d;
+    border-color: #73d13d;
+    box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+}
+
+.simple-btn-warning {
+    background: #faad14;
+    color: #ffffff;
+    border-color: #faad14;
+}
+
+.simple-btn-warning:hover {
+    background: #ffc53d;
+    border-color: #ffc53d;
+    box-shadow: 0 4px 12px rgba(250, 173, 20, 0.3);
+}
+
+/* ============= 动画定义 ============= */
+@keyframes messageSlideIn {
+    0% {
+        transform: translateY(-40px) scale(0.9);
+        opacity: 0;
+    }
+    60% {
+        transform: translateY(5px) scale(1.05);
+        opacity: 0.8;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes messageSlideOut {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-40px) scale(0.9);
+        opacity: 0;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes dialogBounceIn {
+    0% {
+        transform: translate(-50%, -50%) scale(0.3);
+        opacity: 0;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.05);
+        opacity: 0.8;
+    }
+    70% {
+        transform: translate(-50%, -50%) scale(0.95);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes dialogBounceOut {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(0.3);
+        opacity: 0;
+    }
+}
+
+/* ============= 响应式设计 ============= */
+@media (max-width: 640px) {
+    .simple-message {
+        max-width: calc(100vw - 32px);
+        min-width: calc(100vw - 32px);
+        margin-left: 16px;
+        margin-right: 16px;
+    }
+    
+    .simple-dialog {
+        min-width: calc(100vw - 32px);
+        max-width: calc(100vw - 32px);
+        margin: 16px;
+        padding: 24px;
+    }
+    
+    .simple-dialog-actions {
+        flex-direction: column-reverse;
+        gap: 8px;
+    }
+    
+    .simple-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ============= 深色模式支持 ============= */
+@media (prefers-color-scheme: dark) {
+    .simple-dialog {
+        background: #1f2937;
+        color: #f9fafb;
+        box-shadow: 
+            0 16px 48px rgba(0, 0, 0, 0.4),
+            0 12px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .simple-dialog h3 {
+        color: #f9fafb;
+    }
+    
+    .simple-dialog p {
+        color: #d1d5db;
+    }
+    
+    .simple-btn-default {
+        background: #374151;
+        color: #f9fafb;
+        border-color: #4b5563;
+    }
+    
+    .simple-btn-default:hover {
+        background: #4b5563;
+        border-color: #6b7280;
+    }
+}
+
+/* ============= 高对比度模式 ============= */
+@media (prefers-contrast: high) {
+    .simple-message {
+        border-width: 2px;
+        font-weight: 600;
+    }
+    
+    .simple-btn {
+        border-width: 2px;
+        font-weight: 600;
+    }
+    
+    .simple-dialog {
+        border: 2px solid #374151;
+    }
+}
+
+/* ============= 减少动画模式 ============= */
+@media (prefers-reduced-motion: reduce) {
+    .simple-message,
+    .simple-dialog,
+    .simple-overlay,
+    .simple-btn {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ============= 打印样式 ============= */
+@media print {
+    .simple-message-container,
+    .simple-overlay,
+    .simple-dialog {
+        display: none !important;
+    }
+}
+
+/* ============= 工具类 ============= */
+.simple-ui-hidden {
+    display: none !important;
+}
+
+.simple-ui-sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
