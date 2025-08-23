@@ -396,26 +396,6 @@ const LinusStatsComponent = {
     
     template: `
         <div class="linus-stats-container">
-            <!-- 标题栏 -->
-            <div class="stats-header">
-                <h3>
-                    <i class="el-icon-data-analysis"></i>
-                    Linus式统计分析
-                </h3>
-                <div class="header-actions">
-                    <el-button 
-                        @click="refreshStats" 
-                        :loading="loading"
-                        icon="el-icon-refresh"
-                        size="small"
-                        type="primary">
-                        刷新
-                    </el-button>
-                    <span class="connection-status" :class="{ connected }">
-                        {{ connected ? '实时连接' : '离线模式' }}
-                    </span>
-                </div>
-            </div>
             
             <!-- 错误提示 -->
             <el-alert v-if="error" 
@@ -434,39 +414,28 @@ const LinusStatsComponent = {
             <!-- 统计内容 -->
             <div v-else class="stats-content">
                 <!-- 消息处理状态 -->
-                <el-card class="stats-card" shadow="hover">
-                    <template #header>
-                        <span class="card-title">消息处理状态</span>
-                    </template>
                     <div class="stats-grid">
                         <template v-for="(value, key) in messageStatus" :key="key">
                             <div v-if="key !== 'labels'" 
                                  class="stat-badge"
                                  :class="key">
-                                <span class="badge-number">{{ value.toLocaleString() }}</span>
-                                <span class="badge-label">{{ messageStatus.labels[key] }}</span>
+                                <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
+                                <span class="stat-badge-label">{{ messageStatus.labels[key] }}</span>
                             </div>
                         </template>
                     </div>
-                </el-card>
                 
                 <!-- 拒绝原因分析 -->
-                <el-card class="stats-card" shadow="hover">
-                    <template #header>
-                        <span class="card-title">拒绝原因分析</span>
-                        <span class="card-subtitle">（仅统计已拒绝消息）</span>
-                    </template>
                     <div class="stats-grid">
                         <template v-for="(value, key) in rejectionAnalysis" :key="key">
                             <div v-if="key !== 'labels'"
                                  class="stat-badge"
                                  :class="key">
-                                <span class="badge-number">{{ value.toLocaleString() }}</span>
-                                <span class="badge-label">{{ rejectionAnalysis.labels[key] }}</span>
+                                <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
+                                <span class="stat-badge-label">{{ rejectionAnalysis.labels[key] }}</span>
                             </div>
                         </template>
                     </div>
-                </el-card>
                 
             </div>
         </div>
