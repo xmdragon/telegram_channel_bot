@@ -457,12 +457,7 @@ const app = createApp({
         // 导出所有媒体
         async downloadAll() {
             try {
-                ElMessage({
-                    message: '正在准备导出，请稍候...',
-                    type: 'info',
-                    offset: 20,
-                    customClass: 'bottom-right-message'
-                });
+                showMessage('正在准备导出，请稍候...', 'info');
                 
                 const response = await axios.get(API.training.mediaFilesExport, {
                     responseType: 'blob'
@@ -477,19 +472,9 @@ const app = createApp({
                 link.click();
                 link.remove();
                 
-                ElMessage({
-                    message: '导出成功',
-                    type: 'success',
-                    offset: 20,
-                    customClass: 'bottom-right-message'
-                });
+                showMessage('导出成功', 'success');
             } catch (error) {
-                ElMessage({
-                    message: '导出失败',
-                    type: 'error',
-                    offset: 20,
-                    customClass: 'bottom-right-message'
-                });
+                showMessage('导出失败', 'error');
             }
         },
         
@@ -504,40 +489,17 @@ const app = createApp({
                     const duplicates = response.data.duplicates;
                     
                     if (stats.groups === 0) {
-                        ElMessage({
-                            message: '没有发现重复的媒体文件',
-                            type: 'info',
-                            offset: 20,
-                            customClass: 'bottom-right-message'
-                        });
+                        showMessage('没有发现重复的媒体文件', 'info');
                     } else {
                         // 显示重复检测结果
-                        await ElMessageBox.alert(
-                            `<div>
-                                <p>发现 <strong>${stats.groups}</strong> 组重复文件</p>
-                                <p>总计 <strong>${stats.total_duplicates}</strong> 个重复文件</p>
-                                <p>可节省空间: <strong>${this.formatSize(stats.total_saved_space)}</strong></p>
-                                <br>
-                                <p>使用"执行去重"按钮可以自动清理重复文件</p>
-                            </div>`,
-                            '重复检测结果',
-                            {
-                                dangerouslyUseHTMLString: true,
-                                confirmButtonText: '确定',
-                                type: 'info'
-                            }
-                        );
+                        const alertMessage = `发现 ${stats.groups} 组重复文件\n总计 ${stats.total_duplicates} 个重复文件\n可节省空间: ${this.formatSize(stats.total_saved_space)}\n\n使用"执行去重"按钮可以自动清理重复文件`;
+                        await showAlert(alertMessage, '重复检测结果');
                     }
                 } else {
                     throw new Error(response.data.error || '检测失败');
                 }
             } catch (error) {
-                ElMessage({
-                    message: error.message || '检测重复失败',
-                    type: 'error',
-                    offset: 20,
-                    customClass: 'bottom-right-message'
-                });
+                showMessage(error.message || '检测重复失败', 'error');
             } finally {
                 this.loading = false;
             }
@@ -549,46 +511,21 @@ const app = createApp({
                 // 先检测重复
                 const checkResponse = await axios.get(API.training.mediaFilesDuplicates);
                 if (!checkResponse.data.success || checkResponse.data.stats.groups === 0) {
-                    ElMessage({
-                        message: '没有需要去重的文件',
-                        type: 'info',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage('没有需要去重的文件', 'info');
                     return;
                 }
                 
                 const stats = checkResponse.data.stats;
                 
                 // 确认操作
-                await ElMessageBox.confirm(
-                    `<div>
-                        <p>将要去重 <strong>${stats.groups}</strong> 组文件</p>
-                        <p>删除 <strong>${stats.total_duplicates}</strong> 个重复文件</p>
-                        <p>释放空间: <strong>${this.formatSize(stats.total_saved_space)}</strong></p>
-                        <br>
-                        <p style="color: #e6a23c;">⚠️ 此操作不可撤销，但会自动备份元数据</p>
-                    </div>`,
-                    '确认去重',
-                    {
-                        dangerouslyUseHTMLString: true,
-                        confirmButtonText: '确定去重',
-                        cancelButtonText: '取消',
-                        type: 'warning'
-                    }
-                );
+                const confirmMessage = `将要去重 ${stats.groups} 组文件\n删除 ${stats.total_duplicates} 个重复文件\n释放空间: ${this.formatSize(stats.total_saved_space)}\n\n⚠️ 此操作不可撤销，但会自动备份元数据`;
+                await showConfirm(confirmMessage, '确认去重', { type: 'warning' });
                 
                 this.loading = true;
                 const response = await axios.post(API.training.mediaFilesDeduplicate);
                 
                 if (response.data.success) {
-                    ElMessage({
-                        message: `去重完成：删除 ${response.data.deleted} 个文件，合并 ${response.data.merged} 个引用`,
-                        type: 'success',
-                        offset: 20,
-                        customClass: 'bottom-right-message',
-                        duration: 5000
-                    });
+                    showMessage(`去重完成：删除 ${response.data.deleted} 个文件，合并 ${response.data.merged} 个引用`, 'success', 5000);
                     
                     // 重新加载文件列表
                     this.loadMediaFiles();
@@ -597,12 +534,7 @@ const app = createApp({
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage({
-                        message: error.message || '去重失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage(error.message || '去重失败', 'error');
                 }
             } finally {
                 this.loading = false;
@@ -612,38 +544,23 @@ const app = createApp({
         // 重建视觉哈希
         async rebuildVisualHashes() {
             try {
-                await ElMessageBox.confirm(
+                await showConfirm(
                     '将为所有媒体文件重建视觉哈希，这可能需要一些时间。是否继续？',
                     '重建视觉哈希',
-                    {
-                        confirmButtonText: '开始重建',
-                        cancelButtonText: '取消',
-                        type: 'info'
-                    }
+                    { type: 'info' }
                 );
                 
                 this.loading = true;
                 const response = await axios.post(API.training.mediaFilesRebuildHashes);
                 
                 if (response.data.success) {
-                    ElMessage({
-                        message: `重建完成：处理 ${response.data.processed} 个文件，跳过 ${response.data.skipped} 个，错误 ${response.data.errors || 0} 个`,
-                        type: 'success',
-                        offset: 20,
-                        customClass: 'bottom-right-message',
-                        duration: 5000
-                    });
+                    showMessage(`重建完成：处理 ${response.data.processed} 个文件，跳过 ${response.data.skipped} 个，错误 ${response.data.errors || 0} 个`, 'success', 5000);
                 } else {
                     throw new Error(response.data.error || '重建失败');
                 }
             } catch (error) {
                 if (error !== 'cancel') {
-                    ElMessage({
-                        message: error.message || '重建视觉哈希失败',
-                        type: 'error',
-                        offset: 20,
-                        customClass: 'bottom-right-message'
-                    });
+                    showMessage(error.message || '重建视觉哈希失败', 'error');
                 }
             } finally {
                 this.loading = false;
@@ -672,7 +589,7 @@ const app = createApp({
     }
 });
 
-app.use(ElementPlus);
+// app.use(ElementPlus); // 已移除Element Plus依赖
 
 // 确保组件加载navbar
 if (window.NavBar) {
