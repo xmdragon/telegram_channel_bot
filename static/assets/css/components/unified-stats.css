@@ -174,3 +174,78 @@
         max-width: 200px;
     }
 }
+
+/* Linus Stats 组件专用样式 */
+
+/* 错误提示样式 */
+.error-alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    color: #dc2626;
+    font-size: 14px;
+}
+
+.error-icon {
+    font-size: 16px;
+}
+
+.error-text {
+    font-weight: 500;
+}
+
+/* 加载骨架样式 */
+.loading-skeleton {
+    padding: 16px 0;
+}
+
+.skeleton-row {
+    height: 40px;
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.skeleton-row:last-child {
+    margin-bottom: 0;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* 可点击标签增强样式 */
+.stat-badge.clickable {
+    cursor: pointer;
+}
+
+.stat-badge.clickable:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-badge.clickable:active {
+    transform: translateY(0);
+}
+
+/* 统计内容容器 */
+.stats-content {
+    min-height: 60px; /* 确保有足够空间显示统计标签 */
+}
+
+/* 统计容器 */
+.linus-stats-container {
+    padding: 8px 0;
+}

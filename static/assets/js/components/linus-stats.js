@@ -220,7 +220,6 @@ const LinusStatsComponent = {
          * 初始加载数据 - 智能选择请求方式
          */
         async loadInitialData() {
-            this.loading = true;
             this.error = null;
             
             try {
@@ -229,10 +228,18 @@ const LinusStatsComponent = {
                 // 优先尝试从缓存获取
                 if (window.StateManager && window.StateManager.has('linus_stats')) {
                     stats = window.StateManager.get('linus_stats');
-                } else {
-                    // 智能选择请求方式
-                    stats = await this.requestStatsData();
+                    // 缓存有数据时立即显示，不显示loading
+                    if (stats) {
+                        this.handleStatsUpdate(stats);
+                        return;
+                    }
                 }
+                
+                // 只有在没有缓存数据时才显示loading
+                this.loading = true;
+                
+                // 智能选择请求方式
+                stats = await this.requestStatsData();
                 
                 if (stats) {
                     // 更新状态管理器
@@ -246,6 +253,7 @@ const LinusStatsComponent = {
                 
             } catch (error) {
                 this.error = '加载数据失败';
+            } finally {
                 this.loading = false;
             }
         },
@@ -404,6 +412,39 @@ const LinusStatsComponent = {
             if (minutes < 60) return `${minutes}分钟前`;
             const hours = Math.floor(minutes / 60);
             return `${hours}小时前`;
+        },
+
+        /**
+         * 处理统计标签点击事件
+         */
+        handleStatClick(statKey) {
+            // 调用父组件的切换筛选方法
+            if (this.$parent && typeof this.$parent.switchStatFilter === 'function') {
+                this.$parent.switchStatFilter(statKey);
+            } else {
+                console.warn('父组件未提供switchStatFilter方法');
+            }
+        },
+
+        /**
+         * 处理拒绝原因标签点击事件
+         */
+        handleRejectionClick(rejectionKey) {
+            // 将拒绝原因映射到相应的筛选条件
+            const keyMapping = {
+                'ad': 'ads',           // 广告内容 -> ads筛选
+                'duplicate': 'duplicates', // 重复消息 -> duplicates筛选  
+                'chat': 'chats',       // 聊天消息 -> chats筛选
+                'other': 'rejected'    // 其他原因 -> 已拒绝筛选
+            };
+            
+            const mappedKey = keyMapping[rejectionKey] || 'rejected';
+            
+            if (this.$parent && typeof this.$parent.switchStatFilter === 'function') {
+                this.$parent.switchStatFilter(mappedKey);
+            } else {
+                console.warn('父组件未提供switchStatFilter方法');
+            }
         }
     },
     
@@ -411,17 +452,19 @@ const LinusStatsComponent = {
         <div class="linus-stats-container">
             
             <!-- 错误提示 -->
-            <el-alert v-if="error" 
-                :title="error" 
-                type="error" 
-                show-icon 
-                :closable="false"
-                style="margin-bottom: 20px;">
-            </el-alert>
+            <div v-if="error" class="error-alert">
+                <span class="error-icon">⚠️</span>
+                <span class="error-text">{{ error }}</span>
+            </div>
             
             <!-- 加载状态 -->
             <div v-if="loading && !messageStatus.total" class="loading-container">
-                <el-skeleton :rows="4" animated />
+                <div class="loading-skeleton">
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                </div>
             </div>
             
             <!-- 统计内容 -->
@@ -430,8 +473,9 @@ const LinusStatsComponent = {
                     <!-- 消息处理状态 -->
                     <template v-for="(value, key) in messageStatus" :key="'status-'+key">
                         <div v-if="key !== 'labels'" 
-                             class="stat-badge"
-                             :class="'status-'+key">
+                             class="stat-badge clickable"
+                             :class="'status-'+key"
+                             @click="handleStatClick(key)">
                             <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
                             <span class="stat-badge-label">{{ messageStatus.labels[key] }}</span>
                         </div>
@@ -440,8 +484,9 @@ const LinusStatsComponent = {
                     <!-- 拒绝原因分析 -->
                     <template v-for="(value, key) in rejectionAnalysis" :key="'rejection-'+key">
                         <div v-if="key !== 'labels'"
-                             class="stat-badge"
-                             :class="'rejection-'+key">
+                             class="stat-badge clickable"
+                             :class="'rejection-'+key"
+                             @click="handleRejectionClick(key)">
                             <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
                             <span class="stat-badge-label">{{ rejectionAnalysis.labels[key] }}</span>
                         </div>
