@@ -129,28 +129,8 @@ const LinusStatsComponent = {
             
             try {
                 // 直接映射后端数据格式到前端显示
-                if (stats.total_messages !== undefined) {
-                    this.messageStatus.total = stats.total_messages;
-                }
-                if (stats.pending_count !== undefined) {
-                    this.messageStatus.pending = stats.pending_count;
-                }
-                if (stats.approved_count !== undefined) {
-                    this.messageStatus.approved = stats.approved_count;
-                }
-                if (stats.rejected_count !== undefined) {
-                    this.messageStatus.rejected = stats.rejected_count;
-                }
-                
-                // 兼容旧格式（如果存在）- 支持 accepted 转换为 approved
                 if (stats.message_status) {
-                    const messageStatus = { ...stats.message_status };
-                    // 兼容 accepted -> approved 转换
-                    if (messageStatus.accepted !== undefined && messageStatus.approved === undefined) {
-                        messageStatus.approved = messageStatus.accepted;
-                        delete messageStatus.accepted;
-                    }
-                    this.messageStatus = { ...this.messageStatus, ...messageStatus };
+                    this.messageStatus = { ...this.messageStatus, ...stats.message_status };
                 }
                 
                 // 更新拒绝原因分析（使用后端labels）
@@ -303,13 +283,13 @@ const LinusStatsComponent = {
             
             // 降级到HTTP请求
             if (requestManagerReady) {
-                return await window.RequestManager.request('/api/stats/linus-overview', {
+                return await window.RequestManager.request(window.API.messages.linusStatsOverview, {
                     method: 'GET',
                     headers: window.authManager?.getAuthHeaders?.() || {}
                 });
             } else {
                 // 最后的降级方案
-                const response = await axios.get('/api/stats/linus-overview', {
+                const response = await axios.get(window.API.messages.linusStatsOverview, {
                     headers: window.authManager?.getAuthHeaders?.() || {}
                 });
                 return response.data?.data;

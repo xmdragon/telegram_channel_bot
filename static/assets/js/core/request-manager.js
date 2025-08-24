@@ -174,7 +174,13 @@ class RequestManager {
                 response = await axios.get(url, axiosOptions);
             }
             
-            return response.data;
+            // 统一处理后端API响应格式 {success, data}
+            const result = response.data;
+            if (result && typeof result === 'object' && 
+                'success' in result && 'data' in result) {
+                return result.data;
+            }
+            return result;
             
         } catch (error) {
             // 记录失败
