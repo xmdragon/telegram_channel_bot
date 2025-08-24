@@ -77,13 +77,13 @@ async def get_linus_stats_overview(
                 "message_status": {
                     "total": message_stats.total,
                     "pending": message_stats.pending,
-                    "accepted": message_stats.accepted,
+                    "approved": message_stats.accepted,
                     "rejected": message_stats.rejected,
                     # 显示名称
                     "labels": {
                         "total": "总消息数",
                         "pending": get_status_display_name(MessageStatus.PENDING),
-                        "accepted": get_status_display_name(MessageStatus.ACCEPTED), 
+                        "approved": "已发布", 
                         "rejected": get_status_display_name(MessageStatus.REJECTED)
                     }
                 },
@@ -125,12 +125,12 @@ async def get_linus_stats_overview(
                 "message_status": {
                     "total": 0,
                     "pending": 0,
-                    "accepted": 0,
+                    "approved": 0,
                     "rejected": 0,
                     "labels": {
                         "total": "总消息数",
                         "pending": "待处理",
-                        "accepted": "已接受",
+                        "approved": "已发布",
                         "rejected": "已拒绝"
                     }
                 },

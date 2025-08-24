@@ -190,7 +190,7 @@ def get_status_display_name(status: MessageStatus) -> str:
     """获取状态的显示名称"""
     display_names = {
         MessageStatus.PENDING: "待处理",
-        MessageStatus.ACCEPTED: "已接受", 
+        MessageStatus.ACCEPTED: "已发布", 
         MessageStatus.REJECTED: "已拒绝"
     }
     return display_names.get(status, status.value)

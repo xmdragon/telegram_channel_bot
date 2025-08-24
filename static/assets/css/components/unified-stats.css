@@ -205,7 +205,8 @@
 }
 
 .loading-bar {
-    display: inline-block;
+    display: block;
+    width: 100%;
     padding: 8px 16px;
     background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
     background-size: 200% 100%;

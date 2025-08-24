@@ -19,12 +19,12 @@ const LinusStatsComponent = {
             messageStatus: {
                 total: 0,
                 pending: 0,
-                accepted: 0,
+                approved: 0,
                 rejected: 0,
                 labels: {
                     total: '总消息数',
                     pending: '待处理',
-                    accepted: '已接受', 
+                    approved: '已发布', 
                     rejected: '已拒绝'
                 }
             },
@@ -136,15 +136,21 @@ const LinusStatsComponent = {
                     this.messageStatus.pending = stats.pending_count;
                 }
                 if (stats.approved_count !== undefined) {
-                    this.messageStatus.accepted = stats.approved_count; // approved -> accepted
+                    this.messageStatus.approved = stats.approved_count;
                 }
                 if (stats.rejected_count !== undefined) {
                     this.messageStatus.rejected = stats.rejected_count;
                 }
                 
-                // 兼容旧格式（如果存在）
+                // 兼容旧格式（如果存在）- 支持 accepted 转换为 approved
                 if (stats.message_status) {
-                    this.messageStatus = { ...this.messageStatus, ...stats.message_status };
+                    const messageStatus = { ...stats.message_status };
+                    // 兼容 accepted -> approved 转换
+                    if (messageStatus.accepted !== undefined && messageStatus.approved === undefined) {
+                        messageStatus.approved = messageStatus.accepted;
+                        delete messageStatus.accepted;
+                    }
+                    this.messageStatus = { ...this.messageStatus, ...messageStatus };
                 }
                 
                 // 更新拒绝原因分析（使用后端labels）
