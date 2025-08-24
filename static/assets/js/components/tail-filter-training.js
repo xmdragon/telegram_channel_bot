@@ -31,7 +31,10 @@ const app = createApp({
             loading: false,
             
             // 编辑模式
-            editingSampleId: null
+            editingSampleId: null,
+            
+            // 当前消息ID（用于更新filtered_content）
+            currentMessageId: null
         };
     },
     
@@ -100,7 +103,28 @@ const app = createApp({
                     window.SimpleUI.Message.success('训练样本提交成功！');
                 }
                 
-                this.clearForm();
+                // 如果是从消息跳转来的，更新消息的filtered_content
+                if (this.currentMessageId && this.filteredPreview) {
+                    try {
+                        // 过滤后的内容要拼接媒体组信息
+                        const filteredContent = this.restoreMediaGroupInfo(this.filteredPreview);
+                        
+                        await axios.put(API.messages.updateById(encodeURIComponent(this.currentMessageId)), {
+                            filtered_content: filteredContent
+                        });
+                        console.log('消息filtered_content已更新');
+                    } catch (error) {
+                        console.error('更新消息filtered_content失败:', error);
+                    }
+                }
+                
+                // 显示成功消息并返回首页
+                window.SimpleUI.Message.success('训练样本提交成功！即将返回首页...');
+                
+                // 延迟返回首页
+                setTimeout(() => {
+                    window.location.href = '/static/index.html';
+                }, 1500);
             } catch (error) {
                 console.error('提交训练样本失败:', error);
                 window.SimpleUI.Message.error(error.response?.data?.detail || '提交失败');
@@ -119,6 +143,7 @@ const app = createApp({
             this.filteredPreview = '';
             this.editingSampleId = null;
             this.mediaGroupInfo = null; // 清除媒体组信息
+            this.currentMessageId = null; // 清除当前消息ID
             
             // 清除URL参数
             if (window.location.search) {
@@ -184,6 +209,9 @@ const app = createApp({
                 
                 if (response.data.success && response.data.data) {
                     const message = response.data.data;
+                    
+                    // 保存消息ID用于后续更新
+                    this.currentMessageId = messageId;
                     
                     // 优先使用filtered_content，如果没有则使用原始content
                     const content = message.filtered_content || message.content;
