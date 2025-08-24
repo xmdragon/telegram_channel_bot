@@ -51,6 +51,8 @@ class StatsBroadcaster:
             
         self.is_running = True
         self.task = asyncio.create_task(self._broadcast_loop())
+        # 添加异常处理回调，避免"Task exception was never retrieved"警告
+        self.task.add_done_callback(self._task_done_callback)
         logger.info("📡 统计数据广播器已启动")
         
     async def stop(self):
@@ -63,6 +65,18 @@ class StatsBroadcaster:
             except asyncio.CancelledError:
                 pass
         logger.info("📡 统计数据广播器已停止")
+    
+    def _task_done_callback(self, task):
+        """任务完成回调，处理未捕获的异常"""
+        try:
+            # 尝试获取任务结果，如果有异常会被抛出
+            task.result()
+        except asyncio.CancelledError:
+            logger.debug("统计广播任务已取消")
+        except Exception as e:
+            logger.error(f"统计广播任务异常: {e}")
+            import traceback
+            logger.error(f"异常堆栈: {traceback.format_exc()}")
         
     async def _broadcast_loop(self):
         """广播主循环"""

@@ -191,11 +191,24 @@ class MessageProcessor:
                 visual_hashes=message_data.get('visual_hash')
             )
             
+            # 🔧 Linus式优化：区分"真重复"和"组合消息重复保存"
             if is_duplicate:
-                logger.info(f"🔄 message_processor: 检测到重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，拒绝处理")
-                return None
+                # 检查是否是对自己的重复保存（组合消息场景）
+                current_msg_key = f"{channel_id}:{message_id}"
+                if original_msg_id and original_msg_id.endswith(current_msg_key):
+                    # 这是对自己的重复检测，检查是否已存在
+                    existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
+                    if existing_message:
+                        logger.info(f"🔄 message_processor: 检测到组合消息重复保存，返回已存在消息: {channel_id}:{message_id}")
+                        return existing_message
+                    else:
+                        logger.warning(f"🔄 message_processor: 重复检测器检测到自己但Redis中不存在，继续保存: {channel_id}:{message_id}")
+                else:
+                    # 这是真正的重复消息，拒绝处理
+                    logger.info(f"🔄 message_processor: 检测到重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，拒绝处理")
+                    return None
             
-            # 非重复消息，检查Redis中是否已存在
+            # 非重复消息或特殊情况，检查Redis中是否已存在
             existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
             
             if existing_message:

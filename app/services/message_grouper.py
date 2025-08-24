@@ -17,6 +17,7 @@ class MessageGrouper:
         self.processed_groups: Dict[str, str] = {}  # 已处理的组合消息ID {grouped_id: combined_message_id}
         self.telegram_client = None  # Telegram客户端，用于主动获取完整组
         self.completed_groups: Dict[str, Dict] = {}  # 已完成处理的组合消息数据
+        self.group_locks: Dict[str, asyncio.Lock] = {}  # 组合消息并发锁 {group_key: lock}
     
     def _deduplicate_content(self, texts: List[str]) -> List[str]:
         """去重文本内容 - 移除重复的段落"""
@@ -167,58 +168,66 @@ class MessageGrouper:
         }
     
     async def _handle_grouped_message_active(self, message_data: Dict, channel_id: str, is_batch: bool = False) -> Optional[Dict]:
-        """Linus式主动获取完整消息组处理"""
+        """Linus式主动获取完整消息组处理 - 并发安全版本"""
         grouped_id = str(message_data['grouped_id']) if message_data.get('grouped_id') else None
         if not grouped_id:
             return await self._create_single_message(message_data, channel_id)
             
         group_key = f"{channel_id}_{grouped_id}"
         
-        # 检查是否已经处理过这个消息组
-        if group_key in self.processed_groups:
-            logger.debug(f"消息组 {grouped_id} 已被标记为已处理，跳过")
-            return None
-            
-        existing_combined = await self._get_existing_combined_message(channel_id, grouped_id)
-        if existing_combined:
-            logger.debug(f"消息组 {grouped_id} 已存在，跳过处理")
-            return None
+        # 🔧 Linus式并发控制：获取或创建该组的专用锁
+        if group_key not in self.group_locks:
+            self.group_locks[group_key] = asyncio.Lock()
         
-        # 标记为正在处理，避免重复处理
-        self.processed_groups[group_key] = "processing"
-        
-        try:
-            # Linus式直接获取完整组 - 不要猜测，直接获取完整数据
-            complete_group = await self._fetch_complete_group(channel_id, grouped_id, message_data['message_id'])
-            
-            if not complete_group:
-                logger.warning(f"无法获取完整消息组 {grouped_id}，作为单独消息处理")
-                del self.processed_groups[group_key]
-                return await self._create_single_message(message_data, channel_id)
-            
-            # 立即处理完整组
-            combined_message = await self._create_combined_message(complete_group, channel_id)
-            processed_data = await self._save_combined_message(combined_message, channel_id)
-            
-            if processed_data:
-                self.completed_groups[group_key] = processed_data
-                self.processed_groups[group_key] = processed_data['message_id']
-                
-                # 保存到Redis
-                await self._save_to_redis(processed_data, combined_message, channel_id)
-                
-                logger.info(f"✅ Linus式处理完成：消息组 {grouped_id} 包含 {len(complete_group)} 条消息")
-                return processed_data
-            else:
-                logger.error(f"处理组合消息数据失败: {group_key}")
-                del self.processed_groups[group_key]
+        # 使用专用锁确保同一组只被处理一次
+        async with self.group_locks[group_key]:
+            # 再次检查是否已经处理过这个消息组（双重检查锁定模式）
+            if group_key in self.processed_groups:
+                logger.debug(f"消息组 {grouped_id} 已被标记为已处理，跳过")
                 return None
                 
-        except Exception as e:
-            logger.error(f"主动获取消息组失败 {group_key}: {e}")
-            if group_key in self.processed_groups:
-                del self.processed_groups[group_key]
-            return await self._create_single_message(message_data, channel_id)
+            existing_combined = await self._get_existing_combined_message(channel_id, grouped_id)
+            if existing_combined:
+                logger.debug(f"消息组 {grouped_id} 已存在，跳过处理")
+                # 标记为已处理，避免后续检查
+                self.processed_groups[group_key] = str(existing_combined.get('message_id', 'existing'))
+                return None
+            
+            # 标记为正在处理，避免重复处理
+            self.processed_groups[group_key] = "processing"
+            
+            try:
+                # Linus式直接获取完整组 - 不要猜测，直接获取完整数据
+                complete_group = await self._fetch_complete_group(channel_id, grouped_id, message_data['message_id'])
+                
+                if not complete_group:
+                    logger.warning(f"无法获取完整消息组 {grouped_id}，作为单独消息处理")
+                    del self.processed_groups[group_key]
+                    return await self._create_single_message(message_data, channel_id)
+                
+                # 立即处理完整组
+                combined_message = await self._create_combined_message(complete_group, channel_id)
+                processed_data = await self._save_combined_message(combined_message, channel_id)
+                
+                if processed_data:
+                    self.completed_groups[group_key] = processed_data
+                    self.processed_groups[group_key] = processed_data['message_id']
+                    
+                    # 保存到Redis - 增加错误处理
+                    await self._save_to_redis_safe(processed_data, combined_message, channel_id)
+                    
+                    logger.info(f"✅ Linus式处理完成：消息组 {grouped_id} 包含 {len(complete_group)} 条消息")
+                    return processed_data
+                else:
+                    logger.error(f"处理组合消息数据失败: {group_key}")
+                    del self.processed_groups[group_key]
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"主动获取消息组失败 {group_key}: {e}")
+                if group_key in self.processed_groups:
+                    del self.processed_groups[group_key]
+                return await self._create_single_message(message_data, channel_id)
     
     async def _fetch_complete_group(self, channel_id: str, grouped_id: str, sample_message_id: int) -> List[Dict]:
         """Linus式获取完整消息组 - 不要猜测，直接获取完整数据"""
@@ -416,6 +425,9 @@ class MessageGrouper:
             
             # 保存到Redis - Linus式：提供详细失败原因
             try:
+                logger.debug(f"🔄 准备保存组合消息: {channel_id}:{processed_data['message_id']}")
+                logger.debug(f"保存数据详情: {save_data}")
+                
                 saved_message = await processor.process_new_message(save_data)
                 if saved_message:
                     logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
@@ -423,28 +435,81 @@ class MessageGrouper:
                     # 通知前端组合消息已创建
                     await self._notify_combined_message_created(saved_message)
                 else:
-                    # 获取详细失败原因
-                    from app.storage.redis_store import redis_message_store
-                    if redis_message_store is None:
-                        failure_reason = "Redis存储未初始化"
-                    else:
-                        # 检查具体可能的原因
-                        try:
-                            redis_message_store.ping()
-                            failure_reason = "消息处理器返回None - 可能数据格式不匹配或过滤条件不满足"
-                        except Exception as redis_error:
-                            failure_reason = f"Redis连接失败: {redis_error}"
+                    # 获取详细失败原因 - 减少重复日志
+                    failure_count = getattr(self, '_failure_count', 0)
+                    self._failure_count = failure_count + 1
                     
-                    logger.error(f"❌ 组合消息保存失败: {channel_id}:{processed_data['message_id']} - 原因: {failure_reason}")
-                    logger.error(f"保存数据概况: content={len(save_data.get('content', ''))}字符, "
-                               f"status={save_data.get('status')}, "
-                               f"media={bool(save_data.get('media_hash'))}")
+                    # 只在前5次失败时记录详细错误，避免日志泛滥
+                    if failure_count < 5:
+                        from app.storage.redis_store import redis_message_store
+                        if redis_message_store is None:
+                            failure_reason = "Redis存储未初始化"
+                        else:
+                            # 检查具体可能的原因
+                            try:
+                                redis_message_store.ping()
+                                # 检查数据有效性
+                                if not save_data.get('content'):
+                                    failure_reason = "消息内容为空"
+                                elif len(save_data.get('content', '')) < 10:
+                                    failure_reason = "消息内容过短，可能被过度过滤"
+                                else:
+                                    failure_reason = "消息处理器返回None - 可能数据格式不匹配或过滤条件不满足"
+                            except Exception as redis_error:
+                                failure_reason = f"Redis连接失败: {redis_error}"
+                        
+                        logger.error(f"❌ 组合消息保存失败: {channel_id}:{processed_data['message_id']} - 原因: {failure_reason}")
+                        logger.error(f"保存数据概况: content={len(save_data.get('content', ''))}字符, "
+                                   f"status={save_data.get('status')}, "
+                                   f"media={bool(save_data.get('media_hash'))}")
+                    elif failure_count == 5:
+                        logger.warning(f"⚠️ 组合消息保存持续失败，已记录5次详细错误，后续仅记录概要")
+                    
+                    # 总是记录失败概要（但更简洁）
+                    if failure_count >= 5:
+                        logger.warning(f"组合消息保存失败: {channel_id}:{processed_data['message_id']} (累计{failure_count+1}次)")
             except Exception as process_error:
                 logger.error(f"❌ 组合消息保存过程异常: {channel_id}:{processed_data['message_id']} - 错误: {process_error}")
                 
         except Exception as save_error:
             logger.error(f"保存组合消息到Redis时出错: {save_error}")
     
+    async def _save_to_redis_safe(self, processed_data: Dict, combined_message: Dict, channel_id: str):
+        """安全保存组合消息到Redis - 处理重复保存情况"""
+        try:
+            from app.services.message_processor import MessageProcessor
+            from app.storage.redis_store import redis_message_store
+            
+            # 🔧 Linus式优化：先检查是否已存在，避免重复检测器误报
+            message_id = processed_data['message_id']
+            existing_message = None
+            
+            if redis_message_store:
+                try:
+                    existing_message = redis_message_store.get_message(channel_id, int(message_id), silent=True)
+                except Exception:
+                    pass
+            
+            # 如果消息已存在，直接返回成功
+            if existing_message:
+                logger.info(f"✅ 组合消息已存在于Redis，跳过保存: {channel_id}:{message_id}")
+                # 通知前端组合消息已创建（如果还没有通知过）
+                try:
+                    await self._notify_combined_message_created(existing_message)
+                except Exception:
+                    pass  # 通知失败不影响主流程
+                return
+            
+            # 消息不存在，正常保存
+            await self._save_to_redis(processed_data, combined_message, channel_id)
+            
+        except Exception as safe_error:
+            logger.error(f"安全保存组合消息时出错: {safe_error}")
+            # 如果安全保存失败，回退到原始保存方法
+            try:
+                await self._save_to_redis(processed_data, combined_message, channel_id)
+            except Exception:
+                pass  # 最终失败时静默处理，错误已在_save_to_redis中记录
     
     async def _create_combined_message(self, messages: List[Dict], channel_id: str) -> Dict:
         """创建组合消息"""
@@ -863,7 +928,7 @@ class MessageGrouper:
                 "is_combined": saved_message.get('is_combined'),
                 "grouped_id": saved_message.get('grouped_id'),
                 "status": saved_message.get('status'),
-                "created_at": format_for_api(saved_message.get('created_at')),
+                "created_at": self._safe_format_time(saved_message.get('created_at')),
                 "media_group_display": self._prepare_media_group_display(saved_message),
                 "media_group": saved_message.get('media_group'),
                 "combined_messages": saved_message.get('combined_messages')
@@ -877,6 +942,30 @@ class MessageGrouper:
             logger.warning(f"WebSocket管理器未可用: {e}")
         except Exception as e:
             logger.error(f"通知前端组合消息创建失败: {e}")
+    
+    def _safe_format_time(self, time_value):
+        """安全的时间格式化方法"""
+        try:
+            from app.utils.timezone import format_for_api
+            from datetime import datetime
+            
+            if time_value is None:
+                return None
+            
+            # 如果已经是字符串，直接返回
+            if isinstance(time_value, str):
+                return time_value
+            
+            # 如果是datetime对象，使用format_for_api格式化
+            if isinstance(time_value, datetime):
+                return format_for_api(time_value)
+            
+            # 其他情况，转换为字符串
+            return str(time_value)
+        
+        except Exception as e:
+            logger.warning(f"时间格式化失败: {e}, 使用原始值: {time_value}")
+            return str(time_value) if time_value is not None else None
     
     def _prepare_media_group_display(self, db_message):
         """准备媒体组显示数据"""
