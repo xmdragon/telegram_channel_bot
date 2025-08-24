@@ -5,6 +5,8 @@ Redis客户端连接和基础操作模块
 import json
 import logging
 import redis
+import sys
+import time
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -32,13 +34,22 @@ def get_redis_client(redis_url: str = None):
             )
             _redis_client = redis.Redis(connection_pool=_redis_pool)
             
-            # Linus式连接：不强制ping，让使用时自然重试
-            try:
-                _redis_client.ping()
-                logger.info("Redis连接池初始化成功")
-            except Exception as ping_error:
-                logger.debug(f"Redis启动时序延迟，服务将自动重试: {ping_error}")
-                # 继续启动，不阻塞服务
+            # Linus式连接：重试机制，前3次静默，失败直接退出
+            max_retries = 3
+            for attempt in range(1, max_retries + 2):  # 总共4次尝试
+                try:
+                    _redis_client.ping()
+                    logger.info("Redis连接池初始化成功")
+                    break
+                except Exception as e:
+                    if attempt <= max_retries:
+                        # 前3次只记录debug级别
+                        logger.debug(f"Redis连接尝试 {attempt}/{max_retries}: {e}")
+                        time.sleep(1)  # 等待1秒后重试
+                    else:
+                        # 第4次失败，记录错误并退出
+                        logger.error(f"Redis连接失败，服务无法启动: {e}")
+                        sys.exit(1)  # 直接退出程序
             
         except Exception as e:
             logger.error(f"Redis连接池初始化失败: {e}")

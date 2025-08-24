@@ -51,7 +51,7 @@ class MessageReceiver(MessageProcessor):
             if not self._is_valid_message(context):
                 context.should_reject = True
                 context.reject_reason = "消息无有效内容"
-                self.logger.warning(f"消息 #{message.id} 无有效内容，标记为拒绝")
+                self.logger.info(f"消息 #{message.id} 无有效内容，标记为拒绝")
                 return ProcessorResult(True, context)
             
             self.logger.info(f"消息接收完成: ID#{message.id}, 内容长度:{len(original_content)}, 媒体:{bool(message.media)}")

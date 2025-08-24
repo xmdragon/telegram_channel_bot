@@ -23,10 +23,10 @@ max_requests_jitter = 50    # 随机化重启时间，避免同时重启
 preload_app = True      # 预加载应用，节省内存
 reload = False          # 生产环境禁用热重载
 
-# 日志配置
-accesslog = "./logs/gunicorn_access.log"
-errorlog = "./logs/gunicorn_error.log" 
-loglevel = "info"
+# 日志配置 - Linus式明确命名
+accesslog = "./logs/gunicorn_access.log"    # HTTP访问日志
+errorlog = "./logs/gunicorn_error.log"      # 只记录ERROR级别日志
+loglevel = "error"                          # 只记录错误级别
 
 # 安全配置
 limit_request_line = 4096       # 限制请求行大小
