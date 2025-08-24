@@ -296,7 +296,7 @@ const MainApp = {
             const loadResults = await Promise.allSettled([
                 this.loadMessages().catch(err => {
                     console.error('❌ 加载消息失败:', err);
-                    MessageManager.error('加载消息失败，请刷新页面重试');
+                    window.SimpleUI.Message.error('加载消息失败，请刷新页面重试');
                     throw err;
                 }),
                 // 统计数据由linus-stats组件自动加载
@@ -358,7 +358,7 @@ const MainApp = {
             this.setupScrollListener();
         } catch (error) {
             console.error('页面初始化失败:', error);
-            MessageManager.error('页面初始化失败，部分功能可能不可用');
+            window.SimpleUI.Message.error('页面初始化失败，部分功能可能不可用');
         }
     },
     
@@ -657,12 +657,12 @@ const MainApp = {
                     
                     // 只有在追加模式且有真正新消息时才显示提示
                     if (append && reallyNewMessages.length > 0) {
-                        MessageManager.success(`收到 ${reallyNewMessages.length} 条新消息`);
+                        window.SimpleUI.Message.success(`收到 ${reallyNewMessages.length} 条新消息`);
                     } else if (!append && this.filters.source_channel) {
                         // 频道切换时显示提示
                         const channelInfo = this.uniqueChannels[this.filters.source_channel];
                         const channelName = this.getChannelDisplayName(channelInfo);
-                        MessageManager.info(`已切换到「${channelName}」，共 ${newMessages.length} 条消息`);
+                        window.SimpleUI.Message.info(`已切换到「${channelName}」，共 ${newMessages.length} 条消息`);
                     }
                     
                     // 更新已知消息ID集合
@@ -676,7 +676,7 @@ const MainApp = {
                 } else {
                     this.messages = [];
                     if (this.previousMessageIds.size === 0) {
-                        MessageManager.warning('暂无消息数据');
+                        window.SimpleUI.Message.warning('暂无消息数据');
                     }
                 }
             } catch (error) {
@@ -689,7 +689,7 @@ const MainApp = {
                     config: error.config
                 });
                 this.messages = [];
-                MessageManager.error('加载消息失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('加载消息失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 // 根据模式正确清理状态
                 if (append) {
@@ -746,7 +746,7 @@ const MainApp = {
         // 处理频道切换事件
         handleChannelChange() {
             if (!this.filters.source_channel) {
-                MessageManager.info('已清除频道筛选，显示所有频道的消息');
+                window.SimpleUI.Message.info('已清除频道筛选，显示所有频道的消息');
             }
             
             this.loadMessages();
@@ -859,7 +859,7 @@ const MainApp = {
                     this.filters.filter_reason = null;
             }
             
-            MessageManager.info(`已切换到「${this.getStatLabel(statKey)}」并清除频道筛选`);
+            window.SimpleUI.Message.info(`已切换到「${this.getStatLabel(statKey)}」并清除频道筛选`);
             this.loadMessages();
         },
         
@@ -880,7 +880,7 @@ const MainApp = {
             this.hasMore = true;
             this.loadMessages();
             // 显示筛选提示
-            MessageManager.info(`正在显示频道「${channelTitle || channelId}」的消息`);
+            window.SimpleUI.Message.info(`正在显示频道「${channelTitle || channelId}」的消息`);
         },
         
         // 清除频道筛选
@@ -890,7 +890,7 @@ const MainApp = {
             this.currentPage = 1;
             this.hasMore = true;
             this.loadMessages();
-            MessageManager.info('已清除频道筛选');
+            window.SimpleUI.Message.info('已清除频道筛选');
         },
         
         // 发布消息
@@ -914,7 +914,7 @@ const MainApp = {
                 
                 const response = await axios.post(window.API.messages.approveById(messageId));
                 if (response.data.success) {
-                    MessageManager.success('消息已发布');
+                    window.SimpleUI.Message.success('消息已发布');
                     // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
                     if (this.filters.status === 'pending') {
                         this.messages = this.messages.filter(msg => msg.id !== messageId);
@@ -936,14 +936,14 @@ const MainApp = {
                         }, 1000);
                     });
                 } else {
-                    MessageManager.error('发布失败: ' + response.data.message);
+                    window.SimpleUI.Message.error('发布失败: ' + response.data.message);
                     // 恢复加载状态
                     setTimeout(() => {
                         this.isLoadingMore = wasLoadingMore;
                     }, 500);
                 }
             } catch (error) {
-                MessageManager.error('发布失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('发布失败: ' + (error.response?.data?.detail || error.message));
                 // 恢复加载状态
                 setTimeout(() => {
                     this.isLoadingMore = false;
@@ -969,7 +969,7 @@ const MainApp = {
                 
                 const response = await axios.post(`${window.API.messages.rejectById(messageId)}?reason=手动拒绝&reviewer=Web用户`);
                 if (response.data.success) {
-                    MessageManager.success('消息已拒绝');
+                    window.SimpleUI.Message.success('消息已拒绝');
                     
                     // 如果当前筛选状态不是"已拒绝"，才从列表中移除消息
                     // 如果筛选状态是"已拒绝"，则更新消息状态而不是移除
@@ -1004,12 +1004,12 @@ const MainApp = {
                         }
                     }
                 } else {
-                    MessageManager.error('拒绝失败: ' + response.data.message);
+                    window.SimpleUI.Message.error('拒绝失败: ' + response.data.message);
                     // 恢复加载状态
                     this.isLoadingMore = wasLoadingMore;
                 }
             } catch (error) {
-                MessageManager.error('拒绝失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('拒绝失败: ' + (error.response?.data?.detail || error.message));
                 // 恢复加载状态
                 this.isLoadingMore = false;
             }
@@ -1027,7 +1027,7 @@ const MainApp = {
                 
                 const response = await axios.post(window.API.messages.restoreById(messageId));
                 if (response.data.success) {
-                    MessageManager.success('消息已恢复到未审核状态');
+                    window.SimpleUI.Message.success('消息已恢复到未审核状态');
                     
                     // 如果当前筛选状态是"已拒绝"，从列表中移除消息
                     // 如果筛选状态是"待审核"，则更新消息状态
@@ -1054,12 +1054,12 @@ const MainApp = {
                         }, 100);
                     });
                 } else {
-                    MessageManager.error('恢复失败: ' + response.data.message);
+                    window.SimpleUI.Message.error('恢复失败: ' + response.data.message);
                     // 恢复加载状态
                     this.isLoadingMore = wasLoadingMore;
                 }
             } catch (error) {
-                MessageManager.error('恢复失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('恢复失败: ' + (error.response?.data?.detail || error.message));
                 // 恢复加载状态
                 this.isLoadingMore = false;
             }
@@ -1099,17 +1099,17 @@ const MainApp = {
             if (window.MessageManager) {
                 const result = await window.MessageManager.batchApprove(this.selectedMessages);
                 if (result.success) {
-                    MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
+                    window.SimpleUI.Message.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.refreshStats();
                 } else {
-                    MessageManager.error('批量发布失败: ' + result.error);
+                    window.SimpleUI.Message.error('批量发布失败: ' + result.error);
                 }
             } else {
                 // 降级处理
                 if (this.selectedMessages.length === 0) {
-                    MessageManager.warning('请先选择要发布的消息');
+                    window.SimpleUI.Message.warning('请先选择要发布的消息');
                     return;
                 }
                 
@@ -1118,15 +1118,15 @@ const MainApp = {
                         message_ids: this.selectedMessages
                     });
                     if (response.data.success) {
-                        MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
+                        window.SimpleUI.Message.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
                         this.refreshStats();
                     } else {
-                        MessageManager.error('批量发布失败: ' + response.data.message);
+                        window.SimpleUI.Message.error('批量发布失败: ' + response.data.message);
                     }
                 } catch (error) {
-                    MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
+                    window.SimpleUI.Message.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
                 }
             }
         },
@@ -1567,7 +1567,7 @@ const MainApp = {
                 
                 // 显示通知（无论是否添加到列表）
                 const contentPreview = messageData.content ? messageData.content.substring(0, 30) + '...' : '新消息（无文本内容）';
-                MessageManager.success(`收到新消息: ${contentPreview}`);
+                window.SimpleUI.Message.success(`收到新消息: ${contentPreview}`);
                 
                 // 刷新统计信息
                 this.refreshStats();
@@ -1615,7 +1615,7 @@ const MainApp = {
                 this.messages = [...this.messages];
                 
                 // 显示成功通知
-                MessageManager.success(`消息 #${messageId} 的媒体补抓成功！`);
+                window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
                 
             } else {
             }
@@ -1656,7 +1656,7 @@ const MainApp = {
         editMessage(messageId) {
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
-                MessageManager.error('未找到消息');
+                window.SimpleUI.Message.error('未找到消息');
                 return;
             }
             this.editDialog.messageId = message.id;
@@ -1676,12 +1676,12 @@ const MainApp = {
             
             // 验证必要的数据
             if (!this.editDialog.messageId) {
-                MessageManager.error('编辑失败: 消息ID不存在');
+                window.SimpleUI.Message.error('编辑失败: 消息ID不存在');
                 return;
             }
             
             if (!this.editDialog.filteredContent && this.editDialog.filteredContent !== '') {
-                MessageManager.error('编辑失败: 内容不能为空');
+                window.SimpleUI.Message.error('编辑失败: 内容不能为空');
                 return;
             }
             
@@ -1695,7 +1695,7 @@ const MainApp = {
                 
                 
                 if (response.data.success) {
-                    MessageManager.success('消息已编辑并保存');
+                    window.SimpleUI.Message.success('消息已编辑并保存');
                     this.editDialog.visible = false;
                     
                     // 🚀 性能优化：使用局部更新，避免整个列表重新渲染
@@ -1704,7 +1704,7 @@ const MainApp = {
                         updated_at: new Date().toISOString()
                     });
                 } else {
-                    MessageManager.error('编辑失败: ' + (response.data.message || '未知错误'));
+                    window.SimpleUI.Message.error('编辑失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
                 console.error('编辑请求异常:', error);
@@ -1725,7 +1725,7 @@ const MainApp = {
                     errorMessage += '未知错误';
                 }
                 
-                MessageManager.error(errorMessage);
+                window.SimpleUI.Message.error(errorMessage);
             }
         },
         
@@ -1799,17 +1799,17 @@ const MainApp = {
                 if (window.MessageManager) {
                     const result = await window.MessageManager.batchApprove(this.selectedMessages);
                     if (result.success) {
-                        MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
+                        window.SimpleUI.Message.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
                         this.refreshStats();
                     } else {
-                        MessageManager.error('批量发布失败: ' + result.error);
+                        window.SimpleUI.Message.error('批量发布失败: ' + result.error);
                     }
                 } else {
                     // 降级处理
                     if (this.selectedMessages.length === 0) {
-                        MessageManager.warning('请先选择要发布的消息');
+                        window.SimpleUI.Message.warning('请先选择要发布的消息');
                         return;
                     }
                     
@@ -1817,16 +1817,16 @@ const MainApp = {
                         message_ids: this.selectedMessages
                     });
                     if (response.data.success) {
-                        MessageManager.success(`成功发布 ${this.selectedMessages.length} 条消息`);
+                        window.SimpleUI.Message.success(`成功发布 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
                         this.refreshStats();
                     } else {
-                        MessageManager.error('批量发布失败: ' + response.data.message);
+                        window.SimpleUI.Message.error('批量发布失败: ' + response.data.message);
                     }
                 }
             } catch (error) {
-                MessageManager.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('批量发布失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 // 恢复发布状态
                 this.isBatchPublishing = false;
@@ -1845,17 +1845,17 @@ const MainApp = {
             if (window.MessageManager) {
                 const result = await window.MessageManager.batchReject(this.selectedMessages);
                 if (result.success) {
-                    MessageManager.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
+                    window.SimpleUI.Message.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.refreshStats();
                 } else {
-                    MessageManager.error('批量拒绝失败: ' + result.error);
+                    window.SimpleUI.Message.error('批量拒绝失败: ' + result.error);
                 }
             } else {
                 // 降级处理
                 if (this.selectedMessages.length === 0) {
-                    MessageManager.warning('请先选择要拒绝的消息');
+                    window.SimpleUI.Message.warning('请先选择要拒绝的消息');
                     return;
                 }
                 
@@ -1864,15 +1864,15 @@ const MainApp = {
                         message_ids: this.selectedMessages
                     });
                     if (response.data.success) {
-                        MessageManager.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
+                        window.SimpleUI.Message.success(`成功拒绝 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
                         this.refreshStats();
                     } else {
-                        MessageManager.error('批量拒绝失败: ' + response.data.message);
+                        window.SimpleUI.Message.error('批量拒绝失败: ' + response.data.message);
                     }
                 } catch (error) {
-                    MessageManager.error('批量拒绝失败: ' + (error.response?.data?.detail || error.message));
+                    window.SimpleUI.Message.error('批量拒绝失败: ' + (error.response?.data?.detail || error.message));
                 }
             }
         },
@@ -1893,19 +1893,19 @@ const MainApp = {
                 };
             }
             try {
-                MessageManager.info('正在重新发布消息到目标频道...');
+                window.SimpleUI.Message.info('正在重新发布消息到目标频道...');
                 
                 const response = await axios.post(window.API.messages.resendById(message.id));
                 
                 if (response.data.success) {
-                    MessageManager.success('消息已重新发布到目标频道');
+                    window.SimpleUI.Message.success('消息已重新发布到目标频道');
                     this.loadMessages(); // 刷新消息列表
                 } else {
-                    MessageManager.error('重新发布失败: ' + response.data.message);
+                    window.SimpleUI.Message.error('重新发布失败: ' + response.data.message);
                 }
             } catch (error) {
                 const errorMsg = error.response?.data?.detail || error.message || '重新发布失败';
-                MessageManager.error('重新发布失败: ' + errorMsg);
+                window.SimpleUI.Message.error('重新发布失败: ' + errorMsg);
                 console.error('重新发布消息错误:', error);
             }
         },
@@ -1930,7 +1930,7 @@ const MainApp = {
                 // 解析消息ID
                 const idParts = message.id.split(':');
                 if (idParts.length !== 2) {
-                    MessageManager.error('消息ID格式错误');
+                    window.SimpleUI.Message.error('消息ID格式错误');
                     return;
                 }
                 
@@ -1952,14 +1952,14 @@ const MainApp = {
                 });
                 
                 if (response.data.success) {
-                    MessageManager.success('消息已重置为待审核状态');
+                    window.SimpleUI.Message.success('消息已重置为待审核状态');
                     this.loadMessages();
                     this.refreshStats();
                 } else {
-                    MessageManager.error('重置失败: ' + response.data.message);
+                    window.SimpleUI.Message.error('重置失败: ' + response.data.message);
                 }
             } catch (error) {
-                MessageManager.error('重置失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('重置失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
@@ -1972,7 +1972,7 @@ const MainApp = {
                 event.stopImmediatePropagation();
             }
             if (this.selectedMessages.length === 0) {
-                MessageManager.warning('请先选择要删除的消息');
+                window.SimpleUI.Message.warning('请先选择要删除的消息');
                 return;
             }
             
@@ -1983,12 +1983,12 @@ const MainApp = {
             if (window.MessageManager) {
                 const result = await window.MessageManager.batchDelete(this.selectedMessages);
                 if (result.success) {
-                    MessageManager.success(`成功删除 ${this.selectedMessages.length} 条消息`);
+                    window.SimpleUI.Message.success(`成功删除 ${this.selectedMessages.length} 条消息`);
                     this.selectedMessages = [];
                     this.loadMessages();
                     this.refreshStats();
                 } else {
-                    MessageManager.error('批量删除失败: ' + result.error);
+                    window.SimpleUI.Message.error('批量删除失败: ' + result.error);
                 }
             } else {
                 // 降级处理
@@ -1997,15 +1997,15 @@ const MainApp = {
                         message_ids: this.selectedMessages
                     });
                     if (response.data.success) {
-                        MessageManager.success(`成功删除 ${this.selectedMessages.length} 条消息`);
+                        window.SimpleUI.Message.success(`成功删除 ${this.selectedMessages.length} 条消息`);
                         this.selectedMessages = [];
                         this.loadMessages();
                         this.refreshStats();
                     } else {
-                        MessageManager.error('批量删除失败: ' + response.data.message);
+                        window.SimpleUI.Message.error('批量删除失败: ' + response.data.message);
                     }
                 } catch (error) {
-                    MessageManager.error('批量删除失败: ' + (error.response?.data?.detail || error.message));
+                    window.SimpleUI.Message.error('批量删除失赅: ' + (error.response?.data?.detail || error.message));
                 }
             }
         },
@@ -2058,7 +2058,7 @@ const MainApp = {
         async markAsAd(messageId) {
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
-                MessageManager.error('未找到消息');
+                window.SimpleUI.Message.error('未找到消息');
                 return;
             }
             
@@ -2098,15 +2098,15 @@ const MainApp = {
                         successMsg += `\n阈值已自动调整：${response.data.threshold_adjustment}`;
                     }
                     
-                    MessageManager.success(successMsg);
+                    window.SimpleUI.Message.success(successMsg);
                     // 重新加载消息列表以反映状态变化
                     await this.loadMessages();
                     this.refreshStats();
                 } else {
-                    MessageManager.error(response.data.message || `${action}失败`);
+                    window.SimpleUI.Message.error(response.data.message || `${action}失败`);
                 }
             } catch (error) {
-                MessageManager.error('标记失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('标记失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
@@ -2133,16 +2133,16 @@ const MainApp = {
                 const response = await axios.post(window.API.messages.notAd(message.id));
                 
                 if (response.data.success) {
-                    MessageManager.success('已标记为"不是广告"，消息状态已改为待审核');
+                    window.SimpleUI.Message.success('已标记为"不是广告"，消息状态已改为待审核');
                     // 重新加载消息以获取最新的过滤内容
                     // 因为后端已应用了尾部过滤和推广链接过滤
                     await this.loadMessages();
                     this.refreshStats();
                 } else {
-                    MessageManager.error(response.data.message || '操作失败');
+                    window.SimpleUI.Message.error(response.data.message || '操作失败');
                 }
             } catch (error) {
-                MessageManager.error('操作失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('操作失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
@@ -2150,7 +2150,7 @@ const MainApp = {
         trainTail(messageId) {
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
-                MessageManager.error('未找到消息');
+                window.SimpleUI.Message.error('未找到消息');
                 return;
             }
             // 只传递message_id，让训练页面自己获取消息详情
@@ -2170,7 +2170,7 @@ const MainApp = {
             
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
-                MessageManager.error('未找到消息');
+                window.SimpleUI.Message.error('未找到消息');
                 return;
             }
             
@@ -2195,7 +2195,7 @@ const MainApp = {
                 
                 if (response.data.success) {
                     if (response.data.has_tail && response.data.removed_length > 0) {
-                        MessageManager.success(`尾部过滤成功，移除了 ${response.data.removed_length} 个字符`);
+                        window.SimpleUI.Message.success(`尾部过滤成功，移除了 ${response.data.removed_length} 个字符`);
                         // 更新消息的过滤后内容
                         const index = this.messages.findIndex(m => m.id === message.id);
                         if (index !== -1) {
@@ -2203,14 +2203,14 @@ const MainApp = {
                         }
                     } else {
                         // 修复：显示后端返回的具体消息
-                        MessageManager.info(response.data.message || '未检测到需要过滤的尾部内容');
+                        window.SimpleUI.Message.info(response.data.message || '未检测到需要过滤的尾部内容');
                     }
                 } else {
-                    MessageManager.warning(response.data.message || '过滤失败');
+                    window.SimpleUI.Message.warning(response.data.message || '过滤失败');
                 }
             } catch (error) {
                 console.error('尾部过滤失败:', error);
-                MessageManager.error('尾部过滤失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('尾部过滤失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 // 确保总是清理状态
                 this.filteringMessages.delete(messageId);
@@ -2259,13 +2259,13 @@ const MainApp = {
         async refetchMedia(messageId) {
             // Linus式防重复点击
             if (this.refetchingMedia[messageId]) {
-                MessageManager.warning('正在补抓中，请稍候...');
+                window.SimpleUI.Message.warning('正在补抓中，请稍候...');
                 return;
             }
             
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
-                MessageManager.error('未找到消息');
+                window.SimpleUI.Message.error('未找到消息');
                 return;
             }
             
@@ -2277,15 +2277,15 @@ const MainApp = {
                 const response = await axios.post(window.API.messages.refetchMedia(message.id));
                 
                 if (response.data.success) {
-                    MessageManager.success('正在补抓媒体文件...');
+                    window.SimpleUI.Message.success('正在补抓媒体文件...');
                     // 不再轮询，等待WebSocket通知
                 } else {
-                    MessageManager.error(response.data.message || '补抓失败');
+                    window.SimpleUI.Message.error(response.data.message || '补抓失败');
                     delete this.refetchingMedia[message.id];
                 }
             } catch (error) {
                 console.error('补抓媒体失败:', error);
-                MessageManager.error('补抓失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Message.error('补抓失败: ' + (error.response?.data?.detail || error.message));
                 delete this.refetchingMedia[message.id];
             }
         },
@@ -2318,9 +2318,9 @@ const MainApp = {
                             // 触发视图更新
                             this.messages = [...this.messages];
                             
-                            MessageManager.success('媒体补抓成功');
+                            window.SimpleUI.Message.success('媒体补抓成功');
                         } else {
-                            MessageManager.warning('任务完成但未获取到媒体文件');
+                            window.SimpleUI.Message.warning('任务完成但未获取到媒体文件');
                         }
                         
                         delete this.refetchingMedia[message.id];
@@ -2329,7 +2329,7 @@ const MainApp = {
                     } else if (taskData.status === 'failed') {
                         // 任务失败
                         const errorMsg = taskData.error_message || '未知错误';
-                        MessageManager.error(`媒体补抓失败: ${errorMsg}`);
+                        window.SimpleUI.Message.error(`媒体补抓失败: ${errorMsg}`);
                         delete this.refetchingMedia[message.id];
                         return;
                         
@@ -2338,7 +2338,7 @@ const MainApp = {
                         if (attempts < maxAttempts) {
                             setTimeout(poll, 2000); // 2秒后再次检查
                         } else {
-                            MessageManager.warning('任务处理超时，请稍后手动检查结果');
+                            window.SimpleUI.Message.warning('任务处理超时，请稍后手动检查结果');
                             delete this.refetchingMedia[message.id];
                         }
                     }
@@ -2348,7 +2348,7 @@ const MainApp = {
                     if (attempts < maxAttempts) {
                         setTimeout(poll, 2000);
                     } else {
-                        MessageManager.error('无法获取任务状态');
+                        window.SimpleUI.Message.error('无法获取任务状态');
                         delete this.refetchingMedia[message.id];
                     }
                 }
@@ -2453,7 +2453,7 @@ const MainApp = {
             }
             
             this.selectedMessages = targetMessages.map(msg => msg.id || `${msg.source_channel}:${msg.message_id}`);
-            MessageManager.success(`已选择 ${targetMessages.length} 条消息`);
+            window.SimpleUI.Message.success(`已选择 ${targetMessages.length} 条消息`);
         },
         
         // 处理批量操作完成
@@ -2580,7 +2580,7 @@ function initializeVueApp() {
             console.error('Vue错误:', err, info);
             // 不中断应用运行，只记录错误
             if (window.MessageManager) {
-                MessageManager.error('操作失败，请重试');
+                window.SimpleUI.Message.error('操作失败，请重试');
             }
         };
         
