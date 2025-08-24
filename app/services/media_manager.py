@@ -120,6 +120,20 @@ class MediaManager:
             filename = f"{message_id}_{timestamp}_{media_type}.{file_extension}"
             file_path = self.temp_media_dir / filename
             
+            # 确保目录存在且可写
+            if not self.temp_media_dir.exists():
+                logger.warning(f"创建媒体目录: {self.temp_media_dir}")
+                self.temp_media_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 检查目录是否可写
+            if not os.access(self.temp_media_dir, os.W_OK):
+                logger.error(f"媒体目录无写入权限: {self.temp_media_dir}")
+                return {
+                    'media_type': media_type,
+                    'download_failed': True,
+                    'error': '目录无写入权限'
+                }
+            
             # 使用Telethon客户端下载
             # 这里我们需要从message_grouper获取已经初始化的客户端
             from app.services.message_grouper import message_grouper
@@ -132,10 +146,12 @@ class MediaManager:
                 return None
             
             # 执行下载
+            logger.debug(f"准备从Telegram下载媒体到: {file_path}")
             downloaded_file = await message_grouper.telegram_client.download_media(
                 telegram_msg.media,
                 file=str(file_path)
             )
+            logger.debug(f"Telegram下载返回路径: {downloaded_file}")
             
             if downloaded_file and os.path.exists(downloaded_file):
                 file_size = os.path.getsize(downloaded_file)
@@ -156,19 +172,38 @@ class MediaManager:
                 logger.info(f"媒体下载完成: {downloaded_file} ({file_size} bytes)")
                 return media_info
             else:
-                logger.error(f"媒体下载失败，文件不存在: {file_path}")
+                # 更准确的错误信息
+                if downloaded_file is None:
+                    logger.error(f"媒体从Telegram下载失败: 服务器返回空结果 (消息 #{message_id})")
+                    error_msg = "Telegram下载返回空"
+                else:
+                    logger.error(f"媒体下载异常: 文件未创建成功 {downloaded_file} (消息 #{message_id})")
+                    error_msg = f"文件创建失败: {downloaded_file}"
+                
                 return {
                     'media_type': media_type,
                     'download_failed': True,
-                    'error': '下载失败'
+                    'error': error_msg
                 }
                 
         except Exception as e:
-            logger.error(f"下载媒体失败 (消息 #{message_id}): {e}")
+            import traceback
+            logger.error(f"下载媒体异常 (消息 #{message_id}): {e}")
+            logger.error(f"详细错误堆栈: {traceback.format_exc()}")
+            
+            # 提供更友好的错误信息
+            error_msg = str(e)
+            if 'No space left' in str(e).lower():
+                error_msg = "磁盘空间不足"
+            elif 'permission' in str(e).lower():
+                error_msg = "权限不足"
+            elif 'network' in str(e).lower() or 'timeout' in str(e).lower():
+                error_msg = "网络连接问题"
+            
             return {
                 'media_type': 'unknown',
                 'download_failed': True,
-                'error': str(e)
+                'error': error_msg
             }
     
     def _determine_media_type_and_extension(self, media) -> tuple:
