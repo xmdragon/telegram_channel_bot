@@ -729,7 +729,7 @@ const MainApp = {
         refreshStats() {
             // 调用Linus统计组件的刷新方法
             if (this.$refs.linusStats) {
-                this.$refs.linusStats.loadStats();
+                this.$refs.linusStats.refreshStats();
             }
         },
 
