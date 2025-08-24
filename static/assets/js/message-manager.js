@@ -33,9 +33,9 @@ window.MessageManager = {
         let messageComponent = null;
         
         // 使用SimpleUI显示消息
-        if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+        if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.Message) {
             console.log(`[MessageManager] 显示${type}消息: ${message}`);
-            window.SimpleUI.showMessage(message, type, duration);
+            window.SimpleUI.Message.show(message, type, duration);
         } else {
             // 降级处理，如果SimpleUI不可用则使用console输出
             console.warn(`[MessageManager] SimpleUI不可用，消息: [${type.toUpperCase()}] ${message}`);

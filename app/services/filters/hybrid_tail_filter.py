@@ -30,7 +30,7 @@ class HybridTailFilter:
     - 利用训练数据（53+尾部样本）
     """
     
-    def __init__(self, vector_threshold: float = 0.4):
+    def __init__(self, vector_threshold: float = 0.2):
         """初始化混合过滤器
         
         Args:

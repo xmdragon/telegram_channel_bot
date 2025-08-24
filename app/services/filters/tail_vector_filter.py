@@ -27,7 +27,7 @@ class TailVectorFilter:
     3. 计算相似度精确识别推广内容
     """
     
-    def __init__(self, similarity_threshold: float = 0.4):
+    def __init__(self, similarity_threshold: float = 0.2):
         """初始化向量过滤器
         
         Args:
