@@ -68,9 +68,13 @@
                         <!-- 预览区域 -->
                         <div class="form-group" v-if="filteredPreview">
                             <label class="form-label">过滤后预览</label>
-                            <div class="preview-box">
-                                <pre>{{ filteredPreview }}</pre>
-                            </div>
+                            <textarea
+                                class="form-textarea"
+                                v-model="filteredPreview"
+                                rows="6"
+                                readonly
+                                placeholder="这里将显示过滤后的内容预览..."></textarea>
+                            <div class="char-count">{{ filteredPreview.length }} 字符</div>
                         </div>
                         
                         <div class="form-actions">
