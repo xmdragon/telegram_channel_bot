@@ -166,8 +166,8 @@ const app = createApp({
                 this.loading = true;
                 const response = await axios.get(API.messages.getById(encodeURIComponent(messageId)));
                 
-                if (response.data.success && response.data.message) {
-                    const message = response.data.message;
+                if (response.data.success && response.data.data) {
+                    const message = response.data.data;
                     
                     // 优先使用filtered_content，如果没有则使用原始content
                     const content = message.filtered_content || message.content;
