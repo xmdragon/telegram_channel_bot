@@ -18,7 +18,7 @@ from app.services.filters.ad_detector import AdDetectorFilter
 from app.services.filters.tail_filter import TailFilter
 from app.services.filters.footer_promo_filter import FooterPromoFilter
 from app.services.filters.markdown_filter import MarkdownFilter
-from app.services.filters.promo_link_filter import PromoLinkFilter
+from app.services.filters.promo_content_filter import PromoContentFilter
 from app.services.filters.chat_content_filter import ChatContentFilter
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class UnifiedFilterEngine:
         pipeline.add_filter(TailFilter())                # 1. 尾部过滤
         pipeline.add_filter(FooterPromoFilter())         # 2. 尾部推广链接过滤器
         pipeline.add_filter(MarkdownFilter())            # 3. Markdown格式清理
-        pipeline.add_filter(PromoLinkFilter())           # 4. 推广链接过滤
+        pipeline.add_filter(PromoContentFilter())        # 4. 推广内容过滤
         
         # 5-7: 内容检测类过滤器（清理后再检测，避免误判）
         pipeline.add_filter(DuplicateDetectorFilter())   # 5. 去重检测

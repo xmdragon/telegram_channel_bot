@@ -15,10 +15,8 @@ const app = createApp({
         return {
             // 推广链接训练表单
             promoTrainingForm: {
-                full_content: '',
-                promo_section: '',
-                separator_type: '',
-                promo_features: []
+                promo_content: '',
+                separator_type: ''
             },
             
             // 预览内容
@@ -29,23 +27,21 @@ const app = createApp({
     methods: {
         // 提交推广链接训练
         async submitPromoTraining() {
-            if (!this.promoTrainingForm.full_content || !this.promoTrainingForm.promo_section) {
-                window.SimpleUI.Message.warning('请填写完整的推广链接训练内容');
+            if (!this.promoTrainingForm.promo_content.trim()) {
+                window.SimpleUI.Message.warning('请填写推广内容');
                 return;
             }
             
             try {
                 const response = await axios.post(API.training.promoSamples, {
-                    full_content: this.promoTrainingForm.full_content,
-                    promo_section: this.promoTrainingForm.promo_section,
-                    separator_type: this.promoTrainingForm.separator_type,
-                    promo_features: this.promoTrainingForm.promo_features
+                    promo_content: this.promoTrainingForm.promo_content,
+                    separator_type: this.promoTrainingForm.separator_type
                 });
                 
-                window.SimpleUI.Message.success('推广链接训练样本提交成功！');
+                window.SimpleUI.Message.success('推广内容样本提交成功！');
                 this.clearPromoForm();
             } catch (error) {
-                console.error('提交推广链接训练样本失败:', error);
+                console.error('提交推广内容样本失败:', error);
                 window.SimpleUI.Message.error(error.response?.data?.detail || '提交失败');
             }
         },
@@ -53,12 +49,29 @@ const app = createApp({
         // 清空推广表单
         clearPromoForm() {
             this.promoTrainingForm = {
-                full_content: '',
-                promo_section: '',
-                separator_type: '',
-                promo_features: []
+                promo_content: '',
+                separator_type: ''
             };
             this.promoFilteredPreview = '';
+        },
+        
+        // 预览过滤效果
+        async previewPromoFilter() {
+            if (!this.promoTrainingForm.promo_content.trim()) {
+                window.SimpleUI.Message.warning('请先填写推广内容');
+                return;
+            }
+            
+            try {
+                const response = await axios.post(API.training.previewPromoFilter, {
+                    content: this.promoTrainingForm.promo_content
+                });
+                
+                this.promoFilteredPreview = response.data.data?.filtered_content || '无预览内容';
+            } catch (error) {
+                console.error('预览过滤效果失败:', error);
+                window.SimpleUI.Message.error('预览失败');
+            }
         },
         
         // 消息提示已统一使用 window.SimpleUI.Message

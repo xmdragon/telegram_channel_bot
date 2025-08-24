@@ -36,6 +36,10 @@ class FooterPromoFilter(BaseFilter):
         self.separator_patterns = []
         self.load_separator_patterns()
         
+        # 训练数据
+        self.training_samples = []
+        self.load_training_data()
+        
         # 推广关键词
         self.promo_keywords = [
             '订阅', '订閱', '关注', '關注', '加入', '投稿', '爆料',
@@ -90,6 +94,51 @@ class FooterPromoFilter(BaseFilter):
             logger.error(f"加载分隔符模式失败: {e}")
             self.separator_patterns = self._get_default_separators()
     
+    def load_training_data(self):
+        """加载训练数据用于相似度匹配"""
+        try:
+            # 尝试加载推广链接训练数据
+            training_dir = PathConfig.DATA_DIR / "training/promo"
+            if training_dir.exists():
+                for file_path in training_dir.glob("*.json"):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        if isinstance(data, list):
+                            self.training_samples.extend(data)
+                        elif isinstance(data, dict) and 'samples' in data:
+                            self.training_samples.extend(data['samples'])
+                
+                logger.info(f"加载了 {len(self.training_samples)} 个训练样本")
+            
+            # 如果没有训练数据，创建一些基础样本
+            if not self.training_samples:
+                self.training_samples = self._get_default_training_samples()
+                logger.info("使用默认训练样本")
+                
+        except Exception as e:
+            logger.error(f"加载训练数据失败: {e}")
+            self.training_samples = self._get_default_training_samples()
+    
+    def _get_default_training_samples(self) -> List[Dict[str, Any]]:
+        """获取默认训练样本"""
+        return [
+            {
+                "content": "📣 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
+                "is_promo": True,
+                "category": "channel_subscription"
+            },
+            {
+                "content": "🔔 频道导航：@channellist\n💬 商务合作：@business\n📱 投稿爆料：@submit",
+                "is_promo": True,
+                "category": "multi_contact"
+            },
+            {
+                "content": "订阅我们的频道获取最新消息\n联系方式：@contact_us",
+                "is_promo": True,
+                "category": "simple_promo"
+            }
+        ]
+    
     def _get_default_separators(self) -> List[str]:
         """获取默认分隔符模式"""
         return [
@@ -109,7 +158,7 @@ class FooterPromoFilter(BaseFilter):
     
     async def pre_filter(self, content: str, context: FilterContext) -> bool:
         """预检查是否需要处理"""
-        if not content or len(content) < 100:  # 太短的消息不处理
+        if not content or len(content) < 50:  # 降低最小长度限制
             return False
         
         # 快速检查是否包含分隔符
@@ -121,7 +170,10 @@ class FooterPromoFilter(BaseFilter):
         # 快速检查是否包含链接列表
         has_link_list = any(re.search(pattern, content) for pattern in self.link_list_patterns)
         
-        return has_separator or has_promo_keywords or has_link_list
+        # 基于训练数据的快速相似度检查
+        has_training_similarity = self._quick_similarity_check(content)
+        
+        return has_separator or has_promo_keywords or has_link_list or has_training_similarity
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
         """过滤尾部推广链接"""
@@ -258,6 +310,28 @@ class FooterPromoFilter(BaseFilter):
         
         return min(confidence, 1.0)
     
+    def _quick_similarity_check(self, content: str) -> bool:
+        """基于训练数据的快速相似度检查"""
+        if not self.training_samples:
+            return False
+        
+        # 简单的关键词重叠检查
+        content_lower = content.lower()
+        for sample in self.training_samples[:5]:  # 只检查前5个样本
+            if sample.get('is_promo', False):
+                sample_content = sample.get('content', '').lower()
+                
+                # 计算关键词重叠
+                sample_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]', sample_content))
+                content_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]', content_lower))
+                
+                if sample_keywords and content_keywords:
+                    overlap = len(sample_keywords & content_keywords) / len(sample_keywords | content_keywords)
+                    if overlap > 0.3:  # 30%重叠度
+                        return True
+        
+        return False
+    
     def _analyze_semantic_content(self, content: str, separator_result: Dict[str, Any]) -> Dict[str, Any]:
         """分析内容语义"""
         result = {
@@ -329,12 +403,86 @@ class FooterPromoFilter(BaseFilter):
             confidence_scores.append(mention_confidence)
             result['matches'].append(f"@用户名: {len(at_mentions)}个")
         
+        # 5. 基于训练数据的相似度匹配
+        training_confidence = self._calculate_training_similarity(promo_section)
+        if training_confidence > 0.3:
+            confidence_scores.append(training_confidence)
+            result['matches'].append(f"训练数据匹配: {training_confidence:.2f}")
+        
         # 计算综合置信度
         if confidence_scores:
             result['confidence'] = min(sum(confidence_scores), 1.0)
             result['has_promo'] = result['confidence'] > self.semantic_threshold
         
         return result
+    
+    def _calculate_training_similarity(self, text: str) -> float:
+        """计算与训练数据的相似度"""
+        if not self.training_samples or not text.strip():
+            return 0.0
+        
+        text_lower = text.lower()
+        max_similarity = 0.0
+        
+        for sample in self.training_samples:
+            if not sample.get('is_promo', False):
+                continue
+            
+            sample_content = sample.get('content', '').lower()
+            if not sample_content:
+                continue
+            
+            # 计算多种相似度指标
+            similarities = []
+            
+            # 1. 关键词重叠度
+            text_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]|[联聯联][系係系]', text_lower))
+            sample_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]|[联聯联][系係系]', sample_content))
+            
+            if text_keywords and sample_keywords:
+                keyword_similarity = len(text_keywords & sample_keywords) / len(text_keywords | sample_keywords)
+                similarities.append(keyword_similarity * 0.4)
+            
+            # 2. 字符n-gram相似度（简化版）
+            text_ngrams = self._get_character_ngrams(text_lower, 3)
+            sample_ngrams = self._get_character_ngrams(sample_content, 3)
+            
+            if text_ngrams and sample_ngrams:
+                ngram_similarity = len(text_ngrams & sample_ngrams) / len(text_ngrams | sample_ngrams)
+                similarities.append(ngram_similarity * 0.3)
+            
+            # 3. 结构相似度（行数、@符号数量等）
+            text_lines = len(text.strip().split('\n'))
+            sample_lines = len(sample_content.strip().split('\n'))
+            text_ats = len(re.findall(r'[@＠]', text))
+            sample_ats = len(re.findall(r'[@＠]', sample_content))
+            
+            structure_similarity = 0.0
+            if max(text_lines, sample_lines) > 0:
+                structure_similarity += 0.15 * (1 - abs(text_lines - sample_lines) / max(text_lines, sample_lines))
+            if max(text_ats, sample_ats) > 0:
+                structure_similarity += 0.15 * (1 - abs(text_ats - sample_ats) / max(text_ats, sample_ats))
+            
+            similarities.append(structure_similarity)
+            
+            # 计算总相似度
+            total_similarity = sum(similarities)
+            max_similarity = max(max_similarity, total_similarity)
+        
+        return min(max_similarity, 1.0)
+    
+    def _get_character_ngrams(self, text: str, n: int) -> set:
+        """获取字符n-gram集合"""
+        if len(text) < n:
+            return {text}
+        
+        ngrams = set()
+        for i in range(len(text) - n + 1):
+            ngram = text[i:i + n]
+            if not ngram.isspace():  # 跳过纯空白的n-gram
+                ngrams.add(ngram)
+        
+        return ngrams
     
     def _filter_promo_content(self, content: str, separator_result: Dict[str, Any], 
                             semantic_result: Dict[str, Any]) -> Tuple[str, List[str]]:

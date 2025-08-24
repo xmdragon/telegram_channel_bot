@@ -548,6 +548,26 @@
 /* 拒绝原因标签 */
 .reject-reason {
     background: #6c757d !important;
+    max-width: 300px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: help;
+    transition: all 0.3s ease;
+}
+
+/* 拒绝原因标签hover效果 - 显示完整内容 */
+.reject-reason:hover {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow: visible !important;
+    z-index: 1000;
+    position: relative;
+    background: #5a6268 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    border-radius: 4px !important;
+    max-width: none !important;
+    min-width: max-content;
 }
 
 /* 媒体预览图片 */

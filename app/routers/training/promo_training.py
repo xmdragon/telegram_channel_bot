@@ -19,11 +19,8 @@ router = APIRouter()
 
 class PromoTrainingRequest(BaseModel):
     """推广链接训练请求"""
-    full_content: str  # 完整消息内容
-    promo_section: str  # 推广链接部分
-    promo_features: List[str]  # 推广特征列表
+    promo_content: str  # 推广内容
     separator_type: Optional[str] = ""  # 分隔符类型
-    description: Optional[str] = ""  # 描述
 
 class PromoFilterPreviewRequest(BaseModel):
     """推广过滤预览请求"""
@@ -37,35 +34,27 @@ async def add_promo_sample(request: PromoTrainingRequest):
     """
     try:
         # 验证输入
-        if not request.full_content.strip():
-            raise HTTPException(status_code=400, detail="完整消息内容不能为空")
-        
-        if not request.promo_section.strip():
-            raise HTTPException(status_code=400, detail="推广链接部分不能为空")
-        
-        if not request.promo_features:
-            raise HTTPException(status_code=400, detail="请选择至少一个推广特征")
+        if not request.promo_content.strip():
+            raise HTTPException(status_code=400, detail="推广内容不能为空")
         
         # 临时数据处理（实际实现需要保存到数据库）
         sample_data = {
             "id": f"promo_{datetime.now().timestamp()}",
-            "full_content": request.full_content,
-            "promo_section": request.promo_section,
-            "promo_features": request.promo_features,
+            "promo_content": request.promo_content,
             "separator_type": request.separator_type,
-            "description": request.description,
             "created_at": datetime.now().isoformat(),
-            "status": "active"
+            "status": "active",
+            "is_promo": True
         }
         
-        logger.info(f"推广链接训练样本已添加: {sample_data['id']}")
+        logger.info(f"推广内容训练样本已添加: {sample_data['id']}")
         
         return {
             "success": True,
-            "message": "推广链接训练样本已成功添加",
+            "message": "推广内容训练样本已成功添加",
             "data": {
                 "sample_id": sample_data["id"],
-                "features_count": len(request.promo_features)
+                "content_length": len(request.promo_content)
             }
         }
         

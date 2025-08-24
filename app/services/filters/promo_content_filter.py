@@ -1,0 +1,497 @@
+"""
+推广内容过滤器
+基于分隔符模式和语义分析检测并过滤推广内容
+
+Author: Claude
+Created: 2025-08-24
+"""
+
+import re
+import time
+import json
+import logging
+from typing import Dict, Any, Optional, List, Tuple
+from pathlib import Path
+
+from .base import BaseFilter, FilterResult, FilterContext
+from app.core.path_config import PathConfig
+
+logger = logging.getLogger(__name__)
+
+
+class PromoContentFilter(BaseFilter):
+    """推广内容过滤器
+    
+    检测和过滤：
+    - 基于分隔符的推广内容边界识别
+    - 内嵌推广模式检测
+    - 语义分析推广内容
+    - 连带分隔符一起过滤
+    """
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        super().__init__("promo_content_filter", config)
+        
+        # 加载配置文件
+        self.embedded_patterns = []
+        self.context_patterns = []
+        self.separator_list = []
+        self.load_embedded_patterns()
+        
+        # 分隔符模式
+        self.separator_patterns = []
+        self.load_separator_patterns()
+        
+        # 默认阈值
+        self.detection_threshold = 0.7   # 推广内容检测阈值
+        self.semantic_threshold = 0.6    # 语义分析阈值
+        
+        # 统计信息
+        self.stats = {
+            'total_processed': 0,
+            'embedded_pattern_detected': 0,
+            'separator_based_filtered': 0,
+            'semantic_filtered': 0,
+            'content_removed': 0
+        }
+    
+    def load_embedded_patterns(self):
+        """加载内嵌推广模式配置"""
+        try:
+            pattern_file = PathConfig.DATA_DIR / "training/tail/embedded_promo_patterns.json"
+            if pattern_file.exists():
+                with open(pattern_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.embedded_patterns = data.get('patterns', [])
+                    self.context_patterns = data.get('contexts', [])
+                    self.separator_list = data.get('separators', [])
+                    logger.info(f"加载了 {len(self.embedded_patterns)} 个内嵌推广模式")
+            else:
+                logger.warning("内嵌推广模式配置文件不存在，使用默认模式")
+                self._init_default_patterns()
+        except Exception as e:
+            logger.error(f"加载内嵌推广模式失败: {e}")
+            self._init_default_patterns()
+    
+    def load_separator_patterns(self):
+        """加载分隔符模式"""
+        try:
+            separator_file = PathConfig.DATA_DIR / "training/tail/separator_patterns.json"
+            if separator_file.exists():
+                with open(separator_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.separator_patterns = [p['regex'] for p in data.get('patterns', [])]
+                    logger.info(f"加载了 {len(self.separator_patterns)} 个分隔符模式")
+            else:
+                logger.warning("分隔符模式文件不存在，使用默认模式")
+                self.separator_patterns = self._get_default_separators()
+        except Exception as e:
+            logger.error(f"加载分隔符模式失败: {e}")
+            self.separator_patterns = self._get_default_separators()
+    
+    def _init_default_patterns(self):
+        """初始化默认推广模式"""
+        self.embedded_patterns = [
+            {
+                "pattern": "[🔥💥⚡]{2,}.*[N][0-9]+.*娱乐城",
+                "weight": 0.9,
+                "category": "casino"
+            },
+            {
+                "pattern": "充值送[0-9]+[UuDd]",
+                "weight": 0.8,
+                "category": "casino_promo"
+            }
+        ]
+        self.context_patterns = []
+        self.separator_list = ["━━━━━", "🔥🔥🔥", "💥💥💥"]
+    
+    def _get_default_separators(self) -> List[str]:
+        """获取默认分隔符模式"""
+        return [
+            r'━{3,}', r'═{3,}', r'─{3,}', r'▬{3,}',
+            r'-{5,}', r'={5,}', r'\*{5,}', r'\+{3,}',
+            r'🔜{2,}', r'[📢📣🔔]{2,}', r'[🔥💥⚡]{3,}'
+        ]
+    
+    async def pre_filter(self, content: str, context: FilterContext) -> bool:
+        """预检查是否包含推广内容"""
+        if not content or len(content) < 30:
+            return False
+        
+        # 快速检查是否包含内嵌推广模式
+        for pattern_info in self.embedded_patterns[:5]:  # 只检查前5个最重要的
+            if re.search(pattern_info['pattern'], content, re.IGNORECASE):
+                return True
+        
+        # 快速检查是否包含分隔符
+        for separator in self.separator_list[:5]:
+            if separator in content:
+                return True
+        
+        return False
+    
+    async def filter(self, content: str, context: FilterContext) -> FilterResult:
+        """过滤推广内容"""
+        start_time = time.time()
+        
+        if not content:
+            return FilterResult(
+                filtered_content=content,
+                passed=True,
+                processing_time_ms=0,
+                reason="空内容"
+            )
+        
+        try:
+            # 1. 检测内嵌推广模式
+            embedded_result = self._detect_embedded_patterns(content)
+            
+            # 2. 检测分隔符边界
+            separator_result = self._detect_separator_boundaries(content)
+            
+            # 3. 语义分析
+            semantic_result = self._analyze_promo_semantics(content, embedded_result, separator_result)
+            
+            # 4. 执行过滤
+            filtered_content, modifications = self._filter_promo_content(
+                content, embedded_result, separator_result, semantic_result
+            )
+            
+            # 计算处理时间
+            processing_time = (time.time() - start_time) * 1000
+            
+            # 更新统计
+            self._update_promo_stats(embedded_result, separator_result, semantic_result, 
+                             len(content) != len(filtered_content))
+            
+            # 构建结果
+            has_promo = (embedded_result['detected'] or 
+                        separator_result['found'] or 
+                        semantic_result['has_promo'])
+            
+            filter_result = FilterResult(
+                filtered_content=filtered_content,
+                passed=True,  # 不阻止消息通过，只清理内容
+                processing_time_ms=processing_time,
+                reason=f"检测到推广内容并过滤" if len(filtered_content) < len(content) else None,
+                confidence=max(embedded_result['confidence'], 
+                             separator_result['confidence'], 
+                             semantic_result['confidence']),
+                details={
+                    'embedded_patterns_detected': embedded_result['matches'],
+                    'separator_boundaries': separator_result['boundaries'],
+                    'semantic_analysis': semantic_result['analysis'],
+                    'original_length': len(content),
+                    'filtered_length': len(filtered_content),
+                    'removed_content_length': len(content) - len(filtered_content)
+                },
+                should_early_stop=False,
+                modifications=modifications
+            )
+            
+            if len(filtered_content) < len(content):
+                logger.info(f"过滤推广内容: {len(content)} -> {len(filtered_content)} 字符")
+            
+            return filter_result
+            
+        except Exception as e:
+            logger.error(f"推广内容过滤失败: {e}")
+            return FilterResult(
+                filtered_content=content,
+                passed=True,
+                processing_time_ms=(time.time() - start_time) * 1000,
+                reason=f"处理异常: {str(e)}",
+                confidence=0.0
+            )
+    
+    def _detect_embedded_patterns(self, content: str) -> Dict[str, Any]:
+        """检测内嵌推广模式"""
+        result = {
+            'detected': False,
+            'confidence': 0.0,
+            'matches': [],
+            'positions': []
+        }
+        
+        for pattern_info in self.embedded_patterns:
+            matches = list(re.finditer(pattern_info['pattern'], content, re.IGNORECASE))
+            if matches:
+                for match in matches:
+                    result['matches'].append({
+                        'pattern': pattern_info['pattern'],
+                        'category': pattern_info.get('category', 'unknown'),
+                        'weight': pattern_info['weight'],
+                        'text': match.group(),
+                        'start': match.start(),
+                        'end': match.end()
+                    })
+                    result['positions'].append((match.start(), match.end()))
+                
+                # 更新置信度
+                pattern_confidence = pattern_info['weight']
+                result['confidence'] = max(result['confidence'], pattern_confidence)
+                result['detected'] = True
+        
+        # 检查上下文模式
+        for context in self.context_patterns:
+            before_score = sum(1 for kw in context.get('before_keywords', []) if kw in content.lower())
+            after_score = sum(1 for kw in context.get('after_keywords', []) if kw in content.lower())
+            
+            if before_score > 0 and after_score > 0:
+                context_confidence = context['weight'] * min(before_score + after_score, 3) / 3
+                result['confidence'] = max(result['confidence'], context_confidence)
+                result['detected'] = True
+                result['matches'].append({
+                    'type': 'context',
+                    'weight': context_confidence,
+                    'before_matches': before_score,
+                    'after_matches': after_score
+                })
+        
+        return result
+    
+    def _detect_separator_boundaries(self, content: str) -> Dict[str, Any]:
+        """检测分隔符边界"""
+        result = {
+            'found': False,
+            'confidence': 0.0,
+            'boundaries': []
+        }
+        
+        lines = content.split('\n')
+        total_lines = len(lines)
+        
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            if not line_stripped:
+                continue
+            
+            # 检查分隔符模式
+            for pattern in self.separator_patterns:
+                if re.search(pattern, line_stripped):
+                    # 计算置信度
+                    confidence = self._calculate_separator_confidence(
+                        line_stripped, i, total_lines, pattern
+                    )
+                    
+                    result['boundaries'].append({
+                        'line_index': i,
+                        'pattern': pattern,
+                        'text': line_stripped,
+                        'confidence': confidence,
+                        'position_ratio': i / max(total_lines - 1, 1)
+                    })
+                    
+                    result['confidence'] = max(result['confidence'], confidence)
+                    result['found'] = True
+            
+            # 检查配置中的分隔符字符串
+            for separator in self.separator_list:
+                if separator in line_stripped:
+                    confidence = 0.8 if i > total_lines * 0.5 else 0.6
+                    
+                    result['boundaries'].append({
+                        'line_index': i,
+                        'separator': separator,
+                        'text': line_stripped,
+                        'confidence': confidence,
+                        'position_ratio': i / max(total_lines - 1, 1)
+                    })
+                    
+                    result['confidence'] = max(result['confidence'], confidence)
+                    result['found'] = True
+        
+        # 按置信度排序
+        result['boundaries'].sort(key=lambda x: x['confidence'], reverse=True)
+        
+        return result
+    
+    def _calculate_separator_confidence(self, line: str, line_pos: int, total_lines: int, pattern: str) -> float:
+        """计算分隔符置信度"""
+        confidence = 0.0
+        
+        # 基础置信度：分隔符匹配
+        match = re.search(pattern, line)
+        if match:
+            separator_length = len(match.group())
+            confidence += min(separator_length / 8.0, 0.4)
+        
+        # 位置权重：越靠后置信度越高
+        position_ratio = line_pos / max(total_lines - 1, 1)
+        if position_ratio > 0.6:
+            confidence += 0.3
+        if position_ratio > 0.8:
+            confidence += 0.2
+        
+        # 行内容权重：纯分隔符行
+        if len(line.strip()) <= 15:  # 短行更可能是分隔符
+            confidence += 0.2
+        
+        return min(confidence, 1.0)
+    
+    def _analyze_promo_semantics(self, content: str, embedded_result: Dict, separator_result: Dict) -> Dict[str, Any]:
+        """语义分析推广内容"""
+        result = {
+            'has_promo': False,
+            'confidence': 0.0,
+            'analysis': {}
+        }
+        
+        # 如果已经检测到明确的内嵌模式，直接返回高置信度
+        if embedded_result['detected'] and embedded_result['confidence'] > 0.8:
+            result['has_promo'] = True
+            result['confidence'] = embedded_result['confidence']
+            result['analysis']['basis'] = 'embedded_patterns'
+            return result
+        
+        # 如果有分隔符，分析分隔符后的内容
+        if separator_result['found'] and separator_result['boundaries']:
+            best_boundary = separator_result['boundaries'][0]
+            lines = content.split('\n')
+            
+            if best_boundary['line_index'] < len(lines) - 1:
+                post_separator_content = '\n'.join(lines[best_boundary['line_index'] + 1:])
+                
+                # 分析分隔符后的内容
+                promo_score = self._analyze_text_promo_likelihood(post_separator_content)
+                
+                if promo_score > self.semantic_threshold:
+                    result['has_promo'] = True
+                    result['confidence'] = promo_score
+                    result['analysis']['basis'] = 'post_separator_analysis'
+                    result['analysis']['separator_confidence'] = best_boundary['confidence']
+                    result['analysis']['content_score'] = promo_score
+        
+        return result
+    
+    def _analyze_text_promo_likelihood(self, text: str) -> float:
+        """分析文本推广可能性"""
+        if not text.strip():
+            return 0.0
+        
+        promo_indicators = [
+            (r'[@＠][a-zA-Z0-9_]+', 0.3),  # @用户名
+            (r'[订订閱阅订][阅閱][频频頻道道]', 0.4),  # 订阅频道
+            (r'[投投][稿稿]', 0.3),  # 投稿
+            (r'[商商務务][务務]', 0.3),  # 商务
+            (r'[联聯联][系係系]', 0.3),  # 联系
+            (r'[群群][组組]', 0.2),  # 群组
+            (r'[t][.][me]', 0.4),  # Telegram链接
+            (r'[频頻频][道道][:：]', 0.3),  # 频道:
+            (r'[爆爆][料料]', 0.3),  # 爆料
+        ]
+        
+        score = 0.0
+        matches = 0
+        
+        for pattern, weight in promo_indicators:
+            if re.search(pattern, text, re.IGNORECASE):
+                score += weight
+                matches += 1
+        
+        # @用户名密度
+        at_mentions = len(re.findall(r'[@＠][a-zA-Z0-9_]+', text))
+        if at_mentions >= 2:
+            score += min(at_mentions * 0.15, 0.4)
+        
+        # 链接密度
+        links = len(re.findall(r'https?://[^\s]+', text))
+        if links >= 2:
+            score += min(links * 0.1, 0.3)
+        
+        # 归一化分数
+        return min(score, 1.0)
+    
+    def _filter_promo_content(self, content: str, embedded_result: Dict, 
+                            separator_result: Dict, semantic_result: Dict) -> Tuple[str, List[str]]:
+        """过滤推广内容"""
+        modifications = []
+        filtered_content = content
+        
+        # 优先级1: 基于内嵌模式过滤
+        if embedded_result['detected'] and embedded_result['confidence'] > self.detection_threshold:
+            filtered_content = self._filter_by_embedded_patterns(filtered_content, embedded_result)
+            modifications.append(f"移除{len(embedded_result['matches'])}个内嵌推广模式")
+        
+        # 优先级2: 基于分隔符边界过滤
+        if (separator_result['found'] and 
+            separator_result['confidence'] > 0.6 and
+            semantic_result.get('has_promo', False)):
+            
+            best_boundary = separator_result['boundaries'][0]
+            lines = filtered_content.split('\n')
+            
+            # 从分隔符开始切除（包含分隔符）
+            cut_position = best_boundary['line_index']
+            filtered_lines = lines[:cut_position]
+            filtered_content = '\n'.join(filtered_lines).rstrip()
+            
+            removed_lines = len(lines) - cut_position
+            modifications.append(f"基于分隔符移除尾部{removed_lines}行内容")
+            
+            self.stats['separator_based_filtered'] += 1
+        
+        # 清理多余的空行
+        filtered_content = re.sub(r'\n\s*\n\s*$', '', filtered_content)
+        filtered_content = filtered_content.strip()
+        
+        return filtered_content, modifications
+    
+    def _filter_by_embedded_patterns(self, content: str, embedded_result: Dict) -> str:
+        """基于内嵌模式过滤"""
+        filtered_content = content
+        
+        # 按位置倒序移除（避免位置偏移）
+        positions = sorted(embedded_result['positions'], key=lambda x: x[0], reverse=True)
+        
+        for start, end in positions:
+            # 移除匹配的内容
+            filtered_content = filtered_content[:start] + filtered_content[end:]
+        
+        # 清理连续的空格和换行
+        filtered_content = re.sub(r'\s+', ' ', filtered_content)
+        filtered_content = re.sub(r'\n\s*\n', '\n', filtered_content)
+        
+        return filtered_content
+    
+    def _update_promo_stats(self, embedded_result: Dict, separator_result: Dict, 
+                     semantic_result: Dict, content_removed: bool):
+        """更新推广过滤统计信息"""
+        self.stats['total_processed'] += 1
+        
+        if embedded_result['detected']:
+            self.stats['embedded_pattern_detected'] += 1
+        
+        if separator_result['found']:
+            self.stats['separator_based_filtered'] += 1
+        
+        if semantic_result['has_promo']:
+            self.stats['semantic_filtered'] += 1
+        
+        if content_removed:
+            self.stats['content_removed'] += 1
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """获取过滤器统计信息"""
+        base_stats = super().get_stats()
+        base_stats.update(self.stats)
+        
+        # 计算效率指标
+        if self.stats['total_processed'] > 0:
+            base_stats['embedded_detection_rate'] = self.stats['embedded_pattern_detected'] / self.stats['total_processed']
+            base_stats['semantic_filter_rate'] = self.stats['semantic_filtered'] / self.stats['total_processed']
+            base_stats['content_removal_rate'] = self.stats['content_removed'] / self.stats['total_processed']
+        
+        return base_stats
+    
+    def reset_stats(self) -> None:
+        """重置统计信息"""
+        super().reset_stats()
+        self.stats = {
+            'total_processed': 0,
+            'embedded_pattern_detected': 0,
+            'separator_based_filtered': 0,
+            'semantic_filtered': 0,
+            'content_removed': 0
+        }

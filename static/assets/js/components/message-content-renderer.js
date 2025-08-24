@@ -348,9 +348,7 @@ const MessageContentRenderer = {
                     <span v-if="(message.filter_reason || message.rejection_reason) && message.status === 'rejected'" 
                           class="tag tag-secondary reject-reason" 
                           :title="message.filter_reason || message.rejection_reason">
-                        拒因: {{ (message.filter_reason || message.rejection_reason).length > 15 ? 
-                                (message.filter_reason || message.rejection_reason).substring(0, 15) + '...' : 
-                                (message.filter_reason || message.rejection_reason) }}
+                        拒因: {{ message.filter_reason || message.rejection_reason }}
                     </span>
                 </div>
             </div>

@@ -34,65 +34,25 @@
                     
                     <form class="training-form">
                         <div class="form-group">
-                            <label class="form-label required">完整消息内容</label>
+                            <label class="form-label required">推广内容</label>
                             <textarea
                                 class="form-textarea"
-                                v-model="promoTrainingForm.full_content"
-                                rows="10"
-                                placeholder="粘贴包含尾部推广链接的完整消息内容..."></textarea>
-                            <div class="char-count">{{ promoTrainingForm.full_content.length }} 字符</div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label required">推广链接部分</label>
-                            <textarea
-                                class="form-textarea"
-                                v-model="promoTrainingForm.promo_section"
-                                rows="6"
-                                placeholder="标记需要过滤的推广链接部分，例如：&#10;🔔 订阅📡东南亚曝光台&#10;🔗  t.me/dny9527&#10;☎️ 投稿曝料：@stan0505"></textarea>
-                            <div class="char-count">{{ promoTrainingForm.promo_section.length }} 字符</div>
+                                v-model="promoTrainingForm.promo_content"
+                                rows="8"
+                                placeholder="粘贴需要过滤的推广内容，例如🔥🔥🔥N9国际娱乐城 充值送8888U"></textarea>
+                            <div class="char-count">{{ promoTrainingForm.promo_content.length }} 字符</div>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">分隔符类型</label>
                             <select class="form-select" v-model="promoTrainingForm.separator_type">
-                                <option value="">选择分隔符类型</option>
+                                <option value="">选择分隔符类型（可选）</option>
                                 <option value="line_separator">横线类 (━━━)</option>
                                 <option value="equal_separator">等号类 (===)</option>
                                 <option value="plus_separator">加号类 (+++)</option>
                                 <option value="emoji_separator">Emoji分隔</option>
                                 <option value="no_separator">无明显分隔符</option>
                             </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label required">推广特征</label>
-                            <div class="checkbox-group">
-                                <label class="checkbox-item">
-                                    <input type="checkbox" v-model="promoTrainingForm.promo_features" value="订阅频道">
-                                    <span class="checkbox-label">订阅频道链接</span>
-                                </label>
-                                <label class="checkbox-item">
-                                    <input type="checkbox" v-model="promoTrainingForm.promo_features" value="投稿爆料">
-                                    <span class="checkbox-label">投稿爆料联系</span>
-                                </label>
-                                <label class="checkbox-item">
-                                    <input type="checkbox" v-model="promoTrainingForm.promo_features" value="商务合作">
-                                    <span class="checkbox-label">商务合作联系</span>
-                                </label>
-                                <label class="checkbox-item">
-                                    <input type="checkbox" v-model="promoTrainingForm.promo_features" value="多个@用户名">
-                                    <span class="checkbox-label">多个@用户名</span>
-                                </label>
-                                <label class="checkbox-item">
-                                    <input type="checkbox" v-model="promoTrainingForm.promo_features" value="Markdown链接">
-                                    <span class="checkbox-label">Markdown格式链接</span>
-                                </label>
-                                <label class="checkbox-item">
-                                    <input type="checkbox" v-model="promoTrainingForm.promo_features" value="直接链接">
-                                    <span class="checkbox-label">直接URL链接</span>
-                                </label>
-                            </div>
                         </div>
                         
                         <!-- 预览区域 -->
@@ -107,7 +67,7 @@
                             <button type="button" class="btn btn-secondary" @click="clearPromoForm">清空</button>
                             <button type="button" class="btn btn-primary" @click="submitPromoTraining" :disabled="submitting">
                                 <span v-if="submitting">提交中...</span>
-                                <span v-else>提交推广链接训练样本</span>
+                                <span v-else>提交推广内容样本</span>
                             </button>
                             <button type="button" class="btn btn-tertiary" @click="previewPromoFilter">预览过滤效果</button>
                         </div>
