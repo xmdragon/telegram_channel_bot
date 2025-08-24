@@ -805,14 +805,6 @@ class MessageGrouper:
             logger.error(f"处理组合消息数据时出错: {e}")
             return None
     
-    async def force_complete_all_groups(self):
-        """强制完成所有待处理的消息组（用于历史采集结束时） - Linus式重构后无需此功能"""
-        try:
-            logger.info("Linus式重构完成：无需强制完成，所有组均已主动处理")
-            # Linus式设计：没有待处理的组，所有组都是即时处理的
-            
-        except Exception as e:
-            logger.error(f"强制完成消息组时出错: {e}")
     
     async def _get_existing_combined_message(self, channel_id: str, grouped_id: str) -> Optional[Dict]:
         """检查是否已存在组合消息"""

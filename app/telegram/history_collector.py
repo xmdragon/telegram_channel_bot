@@ -51,13 +51,21 @@ class HistoryCollector:
             logger.info(f"找到 {len(channels)} 个源频道，开始采集历史消息")
             
             # 为每个频道采集历史消息
-            for channel in channels:
+            for idx, channel in enumerate(channels, 1):
                 try:
+                    channel_name = channel.get('channel_name', 'unknown')
+                    logger.info(f"[{idx}/{len(channels)}] 开始采集频道: {channel_name}")
                     await self._collect_single_channel_history(client, channel, history_limit)
-                    await asyncio.sleep(2)  # 避免频率限制
+                    logger.info(f"[{idx}/{len(channels)}] 频道 {channel_name} 采集完成")
+                    await asyncio.sleep(0.5)  # 避免频率限制（优化：2秒->0.5秒）
                 except Exception as e:
-                    logger.error(f"采集频道 {channel.get('channel_name')} 历史消息失败: {e}")
+                    import traceback
+                    channel_name = channel.get('channel_name', 'unknown')
+                    logger.error(f"❌ 频道 {channel_name} 历史消息采集失败: {e}")
+                    logger.error(f"详细错误: {traceback.format_exc()}")
                     continue
+            
+            logger.info(f"所有 {len(channels)} 个频道历史消息采集完成")
                     
         except Exception as e:
             logger.error(f"采集频道历史消息失败: {e}")
@@ -95,11 +103,10 @@ class HistoryCollector:
                 min_id = checkpoint_id
                 batch_limit = 500  # 增量采集限制
             else:
-                # 首次采集历史消息
-                history_limit = await config_manager.get_config('source.history_limit', 50)
-                logger.info(f"首次采集，获取最近 {history_limit} 条历史消息")
+                # 首次采集历史消息 - 使用传入的limit参数
+                logger.info(f"首次采集，获取最近 {limit} 条历史消息")
                 min_id = 0
-                batch_limit = history_limit
+                batch_limit = limit
             
             # 采集历史消息 - 先收集到列表，然后按时间顺序处理
             collected_messages = []
@@ -108,35 +115,42 @@ class HistoryCollector:
             logger.info(f"开始采集，min_id={min_id}, limit={batch_limit}")
             
             message_count = 0
-            async for message in client.iter_messages(entity, limit=batch_limit, min_id=min_id):
-                try:
-                    # 与实时监听保持一致，处理所有消息（包括纯媒体）
-                    if not message or not message.id:
-                        continue
-                    
-                    message_count += 1
-                    if message_count % 100 == 0:
-                        logger.info(f"已获取 {message_count} 条消息...")
-                    
-                    # 记录最新的消息ID
-                    if message.id and message.id > latest_message_id:
-                        latest_message_id = message.id
-                    
-                    collected_messages.append(message)
+            try:
+                async for message in client.iter_messages(entity, limit=batch_limit, min_id=min_id):
+                    try:
+                        # 与实时监听保持一致，处理所有消息（包括纯媒体）
+                        if not message or not message.id:
+                            continue
                         
-                except Exception as e:
-                    logger.error(f"收集历史消息失败: {e}")
-                    continue
+                        message_count += 1
+                        if message_count % 10 == 0:  # 更频繁的进度日志
+                            logger.info(f"已获取 {message_count} 条消息 (最新ID: {message.id})")
+                        
+                        # 记录最新的消息ID
+                        if message.id and message.id > latest_message_id:
+                            latest_message_id = message.id
+                        
+                        collected_messages.append(message)
+                            
+                    except Exception as e:
+                        logger.error(f"收集单条消息失败: {e}")
+                        continue
+                        
+                logger.info(f"消息获取完成: 共获取 {message_count} 条消息，范围 min_id={min_id}, limit={batch_limit}")
+                        
+            except Exception as e:
+                import traceback
+                logger.error(f"iter_messages异常: {e}")
+                logger.error(f"详细错误: {traceback.format_exc()}")
+                return
             
             # 如果没有新消息
             if not collected_messages:
-                if is_new_channel:
-                    logger.info(f"新频道 {channel_name} 没有历史消息")
-                else:
-                    logger.info(f"频道 {channel_name} 没有新消息，已是最新")
+                collection_type = "新频道" if not checkpoint_id else "频道"
+                logger.info(f"{collection_type} {channel_name} 没有新消息，已是最新")
                     
-                # 更新Redis采集点为最新值
-                if latest_message_id > last_collected_id:
+                # 更新Redis采集点为最新值（如果有更新的消息ID）
+                if latest_message_id > (checkpoint_id or 0):
                     redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                     logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
                 return
@@ -149,8 +163,11 @@ class HistoryCollector:
             logger.info(f"收集到 {len(collected_messages)} 条{collection_type}，开始处理...")
             
             # 处理收集到的消息
+            logger.info(f"开始处理 {len(collected_messages)} 条消息...")
             collected = 0
-            for message in collected_messages:
+            failed = 0
+            
+            for idx, message in enumerate(collected_messages, 1):
                 try:
                     # 调用消息处理器处理消息
                     if self._message_processor:
@@ -164,26 +181,21 @@ class HistoryCollector:
                         logger.info(f"已处理 {collected}/{len(collected_messages)} 条历史消息...")
                         
                 except Exception as e:
-                    logger.error(f"处理历史消息失败: {e}")
+                    import traceback
+                    failed += 1
+                    logger.error(f"处理历史消息 #{message.id if message else 'None'} 失败: {e}")
+                    logger.error(f"详细错误: {traceback.format_exc()}")
                     continue
                     
-            # 强制完成所有待处理的组合消息
-            from app.services.message_grouper import message_grouper
-            logger.info(f"强制完成所有待处理的组合消息...")
-            await message_grouper.force_complete_all_groups()
-            
-            # 等待一小段时间确保操作完成
-            await asyncio.sleep(1)
+            logger.info(f"消息处理完成: 成功 {collected} 条，失败 {failed} 条，总计 {len(collected_messages)} 条")
             
             # 更新Redis采集点
-            if latest_message_id > last_collected_id:
+            if latest_message_id > (checkpoint_id or 0):
                 redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                 logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
             
-            if is_new_channel:
-                logger.info(f"新频道 {channel_name} 历史消息采集完成，共处理 {collected} 条")
-            else:
-                logger.info(f"频道 {channel_name} 增量采集完成，新增 {collected} 条消息")
+            collection_type = "历史消息" if not checkpoint_id else "增量"
+            logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 成功 {collected} 条，失败 {failed} 条")
             
         except Exception as e:
             import traceback

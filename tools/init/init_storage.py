@@ -121,12 +121,6 @@ async def init_default_configs():
             "description": "启用消息采集",
             "category": "collection"
         },
-        "collection.interval": {
-            "value": "30",
-            "config_type": "integer",
-            "description": "采集间隔（秒）",
-            "category": "collection"
-        },
         "collection.max_messages_per_batch": {
             "value": "50",
             "config_type": "integer",
