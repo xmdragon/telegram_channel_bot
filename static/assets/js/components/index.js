@@ -2153,13 +2153,9 @@ const MainApp = {
                 MessageManager.error('未找到消息');
                 return;
             }
-            // 跳转到训练页面，并传递消息信息用于尾部训练
-            // 新增useFiltered参数，指示训练页面优先使用filtered_content
+            // 只传递message_id，让训练页面自己获取消息详情
             const params = new URLSearchParams({
-                message_id: message.id,
-                channel_id: message.source_channel,
-                mode: 'tail',
-                useFiltered: 'true'  // 指示使用过滤后内容进行尾部训练
+                message_id: message.id
             });
             // 使用新的独立尾部过滤训练页面
             window.location.href = API.pages.tailFilterTraining + '?' + params.toString();

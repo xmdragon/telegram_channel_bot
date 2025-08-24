@@ -151,18 +151,17 @@ const app = createApp({
             const params = new URLSearchParams(window.location.search);
             const sampleId = params.get('sampleId');
             const messageId = params.get('message_id');
-            const useFiltered = params.get('useFiltered');
             
             if (sampleId) {
                 this.loadSample(parseInt(sampleId));
             } else if (messageId) {
                 // 从index页面跳转来的消息ID参数
-                this.loadMessageForTraining(messageId, useFiltered === 'true');
+                this.loadMessageForTraining(messageId);
             }
         },
         
         // 从消息ID加载数据用于训练
-        async loadMessageForTraining(messageId, useFiltered = false) {
+        async loadMessageForTraining(messageId) {
             try {
                 this.loading = true;
                 const response = await axios.get(API.messages.getById(messageId));
@@ -170,10 +169,9 @@ const app = createApp({
                 if (response.data.success && response.data.message) {
                     const message = response.data.message;
                     
-                    // 根据useFiltered参数选择内容源
-                    const content = useFiltered && message.filtered_content 
-                        ? message.filtered_content 
-                        : message.content;
+                    // 优先使用filtered_content，如果没有则使用原始content
+                    const content = message.filtered_content || message.content;
+                    const useFiltered = !!message.filtered_content;
                     
                     if (content) {
                         this.trainingForm.original_message = content;
