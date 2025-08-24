@@ -2184,14 +2184,6 @@ const MainApp = {
                     {} // 让拦截器自动添加认证头，避免手动覆盖
                 );
                 
-                // 添加详细的调试日志
-                console.log('[过滤响应]', {
-                    success: response.data.success,
-                    removed_length: response.data.removed_length,
-                    has_tail: response.data.has_tail,
-                    message: response.data.message,
-                    data: response.data.data
-                });
                 
                 if (response.data.success) {
                     if (response.data.has_tail && response.data.removed_length > 0) {
