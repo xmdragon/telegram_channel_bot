@@ -20,8 +20,8 @@ const app = createApp({
                 contentType: null
             },
             
-            // 统计信息
-            stats: null,
+            // 媒体组信息
+            mediaGroupInfo: null,
             
             // 预览内容
             filteredPreview: '',
@@ -36,6 +36,31 @@ const app = createApp({
     },
     
     methods: {
+        // 移除媒体组标记
+        removeMediaGroupInfo(content) {
+            if (!content) return content;
+            
+            // 匹配媒体组标记模式: [📎 媒体组: ... | ID: ...]
+            const mediaGroupPattern = /\[📎 媒体组:.*?\]/;
+            const match = content.match(mediaGroupPattern);
+            
+            if (match) {
+                this.mediaGroupInfo = match[0]; // 保存媒体组信息
+                return content.replace(mediaGroupPattern, '').trim();
+            }
+            
+            this.mediaGroupInfo = null;
+            return content;
+        },
+        
+        // 还原媒体组标记
+        restoreMediaGroupInfo(content) {
+            if (this.mediaGroupInfo && content) {
+                return this.mediaGroupInfo + '\n\n' + content;
+            }
+            return content;
+        },
+        
         // 更新预览
         updatePreview() {
             if (this.trainingForm.original_message && this.trainingForm.tail_content) {
@@ -56,24 +81,26 @@ const app = createApp({
             
             this.submitting = true;
             try {
+                // 提交时还原媒体组信息
+                const originalMessage = this.restoreMediaGroupInfo(this.trainingForm.original_message);
+                
                 if (this.editingSampleId) {
                     // 更新现有样本
                     const response = await axios.put(API.training.tailFilterSampleById(this.editingSampleId), {
                         tail_content: this.trainingForm.tail_content,
-                        original_message: this.trainingForm.original_message
+                        original_message: originalMessage
                     });
                     window.SimpleUI.Message.success('训练样本更新成功！');
                 } else {
                     // 添加新样本
                     const response = await axios.post(API.training.tailFilterSamples, {
-                        original_message: this.trainingForm.original_message,
+                        original_message: originalMessage,
                         tail_content: this.trainingForm.tail_content
                     });
                     window.SimpleUI.Message.success('训练样本提交成功！');
                 }
                 
                 this.clearForm();
-                this.loadStats(); // 重新加载统计信息
             } catch (error) {
                 console.error('提交训练样本失败:', error);
                 window.SimpleUI.Message.error(error.response?.data?.detail || '提交失败');
@@ -91,22 +118,11 @@ const app = createApp({
             };
             this.filteredPreview = '';
             this.editingSampleId = null;
+            this.mediaGroupInfo = null; // 清除媒体组信息
             
             // 清除URL参数
             if (window.location.search) {
                 window.history.replaceState({}, document.title, window.location.pathname);
-            }
-        },
-        
-        // 加载统计信息
-        async loadStats() {
-            try {
-                const response = await axios.get(API.training.tailFilterStatistics);
-                if (response.data.success) {
-                    this.stats = response.data;
-                }
-            } catch (error) {
-                console.error('加载统计信息失败:', error);
             }
         },
         
@@ -119,9 +135,9 @@ const app = createApp({
                 if (response.data.success && response.data.sample) {
                     const sample = response.data.sample;
                     
-                    // 填充表单
+                    // 填充表单 - 移除媒体组标记
                     this.trainingForm.tail_content = sample.tail_part || '';
-                    this.trainingForm.original_message = sample.original_message || '';
+                    this.trainingForm.original_message = this.removeMediaGroupInfo(sample.original_message || '');
                     this.trainingForm.contentType = 'original';
                     
                     // 设置编辑模式
@@ -174,7 +190,8 @@ const app = createApp({
                     const useFiltered = !!message.filtered_content;
                     
                     if (content) {
-                        this.trainingForm.original_message = content;
+                        // 移除媒体组标记后填充
+                        this.trainingForm.original_message = this.removeMediaGroupInfo(content);
                         this.trainingForm.contentType = useFiltered ? 'filtered' : 'original';
                         this.updatePreview();
                         
@@ -206,9 +223,6 @@ const app = createApp({
     async mounted() {
         // 检查URL参数
         this.checkUrlParams();
-        
-        // 加载统计信息
-        await this.loadStats();
         
         // 设置axios拦截器
         if (typeof setupAxiosAuth === 'function') {

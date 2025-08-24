@@ -84,32 +84,6 @@
                 </div>
             </div>
             
-            <!-- 统计信息 -->
-            <div class="config-section" v-if="stats">
-                <div class="stats-card">
-                    <div class="stats-header">
-                        <h3>📊 训练统计</h3>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-value">{{ stats.total_samples || 0 }}</div>
-                            <div class="stat-label">总样本数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">{{ stats.valid_samples || 0 }}</div>
-                            <div class="stat-label">有效样本</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">{{ stats.today_added || 0 }}</div>
-                            <div class="stat-label">今日新增</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">{{ stats.samples_with_separator || 0 }}</div>
-                            <div class="stat-label">包含分隔符</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
             
             <!-- 消息提示已使用 SimpleUI -->
         </div>
