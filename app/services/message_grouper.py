@@ -252,10 +252,10 @@ class MessageGrouper:
             # 直接通过channel_id获取频道信息
             channel_info = channel_store.get_channel(channel_id)
             if channel_info:
-                username = channel_info.get('username', '')
-                if username.startswith('@'):
+                username = channel_info.get('username') or ''
+                if username and username.startswith('@'):
                     channel_username = username[1:]  # 移除@前缀
-                else:
+                elif username:
                     channel_username = username
             
             if not channel_username:
@@ -968,11 +968,22 @@ class MessageGrouper:
             media_display = []
             for media_item in db_message.get('media_group', []):
                 # 转换本地文件路径为web访问路径
-                file_path = media_item.get('file_path', '')
+                file_path = media_item.get('file_path') or ''
+                
+                # 跳过空文件路径
+                if not file_path:
+                    continue
+                
+                # 检查文件是否存在
+                import os
+                if not os.path.exists(file_path):
+                    logger.warning(f"媒体文件不存在，跳过: {file_path}")
+                    continue
+                    
                 from app.core.path_config import PathConfig
                 temp_media_local = f"./{PathConfig.TEMP_MEDIA_DIR.name}/"
                 temp_media_web = f"/{PathConfig.TEMP_MEDIA_DIR.name}/"
-                if file_path.startswith(temp_media_local):
+                if file_path and file_path.startswith(temp_media_local):
                     web_path = file_path.replace(temp_media_local, temp_media_web)
                 else:
                     web_path = file_path
