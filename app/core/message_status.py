@@ -4,7 +4,7 @@ Linus式消息状态定义
 
 核心哲学：
 - 消息要么在处理中 (PENDING)
-- 要么被接受了 (ACCEPTED) 
+- 要么被批准了 (APPROVED) 
 - 要么被拒绝了 (REJECTED)
 - 没有其他状态！
 """
@@ -22,7 +22,7 @@ class MessageStatus(Enum):
     这是消息的本质状态，任何复杂的业务逻辑都不应该增加新状态
     """
     PENDING = "pending"      # 待审核 - 消息刚到达，等待审核
-    ACCEPTED = "accepted"    # 已接受 - 消息通过所有过滤器，可以发布
+    APPROVED = "approved"    # 已发布 - 消息通过所有过滤器，可以发布
     REJECTED = "rejected"    # 已拒绝 - 消息被过滤器拒绝
 
 
@@ -55,11 +55,11 @@ class StatusMapper:
         'received': MessageStatus.PENDING,
         'queued': MessageStatus.PENDING,
         
-        # 已接受的状态 -> ACCEPTED  
-        'approved': MessageStatus.ACCEPTED,
-        'published': MessageStatus.ACCEPTED,
-        'auto_forwarded': MessageStatus.ACCEPTED,
-        'forwarded': MessageStatus.ACCEPTED,
+        # 已发布的状态 -> APPROVED  
+        'approved': MessageStatus.APPROVED,
+        'published': MessageStatus.APPROVED,
+        'auto_forwarded': MessageStatus.APPROVED,
+        'forwarded': MessageStatus.APPROVED,
         
         # 已拒绝的状态 -> REJECTED
         'rejected': MessageStatus.REJECTED,
@@ -190,7 +190,7 @@ def get_status_display_name(status: MessageStatus) -> str:
     """获取状态的显示名称"""
     display_names = {
         MessageStatus.PENDING: "待审核",
-        MessageStatus.ACCEPTED: "已发布", 
+        MessageStatus.APPROVED: "已发布", 
         MessageStatus.REJECTED: "已拒绝"
     }
     return display_names.get(status, status.value)

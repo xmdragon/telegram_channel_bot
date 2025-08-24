@@ -354,7 +354,7 @@ class MessageProcessor:
             return {
                 "total": message_stats.total,
                 "pending": message_stats.pending,
-                "approved": message_stats.accepted,  # Linus: accepted -> 旧系统: approved
+                "approved": message_stats.approved,
                 "rejected": message_stats.rejected,
                 "ads": rejection_stats.ad,
                 "duplicates": rejection_stats.duplicate,

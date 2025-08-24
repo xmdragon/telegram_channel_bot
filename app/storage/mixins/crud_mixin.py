@@ -288,15 +288,15 @@ class MessageCrudMixin:
             # 使用Linus统计的原子更新
             if old_status == 'pending':
                 stats_store.decrement_pending()
-            elif old_status == 'approved' or old_status == 'accepted':
-                stats_store.decrement_accepted()
+            elif old_status == 'approved':
+                stats_store.decrement_approved()
             elif old_status == 'rejected':
                 stats_store.decrement_rejected()
                 
             if new_status == 'pending':
                 stats_store.increment_pending()
-            elif new_status == 'approved' or new_status == 'accepted':
-                stats_store.increment_accepted()
+            elif new_status == 'approved':
+                stats_store.increment_approved()
             elif new_status == 'rejected':
                 stats_store.increment_rejected()
                 # 获取拒绝原因并更新

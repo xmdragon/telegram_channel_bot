@@ -3,7 +3,7 @@ Linus式消息统计存储
 彻底简化的统计系统 - 遵循"好品味"原则
 
 核心原则：
-1. 只有3种状态：pending, accepted, rejected（没有更多）
+1. 只有3种状态：pending, approved, rejected（没有更多）
 2. 拒绝原因是元数据，不是状态
 3. 原子计数器，100%一致性
 4. 消除所有特殊情况
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class MessageState(Enum):
     """消息状态 - 只有3种，没有更多特殊情况"""
     PENDING = "pending"     # 待审核
-    ACCEPTED = "accepted"   # 已接受
+    APPROVED = "approved"   # 已发布
     REJECTED = "rejected"   # 已拒绝
 
 
@@ -37,12 +37,12 @@ class MessageStats:
     """消息统计数据结构"""
     total: int
     pending: int
-    accepted: int
+    approved: int
     rejected: int
     
     def __post_init__(self):
         """确保数据一致性"""
-        calculated_total = self.pending + self.accepted + self.rejected
+        calculated_total = self.pending + self.approved + self.rejected
         if self.total != calculated_total:
             logger.warning(f"统计不一致: total={self.total}, calculated={calculated_total}")
 
@@ -84,7 +84,7 @@ class LinusStatsStore(RedisBaseStore):
             pipe.hset(self.GLOBAL_STATS_KEY, mapping={
                 'total': 0,
                 'pending': 0,
-                'accepted': 0,
+                'approved': 0,
                 'rejected': 0
             })
             pipe.hset(self.REJECTION_STATS_KEY, mapping={
@@ -168,20 +168,19 @@ class LinusStatsStore(RedisBaseStore):
             # 🔥 Linus方式：索引就是唯一真相源
             pending = self.redis.zcard("msg:idx:pending")      # O(1)
             approved = self.redis.zcard("msg:idx:approved")    # O(1)
-            accepted = self.redis.zcard("msg:idx:accepted")    # O(1)
             rejected = self.redis.zcard("msg:idx:rejected")    # O(1)
             auto_forwarded = self.redis.zcard("msg:idx:auto_forwarded")  # O(1)
             
-            # 合并approved和accepted（历史兼容）
-            total_accepted = approved + accepted
+            # 直接使用approved
+            total_approved = approved
             total = pending + total_accepted + rejected + auto_forwarded
             
-            logger.debug(f"📊 从索引计算统计: pending={pending}, accepted={total_accepted}, rejected={rejected}, total={total}")
+            logger.debug(f"📊 从索引计算统计: pending={pending}, approved={total_approved}, rejected={rejected}, total={total}")
             
             return MessageStats(
                 total=total,
                 pending=pending,
-                accepted=total_accepted,  # 合并approved+accepted
+                approved=total_approved,
                 rejected=rejected
             )
         except Exception as e:
@@ -209,7 +208,7 @@ class LinusStatsStore(RedisBaseStore):
             return MessageStats(
                 total=get_value('total'),
                 pending=get_value('pending'),
-                accepted=get_value('accepted'),
+                approved=get_value('approved'),
                 rejected=get_value('rejected')
             )
         except Exception as e:
@@ -292,9 +291,9 @@ class LinusStatsStore(RedisBaseStore):
         """增加pending计数"""
         self.increment_message(MessageState.PENDING)
         
-    def increment_accepted(self):
-        """增加accepted计数"""  
-        self.increment_message(MessageState.ACCEPTED)
+    def increment_approved(self):
+        """增加approved计数"""  
+        self.increment_message(MessageState.APPROVED)
         
     def increment_rejected(self):
         """增加rejected计数"""
@@ -307,12 +306,12 @@ class LinusStatsStore(RedisBaseStore):
         except Exception as e:
             logger.error(f"减少pending计数失败: {e}")
             
-    def decrement_accepted(self):
-        """减少accepted计数（暂时兼容，实际上不需要了）"""
+    def decrement_approved(self):
+        """减少approved计数"""
         try:
-            self.redis.hincrby(self.GLOBAL_STATS_KEY, 'accepted', -1)
+            self.redis.hincrby(self.GLOBAL_STATS_KEY, 'approved', -1)
         except Exception as e:
-            logger.error(f"减少accepted计数失败: {e}")
+            logger.error(f"减少approved计数失败: {e}")
             
     def decrement_rejected(self):
         """减少rejected计数（暂时兼容，实际上不需要了）"""
@@ -335,7 +334,7 @@ class LinusStatsStore(RedisBaseStore):
             rejection_stats = self.get_rejection_stats()
             
             # 验证全局统计一致性
-            calculated_total = global_stats.pending + global_stats.accepted + global_stats.rejected
+            calculated_total = global_stats.pending + global_stats.approved + global_stats.rejected
             total_consistent = (global_stats.total == calculated_total)
             
             # 验证拒绝原因总数

@@ -77,7 +77,7 @@ async def get_linus_stats_overview(
                 "message_status": {
                     "total": message_stats.total,
                     "pending": message_stats.pending,
-                    "approved": message_stats.accepted,
+                    "approved": message_stats.approved,
                     "rejected": message_stats.rejected,
                     # 显示名称
                     "labels": {
@@ -175,7 +175,7 @@ async def get_channel_stats(
                 "message_status": {
                     "total": channel_stats.total,
                     "pending": channel_stats.pending,
-                    "accepted": channel_stats.accepted,
+                    "approved": channel_stats.approved,
                     "rejected": channel_stats.rejected
                 }
             },
