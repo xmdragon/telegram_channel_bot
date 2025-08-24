@@ -36,8 +36,26 @@ class SimpleMessage {
             gap: 10px;
             max-width: 400px;
         `;
-        document.body.appendChild(this.container);
-        this.initialized = true;
+        // 确保DOM已准备好
+        if (document.body) {
+            document.body.appendChild(this.container);
+            this.initialized = true;
+        } else {
+            // DOM还未准备好，等待DOMContentLoaded或load事件
+            const appendContainer = () => {
+                if (document.body && !this.initialized) {
+                    document.body.appendChild(this.container);
+                    this.initialized = true;
+                }
+            };
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', appendContainer);
+            } else {
+                // DOM已经加载完成，立即执行
+                appendContainer();
+            }
+        }
     }
     
     static injectStyles() {
@@ -144,6 +162,12 @@ class SimpleMessage {
         }
         
         this.init();
+        
+        // 如果容器还未准备好，延迟显示
+        if (!this.initialized || !this.container) {
+            setTimeout(() => this.show(textOrOptions, type, duration), 100);
+            return;
+        }
         
         // 限制消息数量
         if (this.queue.length >= this.maxMessages) {
