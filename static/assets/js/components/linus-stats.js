@@ -419,10 +419,10 @@ const LinusStatsComponent = {
          */
         handleStatClick(statKey) {
             // 调用父组件的切换筛选方法
-            if (this.$parent && typeof this.$parent.switchStatFilter === 'function') {
-                this.$parent.switchStatFilter(statKey);
+            if (this.$parent && typeof this.$parent.handleStatClick === 'function') {
+                this.$parent.handleStatClick(statKey);
             } else {
-                console.warn('父组件未提供switchStatFilter方法');
+                console.warn('父组件未提供handleStatClick方法');
             }
         },
 
@@ -440,10 +440,10 @@ const LinusStatsComponent = {
             
             const mappedKey = keyMapping[rejectionKey] || 'rejected';
             
-            if (this.$parent && typeof this.$parent.switchStatFilter === 'function') {
-                this.$parent.switchStatFilter(mappedKey);
+            if (this.$parent && typeof this.$parent.handleStatClick === 'function') {
+                this.$parent.handleStatClick(mappedKey);
             } else {
-                console.warn('父组件未提供switchStatFilter方法');
+                console.warn('父组件未提供handleStatClick方法');
             }
         }
     },
