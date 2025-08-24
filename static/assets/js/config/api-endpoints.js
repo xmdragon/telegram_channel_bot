@@ -237,6 +237,7 @@ const API_ENDPOINTS = {
         
         // 训练模块页面
         tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
+        tailFilterTraining: '/static/tail-filter-training.html',   // 尾部过滤训练独立页面
         adTrainingManager: '/static/ad-training-manager.html',     // 广告检测训练管理页面
         promoTraining: '/static/promo-training.html',              // 推广链接训练页面
         separatorConfig: '/static/separator-config.html',          // 分隔符配置页面

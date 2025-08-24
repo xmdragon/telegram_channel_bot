@@ -2161,8 +2161,8 @@ const MainApp = {
                 mode: 'tail',
                 useFiltered: 'true'  // 指示使用过滤后内容进行尾部训练
             });
-            // 使用绝对路径确保正确跳转
-            window.location.href = '/static/train.html?' + params.toString();
+            // 使用新的独立尾部过滤训练页面
+            window.location.href = API.pages.tailFilterTraining + '?' + params.toString();
         },
         
         // 手动执行尾部过滤 - Linus风格：消除重复点击的特殊情况

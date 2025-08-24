@@ -10,7 +10,7 @@ const TrainingNav = {
     data() {
         return {
             tabs: [
-                { key: 'tail', label: '尾部过滤训练', url: API.pages.tailFilterManager },
+                { key: 'tail', label: '尾部过滤训练', url: API.pages.tailFilterTraining },
                 { key: 'ad', label: '广告检测训练', url: API.pages.adTrainingManager },
                 { key: 'promo', label: '推广链接训练', url: API.pages.promoTraining },
                 { key: 'separator', label: '分隔符配置', url: API.pages.separatorConfig },
