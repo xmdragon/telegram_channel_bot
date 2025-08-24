@@ -380,7 +380,7 @@ DEFAULT_CONFIGS = {
     "telegram.api_id": {
         "value": "",
         "description": "Telegram API ID (从 https://my.telegram.org 获取)",
-        "config_type": "string"
+        "config_type": "integer"
     },
     "telegram.api_hash": {
         "value": "",

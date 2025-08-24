@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-24T20:39:09.749669",
+    "updated_at": "2025-08-24T21:02:27.252384",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-24T12:39:09.752613",
+  "updated_at": "2025-08-24T13:02:27.253748",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-24T20:39:09.752582",
+    "updated_at": "2025-08-24T21:02:27.253735",
     "created_at": "2025-08-14T22:53:30.662274"
   },
   "telegram.session": {
