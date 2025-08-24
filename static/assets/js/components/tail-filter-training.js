@@ -202,34 +202,10 @@ const app = createApp({
             } finally {
                 this.loading = false;
             }
-        },
-        
-        // 检查认证状态
-        async checkAuth() {
-            try {
-                const token = localStorage.getItem('authToken');
-                if (!token) {
-                    window.location.href = API.pages.login;
-                    return false;
-                }
-                return true;
-            } catch (error) {
-                if (error.response && error.response.status === 401) {
-                    localStorage.removeItem('authToken');
-                    window.location.href = API.pages.login;
-                }
-                return false;
-            }
         }
     },
     
     async mounted() {
-        // 检查认证状态
-        const isAuthenticated = await this.checkAuth();
-        if (!isAuthenticated) {
-            return;
-        }
-        
         // 检查URL参数
         this.checkUrlParams();
         
