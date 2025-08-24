@@ -142,7 +142,7 @@ const TrainApp = {
             // 如果有消息ID，从API获取消息内容
             if (messageId) {
                 try {
-                    const response = await axios.get(API.messages.getById(messageId), {
+                    const response = await axios.get(API.messages.getById(encodeURIComponent(messageId)), {
                         headers: authManager.getAuthHeaders()
                     });
                     

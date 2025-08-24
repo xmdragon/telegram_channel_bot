@@ -164,7 +164,7 @@ const app = createApp({
         async loadMessageForTraining(messageId) {
             try {
                 this.loading = true;
-                const response = await axios.get(API.messages.getById(messageId));
+                const response = await axios.get(API.messages.getById(encodeURIComponent(messageId)));
                 
                 if (response.data.success && response.data.message) {
                     const message = response.data.message;

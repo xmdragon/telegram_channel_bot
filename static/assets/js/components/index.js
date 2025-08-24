@@ -776,7 +776,7 @@ const MainApp = {
             this.originalMessageDialog.message = null;
             
             try {
-                const response = await axios.get(window.API.messages.getById(messageId));
+                const response = await axios.get(window.API.messages.getById(encodeURIComponent(messageId)));
                 this.originalMessageDialog.message = response.data;
                 this.originalMessageDialog.loading = false;
             } catch (error) {
