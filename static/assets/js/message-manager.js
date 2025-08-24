@@ -34,17 +34,15 @@ window.MessageManager = {
         
         // 使用SimpleUI显示消息
         if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
+            console.log(`[MessageManager] 显示${type}消息: ${message}`);
             window.SimpleUI.showMessage(message, type, duration);
         } else {
-            // 降级处理，如果SimpleUI不可用则使用原生alert
+            // 降级处理，如果SimpleUI不可用则使用console输出
+            console.warn(`[MessageManager] SimpleUI不可用，消息: [${type.toUpperCase()}] ${message}`);
+            
+            // 简单的原生提示
             if (type === 'error') {
-                console.error(`[错误] ${message}`);
                 alert(`错误: ${message}`);
-            } else if (type === 'warning') {
-                console.warn(`[警告] ${message}`);
-                alert(`警告: ${message}`);
-            } else {
-                console.log(`[${type}] ${message}`);
             }
         }
     },

@@ -15,10 +15,17 @@ class SemanticAnalyzer:
     
     def __init__(self):
         # 推广相关的动词和短语
+        # Linus式改进：区分叙述性和邀请性使用
         self.promo_verbs = {
             '订阅', '加入', '关注', '投稿', '联系', '点击', 
-            '添加', '扫码', '爆料', '澄清', '合作', '对接',
+            '添加', '扫码', '合作', '对接',
             '咨询', '报名', '领取', '免费', '欢迎'
+        }
+        
+        # 语义模糊词：这些词在正文和尾部都可能出现
+        # 需要结合上下文判断，不能简单加权
+        self.ambiguous_words = {
+            '爆料', '澄清'  # 正文中可能描述他人行为，尾部中是邀请行为
         }
         
         # 频道/群组标识
@@ -89,10 +96,37 @@ class SemanticAnalyzer:
             score += min(0.4, strong_signal_count * 0.2)
             logger.debug(f"强信号得分: {min(0.4, strong_signal_count * 0.2)}")
         
-        # 2. 推广动词检测（权重0.25）
-        verb_count = sum(1 for verb in self.promo_verbs if verb in text)
-        if verb_count > 0:
-            verb_score = min(0.25, verb_count * 0.08)
+        # 2. 推广动词检测（权重0.25）- 增加上下文分析
+        verb_score = 0.0
+        lines = text.split('\n')
+        total_lines = len(lines)
+        
+        for verb in self.promo_verbs:
+            if verb in text:
+                # 基础得分
+                base_score = 0.08
+                
+                # 位置权重：越靠近末尾权重越高
+                for i, line in enumerate(lines):
+                    if verb in line:
+                        position_weight = (i + 1) / total_lines  # 0.0 到 1.0
+                        adjusted_score = base_score * (0.5 + position_weight)  # 0.5x 到 1.0x
+                        verb_score += adjusted_score
+                        logger.debug(f"动词'{verb}'在第{i+1}/{total_lines}行，权重: {position_weight:.2f}")
+        
+        # 处理语义模糊词
+        for ambiguous in self.ambiguous_words:
+            if ambiguous in text:
+                # 检查是否在邀请性语境中
+                is_invitation_context = self._is_invitation_context(text, ambiguous)
+                if not is_invitation_context:
+                    # 如果不在邀请语境中，减少权重
+                    penalty = 0.06  # 减少该词的影响
+                    verb_score = max(0, verb_score - penalty)
+                    logger.debug(f"模糊词'{ambiguous}'非邀请语境，减分: {penalty}")
+        
+        verb_score = min(0.25, verb_score)
+        if verb_score > 0:
             score += verb_score
             logger.debug(f"动词得分: {verb_score}")
         
@@ -212,6 +246,103 @@ class SemanticAnalyzer:
                 relevance = min(1.0, relevance + 0.3)
         
         return relevance
+    
+    def _is_invitation_context(self, text: str, word: str) -> bool:
+        """
+        检查词汇是否在邀请性语境中
+        
+        Args:
+            text: 完整文本
+            word: 要检查的词汇
+            
+        Returns:
+            True表示在邀请语境中
+        """
+        lines = text.split('\n')
+        
+        for line in lines:
+            if word in line:
+                # 检查该行是否有邀请特征
+                invitation_signals = [
+                    '@',           # 联系方式
+                    '欢迎',        # 邀请词
+                    '请',          # 请求词  
+                    '联系',        # 联系词
+                    '📱', '💬', '😍'  # 推广表情
+                ]
+                
+                has_invitation_signal = any(signal in line for signal in invitation_signals)
+                
+                if has_invitation_signal:
+                    return True
+                    
+                # 检查人称：第二人称表示邀请
+                if '你' in line or '您' in line:
+                    return True
+        
+        return False
+    
+    def check_semantic_coherence(self, main_content: str, tail_content: str) -> float:
+        """
+        检查主要内容和尾部的语义连贯性
+        
+        Args:
+            main_content: 主要内容
+            tail_content: 尾部内容
+            
+        Returns:
+            连贯性得分 (0-1)，越低说明越可能是尾部
+        """
+        if not main_content or not tail_content:
+            return 0.5
+        
+        coherence = 0.0
+        
+        # 1. 人称一致性检查
+        main_has_third_person = any(pronoun in main_content for pronoun in ['他', '她', '它', '此人', '该人'])
+        tail_has_second_person = any(pronoun in tail_content for pronoun in ['你', '您'])
+        
+        if main_has_third_person and tail_has_second_person:
+            # 人称转换，降低连贯性
+            coherence -= 0.3
+            logger.debug("检测到人称转换：第三人称 -> 第二人称")
+        
+        # 2. 时态检查
+        past_indicators = ['了', '过', '曾经', '已经', '刚才']
+        present_cta = ['现在', '立即', '欢迎', '请']
+        
+        main_has_past = any(indicator in main_content for indicator in past_indicators)
+        tail_has_present_cta = any(cta in tail_content for cta in present_cta)
+        
+        if main_has_past and tail_has_present_cta:
+            # 时态转换
+            coherence -= 0.2
+            logger.debug("检测到时态转换：过去时叙述 -> 现在时邀请")
+        
+        # 3. 主题连续性（简化版）
+        # 提取主要内容的关键名词
+        main_keywords = re.findall(r'[\u4e00-\u9fa5]{2,4}', main_content)
+        main_freq = {}
+        for word in main_keywords:
+            if word not in {'的', '是', '在', '了', '和', '或', '但', '这', '那'}:
+                main_freq[word] = main_freq.get(word, 0) + 1
+        
+        # 获取高频词（主题词）
+        if main_freq:
+            top_theme_words = [word for word, count in sorted(main_freq.items(), key=lambda x: x[1], reverse=True)[:3]]
+            
+            # 检查尾部是否包含主题词
+            theme_in_tail = sum(1 for word in top_theme_words if word in tail_content)
+            theme_continuity = theme_in_tail / len(top_theme_words) if top_theme_words else 0
+            
+            coherence += theme_continuity * 0.3
+            logger.debug(f"主题连续性: {theme_continuity:.2f} (主题词: {top_theme_words})")
+        
+        # 确保得分在0-1范围内
+        final_coherence = max(0, min(1, 0.5 + coherence))
+        logger.debug(f"语义连贯性得分: {final_coherence:.3f}")
+        
+        return final_coherence
     
     def is_likely_promotion(self, text: str, semantic_score: float) -> bool:
         """

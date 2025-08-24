@@ -123,6 +123,17 @@ async def filter_message_tail(
         if not removed_tail and has_tail:
             removed_tail = original_content[len(filtered_content):].strip()
         
+        # 添加调试日志
+        logger.info(f"📊 过滤结果统计:")
+        logger.info(f"   原始长度: {len(original_content)} 字符")
+        logger.info(f"   过滤后长度: {len(filtered_content)} 字符") 
+        logger.info(f"   移除长度: {len(original_content) - len(filtered_content)} 字符")
+        logger.info(f"   有尾部: {has_tail}")
+        logger.info(f"   过滤器结果: passed={filter_result.passed}")
+        
+        if removed_tail:
+            logger.info(f"   移除内容: {removed_tail[:100]}{'...' if len(removed_tail) > 100 else ''}")
+        
         # 更新过滤后的内容
         if has_tail:
             redis_store = get_redis_message_store()

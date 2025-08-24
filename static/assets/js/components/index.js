@@ -2184,8 +2184,17 @@ const MainApp = {
                     {} // 让拦截器自动添加认证头，避免手动覆盖
                 );
                 
+                // 添加详细的调试日志
+                console.log('[过滤响应]', {
+                    success: response.data.success,
+                    removed_length: response.data.removed_length,
+                    has_tail: response.data.has_tail,
+                    message: response.data.message,
+                    data: response.data.data
+                });
+                
                 if (response.data.success) {
-                    if (response.data.removed_length && response.data.removed_length > 0) {
+                    if (response.data.has_tail && response.data.removed_length > 0) {
                         MessageManager.success(`尾部过滤成功，移除了 ${response.data.removed_length} 个字符`);
                         // 更新消息的过滤后内容
                         const index = this.messages.findIndex(m => m.id === message.id);
@@ -2193,7 +2202,8 @@ const MainApp = {
                             this.messages[index].filtered_content = response.data.filtered_content;
                         }
                     } else {
-                        MessageManager.info('未检测到需要过滤的尾部内容');
+                        // 修复：显示后端返回的具体消息
+                        MessageManager.info(response.data.message || '未检测到需要过滤的尾部内容');
                     }
                 } else {
                     MessageManager.warning(response.data.message || '过滤失败');

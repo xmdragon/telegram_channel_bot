@@ -18,6 +18,16 @@ from app.services.filters.base import BaseFilter, FilterResult, FilterContext
 
 logger = logging.getLogger(__name__)
 
+# 尝试导入新的TailFilterEngine（优先选择）
+try:
+    from app.services.tail_filter_engine import TailFilterEngine
+    TAIL_FILTER_ENGINE_AVAILABLE = True
+    logger.info("✅ 新的TailFilterEngine可用")
+except Exception as e:
+    TailFilterEngine = None
+    TAIL_FILTER_ENGINE_AVAILABLE = False
+    logger.warning(f"⚠️ TailFilterEngine不可用，将使用旧实现: {e}")
+
 # 尝试导入智能尾部过滤器，如果失败则标记为不可用
 try:
     from app.services.intelligent_tail_filter import intelligent_tail_filter
@@ -107,6 +117,55 @@ class TailFilter(BaseFilter):
         
         logger.info(f"🔍 开始尾部过滤 - 内容长度: {len(content)} 字符")
         logger.debug(f"内容预览: {content[:200]}{'...' if len(content) > 200 else ''}")
+        
+        # 优先尝试使用新的TailFilterEngine（基于向量过滤）
+        if TAIL_FILTER_ENGINE_AVAILABLE:
+            try:
+                logger.debug("🚀 使用新的TailFilterEngine（向量过滤）")
+                engine = TailFilterEngine()
+                
+                # 提取必要信息
+                has_media = context.message_type in ['photo', 'video', 'document']
+                
+                # 调用新引擎
+                filtered_content, was_filtered, removed_tail, analysis = engine.filter_message(content, has_media)
+                
+                # 计算处理时间
+                processing_time = (time.time() - start_time) * 1000
+                
+                # 转换为FilterResult格式
+                result = FilterResult(
+                    filtered_content=filtered_content,
+                    passed=True,  # 尾部过滤不阻止消息通过
+                    processing_time_ms=processing_time,
+                    reason=f"尾部过滤({analysis.get('engine_method', 'vector')})" if was_filtered else "无需尾部过滤",
+                    confidence=analysis.get('confidence', 0.0),
+                    should_early_stop=False,
+                    details=analysis
+                )
+                
+                # 如果过滤了内容，记录修改信息
+                if was_filtered and removed_tail:
+                    result.modifications.append(f"移除尾部内容({len(removed_tail)}字符)")
+                    result.details['removed_tail'] = removed_tail
+                    result.details['removal_position'] = len(filtered_content)
+                    result.details['filter_method'] = 'vector_engine'
+                    result.details['original_length'] = len(content)
+                    result.details['filtered_length'] = len(filtered_content)
+                    
+                    logger.info(f"✅ 向量引擎过滤成功: {len(content)} -> {len(filtered_content)} 字符")
+                    logger.debug(f"移除内容: {removed_tail[:100]}{'...' if len(removed_tail) > 100 else ''}")
+                else:
+                    logger.debug("向量引擎未检测到推广内容")
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"❌ TailFilterEngine失败，降级到传统方法: {e}")
+                # 继续执行下面的传统过滤逻辑
+        
+        # 降级方案：使用传统的过滤方法
+        logger.debug("🔄 使用传统过滤方法")
         
         # 检查是否有可用的过滤方法
         if not (self.enable_intelligent or self.enable_semantic):

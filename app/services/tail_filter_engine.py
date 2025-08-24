@@ -1,6 +1,11 @@
 """
 尾部过滤引擎 - 主要的过滤逻辑
-整合语义分析和模式匹配，提供统一的过滤接口
+整合混合过滤器（向量+语义）、语义分析和模式匹配，提供统一的过滤接口
+
+升级说明：
+- 优先使用混合向量过滤器（更准确）
+- 降级到原有语义分析（兼容性保证）
+- 保持API兼容性
 """
 
 import logging
@@ -8,15 +13,43 @@ from typing import Tuple, Dict, Optional
 from .filters.semantic_analyzer import SemanticAnalyzer
 from .filters.pattern_matcher import PatternMatcher
 
+# 尝试导入新的混合过滤器
+try:
+    from .filters.hybrid_tail_filter import get_hybrid_tail_filter
+    HYBRID_FILTER_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ 混合向量过滤器可用")
+except ImportError as e:
+    HYBRID_FILTER_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ 混合向量过滤器不可用，使用传统方法: {e}")
+
 logger = logging.getLogger(__name__)
 
 
 class TailFilterEngine:
-    """尾部过滤引擎 - 核心过滤逻辑"""
+    """尾部过滤引擎 - 核心过滤逻辑
+    
+    升级版：
+    1. 优先使用混合向量过滤器（基于53+训练样本）
+    2. 降级使用语义分析器（兼容性保证）
+    3. 保持完全的API兼容性
+    """
     
     def __init__(self):
         self.semantic_analyzer = SemanticAnalyzer()
         self.pattern_matcher = PatternMatcher()
+        
+        # 初始化混合过滤器
+        if HYBRID_FILTER_AVAILABLE:
+            try:
+                self.hybrid_filter = get_hybrid_tail_filter()
+                logger.info("✅ 混合向量过滤器初始化成功")
+            except Exception as e:
+                logger.error(f"❌ 混合向量过滤器初始化失败: {e}")
+                self.hybrid_filter = None
+        else:
+            self.hybrid_filter = None
     
     def filter_message(self, content: str, has_media: bool = False) -> Tuple[str, bool, Optional[str], Dict]:
         """
@@ -29,7 +62,7 @@ class TailFilterEngine:
         Returns:
             (过滤后内容, 是否过滤了尾部, 尾部内容, 分析详情)
         """
-        logger.info(f"🔍 开始语义尾部过滤 - 输入内容长度: {len(content) if content else 0} 字符")
+        logger.info(f"🔍 开始尾部过滤 - 输入内容长度: {len(content) if content else 0} 字符")
         if content:
             logger.debug(f"原始内容预览: {content[:200]}{'...' if len(content) > 200 else ''}")
         
@@ -37,10 +70,32 @@ class TailFilterEngine:
             logger.debug("内容为空，跳过过滤")
             return content, False, None, {}
         
+        # 优先使用混合向量过滤器
+        if self.hybrid_filter:
+            try:
+                logger.debug("🚀 使用混合向量过滤器")
+                filtered_content, was_filtered, removed_tail, analysis = self.hybrid_filter.filter_message(content, has_media)
+                
+                if was_filtered:
+                    logger.info(f"✅ 混合向量过滤成功")
+                    analysis['engine_method'] = 'hybrid_vector'
+                    return filtered_content, was_filtered, removed_tail, analysis
+                else:
+                    logger.debug("混合向量过滤器未检测到推广内容")
+                    analysis['engine_method'] = 'hybrid_vector_no_filter'
+                    return filtered_content, was_filtered, removed_tail, analysis
+                    
+            except Exception as e:
+                logger.error(f"❌ 混合向量过滤失败，降级到传统方法: {e}")
+                # 继续使用传统方法
+        
+        # 降级到传统语义分析方法
+        logger.debug("🔄 降级到传统语义分析方法")
+        
         lines = content.split('\n')
         if len(lines) < 3:
             logger.debug(f"内容行数不足({len(lines)}行)，跳过过滤")
-            return content, False, None, {}
+            return content, False, None, {'engine_method': 'semantic_skipped'}
         
         # 从后往前扫描，寻找推广尾部的开始位置
         best_split_point = None
@@ -76,18 +131,17 @@ class TailFilterEngine:
                 analysis['best_split'] = i
                 analysis['best_score'] = semantic_score
                 
-                # 额外检查：向前扩展查找连续的推广内容
-                extended_split = self.pattern_matcher.find_extended_promo_boundary(lines, i, content)
-                if extended_split < i:
-                    # 找到了更早的推广开始点
-                    extended_tail = '\n'.join(lines[extended_split:])
-                    extended_score = self.semantic_analyzer.calculate_semantic_score(extended_tail, content)
-                    if extended_score > semantic_score * 0.8:  # 扩展后得分不应下降太多
-                        best_split_point = extended_split
-                        best_score = extended_score
-                        analysis['extended_split'] = extended_split
-                        analysis['extended_score'] = extended_score
-                        logger.debug(f"扩展推广边界: {i} -> {extended_split} (得分: {extended_score:.3f})")
+                # Linus式修复：删除有问题的边界扩展机制
+                # 这个"向前扩展"逻辑会误删正文内容，违反了"消除特殊情况"原则
+                # 
+                # 原问题：find_extended_promo_boundary会基于关键词机械匹配向前扩展5行
+                # 导致包含"爆料"等词的正文被错误过滤
+                # 
+                # 正确的方案：如果语义分析已经找到了正确的分割点，就不需要"扩展"
+                # 好的算法不应该需要这种补丁式的后处理
+                #
+                # TODO: 长期方案是基于语义理解重写整个检测逻辑
+                logger.debug(f"跳过边界扩展检查 - 使用原始分割点 {i} (Linus式简化)")
         
         # 判断是否找到尾部（阈值决策现在由TailFilter处理）
         logger.debug(f"扫描完成 - 最佳分割点: {best_split_point}, 最佳得分: {best_score:.3f}")
@@ -130,10 +184,12 @@ class TailFilterEngine:
             else:
                 logger.debug(f"有媒体消息，不限制过滤比例: {filter_ratio:.1%}")
             
-            logger.info(f"✅ 语义尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符 "
+            logger.info(f"✅ 传统语义过滤成功: {len(content)} -> {len(filtered_content)} 字符 "
                        f"(过滤{filter_ratio:.1%}，得分{best_score:.2f})")
             
+            analysis['engine_method'] = 'semantic_fallback'
             return filtered_content, True, tail_content, analysis
         
-        logger.debug(f"❌ 未检测到推广尾部，保留原始内容 (最佳得分: {best_score:.3f} < 0.5)")
+        logger.debug(f"❌ 传统方法未检测到推广尾部，保留原始内容 (最佳得分: {best_score:.3f})")
+        analysis['engine_method'] = 'semantic_no_filter'
         return content, False, None, analysis
