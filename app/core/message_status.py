@@ -21,7 +21,7 @@ class MessageStatus(Enum):
     
     这是消息的本质状态，任何复杂的业务逻辑都不应该增加新状态
     """
-    PENDING = "pending"      # 待处理 - 消息刚到达，等待处理
+    PENDING = "pending"      # 待审核 - 消息刚到达，等待审核
     ACCEPTED = "accepted"    # 已接受 - 消息通过所有过滤器，可以发布
     REJECTED = "rejected"    # 已拒绝 - 消息被过滤器拒绝
 
@@ -189,7 +189,7 @@ def is_valid_rejection_reason(reason: str) -> bool:
 def get_status_display_name(status: MessageStatus) -> str:
     """获取状态的显示名称"""
     display_names = {
-        MessageStatus.PENDING: "待处理",
+        MessageStatus.PENDING: "待审核",
         MessageStatus.ACCEPTED: "已发布", 
         MessageStatus.REJECTED: "已拒绝"
     }

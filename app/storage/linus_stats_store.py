@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class MessageState(Enum):
     """消息状态 - 只有3种，没有更多特殊情况"""
-    PENDING = "pending"     # 待处理
+    PENDING = "pending"     # 待审核
     ACCEPTED = "accepted"   # 已接受
     REJECTED = "rejected"   # 已拒绝
 

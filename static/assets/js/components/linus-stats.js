@@ -23,7 +23,7 @@ const LinusStatsComponent = {
                 rejected: 0,
                 labels: {
                     total: '总消息数',
-                    pending: '待处理',
+                    pending: '待审核',
                     approved: '已发布', 
                     rejected: '已拒绝'
                 }
