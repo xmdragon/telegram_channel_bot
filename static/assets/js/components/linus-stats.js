@@ -459,12 +459,7 @@ const LinusStatsComponent = {
             
             <!-- 加载状态 -->
             <div v-if="loading && !messageStatus.total" class="loading-container">
-                <div class="stats-grid">
-                    <div class="stat-badge skeleton-badge"></div>
-                    <div class="stat-badge skeleton-badge"></div>
-                    <div class="stat-badge skeleton-badge"></div>
-                    <div class="stat-badge skeleton-badge"></div>
-                </div>
+                <div class="loading-bar">加载统计数据中...</div>
             </div>
             
             <!-- 统计内容 -->

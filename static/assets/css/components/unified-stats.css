@@ -199,19 +199,22 @@
     font-weight: 500;
 }
 
-/* 加载骨架样式 */
+/* 加载状态样式 */
 .loading-container {
     padding: 4px 0;
 }
 
-.skeleton-badge {
-    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%) !important;
-    background-size: 200% 100% !important;
+.loading-bar {
+    display: inline-block;
+    padding: 8px 16px;
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 200% 100%;
     animation: skeleton-loading 1.5s ease-in-out infinite;
-    border-color: #e2e8f0 !important;
-    color: transparent !important;
-    min-width: 80px;
-    height: 32px;
+    border-radius: 16px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid #e2e8f0;
 }
 
 @keyframes skeleton-loading {
