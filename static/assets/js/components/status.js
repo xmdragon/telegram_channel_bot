@@ -4,7 +4,7 @@ const API = window.API;
 const { createApp } = Vue;
 
 // SimpleUI消息管理器
-const MessageManager = window.SimpleUI ? window.SimpleUI.MessageManager : {
+const MessageManager = window.SimpleUI ? window.SimpleUI.Message : {
     success: (message) => console.log('SUCCESS:', message),
     error: (message) => console.error('ERROR:', message),
     warning: (message) => console.warn('WARNING:', message),
