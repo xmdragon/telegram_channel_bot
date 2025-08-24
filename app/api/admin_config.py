@@ -13,6 +13,56 @@ from app.services.config_manager import config_manager
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+async def _trigger_history_collection():
+    """触发历史消息采集"""
+    try:
+        # 检查是否需要触发采集（只有采集点为0时才触发）
+        from app.storage.redis_store import get_redis_message_store
+        message_store = get_redis_message_store()
+        
+        if not message_store:
+            logger.error("无法获取Redis存储，跳过历史采集触发")
+            return
+        
+        # 获取所有监听频道的消息计数
+        from app.services.unified_channel_service import unified_channel_service
+        channels = await unified_channel_service.get_all_channels(channel_type="source", active_only=True)
+        
+        should_collect = False
+        for channel in channels:
+            channel_id = channel.get('channel_id')
+            if channel_id:
+                count = message_store.get_message_count(channel_id)
+                if count == 0:
+                    should_collect = True
+                    logger.info(f"频道 {channel_id} 消息数为0，需要触发历史采集")
+                    break
+        
+        if not should_collect:
+            logger.info("所有频道都有消息数据，跳过历史采集")
+            return
+        
+        # 重置bot_manager的采集标志并触发采集
+        from app.telegram.bot_manager import bot_manager
+        if hasattr(bot_manager, 'auto_collection_done'):
+            bot_manager.auto_collection_done = False
+            logger.info("已重置auto_collection_done标志")
+        
+        # 触发历史采集
+        from app.telegram.history_collector import history_collector
+        from app.telegram.client_manager import client_manager
+        
+        client = await client_manager.get_client()
+        if client and client.is_connected():
+            await history_collector.collect_channel_history(client)
+            logger.info("已触发历史消息采集")
+        else:
+            logger.warning("Telegram客户端未连接，无法触发历史采集")
+            
+    except Exception as e:
+        logger.error(f"触发历史采集失败: {e}")
+        raise
+
 # === 配置读取方法 === 
 @router.get(ROUTES.admin.config)
 async def get_system_config():
@@ -66,6 +116,21 @@ async def update_config_batch(configs: Dict[str, Any]):
         success_count = 0
         errors = []
         
+        # 检查采集开关变化以触发历史采集
+        collection_changed = False
+        old_collection_enabled = None
+        new_collection_enabled = None
+        
+        if 'collection.enabled' in configs:
+            # 获取旧值
+            old_collection_enabled = await config_manager.get_config('collection.enabled', True)
+            new_collection_enabled = configs['collection.enabled']
+            
+            # 检查是否从关闭变为开启
+            if not old_collection_enabled and new_collection_enabled:
+                collection_changed = True
+                logger.info("检测到采集开关从关闭变为开启，将触发历史采集")
+        
         for key, value in configs.items():
             try:
                 # 自动推断配置类型
@@ -90,6 +155,14 @@ async def update_config_batch(configs: Dict[str, Any]):
                     
             except Exception as e:
                 errors.append(f"配置 {key} 更新失败: {str(e)}")
+        
+        # 如果采集开关被开启，触发历史采集
+        if collection_changed and len(errors) == 0:
+            try:
+                await _trigger_history_collection()
+            except Exception as e:
+                logger.error(f"触发历史采集失败: {e}")
+                errors.append("采集开关已更新但触发历史采集失败")
         
         return {
             "success": len(errors) == 0,

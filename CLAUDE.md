@@ -186,7 +186,7 @@ curl localhost:8000/api/health  # API健康检查
 - `/api/admin` - 管理员功能
 - `/api/config` - 配置管理
 - `/api/telegram-auth` - Telegram用户认证（非管理员认证）
-- `/api/training-db` - AI训练数据
+- `/api/training` - AI训练数据（注意：不是training-db，是training）
 
 ## 🌐 API端点管理规范
 

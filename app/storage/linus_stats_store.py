@@ -173,7 +173,7 @@ class LinusStatsStore(RedisBaseStore):
             
             # 直接使用approved
             total_approved = approved
-            total = pending + total_accepted + rejected + auto_forwarded
+            total = pending + total_approved + rejected + auto_forwarded
             
             logger.debug(f"📊 从索引计算统计: pending={pending}, approved={total_approved}, rejected={rejected}, total={total}")
             

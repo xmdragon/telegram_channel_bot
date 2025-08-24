@@ -122,7 +122,16 @@ const ConfigApp = {
                 return value;
             }
             if (typeof value === 'string') {
-                return value.toLowerCase() === 'true';
+                // 修复：正确处理字符串形式的布尔值
+                const lowerValue = value.toLowerCase();
+                if (lowerValue === 'false' || lowerValue === '0' || lowerValue === '') {
+                    return false;
+                }
+                if (lowerValue === 'true' || lowerValue === '1') {
+                    return true;
+                }
+                // 其他非空字符串视为true
+                return value !== '';
             }
             return Boolean(value);
         },

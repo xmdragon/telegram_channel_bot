@@ -200,17 +200,30 @@ async def lifespan(app: FastAPI):
                 # Web服务仅负责WebSocket连接管理，不启动广播器
                 logger.info("✅ WebSocket管理器就绪（广播由scheduler服务负责）")
                 
-                # 检查尾部向量同步状态
+                # 检查并自动重建尾部向量
                 try:
                     from app.services.tail_vector_manager import tail_vector_manager
                     sync_status = tail_vector_manager.check_sync_status()
+                    
                     if sync_status.get('sync_needed', False):
-                        logger.warning(f"🔄 向量数据库需要同步: 缺少 {sync_status.get('missing_vectors', 0)} 个向量")
-                        logger.info("💡 建议在尾部过滤管理页面点击'同步向量'按钮")
+                        logger.warning(f"🔄 向量数据库不同步: 缺少 {sync_status.get('missing_vectors', 0)} 个向量")
+                        logger.info("🔧 正在自动重建向量数据库...")
+                        
+                        # 自动执行重建
+                        rebuild_result = tail_vector_manager.rebuild_vectors_from_samples_file()
+                        
+                        if rebuild_result.get('success'):
+                            logger.info(f"✅ 向量数据库重建成功: {rebuild_result.get('message')}")
+                            logger.info(f"   - 总样本数: {rebuild_result.get('total_samples', 0)}")
+                            logger.info(f"   - 向量化样本: {rebuild_result.get('vectorized_samples', 0)}")
+                        else:
+                            logger.error(f"❌ 向量数据库重建失败: {rebuild_result.get('message')}")
+                            logger.info("💡 请在尾部过滤管理页面手动点击'同步向量'按钮")
                     else:
                         logger.info(f"✅ 向量数据库已同步: {sync_status.get('total_vectors', 0)} 个向量")
+                        
                 except Exception as e:
-                    logger.warning(f"⚠️ 向量同步检查失败: {e}")
+                    logger.warning(f"⚠️ 向量同步处理失败: {e}")
                 
             except Exception as e:
                 logger.error(f"❌ 后台初始化失败: {e}")

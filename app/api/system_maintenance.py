@@ -183,22 +183,38 @@ async def reset_system() -> Dict[str, Any]:
             )
             logger.info(f"重置频道 {channel.get('channel_id')} 采集点: {old_id} -> 0")
         
-        # 步骤7：完成 (100%)
-        await websocket_manager.broadcast_progress(operation, 100, "系统重置完成")
+        # 步骤7：恢复采集开关 (95%)
+        await websocket_manager.broadcast_progress(operation, 95, "恢复采集开关...")
+        try:
+            # 重置完成后自动恢复采集开关
+            await config_manager.set_boolean('collection.enabled', True, "系统重置完成后自动启用采集")
+            logger.info("已自动恢复采集开关到开启状态")
+            
+            # 重置bot_manager的采集标志以便重新采集历史消息
+            from app.telegram.bot_manager import bot_manager
+            if hasattr(bot_manager, 'auto_collection_done'):
+                bot_manager.auto_collection_done = False
+                logger.info("已重置auto_collection_done标志，下次连接将自动采集历史消息")
+                
+        except Exception as e:
+            logger.error(f"恢复采集开关失败: {e}")
+        
+        # 步骤8：完成 (100%)
+        await websocket_manager.broadcast_progress(operation, 100, "系统重置完成，采集已恢复")
         
         result = {
             "success": True,
-            "message": "系统重置完成，采集服务已停止",
+            "message": "系统重置完成，采集服务已自动恢复",
             "details": {
-                "collection_disabled": True,
+                "collection_restored": True,
                 "cleared_messages": len(message_keys),
                 "reset_channels": reset_count,
                 "temp_media_cleared": True,
-                "restart_instructions": "使用服务控制API或配置页面重新启用采集"
+                "auto_collection_ready": True
             }
         }
         
-        logger.info("✅ 系统重置操作完成")
+        logger.info("✅ 系统重置操作完成，采集服务已自动恢复")
         return result
         
     except Exception as e:

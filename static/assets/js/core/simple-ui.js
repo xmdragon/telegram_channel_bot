@@ -488,7 +488,13 @@ class SimpleMessageBox {
 window.SimpleUI = {
     Message: SimpleMessage,
     MessageBox: SimpleMessageBox,
-    version: '2.0.0'
+    version: '2.0.0',
+    // 便捷方法
+    showMessage: (text, type = 'info', duration) => SimpleMessage.show(text, type, duration),
+    showConfirm: (message, title, options) => SimpleMessageBox.confirm(message, title, options),
+    confirm: (message, title, options) => SimpleMessageBox.confirm(message, title, options),
+    alert: (message, title, options) => SimpleMessageBox.alert(message, title, options),
+    prompt: (message, title, options) => SimpleMessageBox.prompt(message, title, options)
 };
 
 // Vue 3集成
