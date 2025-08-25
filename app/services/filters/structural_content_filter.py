@@ -119,10 +119,10 @@ class StructuralContentFilter(BaseFilter):
                     reasons.append(f"格式化推广({structure_result['detail_str']})")
                     confidence = max(confidence, structure_result['confidence'])
                     
-                    # 高置信度时清空内容
+                    # 高置信度时只标记，不清空内容
                     if structure_result['total_score'] > self.high_confidence_threshold:
-                        filtered_content = ""
-                        reasons.append("高置信度格式化推广，内容已清空")
+                        # 结构化过滤器只标记，不修改内容
+                        reasons.append("高置信度格式化推广检测")
                     
                     details['structure_analysis'] = structure_result
             

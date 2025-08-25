@@ -163,10 +163,10 @@ class MediaContentFilter(BaseFilter):
                         ad_confidence = max(ad_confidence, file_ad_score / 100.0)  # 转换为0-1范围
                         ad_indicators.extend(file_ad_indicators)
                     
-                    # 如果检测到广告，可以选择清空内容或添加OCR文字
+                    # 如果检测到广告，只标记不清空内容
                     if file_ad_score >= self.ad_detection_threshold:
-                        # 高分广告，清空内容
-                        filtered_content = ""
+                        # 媒体过滤器只标记广告，不修改内容
+                        pass  # 保持filtered_content不变
                     else:
                         # 将OCR文字添加到内容中
                         texts = result.get('texts', [])

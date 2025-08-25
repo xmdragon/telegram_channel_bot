@@ -168,10 +168,10 @@ class SemanticContentFilter(BaseFilter):
                     reasons.append(f"AI检测(置信度:{ai_result['confidence']:.2f})")
                     confidence = max(confidence, ai_result['confidence'])
                     
-                    # 如果整条消息都是广告，清空内容
+                    # 如果整条消息都是广告，标记但不清空内容
                     if ai_result['confidence'] > self.pure_ad_threshold:
-                        filtered_content = ""
-                        reasons.append("纯广告内容")
+                        # 语义过滤器只标记，不修改内容
+                        reasons.append("AI检测到疑似广告内容")
                 
                 details['ai_detection'] = ai_result
             

@@ -92,7 +92,7 @@ class AdDetectorFilter(BaseFilter):
                         result.passed = False
                         result.should_early_stop = True
                         result.reason = f"自动拒绝广告消息: {main_reason}"
-                        result.filtered_content = ""  # 清空内容
+                        result.filtered_content = content  # 保持内容不变，检测器不修改内容
                         logger.info(f"广告检测器自动拒绝: {main_reason}")
                     else:
                         # 仅检测标记：让消息继续通过后续过滤器

@@ -253,7 +253,7 @@ class UnifiedFilterEngine:
                 is_high_risk, risk_patterns = self.is_high_risk_ad(filtered_content)
                 if is_high_risk:
                     is_ad = True
-                    filtered_content = ""
+                    # 不清空内容，让调用方基于内容判断
                     filter_reason = f"高风险广告({len(risk_patterns)}个特征)"
                     
             return is_ad, filtered_content, filter_reason
