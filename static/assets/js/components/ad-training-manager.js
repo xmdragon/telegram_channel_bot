@@ -269,16 +269,9 @@ const app = createApp({
                     this.duplicateSamplesCount = response.data.total_duplicates || 0;
                     
                     // 初始化每个样本的keep属性 - 默认保留第一个  
-                    this.duplicateGroups.forEach((group, groupIdx) => {
-                        console.log(`处理第 ${groupIdx + 1} 组，共 ${group.samples.length} 个样本`);
+                    this.duplicateGroups.forEach(group => {
                         group.samples.forEach((sample, idx) => {
-                            // 修复undefined ID问题
-                            if (!sample.id || sample.id === undefined || sample.id === null) {
-                                sample.id = 0; // 设置为0作为占位符
-                                console.log(`修复undefined ID，设置为: ${sample.id}`);
-                            }
                             sample.keep = (idx === 0); // Vue 3 自动响应式
-                            console.log(`初始化样本 ID ${sample.id}: keep=${sample.keep} (索引: ${idx})`);
                         });
                     });
                     
@@ -304,44 +297,24 @@ const app = createApp({
             // 默认保留第一个，删除其他
             group.samples.forEach((sample, idx) => {
                 sample.keep = idx === 0;
-                console.log(`合并操作 - 样本 ID ${sample.id}: keep=${sample.keep}`);
             });
-        },
-        
-        // 调试方法：检查样本状态变化
-        onKeepChange(sample) {
-            console.log(`样本 ID ${sample.id} 状态变化: keep=${sample.keep}`);
         },
         
         // 应用去重
         async applyDeduplicate() {
             try {
-                // 调试信息：打印所有样本的keep状态
-                console.log('=== 去重调试信息 ===');
-                this.duplicateGroups.forEach((group, groupIdx) => {
-                    console.log(`组 ${groupIdx + 1}:`);
-                    group.samples.forEach((sample, sampleIdx) => {
-                        console.log(`  样本 ${sampleIdx + 1} (ID: ${sample.id}): keep=${sample.keep}`);
-                    });
-                });
-                
                 // 收集要删除的样本ID
                 const toDelete = [];
                 this.duplicateGroups.forEach(group => {
                     group.samples.forEach(sample => {
-                        console.log(`检查样本 ID ${sample.id}: keep=${sample.keep}`);
                         if (!sample.keep) {
                             const sampleId = sample.id;
-                            // 修改条件：允许ID为0的样本被删除，但排除undefined/null
-                            if (sampleId !== undefined && sampleId !== null) {
+                            if (sampleId) {
                                 toDelete.push(sampleId);
-                                console.log(`添加到删除列表: ${sampleId}`);
                             }
                         }
                     });
                 });
-                
-                console.log('要删除的样本ID列表:', toDelete);
                 
                 if (!toDelete.length) {
                     window.SimpleUI.Message.info('没有选择要删除的样本');

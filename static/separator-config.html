@@ -25,6 +25,29 @@
             <!-- 子导航 -->
             <training-nav active-tab="separator"></training-nav>
             
+            <!-- 统计信息 -->
+            <div class="config-section">
+                <div class="stats-card">
+                    <div class="stats-header">
+                        <h3>📊 配置统计</h3>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">{{ separatorPatterns.length }}</div>
+                            <div class="stat-label">配置的模式数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">训练样本数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">识别准确率</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- 标签页导航 -->
             <div class="tab-nav">
                 <button 
@@ -109,29 +132,6 @@
                                 <li>建议从最常见的分隔符开始配置</li>
                                 <li>可以点击示例直接添加到配置中</li>
                             </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 统计信息 -->
-            <div class="config-section">
-                <div class="stats-card">
-                    <div class="stats-header">
-                        <h3>📊 配置统计</h3>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-value">{{ separatorPatterns.length }}</div>
-                            <div class="stat-label">配置的模式数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">-</div>
-                            <div class="stat-label">训练样本数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">-</div>
-                            <div class="stat-label">识别准确率</div>
                         </div>
                     </div>
                 </div>

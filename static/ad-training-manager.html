@@ -234,7 +234,7 @@
                             <div class="group-samples">
                                 <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
                                     <label class="checkbox-label">
-                                        <input type="checkbox" v-model="sample.keep" @change="onKeepChange(sample)">
+                                        <input type="checkbox" v-model="sample.keep">
                                         保留
                                     </label>
                                     <span class="sample-id">ID: {{ sample.id }}</span>
