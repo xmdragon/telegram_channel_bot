@@ -43,18 +43,65 @@ const app = createApp({
             // 分页跳转
             jumpToPage: 1,
             
-            // 分隔符类型映射
-            separatorTypeLabels: {
-                'line_separator': '横线类 (━━━)',
-                'dot_separator': '点类 (···)',
-                'dash_separator': '破折号类 (---)',
-                'equal_separator': '等号类 (===)',
-                'star_separator': '星号类 (***)'
-            }
+            // 分隔符类型映射（从API动态加载）
+            separatorTypeLabels: {},
+            separatorOptions: []
         }
     },
     
     methods: {
+        // 加载分隔符配置
+        async loadSeparatorPatterns() {
+            try {
+                const response = await axios.get(API.training.separatorPatterns, {
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
+                });
+                
+                if (response.data.success && response.data.data) {
+                    const patterns = response.data.data;
+                    this.separatorOptions = [];
+                    this.separatorTypeLabels = {};
+                    
+                    // 添加"无分隔符"选项
+                    this.separatorOptions.push({
+                        value: '',
+                        label: '无分隔符'
+                    });
+                    this.separatorTypeLabels[''] = '无分隔符';
+                    
+                    // 添加配置的分隔符（按权重排序）
+                    const sortedPatterns = patterns.sort((a, b) => (b.weight || 0) - (a.weight || 0));
+                    
+                    sortedPatterns.forEach((pattern, index) => {
+                        // 使用regex作为值，description作为标签
+                        const value = pattern.regex;
+                        const label = pattern.description;
+                        
+                        this.separatorOptions.push({
+                            value: value,
+                            label: label
+                        });
+                        this.separatorTypeLabels[value] = label;
+                    });
+                }
+            } catch (error) {
+                console.error('加载分隔符配置失败:', error);
+                // 使用默认配置
+                this.separatorOptions = [
+                    { value: '', label: '无分隔符' },
+                    { value: 'line_separator', label: '横线类 (━━━)' },
+                    { value: 'dot_separator', label: '点类 (···)' },
+                    { value: 'dash_separator', label: '破折号类 (---)' }
+                ];
+                this.separatorTypeLabels = {
+                    '': '无分隔符',
+                    'line_separator': '横线类 (━━━)',
+                    'dot_separator': '点类 (···)',
+                    'dash_separator': '破折号类 (---)'
+                };
+            }
+        },
+        
         // 加载样本数据
         async loadSamples() {
             this.loading = true;
@@ -409,7 +456,11 @@ const app = createApp({
     },
     
     async mounted() {
-        await this.loadSamples();
+        // 并行加载分隔符配置和样本数据
+        await Promise.all([
+            this.loadSeparatorPatterns(),
+            this.loadSamples()
+        ]);
     }
 });
 

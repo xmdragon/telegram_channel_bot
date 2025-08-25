@@ -245,12 +245,9 @@
                         <div class="form-group">
                             <label class="form-label">分隔符类型</label>
                             <select class="form-select" v-model="editingSample.separator_type">
-                                <option value="">无分隔符</option>
-                                <option value="line_separator">横线类 (━━━)</option>
-                                <option value="dot_separator">点类 (···)</option>
-                                <option value="dash_separator">破折号类 (---)</option>
-                                <option value="equal_separator">等号类 (===)</option>
-                                <option value="star_separator">星号类 (***)</option>
+                                <option v-for="option in separatorOptions" :key="option.value" :value="option.value">
+                                    {{ option.label }}
+                                </option>
                             </select>
                         </div>
                     </form>
