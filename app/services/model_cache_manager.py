@@ -124,7 +124,7 @@ class ModelCacheManager:
             # 使用仓库地址
             repo = model_config.get('repo')
             if repo:
-                logger.info(f"从仓库加载模型: {repo} (~{model_config.get('size_mb', '?')}MB)")
+                logger.info(f"加载模型: {repo} (使用本地缓存)")
                 return SentenceTransformer(
                     repo,
                     cache_folder=str(self.cache_dir),

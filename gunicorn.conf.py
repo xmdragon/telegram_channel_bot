@@ -11,7 +11,7 @@ worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 1000
 
 # 超时配置 - Linus式：保守但实用的值
-timeout = 120           # 请求处理超时
+timeout = 300           # 请求处理超时（增加到5分钟，避免AI模型加载超时）
 graceful_timeout = 30   # 优雅关闭超时
 keepalive = 5          # HTTP keep-alive
 
@@ -47,6 +47,17 @@ def when_ready(server):
 def worker_int(worker):
     """Worker接收到SIGINT信号"""
     worker.log.info(f"Worker {worker.pid} 接收到中断信号")
+
+def post_fork(server, worker):
+    """Worker fork后的钩子，添加随机延迟避免同时初始化模型"""
+    import time
+    import random
+    
+    # 根据worker年龄计算延迟，避免所有worker同时初始化
+    delay = random.uniform(0, 2) * (worker.age % 4)  # 0-8秒随机延迟
+    if delay > 0:
+        worker.log.info(f"Worker {worker.pid} 延迟 {delay:.1f}秒启动，错开模型初始化")
+        time.sleep(delay)
 
 def on_exit(server):
     """服务器退出回调"""
