@@ -27,7 +27,7 @@ const MessageContentRenderer = {
         'edit-message',
         'mark-as-ad',
         'train-tail',
-        'filter-tail',
+        'filter-content',
         'refetch-media',
         'show-original-message'
     ],
@@ -870,7 +870,7 @@ const MessageContentRenderer = {
                     ✂️ 尾部
                 </button>
                 <button 
-                    data-action="filterTail" 
+                    data-action="filterContent" 
                     :data-message-id="message.id" 
                     :disabled="$parent.isFiltering && $parent.isFiltering(message.id)"
                     :class="['btn', 'btn-sm', 'btn-primary', 

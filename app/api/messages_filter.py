@@ -56,15 +56,15 @@ def check_permission(permission_name: str):
         return wrapper
     return decorator
 
-@router.post(ROUTES.messages.filter_tail)
+@router.post(ROUTES.messages.filter_content)
 @check_permission("filter.execute")
-async def filter_message_tail(
+async def filter_message_content(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
     """
-    对单条消息执行尾部过滤
+    对单条消息执行内容过滤（包括尾部、推广链接等）
     """
     try:
         # 解析消息ID
@@ -92,23 +92,50 @@ async def filter_message_tail(
                 "message": "消息没有内容可以过滤"
             }
         
-        # Linus式解决方案：直接使用训练样本和向量的TailFilterEngine
-        # 修复真正的问题（循环导入）而不是绕过向量系统
-        from app.services.tail_filter_engine import TailFilterEngine
+        # 🚀 Linus式解决方案：使用内容过滤管道（5个内容清理过滤器）
+        from app.services.filters.filter_pipeline import FilterPipeline, PipelineConfig
+        from app.services.filters.base import FilterContext
+        from app.services.filters.tail_filter import TailFilter
+        from app.services.filters.footer_promo_filter import FooterPromoFilter
+        from app.services.filters.markdown_filter import MarkdownFilter
+        from app.services.filters.promo_content_filter import PromoContentFilter
+        from app.services.filters.promo_vector_filter import PromoVectorFilter
         
-        # 直接调用引擎，使用所有训练数据和向量
-        engine = TailFilterEngine()
+        # 创建内容过滤专用的轻量级管道（不包含检测类过滤器6-8）
+        pipeline = FilterPipeline(PipelineConfig(enable_early_stopping=False))
+        pipeline.add_filter(TailFilter())           # 1. 尾部过滤
+        pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤
+        pipeline.add_filter(MarkdownFilter())       # 3. Markdown格式清理
+        pipeline.add_filter(PromoContentFilter())   # 4. 推广内容过滤
+        pipeline.add_filter(PromoVectorFilter())    # 5. 推广内容向量过滤
+        
+        # 创建过滤上下文
+        filter_context = FilterContext(
+            message_id=f"{channel_id}:{msg_id}",
+            channel_id=channel_id
+        )
+        
+        # 添加元数据
         has_media = msg_data.get('media_type') in ['photo', 'video', 'document']
-        filtered_content, has_tail, removed_tail, analysis = engine.filter_message(original_content, has_media)
+        filter_context.add_metadata('is_history', False)
+        filter_context.add_metadata('has_media', has_media)
+        filter_context.add_metadata('message_obj', msg_data)
+        
+        # 执行过滤管道
+        pipeline_result = await pipeline.process(original_content, filter_context)
+        filtered_content = pipeline_result.final_content
         
         # 简单的调试日志
-        logger.info(f"📊 过滤结果: 原始{len(original_content)} -> 过滤后{len(filtered_content)} 字符, 有尾部: {has_tail}")
+        removed_length = len(original_content) - len(filtered_content)
+        logger.info(f"📊 内容过滤结果: 原始{len(original_content)} -> 过滤后{len(filtered_content)} 字符")
         
-        if removed_tail:
-            logger.info(f"   移除内容: {removed_tail[:100]}{'...' if len(removed_tail) > 100 else ''}")
+        if removed_length > 0:
+            removed_content = original_content[len(filtered_content):]  # 简单估算移除的内容
+            logger.info(f"   移除内容: {removed_content[:100]}{'...' if len(removed_content) > 100 else ''}")
         
         # 更新过滤后的内容
-        if has_tail:
+        content_changed = removed_length > 0
+        if content_changed:
             redis_store = get_redis_message_store()
             msg_key = f"msg:{channel_id}:{msg_id}"
             update_data = {
@@ -116,26 +143,22 @@ async def filter_message_tail(
                 'updated_at': get_current_time().isoformat()
             }
             redis_store.redis.hset(msg_key, mapping=update_data)
-            
-            # Linus风格：移除不必要的I/O操作 - 手动过滤只需要过滤，不需要保存训练数据
-            # 训练数据应该从实时和历史采集中收集，而不是每次手动过滤都写文件
-            if removed_tail:
-                logger.info(f"✂️ 尾部过滤完成: 移除 {len(removed_tail)} 字符")
+            logger.info(f"✂️ 内容过滤完成: 移除 {removed_length} 字符")
         
         return {
             "success": True,
             "filtered_content": filtered_content,
-            "removed_length": len(original_content) - len(filtered_content) if has_tail else 0,
-            "removed_tail": removed_tail or "",
-            "has_tail": has_tail,
+            "removed_length": removed_length,
+            "removed_tail": original_content[len(filtered_content):] if removed_length > 0 else "",
+            "has_tail": content_changed,  # 兼容原API
             "data": {
                 "original_content": original_content,
                 "filtered_content": filtered_content,
-                "has_tail": has_tail,
-                "removed_tail": removed_tail or "",
-                "filter_details": analysis or {}
+                "has_tail": content_changed,
+                "removed_tail": original_content[len(filtered_content):] if removed_length > 0 else "",
+                "filter_details": pipeline_result.filter_results
             },
-            "message": "尾部过滤已执行" if has_tail else "未检测到尾部内容",
+            "message": f"内容过滤已执行，应用了 {len(pipeline_result.applied_filters)} 个过滤器" if content_changed else "内容无需过滤",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         

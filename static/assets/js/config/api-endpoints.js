@@ -35,7 +35,7 @@ const API_ENDPOINTS = {
         
         // 消息操作端点
         notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
-        filterTail: (id) => `/api/messages/filter-tail/${id}`,     // POST - 执行尾部过滤
+        filterContent: (id) => `/api/messages/filter-content/${id}`, // POST - 执行内容过滤
         publish: (id) => `/api/messages/publish/${id}`,            // POST - 发布消息
         editPublish: (id) => `/api/messages/edit-publish/${id}`,   // POST - 编辑并发布
         refetchMedia: (id) => `/api/messages/refetch-media/${id}`, // POST - 重新获取媒体

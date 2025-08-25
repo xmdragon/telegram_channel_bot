@@ -2140,8 +2140,8 @@ const MainApp = {
             window.location.href = API.pages.tailFilterTraining + '?' + params.toString();
         },
         
-        // 手动执行尾部过滤 - Linus风格：消除重复点击的特殊情况
-        async filterTail(messageId) {
+        // 手动执行内容过滤 - Linus风格：消除重复点击的特殊情况
+        async filterContent(messageId) {
             // 防重复点击保护 - 没有if分支，直接返回
             if (this.filteringMessages.has(messageId)) {
                 return;
@@ -2159,14 +2159,14 @@ const MainApp = {
             try {
                 // 🚀 Linus风格：依赖axios拦截器自动处理认证（消除特殊情况）
                 const response = await axios.post(
-                    window.API.messages.filterTail(message.id),
+                    window.API.messages.filterContent(message.id),
                     {} // 让拦截器自动添加认证头，避免手动覆盖
                 );
                 
                 
                 if (response.data.success) {
                     if (response.data.has_tail && response.data.removed_length > 0) {
-                        window.SimpleUI.Message.success(`尾部过滤成功，移除了 ${response.data.removed_length} 个字符`);
+                        window.SimpleUI.Message.success(`内容过滤成功，移除了 ${response.data.removed_length} 个字符`);
                         // 更新消息的过滤后内容
                         const index = this.messages.findIndex(m => m.id === message.id);
                         if (index !== -1) {
@@ -2174,7 +2174,7 @@ const MainApp = {
                         }
                     } else {
                         // 修复：显示后端返回的具体消息
-                        window.SimpleUI.Message.info(response.data.message || '未检测到需要过滤的尾部内容');
+                        window.SimpleUI.Message.info(response.data.message || '内容无需过滤');
                     }
                 } else {
                     window.SimpleUI.Message.warning(response.data.message || '过滤失败');

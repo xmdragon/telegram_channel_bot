@@ -30,7 +30,7 @@ class RouteConfig:
         resend = "/messages/resend/{message_id}"
         
         # 过滤器操作
-        filter_tail = "/messages/filter-tail/{message_id}"
+        filter_content = "/messages/filter-content/{message_id}"
         train_tail = "/messages/train-tail/{message_id}"
         not_ad = "/messages/not-ad/{message_id}"
         refetch_media = "/messages/refetch-media/{message_id}"
