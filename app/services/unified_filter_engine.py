@@ -18,7 +18,6 @@ from app.services.filters.ad_detector import AdDetectorFilter
 from app.services.filters.tail_filter import TailFilter
 from app.services.filters.footer_promo_filter import FooterPromoFilter
 from app.services.filters.markdown_filter import MarkdownFilter
-from app.services.filters.promo_content_filter import PromoContentFilter
 from app.services.filters.promo_vector_filter import PromoVectorFilter
 from app.services.filters.chat_content_filter import ChatContentFilter
 
@@ -47,18 +46,17 @@ class UnifiedFilterEngine:
         
         pipeline = FilterPipeline(config)
         
-        # 按新顺序添加8个过滤器
-        # 1-5: 内容清理类过滤器（先清理推广内容）
+        # 按新顺序添加7个过滤器（删除PromoContentFilter）
+        # 1-4: 内容清理类过滤器（先清理推广内容）
         pipeline.add_filter(TailFilter())                # 1. 尾部过滤
         pipeline.add_filter(FooterPromoFilter())         # 2. 尾部推广链接过滤器
         pipeline.add_filter(MarkdownFilter())            # 3. Markdown格式清理
-        pipeline.add_filter(PromoContentFilter())        # 4. 推广内容过滤
-        pipeline.add_filter(PromoVectorFilter())         # 5. 推广内容向量过滤
+        pipeline.add_filter(PromoVectorFilter())         # 4. 推广内容向量过滤
         
-        # 6-8: 内容检测类过滤器（清理后再检测，避免误判）
-        pipeline.add_filter(DuplicateDetectorFilter())   # 6. 去重检测
-        pipeline.add_filter(AdDetectorFilter())          # 7. 广告检测
-        pipeline.add_filter(ChatContentFilter())         # 8. 聊天内容检测
+        # 5-7: 内容检测类过滤器（清理后再检测，避免误判）
+        pipeline.add_filter(DuplicateDetectorFilter())   # 5. 去重检测
+        pipeline.add_filter(AdDetectorFilter())          # 6. 广告检测
+        pipeline.add_filter(ChatContentFilter())         # 7. 聊天内容检测
         
         return pipeline
         

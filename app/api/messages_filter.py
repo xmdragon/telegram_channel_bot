@@ -98,7 +98,6 @@ async def filter_message_content(
         from app.services.filters.tail_filter import TailFilter
         from app.services.filters.footer_promo_filter import FooterPromoFilter
         from app.services.filters.markdown_filter import MarkdownFilter
-        from app.services.filters.promo_content_filter import PromoContentFilter
         from app.services.filters.promo_vector_filter import PromoVectorFilter
         
         # 创建内容过滤专用的轻量级管道（不包含检测类过滤器6-8）
@@ -106,8 +105,7 @@ async def filter_message_content(
         pipeline.add_filter(TailFilter())           # 1. 尾部过滤
         pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤
         pipeline.add_filter(MarkdownFilter())       # 3. Markdown格式清理
-        pipeline.add_filter(PromoContentFilter())   # 4. 推广内容过滤
-        pipeline.add_filter(PromoVectorFilter())    # 5. 推广内容向量过滤
+        pipeline.add_filter(PromoVectorFilter())    # 4. 推广内容向量过滤
         
         # 创建过滤上下文
         filter_context = FilterContext(
