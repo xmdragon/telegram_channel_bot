@@ -431,7 +431,7 @@ class SimpleMessageBox {
             
             const handleConfirm = () => {
                 cleanup();
-                resolve();
+                resolve(true);
             };
             
             // 绑定事件

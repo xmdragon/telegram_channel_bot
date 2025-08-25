@@ -254,8 +254,9 @@ const app = createApp({
         
         // 删除单个样本
         async deleteSample(sample) {
+            let confirmed = false;
             try {
-                await SimpleUI.showConfirm(
+                confirmed = await SimpleUI.showConfirm(
                     '确定要删除这个尾部过滤样本吗？',
                     '确认删除'
                 );
@@ -264,9 +265,10 @@ const app = createApp({
                     return;
                 }
                 // 降级到原生确认框
-                const confirmed = confirm('确定要删除这个尾部过滤样本吗？');
-                if (!confirmed) return;
+                confirmed = confirm('确定要删除这个尾部过滤样本吗？');
             }
+            
+            if (!confirmed) return;
             
             try {
                 const response = await axios.delete(API.training.tailFilterSampleById(sample.id));
@@ -325,16 +327,18 @@ const app = createApp({
         async deleteSelected() {
             if (!this.selectedSamples.length) return;
             
+            let confirmed = false;
             try {
-                await SimpleUI.showConfirm(
+                confirmed = await SimpleUI.showConfirm(
                     `确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`,
                     '批量删除确认'
                 );
             } catch (error) {
                 if (error === 'cancel') return;
-                const confirmed = confirm(`确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`);
-                if (!confirmed) return;
+                confirmed = confirm(`确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`);
             }
+            
+            if (!confirmed) return;
             
             try {
                 const ids = this.selectedSamples.map(s => s.id);
@@ -391,16 +395,18 @@ const app = createApp({
         
         // 同步向量索引
         async syncVectors() {
+            let confirmed = false;
             try {
-                await SimpleUI.showConfirm(
+                confirmed = await SimpleUI.showConfirm(
                     '同步向量将重建尾部样本的AI向量索引，确保AI过滤功能使用最新的训练数据。\n此操作需要几秒钟时间，确认执行吗？',
                     '同步向量索引'
                 );
             } catch (error) {
                 if (error === 'cancel') return;
-                const confirmed = confirm('同步向量将重建尾部样本的AI向量索引，确保AI过滤功能使用最新的训练数据。\n此操作需要几秒钟时间，确认执行吗？');
-                if (!confirmed) return;
+                confirmed = confirm('同步向量将重建尾部样本的AI向量索引，确保AI过滤功能使用最新的训练数据。\n此操作需要几秒钟时间，确认执行吗？');
             }
+            
+            if (!confirmed) return;
             
             try {
                 // 使用现有的loading状态变量（Linus式统一模式）
@@ -452,16 +458,18 @@ const app = createApp({
                     return;
                 }
                 
+                let confirmed = false;
                 try {
-                    await SimpleUI.showConfirm(
+                    confirmed = await SimpleUI.showConfirm(
                         `将删除 ${toDelete.length} 个重复样本，是否继续？`,
                         '去重确认'
                     );
                 } catch (error) {
                     if (error === 'cancel') return;
-                    const confirmed = confirm(`将删除 ${toDelete.length} 个重复样本，是否继续？`);
-                    if (!confirmed) return;
+                    confirmed = confirm(`将删除 ${toDelete.length} 个重复样本，是否继续？`);
                 }
+                
+                if (!confirmed) return;
                 
                 const response = await axios.post(API.training.tailFilterDeduplicate, {
                     remove_ids: toDelete
