@@ -37,10 +37,6 @@
                         <span class="stat-value">{{ stats.uniqueSamples }}</span>
                     </div>
                     <div class="stat-item-inline">
-                        <span class="stat-label">媒体文件:</span>
-                        <span class="stat-value">{{ stats.mediaFiles }}</span>
-                    </div>
-                    <div class="stat-item-inline">
                         <span class="stat-label">存储占用:</span>
                         <span class="stat-value">{{ formatSize(stats.storageSize) }}</span>
                     </div>
@@ -69,8 +65,6 @@
                             </div>
                             <select v-model="filterType" class="filter-select" @change="loadSamples">
                                 <option value="all">全部</option>
-                                <option value="with_media">有媒体</option>
-                                <option value="text_only">纯文本</option>
                                 <option value="duplicate">疑似重复</option>
                             </select>
                         </div>
@@ -113,7 +107,6 @@
                                             <span class="sort-indicator" v-if="sortField === 'id'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
                                         </th>
                                         <th class="content-column">内容预览</th>
-                                        <th class="media-column">媒体</th>
                                         <th class="source-column">来源</th>
                                         <th class="time-column" @click="sortBy('created_at')">
                                             创建时间
@@ -137,20 +130,6 @@
                                                     相似组 #{{ sample.similarity_group }}
                                                 </span>
                                             </div>
-                                        </td>
-                                        <td class="media-cell">
-                                            <div v-if="sample.media_files && sample.media_files.length" class="media-preview">
-                                                <img v-for="(media, idx) in sample.media_files.slice(0, 2)" 
-                                                     :key="idx"
-                                                     :src="'/media/' + media"
-                                                     class="media-preview-thumb"
-                                                     @click="previewMedia(sample.media_files, idx)"
-                                                     @error="handleImageError">
-                                                <span v-if="sample.media_files.length > 2" class="media-count">
-                                                    +{{ sample.media_files.length - 2 }}
-                                                </span>
-                                            </div>
-                                            <span v-else class="no-media">无</span>
                                         </td>
                                         <td class="source-cell">
                                             <span :class="'tag tag-' + getSourceType(sample.source)">
@@ -198,17 +177,6 @@
                         <div class="detail-content">{{ currentSample.content }}</div>
                     </div>
                     
-                    <div v-if="currentSample.media_files && currentSample.media_files.length" class="detail-section">
-                        <h4>媒体文件：</h4>
-                        <div class="media-grid">
-                            <img v-for="(media, idx) in currentSample.media_files" 
-                                 :key="idx"
-                                 :src="'/media/' + media"
-                                 class="media-preview-large"
-                                 @click="previewMedia(currentSample.media_files, idx)"
-                                 @error="handleImageError">
-                        </div>
-                    </div>
                     
                     <div class="detail-info">
                         <div class="detail-grid">
@@ -283,37 +251,6 @@
             </div>
         </div>
         
-        <!-- 媒体预览模态框 -->
-        <div v-if="mediaPreviewDialog" class="modal-overlay" @click="closeMediaPreview">
-            <div class="modal-content modal-media" @click.stop>
-                <div class="modal-header">
-                    <h3>媒体预览</h3>
-                    <button class="modal-close" @click="closeMediaPreview">✖️</button>
-                </div>
-                <div class="modal-body modal-media-body">
-                    <div v-if="currentMediaList.length" class="media-preview-container">
-                        <img :src="'/media/' + currentMediaList[currentMediaIndex]" 
-                             class="media-preview-full"
-                             @error="handleImageError">
-                        <div class="media-controls" v-if="currentMediaList.length > 1">
-                            <button class="btn btn-outline" 
-                                    @click="previousMedia" 
-                                    :disabled="currentMediaIndex <= 0">
-                                上一张
-                            </button>
-                            <span class="media-indicator">
-                                {{ currentMediaIndex + 1 }} / {{ currentMediaList.length }}
-                            </span>
-                            <button class="btn btn-outline" 
-                                    @click="nextMedia" 
-                                    :disabled="currentMediaIndex >= currentMediaList.length - 1">
-                                下一张
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- 动态加载JavaScript文件 -->

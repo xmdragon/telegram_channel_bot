@@ -12,7 +12,6 @@ const app = createApp({
             stats: {
                 totalSamples: 0,
                 uniqueSamples: 0,
-                mediaFiles: 0,
                 storageSize: 0
             },
             
@@ -42,10 +41,6 @@ const app = createApp({
             duplicateGroups: [],
             duplicateSamplesCount: 0,
             
-            // 媒体预览
-            mediaPreviewDialog: false,
-            currentMediaList: [],
-            currentMediaIndex: 0
         }
     },
     
@@ -108,7 +103,6 @@ const app = createApp({
                     this.stats = {
                         totalSamples: stats.total_samples || 0,
                         uniqueSamples: stats.total_samples || 0,  // 使用总样本数作为去重后数量
-                        mediaFiles: stats.media_files || 0,
                         storageSize: stats.storage_size || 0
                     };
                 }
@@ -436,38 +430,6 @@ const app = createApp({
             this.duplicateSamplesCount = 0;
         },
         
-        // 媒体预览
-        previewMedia(mediaList, index) {
-            this.currentMediaList = mediaList;
-            this.currentMediaIndex = index;
-            this.mediaPreviewDialog = true;
-        },
-        
-        // 关闭媒体预览
-        closeMediaPreview() {
-            this.mediaPreviewDialog = false;
-            this.currentMediaList = [];
-            this.currentMediaIndex = 0;
-        },
-        
-        // 上一张媒体
-        previousMedia() {
-            if (this.currentMediaIndex > 0) {
-                this.currentMediaIndex--;
-            }
-        },
-        
-        // 下一张媒体
-        nextMedia() {
-            if (this.currentMediaIndex < this.currentMediaList.length - 1) {
-                this.currentMediaIndex++;
-            }
-        },
-        
-        // 图片加载错误处理
-        handleImageError(event) {
-            event.target.style.display = 'none';
-        }
     },
     
     async mounted() {
