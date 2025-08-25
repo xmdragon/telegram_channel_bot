@@ -240,11 +240,13 @@ class LinusConfigFixer:
                 fixes_made.append(f"添加缺失配置: {key}")
         
         if fixes_made:
-            # 备份原文件
-            backup_path = self.config_file.with_suffix(f'.json.fix_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+            # 备份原文件到专门的备份目录
+            backup_dir = Path("data/backups")
+            backup_dir.mkdir(exist_ok=True)
+            backup_path = backup_dir / f"system_fix_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             import shutil
             shutil.copy2(self.config_file, backup_path)
-            print(f"📦 已备份原配置: {backup_path.name}")
+            print(f"📦 已备份原配置: {backup_path}")
             
             # 保存修复后的配置
             with open(self.config_file, 'w', encoding='utf-8') as f:

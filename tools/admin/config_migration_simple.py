@@ -99,9 +99,11 @@ def execute_migration(config_file, to_delete, to_rename, to_add, dry_run=True):
     
     print(f"\n🔄 执行迁移:")
     
-    # 创建备份
+    # 创建备份到专门的备份目录
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = config_file.parent / f"system_config_migration_backup_{timestamp}.json"
+    backup_dir = Path("data/backups")
+    backup_dir.mkdir(exist_ok=True)
+    backup_file = backup_dir / f"system_config_migration_backup_{timestamp}.json"
     shutil.copy2(config_file, backup_file)
     print(f"✅ 配置已备份到: {backup_file}")
     
