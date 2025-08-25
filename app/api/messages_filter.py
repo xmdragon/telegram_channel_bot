@@ -87,14 +87,14 @@ async def filter_message_tail(
                 "message": "消息没有内容可以过滤"
             }
         
-        # Linus式解决方案：直接使用已验证工作的semantic_tail_filter
-        # 删除所有不必要的抽象层、上下文对象、配置复杂性
-        from app.services.semantic_tail_filter import semantic_tail_filter
+        # Linus式解决方案：直接使用训练样本和向量的TailFilterEngine
+        # 修复真正的问题（循环导入）而不是绕过向量系统
+        from app.services.tail_filter_engine import TailFilterEngine
         
-        # 直接调用，无需中间层
-        filtered_content, has_tail, removed_tail, analysis = semantic_tail_filter.filter_message(original_content)
-        
-        # 简单明了：有尾部就是有，没有就是没有
+        # 直接调用引擎，使用所有训练数据和向量
+        engine = TailFilterEngine()
+        has_media = msg_data.get('media_type') in ['photo', 'video', 'document']
+        filtered_content, has_tail, removed_tail, analysis = engine.filter_message(original_content, has_media)
         
         # 简单的调试日志
         logger.info(f"📊 过滤结果: 原始{len(original_content)} -> 过滤后{len(filtered_content)} 字符, 有尾部: {has_tail}")
