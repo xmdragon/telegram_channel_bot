@@ -50,6 +50,23 @@ const app = createApp({
     },
     
     methods: {
+        // 安全的消息显示方法（兼容SimpleUI和原生alert）
+        showMessage(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            if (window.SimpleUI && typeof SimpleUI.showMessage === 'function') {
+                try {
+                    SimpleUI.showMessage(message, type);
+                    return;
+                } catch (error) {
+                    console.error('SimpleUI.showMessage出错:', error);
+                }
+            }
+            
+            // 降级到原生alert
+            alert(`[${type.toUpperCase()}] ${message}`);
+        },
+        
         // 加载分隔符配置
         async loadSeparatorPatterns() {
             try {
@@ -234,25 +251,45 @@ const app = createApp({
         
         // 删除样本
         async deleteSample(sample) {
-            const confirmed = await SimpleUI.showConfirm(
-                '确定要删除这个推广链接样本吗？',
-                '删除确认'
-            );
+            console.log('deleteSample方法被调用，样本ID:', sample.id);
             
-            if (!confirmed) return;
+            let confirmed = false;
+            try {
+                if (window.SimpleUI && typeof SimpleUI.showConfirm === 'function') {
+                    confirmed = await SimpleUI.showConfirm(
+                        '确定要删除这个推广链接样本吗？',
+                        '删除确认'
+                    );
+                } else {
+                    // 降级到原生确认对话框
+                    confirmed = confirm('确定要删除这个推广链接样本吗？');
+                }
+            } catch (error) {
+                console.error('确认对话框出错，使用原生确认:', error);
+                confirmed = confirm('确定要删除这个推广链接样本吗？');
+            }
+            
+            if (!confirmed) {
+                console.log('用户取消删除');
+                return;
+            }
             
             try {
+                console.log('开始执行删除API调用...');
                 const response = await axios.delete(API.training.promoSampleById(sample.id));
+                console.log('删除API响应:', response.data);
                 
                 if (response.data.success) {
-                    SimpleUI.showMessage('删除成功', 'success');
+                    console.log('删除成功，重新加载数据');
+                    this.showMessage('删除成功', 'success');
                     await this.loadSamples();
                 } else {
-                    SimpleUI.showMessage('删除失败', 'error');
+                    console.log('删除失败:', response.data);
+                    this.showMessage('删除失败', 'error');
                 }
             } catch (error) {
                 console.error('删除样本失败:', error);
-                SimpleUI.showMessage('删除失败: ' + (error.response?.data?.detail || error.message), 'error');
+                this.showMessage('删除失败: ' + (error.response?.data?.detail || error.message), 'error');
             }
         },
         
