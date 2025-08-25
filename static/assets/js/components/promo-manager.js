@@ -52,8 +52,6 @@ const app = createApp({
     methods: {
         // 安全的消息显示方法（兼容SimpleUI和原生alert）
         showMessage(message, type = 'info') {
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            
             if (window.SimpleUI && typeof SimpleUI.showMessage === 'function') {
                 try {
                     SimpleUI.showMessage(message, type);
@@ -251,8 +249,6 @@ const app = createApp({
         
         // 删除样本
         async deleteSample(sample) {
-            console.log('deleteSample方法被调用，样本ID:', sample.id);
-            
             let confirmed = false;
             try {
                 if (window.SimpleUI && typeof SimpleUI.showConfirm === 'function') {
@@ -266,7 +262,6 @@ const app = createApp({
             } catch (error) {
                 // SimpleUI.confirm reject时表示用户取消
                 if (error === 'cancel') {
-                    console.log('用户取消删除');
                     return;
                 }
                 console.error('确认对话框出错，使用原生确认:', error);
@@ -274,23 +269,16 @@ const app = createApp({
             }
             
             if (!confirmed) {
-                console.log('用户取消删除');
                 return;
             }
             
-            console.log('用户确认删除');
-            
             try {
-                console.log('开始执行删除API调用...');
                 const response = await axios.delete(API.training.promoSampleById(sample.id));
-                console.log('删除API响应:', response.data);
                 
                 if (response.data.success) {
-                    console.log('删除成功，重新加载数据');
                     this.showMessage('删除成功', 'success');
                     await this.loadSamples();
                 } else {
-                    console.log('删除失败:', response.data);
                     this.showMessage('删除失败', 'error');
                 }
             } catch (error) {
@@ -350,7 +338,6 @@ const app = createApp({
                 );
             } catch (error) {
                 if (error === 'cancel') {
-                    console.log('用户取消批量删除');
                     return;
                 }
                 // 其他错误，使用原生确认框
@@ -358,7 +345,6 @@ const app = createApp({
             }
             
             if (!confirmed) {
-                console.log('用户取消批量删除');
                 return;
             }
             
