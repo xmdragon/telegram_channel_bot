@@ -123,8 +123,9 @@
                                     </td>
                                     <td>{{ sample.id }}</td>
                                     <td>
-                                        <div v-if="sample.promo_content" class="content-preview clickable" @click="showDetail(sample)">
-                                            {{ truncateText(sample.promo_content, 100) }}
+                                        <div v-if="sample.promo_content" class="content-preview clickable" @click="showDetail(sample)" :title="'点击查看完整内容 (' + sample.promo_content.length + ' 字符)'">
+                                            {{ truncateText(sample.promo_content, 50) }}
+                                            <span v-if="sample.promo_content.length > 50" class="truncate-indicator">...</span>
                                         </div>
                                         <span v-else>-</span>
                                     </td>

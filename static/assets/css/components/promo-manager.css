@@ -228,15 +228,28 @@
     word-break: break-all;
     line-height: 1.4;
     color: #606266;
+    position: relative;
 }
 
 .content-preview.clickable {
     cursor: pointer;
     color: #409eff;
+    transition: all 0.2s ease;
 }
 
 .content-preview.clickable:hover {
     text-decoration: underline;
+    background-color: #f0f9ff;
+    border-radius: 3px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
+
+/* 截断指示器样式 */
+.truncate-indicator {
+    color: #909399;
+    font-weight: bold;
+    margin-left: 2px;
 }
 
 /* 分隔符标签样式 */

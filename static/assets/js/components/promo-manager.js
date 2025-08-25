@@ -367,7 +367,25 @@ const app = createApp({
         truncateText(text, length) {
             if (!text) return '';
             if (text.length <= length) return text;
-            return text.substring(0, length) + '...';
+            
+            // 截断文本，尽量在空格、标点符号处截断
+            let truncated = text.substring(0, length);
+            const lastSpace = truncated.lastIndexOf(' ');
+            const lastPunctuation = Math.max(
+                truncated.lastIndexOf('，'),
+                truncated.lastIndexOf('。'),
+                truncated.lastIndexOf('！'),
+                truncated.lastIndexOf('？'),
+                truncated.lastIndexOf('、')
+            );
+            
+            // 如果在前80%位置找到合适的截断点，使用它
+            const cutoffPoint = Math.max(lastSpace, lastPunctuation);
+            if (cutoffPoint > length * 0.8) {
+                return text.substring(0, cutoffPoint);
+            }
+            
+            return truncated;
         },
         
         // 排序功能
