@@ -234,15 +234,6 @@ const app = createApp({
             this.detailDialog = true;
         },
         
-        // 跳转到训练页面
-        goToTrainingPage(sample = null) {
-            let url = API.pages.tailFilterTraining;
-            if (sample && sample.id) {
-                url += `?sampleId=${sample.id}`;
-            }
-            window.location.href = url;
-        },
-        
         // 处理搜索
         handleSearch() {
             // 重置到第一页
