@@ -268,6 +268,15 @@ const app = createApp({
                     this.duplicateGroups = response.data.groups || [];
                     this.duplicateSamplesCount = response.data.total_duplicates || 0;
                     
+                    // 初始化每个样本的keep属性 - 默认保留第一个
+                    this.duplicateGroups.forEach(group => {
+                        group.samples.forEach((sample, idx) => {
+                            // Vue需要响应式属性，使用Vue.set或者直接赋值
+                            sample.keep = idx === 0; // 默认保留第一个
+                            console.log(`初始化样本 ID ${sample.id}: keep=${sample.keep}`);
+                        });
+                    });
+                    
                     if (!this.duplicateGroups.length) {
                         window.SimpleUI.Message.info('没有发现重复的样本');
                         this.duplicateDialog = false;
@@ -296,18 +305,31 @@ const app = createApp({
         // 应用去重
         async applyDeduplicate() {
             try {
+                // 调试信息：打印所有样本的keep状态
+                console.log('=== 去重调试信息 ===');
+                this.duplicateGroups.forEach((group, groupIdx) => {
+                    console.log(`组 ${groupIdx + 1}:`);
+                    group.samples.forEach((sample, sampleIdx) => {
+                        console.log(`  样本 ${sampleIdx + 1} (ID: ${sample.id}): keep=${sample.keep}`);
+                    });
+                });
+                
                 // 收集要删除的样本ID
                 const toDelete = [];
                 this.duplicateGroups.forEach(group => {
                     group.samples.forEach(sample => {
+                        console.log(`检查样本 ID ${sample.id}: keep=${sample.keep}`);
                         if (!sample.keep) {
                             const sampleId = sample.id;
                             if (sampleId) {
                                 toDelete.push(sampleId);
+                                console.log(`添加到删除列表: ${sampleId}`);
                             }
                         }
                     });
                 });
+                
+                console.log('要删除的样本ID列表:', toDelete);
                 
                 if (!toDelete.length) {
                     window.SimpleUI.Message.info('没有选择要删除的样本');
