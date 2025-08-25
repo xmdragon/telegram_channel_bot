@@ -242,10 +242,14 @@ const app = createApp({
             if (!confirmed) return;
             
             try {
-                // 注意：这里需要后端实现DELETE端点
-                await axios.delete(API.training.promoSampleById(sample.id));
-                SimpleUI.showMessage('样本删除成功', 'success');
-                await this.loadSamples();
+                const response = await axios.delete(API.training.promoSampleById(sample.id));
+                
+                if (response.data.success) {
+                    SimpleUI.showMessage('删除成功', 'success');
+                    await this.loadSamples();
+                } else {
+                    SimpleUI.showMessage('删除失败', 'error');
+                }
             } catch (error) {
                 console.error('删除样本失败:', error);
                 SimpleUI.showMessage('删除失败: ' + (error.response?.data?.detail || error.message), 'error');
@@ -303,17 +307,38 @@ const app = createApp({
             if (!confirmed) return;
             
             try {
-                const deletePromises = this.selectedSamples.map(sample =>
-                    axios.delete(API.training.promoSampleById(sample.id))
-                );
+                // 逐个删除（确保错误处理更可靠）
+                let successCount = 0;
+                let failureCount = 0;
                 
-                await Promise.all(deletePromises);
-                SimpleUI.showMessage(`成功删除 ${this.selectedSamples.length} 个样本`, 'success');
+                for (const sample of this.selectedSamples) {
+                    try {
+                        const response = await axios.delete(API.training.promoSampleById(sample.id));
+                        if (response.data.success) {
+                            successCount++;
+                        } else {
+                            failureCount++;
+                        }
+                    } catch (error) {
+                        console.error(`删除样本 ${sample.id} 失败:`, error);
+                        failureCount++;
+                    }
+                }
+                
+                // 显示批量删除结果
+                if (failureCount === 0) {
+                    SimpleUI.showMessage(`成功删除 ${successCount} 个样本`, 'success');
+                } else if (successCount === 0) {
+                    SimpleUI.showMessage(`删除失败，共 ${failureCount} 个样本删除失败`, 'error');
+                } else {
+                    SimpleUI.showMessage(`部分成功：${successCount} 个删除成功，${failureCount} 个删除失败`, 'warning');
+                }
+                
                 this.selectedSamples = [];
                 await this.loadSamples();
             } catch (error) {
                 console.error('批量删除失败:', error);
-                SimpleUI.showMessage('批量删除失败: ' + (error.response?.data?.detail || error.message), 'error');
+                SimpleUI.showMessage('批量删除失败: ' + error.message, 'error');
             }
         },
         
