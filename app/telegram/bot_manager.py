@@ -17,7 +17,6 @@ class BotManager:
         self.monitor_task = None
         self.event_loop_task = None
         self.auto_forward_task = None
-        self.auto_collection_done = False
         
     async def start(self):
         """启动Bot和监控"""
@@ -55,17 +54,15 @@ class BotManager:
             from app.services.media_handler import media_handler
             await media_handler.start()
             
-            # 注册事件处理器
-            from app.telegram.message_event_handler import message_event_handler
-            await message_event_handler.register_event_handlers(self.client)
-            
             # 执行完整的启动检查
             await self._perform_startup_checks()
             
-            # 首次连接时进行历史消息采集
-            if not self.auto_collection_done:
-                await self._auto_collect_history()
-                self.auto_collection_done = True
+            # 先进行历史消息采集（基于checkpoint自动判断）
+            await self._auto_collect_history()
+            
+            # 历史采集完成后，注册事件处理器开始实时监听
+            from app.telegram.message_event_handler import message_event_handler
+            await message_event_handler.register_event_handlers(self.client)
             
             # 启动自动转发任务 - Linus式简单解决方案
             logger.info("启动自动转发任务...")

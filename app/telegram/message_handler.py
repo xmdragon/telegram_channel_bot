@@ -155,6 +155,15 @@ class MessageHandler:
                     elif hasattr(result.context, 'pending_group'):
                         logger.info(f"⏳ {message_type} #{message_id} 等待媒体组合并")
                         return "pending_group"
+                    elif result.context.save_data is None and hasattr(result.context, 'telegram_message'):
+                        # 检查是否为组消息（save_data为None通常表示等待组合）
+                        telegram_msg = result.context.telegram_message
+                        if hasattr(telegram_msg, 'grouped_id') and telegram_msg.grouped_id:
+                            logger.info(f"⏳ {message_type} #{message_id} 等待媒体组合并 (grouped_id: {telegram_msg.grouped_id})")
+                            return "pending_group"
+                        else:
+                            logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
+                            return "unknown"
                     else:
                         logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
                         return "unknown"

@@ -178,13 +178,21 @@ class HistoryCollector:
             
             for idx, message in enumerate(collected_messages, 1):
                 try:
-                    # 调用消息处理器处理消息
+                    # 调用消息处理器处理消息（添加超时保护）
                     if self._message_processor:
-                        result = await self._message_processor(message, channel_id, is_history=True)
-                        if result and result in stats:
-                            stats[result] += 1
-                        else:
-                            stats['unknown'] += 1
+                        try:
+                            result = await asyncio.wait_for(
+                                self._message_processor(message, channel_id, is_history=True),
+                                timeout=30.0  # 30秒超时保护
+                            )
+                            if result and result in stats:
+                                stats[result] += 1
+                            else:
+                                stats['unknown'] += 1
+                        except asyncio.TimeoutError:
+                            logger.error(f"处理消息#{message.id if message else 'None'}超时（30秒），跳过该消息")
+                            stats['error'] += 1
+                            continue
                     else:
                         logger.warning("未设置消息处理器，跳过消息")
                         stats['error'] += 1
