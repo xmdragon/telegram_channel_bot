@@ -230,6 +230,4 @@
         }
     `;
     document.head.appendChild(style);
-    
-    console.log('✅ Axios全局配置已加载 - 10秒超时，15秒页面加载检测');
 })();

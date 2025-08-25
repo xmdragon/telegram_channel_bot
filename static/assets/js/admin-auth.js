@@ -107,13 +107,11 @@ class AuthManager {
         
         // 缓存有效期5分钟（300,000毫秒）
         if (cacheAge < 5 * 60 * 1000 && this.adminInfo) {
-            console.log('使用缓存权限信息，跳过API验证');
             return true;  // 直接使用缓存，避免API请求
         }
         
         // 缓存过期或不存在，发送API请求
         try {
-            console.log('权限缓存过期，重新验证');
             const response = await axios.get(
                 getAPI().adminAuth?.current || '/api/admin/auth/current',
                 { headers: this.getAuthHeaders() }
@@ -279,11 +277,9 @@ class AuthManager {
             }
             
             this.adminInfo = response.data;
-            console.log('权限信息后台刷新成功');
             return true;
         } catch (error) {
             if (error.response?.status === 401) {
-                console.log('Token已失效，需要重新登录');
                 this.logout();
                 return false;
             }
@@ -401,11 +397,8 @@ if (typeof window !== 'undefined') {
     if (!window.authRefreshTimer) {
         window.authRefreshTimer = setInterval(() => {
             if (authManager.isAuthenticated()) {
-                console.log('执行定时权限刷新');
                 authManager.refreshAuthSilently();
             }
         }, 5 * 60 * 1000); // 5分钟 = 300,000毫秒
-        
-        console.log('权限后台刷新机制已启动（每5分钟）');
     }
 }
