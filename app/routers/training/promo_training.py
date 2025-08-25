@@ -236,7 +236,7 @@ async def update_promo_sample(sample_id: str, request: PromoTrainingRequest):
         logger.error(f"更新推广链接训练样本失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
-@router.delete("/training/promo-samples/{sample_id}")
+@router.delete(ROUTES.training.promo_samples_by_id)
 async def delete_promo_sample(sample_id: str):
     """
     删除推广链接训练样本

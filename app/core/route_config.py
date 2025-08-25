@@ -253,6 +253,7 @@ class RouteConfig:
         
         # 推广链接训练
         promo_samples = "/training/promo-samples"
+        promo_samples_by_id = "/training/promo-samples/{sample_id}"
         preview_promo_filter = "/training/preview-promo-filter"
     
     def __init__(self):
