@@ -44,8 +44,8 @@ class MessageCompatibilityMixin:
                 logger.warning(f"无效的消息ID: {message_id}")
                 return None
             
-            # 使用现有的get_message方法
-            return self.get_message(channel_id, message_id)
+            # 使用现有的get_message方法，静默模式避免不必要的警告
+            return self.get_message(channel_id, message_id, silent=True)
             
         except Exception as e:
             logger.error(f"获取消息失败 {message_key}: {e}")

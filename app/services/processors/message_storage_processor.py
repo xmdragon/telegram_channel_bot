@@ -205,6 +205,12 @@ class MessageStorageProcessor(MessageProcessor):
         try:
             save_data = context.save_data
             
+            # 🔧 新增：跳过组消息子消息的重复检测
+            # 子消息会作为组合消息的一部分进行整体重复检测
+            if save_data.get('grouped_id'):
+                self.logger.debug(f"跳过组消息子消息的重复检测: grouped_id={save_data['grouped_id']}")
+                return
+            
             # 提取视觉哈希
             visual_hashes = None
             if context.media_info and context.media_info.get('visual_hashes'):
