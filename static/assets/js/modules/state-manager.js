@@ -45,13 +45,9 @@ const StateManager = {
             
             // 统计状态
             stats: {
-                total: { value: 0, label: '总消息' },
                 pending: { value: 0, label: '待审核' },
                 approved: { value: 0, label: '已发布' },
-                rejected: { value: 0, label: '已拒绝' },
-                ads: { value: 0, label: '广告消息' },
-                duplicates: { value: 0, label: '重复消息' },
-                chats: { value: 0, label: '聊天消息' }
+                rejected: { value: 0, label: '已拒绝' }
             },
             
             // 操作状态
