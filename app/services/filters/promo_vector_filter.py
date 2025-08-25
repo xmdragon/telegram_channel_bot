@@ -31,11 +31,13 @@ class PromoVectorFilter(BaseFilter):
         """
         将内容分割成语义段落
         避免因一句推广内容过滤整篇文章
+        
+        改进策略：按段落/行分割，不再按句子分割
+        保持推广内容的完整性
         """
-        # 按常见分隔符分割
         segments = []
         
-        # 首先按段落分割
+        # 先按双换行分割（段落）
         paragraphs = content.split('\n\n')
         
         for paragraph in paragraphs:
@@ -43,32 +45,18 @@ class PromoVectorFilter(BaseFilter):
             if not paragraph:
                 continue
                 
-            # 按句子分割（基于标点符号）
-            sentences = re.split(r'[。！？；\n]+', paragraph)
+            # 再按单换行分割（处理单行的推广内容）
+            lines = paragraph.split('\n')
             
-            current_segment = ""
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if not sentence:
+            for line in lines:
+                line = line.strip()
+                if not line:
                     continue
                     
-                # 如果当前段落太长，分割为独立段落
-                if len(current_segment) + len(sentence) > 200:
-                    if current_segment:
-                        segments.append(current_segment.strip())
-                    current_segment = sentence
-                else:
-                    if current_segment:
-                        current_segment += "。" + sentence
-                    else:
-                        current_segment = sentence
-            
-            # 添加最后一个段落
-            if current_segment:
-                segments.append(current_segment.strip())
-        
-        # 过滤太短的段落
-        segments = [seg for seg in segments if len(seg) >= self.min_length_threshold]
+                # 每行作为独立段落处理
+                # 避免句号分割破坏推广内容完整性
+                if len(line) >= self.min_length_threshold:
+                    segments.append(line)
         
         return segments
     
