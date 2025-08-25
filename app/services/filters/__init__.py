@@ -30,7 +30,7 @@ from .filter_pipeline import (
 # 导入具体的过滤器实现
 from .duplicate_detector import DuplicateDetectorFilter, duplicate_detector_filter
 from .ad_detector import AdDetectorFilter, ad_detector_filter
-from .tail_filter import TailFilter, tail_filter
+from .tail_filter import TailFilter
 from .markdown_filter import MarkdownFilter
 from .promo_link_filter import PromoLinkFilter
 
@@ -55,7 +55,6 @@ __all__ = [
     # 预配置的过滤器实例
     'duplicate_detector_filter',
     'ad_detector_filter',
-    'tail_filter',
     
     # 异常类
     'FilterException',
@@ -114,7 +113,7 @@ def create_default_filters() -> dict:
     return {
         'duplicate_detector': duplicate_detector_filter,
         'ad_detector': ad_detector_filter,
-        'tail_filter': tail_filter
+        'tail_filter': TailFilter()
     }
 
 

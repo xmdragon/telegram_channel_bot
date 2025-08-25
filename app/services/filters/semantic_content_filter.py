@@ -27,7 +27,7 @@ class SemanticContentFilter(BaseFilter):
         # AI服务实例
         self._ai_filter = None
         self._intelligent_tail_filter = None
-        self._semantic_tail_filter = None
+        self._tail_filter_engine = None
         
         # 检测阈值
         self.ai_confidence_threshold = self.config.get('ai_confidence_threshold', 0.85)
@@ -49,8 +49,8 @@ class SemanticContentFilter(BaseFilter):
                 available_services.append("AI广告检测")
             if self._intelligent_tail_filter:
                 available_services.append("智能尾部过滤")
-            if self._semantic_tail_filter:
-                available_services.append("语义尾部过滤")
+            if self._tail_filter_engine:
+                available_services.append("尾部过滤引擎")
             
             if available_services:
                 logger.info(f"语义内容过滤器初始化成功，可用服务: {', '.join(available_services)}")
@@ -89,17 +89,17 @@ class SemanticContentFilter(BaseFilter):
             logger.error(f"智能尾部过滤器初始化失败: {e}")
             self._intelligent_tail_filter = None
         
-        # 初始化传统语义尾部过滤器
+        # 初始化尾部过滤引擎
         try:
-            from app.services.semantic_tail_filter import semantic_tail_filter
-            self._semantic_tail_filter = semantic_tail_filter
-            logger.debug("语义尾部过滤器初始化成功")
+            from app.services.tail_filter_engine import TailFilterEngine
+            self._tail_filter_engine = TailFilterEngine()
+            logger.debug("尾部过滤引擎初始化成功")
         except ImportError as e:
-            logger.warning(f"无法导入语义尾部过滤器: {e}")
-            self._semantic_tail_filter = None
+            logger.warning(f"无法导入尾部过滤引擎: {e}")
+            self._tail_filter_engine = None
         except Exception as e:
-            logger.error(f"语义尾部过滤器初始化失败: {e}")
-            self._semantic_tail_filter = None
+            logger.error(f"尾部过滤引擎初始化失败: {e}")
+            self._tail_filter_engine = None
     
     def can_handle(self, content: str, context: FilterContext) -> bool:
         """判断是否可以处理该内容"""
@@ -111,7 +111,7 @@ class SemanticContentFilter(BaseFilter):
         has_ai_service = (
             (self._ai_filter and getattr(self._ai_filter, 'initialized', False)) or
             self._intelligent_tail_filter or 
-            self._semantic_tail_filter
+            self._tail_filter_engine
         )
         
         return has_ai_service and len(content.strip()) > 0
@@ -151,9 +151,9 @@ class SemanticContentFilter(BaseFilter):
                         'analysis': analysis
                     }
             
-            # 2. 传统语义尾部过滤（降级方案）
-            elif self._semantic_tail_filter:
-                semantic_result = await self._apply_semantic_tail_filter(filtered_content, context)
+            # 2. 尾部过滤引擎（降级方案）
+            elif self._tail_filter_engine:
+                semantic_result = await self._apply_tail_filter_engine(filtered_content, context)
                 if semantic_result['was_filtered']:
                     filtered_content = semantic_result['filtered_content']
                     reasons.append("语义尾部过滤")
@@ -261,14 +261,14 @@ class SemanticContentFilter(BaseFilter):
             logger.error(f"智能尾部过滤失败: {e}")
             return content, "", None
     
-    async def _apply_semantic_tail_filter(self, content: str, context: FilterContext) -> Dict[str, Any]:
+    async def _apply_tail_filter_engine(self, content: str, context: FilterContext) -> Dict[str, Any]:
         """
-        应用传统语义尾部过滤
+        应用尾部过滤引擎
         
         Returns:
             过滤结果字典
         """
-        if not self._semantic_tail_filter:
+        if not self._tail_filter_engine:
             return {
                 'filtered_content': content,
                 'was_filtered': False,
@@ -279,9 +279,9 @@ class SemanticContentFilter(BaseFilter):
         try:
             has_media = context.get_metadata('has_media', False)
             
-            logger.debug(f"🔄 降级到传统语义过滤")
+            logger.debug(f"🔄 降级到尾部过滤引擎")
             
-            filtered_content, was_filtered, removed_tail, analysis = self._semantic_tail_filter.filter_message(
+            filtered_content, was_filtered, removed_tail, analysis = self._tail_filter_engine.filter_message(
                 content, has_media
             )
             
@@ -440,7 +440,7 @@ class SemanticContentFilter(BaseFilter):
         return {
             'ai_filter_available': self._ai_filter is not None and getattr(self._ai_filter, 'initialized', False),
             'intelligent_tail_filter_available': self._intelligent_tail_filter is not None,
-            'semantic_tail_filter_available': self._semantic_tail_filter is not None,
+            'tail_filter_engine_available': self._tail_filter_engine is not None,
             'ai_confidence_threshold': self.ai_confidence_threshold,
             'pure_ad_threshold': self.pure_ad_threshold
         }

@@ -50,8 +50,16 @@ class PromoVectorManager:
         """延迟加载SentenceTransformer模型"""
         if self.model is None:
             try:
-                self.model = SentenceTransformer(self.model_name)
-                logger.info(f"加载向量模型成功: {self.model_name}")
+                # 🔧 Linus式解决方案：使用专用模型缓存管理器避免重复下载
+                from app.services.model_cache_manager import ModelCacheManager
+                
+                cache_manager = ModelCacheManager()
+                self.model = cache_manager.get_model()  # 使用配置文件中的模型
+                
+                if self.model:
+                    logger.info(f"加载向量模型成功，使用缓存管理器")
+                else:
+                    raise Exception("ModelCacheManager 未能加载模型")
             except Exception as e:
                 logger.error(f"加载向量模型失败: {e}")
                 raise
@@ -328,8 +336,8 @@ class PromoVectorManager:
             # 从样本中提取内容
             sample_contents = set()
             for sample in samples:
-                if sample.get('content'):
-                    sample_contents.add(sample['content'].strip())
+                if sample.get('promo_content'):
+                    sample_contents.add(sample['promo_content'].strip())
             
             # 获取当前缓存的内容
             cached_contents = set(self._texts)

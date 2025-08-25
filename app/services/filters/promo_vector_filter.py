@@ -37,6 +37,13 @@ class PromoVectorFilter(BaseFilter):
         """
         segments = []
         
+        # 🚀 Linus式预处理：将多个连续空格转换为段落分隔符
+        # 与TailFilterEngine保持一致的处理逻辑
+        import re
+        if re.search(r' {5,}', content):
+            content = re.sub(r' {5,}', '\n\n', content)
+            logger.debug(f"推广向量过滤器：多空格预处理完成")
+        
         # 先按双换行分割（段落）
         paragraphs = content.split('\n\n')
         

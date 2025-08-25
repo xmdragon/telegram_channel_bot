@@ -1,9 +1,8 @@
 """
 尾部过滤器 - 整合智能和语义尾部过滤逻辑
 
-整合 intelligent_tail_filter.py 和 semantic_tail_filter.py 的功能，
-提供统一的尾部过滤接口，优先使用intelligent_tail_filter，
-失败时降级到semantic_tail_filter。
+整合尾部过滤功能，提供统一的尾部过滤接口。
+优先使用intelligent_tail_filter，失败时降级到TailFilterEngine。
 
 Author: Claude
 Created: 2025-08-15
@@ -38,23 +37,15 @@ except Exception as e:
     INTELLIGENT_FILTER_AVAILABLE = False
     logger.warning(f"⚠️ 智能尾部过滤器不可用: {e}")
 
-# 语义尾部过滤器（作为降级选项）
-try:
-    from app.services.semantic_tail_filter import semantic_tail_filter
-    SEMANTIC_FILTER_AVAILABLE = True
-    logger.info("✅ 语义尾部过滤器加载成功")
-except Exception as e:
-    semantic_tail_filter = None
-    SEMANTIC_FILTER_AVAILABLE = False
-    logger.error(f"❌ 语义尾部过滤器不可用: {e}")
+# 删除语义尾部过滤器（直接使用TailFilterEngine，避免循环导入）
 
 
 class TailFilter(BaseFilter):
     """尾部过滤器
     
-    整合智能尾部过滤和语义尾部过滤逻辑，提供统一接口：
+    整合尾部过滤逻辑，提供统一接口：
     1. 优先使用intelligent_tail_filter（AI语义分析）
-    2. 失败时降级到semantic_tail_filter（规则语义分析）
+    2. 失败时降级到TailFilterEngine（混合过滤算法）
     3. 详细记录过滤过程和结果
     4. 不进行Early Stop，继续后续过滤器
     """
@@ -76,7 +67,7 @@ class TailFilter(BaseFilter):
         self.intelligent_threshold = self.get_threshold('intelligent', 0.6)
         self.semantic_threshold = self.get_threshold('semantic', 0.5)
         self.enable_intelligent = self.config.get('enable_intelligent', True) and INTELLIGENT_FILTER_AVAILABLE
-        self.enable_semantic = self.config.get('enable_semantic', True) and SEMANTIC_FILTER_AVAILABLE
+        self.enable_semantic = self.config.get('enable_semantic', True) and TAIL_FILTER_ENGINE_AVAILABLE
         
         # 统计信息
         self._intelligent_success = 0
@@ -256,8 +247,13 @@ class TailFilter(BaseFilter):
                 try:
                     logger.debug("降级到语义尾部过滤器...")
                     
-                    # 调用语义过滤器
-                    semantic_result = semantic_tail_filter.filter_message(content, has_media)
+                    # 调用尾部过滤引擎
+                    if TAIL_FILTER_ENGINE_AVAILABLE and TailFilterEngine:
+                        engine = TailFilterEngine()
+                        semantic_result = engine.filter_message(content, has_media)
+                    else:
+                        # 如果TailFilterEngine不可用，跳过这个降级路径
+                        semantic_result = (content, False, "", {})
                     semantic_filtered, filtered, semantic_tail, semantic_analysis = semantic_result
                     
                     if filtered and semantic_tail:
@@ -424,8 +420,5 @@ class TailFilter(BaseFilter):
             return False
 
 
-# 创建默认实例（阈值将从阈值管理器动态获取）
-tail_filter = TailFilter({
-    'enable_intelligent': True,
-    'enable_semantic': True
-})
+# 不创建全局实例，避免循环导入
+# 使用者需要自己创建 TailFilter() 实例

@@ -900,6 +900,7 @@ class MessageProcessor:
                 })
                 
                 # 执行过滤
+                tail_filter = TailFilter()
                 filter_result = await tail_filter.filter(original_content, context)
                 filtered_content = filter_result.filtered_content
                 

@@ -129,13 +129,18 @@ class ServiceProcess:
         self.status = ServiceStatus.STARTING
         
         try:
+            # 🚀 Linus式修复: 设置环境变量，确保使用离线模式
+            import os
+            env = os.environ.copy()
+            env['HF_HUB_OFFLINE'] = '1'  # 强制使用HuggingFace离线模式
+            
             # 启动进程
             self.process = subprocess.Popen(
                 self.config.command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=".",
-                env=None
+                env=env  # 传递包含离线模式的环境变量
             )
             
             # 等待服务真正就绪（包含健康检查）

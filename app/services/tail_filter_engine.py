@@ -70,6 +70,15 @@ class TailFilterEngine:
             logger.debug("内容为空，跳过过滤")
             return content, False, None, {}
         
+        # 🚀 Linus式解决方案：将多个连续空格转换为段落分隔符
+        # 这样推广内容就能被现有的多行检测逻辑正确识别
+        import re
+        original_content = content
+        if re.search(r' {5,}', content):
+            content = re.sub(r' {5,}', '\n\n', content)
+            logger.debug(f"✂️ 多空格预处理：将连续空格转换为段落分隔符")
+            logger.debug(f"预处理后内容预览: {content[:200]}{'...' if len(content) > 200 else ''}")
+        
         # 优先使用混合向量过滤器
         if self.hybrid_filter:
             try:

@@ -12,7 +12,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.storage.redis_store import init_redis_stores, get_redis_message_store
-from app.services.semantic_tail_filter import semantic_tail_filter
+from app.services.tail_filter_engine import TailFilterEngine
 
 # 直接使用Redis URL，避免复杂的配置依赖
 REDIS_URL = "redis://localhost:6379"
@@ -25,6 +25,9 @@ async def batch_filter_messages():
     # 初始化Redis存储
     init_redis_stores(REDIS_URL)
     redis_store = get_redis_message_store()
+    
+    # 初始化过滤引擎
+    filter_engine = TailFilterEngine()
     
     try:
         # 获取所有未审核的消息
@@ -56,7 +59,7 @@ async def batch_filter_messages():
                      any(m.get('media_type') for m in message.get('combined_messages', [])))
                 )
                 
-                filtered_content, was_filtered, removed_tail, analysis = semantic_tail_filter.filter_message(
+                filtered_content, was_filtered, removed_tail, analysis = filter_engine.filter_message(
                     content, has_media
                 )
                 

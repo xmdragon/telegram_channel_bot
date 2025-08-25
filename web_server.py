@@ -229,9 +229,11 @@ async def lifespan(app: FastAPI):
                 try:
                     from app.services.promo_vector_manager import promo_vector_manager
                     promo_sync_status = promo_vector_manager.check_sync_status()
+                    missing_count = promo_sync_status.get('missing_vectors', 0)
                     
-                    if promo_sync_status.get('sync_needed', False):
-                        logger.warning(f"🔄 推广向量数据库不同步: 缺少 {promo_sync_status.get('missing_vectors', 0)} 个向量")
+                    # 🚀 Linus式修复: 只在真正缺少向量时才警告和重建
+                    if promo_sync_status.get('sync_needed', False) and missing_count > 0:
+                        logger.warning(f"🔄 推广向量数据库不同步: 缺少 {missing_count} 个向量")
                         logger.info("🔧 正在自动重建推广向量数据库...")
                         
                         # 自动执行重建
