@@ -154,8 +154,11 @@ class LinusStatsStore(RedisBaseStore):
             
             logger.debug(f"📊 从索引计算统计: pending={pending}, approved={approved}, rejected={rejected}")
             
+            # 🚀 Linus式修复：total就是三者之和，消除特殊情况
+            total = pending + approved + rejected
+            
             return MessageStats(
-                total=0,  # 不再计算total，但保持字段兼容
+                total=total,
                 pending=pending,
                 approved=approved,
                 rejected=rejected
