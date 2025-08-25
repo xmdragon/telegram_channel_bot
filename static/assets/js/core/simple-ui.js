@@ -285,58 +285,13 @@ class SimpleMessageBox {
                 text-align: right;
             }
             
-            .simple-btn {
-                padding: 8px 20px;
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-                transition: all 0.3s ease;
-                margin-left: 8px;
-                background: none;
-                font-family: inherit;
-            }
-            
-            .simple-btn:hover {
-                opacity: 0.8;
-                transform: translateY(-1px);
-            }
-            
-            .simple-btn:active {
-                transform: translateY(0);
-            }
-            
-            .simple-btn-default {
-                background: #ffffff;
-                color: #606266;
-                border-color: #dcdfe6;
-            }
-            
-            .simple-btn-default:hover {
-                background: #f5f7fa;
-                border-color: #c0c4cc;
-            }
-            
-            .simple-btn-primary {
-                background: #409eff;
-                color: white;
-                border-color: #409eff;
-            }
-            
-            .simple-btn-primary:hover {
-                background: #66b1ff;
-                border-color: #66b1ff;
-            }
-            
-            .simple-btn-danger {
-                background: #f56c6c;
-                color: white;
-                border-color: #f56c6c;
-            }
-            
-            .simple-btn-danger:hover {
-                background: #f78989;
-                border-color: #f78989;
+            /* 移动端适配 */
+            @media (max-width: 768px) {
+                .simple-dialog {
+                    padding: 20px !important;
+                    min-width: 280px !important;
+                    max-width: calc(100vw - 40px) !important;
+                }
             }
             
             @keyframes fadeIn {
@@ -496,6 +451,20 @@ window.SimpleUI = {
     alert: (message, title, options) => SimpleMessageBox.alert(message, title, options),
     prompt: (message, title, options) => SimpleMessageBox.prompt(message, title, options)
 };
+
+// ============= 4. 自动初始化 =============
+// 确保在DOM准备好后初始化
+const initializeSimpleUI = () => {
+    SimpleMessage.init();
+    SimpleMessageBox.init();
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeSimpleUI);
+} else {
+    // DOM已经加载完成，立即初始化
+    initializeSimpleUI();
+}
 
 // Vue 3集成
 if (typeof Vue !== 'undefined' && Vue.config) {
