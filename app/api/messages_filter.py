@@ -87,49 +87,17 @@ async def filter_message_tail(
                 "message": "消息没有内容可以过滤"
             }
         
-        # 执行尾部过滤 - 使用新的FilterPipeline架构
-        from app.services.filters.tail_filter import TailFilter
-        from app.services.filters.base import FilterContext
+        # Linus式解决方案：直接使用已验证工作的semantic_tail_filter
+        # 删除所有不必要的抽象层、上下文对象、配置复杂性
+        from app.services.semantic_tail_filter import semantic_tail_filter
         
-        # 创建过滤器上下文
-        context = FilterContext(
-            message_id=int(msg_id),
-            channel_id=int(channel_id),
-            timestamp=datetime.now().timestamp(),
-            message_type=msg_data.get('media_type', 'text')
-        )
+        # 直接调用，无需中间层
+        filtered_content, has_tail, removed_tail, analysis = semantic_tail_filter.filter_message(original_content)
         
-        # 添加元数据
-        context.add_metadata('is_history', False)
-        context.add_metadata('message_obj', msg_data)
+        # 简单明了：有尾部就是有，没有就是没有
         
-        # 初始化尾部过滤器
-        tail_filter = TailFilter({
-            'intelligent_threshold': 0.6,
-            'semantic_threshold': 0.45,  # 稍微降低阈值以提高检测敏感度
-            'enable_intelligent': True,
-            'enable_semantic': True
-        })
-        
-        # 执行过滤
-        filter_result = await tail_filter.filter(original_content, context)
-        
-        # 提取结果
-        filtered_content = filter_result.filtered_content
-        has_tail = not filter_result.passed or len(filtered_content) < len(original_content)
-        removed_tail = filter_result.details.get('removed_tail', '')
-        
-        # 如果没有移除内容，计算移除的部分
-        if not removed_tail and has_tail:
-            removed_tail = original_content[len(filtered_content):].strip()
-        
-        # 添加调试日志
-        logger.info(f"📊 过滤结果统计:")
-        logger.info(f"   原始长度: {len(original_content)} 字符")
-        logger.info(f"   过滤后长度: {len(filtered_content)} 字符") 
-        logger.info(f"   移除长度: {len(original_content) - len(filtered_content)} 字符")
-        logger.info(f"   有尾部: {has_tail}")
-        logger.info(f"   过滤器结果: passed={filter_result.passed}")
+        # 简单的调试日志
+        logger.info(f"📊 过滤结果: 原始{len(original_content)} -> 过滤后{len(filtered_content)} 字符, 有尾部: {has_tail}")
         
         if removed_tail:
             logger.info(f"   移除内容: {removed_tail[:100]}{'...' if len(removed_tail) > 100 else ''}")
@@ -153,14 +121,14 @@ async def filter_message_tail(
             "success": True,
             "filtered_content": filtered_content,
             "removed_length": len(original_content) - len(filtered_content) if has_tail else 0,
-            "removed_tail": removed_tail,
+            "removed_tail": removed_tail or "",
             "has_tail": has_tail,
             "data": {
                 "original_content": original_content,
                 "filtered_content": filtered_content,
                 "has_tail": has_tail,
-                "removed_tail": removed_tail,
-                "filter_details": filter_result.details
+                "removed_tail": removed_tail or "",
+                "filter_details": analysis or {}
             },
             "message": "尾部过滤已执行" if has_tail else "未检测到尾部内容",
             "timestamp": datetime.now(timezone.utc).isoformat()
