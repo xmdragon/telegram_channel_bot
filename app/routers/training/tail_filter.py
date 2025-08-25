@@ -18,6 +18,98 @@ from app.core.route_config import ROUTES
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-tail-filter"])
 
+def extract_promotional_content(text: str) -> str:
+    """
+    从尾部文本中提取推广内容
+    专门针对尾部推广模式进行提取
+    """
+    if not text:
+        return ""
+    
+    # 推广关键词模式
+    promo_patterns = [
+        '📣', '订阅', '频道', '@', '💬', '商务', '对接', '联系', '😍', '投稿', '澄清', '爆料',
+        '🔗', 't.me', 'https://', '☎️', '免费', '♾', '🔔', '👌', '➡️', '点击', '加入',
+        '———', '——', '━━', '═══', '▬▬'
+    ]
+    
+    lines = text.split('\n')
+    promo_lines = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # 检查是否包含推广关键词
+        if any(pattern in line for pattern in promo_patterns):
+            promo_lines.append(line)
+        # 或者很短且包含特殊字符（可能是分隔符）
+        elif len(line) < 20 and any(char in line for char in ['━', '═', '─', '▬', '-', '=', '*']):
+            promo_lines.append(line)
+    
+    return '\n'.join(promo_lines)
+
+def calculate_text_similarity(text1: str, text2: str) -> float:
+    """
+    计算两个文本的相似度
+    专门针对尾部推广内容优化的相似度算法
+    """
+    if not text1 or not text2:
+        return 0.0
+    
+    if text1 == text2:
+        return 1.0
+    
+    # 提取推广内容进行比较
+    promo1 = extract_promotional_content(text1)
+    promo2 = extract_promotional_content(text2)
+    
+    # 如果提取到推广内容，优先比较推广内容
+    if promo1 and promo2:
+        if promo1 == promo2:
+            return 1.0
+        # 对推广内容计算相似度
+        text1, text2 = promo1, promo2
+    
+    # 生成字符级n-gram
+    def get_char_ngrams(text: str, n: int = 3) -> set:
+        text = text.replace(' ', '').replace('\n', '')
+        if len(text) < n:
+            return {text}
+        return {text[i:i+n] for i in range(len(text) - n + 1)}
+    
+    # 生成词级特征
+    def get_word_features(text: str) -> set:
+        import re
+        # 提取中文词、英文词、@用户名、链接等
+        words = set()
+        # 中文词（2-3字词组）
+        chinese_chars = re.findall(r'[\u4e00-\u9fff]+', text)
+        for word in chinese_chars:
+            if len(word) >= 2:
+                for i in range(len(word) - 1):
+                    words.add(word[i:i+2])
+        
+        # @用户名、链接、特殊词汇
+        special_tokens = re.findall(r'@\w+|https?://\S+|t\.me/\S+|[📣💬😍🔗☎️♾🔔👌➡️📱]+', text)
+        words.update(special_tokens)
+        
+        return words
+    
+    # 组合字符n-gram和词级特征
+    features1 = get_char_ngrams(text1) | get_word_features(text1)
+    features2 = get_char_ngrams(text2) | get_word_features(text2)
+    
+    if not features1 or not features2:
+        return 0.0
+    
+    # Jaccard相似度
+    intersection = len(features1 & features2)
+    union = len(features1 | features2)
+    
+    return intersection / union if union > 0 else 0.0
+
 @router.get(ROUTES.training.tail_filter_statistics)
 async def get_tail_filter_statistics():
     """获取尾部过滤统计信息"""
@@ -426,9 +518,9 @@ async def detect_tail_filter_duplicates():
                         # 对于长文本，检查包含关系
                         if content1 in content2 or content2 in content1:
                             is_duplicate = True
-                        # 检查高相似度（简单字符匹配）
-                        similarity = len(set(content1) & set(content2)) / len(set(content1) | set(content2))
-                        if similarity > 0.8:
+                        # 检查高相似度（提高标准到80%）
+                        similarity = calculate_text_similarity(content1, content2)
+                        if similarity >= 0.8:
                             is_duplicate = True
                     
                     if is_duplicate:
@@ -439,11 +531,11 @@ async def detect_tail_filter_duplicates():
                     # 计算相似度百分比
                     similarity_percentage = 100  # 默认完全匹配
                     if len(group) > 1:
-                        # 简单计算组内平均相似度
+                        # 计算组内平均相似度
                         content1 = str(group[0].get('tail_part', '')).lower().strip()
                         content2 = str(group[1].get('tail_part', '')).lower().strip()
                         if content1 != content2 and content1 and content2:
-                            similarity_percentage = int(len(set(content1) & set(content2)) / len(set(content1) | set(content2)) * 100)
+                            similarity_percentage = int(calculate_text_similarity(content1, content2) * 100)
                     
                     duplicate_groups.append({
                         "similarity": similarity_percentage,
@@ -458,13 +550,16 @@ async def detect_tail_filter_duplicates():
                 logger.error(f"处理样本 {i} 时出错: {sample_error}")
                 continue
         
-        total_duplicates = sum(len(group['samples']) - 1 for group in duplicate_groups)
+        # 过滤掉相似度低于80%的组
+        filtered_groups = [group for group in duplicate_groups if group['similarity'] >= 80]
         
-        logger.info(f"重复检测完成: 发现 {len(duplicate_groups)} 组重复，总计 {total_duplicates} 个重复样本")
+        total_duplicates = sum(len(group['samples']) - 1 for group in filtered_groups)
+        
+        logger.info(f"重复检测完成: 发现 {len(filtered_groups)} 组高相似度重复（>=80%），总计 {total_duplicates} 个重复样本")
         
         return {
             "success": True,
-            "groups": duplicate_groups,
+            "groups": filtered_groups,
             "total_duplicates": total_duplicates,
             "total_groups": len(duplicate_groups)
         }

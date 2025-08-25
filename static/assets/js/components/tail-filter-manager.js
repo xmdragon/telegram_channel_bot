@@ -5,7 +5,6 @@ const app = createApp({
     data() {
         return {
             // 表格数据
-            allSamples: [],  // 所有数据
             samples: [],      // 当前页显示的数据
             selectedSamples: [],
             currentPage: 1,
@@ -38,10 +37,7 @@ const app = createApp({
             
             // 排序相关
             sortField: 'created_at',
-            sortOrder: 'desc',
-            
-            // 分页跳转
-            jumpToPage: 1
+            sortOrder: 'desc'
         }
     },
     
@@ -50,23 +46,31 @@ const app = createApp({
         async loadSamples() {
             this.loading = true;
             try {
+                // 构建分页参数
+                const params = {
+                    page: this.currentPage,
+                    size: this.pageSize,
+                    search: this.searchText
+                };
+                
                 // 使用带超时的Promise.all并行加载
                 const [samplesResponse, statsResponse] = await (window.PromiseAllWithTimeout ? 
                     window.PromiseAllWithTimeout([
-                        axios.get(API.training.tailFilterSamples),
+                        axios.get(API.training.tailFilterSamples, { params }),
                         axios.get(API.training.tailFilterStatistics)
                     ], 12000) : // 12秒超时
                     Promise.all([
-                        axios.get(API.training.tailFilterSamples),
+                        axios.get(API.training.tailFilterSamples, { params }),
                         axios.get(API.training.tailFilterStatistics)
                     ])
                 );
                 
-                this.allSamples = samplesResponse.data.samples || [];
-                this.totalCount = this.allSamples.length;
+                // 直接使用API返回的分页数据
+                this.samples = samplesResponse.data.samples || [];
+                this.totalCount = samplesResponse.data.total || 0;
                 
                 // 按创建时间倒序排序（最新的在前）
-                this.allSamples.sort((a, b) => {
+                this.samples.sort((a, b) => {
                     const timeA = new Date(a.created_at || 0).getTime();
                     const timeB = new Date(b.created_at || 0).getTime();
                     return timeB - timeA;
@@ -74,16 +78,15 @@ const app = createApp({
                 
                 // 使用统一的统计API数据（Linus式单一数据源）
                 if (statsResponse.data.success) {
-                    this.totalSamples = statsResponse.data.total_samples;
-                    this.validSamples = statsResponse.data.valid_samples;
-                    this.todayAdded = statsResponse.data.today_added;
+                    this.totalSamples = statsResponse.data.total_samples || this.totalCount;
+                    this.validSamples = statsResponse.data.valid_samples || this.totalCount;
+                    this.todayAdded = statsResponse.data.today_added || 0;
                 } else {
-                    // 降级到本地计算（保持向后兼容）
-                    this.calculateStats();
+                    // 降级到使用当前数据计算（保持向后兼容）
+                    this.totalSamples = this.totalCount;
+                    this.validSamples = this.totalCount;
+                    this.todayAdded = 0;
                 }
-                
-                // 更新当前页数据
-                this.updatePageData();
                 
                 // 清除页面加载超时检测
                 if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.clearPageLoadTimeout) {
@@ -158,45 +161,7 @@ const app = createApp({
             }, 30000);
         },
         
-        // 更新当前页显示的数据
-        updatePageData() {
-            // 先进行搜索过滤
-            let filteredSamples = this.allSamples;
-            
-            if (this.searchText && this.searchText.trim()) {
-                const searchLower = this.searchText.toLowerCase().trim();
-                filteredSamples = this.allSamples.filter(sample => {
-                    // 搜索内容、描述和尾部内容
-                    return (sample.content && sample.content.toLowerCase().includes(searchLower)) ||
-                           (sample.description && sample.description.toLowerCase().includes(searchLower)) ||
-                           (sample.tail_part && sample.tail_part.toLowerCase().includes(searchLower));
-                });
-            }
-            
-            // 更新总数
-            this.totalCount = filteredSamples.length;
-            
-            // 分页
-            const start = (this.currentPage - 1) * this.pageSize;
-            const end = start + this.pageSize;
-            this.samples = filteredSamples.slice(start, end);
-        },
         
-        // 计算统计信息
-        calculateStats() {
-            this.totalSamples = this.allSamples.length;
-            this.validSamples = this.allSamples.filter(s => s.tail_part).length;
-            
-            // 计算今日新增
-            const today = new Date().toISOString().split('T')[0];
-            this.todayAdded = this.allSamples.filter(s => {
-                if (s.created_at) {
-                    const sampleDate = new Date(s.created_at).toISOString().split('T')[0];
-                    return sampleDate === today;
-                }
-                return false;
-            }).length;
-        },
         
         // 处理样本选择变化
         handleSampleSelection(event) {
@@ -225,7 +190,7 @@ const app = createApp({
         // 处理分页
         handlePageChange(page) {
             this.currentPage = page;
-            this.updatePageData();
+            this.loadSamples();
         },
         
         // 显示详情
@@ -238,8 +203,8 @@ const app = createApp({
         handleSearch() {
             // 重置到第一页
             this.currentPage = 1;
-            // 更新显示数据
-            this.updatePageData();
+            // 重新加载数据
+            this.loadSamples();
         },
         
         
@@ -497,7 +462,8 @@ const app = createApp({
                 this.sortOrder = 'asc';
             }
             
-            this.allSamples.sort((a, b) => {
+            // 现在使用服务端分页，直接对当前页数据排序
+            this.samples.sort((a, b) => {
                 let valueA = a[field];
                 let valueB = b[field];
                 
@@ -513,8 +479,6 @@ const app = createApp({
                     return valueA < valueB ? 1 : -1;
                 }
             });
-            
-            this.updatePageData();
         },
         
         // 获取排序样式
@@ -523,26 +487,6 @@ const app = createApp({
             return this.sortOrder === 'asc' ? 'sort-asc' : 'sort-desc';
         },
         
-        // 跳转页面处理
-        jumpToPageHandler() {
-            if (this.jumpToPage >= 1 && this.jumpToPage <= this.totalPages) {
-                this.handlePageChange(this.jumpToPage);
-            }
-        },
-        
-        // 获取分页数字
-        getPageNumbers() {
-            const pages = [];
-            const totalPages = this.totalPages;
-            const current = this.currentPage;
-            
-            // 简单分页逻辑：显示当前页前后2页
-            for (let i = Math.max(1, current - 2); i <= Math.min(totalPages, current + 2); i++) {
-                pages.push(i);
-            }
-            
-            return pages;
-        }
     },
     
     computed: {
@@ -573,5 +517,8 @@ if (window.NavBar) {
 }
 if (window.TrainingNav) {
     app.component('training-nav', window.TrainingNav);
+}
+if (window.PaginationComponent) {
+    app.component('pagination-component', window.PaginationComponent);
 }
 app.mount('#app');

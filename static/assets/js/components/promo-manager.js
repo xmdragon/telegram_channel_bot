@@ -40,9 +40,6 @@ const app = createApp({
             sortField: 'created_at',
             sortOrder: 'desc',
             
-            // 分页跳转
-            jumpToPage: 1,
-            
             // 分隔符类型映射（从API动态加载）
             separatorTypeLabels: {},
             separatorOptions: []
@@ -496,38 +493,6 @@ const app = createApp({
             this.updatePageData();
         },
         
-        jumpToPageHandler() {
-            if (this.jumpToPage && this.jumpToPage >= 1 && this.jumpToPage <= this.totalPages) {
-                this.handlePageChange(this.jumpToPage);
-            }
-        },
-        
-        getPageNumbers() {
-            const totalPages = this.totalPages;
-            const current = this.currentPage;
-            const pages = [];
-            
-            if (totalPages <= 7) {
-                for (let i = 1; i <= totalPages; i++) {
-                    pages.push(i);
-                }
-            } else {
-                pages.push(1);
-                if (current > 4) pages.push('...');
-                
-                const start = Math.max(2, current - 2);
-                const end = Math.min(totalPages - 1, current + 2);
-                
-                for (let i = start; i <= end; i++) {
-                    pages.push(i);
-                }
-                
-                if (current < totalPages - 3) pages.push('...');
-                if (totalPages > 1) pages.push(totalPages);
-            }
-            
-            return pages;
-        }
     },
     
     computed: {
@@ -555,5 +520,8 @@ if (window.NavBar) {
 }
 if (window.TrainingNav) {
     app.component('training-nav', window.TrainingNav);
+}
+if (window.PaginationComponent) {
+    app.component('pagination-component', window.PaginationComponent);
 }
 app.mount('#app');

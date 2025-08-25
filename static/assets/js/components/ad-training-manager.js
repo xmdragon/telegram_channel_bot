@@ -500,4 +500,7 @@ if (window.NavBar) {
 if (window.TrainingNav) {
     app.component('training-nav', window.TrainingNav);
 }
+if (window.PaginationComponent) {
+    app.component('pagination-component', window.PaginationComponent);
+}
 app.mount('#app');

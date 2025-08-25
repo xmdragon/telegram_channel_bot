@@ -16,6 +16,7 @@
         document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/promo-manager.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/inline-styles.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/pagination.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
@@ -152,36 +153,14 @@
                         </table>
                     </div>
                     
-                    <!-- 分页 -->
-                    <div class="pagination-section" v-if="totalCount > 0">
-                        <div class="pagination">
-                            <div class="pagination-info">
-                                共 {{ totalCount }} 条记录
-                            </div>
-                            <div class="pagination-controls">
-                                <button @click="handlePageChange(1)" :disabled="currentPage === 1" class="btn btn-sm">首页</button>
-                                <button @click="handlePageChange(currentPage - 1)" :disabled="currentPage === 1" class="btn btn-sm">上一页</button>
-                                
-                                <span class="page-numbers">
-                                    <button 
-                                        v-for="page in getPageNumbers()" 
-                                        :key="page"
-                                        @click="handlePageChange(page)"
-                                        :class="{ 'active': page === currentPage }"
-                                        class="btn btn-sm page-btn">
-                                        {{ page }}
-                                    </button>
-                                </span>
-                                
-                                <button @click="handlePageChange(currentPage + 1)" :disabled="currentPage >= totalPages" class="btn btn-sm">下一页</button>
-                                <button @click="handlePageChange(totalPages)" :disabled="currentPage >= totalPages" class="btn btn-sm">末页</button>
-                                
-                                <div class="jump-to">
-                                    跳转到 <input type="number" v-model.number="jumpToPage" @keyup.enter="jumpToPageHandler" min="1" :max="totalPages" class="page-input"> 页
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- 分页组件 -->
+                    <pagination-component
+                        :current-page="currentPage"
+                        :total-count="totalCount"
+                        :page-size="pageSize"
+                        mode="full"
+                        @page-change="handlePageChange">
+                    </pagination-component>
                 </div>
             </div>
         </div>
@@ -319,6 +298,7 @@
         document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/pagination.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/promo-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
     </script>
 </body>

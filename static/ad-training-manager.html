@@ -14,6 +14,7 @@
         document.write('<link rel="stylesheet" href="assets/css/training-common.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/training-manager.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/pagination.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
@@ -172,29 +173,14 @@
                         </div>
                     </div>
                     
-                    <!-- 分页 -->
-                    <div class="pagination-section" v-if="totalCount > pageSize">
-                        <div class="pagination">
-                            <div class="pagination-info">
-                                共 {{ totalCount }} 条记录
-                            </div>
-                            <div class="pagination-controls">
-                                <button class="btn btn-outline" 
-                                        @click="handlePageChange(currentPage - 1)" 
-                                        :disabled="currentPage <= 1">
-                                    上一页
-                                </button>
-                                <span class="pagination-current">
-                                    第 {{ currentPage }} / {{ totalPages }} 页
-                                </span>
-                                <button class="btn btn-outline" 
-                                        @click="handlePageChange(currentPage + 1)" 
-                                        :disabled="currentPage >= totalPages">
-                                    下一页
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- 分页组件 -->
+                    <pagination-component
+                        :current-page="currentPage"
+                        :total-count="totalCount"
+                        :page-size="pageSize"
+                        mode="full"
+                        @page-change="handlePageChange">
+                    </pagination-component>
                 </div>
             </div>
         </div>
@@ -340,6 +326,7 @@
         document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/pagination.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/ad-training-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
     </script>
 

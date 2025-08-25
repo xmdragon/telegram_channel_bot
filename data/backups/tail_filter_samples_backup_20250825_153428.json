@@ -1,29 +1,6 @@
 {
   "samples": [
     {
-      "id": 1,
-      "tail_part": "测试编辑的尾部内容",
-      "characteristics": {
-        "promotion_score": 0.0,
-        "commercial_score": 0.0,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": false,
-        "has_contact": false,
-        "action_words": [],
-        "business_words": [],
-        "link_count": 0,
-        "emoji_count": 0,
-        "text_length": 9,
-        "word_count": 1
-      },
-      "vector_index": 0,
-      "created_at": "2025-08-09T23:14:37.251795",
-      "updated_at": "2025-08-15T17:22:21.898139",
-      "migrated_at": "2025-08-15T21:10:35.309769"
-    },
-    {
       "id": 2,
       "tail_part": "🔔订阅东南亚大事件曝光-聚焦时事",
       "characteristics": {
@@ -47,31 +24,6 @@
       "created_at": "2025-08-10T10:01:18.508739",
       "updated_at": "2025-08-15T17:22:21.898144",
       "migrated_at": "2025-08-15T21:10:35.340895"
-    },
-    {
-      "id": 3,
-      "tail_part": "🔔订阅东南亚大事件曝光-聚焦时事",
-      "characteristics": {
-        "promotion_score": 0.2,
-        "commercial_score": 0.0,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": false,
-        "has_contact": false,
-        "action_words": [
-          "订阅"
-        ],
-        "business_words": [],
-        "link_count": 0,
-        "emoji_count": 1,
-        "text_length": 16,
-        "word_count": 1
-      },
-      "vector_index": 2,
-      "created_at": "2025-08-10T17:51:02.256813",
-      "updated_at": "2025-08-10T17:51:02.256813",
-      "migrated_at": "2025-08-15T21:10:35.351151"
     },
     {
       "id": 4,
@@ -848,39 +800,6 @@
       "migrated_at": "2025-08-15T21:10:35.830078"
     },
     {
-      "id": 38,
-      "tail_part": "📣订阅新闻频道：@zh_cnjjii\n💬商务合作对接：@dingdong67890\n😍投稿澄清爆料：@yiyi_12123",
-      "characteristics": {
-        "promotion_score": 0.9,
-        "commercial_score": 0.6,
-        "relevance_score": 0.0
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "澄清",
-          "投稿",
-          "合作",
-          "爆料",
-          "对接",
-          "订阅"
-        ],
-        "business_words": [
-          "合作",
-          "商务"
-        ],
-        "link_count": 3,
-        "emoji_count": 3,
-        "text_length": 61,
-        "word_count": 3
-      },
-      "vector_index": 31,
-      "created_at": "2025-08-10T09:05:34.828789",
-      "updated_at": "2025-08-10T09:05:34.828789",
-      "migrated_at": "2025-08-15T21:10:35.838499"
-    },
-    {
       "id": 39,
       "tail_part": "-------\n东南亚无小事  |  博闻资讯  |  吃瓜群众  |",
       "characteristics": {
@@ -1071,6 +990,32 @@
       "migrated_at": "2025-08-15T21:10:35.960771"
     },
     {
+      "id": 52,
+      "tail_part": "🔔 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
+      "characteristics": {
+        "promotion_score": 0.7,
+        "commercial_score": 0.2,
+        "relevance_score": 0.1
+      },
+      "auto_features": {
+        "has_telegram_link": true,
+        "has_contact": true,
+        "action_words": [
+          "投稿",
+          "订阅"
+        ],
+        "business_words": [],
+        "link_count": 2,
+        "emoji_count": 3,
+        "text_length": 45,
+        "word_count": 6
+      },
+      "vector_index": 45,
+      "created_at": "2025-08-13T23:04:46.422656",
+      "updated_at": "2025-08-13T23:04:46.422656",
+      "migrated_at": "2025-08-15T21:10:36.074734"
+    },
+    {
       "id": 55,
       "tail_part": "➖订阅西港事件频道➖\n🧐 [@xgsj9](https://t.me/+rMIk626LneIwNmNl) \n✝️欢迎投稿爆料：@xgsj99",
       "characteristics": {
@@ -1098,31 +1043,9 @@
       "migrated_at": "2025-08-15T21:10:35.969534"
     },
     {
-      "id": 58,
-      "tail_part": "🔔 西港日记：@xigang818 \n👨‍👨‍👧‍👧 进群交流：@jpz9898\n☎️ 投稿爆料：@jpz818",
-      "characteristics": {
-        "promotion_score": 1.0,
-        "commercial_score": 0.3,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "进群",
-          "投稿",
-          "爆料"
-        ],
-        "business_words": [],
-        "link_count": 3,
-        "emoji_count": 5,
-        "text_length": 56,
-        "word_count": 6
-      },
-      "vector_index": 40,
-      "created_at": "2025-08-12T23:12:00.034908",
-      "updated_at": "2025-08-12T23:12:00.034908",
-      "migrated_at": "2025-08-15T21:10:35.978108"
+      "id": 59,
+      "tail_part": "🔔订阅东南亚大事件曝光-聚焦时事\n🔗 https://t.me/dongnanya0027\n☎️ 投稿澄清爆料：@DNW8888",
+      "created_at": "2025-08-17T00:25:19.766682"
     },
     {
       "id": 68,
@@ -1146,151 +1069,6 @@
       "created_at": "2025-08-13T18:56:30.813846",
       "updated_at": "2025-08-13T18:56:30.813846",
       "migrated_at": "2025-08-15T21:10:35.997192"
-    },
-    {
-      "id": 49,
-      "tail_part": "\n😉😉😉😉😉😉😉☺️😉☺️😉😉😉\n📣** 订阅亚太茶水间新闻频道 ↓\n🔗 ****t.me/+lB8BT2mAtKowMjE9**\n😍**投稿澄清爆料**：** ****@MT0666**",
-      "characteristics": {
-        "promotion_score": 0.9,
-        "commercial_score": 0.2,
-        "relevance_score": 0.05
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "澄清",
-          "投稿",
-          "爆料",
-          "订阅"
-        ],
-        "business_words": [],
-        "link_count": 1,
-        "emoji_count": 14,
-        "text_length": 94,
-        "word_count": 8
-      },
-      "vector_index": 42,
-      "created_at": "2025-08-13T23:03:18.366861",
-      "updated_at": "2025-08-13T23:03:18.366861",
-      "migrated_at": "2025-08-15T21:10:36.017555"
-    },
-    {
-      "id": 50,
-      "tail_part": "💬**商务合作对接**：@dny108v\n😍**投稿澄清爆料**：@dny108v",
-      "characteristics": {
-        "promotion_score": 0.7,
-        "commercial_score": 0.5,
-        "relevance_score": 0.0
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "澄清",
-          "投稿",
-          "合作",
-          "爆料",
-          "对接"
-        ],
-        "business_words": [
-          "合作",
-          "商务"
-        ],
-        "link_count": 2,
-        "emoji_count": 2,
-        "text_length": 41,
-        "word_count": 2
-      },
-      "vector_index": 43,
-      "created_at": "2025-08-13T23:04:14.245044",
-      "updated_at": "2025-08-13T23:04:14.245044",
-      "migrated_at": "2025-08-15T21:10:36.036340"
-    },
-    {
-      "id": 69,
-      "tail_part": "📣**订阅新闻频道**：@dny107\n💬**商务合作对接**：@dny108v\n😍**投稿澄清爆料**：@dny108v",
-      "characteristics": {
-        "promotion_score": 0.9,
-        "commercial_score": 0.6,
-        "relevance_score": 0.0
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "澄清",
-          "投稿",
-          "合作",
-          "爆料",
-          "对接",
-          "订阅"
-        ],
-        "business_words": [
-          "合作",
-          "商务"
-        ],
-        "link_count": 3,
-        "emoji_count": 3,
-        "text_length": 61,
-        "word_count": 3
-      },
-      "vector_index": 44,
-      "created_at": "2025-08-13T23:04:28.692147",
-      "updated_at": "2025-08-13T23:04:28.692147",
-      "migrated_at": "2025-08-15T21:10:36.055338"
-    },
-    {
-      "id": 52,
-      "tail_part": "🔔 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
-      "characteristics": {
-        "promotion_score": 0.7,
-        "commercial_score": 0.2,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "投稿",
-          "订阅"
-        ],
-        "business_words": [],
-        "link_count": 2,
-        "emoji_count": 3,
-        "text_length": 45,
-        "word_count": 6
-      },
-      "vector_index": 45,
-      "created_at": "2025-08-13T23:04:46.422656",
-      "updated_at": "2025-08-13T23:04:46.422656",
-      "migrated_at": "2025-08-15T21:10:36.074734"
-    },
-    {
-      "id": 70,
-      "tail_part": "🔔 东南亚挨打日记\n🔗 ****t.me/+_bmDxR2G6DYwNWQ1**\n**☎️ 欢迎投稿爆料： ****@PiyanziA**",
-      "characteristics": {
-        "promotion_score": 0.5,
-        "commercial_score": 0.2,
-        "relevance_score": 0.05
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "投稿",
-          "爆料"
-        ],
-        "business_words": [],
-        "link_count": 1,
-        "emoji_count": 2,
-        "text_length": 69,
-        "word_count": 7
-      },
-      "vector_index": 46,
-      "created_at": "2025-08-13T23:54:03.394800",
-      "updated_at": "2025-08-13T23:54:03.394800",
-      "migrated_at": "2025-08-15T21:10:36.094087"
     },
     {
       "id": 71,
@@ -1321,60 +1099,6 @@
       "migrated_at": "2025-08-15T21:10:36.113708"
     },
     {
-      "id": 53,
-      "tail_part": "\n📣**  **订阅👑👑👑👑👑👑**频道  ↓\n****🔗**** **t.me/+8rnBOqnrjxM3M\n✅**投稿澄清爆料**：** **@dny228",
-      "characteristics": {
-        "promotion_score": 0.9,
-        "commercial_score": 0.2,
-        "relevance_score": 0.05
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "澄清",
-          "投稿",
-          "爆料",
-          "订阅"
-        ],
-        "business_words": [],
-        "link_count": 1,
-        "emoji_count": 8,
-        "text_length": 80,
-        "word_count": 7
-      },
-      "vector_index": 48,
-      "created_at": "2025-08-14T00:23:23.301424",
-      "updated_at": "2025-08-14T00:23:23.301424",
-      "migrated_at": "2025-08-15T21:10:36.122136"
-    },
-    {
-      "id": 72,
-      "tail_part": "👌👌👌👌👌👌👌\n➡️点击加入频道** **➡️**@RGGGG**\n__〰️____〰️____〰️____〰️____〰️____〰️__\n😒😒😒😒 ➡️@toutiao5888",
-      "characteristics": {
-        "promotion_score": 0.9,
-        "commercial_score": 0.3,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "加入",
-          "点击"
-        ],
-        "business_words": [],
-        "link_count": 2,
-        "emoji_count": 11,
-        "text_length": 90,
-        "word_count": 6
-      },
-      "vector_index": 49,
-      "created_at": "2025-08-14T00:23:50.534468",
-      "updated_at": "2025-08-14T00:23:50.534468",
-      "migrated_at": "2025-08-15T21:10:36.141920"
-    },
-    {
       "id": 73,
       "tail_part": "📣关注东南亚悬赏-吃瓜中心\n🍉：91奇趣吃瓜 [@tx175](https://t.me/+hcc3-PxkeGczNDE1)\n🔋Trx能量手续费兑换 @Trx523\n💬 欢迎投稿爆料： @BG770",
       "characteristics": {
@@ -1400,33 +1124,6 @@
       "created_at": "2025-08-14T00:42:14.954380",
       "updated_at": "2025-08-14T00:42:14.954380",
       "migrated_at": "2025-08-15T21:10:36.162978"
-    },
-    {
-      "id": 74,
-      "tail_part": "☎️投稿商务曝光☎️  ：@A166688899\n\n👍亚太新闻频道👍 https://t.me/yyds518899\n\n🔞亚太色情吃瓜 🔞 ：https://t.me/saisaissssss168168\n\n便民服务中文包 https://t.me/setlanguage/classic-zh-cn",
-      "characteristics": {
-        "promotion_score": 0.7,
-        "commercial_score": 0.45,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "投稿"
-        ],
-        "business_words": [
-          "商务"
-        ],
-        "link_count": 7,
-        "emoji_count": 4,
-        "text_length": 150,
-        "word_count": 9
-      },
-      "vector_index": 51,
-      "created_at": "2025-08-14T08:44:59.786124",
-      "updated_at": "2025-08-14T08:44:59.786124",
-      "migrated_at": "2025-08-15T21:10:36.172596"
     },
     {
       "id": 75,
@@ -1456,127 +1153,68 @@
       "migrated_at": "2025-08-15T21:10:36.193110"
     },
     {
-      "id": 56,
-      "tail_part": "👌👌👌👌👌👌👌\n➡️点击加入频道** **➡️**@RGGGG**\n__〰️____〰️____〰️____〰️____〰️____〰️__\n😒😒😒😒 ➡️@toutiao5888",
-      "characteristics": {
-        "promotion_score": 0.9,
-        "commercial_score": 0.3,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "加入",
-          "点击"
-        ],
-        "business_words": [],
-        "link_count": 2,
-        "emoji_count": 11,
-        "text_length": 90,
-        "word_count": 6
-      },
-      "vector_index": 53,
-      "created_at": "2025-08-14T17:10:42.208332",
-      "updated_at": "2025-08-14T17:10:42.208332",
-      "migrated_at": "2025-08-15T21:10:36.201331"
-    },
-    {
-      "id": 57,
-      "tail_part": "📣关注东南亚悬赏-吃瓜中心\n🍉：91奇趣吃瓜 [@tx175](https://t.me/+hcc3-PxkeGczNDE1)\n🔋Trx能量手续费兑换 @Trx523\n💬 欢迎投稿爆料： @BG770",
-      "characteristics": {
-        "promotion_score": 0.7,
-        "commercial_score": 0.4,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "投稿",
-          "爆料",
-          "关注"
-        ],
-        "business_words": [],
-        "link_count": 4,
-        "emoji_count": 4,
-        "text_length": 100,
-        "word_count": 8
-      },
-      "vector_index": 54,
-      "created_at": "2025-08-14T17:10:53.003646",
-      "updated_at": "2025-08-15T17:22:21.898150",
-      "migrated_at": "2025-08-15T21:10:36.210184"
-    },
-    {
-      "id": 58,
-      "tail_part": "\n\n☎️投稿商务曝光☎️  ：@A166688899\n\n👍亚太新闻频道👍 https://t.me/yyds518899\n\n🔞亚太色情吃瓜 🔞 ：https://t.me/saisaissssss168168\n\n便民服务中文包 https://t.me/setlanguage/classic-zh-cn",
-      "characteristics": {
-        "promotion_score": 0.7,
-        "commercial_score": 0.45,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "投稿"
-        ],
-        "business_words": [
-          "商务"
-        ],
-        "link_count": 7,
-        "emoji_count": 4,
-        "text_length": 152,
-        "word_count": 9
-      },
-      "vector_index": 55,
-      "created_at": "2025-08-14T17:11:48.950900",
-      "updated_at": "2025-08-14T17:11:48.950900",
-      "migrated_at": "2025-08-15T21:10:36.219049"
-    },
-    {
-      "id": 60,
-      "tail_part": "☎️投稿商务曝光☎️  ：@A166688899\n\n👍亚太新闻频道👍 https://t.me/yyds518899\n\n🔞亚太色情吃瓜 🔞 ：https://t.me/saisaissssss168168\n\n便民服务中文包 https://t.me/setlanguage/classic-zh-cn",
-      "characteristics": {
-        "promotion_score": 0.7,
-        "commercial_score": 0.45,
-        "relevance_score": 0.1
-      },
-      "auto_features": {
-        "has_telegram_link": true,
-        "has_contact": true,
-        "action_words": [
-          "投稿"
-        ],
-        "business_words": [
-          "商务"
-        ],
-        "link_count": 7,
-        "emoji_count": 4,
-        "text_length": 150,
-        "word_count": 9
-      },
-      "vector_index": 56,
-      "created_at": "2025-08-14T17:12:15.996271",
-      "updated_at": "2025-08-15T17:22:21.898151",
-      "migrated_at": "2025-08-15T21:10:36.227718"
-    },
-    {
       "id": 76,
       "channel_id": "general",
       "channel_name": "通用训练样本",
-      "content": "**#针对刚才上一篇事情的澄清**：**由于是听的朋友的道听途说，有些信息不准确，这里重新澄清一下。**\n\n事**发的小妹并不是该会所上班的小妹，而是在各个ktv做兼职扶手的小妹；**事发时间是在小妹和姐妹一起出去吃饭的后回来的途中被路边的车子上下来的人所强行拉上车绑架的，应该事先有所预谋。\n\n**经本人亲自联系小妹：绑匪只是抢走了手机和钱财，并没有对两个女孩做侮辱行为。**特此做出澄清：对小妹和会所造成的不实传言，为未经证实的消息，请大家切勿相信。\n\n但**是绑架这件事本身就是事实，发出这边文章的本意也是在鄙视这些绑匪所做所为，**初衷是提高大家的安全意识，希望大家都能提交警惕，保护好自身的个人安全和财产安全。\n\n📣** **\n----------------\n[东南亚无小事](https://t.me/+-9WcXvqUn6UxMDA9)  |  [博闻资讯](https://bowen888.com/)  |  [吃瓜群众](https://t.me/bagua888888)  |",
-      "tail_content": "[东南亚无小事](https://t.me/+-9WcXvqUn6UxMDA9)  |  [博闻资讯](https://bowen888.com/)  |  [吃瓜群众](https://t.me/bagua888888)  |",
-      "separator": "[东南亚无小事](https://t.me/+-9WcXvqUn6UxMDA9)  |  [博闻资讯](https://bowen888.com/)  |  [吃瓜群众](https://t.me/bagua888888)  |",
-      "normal_part": "**#针对刚才上一篇事情的澄清**：**由于是听的朋友的道听途说，有些信息不准确，这里重新澄清一下。**\n\n事**发的小妹并不是该会所上班的小妹，而是在各个ktv做兼职扶手的小妹；**事发时间是在小妹和姐妹一起出去吃饭的后回来的途中被路边的车子上下来的人所强行拉上车绑架的，应该事先有所预谋。\n\n**经本人亲自联系小妹：绑匪只是抢走了手机和钱财，并没有对两个女孩做侮辱行为。**特此做出澄清：对小妹和会所造成的不实传言，为未经证实的消息，请大家切勿相信。\n\n但**是绑架这件事本身就是事实，发出这边文章的本意也是在鄙视这些绑匪所做所为，**初衷是提高大家的安全意识，希望大家都能提交警惕，保护好自身的个人安全和财产安全。\n\n📣** **\n----------------",
-      "content_hash": "1d1175addd7f563de09297327399886c",
+      "content": "#网友投稿：千万小心此人福建人，在柬埔寨拜林名叫馒头，毫无人性，没有一点良心，专门偷呃拐骗国内的人来柬埔寨做事。各种套路，凭着别人对他的信任在园区里面和外面到处挂单欠钱不还，做人一点仁义道德底线都没有。\n\n大概往金边西港方向走了，希望在柬埔寨的其他公司请注意此人，千万不要相信他，这个人满嘴的谎言跑火车，更不要和他有金钱之间的来往认识他都丢脸。手上戴的手表，戒指，身上背的包全部都是假货为了装逼拐骗欺骗女孩子。                                                                               📣订阅新闻频道：@cn_zhm0\n💬商务对接联系:   @sijiguanjia888\n😍投稿澄清爆料：@shuis665 [📎 媒体组: 1个视频 + 1个图片 | 可用: 2/2 | ID: 2304, 2305]",
+      "tail_content": "📣订阅新闻频道：@cn_zhm0\n💬商务对接联系:   @sijiguanjia888\n😍投稿澄清爆料：@shuis665",
+      "tail_part": "📣订阅新闻频道：@cn_zhm0\n💬商务对接联系:   @sijiguanjia888\n😍投稿澄清爆料：@shuis665",
+      "separator": "📣订阅新闻频道：@cn_zhm0",
+      "normal_part": "#网友投稿：千万小心此人福建人，在柬埔寨拜林名叫馒头，毫无人性，没有一点良心，专门偷呃拐骗国内的人来柬埔寨做事。各种套路，凭着别人对他的信任在园区里面和外面到处挂单欠钱不还，做人一点仁义道德底线都没有。\n\n大概往金边西港方向走了，希望在柬埔寨的其他公司请注意此人，千万不要相信他，这个人满嘴的谎言跑火车，更不要和他有金钱之间的来往认识他都丢脸。手上戴的手表，戒指，身上背的包全部都是假货为了装逼拐骗欺骗女孩子。",
+      "content_hash": "21de614367af3ca9f498af32d1ba2727",
       "is_applied": true,
       "created_by": "manual",
-      "created_at": "2025-08-15T23:38:31.492891",
-      "message_id": "-1002305901042:13757"
+      "created_at": "2025-08-22T23:25:01.712765",
+      "message_id": "-1002557968812:2304"
+    },
+    {
+      "id": 77,
+      "channel_id": "general",
+      "channel_name": "通用训练样本",
+      "content": "#东南亚世纪飞天大盗  #外号大飞。\n\n#真名田峥嵘，此人于8月20号下午在木牌我公司盗窃后跑路，之前就被人曝光过，无处可去公司好心收留你，没想到刚回来没几天在公司趁人工作忙碌顺走价值45w的手表，以及10几万的宝格丽项链 嗜赌成性死性不改，借不到钱就偷，人品极差，各位公司老板看清楚此人的面目。                                                                                          📣订阅新闻频道：@cn_zhm0\n💬商务对接联系:   @sijiguanjia888\n😍投稿澄清爆料：@shuis665 [📎 媒体组: 6个图片 | 可用: 6/6 | ID: 2295, 2296, 2297, 2298, 2299, 2300]",
+      "tail_content": "📣订阅新闻频道：@cn_zhm0\n💬商务对接联系:   @sijiguanjia888\n😍投稿澄清爆料：@shuis665",
+      "tail_part": "📣订阅新闻频道：@cn_zhm0\n💬商务对接联系:   @sijiguanjia888\n😍投稿澄清爆料：@shuis665",
+      "separator": "📣订阅新闻频道：@cn_zhm0",
+      "normal_part": "#东南亚世纪飞天大盗  #外号大飞。\n\n#真名田峥嵘，此人于8月20号下午在木牌我公司盗窃后跑路，之前就被人曝光过，无处可去公司好心收留你，没想到刚回来没几天在公司趁人工作忙碌顺走价值45w的手表，以及10几万的宝格丽项链 嗜赌成性死性不改，借不到钱就偷，人品极差，各位公司老板看清楚此人的面目。",
+      "content_hash": "7c9a8d890cd244738c8133541c03321a",
+      "is_applied": true,
+      "created_by": "manual",
+      "created_at": "2025-08-22T23:53:36.299322",
+      "message_id": "-1002557968812:2295"
     }
   ],
-  "updated_at": "2025-08-15T23:38:31.492926",
-  "total_count": 58
+  "updated_at": "2025-08-22T23:53:36.299336",
+  "total_count": 45,
+  "cleaning_info": {
+    "original_count": 50,
+    "cleaned_count": 45,
+    "removed_count": 5,
+    "removed_samples": [
+      {
+        "id": 46,
+        "reason": "contains_body_text",
+        "tail_part": "听证会现场不允许媒体及公众进入旁听，宪法法院会将庭审画面传输至法院一楼闭路电视供记者观看。21日听证会结束后，宪法法院将于29日上午进行合议与投票，并在当天下午3时宣判佩通坦是否存在违宪行为。    ..."
+      },
+      {
+        "id": 47,
+        "reason": "contains_body_text",
+        "tail_part": "“专家特别指出，泰国在此类摆拍领域具有丰富经验。在首轮视频发布未能取信于人后，又策划第二轮所谓‘布雷戏码’供媒体传播，但公众舆论始终对此保持质疑。”                          ..."
+      },
+      {
+        "id": 48,
+        "reason": "contains_body_text",
+        "tail_part": "听证会现场不允许媒体及公众进入旁听，宪法法院会将庭审画面传输至法院一楼闭路电视供记者观看。21日听证会结束后，宪法法院将于29日上午进行合议与投票，并在当天下午3时宣判佩通坦是否存在违宪行为。    ..."
+      },
+      {
+        "id": 49,
+        "reason": "contains_body_text",
+        "tail_part": "听证会现场不允许媒体及公众进入旁听，宪法法院会将庭审画面传输至法院一楼闭路电视供记者观看。21日听证会结束后，宪法法院将于29日上午进行合议与投票，并在当天下午3时宣判佩通坦是否存在违宪行为。    ..."
+      },
+      {
+        "id": 51,
+        "reason": "contains_body_text",
+        "tail_part": "兄弟们，这是我最后一个帖子，这几年东藏西躲的我们，就像过街老鼠人人喊打，我累了，但我我希望你们在赚钱的道路上越走越远，尽可能的享受这一切吧，天网恢恢疏而不漏，没想到关了2年前的盘还能追查到我身上，直到..."
+      }
+    ]
+  }
 }
