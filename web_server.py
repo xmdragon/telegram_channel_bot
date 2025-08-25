@@ -220,10 +220,33 @@ async def lifespan(app: FastAPI):
                             logger.error(f"❌ 向量数据库重建失败: {rebuild_result.get('message')}")
                             logger.info("💡 请在尾部过滤管理页面手动点击'同步向量'按钮")
                     else:
-                        logger.info(f"✅ 向量数据库已同步: {sync_status.get('total_vectors', 0)} 个向量")
+                        logger.info(f"✅ 尾部向量数据库已同步: {sync_status.get('total_vectors', 0)} 个向量")
                         
                 except Exception as e:
-                    logger.warning(f"⚠️ 向量同步处理失败: {e}")
+                    logger.warning(f"⚠️ 尾部向量同步处理失败: {e}")
+                
+                # 检查并自动重建推广向量
+                try:
+                    from app.services.promo_vector_manager import promo_vector_manager
+                    promo_sync_status = promo_vector_manager.check_sync_status()
+                    
+                    if promo_sync_status.get('sync_needed', False):
+                        logger.warning(f"🔄 推广向量数据库不同步: 缺少 {promo_sync_status.get('missing_vectors', 0)} 个向量")
+                        logger.info("🔧 正在自动重建推广向量数据库...")
+                        
+                        # 自动执行重建
+                        promo_rebuild_result = promo_vector_manager.rebuild_vectors_from_samples_file()
+                        
+                        if promo_rebuild_result.get('success'):
+                            logger.info(f"✅ 推广向量数据库重建成功: {promo_rebuild_result.get('message')}")
+                        else:
+                            logger.error(f"❌ 推广向量数据库重建失败: {promo_rebuild_result.get('message')}")
+                            logger.info("💡 请在推广链接管理页面手动点击'同步向量'按钮")
+                    else:
+                        logger.info(f"✅ 推广向量数据库已同步: {promo_sync_status.get('total_vectors', 0)} 个向量")
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ 推广向量同步处理失败: {e}")
                 
             except Exception as e:
                 logger.error(f"❌ 后台初始化失败: {e}")

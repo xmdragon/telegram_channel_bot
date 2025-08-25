@@ -173,15 +173,8 @@ const TrainApp = {
                                 this.trainingForm.contentType = 'original';
                             }
                             
-                            // 过滤媒体组信息并保存到隐藏字段
-                            const mediaGroupPattern = /\[📎 媒体组:.*?\]/g;
-                            const mediaGroupInfo = contentToUse.match(mediaGroupPattern) || [];
-                            this.trainingForm.mediaGroupInfo = mediaGroupInfo.join(' ');
-                            
-                            // 显示时去除媒体组信息
-                            const displayContent = contentToUse.replace(mediaGroupPattern, '').trim();
-                            
-                            this.trainingForm.original_message = displayContent;
+                            // 🗑️ 不再需要处理媒体组信息 - 现在单独存储
+                            this.trainingForm.original_message = contentToUse;
                             
                             // 显示提示信息，说明当前使用的内容类型
                             window.SimpleUI.showMessage({
@@ -532,10 +525,8 @@ const TrainApp = {
                 // 检查token
                 const token = localStorage.getItem('admin_token');
                 
-                // 统一提交到tail-filter-samples
-                // 在保存时将媒体组信息附加到内容后面
-                const fullContent = this.trainingForm.original_message + 
-                    (this.trainingForm.mediaGroupInfo ? ' ' + this.trainingForm.mediaGroupInfo : '');
+                // 统一提交到tail-filter-samples 
+                const fullContent = this.trainingForm.original_message;
                     
                 const postData = {
                     description: '尾部过滤训练样本',

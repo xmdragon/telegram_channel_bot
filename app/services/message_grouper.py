@@ -531,7 +531,6 @@ class MessageGrouper:
             
             # 记录文本内容存在性
             has_content = bool(content.strip())
-            has_filtered = bool(filtered_content and filtered_content.strip())
             
             if has_content:
                 text_message_count += 1
@@ -541,14 +540,13 @@ class MessageGrouper:
                 all_texts.append(content.strip())
                 logger.debug(f"消息{i+1}原始内容: {len(content)}字符")
             
-            # 过滤后内容处理 - Linus式修复：确保数据一致性
-            if has_filtered:
-                all_filtered_texts.append(filtered_content.strip())
-                logger.debug(f"消息{i+1}过滤后内容: {len(filtered_content)}字符")
-            elif has_content:
-                # 临时方案：如果没有过滤内容，使用原始内容（确保系统正常运行）
-                all_filtered_texts.append(content.strip())
-                logger.debug(f"消息{i+1}使用原始内容作为过滤后内容: {len(content)}字符")
+            # 🚀 Linus式修复：确保所有内容都经过统一的过滤管道
+            if has_content:
+                # 使用_ensure_filtered_content确保内容经过过滤
+                ensured_filtered = await self._ensure_filtered_content(content, filtered_content)
+                all_filtered_texts.append(ensured_filtered.strip())
+                logger.debug(f"消息{i+1}过滤后内容: {len(ensured_filtered)}字符 "
+                           f"(原始{len(content)}字符)")
             
             # 如果组内任何一条消息被判定为广告，整组都标记为广告
             if msg.get('is_ad'):
@@ -658,11 +656,19 @@ class MessageGrouper:
                 summary_parts.append(f"{count}个{type_name}")
             
             message_ids = [str(msg['message_id']) for msg in messages]
-            placeholder_text = f"\n\n[📎 媒体组: {' + '.join(summary_parts)} | 可用: {available_count}/{len(media_group)} | ID: {', '.join(message_ids)}]"
+            
+            # 🚀 Linus式改进：将媒体组信息从内容中分离，消除特殊情况
+            media_group_info = {
+                'summary': ' + '.join(summary_parts),
+                'available_count': available_count,
+                'total_count': len(media_group),
+                'message_ids': message_ids,
+                'display_text': f"[📎 媒体组: {' + '.join(summary_parts)} | 可用: {available_count}/{len(media_group)} | ID: {', '.join(message_ids)}]"
+            }
         
-        # 合并内容和占位符
-        final_content = combined_content + placeholder_text
-        final_filtered_content = combined_filtered_content + placeholder_text
+        # 内容保持纯净，不混入元数据
+        final_content = combined_content
+        final_filtered_content = combined_filtered_content
         
         # 为组合消息保存主媒体文件路径
         main_media_url = None
@@ -678,6 +684,7 @@ class MessageGrouper:
             'media_url': main_media_url,
             'grouped_id': str(main_message['grouped_id']) if main_message.get('grouped_id') else None,
             'is_combined': True,
+            'media_group_info': media_group_info if media_group else None,  # 🆕 新增媒体组信息字段
             'combined_messages': [
                 {
                     'message_id': msg['message_id'],

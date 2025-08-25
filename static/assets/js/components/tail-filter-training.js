@@ -39,30 +39,7 @@ const app = createApp({
     },
     
     methods: {
-        // 移除媒体组标记
-        removeMediaGroupInfo(content) {
-            if (!content) return content;
-            
-            // 匹配媒体组标记模式: [📎 媒体组: ... | ID: ...]
-            const mediaGroupPattern = /\[📎 媒体组:.*?\]/;
-            const match = content.match(mediaGroupPattern);
-            
-            if (match) {
-                this.mediaGroupInfo = match[0]; // 保存媒体组信息
-                return content.replace(mediaGroupPattern, '').trim();
-            }
-            
-            this.mediaGroupInfo = null;
-            return content;
-        },
-        
-        // 还原媒体组标记
-        restoreMediaGroupInfo(content) {
-            if (this.mediaGroupInfo && content) {
-                return this.mediaGroupInfo + '\n\n' + content;
-            }
-            return content;
-        },
+        // 🗑️ 已移除媒体组标记处理逻辑 - 媒体组信息现在单独存储
         
         // 更新预览
         updatePreview() {
@@ -84,8 +61,8 @@ const app = createApp({
             
             this.submitting = true;
             try {
-                // 提交时还原媒体组信息
-                const originalMessage = this.restoreMediaGroupInfo(this.trainingForm.original_message);
+                // 直接使用原始消息（不再需要处理媒体组标记）
+                const originalMessage = this.trainingForm.original_message;
                 
                 if (this.editingSampleId) {
                     // 更新现有样本
@@ -106,8 +83,8 @@ const app = createApp({
                 // 如果是从消息跳转来的，更新消息的filtered_content
                 if (this.currentMessageId && this.filteredPreview) {
                     try {
-                        // 过滤后的内容要拼接媒体组信息
-                        const filteredContent = this.restoreMediaGroupInfo(this.filteredPreview);
+                        // 直接使用过滤后的内容
+                        const filteredContent = this.filteredPreview;
                         
                         await axios.put(API.messages.updateById(encodeURIComponent(this.currentMessageId)), {
                             filtered_content: filteredContent
@@ -162,7 +139,7 @@ const app = createApp({
                     
                     // 填充表单 - 移除媒体组标记
                     this.trainingForm.tail_content = sample.tail_part || '';
-                    this.trainingForm.original_message = this.removeMediaGroupInfo(sample.original_message || '');
+                    this.trainingForm.original_message = sample.original_message || '';
                     this.trainingForm.contentType = 'original';
                     
                     // 设置编辑模式
@@ -218,8 +195,8 @@ const app = createApp({
                     const useFiltered = !!message.filtered_content;
                     
                     if (content) {
-                        // 移除媒体组标记后填充
-                        this.trainingForm.original_message = this.removeMediaGroupInfo(content);
+                        // 直接填充内容
+                        this.trainingForm.original_message = content;
                         this.trainingForm.contentType = useFiltered ? 'filtered' : 'original';
                         this.updatePreview();
                         

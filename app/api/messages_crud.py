@@ -135,9 +135,7 @@ async def get_messages(
         # 计算总页数
         total_pages = (total_messages + page_size - 1) // page_size if total_messages > 0 else 1
         
-        # 🚀 性能优化：预编译正则表达式
-        import re
-        media_desc_pattern = re.compile(r'\s*\[📎 媒体组:[^]]*\]\s*')
+        # 🗑️ 不再需要处理媒体组标记 - 现在单独存储
         
         # 处理媒体显示URL和重复消息信息
         for message in filtered_messages:
@@ -187,18 +185,6 @@ async def get_messages(
                 if not message.get('media_type') and media_group_display:
                     # 使用第一个媒体的类型作为整体类型
                     message['media_type'] = media_group_display[0].get('media_type')
-                
-                # 清理内容中的媒体文本描述（使用预编译的正则表达式）
-                if message.get('content'):
-                    original_content = message['content']
-                    cleaned_content = media_desc_pattern.sub('', original_content).strip()
-                    if cleaned_content != original_content:
-                        message['content'] = cleaned_content
-                if message.get('filtered_content'):
-                    original_filtered = message['filtered_content']
-                    cleaned_filtered = media_desc_pattern.sub('', original_filtered).strip()
-                    if cleaned_filtered != original_filtered:
-                        message['filtered_content'] = cleaned_filtered
             
             # 兼容处理：如果已有media_group_display，更新其display_url
             elif message.get('media_group_display'):

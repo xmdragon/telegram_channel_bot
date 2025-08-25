@@ -47,6 +47,12 @@ const MessageContentRenderer = {
             return this.message.filtered_content || this.message.content || '';
         },
         
+        // 🆕 媒体组信息显示
+        mediaGroupInfoDisplay() {
+            if (!this.message.media_group_info) return null;
+            return this.message.media_group_info.display_text || '';
+        },
+        
         // 是否为重复消息 - 基于新的 details.is_duplicate 字段
         isDuplicateMessage() {
             return !!(this.message.details && this.message.details.is_duplicate);
@@ -608,6 +614,11 @@ const MessageContentRenderer = {
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无过滤后内容
                             </div>
+                            
+                            <!-- 🆕 媒体组信息 -->
+                            <div v-if="mediaGroupInfoDisplay" class="media-group-info">
+                                {{ mediaGroupInfoDisplay }}
+                            </div>
                         </div>
                         
                         <!-- 显示被移除的隐藏链接信息 -->
@@ -691,6 +702,11 @@ const MessageContentRenderer = {
                             </div>
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无原始内容
+                            </div>
+                            
+                            <!-- 🆕 媒体组信息 -->
+                            <div v-if="mediaGroupInfoDisplay" class="media-group-info">
+                                {{ mediaGroupInfoDisplay }}
                             </div>
                         </div>
                     </div>
@@ -787,6 +803,11 @@ const MessageContentRenderer = {
                     
                     <!-- 文本内容 -->
                     <div v-if="formattedContent" class="message-text" v-html="formattedContent">
+                    </div>
+                    
+                    <!-- 🆕 媒体组信息 -->
+                    <div v-if="mediaGroupInfoDisplay" class="media-group-info">
+                        {{ mediaGroupInfoDisplay }}
                     </div>
                     
                     <!-- 显示被移除的隐藏链接信息 -->

@@ -272,3 +272,29 @@ async def delete_promo_sample(sample_id: str):
     except Exception as e:
         logger.error(f"删除推广链接训练样本失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
+
+@router.post("/promo-sync-vectors")
+async def sync_promo_vectors():
+    """
+    同步推广样本向量
+    从训练样本重建向量索引
+    """
+    try:
+        from app.services.promo_vector_manager import promo_vector_manager
+        
+        logger.info("开始同步推广样本向量...")
+        result = promo_vector_manager.rebuild_vectors_from_samples_file()
+        
+        if result.get("success"):
+            logger.info(f"推广向量同步成功: {result.get('message')}")
+            return {
+                "success": True,
+                "message": result.get('message', '推广向量同步完成'),
+                "count": result.get('count', 0)
+            }
+        else:
+            logger.error(f"推广向量同步失败: {result.get('message')}")
+            raise HTTPException(status_code=500, detail=result.get('message', '推广向量同步失败'))
+        
+    except Exception as e:
+        return handle_api_error(e, "同步推广向量")

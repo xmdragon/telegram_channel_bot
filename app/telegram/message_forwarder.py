@@ -238,11 +238,8 @@ class MessageForwarder:
                 filtered_content = getattr(message, 'filtered_content', None) or message.get('filtered_content', None)
                 content = getattr(message, 'content', None) or message.get('content', '')
                 
-                # 清理媒体组标记
-                import re
-                media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+                # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
                 text_content = filtered_content or content
-                text_content = re.sub(media_desc_pattern, '', text_content).strip()
                 
                 content_with_footer = await self._add_channel_footer(text_content)
                 sent_message = await client.send_message(
@@ -535,10 +532,7 @@ class MessageForwarder:
             media_files = []
             caption_text = message.filtered_content or message.content
             
-            # 清理媒体组标记（与messages_crud.py保持一致）
-            import re
-            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
-            caption_text = re.sub(media_desc_pattern, '', caption_text).strip()
+            # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
             
             # 添加频道落款
             caption_text = await self._add_channel_footer(caption_text)
@@ -578,11 +572,8 @@ class MessageForwarder:
     async def _send_single_media_message(self, client: TelegramClient, target_channel_id: str, message):
         """发送单个媒体消息"""
         try:
-            # 清理媒体组标记并添加频道落款到caption
-            import re
-            media_desc_pattern = r'\s*\[📎 媒体组:[^]]*\]\s*'
+            # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
             caption_text = message.filtered_content or message.content
-            caption_text = re.sub(media_desc_pattern, '', caption_text).strip()
             caption_with_footer = await self._add_channel_footer(caption_text)
             return await client.send_file(
                 entity=int(target_channel_id),

@@ -319,6 +319,48 @@ class PromoVectorManager:
             logger.error(f"查找相似推广样本失败: {e}")
             return []
     
+    def check_sync_status(self) -> Dict:
+        """检查推广向量同步状态"""
+        try:
+            from app.routers.training.base import load_promo_samples
+            samples = load_promo_samples()
+            
+            # 从样本中提取内容
+            sample_contents = set()
+            for sample in samples:
+                if sample.get('content'):
+                    sample_contents.add(sample['content'].strip())
+            
+            # 获取当前缓存的内容
+            cached_contents = set(self._texts)
+            
+            # 计算差异
+            missing_in_vectors = sample_contents - cached_contents  # 样本有但向量没有
+            extra_in_vectors = cached_contents - sample_contents    # 向量有但样本没有
+            
+            is_synced = len(missing_in_vectors) == 0 and len(extra_in_vectors) == 0
+            
+            return {
+                'is_synced': is_synced,
+                'sync_needed': not is_synced,
+                'total_samples': len(samples),
+                'total_vectors': len(self._texts),
+                'missing_vectors': len(missing_in_vectors),
+                'extra_vectors': len(extra_in_vectors),
+                'sample_contents': list(sample_contents)[:5],  # 示例内容
+                'cached_contents': list(cached_contents)[:5]   # 示例内容
+            }
+            
+        except Exception as e:
+            logger.error(f"检查推广向量同步状态失败: {e}")
+            return {
+                'is_synced': False,
+                'sync_needed': True,
+                'total_samples': 0,
+                'total_vectors': len(self._texts),
+                'error': str(e)
+            }
+    
     def get_cache_stats(self) -> Dict:
         """获取缓存统计信息"""
         return {
@@ -328,6 +370,45 @@ class PromoVectorManager:
             'model_loaded': self.model is not None,
             'vector_dimension': self._vectors.shape[1] if self._vectors is not None else 0
         }
+    
+    def rebuild_vectors_from_samples_file(self) -> Dict:
+        """
+        从推广样本文件重建向量索引
+        便捷方法，用于API调用和自动同步
+        """
+        try:
+            logger.info("开始从推广样本文件重建向量索引...")
+            
+            # 清空现有缓存
+            self._vector_cache = {}
+            self._vectors = None
+            self._texts = []
+            
+            # 调用已有的更新缓存方法
+            self.update_cache()
+            
+            # 统计结果
+            vector_count = len(self._texts)
+            
+            success_msg = f"推广向量重建完成，共 {vector_count} 个向量"
+            logger.info(success_msg)
+            
+            return {
+                'success': True,
+                'message': success_msg,
+                'count': vector_count,
+                'total_vectors': vector_count
+            }
+            
+        except Exception as e:
+            error_msg = f"推广向量重建失败: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'count': 0,
+                'error': str(e)
+            }
     
     def clear_cache(self):
         """清空向量缓存"""

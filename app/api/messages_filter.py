@@ -78,8 +78,13 @@ async def filter_message_tail(
         if not msg_data:
             raise HTTPException(status_code=404, detail="消息不存在")
         
-        # 获取原始内容（如果没有原始内容，使用当前内容）
-        original_content = msg_data.get('content') or msg_data.get('filtered_content')
+        # 前端手动过滤时，必须基于当前显示的内容（filtered_content）
+        original_content = msg_data.get('filtered_content') or msg_data.get('content')
+        
+        # 🚀 Linus式修复：移除媒体组标记干扰，让过滤器专注于实际内容
+        if '[📎 媒体组' in original_content:
+            media_tag_start = original_content.find('[📎 媒体组')
+            original_content = original_content[:media_tag_start].rstrip()
         
         if not original_content:
             return {

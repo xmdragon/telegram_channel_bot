@@ -268,20 +268,15 @@ class LinusStatsStore(RedisBaseStore):
             calculated_total = global_stats.pending + global_stats.approved + global_stats.rejected
             total_consistent = (global_stats.total == calculated_total)
             
-            # 不再验证拒绝原因
-            rejection_consistent = True
-            
             return {
-                'consistent': total_consistent and rejection_consistent,
+                'consistent': total_consistent,
                 'global_stats': {
                     'total': global_stats.total,
                     'calculated_total': calculated_total,
-                    'consistent': total_consistent
-                },
-                'rejection_stats': {
-                    'rejection_total': rejection_total,
-                    'rejected_messages': global_stats.rejected,
-                    'consistent': rejection_consistent
+                    'consistent': total_consistent,
+                    'pending': global_stats.pending,
+                    'approved': global_stats.approved,
+                    'rejected': global_stats.rejected
                 }
             }
             

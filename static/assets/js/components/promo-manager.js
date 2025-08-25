@@ -406,13 +406,11 @@ const app = createApp({
         // 同步向量
         async syncVectors() {
             try {
-                SimpleUI.showMessage('开始同步向量...', 'info');
-                // 注意：这里需要后端实现向量同步端点
                 const response = await axios.post('/api/training/promo-sync-vectors');
                 SimpleUI.showMessage(response.data.message || '向量同步完成', 'success');
             } catch (error) {
+                // 不显示错误消息，axios拦截器已经处理
                 console.error('同步向量失败:', error);
-                SimpleUI.showMessage('同步向量失败，暂不支持此功能', 'warning');
             }
         },
         
