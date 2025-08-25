@@ -15,31 +15,15 @@ const LinusStatsComponent = {
         return {
             loading: false,
             
-            // 消息处理状态统计
+            // 简化的消息处理状态统计
             messageStatus: {
-                total: 0,
                 pending: 0,
                 approved: 0,
                 rejected: 0,
                 labels: {
-                    total: '总消息数',
                     pending: '待审核',
                     approved: '已发布', 
                     rejected: '已拒绝'
-                }
-            },
-            
-            // 拒绝原因分析（仅对已拒绝消息）
-            rejectionAnalysis: {
-                ad: 0,
-                duplicate: 0,
-                chat: 0,
-                other: 0,
-                labels: {
-                    ad: '广告内容',
-                    duplicate: '重复消息',
-                    chat: '聊天消息',
-                    other: '其他原因'
                 }
             },
             
@@ -420,7 +404,7 @@ const LinusStatsComponent = {
             </div>
             
             <!-- 加载状态 -->
-            <div v-if="loading && !messageStatus.total" class="loading-container">
+            <div v-if="loading && !messageStatus.pending && !messageStatus.approved && !messageStatus.rejected" class="loading-container">
                 <div class="loading-bar">加载统计数据中...</div>
             </div>
             
