@@ -120,7 +120,8 @@ const API_ENDPOINTS = {
         
         // 额外的训练相关端点
         tailAdSamples: '/api/training/tail-ad-samples',         // GET/POST - 尾部广告样本
-        promoSamples: '/api/training/promo-samples',            // POST - 推广样本
+        promoSamples: '/api/training/promo-samples',            // GET/POST - 推广样本
+        promoSampleById: (id) => `/api/training/promo-samples/${id}`, // PUT/DELETE - 更新/删除推广样本
         previewPromoFilter: '/api/training/preview-promo-filter', // POST - 预览推广过滤器
         
         // 阈值管理
@@ -239,6 +240,7 @@ const API_ENDPOINTS = {
         tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
         tailFilterTraining: '/static/tail-filter-training.html',   // 尾部过滤训练独立页面
         adTrainingManager: '/static/ad-training-manager.html',     // 广告检测训练管理页面
+        promoManager: '/static/promo-manager.html',                // 推广链接数据管理页面
         promoTraining: '/static/promo-training.html',              // 推广链接训练页面
         separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
         mediaManager: '/static/media-manager.html',                // 媒体文件管理页面

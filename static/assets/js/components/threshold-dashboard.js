@@ -328,6 +328,8 @@ const app = createApp({
                 'tail_filter': '尾部过滤器',
                 'ad_detector': '广告检测器',
                 'footer_promo_filter': '推广链接过滤器',
+                'promo_content_filter': '推广内容过滤器',
+                'promo_vector_filter': '推广向量过滤器',
                 'promo_filter': '推广过滤器',
                 'chat_filter': '聊天检测器'
             };
@@ -339,6 +341,8 @@ const app = createApp({
                 'tail_filter': '✂️',
                 'ad_detector': '🛡️',
                 'footer_promo_filter': '🔗',
+                'promo_content_filter': '🚫',
+                'promo_vector_filter': '🧠',
                 'promo_filter': '🚫',
                 'chat_filter': '💬'
             };
@@ -354,7 +358,9 @@ const app = createApp({
                 'classifier': '分类器',
                 'keywords': '关键词',
                 'score': '综合评分',
-                'detection': '检测阈值'
+                'detection': '检测阈值',
+                'similarity': '相似度阈值',
+                'min_length': '最小长度'
             };
             return names[metricName] || metricName;
         },

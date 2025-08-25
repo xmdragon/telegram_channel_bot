@@ -39,6 +39,10 @@ class PathConfig:
     TAIL_FILTER_SAMPLES_FILE = TAIL_TRAINING_DIR / "tail_filter_samples.json"
     SEPARATOR_PATTERNS_FILE = TAIL_TRAINING_DIR / "separator_patterns.json"
     
+    # 推广链接过滤相关
+    PROMO_TRAINING_DIR = TRAINING_DIR / "promo"
+    PROMO_SAMPLES_FILE = PROMO_TRAINING_DIR / "promo_samples.json"
+    
     # 其他训练数据
     OTHER_TRAINING_DIR = TRAINING_DIR / "other"
     MANUAL_TRAINING_FILE = OTHER_TRAINING_DIR / "manual_training_data.json"
@@ -88,6 +92,9 @@ class PathConfig:
             
             # 创建尾部过滤相关目录
             cls.TAIL_TRAINING_DIR.mkdir(exist_ok=True)
+            
+            # 创建推广链接过滤相关目录
+            cls.PROMO_TRAINING_DIR.mkdir(exist_ok=True)
             
             # 创建其他训练数据目录
             cls.OTHER_TRAINING_DIR.mkdir(exist_ok=True)

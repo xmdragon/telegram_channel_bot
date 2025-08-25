@@ -97,6 +97,42 @@ class ThresholdManager:
                     "last_updated": None
                 }
             },
+            "promo_content_filter": {
+                "detection": {
+                    "current": 0.7,
+                    "min": 0.4,
+                    "max": 0.95,
+                    "history": [0.7],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                },
+                "semantic": {
+                    "current": 0.6,
+                    "min": 0.3,
+                    "max": 0.85,
+                    "history": [0.6],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                }
+            },
+            "promo_vector_filter": {
+                "similarity": {
+                    "current": 0.85,
+                    "min": 0.75,
+                    "max": 0.95,
+                    "history": [0.85],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                },
+                "min_length": {
+                    "current": 20,
+                    "min": 10,
+                    "max": 50,
+                    "history": [20],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                }
+            },
             "chat_filter": {
                 "detection": {
                     "current": 0.5,

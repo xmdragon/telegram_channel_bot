@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .base import BaseFilter, FilterResult, FilterContext
 from app.core.path_config import PathConfig
+from app.core.threshold_manager import threshold_manager
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +43,8 @@ class PromoContentFilter(BaseFilter):
         self.separator_patterns = []
         self.load_separator_patterns()
         
-        # 默认阈值
-        self.detection_threshold = 0.7   # 推广内容检测阈值
-        self.semantic_threshold = 0.6    # 语义分析阈值
+        # 动态阈值（从ThresholdManager获取）
+        self.filter_name = "promo_content_filter"
         
         # 统计信息
         self.stats = {
@@ -135,6 +135,14 @@ class PromoContentFilter(BaseFilter):
         """过滤推广内容"""
         start_time = time.time()
         
+        # 更新动态阈值
+        detection_threshold = threshold_manager.get_threshold(
+            self.filter_name, "detection"
+        )
+        semantic_threshold = threshold_manager.get_threshold(
+            self.filter_name, "semantic"
+        )
+        
         if not content:
             return FilterResult(
                 filtered_content=content,
@@ -151,11 +159,13 @@ class PromoContentFilter(BaseFilter):
             separator_result = self._detect_separator_boundaries(content)
             
             # 3. 语义分析
-            semantic_result = self._analyze_promo_semantics(content, embedded_result, separator_result)
+            semantic_result = self._analyze_promo_semantics(
+                content, embedded_result, separator_result, semantic_threshold
+            )
             
             # 4. 执行过滤
             filtered_content, modifications = self._filter_promo_content(
-                content, embedded_result, separator_result, semantic_result
+                content, embedded_result, separator_result, semantic_result, detection_threshold
             )
             
             # 计算处理时间
@@ -330,7 +340,7 @@ class PromoContentFilter(BaseFilter):
         
         return min(confidence, 1.0)
     
-    def _analyze_promo_semantics(self, content: str, embedded_result: Dict, separator_result: Dict) -> Dict[str, Any]:
+    def _analyze_promo_semantics(self, content: str, embedded_result: Dict, separator_result: Dict, semantic_threshold: float) -> Dict[str, Any]:
         """语义分析推广内容"""
         result = {
             'has_promo': False,
@@ -356,7 +366,7 @@ class PromoContentFilter(BaseFilter):
                 # 分析分隔符后的内容
                 promo_score = self._analyze_text_promo_likelihood(post_separator_content)
                 
-                if promo_score > self.semantic_threshold:
+                if promo_score > semantic_threshold:
                     result['has_promo'] = True
                     result['confidence'] = promo_score
                     result['analysis']['basis'] = 'post_separator_analysis'
@@ -404,13 +414,13 @@ class PromoContentFilter(BaseFilter):
         return min(score, 1.0)
     
     def _filter_promo_content(self, content: str, embedded_result: Dict, 
-                            separator_result: Dict, semantic_result: Dict) -> Tuple[str, List[str]]:
+                            separator_result: Dict, semantic_result: Dict, detection_threshold: float) -> Tuple[str, List[str]]:
         """过滤推广内容"""
         modifications = []
         filtered_content = content
         
         # 优先级1: 基于内嵌模式过滤
-        if embedded_result['detected'] and embedded_result['confidence'] > self.detection_threshold:
+        if embedded_result['detected'] and embedded_result['confidence'] > detection_threshold:
             filtered_content = self._filter_by_embedded_patterns(filtered_content, embedded_result)
             modifications.append(f"移除{len(embedded_result['matches'])}个内嵌推广模式")
         

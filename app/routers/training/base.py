@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 TRAINING_DATA_FILE = PathConfig.MANUAL_TRAINING_FILE
 TAIL_FILTER_SAMPLES_FILE = PathConfig.TAIL_FILTER_SAMPLES_FILE
 SEPARATOR_PATTERNS_FILE = PathConfig.SEPARATOR_PATTERNS_FILE
+PROMO_SAMPLES_FILE = PathConfig.PROMO_SAMPLES_FILE
 
 # 确保目录存在
 PathConfig.ensure_directories()
@@ -55,6 +56,13 @@ class SeparatorPattern(BaseModel):
     pattern: str
     description: str = ""
     enabled: bool = True
+
+class PromoSample(BaseModel):
+    """推广链接样本模型"""
+    id: Optional[str] = None
+    promo_content: str
+    separator_type: Optional[str] = ""
+    created_at: Optional[str] = None
 
 class FeedbackData(BaseModel):
     """反馈数据模型"""
@@ -137,6 +145,31 @@ def save_separator_patterns(patterns: List[Dict]) -> bool:
         return True
     except Exception as e:
         logger.error(f"保存分隔符模式失败: {e}")
+        return False
+
+def load_promo_samples() -> List[Dict]:
+    """加载推广链接样本"""
+    try:
+        if PROMO_SAMPLES_FILE.exists():
+            data = SafeFileOperation.read_json_safe(PROMO_SAMPLES_FILE)
+            return data.get('samples', []) if data else []
+        return []
+    except Exception as e:
+        logger.error(f"加载推广链接样本失败: {e}")
+        return []
+
+def save_promo_samples(samples: List[Dict]) -> bool:
+    """保存推广链接样本"""
+    try:
+        data = {
+            'samples': samples,
+            'updated_at': datetime.now().isoformat(),
+            'total_count': len(samples)
+        }
+        SafeFileOperation.write_json_safe(PROMO_SAMPLES_FILE, data)
+        return True
+    except Exception as e:
+        logger.error(f"保存推广链接样本失败: {e}")
         return False
 
 # 工具函数

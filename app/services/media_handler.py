@@ -87,8 +87,12 @@ class MediaHandler:
                 file_name = f"{file_prefix}_photo.jpg"
                 file_path = self.temp_dir / file_name
                 
-                # 下载图片（默认30秒超时）
-                download_timeout = timeout if timeout else 30.0
+                # 动态计算图片下载超时时间
+                if timeout:
+                    download_timeout = timeout
+                else:
+                    # 图片通常较小，基础超时30秒
+                    download_timeout = 30.0
                 try:
                     await asyncio.wait_for(
                         client.download_media(message.media, file_path),
@@ -176,11 +180,21 @@ class MediaHandler:
                     logger.warning(f"文件太大，跳过下载: {document.size} bytes")
                     return None
                     
-                # 下载文件（自定义超时或使用默认值：视频120秒，其他60秒）
+                # 根据文件大小动态计算超时时间
                 if timeout:
                     download_timeout = timeout
                 else:
-                    download_timeout = 240.0 if media_info['media_type'] == 'video' else 60.0
+                    # 基于文件大小和预期速度计算超时
+                    min_speed = 50 * 1024  # 假设最低 50KB/s
+                    base_timeout = 30      # 基础 30 秒
+                    if document.size:
+                        # 根据文件大小计算
+                        calculated_timeout = base_timeout + (document.size / min_speed)
+                        download_timeout = min(calculated_timeout, 600)  # 最多 10 分钟
+                        logger.debug(f"动态超时计算: 文件大小{document.size}字节 -> 超时{download_timeout:.1f}秒")
+                    else:
+                        # 无法获取文件大小时的默认值
+                        download_timeout = 240.0 if media_info['media_type'] == 'video' else 120.0
                 try:
                     await asyncio.wait_for(
                         client.download_media(message.media, file_path),

@@ -74,7 +74,10 @@ class TelegramClientManager:
                 self.client = TelegramClient(
                     StringSession(session_string),
                     int(api_id),
-                    api_hash
+                    api_hash,
+                    connection_retries=5,
+                    retry_delay=3,
+                    auto_reconnect=True
                 )
                 
                 # 启动客户端
@@ -183,7 +186,10 @@ class TelegramClientManager:
             temp_client = TelegramClient(
                 StringSession(session_string),
                 int(api_id),
-                api_hash
+                api_hash,
+                connection_retries=5,
+                retry_delay=3,
+                auto_reconnect=True
             )
             
             # 启动客户端

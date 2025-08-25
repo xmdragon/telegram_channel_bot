@@ -101,10 +101,15 @@ class MessageHandler:
     
     async def process_and_save_message(self, message, channel_id: str, is_history: bool = False):
         """处理并保存消息（用于历史消息采集）"""
+        message_id = getattr(message, 'id', 'unknown')
+        message_type = "历史消息" if is_history else "实时消息"
+        
         try:
             # 使用新的处理器管道
             from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
             from app.services.processors.base import MessageContext
+            
+            logger.info(f"🔄 开始处理{message_type} #{message_id}...")
             
             # 创建处理上下文
             context = MessageContext(
@@ -125,11 +130,40 @@ class MessageHandler:
             result = await pipeline.process(context)
             db_message = result.context.save_data if result.success else None
             
-            if not db_message:
-                logger.debug(f"历史消息 {message.id} 处理完成（被过滤或等待组合）")
+            # 详细的处理结果日志
+            if db_message:
+                status = db_message.get('status', 'unknown')
+                content_len = len(db_message.get('content', ''))
+                media_type = db_message.get('media_type', 'none')
+                logger.info(f"✅ {message_type} #{message_id} 处理成功 - 状态:{status}, 内容:{content_len}字符, 媒体:{media_type}")
+                return "saved"
+            else:
+                # 分析失败原因
+                if not result.success:
+                    reason = getattr(result, 'error_message', '未知错误')
+                    logger.info(f"❌ {message_type} #{message_id} 处理失败 - 原因: {reason}")
+                    return "failed"
+                else:
+                    # 成功但未保存的情况
+                    if hasattr(result.context, 'filter_result') and result.context.filter_result:
+                        filter_reason = result.context.filter_result.get('reason', '被过滤')
+                        logger.info(f"🚫 {message_type} #{message_id} 被过滤 - 原因: {filter_reason}")
+                        return "filtered"
+                    elif hasattr(result.context, 'is_duplicate') and result.context.is_duplicate:
+                        logger.info(f"🔄 {message_type} #{message_id} 检测为重复消息")
+                        return "duplicate"
+                    elif hasattr(result.context, 'pending_group'):
+                        logger.info(f"⏳ {message_type} #{message_id} 等待媒体组合并")
+                        return "pending_group"
+                    else:
+                        logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
+                        return "unknown"
                 
         except Exception as e:
-            logger.error(f"处理历史消息失败: {e}")
+            logger.error(f"❌ 处理{message_type} #{message_id} 失败: {e}")
+            import traceback
+            logger.error(f"详细错误: {traceback.format_exc()}")
+            return "error"
     
     
     async def save_processed_message(self, message_data: dict, channel_id: str, is_history: bool = False, original_media_info: dict = None):

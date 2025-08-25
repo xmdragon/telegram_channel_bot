@@ -164,30 +164,59 @@ class HistoryCollector:
             
             # 处理收集到的消息
             logger.info(f"开始处理 {len(collected_messages)} 条消息...")
-            collected = 0
-            failed = 0
+            
+            # 详细统计各种处理结果
+            stats = {
+                'saved': 0,         # 成功保存
+                'filtered': 0,      # 被过滤
+                'duplicate': 0,     # 重复消息
+                'pending_group': 0, # 等待媒体组合并
+                'failed': 0,        # 处理失败
+                'error': 0,         # 异常错误
+                'unknown': 0        # 未知原因
+            }
             
             for idx, message in enumerate(collected_messages, 1):
                 try:
                     # 调用消息处理器处理消息
                     if self._message_processor:
-                        await self._message_processor(message, channel_id, is_history=True)
+                        result = await self._message_processor(message, channel_id, is_history=True)
+                        if result and result in stats:
+                            stats[result] += 1
+                        else:
+                            stats['unknown'] += 1
                     else:
                         logger.warning("未设置消息处理器，跳过消息")
+                        stats['error'] += 1
                         
-                    collected += 1
-                    
-                    if collected % 10 == 0:
-                        logger.info(f"已处理 {collected}/{len(collected_messages)} 条历史消息...")
+                    # 每处理10条消息报告进度
+                    if idx % 10 == 0:
+                        processed = sum(stats.values())
+                        logger.info(f"已处理 {processed}/{len(collected_messages)} 条历史消息...")
                         
                 except Exception as e:
                     import traceback
-                    failed += 1
+                    stats['error'] += 1
                     logger.error(f"处理历史消息 #{message.id if message else 'None'} 失败: {e}")
                     logger.error(f"详细错误: {traceback.format_exc()}")
                     continue
-                    
-            logger.info(f"消息处理完成: 成功 {collected} 条，失败 {failed} 条，总计 {len(collected_messages)} 条")
+            
+            # 详细的统计报告
+            total_processed = sum(stats.values())
+            logger.info(f"📊 消息处理完成统计:")
+            logger.info(f"   总共采集: {len(collected_messages)} 条")
+            logger.info(f"   成功保存: {stats['saved']} 条")
+            logger.info(f"   被过滤掉: {stats['filtered']} 条")
+            logger.info(f"   重复消息: {stats['duplicate']} 条")
+            logger.info(f"   等待合并: {stats['pending_group']} 条")
+            logger.info(f"   处理失败: {stats['failed']} 条")
+            logger.info(f"   异常错误: {stats['error']} 条")
+            logger.info(f"   未知原因: {stats['unknown']} 条")
+            logger.info(f"   处理率: {total_processed}/{len(collected_messages)} ({(total_processed/len(collected_messages)*100):.1f}%)")
+            
+            # 如果保存数量太少，发出警告
+            if stats['saved'] < len(collected_messages) * 0.1:  # 少于10%
+                logger.warning(f"⚠️ 保存率较低: {stats['saved']}/{len(collected_messages)} ({(stats['saved']/len(collected_messages)*100):.1f}%)，请检查过滤规则")
             
             # 更新Redis采集点
             if latest_message_id > (checkpoint_id or 0):
@@ -195,7 +224,7 @@ class HistoryCollector:
                 logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
             
             collection_type = "历史消息" if not checkpoint_id else "增量"
-            logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 成功 {collected} 条，失败 {failed} 条")
+            logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 保存 {stats['saved']} 条，过滤 {stats['filtered']} 条，重复 {stats['duplicate']} 条，总计 {len(collected_messages)} 条")
             
         except Exception as e:
             import traceback

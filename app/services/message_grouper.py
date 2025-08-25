@@ -336,7 +336,10 @@ class MessageGrouper:
             self.telegram_client = TelegramClient(
                 StringSession(session_string),
                 api_id,
-                api_hash
+                api_hash,
+                connection_retries=5,
+                retry_delay=3,
+                auto_reconnect=True
             )
             
             await self.telegram_client.connect()
