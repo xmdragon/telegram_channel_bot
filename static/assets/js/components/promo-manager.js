@@ -253,25 +253,33 @@ const app = createApp({
         async deleteSample(sample) {
             console.log('deleteSample方法被调用，样本ID:', sample.id);
             
-            let confirmed = false;
             try {
                 if (window.SimpleUI && typeof SimpleUI.showConfirm === 'function') {
-                    confirmed = await SimpleUI.showConfirm(
+                    await SimpleUI.showConfirm(
                         '确定要删除这个推广链接样本吗？',
                         '删除确认'
                     );
+                    console.log('用户确认删除');
                 } else {
                     // 降级到原生确认对话框
-                    confirmed = confirm('确定要删除这个推广链接样本吗？');
+                    const confirmed = confirm('确定要删除这个推广链接样本吗？');
+                    if (!confirmed) {
+                        console.log('用户取消删除（原生对话框）');
+                        return;
+                    }
                 }
             } catch (error) {
+                // SimpleUI.confirm reject时表示用户取消
+                if (error === 'cancel') {
+                    console.log('用户取消删除');
+                    return;
+                }
                 console.error('确认对话框出错，使用原生确认:', error);
-                confirmed = confirm('确定要删除这个推广链接样本吗？');
-            }
-            
-            if (!confirmed) {
-                console.log('用户取消删除');
-                return;
+                const confirmed = confirm('确定要删除这个推广链接样本吗？');
+                if (!confirmed) {
+                    console.log('用户取消删除（错误降级）');
+                    return;
+                }
             }
             
             try {
@@ -336,12 +344,20 @@ const app = createApp({
         async deleteSelected() {
             if (!this.selectedSamples.length) return;
             
-            const confirmed = await SimpleUI.showConfirm(
-                `确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`,
-                '批量删除确认'
-            );
-            
-            if (!confirmed) return;
+            try {
+                await SimpleUI.showConfirm(
+                    `确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`,
+                    '批量删除确认'
+                );
+            } catch (error) {
+                if (error === 'cancel') {
+                    console.log('用户取消批量删除');
+                    return;
+                }
+                // 其他错误，使用原生确认框
+                const confirmed = confirm(`确定要删除选中的 ${this.selectedSamples.length} 个样本吗？`);
+                if (!confirmed) return;
+            }
             
             try {
                 // 逐个删除（确保错误处理更可靠）
