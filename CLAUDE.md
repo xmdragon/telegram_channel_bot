@@ -235,9 +235,27 @@ API_ENDPOINTS = {
 - 避免重复实现相同功能的端点
 - 定期审查和清理无用端点
 
-### 重要配置
-- 管理员登录：`http://localhost:8000/static/login.html` (admin/admin123)
-- 静态文件路径：`/static/xxx.html`
+### 🌐 服务端口和访问配置
+
+#### 双服务架构（Nginx + FastAPI）
+- **Nginx静态文件服务**：`http://localhost:8080`
+  - 管理员登录：`http://localhost:8080/static/login.html` (admin/admin123)
+  - 所有前端页面：`http://localhost:8080/static/xxx.html`
+  - 静态资源：CSS、JS、图片、字体等
+- **FastAPI后端服务**：`http://localhost:8000`
+  - API端点：`http://localhost:8000/api/*`
+  - WebSocket：`ws://localhost:8000/ws`
+  - 系统健康检查：`http://localhost:8000/api/health`
+
+#### ⚠️ 调试时的端口注意事项
+1. **前端页面访问**：始终使用 `8080` 端口（Nginx）
+2. **API调试**：直接使用 `8000` 端口（FastAPI）
+3. **404错误排查**：
+   - 静态文件404 → 检查8080端口和文件路径
+   - API接口404 → 检查8000端口和路由配置
+4. **性能优势**：Nginx专门优化静态文件服务，FastAPI专注API处理
+
+### macOS开发配置
 - macOS tail命令：`tail -n 20 file.log`
 
 ## 🏗️ 系统架构概览
@@ -512,6 +530,13 @@ python3 tools/maintenance/cleanup_redundant_files.py --analyze  # 分析冗余
 python3 tools/testing/get_local_message.py CHANNEL_ID:MSG_ID     # 查询本地消息
 python3 tools/testing/fetch_telegram_message.py TELEGRAM_URL    # 抓取原始消息
 ```
+
+### 🌐 端口和访问速查
+- **前端页面**：`http://localhost:8080/static/xxx.html` (Nginx静态文件服务)
+- **API接口**：`http://localhost:8000/api/*` (FastAPI后端服务)
+- **管理员登录**：`http://localhost:8080/static/login.html` (admin/admin123)
+- **WebSocket**：`ws://localhost:8000/ws`
+- **健康检查**：`http://localhost:8000/api/health`
 
 ### 文件位置速查
 - API端点配置：`static/assets/js/config/api-endpoints.js`
