@@ -272,6 +272,11 @@ const app = createApp({
                     this.duplicateGroups.forEach((group, groupIdx) => {
                         console.log(`处理第 ${groupIdx + 1} 组，共 ${group.samples.length} 个样本`);
                         group.samples.forEach((sample, idx) => {
+                            // 修复undefined ID问题
+                            if (!sample.id || sample.id === undefined || sample.id === null) {
+                                sample.id = 0; // 设置为0作为占位符
+                                console.log(`修复undefined ID，设置为: ${sample.id}`);
+                            }
                             sample.keep = (idx === 0); // Vue 3 自动响应式
                             console.log(`初始化样本 ID ${sample.id}: keep=${sample.keep} (索引: ${idx})`);
                         });
@@ -327,7 +332,8 @@ const app = createApp({
                         console.log(`检查样本 ID ${sample.id}: keep=${sample.keep}`);
                         if (!sample.keep) {
                             const sampleId = sample.id;
-                            if (sampleId) {
+                            // 修改条件：允许ID为0的样本被删除，但排除undefined/null
+                            if (sampleId !== undefined && sampleId !== null) {
                                 toDelete.push(sampleId);
                                 console.log(`添加到删除列表: ${sampleId}`);
                             }
