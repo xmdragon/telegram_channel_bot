@@ -262,13 +262,9 @@ const DataUtils = {
     // 获取统计标签
     getStatLabel(statKey) {
         const statLabels = {
-            'total': '总消息',
             'pending': '待审核',
             'approved': '已发布',
-            'rejected': '已拒绝',
-            'ads': '广告消息',
-            'duplicates': '重复消息',
-            'chats': '聊天消息'
+            'rejected': '已拒绝'
         };
         return statLabels[statKey] || statKey;
     },

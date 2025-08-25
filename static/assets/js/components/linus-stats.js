@@ -133,10 +133,6 @@ const LinusStatsComponent = {
                     this.messageStatus = { ...this.messageStatus, ...stats.message_status };
                 }
                 
-                // 更新拒绝原因分析（使用后端labels）
-                if (stats.rejection_analysis) {
-                    this.rejectionAnalysis = { ...this.rejectionAnalysis, ...stats.rejection_analysis };
-                }
                 
                 // 更新一致性状态
                 if (stats.consistency) {
@@ -412,26 +408,6 @@ const LinusStatsComponent = {
             }
         },
 
-        /**
-         * 处理拒绝原因标签点击事件
-         */
-        handleRejectionClick(rejectionKey) {
-            // 将拒绝原因映射到相应的筛选条件
-            const keyMapping = {
-                'ad': 'ads',           // 广告内容 -> ads筛选
-                'duplicate': 'duplicates', // 重复消息 -> duplicates筛选  
-                'chat': 'chats',       // 聊天消息 -> chats筛选
-                'other': 'rejected'    // 其他原因 -> 已拒绝筛选
-            };
-            
-            const mappedKey = keyMapping[rejectionKey] || 'rejected';
-            
-            if (this.$parent && typeof this.$parent.handleStatClick === 'function') {
-                this.$parent.handleStatClick(mappedKey);
-            } else {
-                console.warn('父组件未提供handleStatClick方法');
-            }
-        }
     },
     
     template: `
@@ -459,17 +435,6 @@ const LinusStatsComponent = {
                              @click="handleStatClick(key)">
                             <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
                             <span class="stat-badge-label">{{ messageStatus.labels[key] }}</span>
-                        </div>
-                    </template>
-                    
-                    <!-- 拒绝原因分析 -->
-                    <template v-for="(value, key) in rejectionAnalysis" :key="'rejection-'+key">
-                        <div v-if="key !== 'labels'"
-                             class="stat-badge clickable"
-                             :class="'rejection-'+key"
-                             @click="handleRejectionClick(key)">
-                            <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
-                            <span class="stat-badge-label">{{ rejectionAnalysis.labels[key] }}</span>
                         </div>
                     </template>
                 </div>

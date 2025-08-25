@@ -833,30 +833,9 @@ const MainApp = {
                     this.filters.filter_reason = null;
                     this.filters._show_duplicates = false;
                     break;
-                case 'ads':
-                    this.filters.status = 'pending';  // 只显示待审核的广告消息
-                    this.filters.is_ad = true;
-                    this.filters.filter_reason = null;
-                    this.filters._show_duplicates = false;
-                    break;
-                case 'duplicates':
-                    // 🚀 Linus式优化：不要清空status，使用专门的show_duplicates参数
-                    // this.filters.status = '';  // ❌ 删除这行，避免触发get_all_messages
-                    this.filters.is_ad = null;
-                    this.filters.filter_reason = null;
-                    // 🔧 设置专用标识，后端将使用专门的重复消息查询
-                    this.filters._show_duplicates = true;
-                    break;
-                case 'chats':
-                    this.filters.status = 'rejected';
-                    this.filters.is_ad = null;
-                    this.filters.filter_reason = 'chat_content_filter';
-                    break;
                 default:
-                    // 总消息：清除所有筛选条件
-                    this.filters.status = '';
-                    this.filters.is_ad = null;
-                    this.filters.filter_reason = null;
+                    // 未知状态：不做任何操作
+                    break;
             }
             
             window.SimpleUI.Message.info(`已切换到「${this.getStatLabel(statKey)}」并清除频道筛选`);
@@ -2425,11 +2404,6 @@ const MainApp = {
                         msgDate.setHours(0, 0, 0, 0);
                         return msgDate.getTime() === today.getTime() && msg.status === 'pending';
                     });
-                    break;
-                case 'ads':
-                    targetMessages = this.filteredMessages.filter(msg => 
-                        msg.is_ad && msg.status === 'pending'
-                    );
                     break;
                 case 'no-media':
                     targetMessages = this.filteredMessages.filter(msg => 

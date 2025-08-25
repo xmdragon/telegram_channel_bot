@@ -13,11 +13,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, Optional
 import logging
 
-from app.storage.linus_stats_store import get_linus_stats_store, MessageStats, RejectionStats
+from app.storage.linus_stats_store import get_linus_stats_store, MessageStats
 from app.services.auth_service import get_auth_service
 from app.utils.timezone import get_current_time, format_for_api
-from app.core.message_status import get_status_display_name, get_rejection_reason_display_name
-from app.core.message_status import MessageStatus, RejectionReason
+from app.core.message_status import get_status_display_name
+from app.core.message_status import MessageStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -64,8 +64,6 @@ async def get_linus_stats_overview(
         # 获取状态统计 - O(1)操作
         message_stats = stats_store.get_global_stats()
         
-        # 获取拒绝原因统计 - O(1)操作  
-        rejection_stats = stats_store.get_rejection_stats()
         
         # 验证数据一致性
         consistency = stats_store.validate_consistency()
@@ -73,33 +71,16 @@ async def get_linus_stats_overview(
         return {
             "success": True,
             "data": {
-                # 维度1: 消息处理状态
+                # 简化的消息处理状态统计
                 "message_status": {
-                    "total": message_stats.total,
                     "pending": message_stats.pending,
                     "approved": message_stats.approved,
                     "rejected": message_stats.rejected,
                     # 显示名称
                     "labels": {
-                        "total": "总消息数",
                         "pending": get_status_display_name(MessageStatus.PENDING),
                         "approved": "已发布", 
                         "rejected": get_status_display_name(MessageStatus.REJECTED)
-                    }
-                },
-                
-                # 维度2: 拒绝原因分析（仅对已拒绝消息）
-                "rejection_analysis": {
-                    "ad": rejection_stats.ad,
-                    "duplicate": rejection_stats.duplicate,
-                    "chat": rejection_stats.chat,
-                    "other": rejection_stats.other,
-                    # 显示名称
-                    "labels": {
-                        "ad": get_rejection_reason_display_name(RejectionReason.AD),
-                        "duplicate": get_rejection_reason_display_name(RejectionReason.DUPLICATE),
-                        "chat": get_rejection_reason_display_name(RejectionReason.CHAT),
-                        "other": get_rejection_reason_display_name(RejectionReason.OTHER)
                     }
                 },
                 
@@ -123,27 +104,13 @@ async def get_linus_stats_overview(
             "success": False,
             "data": {
                 "message_status": {
-                    "total": 0,
                     "pending": 0,
                     "approved": 0,
                     "rejected": 0,
                     "labels": {
-                        "total": "总消息数",
                         "pending": "待审核",
                         "approved": "已发布",
                         "rejected": "已拒绝"
-                    }
-                },
-                "rejection_analysis": {
-                    "ad": 0,
-                    "duplicate": 0,
-                    "chat": 0,
-                    "other": 0,
-                    "labels": {
-                        "ad": "广告内容",
-                        "duplicate": "重复消息",
-                        "chat": "聊天消息",
-                        "other": "其他原因"
                     }
                 },
                 "consistency": {"consistent": False, "error": str(e)},

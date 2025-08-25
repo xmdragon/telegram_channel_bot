@@ -24,12 +24,6 @@ class MessageState(Enum):
     REJECTED = "rejected"   # 已拒绝
 
 
-class RejectionReason(Enum):
-    """拒绝原因 - 元数据，不是状态"""
-    AD = "ad"              # 广告
-    DUPLICATE = "duplicate" # 重复
-    CHAT = "chat"          # 聊天
-    OTHER = "other"        # 其他
 
 
 @dataclass
@@ -47,13 +41,6 @@ class MessageStats:
             logger.warning(f"统计不一致: total={self.total}, calculated={calculated_total}")
 
 
-@dataclass
-class RejectionStats:
-    """拒绝原因统计"""
-    ad: int
-    duplicate: int
-    chat: int
-    other: int
 
 
 class LinusStatsStore(RedisBaseStore):
@@ -123,7 +110,7 @@ class LinusStatsStore(RedisBaseStore):
             logger.error(f"增加消息计数失败: {e}")
     
     def change_message_state(self, old_state: MessageState, new_state: MessageState, 
-                           channel_id: str = None, rejection_reason: Optional[RejectionReason] = None):
+                           channel_id: str = None, rejection_reason: Optional[str] = None):
         """
         改变消息状态 - 原子操作
         
@@ -146,12 +133,7 @@ class LinusStatsStore(RedisBaseStore):
                 pipe.hincrby(channel_key, old_state.value, -1)
                 pipe.hincrby(channel_key, new_state.value, 1)
             
-            # 处理拒绝原因统计
-            if new_state == MessageState.REJECTED and rejection_reason:
-                pipe.hincrby(self.REJECTION_STATS_KEY, rejection_reason.value, 1)
-            elif old_state == MessageState.REJECTED and rejection_reason:
-                # 从rejected状态改变时，减少拒绝原因计数
-                pipe.hincrby(self.REJECTION_STATS_KEY, rejection_reason.value, -1)
+# 不再处理拒绝原因统计
             
             pipe.execute()
             logger.debug(f"状态已更新: {old_state.value} -> {new_state.value}")
@@ -161,7 +143,7 @@ class LinusStatsStore(RedisBaseStore):
     
     def get_global_stats(self) -> MessageStats:
         """
-        获取全局统计 - Linus式单一数据源版本
+        获取全局统计 - 简化版本，只返回三个核心统计
         直接从索引计算，消除数据不一致问题
         """
         try:
@@ -169,18 +151,13 @@ class LinusStatsStore(RedisBaseStore):
             pending = self.redis.zcard("msg:idx:pending")      # O(1)
             approved = self.redis.zcard("msg:idx:approved")    # O(1)
             rejected = self.redis.zcard("msg:idx:rejected")    # O(1)
-            auto_forwarded = self.redis.zcard("msg:idx:auto_forwarded")  # O(1)
             
-            # 直接使用approved
-            total_approved = approved
-            total = pending + total_approved + rejected + auto_forwarded
-            
-            logger.debug(f"📊 从索引计算统计: pending={pending}, approved={total_approved}, rejected={rejected}, total={total}")
+            logger.debug(f"📊 从索引计算统计: pending={pending}, approved={approved}, rejected={rejected}")
             
             return MessageStats(
-                total=total,
+                total=0,  # 不再计算total，但保持字段兼容
                 pending=pending,
-                approved=total_approved,
+                approved=approved,
                 rejected=rejected
             )
         except Exception as e:
@@ -215,51 +192,6 @@ class LinusStatsStore(RedisBaseStore):
             logger.error(f"获取频道统计失败 (频道: {channel_id}): {e}")
             return MessageStats(0, 0, 0, 0)
     
-    def get_rejection_stats(self) -> RejectionStats:
-        """
-        获取拒绝原因统计 - Linus式单一数据源版本
-        从实际rejected消息计算，确保100%准确
-        """
-        try:
-            # 🔥 Linus方式：从实际数据实时聚合
-            # 获取所有rejected消息的键
-            rejected_keys = self.redis.zrange("msg:idx:rejected", 0, -1)
-            
-            # 统计各种拒绝原因
-            reason_counts = {'ad': 0, 'duplicate': 0, 'chat': 0, 'other': 0}
-            
-            if rejected_keys:
-                # 批量获取拒绝原因
-                pipe = self.redis.pipeline()
-                for key in rejected_keys:
-                    # key格式: "channel_id:message_id"
-                    msg_key = f"msg:{key}"
-                    pipe.hget(msg_key, 'rejection_reason')
-                
-                reasons = pipe.execute()
-                
-                # 统计原因分布
-                for reason in reasons:
-                    if isinstance(reason, bytes):
-                        reason = reason.decode()
-                    
-                    reason = reason or 'other'  # 默认为other
-                    if reason in reason_counts:
-                        reason_counts[reason] += 1
-                    else:
-                        reason_counts['other'] += 1
-            
-            logger.debug(f"📊 从实际数据计算拒绝原因: {reason_counts}")
-            
-            return RejectionStats(
-                ad=reason_counts['ad'],
-                duplicate=reason_counts['duplicate'], 
-                chat=reason_counts['chat'],
-                other=reason_counts['other']
-            )
-        except Exception as e:
-            logger.error(f"获取拒绝原因统计失败: {e}")
-            return RejectionStats(0, 0, 0, 0)
     
     def reset_stats(self):
         """重置所有统计 - 谨慎使用"""
@@ -331,15 +263,13 @@ class LinusStatsStore(RedisBaseStore):
         """验证统计数据一致性"""
         try:
             global_stats = self.get_global_stats()
-            rejection_stats = self.get_rejection_stats()
             
             # 验证全局统计一致性
             calculated_total = global_stats.pending + global_stats.approved + global_stats.rejected
             total_consistent = (global_stats.total == calculated_total)
             
-            # 验证拒绝原因总数
-            rejection_total = rejection_stats.ad + rejection_stats.duplicate + rejection_stats.chat + rejection_stats.other
-            rejection_consistent = (rejection_total <= global_stats.rejected)
+            # 不再验证拒绝原因
+            rejection_consistent = True
             
             return {
                 'consistent': total_consistent and rejection_consistent,
