@@ -201,11 +201,11 @@ class PromoVectorFilter(BaseFilter):
             filtered_length = len(filtered_content)
             removal_ratio = (original_length - filtered_length) / original_length if original_length > 0 else 0
             
-            # 保护措施：如果移除内容超过80%，认为可能误判
-            if removal_ratio > 0.8 and filtered_length < 50:
+            # 保护措施：如果移除内容超过80%且置信度不高，认为可能误判
+            if removal_ratio > 0.8 and filtered_length < 50 and confidence < 0.9:
                 logger.warning(
                     f"推广过滤移除内容过多（{removal_ratio:.1%}），"
-                    f"可能误判，保留原内容"
+                    f"置信度{confidence:.3f}不够高，可能误判，保留原内容"
                 )
                 return FilterResult(
                     filtered_content=content,

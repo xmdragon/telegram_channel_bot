@@ -245,8 +245,8 @@ class PromoVectorManager:
             # 提取现有样本的内容
             current_contents = set()
             for sample in samples:
-                if sample.get('content'):
-                    current_contents.add(sample['content'].strip())
+                if sample.get('promo_content'):
+                    current_contents.add(sample['promo_content'].strip())
             
             # 找出缓存中多余的向量（样本已删除）
             cached_contents = set(self._texts)
