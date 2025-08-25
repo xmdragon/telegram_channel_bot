@@ -60,13 +60,13 @@ async def export_configs():
         except Exception as e:
             logger.warning(f"导出系统配置失败: {e}")
         
-        # 导出训练数据
+        # 导出训练数据（已移除manual_training_data.json）
         print("正在导出训练数据...")
         training_files = {
             'ad_training_data': 'data/training/ad/json/ad_training_data.json',
             'tail_filter_samples': 'data/training/tail/tail_filter_samples.json',
-            'ocr_samples': 'data/training/other/ocr_samples.json',
-            'manual_training_data': 'data/training/other/manual_training_data.json'
+            'ocr_samples': 'data/training/other/ocr_samples.json'
+            # 'manual_training_data': 已移除，手动训练数据功能已废弃
         }
         
         for data_key, file_path in training_files.items():

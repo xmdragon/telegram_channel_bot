@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 """
-训练数据恢复工具
+训练数据恢复工具 - 已废弃
 
-这个脚本提供了强大的训练数据恢复功能，包括：
-1. 自动检测和修复损坏的文件
-2. 从备份中恢复数据
-3. 合并多个备份文件
-4. 数据完整性验证
-5. 紧急恢复模式
+⚠️  重要提醒：这个脚本已废弃！
+    手动训练数据功能（manual_training_data.json）已从系统中完全移除。
+    此脚本仅保留用于历史参考，不应再使用。
 
-使用方法:
-  python3 recover_training_data.py --check                    # 检查数据完整性
-  python3 recover_training_data.py --auto-recover            # 自动恢复
-  python3 recover_training_data.py --restore backup.json     # 从指定备份恢复
-  python3 recover_training_data.py --merge-backups           # 合并多个备份
-  python3 recover_training_data.py --emergency               # 紧急恢复模式
+废弃原因：
+- manual_training_data.json 文件已删除
+- 手动训练数据功能已由专门的训练模块替代
+- 系统架构已简化，不再需要此恢复工具
+
+如需数据恢复，请使用：
+- 通用备份恢复：tools/data/export_config.py
+- 系统配置恢复：app/storage/ 模块的内置功能
 
 作者: Claude Code
-版本: 2.0
+版本: 2.0 (已废弃)
 """
 
 import os
@@ -49,7 +48,8 @@ class TrainingDataRecovery:
     def __init__(self):
         self.data_dir = Path("data")
         self.backup_dir = Path("data/backups")
-        self.main_data_file = Path("data/manual_training_data.json")
+        # manual_training_data.json 文件已移除
+        self.main_data_file = None  # 废弃，手动训练数据功能已移除
         # 训练历史功能已移除
         self.recovery_log = []
         
@@ -95,19 +95,9 @@ class TrainingDataRecovery:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # 验证基本结构
+            # 验证基本结构（manual_training_data.json已移除）
             if file_path.name.startswith('manual_training_data'):
-                if not isinstance(data, dict) or 'channels' not in data:
-                    return False, "训练数据结构无效"
-                
-                # 验证channels结构
-                channels = data['channels']
-                if not isinstance(channels, dict):
-                    return False, "channels字段无效"
-                
-                for channel_id, channel_data in channels.items():
-                    if not isinstance(channel_data, dict) or 'samples' not in channel_data:
-                        return False, f"频道 {channel_id} 数据结构无效"
+                return False, "manual_training_data.json文件已移除，该文件类型不再支持"
             
             # training_history 功能已移除
             
@@ -189,10 +179,12 @@ class TrainingDataRecovery:
             }
         }
         
-        # 检查主要文件
-        for file_path in [self.main_data_file, self.history_file]:
-            info = self.get_file_info(file_path)
-            report["main_files"][file_path.name] = info
+        # 检查主要文件（manual_training_data.json和training_history已移除）
+        main_files = []  # 所有主要文件都已移除
+        for file_path in main_files:
+            if file_path and file_path.exists():
+                info = self.get_file_info(file_path)
+                report["main_files"][file_path.name] = info
             
             if not info["exists"]:
                 report["summary"]["missing_files"] += 1
@@ -469,23 +461,18 @@ class TrainingDataRecovery:
             logger.error(f"保存恢复日志失败: {e}")
 
 def main():
-    """主函数"""
-    parser = argparse.ArgumentParser(description="训练数据恢复工具")
-    parser.add_argument("--check", action="store_true", help="检查数据完整性")
-    parser.add_argument("--auto-recover", action="store_true", help="自动恢复损坏的文件")
-    parser.add_argument("--restore", metavar="BACKUP_FILE", help="从指定备份文件恢复")
-    parser.add_argument("--merge-backups", action="store_true", help="合并多个备份文件")
-    parser.add_argument("--emergency", action="store_true", help="紧急恢复模式")
-    parser.add_argument("--target", choices=["training", "history", "both"], default="both",
-                       help="指定恢复目标类型")
+    """主函数 - 脚本已废弃"""
+    print("🚨 此脚本已废弃！")
+    print("手动训练数据功能（manual_training_data.json）已从系统中完全移除。")
+    print()
+    print("如需数据恢复，请使用以下替代方案：")
+    print("- 通用备份恢复：python3 tools/data/export_config.py")
+    print("- 系统配置恢复：使用 app/storage/ 模块的内置功能")
+    print("- Redis数据恢复：检查Redis持久化配置")
+    print()
+    print("详细说明请查看项目文档或CLAUDE.md文件。")
     
-    args = parser.parse_args()
-    
-    if not any([args.check, args.auto_recover, args.restore, args.merge_backups, args.emergency]):
-        parser.print_help()
-        return
-    
-    recovery = TrainingDataRecovery()
+    return 1  # 返回错误码表示废弃状态
     
     try:
         if args.check:

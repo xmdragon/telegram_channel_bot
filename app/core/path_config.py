@@ -45,7 +45,6 @@ class PathConfig:
     
     # 其他训练数据
     OTHER_TRAINING_DIR = TRAINING_DIR / "other"
-    MANUAL_TRAINING_FILE = OTHER_TRAINING_DIR / "manual_training_data.json"
     AI_FILTER_PATTERNS_FILE = OTHER_TRAINING_DIR / "ai_filter_patterns.json"
     LEARNED_PATTERNS_FILE = OTHER_TRAINING_DIR / "learned_patterns.json"
     OCR_SAMPLES_FILE = OTHER_TRAINING_DIR / "ocr_samples.json"

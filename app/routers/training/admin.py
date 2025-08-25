@@ -13,8 +13,7 @@ import glob
 from pathlib import Path
 
 from .base import (
-    handle_api_error, FeedbackData,
-    load_training_data, save_training_data
+    handle_api_error, FeedbackData
 )
 from app.core.path_config import PathConfig
 from app.core.route_config import ROUTES
@@ -65,12 +64,13 @@ async def optimize_storage_sse():
 async def get_learning_stats():
     """获取学习统计"""
     try:
-        samples = load_training_data()
+        # 手动训练数据功能已移除，返回空统计
+        samples = []
         history = []  # 训练历史功能已移除
         
         # 计算基础统计
-        total_samples = len(samples)
-        applied_samples = len([s for s in samples if s.get('is_applied', False)])
+        total_samples = 0
+        applied_samples = 0
         
         # 计算最近7天的活动
         recent_date = datetime.now() - timedelta(days=7)
@@ -100,15 +100,15 @@ async def get_learning_stats():
 async def emergency_backup():
     """紧急备份"""
     try:
-        backup_dir = PathConfig.MANUAL_TRAINING_FILE.parent / "backups"
+        backup_dir = PathConfig.BACKUP_DIR / "emergency"
         backup_dir.mkdir(exist_ok=True)
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = backup_dir / f"emergency_backup_{timestamp}.json"
         
-        # 收集所有训练数据
+        # 收集所有训练数据（手动训练数据功能已移除）
         backup_data = {
-            "training_data": load_training_data(),
+            "training_data": [],  # 手动训练数据已移除
             "training_history": [],  # 训练历史功能已移除
             "backup_timestamp": datetime.now().isoformat(),
             "backup_type": "emergency"
@@ -138,11 +138,11 @@ async def get_integrity_report():
         total_files = 0
         corrupted_files = 0
         
-        # 检查主要配置文件
+        # 检查主要配置文件（已移除manual_training_data.json）
         config_files = [
-            PathConfig.MANUAL_TRAINING_FILE,
             PathConfig.TAIL_FILTER_SAMPLES_FILE,
-            PathConfig.SEPARATOR_PATTERNS_FILE
+            PathConfig.SEPARATOR_PATTERNS_FILE,
+            PathConfig.PROMO_SAMPLES_FILE
         ]
         
         for config_file in config_files:
@@ -186,7 +186,7 @@ async def verify_integrity():
 async def cleanup_backups():
     """清理备份文件"""
     try:
-        backup_dir = PathConfig.MANUAL_TRAINING_FILE.parent / "backups"
+        backup_dir = PathConfig.BACKUP_DIR
         if not backup_dir.exists():
             return {"success": True, "message": "没有备份文件需要清理", "deletedCount": 0}
         
@@ -218,7 +218,7 @@ async def cleanup_backups():
 async def get_backups():
     """获取备份列表"""
     try:
-        backup_dir = PathConfig.MANUAL_TRAINING_FILE.parent / "backups"
+        backup_dir = PathConfig.BACKUP_DIR
         backups = []
         
         if backup_dir.exists():
@@ -249,7 +249,7 @@ async def get_backups():
 async def restore_backup(backup_filename: str):
     """恢复备份"""
     try:
-        backup_dir = PathConfig.MANUAL_TRAINING_FILE.parent / "backups"
+        backup_dir = PathConfig.BACKUP_DIR
         backup_file = backup_dir / backup_filename
         
         if not backup_file.exists():
@@ -260,10 +260,9 @@ async def restore_backup(backup_filename: str):
         if not backup_data:
             raise HTTPException(status_code=400, detail="备份文件损坏")
         
-        # 恢复训练数据
-        if "training_data" in backup_data:
-            if not save_training_data(backup_data["training_data"]):
-                raise HTTPException(status_code=500, detail="恢复训练数据失败")
+        # 手动训练数据功能已移除，跳过训练数据恢复
+        # if "training_data" in backup_data:
+        #     已废弃，手动训练数据功能已移除
         
         # 记录恢复操作已完成
         
@@ -291,20 +290,17 @@ async def submit_feedback(feedback: FeedbackData):
 async def get_general_statistics():
     """获取总体统计"""
     try:
-        samples = load_training_data()
+        # 手动训练数据功能已移除
+        samples = []
         history = []  # 训练历史功能已移除
         
         # 基础统计
-        total_samples = len(samples)
-        channels = set(s.get('channel_id') for s in samples if s.get('channel_id'))
+        total_samples = 0
+        channels = set()
         
         # 今日统计
         today = datetime.now().date()
-        today_samples = sum(
-            1 for s in samples 
-            if s.get('created_at') and 
-            datetime.fromisoformat(s['created_at']).date() == today
-        )
+        today_samples = 0  # 手动训练数据已移除
         
         # 历史活动统计
         recent_activity = len([
@@ -330,16 +326,16 @@ async def get_general_statistics():
 async def clear_all_data():
     """清除所有训练数据（危险操作）"""
     try:
-        # 创建备份
-        backup_dir = PathConfig.MANUAL_TRAINING_FILE.parent / "backups"
+        # 手动训练数据功能已移除，无需备份和清空操作
+        backup_dir = PathConfig.BACKUP_DIR
         backup_dir.mkdir(exist_ok=True)
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = backup_dir / f"pre_clear_backup_{timestamp}.json"
         
-        # 备份现有数据
+        # 创建空的备份记录
         backup_data = {
-            "training_data": load_training_data(),
+            "training_data": [],  # 手动训练数据已移除
             "training_history": [],  # 训练历史功能已移除
             "backup_timestamp": datetime.now().isoformat(),
             "backup_type": "pre_clear"
@@ -347,17 +343,13 @@ async def clear_all_data():
         
         SafeFileOperation.write_json_safe(backup_file, backup_data)
         
-        # 清空数据
-        if not save_training_data([]):
-            raise HTTPException(status_code=500, detail="清空数据失败")
-        
         # 记录清空操作已完成
         
         return {
             "success": True,
             "message": "所有数据已清除",
             "backupFile": str(backup_file.name),
-            "clearedCount": len(backup_data["training_data"])
+            "clearedCount": 0  # 手动训练数据已移除
         }
     except Exception as e:
         raise handle_api_error(e, "清除所有数据")

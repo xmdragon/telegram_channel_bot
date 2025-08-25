@@ -16,7 +16,6 @@ from app.utils.safe_file_ops import SafeFileOperation
 logger = logging.getLogger(__name__)
 
 # 文件路径配置
-TRAINING_DATA_FILE = PathConfig.MANUAL_TRAINING_FILE
 TAIL_FILTER_SAMPLES_FILE = PathConfig.TAIL_FILTER_SAMPLES_FILE
 SEPARATOR_PATTERNS_FILE = PathConfig.SEPARATOR_PATTERNS_FILE
 PROMO_SAMPLES_FILE = PathConfig.PROMO_SAMPLES_FILE
@@ -33,12 +32,7 @@ def check_permission(permission_name: str):
     return dependency
 
 # Pydantic模型定义
-class TrainingSubmission(BaseModel):
-    """训练数据提交模型"""
-    channel_id: str
-    channel_name: str = ""
-    original_message: str
-    tail_content: str
+# TrainingSubmission 类已废弃 - 手动训练数据功能已移除
 
 class TailFilterSample(BaseModel):
     """尾部过滤样本模型"""
@@ -70,31 +64,9 @@ class FeedbackData(BaseModel):
     is_correct: bool
     user_feedback: str = ""
 
-# 核心数据操作函数
-def load_training_data() -> List[Dict]:
-    """加载训练数据"""
-    try:
-        if TRAINING_DATA_FILE.exists():
-            data = SafeFileOperation.read_json_safe(TRAINING_DATA_FILE)
-            return data.get('samples', []) if data else []
-        return []
-    except Exception as e:
-        logger.error(f"加载训练数据失败: {e}")
-        return []
-
-def save_training_data(samples: List[Dict]) -> bool:
-    """保存训练数据"""
-    try:
-        data = {
-            'samples': samples,
-            'updated_at': datetime.now().isoformat(),
-            'total_count': len(samples)
-        }
-        SafeFileOperation.write_json_safe(TRAINING_DATA_FILE, data)
-        return True
-    except Exception as e:
-        logger.error(f"保存训练数据失败: {e}")
-        return False
+# 核心数据操作函数 - 手动训练数据功能已移除
+# load_training_data() 和 save_training_data() 函数已废弃
+# 所有训练数据现在通过专门的训练数据模块管理
 
 
 def load_tail_filter_samples() -> List[Dict]:
