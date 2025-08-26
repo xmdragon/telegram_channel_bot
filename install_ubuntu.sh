@@ -192,28 +192,9 @@ install_python() {
     fi
 }
 
-# 安装Redis
-install_redis() {
-    log_info "安装Redis..."
-    
-    if command -v redis-server &> /dev/null; then
-        log_success "Redis已安装"
-        return
-    fi
-    
-    sudo apt install -y redis-server
-    
-    # 配置Redis
-    sudo systemctl enable redis-server
-    sudo systemctl start redis-server
-    
-    # 测试Redis连接
-    if redis-cli ping | grep -q "PONG"; then
-        log_success "Redis安装并启动成功"
-    else
-        log_error "Redis启动失败"
-        exit 1
-    fi
+# Redis已容器化，无需系统安装
+check_redis() {
+    log_info "Redis将运行在Docker容器中，无需系统安装"
 }
 
 # 安装Docker和Docker Compose
@@ -256,25 +237,9 @@ install_docker() {
     sudo systemctl start docker
 }
 
-# 安装Nginx
-install_nginx() {
-    log_info "安装Nginx..."
-    
-    if command -v nginx &> /dev/null; then
-        log_success "Nginx已安装"
-        return
-    fi
-    
-    sudo apt install -y nginx
-    
-    # 启用并启动Nginx
-    sudo systemctl enable nginx
-    sudo systemctl start nginx
-    
-    # 配置防火墙
-    sudo ufw allow 'Nginx Full' 2>/dev/null || true
-    
-    log_success "Nginx安装完成"
+# Nginx已容器化，无需系统安装
+check_nginx() {
+    log_info "Nginx将运行在Docker容器中，无需系统安装"
 }
 
 # 安装系统监控工具
@@ -345,8 +310,8 @@ setup_systemd_services() {
     sudo tee /etc/systemd/system/telegram-bot.service > /dev/null <<EOF
 [Unit]
 Description=Telegram Bot Message Processing System
-After=network.target redis.service docker.service
-Requires=redis.service
+After=network.target docker.service
+Requires=docker.service
 
 [Service]
 Type=forking
@@ -385,10 +350,8 @@ configure_firewall() {
     sudo ufw allow 80
     sudo ufw allow 443
     
-    # 允许应用端口（仅本地访问）
-    sudo ufw allow from 127.0.0.1 to any port 8000
-    sudo ufw allow from 127.0.0.1 to any port 8080
-    sudo ufw allow from 127.0.0.1 to any port 6379
+    # 允许Docker容器端口
+    sudo ufw allow from 127.0.0.1 to any port 8000  # 内部API端口
     
     log_success "防火墙配置完成"
 }
@@ -494,9 +457,9 @@ main() {
     update_system
     install_basic_tools
     install_python
-    install_redis
+    check_redis
     install_docker
-    install_nginx
+    check_nginx
     install_monitoring_tools
     setup_project_environment
     setup_systemd_services
@@ -519,10 +482,10 @@ case "${1:-install}" in
         echo
         log_info "已安装组件检查："
         
-        command -v python3.11 >/dev/null && echo "✅ Python 3.11" || echo "❌ Python 3.11"
-        command -v redis-server >/dev/null && echo "✅ Redis" || echo "❌ Redis"
+        command -v python3 >/dev/null && echo "✅ Python 3.x" || echo "❌ Python 3.x"
+        echo "✅ Redis (Docker容器)"
         command -v docker >/dev/null && echo "✅ Docker" || echo "❌ Docker"
-        command -v nginx >/dev/null && echo "✅ Nginx" || echo "❌ Nginx"
+        echo "✅ Nginx (Docker容器)"
         [[ -d "/opt/telegram-bot" ]] && echo "✅ 项目目录" || echo "❌ 项目目录"
         
         echo
