@@ -122,6 +122,22 @@
           "created_at": "2025-08-21T00:00:00.000000"
         },
         {
+          "pattern": "(?:N9|n9).*(?:国际|國際|娱乐城|娛樂城).*(?:公平公正|信誉|信譽|充值|送|注册|註冊)",
+          "weight": 10,
+          "description": "N9国际娱乐城特征识别",
+          "category": "gambling",
+          "auto_learned": false,
+          "created_at": "2025-08-26T00:00:00.000000"
+        },
+        {
+          "pattern": "(?:🔥{2,}).*(?:娱乐城|娛樂城|平台).*(?:充值|二存|三存|注册送|註冊送).*[0-9]+.*[uU]",
+          "weight": 10,
+          "description": "火焰表情赌博平台充值优惠",
+          "category": "gambling",
+          "auto_learned": false,
+          "created_at": "2025-08-26T00:00:00.000000"
+        },
+        {
           "pattern": "(?:盘总|盤總|盘|盤).*(?:提刀|刀|千倍)",
           "weight": 10,
           "description": "赌博庄家术语",

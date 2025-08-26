@@ -328,6 +328,9 @@ class PromoVectorManager:
             return []
         if not query_text or not query_text.strip():
             return []
+        
+        # 确保初始化，以正确加载向量数据
+        self._ensure_initialized()
             
         if self._vectors is None or len(self._texts) == 0:
             return []
@@ -410,6 +413,10 @@ class PromoVectorManager:
         """获取缓存统计信息"""
         if self.disabled:
             return {'disabled': True, 'reason': 'sentence_transformers not available'}
+        
+        # 确保初始化，以获取准确统计
+        self._ensure_initialized()
+        
         return {
             'total_vectors': len(self._texts),
             'cache_file_exists': self.vector_cache_file.exists(),
