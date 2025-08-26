@@ -1084,9 +1084,8 @@
 }
 
 .filter-item.filter-sub-item {
-    margin-left: 16px;
-    border-left: 3px solid #5b63d3;
     background: #f0f4ff;
+    border-left: 3px solid #5b63d3;
 }
 
 /* 过滤器信息 */
