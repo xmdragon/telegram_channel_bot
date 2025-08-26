@@ -77,11 +77,6 @@ nano .env
 **必须配置的关键参数**:
 
 ```bash
-# Telegram配置
-TELEGRAM_BOT_TOKEN=your_bot_token_here        # 从@BotFather获取
-TELEGRAM_API_ID=your_api_id                   # 从my.telegram.org获取
-TELEGRAM_API_HASH=your_api_hash               # 从my.telegram.org获取
-
 # 安全配置
 JWT_SECRET_KEY=your_very_secure_secret        # 生成强密码
 ADMIN_PASSWORD=your_secure_admin_password     # 管理员密码
@@ -90,17 +85,23 @@ ADMIN_PASSWORD=your_secure_admin_password     # 管理员密码
 CORS_ORIGINS=https://yourdomain.com
 ```
 
-#### 3.2 获取Telegram凭证
+**注意**: Telegram认证通过Web管理界面完成，无需在.env文件中配置Bot Token或API凭证。
 
-1. **Bot Token**: 
-   - 联系 [@BotFather](https://t.me/botfather)
-   - 发送 `/newbot` 创建新bot
-   - 获取token并填入 `TELEGRAM_BOT_TOKEN`
+#### 3.2 Telegram认证配置
 
-2. **API凭证**:
-   - 访问 [my.telegram.org](https://my.telegram.org)
-   - 登录并创建应用
-   - 获取 `api_id` 和 `api_hash`
+系统使用用户账户认证而非Bot Token：
+
+1. **完成基础部署后访问Web界面**：`https://yourdomain.com/static/login.html`
+
+2. **进行Telegram用户认证**：
+   - 系统会引导您完成手机号验证
+   - 输入收到的验证码
+   - 认证信息自动保存到 `data/config/system.json`
+
+3. **无需手动配置**：
+   - 不需要创建Bot或获取Bot Token
+   - 不需要手动配置API ID/Hash
+   - 系统自动管理所有认证信息
 
 ### 4. 部署服务
 
