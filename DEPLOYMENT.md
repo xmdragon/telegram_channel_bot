@@ -6,7 +6,7 @@
 
 ```bash
 # 下载并运行自动安装脚本
-wget https://raw.githubusercontent.com/your-repo/telegram_channel_bot/main/install_ubuntu.sh
+wget https://raw.githubusercontent.com/xmdragon/telegram_channel_bot/main/install_ubuntu.sh
 chmod +x install_ubuntu.sh
 
 # 纯容器化部署，无需安装系统Python
@@ -20,11 +20,9 @@ chmod +x install_ubuntu.sh
 ### 2. 项目部署
 
 ```bash
-# 切换到项目目录
-cd /opt/telegram-bot
-
-# 克隆项目代码
-git clone https://github.com/your-repo/telegram_channel_bot.git .
+# 克隆项目代码到当前用户目录
+git clone https://github.com/xmdragon/telegram_channel_bot.git
+cd telegram_channel_bot
 
 # 配置环境变量
 cp .env.production .env
@@ -206,7 +204,7 @@ docker stats
 htop
 
 # 查看磁盘使用
-ncdu /opt/telegram-bot
+ncdu .
 ```
 
 ### 3. 日志管理

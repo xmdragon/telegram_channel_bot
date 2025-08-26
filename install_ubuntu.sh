@@ -193,21 +193,13 @@ install_monitoring_tools() {
     log_success "监控工具安装完成"
 }
 
-# 创建项目目录和用户
+# 创建项目环境
 setup_project_environment() {
     log_info "设置项目环境..."
     
-    # 创建项目目录
-    PROJECT_DIR="/opt/telegram-bot"
-    if [[ ! -d "$PROJECT_DIR" ]]; then
-        if [[ "$IS_ROOT" == "true" ]]; then
-            mkdir -p "$PROJECT_DIR"
-        else
-            sudo mkdir -p "$PROJECT_DIR"
-            sudo chown $USER:$USER "$PROJECT_DIR"
-        fi
-        log_info "创建项目目录: $PROJECT_DIR"
-    fi
+    # 使用当前目录作为项目目录
+    PROJECT_DIR="$(pwd)"
+    log_info "使用项目目录: $PROJECT_DIR"
     
     # 创建日志目录
     LOG_DIR="/var/log/telegram-bot"
@@ -251,11 +243,11 @@ Requires=docker.service
 Type=forking
 User=$PROJECT_USER
 Group=$PROJECT_USER
-WorkingDirectory=/opt/telegram-bot
+WorkingDirectory=$PROJECT_DIR
 Environment=PATH=/usr/bin:/usr/local/bin
-ExecStart=/opt/telegram-bot/start.sh
-ExecStop=/opt/telegram-bot/stop.sh
-ExecReload=/opt/telegram-bot/restart.sh
+ExecStart=$PROJECT_DIR/start.sh
+ExecStop=$PROJECT_DIR/stop.sh
+ExecReload=$PROJECT_DIR/restart.sh
 Restart=always
 RestartSec=10
 KillMode=mixed
@@ -338,21 +330,17 @@ show_post_install_instructions() {
         echo "   exit"
         echo "   # 重新SSH登录"
         echo
-        echo "2. 克隆项目代码："
+        echo "2. 配置环境变量："
     else
-        echo "1. 克隆项目代码（root用户可直接继续）："
+        echo "1. 配置环境变量（root用户可直接继续）："
     fi
-    echo "   cd /opt/telegram-bot"
-    echo "   git clone <your-repo-url> ."
-    echo
-    echo "2. 配置环境变量："
     echo "   cp .env.production .env"
     echo "   nano .env  # 编辑Telegram凭证等"
     echo
-    echo "3. 一键部署（Docker容器化）："
+    echo "2. 一键部署（Docker容器化）："
     echo "   ./deploy.sh"
     echo
-    echo "4. 设置开机自启（可选）："
+    echo "3. 设置开机自启（可选）："
     echo "   sudo systemctl enable telegram-bot"
     echo
     log_info "服务端口："
@@ -415,7 +403,7 @@ case "${1:-install}" in
         echo "✅ Redis (Docker容器)"
         command -v docker >/dev/null && echo "✅ Docker" || echo "❌ Docker"
         echo "✅ Nginx (Docker容器)"
-        [[ -d "/opt/telegram-bot" ]] && echo "✅ 项目目录" || echo "❌ 项目目录"
+        [[ -f "deploy.sh" ]] && echo "✅ 项目目录" || echo "❌ 项目目录"
         
         echo
         ;;
