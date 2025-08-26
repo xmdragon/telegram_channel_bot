@@ -8,7 +8,13 @@
 # 下载并运行自动安装脚本
 wget https://raw.githubusercontent.com/your-repo/telegram_channel_bot/main/install_ubuntu.sh
 chmod +x install_ubuntu.sh
+
+# 默认安装Python 3.12（Ubuntu 24.04自带）
 ./install_ubuntu.sh
+
+# 或指定其他Python版本
+PYTHON_VERSION=3.11 ./install_ubuntu.sh   # Python 3.11（推荐性能）
+PYTHON_VERSION=3.10 ./install_ubuntu.sh   # Python 3.10（稳定）
 ```
 
 安装完成后**重新登录**以使Docker组权限生效。

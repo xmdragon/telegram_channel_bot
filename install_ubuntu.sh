@@ -110,37 +110,79 @@ install_basic_tools() {
     log_success "基础工具安装完成"
 }
 
-# 安装Python 3.11
+# 安装Python (支持多版本选择)
 install_python() {
-    log_info "检查Python版本..."
+    # 支持的Python版本
+    SUPPORTED_VERSIONS=("3.12" "3.11" "3.10" "3.9")
+    DEFAULT_VERSION="3.12"
     
-    # 检查是否已有Python 3.11
-    if command -v python3.11 &> /dev/null; then
-        PYTHON_VERSION=$(python3.11 --version | cut -d' ' -f2)
-        log_success "Python 3.11已安装: $PYTHON_VERSION"
+    # 允许通过环境变量指定版本
+    PYTHON_VERSION=${PYTHON_VERSION:-$DEFAULT_VERSION}
+    
+    log_info "目标Python版本: $PYTHON_VERSION"
+    
+    # 检查是否已安装目标版本
+    if command -v python$PYTHON_VERSION &> /dev/null; then
+        INSTALLED_VERSION=$(python$PYTHON_VERSION --version | cut -d' ' -f2)
+        log_success "Python $PYTHON_VERSION已安装: $INSTALLED_VERSION"
+        
+        # 设置为默认python3
+        sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$PYTHON_VERSION 1
         return
     fi
     
-    log_info "安装Python 3.11..."
+    log_info "安装Python $PYTHON_VERSION..."
     
-    # 添加deadsnakes PPA源（为了获取最新Python版本）
-    sudo add-apt-repository ppa:deadsnakes/ppa -y
-    sudo apt update
+    # Ubuntu 24.04默认有Python 3.12，22.04有3.10
+    if [[ "$PYTHON_VERSION" == "3.12" ]] && [[ "$DISTRIB_RELEASE" == "24.04" ]]; then
+        # Ubuntu 24.04自带Python 3.12
+        sudo apt install -y \
+            python3 \
+            python3-dev \
+            python3-venv \
+            python3-pip
+        
+        # 创建链接
+        sudo ln -sf /usr/bin/python3 /usr/bin/python3.12 2>/dev/null || true
+        
+    elif [[ "$PYTHON_VERSION" == "3.10" ]] && [[ "$DISTRIB_RELEASE" == "22.04" ]]; then
+        # Ubuntu 22.04自带Python 3.10
+        sudo apt install -y \
+            python3 \
+            python3-dev \
+            python3-venv \
+            python3-pip
+        
+        # 创建链接
+        sudo ln -sf /usr/bin/python3 /usr/bin/python3.10 2>/dev/null || true
+        
+    else
+        # 其他版本需要添加PPA源
+        log_info "添加deadsnakes PPA源..."
+        sudo add-apt-repository ppa:deadsnakes/ppa -y
+        sudo apt update
+        
+        # 安装指定Python版本
+        sudo apt install -y \
+            python$PYTHON_VERSION \
+            python$PYTHON_VERSION-dev \
+            python$PYTHON_VERSION-venv \
+            python$PYTHON_VERSION-distutils
+        
+        # 安装pip
+        curl -sS https://bootstrap.pypa.io/get-pip.py | python$PYTHON_VERSION
+    fi
     
-    # 安装Python 3.11和相关包
-    sudo apt install -y \
-        python3.11 \
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils
+    # 设置python3指向目标版本
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$PYTHON_VERSION 1
     
-    # 安装pip
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
-    
-    # 设置python3指向python3.11
-    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-    
-    log_success "Python 3.11安装完成"
+    # 验证安装
+    if python3 --version | grep -q "$PYTHON_VERSION"; then
+        log_success "Python $PYTHON_VERSION安装完成"
+    else
+        log_error "Python $PYTHON_VERSION安装失败"
+        exit 1
+    fi
 }
 
 # 安装Redis

@@ -2,7 +2,9 @@
 # 基于Ubuntu 24.04，优化容器大小和安全性
 
 # 第一阶段：构建阶段
-FROM python:3.11-slim-bookworm as builder
+# 支持通过构建参数指定Python版本
+ARG PYTHON_VERSION=3.12
+FROM python:${PYTHON_VERSION}-slim-bookworm as builder
 
 # 设置工作目录
 WORKDIR /app
@@ -28,7 +30,8 @@ RUN pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # 第二阶段：运行阶段
-FROM python:3.11-slim-bookworm
+ARG PYTHON_VERSION=3.12
+FROM python:${PYTHON_VERSION}-slim-bookworm
 
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1 \

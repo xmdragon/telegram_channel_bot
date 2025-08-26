@@ -107,8 +107,12 @@ create_backup() {
 build_images() {
     log_info "构建Docker镜像..."
     
-    # 构建应用镜像
-    docker compose -f "$COMPOSE_FILE" build --no-cache
+    # 从.env文件读取Python版本
+    PYTHON_VERSION=$(grep "^PYTHON_VERSION=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo "3.12")
+    log_info "使用Python版本: $PYTHON_VERSION"
+    
+    # 构建应用镜像（传递Python版本参数）
+    docker compose -f "$COMPOSE_FILE" build --build-arg PYTHON_VERSION="$PYTHON_VERSION" --no-cache
     
     log_success "镜像构建完成"
 }
