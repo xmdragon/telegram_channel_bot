@@ -398,166 +398,183 @@
                 <!-- 过滤器管理 -->
                 <div class="tab-content" v-show="activeTab === 'filters'">
                     <div class="config-section">
-                        <h3>🔍 过滤器管理</h3>
-                        <p class="section-description">配置消息处理过程中启用的过滤器和检测机制</p>
-                        
-                        <!-- 内容清理过滤器 -->
-                        <div class="filter-group">
-                            <h4 class="group-title">🔧 内容清理过滤器</h4>
-                            <p class="group-description">这些过滤器负责清理和优化消息内容</p>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">尾部内容过滤</label>
-                                    <span class="filter-description">移除消息尾部的推广链接、订阅提示等</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.tail_filter">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">尾部推广链接过滤</label>
-                                    <span class="filter-description">检测并移除消息尾部的推广链接</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.footer_promo">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">Markdown格式清理</label>
-                                    <span class="filter-description">清理不规范的Markdown格式标记</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.markdown">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">推广内容向量过滤</label>
-                                    <span class="filter-description">使用AI向量识别并过滤推广内容段落</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.promo_vector">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
+                        <div class="page-header">
+                            <h3>🔍 过滤器管理</h3>
+                            <p class="section-description">配置消息处理过程中启用的过滤器和检测机制</p>
                         </div>
                         
-                        <!-- 内容检测过滤器 -->
-                        <div class="filter-group">
-                            <h4 class="group-title">🔍 内容检测过滤器</h4>
-                            <p class="group-description">这些过滤器负责检测和标记特殊内容</p>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">重复内容检测</label>
-                                    <span class="filter-description">检测并标记重复或相似的消息</span>
+                        <!-- 过滤器网格布局 -->
+                        <div class="filters-grid">
+                            <!-- 内容清理过滤器 -->
+                            <div class="filter-group">
+                                <div class="filter-group-header">
+                                    <h4 class="group-title">🧹 内容清理过滤器</h4>
+                                    <p class="group-description">这些过滤器负责清理和优化消息内容</p>
                                 </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.duplicate">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">广告内容检测</label>
-                                    <span class="filter-description">使用AI技术检测广告和营销内容</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.ad_detector">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="filter-item filter-sub-item" v-show="filterSettings.ad_detector">
-                                <div class="filter-info">
-                                    <label class="filter-label">📷 图片OCR识别</label>
-                                    <span class="filter-description">识别图片中的文字内容用于广告检测</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.ocr_enabled">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">聊天内容检测</label>
-                                    <span class="filter-description">检测并过滤聊天记录类内容</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.chat_content">
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 自动拒绝设置 -->
-                        <div class="filter-group">
-                            <h4 class="group-title">🚫 自动拒绝设置</h4>
-                            <p class="group-description">配置自动拒绝特定类型消息的规则</p>
-                            
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">自动拒绝纯广告消息</label>
-                                    <span class="filter-description">过滤后无有效内容的纯广告消息将被自动拒绝</span>
-                                </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.auto_reject_ads">
-                                        <span class="slider"></span>
-                                    </label>
+                                
+                                <div class="filter-items">
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">尾部内容过滤</div>
+                                            <div class="filter-description">移除消息尾部的推广链接、订阅提示等</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.tail_filter">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">尾部推广链接过滤</div>
+                                            <div class="filter-description">检测并移除消息尾部的推广链接</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.footer_promo">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">Markdown格式清理</div>
+                                            <div class="filter-description">清理不规范的Markdown格式标记</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.markdown">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">推广内容向量过滤</div>
+                                            <div class="filter-description">使用AI向量识别并过滤推广内容段落</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.promo_vector">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">自动拒绝重复消息</label>
-                                    <span class="filter-description">检测到的重复消息将被自动拒绝</span>
+                            <!-- 内容检测过滤器 -->
+                            <div class="filter-group">
+                                <div class="filter-group-header">
+                                    <h4 class="group-title">🔍 内容检测过滤器</h4>
+                                    <p class="group-description">这些过滤器负责检测和标记特殊内容</p>
                                 </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.auto_reject_duplicates">
-                                        <span class="slider"></span>
-                                    </label>
+                                
+                                <div class="filter-items">
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">重复内容检测</div>
+                                            <div class="filter-description">检测并标记重复或相似的消息</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.duplicate">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">广告内容检测</div>
+                                            <div class="filter-description">使用AI技术检测广告和营销内容</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.ad_detector">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item filter-sub-item" v-show="filterSettings.ad_detector">
+                                        <div class="filter-info">
+                                            <div class="filter-label">📷 图片OCR识别</div>
+                                            <div class="filter-description">识别图片中的文字内容用于广告检测</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.ocr_enabled">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">聊天内容检测</div>
+                                            <div class="filter-description">检测并过滤聊天记录类内容</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.chat_content">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div class="filter-item">
-                                <div class="filter-info">
-                                    <label class="filter-label">自动拒绝高风险内容</label>
-                                    <span class="filter-description">检测到赌博、色情、诈骗等高风险内容将被自动拒绝</span>
+                            <!-- 自动拒绝设置 -->
+                            <div class="filter-group">
+                                <div class="filter-group-header">
+                                    <h4 class="group-title">🚫 自动拒绝设置</h4>
+                                    <p class="group-description">配置自动拒绝特定类型消息的规则</p>
                                 </div>
-                                <div class="filter-control">
-                                    <label class="switch">
-                                        <input type="checkbox" v-model="filterSettings.auto_reject_high_risk">
-                                        <span class="slider"></span>
-                                    </label>
+                                
+                                <div class="filter-items">
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">自动拒绝纯广告消息</div>
+                                            <div class="filter-description">过滤后无有效内容的纯广告消息将被自动拒绝</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.auto_reject_ads">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">自动拒绝重复消息</div>
+                                            <div class="filter-description">检测到的重复消息将被自动拒绝</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.auto_reject_duplicates">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <div class="filter-info">
+                                            <div class="filter-label">自动拒绝高风险内容</div>
+                                            <div class="filter-description">检测到赌博、色情、诈骗等高风险内容将被自动拒绝</div>
+                                        </div>
+                                        <div class="filter-control">
+                                            <label class="switch">
+                                                <input type="checkbox" v-model="filterSettings.auto_reject_high_risk">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
