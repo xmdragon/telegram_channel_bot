@@ -103,12 +103,65 @@ create_backup() {
     log_success "备份完成: $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
 }
 
+# 预下载AI模型
+preload_ai_models() {
+    log_info "预下载AI模型..."
+    
+    # 检查Python环境
+    if [[ ! -f "venv/bin/python3" ]]; then
+        log_warning "Python虚拟环境不存在，跳过AI模型预下载"
+        return
+    fi
+    
+    # 检查预下载工具
+    if [[ ! -f "tools/maintenance/preload_ai_models.py" ]]; then
+        log_warning "AI模型预下载工具不存在，跳过预下载"
+        return
+    fi
+    
+    # 临时启用网络下载模式
+    export HF_HUB_OFFLINE=0
+    
+    # 执行预下载
+    if ./venv/bin/python3 tools/maintenance/preload_ai_models.py --download; then
+        log_success "AI模型预下载完成"
+    else
+        log_warning "AI模型预下载失败，系统将在运行时自动下载"
+    fi
+    
+    # 恢复离线模式
+    export HF_HUB_OFFLINE=1
+}
+
 # 构建镜像
 build_images() {
     log_info "构建Docker镜像..."
     
-    # 构建所有服务镜像
-    docker compose -f "$COMPOSE_FILE" build --no-cache
+    # 清理构建缓存释放空间
+    log_info "清理Docker构建缓存..."
+    docker buildx prune -f 2>/dev/null || true
+    docker system prune -f 2>/dev/null || true
+    
+    # 检查可用空间
+    AVAILABLE_SPACE=$(df / | tail -1 | awk '{print $4}')
+    log_info "可用磁盘空间: ${AVAILABLE_SPACE}KB"
+    
+    # 分步构建，避免同时构建多个镜像
+    log_info "分步构建镜像以节省空间..."
+    
+    # 先构建应用镜像
+    log_info "构建应用镜像..."
+    docker compose -f "$COMPOSE_FILE" build --no-cache app
+    
+    # 清理中间缓存
+    docker image prune -f
+    
+    # 再构建调度器镜像
+    log_info "构建调度器镜像..."
+    docker compose -f "$COMPOSE_FILE" build --no-cache message-scheduler
+    
+    # 最终清理
+    docker image prune -f
     
     log_success "镜像构建完成"
 }
@@ -245,6 +298,7 @@ full_deploy() {
     
     check_environment
     create_backup $backup_option
+    preload_ai_models  # 在构建镜像前预下载AI模型
     build_images
     deploy_services
     wait_for_services
@@ -276,6 +330,27 @@ cleanup() {
     docker volume prune -f
     
     log_success "清理完成"
+}
+
+# 深度清理（用于磁盘空间不足时）
+deep_cleanup() {
+    log_warning "执行深度清理释放最大空间..."
+    
+    # 停止所有容器
+    docker stop $(docker ps -aq) 2>/dev/null || true
+    
+    # 删除所有容器、镜像、网络、卷
+    docker system prune -af --volumes
+    docker buildx prune -af
+    
+    # 清理构建缓存
+    docker builder prune -af
+    
+    log_success "深度清理完成"
+    
+    # 显示清理后的空间
+    log_info "清理后磁盘空间:"
+    df -h / | grep -v Filesystem
 }
 
 # SSL证书设置
@@ -322,6 +397,7 @@ show_help() {
     echo "  logs [service]  - 查看日志"
     echo "  backup          - 创建备份"
     echo "  cleanup         - 清理Docker资源"
+    echo "  deep-cleanup    - 深度清理（磁盘空间不足时使用）"
     echo "  ssl <domain>    - 设置SSL证书"
     echo "  help            - 显示帮助"
     echo
@@ -367,6 +443,9 @@ main() {
             ;;
         "cleanup")
             cleanup
+            ;;
+        "deep-cleanup")
+            deep_cleanup
             ;;
         "ssl")
             setup_ssl "${2:-}"
