@@ -104,12 +104,11 @@ class MessageQueryMixin:
             # 🚀 Linus式优化：使用ZUNIONSTORE合并所有状态索引，避免keys()扫描
             temp_key = f"msg:tmp:all:{id(self)}"
             
-            # 合并所有状态的索引（pending、approved、rejected、auto_forwarded等）
+            # 合并所有状态的索引（pending、approved、rejected）
             status_indexes = [
                 "msg:idx:pending",
                 "msg:idx:approved", 
-                "msg:idx:rejected",
-                "msg:idx:auto_forwarded"
+                "msg:idx:rejected"
             ]
             
             # 检查哪些索引实际存在
@@ -210,7 +209,7 @@ class MessageQueryMixin:
         
         Args:
             channel_id: 频道ID，为空时获取全部频道
-            status: 状态筛选 (pending, approved, rejected, auto_forwarded)，为空时获取全部状态
+            status: 状态筛选 (pending, approved, rejected)，为空时获取全部状态
             
         Returns:
             消息数量
@@ -247,8 +246,7 @@ class MessageQueryMixin:
                 status_indexes = [
                     "msg:idx:pending",
                     "msg:idx:approved", 
-                    "msg:idx:rejected",
-                    "msg:idx:auto_forwarded"
+                    "msg:idx:rejected"
                 ]
                 
                 total_count = 0
@@ -276,7 +274,7 @@ class MessageQueryMixin:
             # 获取所有已完成状态的消息
             old_messages = []
             
-            for status in ['approved', 'rejected', 'auto_forwarded']:
+            for status in ['approved', 'rejected']:
                 # 获取指定状态的所有消息
                 message_keys = self.redis.zrange(f"msg:idx:{status}", 0, -1)
                 

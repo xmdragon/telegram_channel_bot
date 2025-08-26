@@ -85,12 +85,6 @@ async def get_message_stats(
                 "pending": 0,
                 "approved": 0,
                 "rejected": 0,
-                "auto_forwarded": 0,
-                "published": 0,
-                "processing": 0,
-                "ads": 0,
-                "duplicates": 0,
-                "channels": 0
             },
             "timestamp": format_for_api(get_current_time())
         }

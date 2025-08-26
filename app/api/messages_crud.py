@@ -101,8 +101,6 @@ async def get_messages(
                 all_messages = redis_store.get_messages_by_status("approved", limit=page_size, offset=offset)
             elif status == "rejected":
                 all_messages = redis_store.get_messages_by_status("rejected", limit=page_size, offset=offset)
-            elif status == "auto_forwarded":
-                all_messages = redis_store.get_messages_by_status("auto_forwarded", limit=page_size, offset=offset)
             else:
                 # 🚀 优化后的get_all_messages（使用索引合并，不再扫描）
                 all_messages = redis_store.get_all_messages(limit=page_size, offset=offset)

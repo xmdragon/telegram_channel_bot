@@ -68,7 +68,7 @@ class MessageMaintenanceMixin:
                     continue
             
             # 清理状态索引
-            for status in ['pending', 'approved', 'rejected', 'auto_forwarded']:
+            for status in ['pending', 'approved', 'rejected']:
                 try:
                     status_keys = self.redis.zrange(f"msg:idx:{status}", 0, -1)
                     invalid_keys = []

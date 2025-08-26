@@ -1482,9 +1482,6 @@ const MainApp = {
                     case 'new_message':
                         this.handleNewMessage(data.data);
                         break;
-                    case 'stats_update':
-                        this.handleStatsUpdate(data.data);
-                        break;
                     case 'message_status_update':
                         this.handleMessageStatusUpdate(data.data);
                         break;
@@ -1561,15 +1558,6 @@ const MainApp = {
             }
         },
 
-        // 处理统计更新
-        handleStatsUpdate(statsData) {
-            this.stats.total.value = statsData.total || 0;
-            this.stats.pending.value = statsData.pending || 0;
-            this.stats.approved.value = statsData.approved || 0;
-            this.stats.rejected.value = statsData.rejected || 0;
-            this.stats.ads.value = statsData.ads || 0;
-            this.stats.channels.value = statsData.channels || 0;
-        },
         
         // 处理媒体补抓完成通知
         handleMediaRefetched(data) {

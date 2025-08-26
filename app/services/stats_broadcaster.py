@@ -146,7 +146,6 @@ class StatsBroadcaster:
                 "pending_count": redis_message_store.get_message_count(status='pending'),
                 "approved_count": redis_message_store.get_message_count(status='approved'),
                 "rejected_count": redis_message_store.get_message_count(status='rejected'),
-                "auto_forwarded_count": redis_message_store.get_message_count(status='auto_forwarded'),
                 "timestamp": datetime.utcnow().isoformat()
             }
             

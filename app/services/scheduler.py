@@ -148,7 +148,7 @@ class MessageScheduler:
                 if pattern.startswith(b'msg:idx:') and b':' in pattern[8:]:
                     try:
                         channel_id = pattern[8:].decode('utf-8')
-                        if channel_id in ['pending', 'approved', 'rejected', 'auto_forwarded']:
+                        if channel_id in ['pending', 'approved', 'rejected']:
                             continue
                         
                         messages = message_store.get_messages_by_channel(channel_id, limit=1000)

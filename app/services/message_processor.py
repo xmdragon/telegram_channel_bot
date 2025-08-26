@@ -363,28 +363,22 @@ class MessageProcessor:
             message_stats = stats_store.get_global_stats()
             rejection_stats = stats_store.get_rejection_stats()
             
-            # 转换为旧格式以保持兼容性
+            # Linus式纯净统计：只有4个核心字段，消除所有特殊情况
             return {
                 "total": message_stats.total,
                 "pending": message_stats.pending,
                 "approved": message_stats.approved,
-                "rejected": message_stats.rejected,
-                "ads": rejection_stats.ad,
-                "duplicates": rejection_stats.duplicate,
-                "chats": rejection_stats.chat,
-                "channels": 0,  # TODO: 从频道服务获取
-                "auto_forwarded": 0,  # 暂不支持
-                "published": 0,      # 暂不支持
-                "processing": 0      # 暂不支持
+                "rejected": message_stats.rejected
             }
             
         except Exception as e:
             logger.error(f"获取Linus统计失败: {e}")
             # 返回默认统计
             return {
-                "total": 0, "pending": 0, "approved": 0, "rejected": 0,
-                "ads": 0, "duplicates": 0, "chats": 0, "channels": 0,
-                "auto_forwarded": 0, "published": 0, "processing": 0
+                "total": 0, 
+                "pending": 0, 
+                "approved": 0, 
+                "rejected": 0
             }
     
     async def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:

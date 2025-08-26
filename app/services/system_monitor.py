@@ -319,7 +319,6 @@ class SystemMonitor:
                     'pending_messages': redis_store.get_message_count(status='pending'),
                     'approved_messages': redis_store.get_message_count(status='approved'),
                     'rejected_messages': redis_store.get_message_count(status='rejected'),
-                    'auto_forwarded_messages': redis_store.get_message_count(status='auto_forwarded'),
                     'timestamp': now.isoformat()
                 }
                 
@@ -344,7 +343,6 @@ class SystemMonitor:
                 'pending_messages': 0,
                 'approved_messages': 0, 
                 'rejected_messages': 0,
-                'auto_forwarded_messages': 0,
                 'source_channels_count': 0,
                 'timestamp': datetime.utcnow().isoformat()
             }

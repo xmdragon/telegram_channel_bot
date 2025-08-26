@@ -182,7 +182,7 @@ class BotManager:
                                 await message_forwarder.forward_to_target_with_temp_client(full_message)
                                 
                                 # 只有在没有抛出异常的情况下才更新状态为已发布
-                                redis_store.update_message_status(msg_id, "published", "auto_forward")
+                                redis_store.update_message_status(msg_id, "approved", "auto_forward")
                                 
                                 logger.info(f"自动转发成功: {msg_id}")
                                 

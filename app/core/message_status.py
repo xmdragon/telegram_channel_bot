@@ -57,9 +57,6 @@ class StatusMapper:
         
         # 已发布的状态 -> APPROVED  
         'approved': MessageStatus.APPROVED,
-        'published': MessageStatus.APPROVED,
-        'auto_forwarded': MessageStatus.APPROVED,
-        'forwarded': MessageStatus.APPROVED,
         
         # 已拒绝的状态 -> REJECTED
         'rejected': MessageStatus.REJECTED,

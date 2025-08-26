@@ -321,7 +321,7 @@ class HistoryCollector:
             # process_source_message会：
             # 1. 创建媒体占位符（不立即下载）
             # 2. 过滤内容
-            # 3. 保存到Redis（状态为auto_forwarded）
+            # 3. 保存到Redis（状态为pending）
             # 4. 添加到异步下载队列
             # 5. 不转发到审核群（历史消息不需要审核）
             await telegram_bot.process_source_message(tl_message, entity)
