@@ -29,8 +29,18 @@ class PromoVectorManager:
         self._vector_cache = {}  # 文本hash -> 向量索引映射
         self._vectors = None     # numpy数组存储所有向量
         self._texts = []         # 对应的文本列表
+        self._initialized = False  # 延迟初始化标记
         
-        self._initialize()
+        # 🎯 Linus式优化: 延迟初始化，按需加载模型
+        logger.debug("✅ 推广向量管理器实例化（延迟初始化模式）")
+    
+    def _ensure_initialized(self):
+        """确保管理器已初始化（延迟加载）"""
+        if not self._initialized:
+            logger.info("🔄 首次使用，正在初始化推广向量管理器...")
+            self._initialize()
+            self._initialized = True
+            logger.info("✅ 推广向量管理器初始化完成")
     
     def _initialize(self):
         """初始化向量管理器"""
@@ -384,6 +394,7 @@ class PromoVectorManager:
         从推广样本文件重建向量索引
         便捷方法，用于API调用和自动同步
         """
+        self._ensure_initialized()
         try:
             logger.info("开始从推广样本文件重建向量索引...")
             

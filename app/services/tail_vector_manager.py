@@ -25,6 +25,7 @@ class TailVectorManager:
         self.clusters = None  # 聚类结果
         self.model = None
         self._lock = threading.RLock()
+        self._initialized = False  # 延迟初始化标记
         
         # 文件路径
         self.vector_file = PathConfig.TAIL_TRAINING_DIR / "tail_vectors.npz"
@@ -34,9 +35,19 @@ class TailVectorManager:
         self.cluster_eps = 0.3
         self.cluster_min_samples = 2
         
-        # 初始化
-        self._load_model()
-        self._load_vectors()
+        # 🎯 Linus式优化: 延迟初始化，按需加载模型
+        logger.debug("✅ 尾部向量管理器实例化（延迟初始化模式）")
+    
+    def _ensure_initialized(self):
+        """确保管理器已初始化（延迟加载）"""
+        if not self._initialized:
+            with self._lock:
+                if not self._initialized:  # 双检查锁定
+                    logger.info("🔄 首次使用，正在初始化尾部向量管理器...")
+                    self._load_model()
+                    self._load_vectors()
+                    self._initialized = True
+                    logger.info("✅ 尾部向量管理器初始化完成")
     
     def _load_model(self):
         """加载sentence-transformers模型（使用缓存管理器）"""
@@ -97,6 +108,7 @@ class TailVectorManager:
         Returns:
             向量在数组中的索引
         """
+        self._ensure_initialized()
         with self._lock:
             if not self.model:
                 raise RuntimeError("AI模型未加载")
@@ -179,6 +191,7 @@ class TailVectorManager:
         Returns:
             相似样本列表，每个包含 sample_id, similarity, vector_index
         """
+        self._ensure_initialized()
         with self._lock:
             if not self.model or self.vectors.size == 0:
                 return []
@@ -372,6 +385,7 @@ class TailVectorManager:
         🔥 从训练样本文件重建向量索引
         便捷方法，用于API调用
         """
+        self._ensure_initialized()
         try:
             from app.routers.training.base import load_tail_filter_samples
             samples = load_tail_filter_samples()
