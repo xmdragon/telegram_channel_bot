@@ -1,0 +1,473 @@
+#!/bin/bash
+
+# Telegram消息审核系统 - Ubuntu 24.04 自动安装脚本
+# 一键安装所有依赖和配置服务
+
+set -e  # 遇到错误立即退出
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# 日志函数
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# 检查是否为root用户
+check_root() {
+    if [[ $EUID -eq 0 ]]; then
+        log_error "请不要使用root用户运行此脚本"
+        log_info "建议创建普通用户: sudo adduser telegram && sudo usermod -aG sudo telegram"
+        exit 1
+    fi
+}
+
+# 检查Ubuntu版本
+check_ubuntu_version() {
+    log_info "检查Ubuntu版本..."
+    
+    if [[ ! -f /etc/lsb-release ]]; then
+        log_error "无法检测Ubuntu版本"
+        exit 1
+    fi
+    
+    source /etc/lsb-release
+    
+    if [[ "$DISTRIB_ID" != "Ubuntu" ]]; then
+        log_error "此脚本仅支持Ubuntu系统"
+        exit 1
+    fi
+    
+    if [[ "$DISTRIB_RELEASE" != "24.04" ]] && [[ "$DISTRIB_RELEASE" != "22.04" ]] && [[ "$DISTRIB_RELEASE" != "20.04" ]]; then
+        log_warning "检测到Ubuntu $DISTRIB_RELEASE，推荐使用24.04"
+        read -p "是否继续安装? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        log_success "Ubuntu版本检查通过: $DISTRIB_RELEASE"
+    fi
+}
+
+# 更新系统包
+update_system() {
+    log_info "更新系统包索引..."
+    sudo apt update
+    
+    log_info "升级系统包..."
+    sudo apt upgrade -y
+    
+    log_success "系统更新完成"
+}
+
+# 安装基础工具
+install_basic_tools() {
+    log_info "安装基础工具..."
+    
+    sudo apt install -y \
+        curl \
+        wget \
+        git \
+        unzip \
+        software-properties-common \
+        apt-transport-https \
+        ca-certificates \
+        gnupg \
+        lsb-release \
+        build-essential \
+        pkg-config \
+        libffi-dev \
+        libssl-dev \
+        zlib1g-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        xz-utils \
+        tk-dev \
+        libxml2-dev \
+        libxmlsec1-dev \
+        liblzma-dev
+    
+    log_success "基础工具安装完成"
+}
+
+# 安装Python 3.11
+install_python() {
+    log_info "检查Python版本..."
+    
+    # 检查是否已有Python 3.11
+    if command -v python3.11 &> /dev/null; then
+        PYTHON_VERSION=$(python3.11 --version | cut -d' ' -f2)
+        log_success "Python 3.11已安装: $PYTHON_VERSION"
+        return
+    fi
+    
+    log_info "安装Python 3.11..."
+    
+    # 添加deadsnakes PPA源（为了获取最新Python版本）
+    sudo add-apt-repository ppa:deadsnakes/ppa -y
+    sudo apt update
+    
+    # 安装Python 3.11和相关包
+    sudo apt install -y \
+        python3.11 \
+        python3.11-dev \
+        python3.11-venv \
+        python3.11-distutils
+    
+    # 安装pip
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+    
+    # 设置python3指向python3.11
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+    
+    log_success "Python 3.11安装完成"
+}
+
+# 安装Redis
+install_redis() {
+    log_info "安装Redis..."
+    
+    if command -v redis-server &> /dev/null; then
+        log_success "Redis已安装"
+        return
+    fi
+    
+    sudo apt install -y redis-server
+    
+    # 配置Redis
+    sudo systemctl enable redis-server
+    sudo systemctl start redis-server
+    
+    # 测试Redis连接
+    if redis-cli ping | grep -q "PONG"; then
+        log_success "Redis安装并启动成功"
+    else
+        log_error "Redis启动失败"
+        exit 1
+    fi
+}
+
+# 安装Docker和Docker Compose
+install_docker() {
+    log_info "安装Docker..."
+    
+    if command -v docker &> /dev/null; then
+        log_success "Docker已安装"
+    else
+        # 添加Docker官方GPG密钥
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        
+        # 添加Docker APT仓库
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
+        sudo apt update
+        sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+        
+        # 将当前用户添加到docker组
+        sudo usermod -aG docker $USER
+        
+        log_success "Docker安装完成"
+    fi
+    
+    # 安装Docker Compose V2
+    if command -v docker compose &> /dev/null; then
+        log_success "Docker Compose已安装"
+    else
+        log_error "Docker Compose安装失败"
+        exit 1
+    fi
+    
+    # 启用并启动Docker服务
+    sudo systemctl enable docker
+    sudo systemctl start docker
+}
+
+# 安装Nginx
+install_nginx() {
+    log_info "安装Nginx..."
+    
+    if command -v nginx &> /dev/null; then
+        log_success "Nginx已安装"
+        return
+    fi
+    
+    sudo apt install -y nginx
+    
+    # 启用并启动Nginx
+    sudo systemctl enable nginx
+    sudo systemctl start nginx
+    
+    # 配置防火墙
+    sudo ufw allow 'Nginx Full' 2>/dev/null || true
+    
+    log_success "Nginx安装完成"
+}
+
+# 安装系统监控工具
+install_monitoring_tools() {
+    log_info "安装系统监控工具..."
+    
+    sudo apt install -y \
+        htop \
+        iotop \
+        netstat-nat \
+        ss \
+        lsof \
+        tree \
+        jq \
+        ncdu
+    
+    log_success "监控工具安装完成"
+}
+
+# 创建项目目录和用户
+setup_project_environment() {
+    log_info "设置项目环境..."
+    
+    # 创建项目目录
+    PROJECT_DIR="/opt/telegram-bot"
+    if [[ ! -d "$PROJECT_DIR" ]]; then
+        sudo mkdir -p "$PROJECT_DIR"
+        sudo chown $USER:$USER "$PROJECT_DIR"
+        log_info "创建项目目录: $PROJECT_DIR"
+    fi
+    
+    # 创建日志目录
+    LOG_DIR="/var/log/telegram-bot"
+    if [[ ! -d "$LOG_DIR" ]]; then
+        sudo mkdir -p "$LOG_DIR"
+        sudo chown $USER:$USER "$LOG_DIR"
+        log_info "创建日志目录: $LOG_DIR"
+    fi
+    
+    # 创建数据目录
+    DATA_DIR="/var/lib/telegram-bot"
+    if [[ ! -d "$DATA_DIR" ]]; then
+        sudo mkdir -p "$DATA_DIR"
+        sudo chown $USER:$USER "$DATA_DIR"
+        log_info "创建数据目录: $DATA_DIR"
+    fi
+    
+    log_success "项目环境设置完成"
+}
+
+# 配置系统服务
+setup_systemd_services() {
+    log_info "配置systemd服务..."
+    
+    # 创建Telegram Bot服务文件
+    sudo tee /etc/systemd/system/telegram-bot.service > /dev/null <<EOF
+[Unit]
+Description=Telegram Bot Message Processing System
+After=network.target redis.service docker.service
+Requires=redis.service
+
+[Service]
+Type=forking
+User=$USER
+Group=$USER
+WorkingDirectory=/opt/telegram-bot
+Environment=PATH=/usr/bin:/usr/local/bin
+ExecStart=/opt/telegram-bot/start.sh
+ExecStop=/opt/telegram-bot/stop.sh
+ExecReload=/opt/telegram-bot/restart.sh
+Restart=always
+RestartSec=10
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    sudo systemctl daemon-reload
+    log_success "systemd服务配置完成"
+}
+
+# 配置防火墙
+configure_firewall() {
+    log_info "配置防火墙..."
+    
+    # 启用UFW防火墙
+    sudo ufw --force enable
+    
+    # 允许SSH
+    sudo ufw allow ssh
+    
+    # 允许HTTP和HTTPS
+    sudo ufw allow 80
+    sudo ufw allow 443
+    
+    # 允许应用端口（仅本地访问）
+    sudo ufw allow from 127.0.0.1 to any port 8000
+    sudo ufw allow from 127.0.0.1 to any port 8080
+    sudo ufw allow from 127.0.0.1 to any port 6379
+    
+    log_success "防火墙配置完成"
+}
+
+# 优化系统参数
+optimize_system() {
+    log_info "优化系统参数..."
+    
+    # 创建系统优化配置
+    sudo tee /etc/sysctl.d/99-telegram-bot.conf > /dev/null <<EOF
+# 网络优化
+net.core.somaxconn = 65535
+net.core.netdev_max_backlog = 5000
+net.ipv4.tcp_max_syn_backlog = 8192
+net.ipv4.tcp_keepalive_time = 600
+net.ipv4.tcp_keepalive_intvl = 60
+net.ipv4.tcp_keepalive_probes = 3
+
+# 内存优化
+vm.swappiness = 10
+vm.dirty_ratio = 15
+vm.dirty_background_ratio = 5
+
+# 文件描述符限制
+fs.file-max = 100000
+EOF
+    
+    # 应用系统参数
+    sudo sysctl -p /etc/sysctl.d/99-telegram-bot.conf
+    
+    # 设置用户限制
+    sudo tee /etc/security/limits.d/telegram-bot.conf > /dev/null <<EOF
+$USER soft nofile 65535
+$USER hard nofile 65535
+$USER soft nproc 32768
+$USER hard nproc 32768
+EOF
+    
+    log_success "系统优化完成"
+}
+
+# 安装完成后的设置说明
+show_post_install_instructions() {
+    log_success "🎉 安装完成！"
+    echo
+    log_info "接下来的步骤："
+    echo "1. 重新登录以使docker组权限生效："
+    echo "   exit"
+    echo "   # 重新SSH登录"
+    echo
+    echo "2. 克隆项目代码："
+    echo "   cd /opt/telegram-bot"
+    echo "   git clone <your-repo-url> ."
+    echo
+    echo "3. 设置Python虚拟环境："
+    echo "   python3.11 -m venv venv"
+    echo "   source venv/bin/activate"
+    echo "   pip install -r requirements.txt"
+    echo
+    echo "4. 配置环境变量和配置文件"
+    echo "   cp .env.example .env"
+    echo "   # 编辑配置文件"
+    echo
+    echo "5. 启动服务："
+    echo "   ./start.sh"
+    echo
+    echo "6. 设置开机自启（可选）："
+    echo "   sudo systemctl enable telegram-bot"
+    echo
+    log_info "服务端口："
+    echo "- Web界面: http://localhost:8080"
+    echo "- API接口: http://localhost:8000"
+    echo "- Redis: localhost:6379"
+    echo
+    log_info "日志位置："
+    echo "- 应用日志: /var/log/telegram-bot/"
+    echo "- 系统日志: journalctl -u telegram-bot"
+    echo
+    log_info "管理命令："
+    echo "- 查看状态: ./dev.sh --status"
+    echo "- 重启服务: ./restart.sh"
+    echo "- 查看日志: tail -f logs/app.log"
+    echo
+}
+
+# 主安装流程
+main() {
+    echo "=================================================="
+    echo "  Telegram消息审核系统 - Ubuntu 24.04 自动安装"
+    echo "=================================================="
+    echo
+    
+    check_root
+    check_ubuntu_version
+    
+    log_info "开始安装..."
+    
+    update_system
+    install_basic_tools
+    install_python
+    install_redis
+    install_docker
+    install_nginx
+    install_monitoring_tools
+    setup_project_environment
+    setup_systemd_services
+    configure_firewall
+    optimize_system
+    
+    show_post_install_instructions
+}
+
+# 脚本参数处理
+case "${1:-install}" in
+    "install")
+        main
+        ;;
+    "check")
+        log_info "检查系统环境..."
+        check_ubuntu_version
+        
+        # 检查已安装的组件
+        echo
+        log_info "已安装组件检查："
+        
+        command -v python3.11 >/dev/null && echo "✅ Python 3.11" || echo "❌ Python 3.11"
+        command -v redis-server >/dev/null && echo "✅ Redis" || echo "❌ Redis"
+        command -v docker >/dev/null && echo "✅ Docker" || echo "❌ Docker"
+        command -v nginx >/dev/null && echo "✅ Nginx" || echo "❌ Nginx"
+        [[ -d "/opt/telegram-bot" ]] && echo "✅ 项目目录" || echo "❌ 项目目录"
+        
+        echo
+        ;;
+    "help")
+        echo "用法: $0 [命令]"
+        echo
+        echo "命令:"
+        echo "  install  - 执行完整安装（默认）"
+        echo "  check    - 检查系统环境和已安装组件"
+        echo "  help     - 显示此帮助信息"
+        echo
+        ;;
+    *)
+        log_error "未知命令: $1"
+        echo "使用 '$0 help' 查看帮助"
+        exit 1
+        ;;
+esac
