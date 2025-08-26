@@ -409,11 +409,11 @@ const ConfigApp = {
             try {
                 // 使用批量配置保存API
                 const configData = {
-                    'target.auto_forward_enabled': String(Boolean(this.forwardingConfig.enabled)),
+                    'target.auto_forward_enabled': this.forwardingConfig.enabled,
                     'target.channel_link': this.forwardingConfig.target_channel.trim(),
                     'review.group_link': this.forwardingConfig.review_group.trim(),
                     'review.auto_forward_delay': String(parseInt(this.forwardingConfig.delay)),
-                    'review.auto_reject_ads': String(Boolean(this.forwardingConfig.auto_reject_ads)),
+                    'review.auto_reject_ads': this.forwardingConfig.auto_reject_ads,
                     'target.channel_id': this.forwardingConfig.target_channel_id,
                     'review.group_id': this.forwardingConfig.review_group_id
                 };
@@ -442,17 +442,17 @@ const ConfigApp = {
                 const configData = {
                     'source.history_limit': String(parseInt(this.systemConfig.history_message_limit)),
                     'target.signature': this.systemConfig.channel_signature,
-                    'collection.enabled': String(Boolean(this.systemConfig.collection_enabled)),
+                    'collection.enabled': this.systemConfig.collection_enabled,
                     // 过滤设置
-                    'filter.enabled': String(Boolean(this.systemConfig.filter_enabled)),
-                    'filter.tail_filter_enabled': String(Boolean(this.systemConfig.tail_filter_enabled)),
-                    'filter.ocr_enabled': String(Boolean(this.systemConfig.ocr_enabled)),
+                    'filter.enabled': this.systemConfig.filter_enabled,
+                    'filter.tail_filter_enabled': this.systemConfig.tail_filter_enabled,
+                    'filter.ocr_enabled': this.systemConfig.ocr_enabled,
                     // 审核设置
-                    'review.require_approval': String(Boolean(this.systemConfig.require_approval)),
-                    'review.auto_forward_after_collect': String(Boolean(this.systemConfig.auto_forward_after_collect)),
+                    'review.require_approval': this.systemConfig.require_approval,
+                    'review.auto_forward_after_collect': this.systemConfig.auto_forward_after_collect,
                     // 系统设置
-                    'scheduler.enabled': String(Boolean(this.systemConfig.scheduler_enabled)),
-                    'storage.delete_single_messages': String(Boolean(this.systemConfig.delete_single_messages))
+                    'scheduler.enabled': this.systemConfig.scheduler_enabled,
+                    'storage.delete_single_messages': this.systemConfig.delete_single_messages
                 };
                 
                 // 调试日志
@@ -537,28 +537,28 @@ const ConfigApp = {
                 // 准备保存的配置数据 - 修复配置键名映射
                 const configData = {
                     // 内容清理过滤器
-                    'filter.tail_filter_enabled': String(Boolean(this.filterSettings.tail_filter)),
-                    'filter.footer_promo_enabled': String(Boolean(this.filterSettings.footer_promo)),
-                    'filter.markdown_enabled': String(Boolean(this.filterSettings.markdown)),
-                    'filter.promo_vector_enabled': String(Boolean(this.filterSettings.promo_vector)),
+                    'filter.tail_filter_enabled': this.filterSettings.tail_filter,
+                    'filter.footer_promo_enabled': this.filterSettings.footer_promo,
+                    'filter.markdown_enabled': this.filterSettings.markdown,
+                    'filter.promo_vector_enabled': this.filterSettings.promo_vector,
                     
                     // 内容检测过滤器
-                    'filter.duplicate_enabled': String(Boolean(this.filterSettings.duplicate)),
-                    'filter.ad_detector_enabled': String(Boolean(this.filterSettings.ad_detector)),
-                    'filter.chat_content_enabled': String(Boolean(this.filterSettings.chat_content)),
+                    'filter.duplicate_enabled': this.filterSettings.duplicate,
+                    'filter.ad_detector_enabled': this.filterSettings.ad_detector,
+                    'filter.chat_content_enabled': this.filterSettings.chat_content,
                     
                     // 基础过滤开关（综合判断）
-                    'filter.enabled': String(Boolean(
+                    'filter.enabled': Boolean(
                         this.filterSettings.duplicate || 
                         this.filterSettings.ad_detector || 
                         this.filterSettings.chat_content
-                    )),
+                    ),
                     
                     // 额外功能
-                    'filter.ocr_enabled': String(Boolean(this.filterSettings.ocr_enabled)),
-                    'review.auto_reject_ads': String(Boolean(this.filterSettings.auto_reject_ads)),
-                    'review.auto_reject_duplicates': String(Boolean(this.filterSettings.auto_reject_duplicates)),
-                    'review.auto_reject_high_risk': String(Boolean(this.filterSettings.auto_reject_high_risk))
+                    'filter.ocr_enabled': this.filterSettings.ocr_enabled,
+                    'review.auto_reject_ads': this.filterSettings.auto_reject_ads,
+                    'review.auto_reject_duplicates': this.filterSettings.auto_reject_duplicates,
+                    'review.auto_reject_high_risk': this.filterSettings.auto_reject_high_risk
                 };
                 
                 console.log('保存过滤器配置:', configData);
