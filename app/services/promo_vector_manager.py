@@ -26,15 +26,10 @@ class PromoVectorManager:
     """推广样本向量管理器"""
     
     def __init__(self):
-        # 检查sentence_transformers可用性
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            logger.warning("⚠️ sentence_transformers不可用，推广向量管理器已禁用")
-            self.disabled = True
-            return
-            
+        # 🚀 Linus式简化：不再依赖重量级模型
         self.disabled = False
-        self.model_name = "all-MiniLM-L6-v2"  # 轻量级模型，384维向量
-        self.model = None
+        self.model_name = "lightweight"  # 轻量级模型标识
+        self.model = None  # 废弃，不再使用
         self.vector_cache_file = PathConfig.PROMO_TRAINING_DIR / "vector_cache.json"
         self.vector_data_file = PathConfig.PROMO_TRAINING_DIR / "vectors.npy"
         
@@ -42,98 +37,76 @@ class PromoVectorManager:
         PathConfig.PROMO_TRAINING_DIR.mkdir(parents=True, exist_ok=True)
         
         self._vector_cache = {}  # 文本hash -> 向量索引映射
-        self._vectors = None     # numpy数组存储所有向量
+        self._vectors = None     # numpy数组存储所有向量（废弃）
         self._texts = []         # 对应的文本列表
         self._initialized = False  # 延迟初始化标记
         
-        # 🎯 Linus式优化: 延迟初始化，按需加载模型
-        logger.debug("✅ 推广向量管理器实例化（延迟初始化模式）")
+        # 🎯 Linus式优化: 延迟初始化，按需加载轻量模型
+        logger.debug("✅ 推广向量管理器实例化（轻量级模式）")
     
     def _ensure_initialized(self):
         """确保管理器已初始化（延迟加载）"""
         if self.disabled:
             return
         if not self._initialized:
-            logger.info("🔄 首次使用，正在初始化推广向量管理器...")
+            logger.info("🔄 首次使用，正在初始化推广向量管理器（轻量级模式）...")
             self._initialize()
             self._initialized = True
-            logger.info("✅ 推广向量管理器初始化完成")
+            logger.info("✅ 推广向量管理器初始化完成（轻量级模式）")
     
     def _initialize(self):
-        """初始化向量管理器"""
+        """初始化向量管理器 - Linus式简化版本"""
         try:
-            # 延迟加载模型
-            self._load_model()
-            
-            # 加载现有向量数据
+            # 🚀 不再加载重量级模型，只加载文本数据
             self._load_vectors()
             
-            logger.info(f"推广向量管理器初始化完成，已缓存 {len(self._texts)} 个向量")
+            logger.info(f"推广向量管理器初始化完成，已缓存 {len(self._texts)} 个文本样本")
             
         except Exception as e:
             logger.error(f"推广向量管理器初始化失败: {e}")
     
     def _load_model(self):
-        """延迟加载SentenceTransformer模型"""
-        if self.model is None:
-            try:
-                # 🔧 Linus式解决方案：使用专用模型缓存管理器避免重复下载
-                from app.services.model_cache_manager import ModelCacheManager
-                
-                cache_manager = ModelCacheManager()
-                self.model = cache_manager.get_model()  # 使用配置文件中的模型
-                
-                if self.model:
-                    logger.info(f"加载向量模型成功，使用缓存管理器")
-                else:
-                    raise Exception("ModelCacheManager 未能加载模型")
-            except Exception as e:
-                logger.error(f"加载向量模型失败: {e}")
-                raise
+        """废弃方法 - 不再加载重量级模型"""
+        logger.debug("_load_model 已废弃，使用轻量级方案")
+        pass
     
     def _load_vectors(self):
-        """从文件加载向量缓存"""
+        """从文件加载文本缓存 - Linus式简化版本"""
         try:
-            # 加载向量缓存映射
+            # 🚀 只加载文本数据，不加载向量数据
             if self.vector_cache_file.exists():
                 cache_data = SafeFileOperation.read_json_safe(self.vector_cache_file)
                 if cache_data:
                     self._vector_cache = cache_data.get('cache', {})
                     self._texts = cache_data.get('texts', [])
             
-            # 加载向量数据
-            if self.vector_data_file.exists():
-                self._vectors = np.load(str(self.vector_data_file))
-                
-            # 验证数据一致性
-            if len(self._texts) != (self._vectors.shape[0] if self._vectors is not None else 0):
-                logger.warning("向量缓存数据不一致，重新构建")
-                self._rebuild_cache()
+            # 🔥 废弃向量数据加载，使用轻量级方案实时计算
+            self._vectors = None  # 不再使用预计算向量
+            
+            logger.info(f"文本缓存加载成功，共 {len(self._texts)} 个样本")
                 
         except Exception as e:
-            logger.error(f"加载向量缓存失败: {e}")
+            logger.error(f"加载文本缓存失败: {e}")
             self._vector_cache = {}
             self._vectors = None
             self._texts = []
     
     def _save_vectors(self):
-        """保存向量缓存到文件"""
+        """保存文本缓存到文件 - Linus式简化版本"""
         try:
-            # 保存缓存映射
+            # 🚀 只保存文本数据，不保存向量数据
             cache_data = {
                 'cache': self._vector_cache,
                 'texts': self._texts
             }
             SafeFileOperation.write_json_safe(self.vector_cache_file, cache_data)
             
-            # 保存向量数据
-            if self._vectors is not None:
-                np.save(str(self.vector_data_file), self._vectors)
+            # 🔥 不再保存向量数据，使用轻量级方案实时计算
                 
-            logger.debug(f"向量缓存保存成功，共 {len(self._texts)} 个向量")
+            logger.debug(f"文本缓存保存成功，共 {len(self._texts)} 个文本样本")
             
         except Exception as e:
-            logger.error(f"保存向量缓存失败: {e}")
+            logger.error(f"保存文本缓存失败: {e}")
     
     def _rebuild_cache(self):
         """重新构建向量缓存"""
@@ -314,7 +287,12 @@ class PromoVectorManager:
         top_k: int = 5
     ) -> List[Tuple[str, float]]:
         """
-        查找相似的推广样本
+        查找相似的推广样本 - Linus式简化版本
+        
+        优先级：
+        1. 完全匹配 → 100%
+        2. 轻量相似度计算
+        3. 简单Jaccard兜底
         
         Args:
             query_text: 查询文本
@@ -332,38 +310,77 @@ class PromoVectorManager:
         # 确保初始化，以正确加载向量数据
         self._ensure_initialized()
             
-        if self._vectors is None or len(self._texts) == 0:
+        if len(self._texts) == 0:
             return []
-            
+        
+        query_text = query_text.strip()
+        results = []
+        
         try:
-            self._load_model()
+            # 🎯 第一优先：完全匹配检查
+            for i, text in enumerate(self._texts):
+                if text.strip() == query_text:
+                    logger.info(f"🎯 完全匹配找到: {text[:50]}...")
+                    return [(text, 1.0)]  # 100% 相似度
             
-            # 编码查询文本
-            query_vector = self.model.encode([query_text.strip()], normalize_embeddings=True)
+            # 🚀 第二优先：轻量级相似度计算
+            try:
+                from app.services.lightweight_similarity import LightweightTextSimilarity
+                
+                lightweight_sim = LightweightTextSimilarity()
+                
+                # 如果轻量级模型能用，优先使用
+                all_texts = self._texts + [query_text]
+                vectors = lightweight_sim.encode(all_texts)
+                
+                if vectors is not None:
+                    query_vector = vectors[-1:].reshape(1, -1)
+                    sample_vectors = vectors[:-1]
+                    
+                    # 计算余弦相似度
+                    from sklearn.metrics.pairwise import cosine_similarity
+                    similarities = cosine_similarity(query_vector, sample_vectors).flatten()
+                    
+                    # 找到超过阈值的结果
+                    for i, similarity in enumerate(similarities):
+                        if similarity >= threshold:
+                            results.append((self._texts[i], float(similarity)))
+                    
+                    # 按相似度排序并返回top-k
+                    results.sort(key=lambda x: x[1], reverse=True)
+                    return results[:top_k]
+                
+            except Exception as e:
+                logger.warning(f"轻量级相似度计算失败，使用兜底方案: {e}")
             
-            # 计算余弦相似度
-            similarities = np.dot(self._vectors, query_vector.T).flatten()
+            # 🔧 第三兜底：简单Jaccard相似度
+            logger.info("使用Jaccard相似度兜底计算")
+            for text in self._texts:
+                jaccard_sim = self._jaccard_similarity(query_text, text)
+                if jaccard_sim >= threshold:
+                    results.append((text, jaccard_sim))
             
-            # 找到超过阈值的样本
-            valid_indices = np.where(similarities >= threshold)[0]
-            
-            if len(valid_indices) == 0:
-                return []
-            
-            # 按相似度排序
-            valid_similarities = similarities[valid_indices]
-            sorted_indices = valid_indices[np.argsort(valid_similarities)[::-1]]
-            
-            # 返回top-k结果
-            results = []
-            for idx in sorted_indices[:top_k]:
-                results.append((self._texts[idx], float(similarities[idx])))
-            
-            return results
+            # 排序返回
+            results.sort(key=lambda x: x[1], reverse=True)
+            return results[:top_k]
             
         except Exception as e:
             logger.error(f"查找相似推广样本失败: {e}")
             return []
+    
+    def _jaccard_similarity(self, text1: str, text2: str) -> float:
+        """计算Jaccard相似度"""
+        try:
+            # 简单字符级别的Jaccard相似度
+            set1 = set(text1.lower())
+            set2 = set(text2.lower())
+            
+            intersection = len(set1 & set2)
+            union = len(set1 | set2)
+            
+            return intersection / union if union > 0 else 0.0
+        except:
+            return 0.0
     
     def check_sync_status(self) -> Dict:
         """检查推广向量同步状态"""

@@ -168,7 +168,7 @@
   },
   "promo_vector_filter": {
     "similarity": {
-      "current": 0.823,
+      "current": 0.75,
       "min": 0.75,
       "max": 0.95,
       "history": [
@@ -177,7 +177,8 @@
         0.9,
         0.881,
         0.851,
-        0.823
+        0.823,
+        0.75
       ],
       "feedback_stats": {
         "tp": 0,
@@ -185,7 +186,7 @@
         "tn": 0,
         "fn": 0
       },
-      "last_updated": "2025-08-26T08:59:41.850634"
+      "last_updated": "2025-08-26T21:35:32.418422"
     },
     "min_length": {
       "current": 20,
