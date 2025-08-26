@@ -143,12 +143,24 @@ class MessageFilterProcessor(MessageProcessor):
             context.filtered_content = pipeline_result.final_content
             context.filter_reason = pipeline_result.overall_reason or ""
             
-            # 广告检测结果
+            # 广告检测结果 - 综合判断
             ad_detection_result = filter_context.get_metadata('ad_detection_result')
-            # 修复：广告标记应该直接从检测结果获取，与过滤器通过状态无关
-            context.is_ad = bool(
-                ad_detection_result and ad_detection_result.get('is_ad', False)
+            
+            # 🎯 Linus式修复：综合判断广告状态
+            # 1. AI检测结果
+            ai_detected_ad = bool(ad_detection_result and ad_detection_result.get('is_ad', False))
+            
+            # 2. 过滤器检测结果（如果有推广内容被过滤，说明检测到广告）
+            filter_detected_ad = bool(
+                any(
+                    not result.passed and result.reason  # 有过滤器检测到问题
+                    for result in pipeline_result.filter_results.values()
+                    if hasattr(result, 'passed') and hasattr(result, 'reason')
+                )
             )
+            
+            # 综合判断：AI检测或过滤器检测到广告
+            context.is_ad = ai_detected_ad or filter_detected_ad
             
             # 调试日志：记录广告检测结果
             if context.is_ad:
@@ -224,10 +236,16 @@ class MessageFilterProcessor(MessageProcessor):
             self.logger.info(f"🔧 自动拒绝广告配置: {auto_reject_ads}")
             
             if auto_reject_ads:
-                context.should_reject = True
-                context.auto_rejected = True
-                context.reject_reason = f"自动拒绝广告消息: {context.filter_reason}"
-                self.logger.info(f"⚡ 根据配置自动拒绝广告消息: {context.filter_reason}")
+                # 🎯 Linus式优化：只拒绝纯广告，有有效内容的混合消息不拒绝
+                has_valid_content = bool(context.filtered_content.strip())
+                
+                if not has_valid_content:
+                    context.should_reject = True
+                    context.auto_rejected = True
+                    context.reject_reason = f"自动拒绝纯广告消息: {context.filter_reason}"
+                    self.logger.info(f"⚡ 根据配置自动拒绝纯广告消息（无有效内容）")
+                else:
+                    self.logger.info(f"💡 检测到广告但保留有效内容，保持待审核状态")
             else:
                 self.logger.info(f"💡 广告消息保持待审核状态（自动拒绝未启用）")
                 
@@ -267,12 +285,15 @@ class MessageFilterProcessor(MessageProcessor):
             return True, f"图片广告内容自动拒绝（OCR分数:{ocr_result.get('ad_score', 0)}）"
         
         # 优先级2：检查高危关键词（从规则管理器获取）
+        # 🎯 Linus式优化：只在没有有效内容时拒绝高危关键词
         for pattern, weight in high_risk_patterns:
             if pattern.search(all_text):
-                if media_info:
-                    return True, "高风险广告自动拒绝（赌博/色情/诈骗+媒体）"
-                elif len(filtered_content.strip()) < 20:
-                    return True, "高风险广告自动拒绝（赌博/色情/诈骗内容）"
+                # 如果有媒体但过滤后无有效内容，拒绝
+                if media_info and len(filtered_content.strip()) < 20:
+                    return True, "高风险广告自动拒绝（赌博/色情/诈骗+媒体，无有效内容）"
+                # 如果无媒体且过滤后无有效内容，拒绝
+                elif not media_info and len(filtered_content.strip()) < 20:
+                    return True, "高风险广告自动拒绝（赌博/色情/诈骗内容，无有效内容）"
         
         # 优先级3：纯媒体广告
         if not content.strip() and media_info and ocr_result.get('ad_score', 0) >= 30:

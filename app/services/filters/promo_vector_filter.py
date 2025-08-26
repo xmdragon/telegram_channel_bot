@@ -489,9 +489,13 @@ class PromoVectorFilter(BaseFilter):
                 f"最高相似度{max_similarity:.3f}"
             )
             
+            # 🎯 Linus式逻辑：只有过滤后没有有效内容才拒绝
+            # 如果还有有效内容，说明过滤成功，应该通过
+            has_valid_content = bool(filtered_content.strip())
+            
             return FilterResult(
                 filtered_content=filtered_content,
-                passed=False,  # 检测到推广内容
+                passed=has_valid_content,  # 有有效内容就通过，没有才拒绝
                 processing_time_ms=0.0,
                 reason=reason,
                 confidence=confidence,
@@ -500,7 +504,8 @@ class PromoVectorFilter(BaseFilter):
                     'clean_segments': len(clean_segments),
                     'max_similarity': max_similarity,
                     'removal_ratio': removal_ratio,
-                    'matched_sample': best_match
+                    'matched_sample': best_match,
+                    'has_valid_content': has_valid_content
                 }
             )
             
