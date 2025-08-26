@@ -185,40 +185,6 @@ async def filter_message_content(
         logger.error(f"执行尾部过滤失败: {e}")
         raise HTTPException(status_code=500, detail=f"执行过滤失败: {str(e)}")
 
-@router.post(ROUTES.messages.refilter)
-@check_permission("filter.execute")
-async def refilter_message(
-    message_id: str,
-    user: Dict[str, Any] = Depends(require_auth),
-    message_processor: MessageProcessor = Depends(get_message_processor)
-):
-    """
-    重新过滤消息（使用所有过滤器）
-    """
-    try:
-        # 解析消息ID
-        if ':' in message_id:
-            channel_id, msg_id = message_id.split(':', 1)
-        else:
-            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
-        
-        # 重新执行完整的过滤流程
-        success = await message_processor.refilter_message(channel_id, int(msg_id))
-        
-        if not success:
-            raise HTTPException(status_code=404, detail="消息不存在或重新过滤失败")
-        
-        return {
-            "success": True,
-            "message": "消息已重新过滤",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"重新过滤消息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"重新过滤失败: {str(e)}")
 
 
 @router.post(ROUTES.messages.train_tail)
