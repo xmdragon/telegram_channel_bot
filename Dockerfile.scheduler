@@ -64,9 +64,9 @@ RUN mkdir -p logs data temp_media && \
 # 切换到非root用户
 USER appuser
 
-# 健康检查 - 检查进程是否运行
+# 健康检查 - 使用Python检查进程状态
 HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
-    CMD ps aux | grep -v grep | grep -q "message_scheduler.py" || exit 1
+    CMD python -c "import os; exit(0 if os.path.exists('/tmp/scheduler.pid') else 1)" || exit 1
 
 # 启动命令
 CMD ["python", "message_scheduler.py"]

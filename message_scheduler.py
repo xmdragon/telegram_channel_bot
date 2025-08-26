@@ -237,9 +237,25 @@ async def main():
     """主函数"""
     global scheduler_service
     
+    # 创建PID文件用于健康检查
+    try:
+        with open('/tmp/scheduler.pid', 'w') as f:
+            f.write(str(os.getpid()))
+        logger.info(f"PID文件已创建: /tmp/scheduler.pid (PID: {os.getpid()})")
+    except Exception as e:
+        logger.warning(f"创建PID文件失败: {e}")
+    
     # 注册信号处理器
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    def cleanup_handler(signum, frame):
+        logger.info(f"接收到信号 {signum}，清理PID文件...")
+        try:
+            os.remove('/tmp/scheduler.pid')
+        except:
+            pass
+        signal_handler(signum, frame)
+    
+    signal.signal(signal.SIGINT, cleanup_handler)
+    signal.signal(signal.SIGTERM, cleanup_handler)
     
     scheduler_service = MessageSchedulerService()
     await scheduler_service.start()
