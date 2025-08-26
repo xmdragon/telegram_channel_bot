@@ -9,12 +9,8 @@
 wget https://raw.githubusercontent.com/your-repo/telegram_channel_bot/main/install_ubuntu.sh
 chmod +x install_ubuntu.sh
 
-# 默认安装Python 3.12（Ubuntu 24.04自带）
+# 纯容器化部署，无需安装系统Python
 ./install_ubuntu.sh
-
-# 或指定其他Python版本
-PYTHON_VERSION=3.11 ./install_ubuntu.sh   # Python 3.11（推荐性能）
-PYTHON_VERSION=3.10 ./install_ubuntu.sh   # Python 3.10（稳定）
 ```
 
 **注意**: 
@@ -32,9 +28,9 @@ git clone https://github.com/your-repo/telegram_channel_bot.git .
 
 # 配置环境变量
 cp .env.production .env
-nano .env  # 编辑配置文件
+nano .env  # 编辑Telegram凭证等
 
-# 一键部署
+# 一键Docker容器化部署
 ./deploy.sh
 ```
 
@@ -52,15 +48,16 @@ nano .env  # 编辑配置文件
 
 自动安装脚本会安装以下组件：
 
-**系统环境：**
-- **Python 3.12**: 应用开发环境（支持3.9-3.12）
+**系统基础环境：**
 - **Docker & Docker Compose**: 容器化部署平台
 - **系统工具**: Git, curl, 监控工具等
 
-**Docker容器服务：**
-- **Redis**: 数据缓存和消息队列（容器化）
-- **Nginx**: 反向代理和静态文件服务（容器化）
-- **应用服务**: Web、采集、调度服务（容器化）
+**Docker容器化服务（全套）：**
+- **Python应用**: Web服务（FastAPI + Gunicorn）
+- **Python应用**: Telegram采集服务（Telethon）  
+- **Python应用**: 消息调度服务（AsyncIO）
+- **Redis**: 数据缓存和消息队列
+- **Nginx**: 反向代理和静态文件服务
 
 ```bash
 # 检查安装状态

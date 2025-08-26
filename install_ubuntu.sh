@@ -117,79 +117,13 @@ install_basic_tools() {
     log_success "基础工具安装完成"
 }
 
-# 安装Python (支持多版本选择)
-install_python() {
-    # 支持的Python版本
-    SUPPORTED_VERSIONS=("3.12" "3.11" "3.10" "3.9")
-    DEFAULT_VERSION="3.12"
-    
-    # 允许通过环境变量指定版本
-    PYTHON_VERSION=${PYTHON_VERSION:-$DEFAULT_VERSION}
-    
-    log_info "目标Python版本: $PYTHON_VERSION"
-    
-    # 检查是否已安装目标版本
-    if command -v python$PYTHON_VERSION &> /dev/null; then
-        INSTALLED_VERSION=$(python$PYTHON_VERSION --version | cut -d' ' -f2)
-        log_success "Python $PYTHON_VERSION已安装: $INSTALLED_VERSION"
-        
-        # 设置为默认python3
-        sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$PYTHON_VERSION 1
-        return
-    fi
-    
-    log_info "安装Python $PYTHON_VERSION..."
-    
-    # Ubuntu 24.04默认有Python 3.12，22.04有3.10
-    if [[ "$PYTHON_VERSION" == "3.12" ]] && [[ "$DISTRIB_RELEASE" == "24.04" ]]; then
-        # Ubuntu 24.04自带Python 3.12
-        sudo apt install -y \
-            python3 \
-            python3-dev \
-            python3-venv \
-            python3-pip
-        
-        # 创建链接
-        sudo ln -sf /usr/bin/python3 /usr/bin/python3.12 2>/dev/null || true
-        
-    elif [[ "$PYTHON_VERSION" == "3.10" ]] && [[ "$DISTRIB_RELEASE" == "22.04" ]]; then
-        # Ubuntu 22.04自带Python 3.10
-        sudo apt install -y \
-            python3 \
-            python3-dev \
-            python3-venv \
-            python3-pip
-        
-        # 创建链接
-        sudo ln -sf /usr/bin/python3 /usr/bin/python3.10 2>/dev/null || true
-        
-    else
-        # 其他版本需要添加PPA源
-        log_info "添加deadsnakes PPA源..."
-        sudo add-apt-repository ppa:deadsnakes/ppa -y
-        sudo apt update
-        
-        # 安装指定Python版本
-        sudo apt install -y \
-            python$PYTHON_VERSION \
-            python$PYTHON_VERSION-dev \
-            python$PYTHON_VERSION-venv \
-            python$PYTHON_VERSION-distutils
-        
-        # 安装pip
-        curl -sS https://bootstrap.pypa.io/get-pip.py | python$PYTHON_VERSION
-    fi
-    
-    # 设置python3指向目标版本
-    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$PYTHON_VERSION 1
-    
-    # 验证安装
-    if python3 --version | grep -q "$PYTHON_VERSION"; then
-        log_success "Python $PYTHON_VERSION安装完成"
-    else
-        log_error "Python $PYTHON_VERSION安装失败"
-        exit 1
-    fi
+# Python环境已完全容器化，无需系统安装
+check_python_containerized() {
+    log_info "🐳 Python运行环境已容器化"
+    log_info "   - Web服务: Python容器 + Gunicorn"
+    log_info "   - 采集服务: Python容器 + Telethon"
+    log_info "   - 调度服务: Python容器 + AsyncIO"
+    log_info "✅ 无需安装系统Python，减少依赖冲突"
 }
 
 # Redis已容器化，无需系统安装
@@ -411,19 +345,14 @@ show_post_install_instructions() {
     echo "   cd /opt/telegram-bot"
     echo "   git clone <your-repo-url> ."
     echo
-    echo "3. 设置Python虚拟环境："
-    echo "   python3 -m venv venv"
-    echo "   source venv/bin/activate"
-    echo "   pip install -r requirements.txt"
+    echo "2. 配置环境变量："
+    echo "   cp .env.production .env"
+    echo "   nano .env  # 编辑Telegram凭证等"
     echo
-    echo "4. 配置环境变量和配置文件"
-    echo "   cp .env.example .env"
-    echo "   # 编辑配置文件"
+    echo "3. 一键部署（Docker容器化）："
+    echo "   ./deploy.sh"
     echo
-    echo "5. 启动服务："
-    echo "   ./start.sh"
-    echo
-    echo "6. 设置开机自启（可选）："
+    echo "4. 设置开机自启（可选）："
     echo "   sudo systemctl enable telegram-bot"
     echo
     log_info "服务端口："
@@ -456,7 +385,7 @@ main() {
     
     update_system
     install_basic_tools
-    install_python
+    check_python_containerized
     check_redis
     install_docker
     check_nginx
@@ -482,7 +411,7 @@ case "${1:-install}" in
         echo
         log_info "已安装组件检查："
         
-        command -v python3 >/dev/null && echo "✅ Python 3.x" || echo "❌ Python 3.x"
+        echo "✅ Python (Docker容器)"
         echo "✅ Redis (Docker容器)"
         command -v docker >/dev/null && echo "✅ Docker" || echo "❌ Docker"
         echo "✅ Nginx (Docker容器)"
