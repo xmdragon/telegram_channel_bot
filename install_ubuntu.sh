@@ -183,8 +183,8 @@ install_monitoring_tools() {
     sudo apt install -y \
         htop \
         iotop \
-        netstat-nat \
-        ss \
+        net-tools \
+        iproute2 \
         lsof \
         tree \
         jq \
