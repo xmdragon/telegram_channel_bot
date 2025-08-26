@@ -58,8 +58,8 @@ WORKDIR /app
 COPY --chown=appuser:appuser . .
 
 # 创建必要目录
-RUN mkdir -p logs data && \
-    chown -R appuser:appuser logs data
+RUN mkdir -p logs data temp_media && \
+    chown -R appuser:appuser logs data temp_media
 
 # 切换到非root用户
 USER appuser

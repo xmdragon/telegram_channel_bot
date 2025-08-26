@@ -101,6 +101,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./temp_media:/app/temp_media
     depends_on:
       - redis
     restart: unless-stopped
