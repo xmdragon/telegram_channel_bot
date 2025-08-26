@@ -20,5 +20,5 @@ numpy==1.26.4
 opencv-python==4.8.1.78
 scikit-learn>=1.3.0
 bcrypt==4.1.2
-# AI深度学习模块（可选，不安装会自动使用轻量级模式）
-sentence-transformers>=2.2.0
+# AI深度学习模块已移除，系统使用轻量级TF-IDF模式
+# sentence-transformers>=2.2.0  # 已禁用以节省空间和构建时间

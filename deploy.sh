@@ -298,7 +298,7 @@ full_deploy() {
     
     check_environment
     create_backup $backup_option
-    preload_ai_models  # 在构建镜像前预下载AI模型
+    # AI模型预下载已移除 - 系统使用轻量级模式，无需下载外部模型
     build_images
     deploy_services
     wait_for_services

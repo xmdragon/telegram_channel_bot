@@ -1,15 +1,26 @@
 {
   "models": {
+    "lightweight": {
+      "name": "lightweight-tfidf",
+      "repo": null,
+      "local_path": "builtin",
+      "size_mb": 0,
+      "dimensions": 1000,
+      "description": "轻量级TF-IDF模型，无需外部依赖",
+      "performance": "良好",
+      "multilingual": true,
+      "enabled": true
+    },
     "nano": {
       "name": "all-MiniLM-L6-v2",
       "repo": "sentence-transformers/all-MiniLM-L6-v2",
       "local_path": null,
       "size_mb": 90,
       "dimensions": 384,
-      "description": "超轻量级模型，适合资源受限环境",
+      "description": "深度学习模型（已禁用以节省空间）",
       "performance": "较好",
       "multilingual": false,
-      "enabled": true
+      "enabled": false
     },
     "small": {
       "name": "paraphrase-multilingual-MiniLM-L12-v2",
@@ -17,10 +28,10 @@
       "local_path": null,
       "size_mb": 470,
       "dimensions": 384, 
-      "description": "多语言小型模型，平衡性能和大小",
+      "description": "深度学习模型（已禁用以节省空间）",
       "performance": "好",
       "multilingual": true,
-      "enabled": true
+      "enabled": false
     },
     "medium": {
       "name": "all-mpnet-base-v2",
@@ -28,33 +39,22 @@
       "local_path": null,
       "size_mb": 420,
       "dimensions": 768,
-      "description": "中等大小高性能模型",
+      "description": "深度学习模型（已禁用以节省空间）",
       "performance": "很好", 
       "multilingual": false,
-      "enabled": true
-    },
-    "custom": {
-      "name": "custom-model",
-      "repo": null,
-      "local_path": "/path/to/local/model",
-      "size_mb": 0,
-      "dimensions": 384,
-      "description": "自定义本地模型",
-      "performance": "未知",
-      "multilingual": true,
       "enabled": false
     }
   },
-  "default_model": "nano",
-  "fallback_chain": ["nano", "small"],
+  "default_model": "lightweight",
+  "fallback_chain": ["lightweight"],
   "cache_settings": {
     "enabled": true,
-    "max_models_in_memory": 2,
+    "max_models_in_memory": 1,
     "auto_cleanup": true
   },
   "download_settings": {
-    "retry_attempts": 3,
-    "timeout_seconds": 300,
-    "offline_mode": false
+    "retry_attempts": 0,
+    "timeout_seconds": 0,
+    "offline_mode": true
   }
 }
