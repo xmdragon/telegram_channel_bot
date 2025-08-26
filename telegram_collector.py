@@ -210,7 +210,7 @@ class TelegramCollectorService:
                 while self.is_running:
                     # 检查采集开关
                     from app.services.config_manager import config_manager
-                    collection_enabled = await config_manager.get_config('collection.enabled', True)
+                    collection_enabled = await config_manager.get_config('collection.enabled', False)
                     if not collection_enabled:
                         logger.debug("采集已禁用，等待启用...")
                         await asyncio.sleep(5)  # 暂停采集，等待启用
@@ -235,7 +235,7 @@ class TelegramCollectorService:
                 while True:
                     # 检查采集开关
                     from app.services.config_manager import config_manager
-                    collection_enabled = await config_manager.get_config('collection.enabled', True)
+                    collection_enabled = await config_manager.get_config('collection.enabled', False)
                     if not collection_enabled:
                         logger.debug("采集已禁用，等待启用...")
                         await asyncio.sleep(10)

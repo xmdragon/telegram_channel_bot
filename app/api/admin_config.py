@@ -81,7 +81,7 @@ async def get_system_config():
         "source_channels": await db_settings.get_source_channels(),
         "history_message_limit": await db_settings.get_history_message_limit(),
         "target.signature": await config_manager.get_config('target.signature', ''),
-        "collection.enabled": await config_manager.get_config('collection.enabled', True)
+        "collection.enabled": await config_manager.get_config('collection.enabled', False)
     }
 
 # === 配置更新方法 ===
@@ -123,7 +123,7 @@ async def update_config_batch(configs: Dict[str, Any]):
         
         if 'collection.enabled' in configs:
             # 获取旧值
-            old_collection_enabled = await config_manager.get_config('collection.enabled', True)
+            old_collection_enabled = await config_manager.get_config('collection.enabled', False)
             new_collection_enabled = configs['collection.enabled']
             
             # 检查是否从关闭变为开启

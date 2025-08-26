@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-26T11:47:08.210655",
+    "updated_at": "2025-08-26T12:01:08.544096",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-26T03:52:23.657617",
+  "updated_at": "2025-08-26T04:06:53.815451",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-26T11:47:08.211150",
+    "updated_at": "2025-08-26T12:01:08.544789",
     "created_at": "2025-08-26T11:00:39.026262"
   },
   "telegram.session": {
@@ -45,7 +45,7 @@
     "config_type": "string",
     "description": "启用内容过滤",
     "is_active": true,
-    "updated_at": "2025-08-26T11:52:23.648939",
+    "updated_at": "2025-08-26T12:06:53.805948",
     "created_at": "2025-08-15T19:03:51.230063"
   },
   "filter.tail_filter_enabled": {
@@ -53,47 +53,47 @@
     "config_type": "string",
     "description": "启用尾部过滤",
     "is_active": true,
-    "updated_at": "2025-08-26T11:52:23.653070",
+    "updated_at": "2025-08-26T12:06:53.808043",
     "created_at": "2025-08-15T19:03:51.230655"
   },
   "filter.ocr_enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "string",
     "description": "启用OCR图片文字识别",
     "is_active": true,
-    "updated_at": "2025-08-26T11:52:23.654962",
+    "updated_at": "2025-08-26T12:06:53.809613",
     "created_at": "2025-08-15T19:03:51.230934"
   },
   "review.require_approval": {
     "value": "true",
-    "config_type": "boolean",
+    "config_type": "string",
     "description": "需要人工审核",
     "is_active": true,
-    "updated_at": "2025-08-25T11:34:16.275987",
+    "updated_at": "2025-08-26T12:06:53.811134",
     "created_at": "2025-08-15T19:03:51.231269"
   },
   "review.auto_reject_ads": {
-    "value": "false",
-    "config_type": "string",
+    "value": "true",
+    "config_type": "boolean",
     "description": "自动拒绝广告消息",
     "is_active": true,
-    "updated_at": "2025-08-26T11:52:23.656781",
+    "updated_at": "2025-08-26T12:01:01.262755",
     "created_at": "2025-08-15T19:03:51.231615"
   },
   "review.auto_forward_after_collect": {
     "value": "false",
-    "config_type": "boolean",
+    "config_type": "string",
     "description": "采集消息后自动转发到审核群",
     "is_active": true,
-    "updated_at": "2025-08-25T11:34:16.276590",
+    "updated_at": "2025-08-26T12:06:53.812643",
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
-    "description": "系统重置完成后自动启用采集",
+    "description": "启用Telegram消息采集",
     "is_active": true,
-    "updated_at": "2025-08-26T08:03:13.009372",
+    "updated_at": "2025-08-26T12:06:53.804319",
     "created_at": "2025-08-15T19:03:51.231938"
   },
   "collection.max_messages_per_batch": {
@@ -114,18 +114,18 @@
   },
   "scheduler.enabled": {
     "value": "true",
-    "config_type": "boolean",
+    "config_type": "string",
     "description": "启用消息调度服务（自动转发、清理）",
     "is_active": true,
-    "updated_at": "2025-08-25T11:34:16.277181",
+    "updated_at": "2025-08-26T12:06:53.813862",
     "created_at": "2025-08-16T22:23:50.891394"
   },
   "source.history_limit": {
     "value": "100",
-    "config_type": "integer",
+    "config_type": "string",
     "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
     "is_active": true,
-    "updated_at": "2025-08-25T11:34:16.271663",
+    "updated_at": "2025-08-26T12:06:53.799645",
     "created_at": "2025-08-14T22:53:30.663727"
   },
   "target.signature": {
@@ -133,7 +133,7 @@
     "config_type": "string",
     "description": "频道落款内容（支持多行，用\\n分隔）",
     "is_active": true,
-    "updated_at": "2025-08-25T11:34:16.272815",
+    "updated_at": "2025-08-26T12:06:53.802237",
     "created_at": "2025-08-14T22:53:30.665451"
   },
   "target.channel_id": {
@@ -157,8 +157,8 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-26T11:47:07.100295",
-    "created_at": "2025-08-26T11:47:07.100299"
+    "updated_at": "2025-08-26T12:01:07.398865",
+    "created_at": "2025-08-26T11:57:46.049651"
   },
   "review.group_link": {
     "value": "https://t.me/+HPbDzWj3ID01OTJl",
@@ -170,10 +170,10 @@
   },
   "storage.delete_single_messages": {
     "value": "true",
-    "config_type": "boolean",
+    "config_type": "string",
     "description": "组合消息保存后删除单独消息（性能优化，可回滚）",
     "is_active": true,
-    "updated_at": "2025-08-25T11:34:16.277733",
+    "updated_at": "2025-08-26T12:06:53.814964",
     "created_at": "2025-08-20T14:46:30.000000"
   },
   "review.auto_forward_enabled": {
@@ -183,5 +183,69 @@
     "is_active": true,
     "updated_at": "2025-08-20T16:02:59.815777",
     "created_at": "2025-08-20T16:02:59.815779"
+  },
+  "filter.footer_promo_enabled": {
+    "value": "true",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.481943",
+    "created_at": "2025-08-26T11:59:09.482099"
+  },
+  "filter.markdown_enabled": {
+    "value": "true",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.482976",
+    "created_at": "2025-08-26T11:59:09.483169"
+  },
+  "filter.promo_vector_enabled": {
+    "value": "true",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.484019",
+    "created_at": "2025-08-26T11:59:09.484163"
+  },
+  "filter.duplicate_enabled": {
+    "value": "false",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.484882",
+    "created_at": "2025-08-26T11:59:09.485026"
+  },
+  "filter.ad_detector_enabled": {
+    "value": "false",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.485731",
+    "created_at": "2025-08-26T11:59:09.485861"
+  },
+  "filter.chat_content_enabled": {
+    "value": "false",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.486531",
+    "created_at": "2025-08-26T11:59:09.486678"
+  },
+  "review.auto_reject_duplicates": {
+    "value": "false",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.489686",
+    "created_at": "2025-08-26T11:59:09.489874"
+  },
+  "review.auto_reject_high_risk": {
+    "value": "false",
+    "config_type": "string",
+    "description": "",
+    "is_active": true,
+    "updated_at": "2025-08-26T11:59:09.490639",
+    "created_at": "2025-08-26T11:59:09.490779"
   }
 }

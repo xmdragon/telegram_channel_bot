@@ -92,7 +92,7 @@ class MessageEventHandler:
         try:
             # 检查采集开关
             from app.services.config_manager import config_manager
-            collection_enabled = await config_manager.get_config('collection.enabled', True)
+            collection_enabled = await config_manager.get_config('collection.enabled', False)
             if not collection_enabled:
                 logger.debug("采集已禁用，忽略新消息")
                 return

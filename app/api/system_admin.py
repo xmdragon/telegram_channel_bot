@@ -87,7 +87,7 @@ async def get_service_status(service_name: str) -> Dict[str, Any]:
         # 获取配置状态
         config_enabled = False
         if service_name == "collector":
-            config_enabled = await config_manager.get_config('collection.enabled', True)
+            config_enabled = await config_manager.get_config('collection.enabled', False)
         elif service_name == "scheduler":
             config_enabled = await config_manager.get_config('scheduler.enabled', True)
         else:
