@@ -91,7 +91,8 @@ CORS_ORIGINS=https://yourdomain.com
 
 系统使用用户账户认证而非Bot Token：
 
-1. **完成基础部署后访问Web界面**：`https://yourdomain.com/static/login.html`
+1. **完成基础部署后访问Web界面**：`http://yourdomain.com/static/login.html`
+   - 注意：默认使用HTTP，如需HTTPS请配置外部反向代理
 
 2. **进行Telegram用户认证**：
    - 系统会引导您完成手机号验证
@@ -244,7 +245,7 @@ sudo ufw status
 
 # 允许必要端口
 sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+# sudo ufw allow 443/tcp  # 已禁用，443端口可能被占用
 sudo ufw allow ssh
 ```
 
@@ -373,6 +374,8 @@ grafana:
 ---
 
 **部署完成后访问地址**:
-- Web管理界面: `https://yourdomain.com/static/login.html`
-- API文档: `https://yourdomain.com/api/`
-- 健康检查: `https://yourdomain.com/health`
+- Web管理界面: `http://yourdomain.com/static/login.html`
+- API文档: `http://yourdomain.com/api/`
+- 健康检查: `http://yourdomain.com/health`
+
+**SSL说明**: 默认使用HTTP协议。如需HTTPS，请在外部配置反向代理（如Cloudflare、Nginx等）

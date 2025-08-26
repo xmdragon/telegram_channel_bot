@@ -272,9 +272,9 @@ configure_firewall() {
     # 允许SSH
     sudo ufw allow ssh
     
-    # 允许HTTP和HTTPS
+    # 允许HTTP（443端口预留给其他服务）
     sudo ufw allow 80
-    sudo ufw allow 443
+    # sudo ufw allow 443  # 已禁用，443端口可能被其他服务占用
     
     # 允许Docker容器端口
     sudo ufw allow from 127.0.0.1 to any port 8000  # 内部API端口
