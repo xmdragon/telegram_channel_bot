@@ -1,16 +1,24 @@
 """
 推广样本向量管理器
 基于TailVectorManager架构，管理推广链接过滤的向量数据
+⚠️ 注意：系统已切换到轻量级模式，不再依赖sentence_transformers
 """
 import numpy as np
 import json
 import logging
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
-from sentence_transformers import SentenceTransformer
 
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
+
+# 可选导入sentence_transformers - 如果不可用则使用轻量级模式
+try:
+    from sentence_transformers import SentenceTransformer
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    SentenceTransformer = None
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +26,13 @@ class PromoVectorManager:
     """推广样本向量管理器"""
     
     def __init__(self):
+        # 检查sentence_transformers可用性
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            logger.warning("⚠️ sentence_transformers不可用，推广向量管理器已禁用")
+            self.disabled = True
+            return
+            
+        self.disabled = False
         self.model_name = "all-MiniLM-L6-v2"  # 轻量级模型，384维向量
         self.model = None
         self.vector_cache_file = PathConfig.PROMO_TRAINING_DIR / "vector_cache.json"
@@ -36,6 +51,8 @@ class PromoVectorManager:
     
     def _ensure_initialized(self):
         """确保管理器已初始化（延迟加载）"""
+        if self.disabled:
+            return
         if not self._initialized:
             logger.info("🔄 首次使用，正在初始化推广向量管理器...")
             self._initialize()
@@ -205,6 +222,8 @@ class PromoVectorManager:
     
     def add_sample_vector(self, content: str):
         """添加单个推广样本的向量"""
+        if self.disabled:
+            return
         if not content or not content.strip():
             return
             
@@ -220,6 +239,8 @@ class PromoVectorManager:
     
     def remove_sample_vector(self, content: str):
         """移除推广样本的向量"""
+        if self.disabled:
+            return
         if not content:
             return
             
@@ -256,6 +277,8 @@ class PromoVectorManager:
     
     def update_cache(self):
         """更新向量缓存（同步推广样本）"""
+        if self.disabled:
+            return
         try:
             from app.routers.training.base import load_promo_samples
             samples = load_promo_samples()
@@ -301,6 +324,8 @@ class PromoVectorManager:
         Returns:
             [(样本文本, 相似度分数), ...]
         """
+        if self.disabled:
+            return []
         if not query_text or not query_text.strip():
             return []
             
@@ -339,6 +364,8 @@ class PromoVectorManager:
     
     def check_sync_status(self) -> Dict:
         """检查推广向量同步状态"""
+        if self.disabled:
+            return {'disabled': True, 'reason': 'sentence_transformers not available'}
         try:
             from app.routers.training.base import load_promo_samples
             samples = load_promo_samples()
@@ -381,6 +408,8 @@ class PromoVectorManager:
     
     def get_cache_stats(self) -> Dict:
         """获取缓存统计信息"""
+        if self.disabled:
+            return {'disabled': True, 'reason': 'sentence_transformers not available'}
         return {
             'total_vectors': len(self._texts),
             'cache_file_exists': self.vector_cache_file.exists(),
@@ -394,6 +423,8 @@ class PromoVectorManager:
         从推广样本文件重建向量索引
         便捷方法，用于API调用和自动同步
         """
+        if self.disabled:
+            return {'success': False, 'reason': 'sentence_transformers not available'}
         self._ensure_initialized()
         try:
             logger.info("开始从推广样本文件重建向量索引...")
@@ -431,6 +462,8 @@ class PromoVectorManager:
     
     def clear_cache(self):
         """清空向量缓存"""
+        if self.disabled:
+            return
         try:
             self._vector_cache = {}
             self._vectors = None

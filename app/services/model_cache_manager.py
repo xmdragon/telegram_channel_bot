@@ -125,6 +125,11 @@ class ModelCacheManager:
         """根据配置加载模型"""
         try:
             from sentence_transformers import SentenceTransformer
+        except ImportError:
+            logger.error("sentence_transformers not available, cannot load model")
+            return None
+            
+        try:
             
             # 优先使用本地路径
             local_path = model_config.get('local_path')
