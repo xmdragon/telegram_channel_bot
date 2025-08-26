@@ -84,4 +84,15 @@ data/postgres/pg_wal/*
 data/postgres/pg_xact/*
 data/postgres/base/*/pg_internal.init
 data/postgres/global/pg_internal.init
-data/postgres/global/pg_control 
+data/postgres/global/pg_control
+
+# AI模型文件（太大无法提交到GitHub）
+data/models/
+data/vectors/
+*.npz
+*.bin
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.h5 
