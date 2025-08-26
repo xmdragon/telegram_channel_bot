@@ -92,20 +92,39 @@ async def filter_message_content(
                 "message": "消息没有内容可以过滤"
             }
         
-        # 🚀 Linus式解决方案：使用内容过滤管道（5个内容清理过滤器）
-        from app.services.filters.filter_pipeline import FilterPipeline, PipelineConfig
+        # 🚀 Linus式解决方案：使用统一过滤引擎（受过滤器开关控制）
+        from app.services.unified_filter_engine import unified_filter_engine
         from app.services.filters.base import FilterContext
+        from app.services.filters.filter_pipeline import FilterPipeline, PipelineConfig
         from app.services.filters.tail_filter import TailFilter
         from app.services.filters.footer_promo_filter import FooterPromoFilter
         from app.services.filters.markdown_filter import MarkdownFilter
         from app.services.filters.promo_vector_filter import PromoVectorFilter
         
-        # 创建内容过滤专用的轻量级管道（不包含检测类过滤器6-8）
+        # 创建内容过滤专用的轻量级管道（受系统配置控制）
+        # 获取当前过滤器配置
+        filter_settings = unified_filter_engine._load_filter_settings()
+        
         pipeline = FilterPipeline(PipelineConfig(enable_early_stopping=False))
-        pipeline.add_filter(TailFilter())           # 1. 尾部过滤
-        pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤
-        pipeline.add_filter(MarkdownFilter())       # 3. Markdown格式清理
-        pipeline.add_filter(PromoVectorFilter())    # 4. 推广内容向量过滤
+        
+        # 按新顺序添加过滤器（基于配置动态启用/禁用）
+        # 只添加内容清理类过滤器（1-4），不包含检测类过滤器（5-7）
+        if filter_settings.get('tail_filter', True):
+            pipeline.add_filter(TailFilter())           # 1. 尾部过滤
+            
+        if filter_settings.get('footer_promo_filter', True):
+            pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤
+            
+        if filter_settings.get('markdown_filter', True):
+            pipeline.add_filter(MarkdownFilter())       # 3. Markdown格式清理
+            
+        if filter_settings.get('promo_vector_filter', True):
+            pipeline.add_filter(PromoVectorFilter())    # 4. 推广内容向量过滤
+        
+        # 记录启用的过滤器
+        enabled_filters = [name for name in ['tail_filter', 'footer_promo_filter', 'markdown_filter', 'promo_vector_filter'] 
+                          if filter_settings.get(name, True)]
+        logger.info(f"手动内容过滤启用的过滤器: {enabled_filters}")
         
         # 创建过滤上下文
         filter_context = FilterContext(

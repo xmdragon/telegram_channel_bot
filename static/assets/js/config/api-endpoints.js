@@ -201,7 +201,10 @@ const API_ENDPOINTS = {
         // 配置管理
         config: '/api/admin/config',                               // GET - 获取管理配置
         configForwarding: '/api/admin/config/forwarding',          // POST - 配置转发
-        configBatch: '/api/admin/config/batch'                     // POST - 批量配置
+        configBatch: '/api/admin/config/batch',                    // POST - 批量配置
+        
+        // 过滤器管理
+        reloadFilters: '/api/admin/reload-filters'                 // POST - 重新加载过滤器配置
     },
 
 

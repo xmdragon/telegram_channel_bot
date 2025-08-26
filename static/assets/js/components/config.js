@@ -80,7 +80,25 @@ const ConfigApp = {
             },
             
             // 过滤设置 - 系统自动管理
-            filterConfig: {}
+            filterConfig: {},
+            
+            // 过滤器管理设置
+            filterSettings: {
+                // 内容清理过滤器
+                tail_filter: true,                    // 尾部过滤器
+                footer_promo_filter: true,            // 尾部推广链接过滤器
+                markdown_filter: true,                // Markdown格式清理
+                promo_vector_filter: true,            // 推广内容向量过滤
+                
+                // 内容检测过滤器
+                duplicate_detector: true,             // 去重检测
+                ad_detector: true,                    // 广告检测
+                chat_content_filter: true,            // 聊天内容检测
+                
+                // 额外功能
+                ocr_enabled: true,                    // OCR图片文字识别
+                auto_reject_ads: true                 // 自动拒绝广告
+            }
         }
     },
     
@@ -149,6 +167,9 @@ const ConfigApp = {
                 
                 // 加载过滤配置
                 await this.loadFilterConfig();
+                
+                // 加载过滤器管理配置
+                await this.loadFilterSettings();
                 
             } catch (error) {
                 MessageManager.error('加载配置数据失败: ' + (error.response?.data?.detail || error.message));
@@ -477,6 +498,112 @@ const ConfigApp = {
             MessageManager.info('过滤策略由系统自动管理，无需手动保存');
         },
         
+        async loadFilterSettings() {
+            try {
+                const response = await axios.get(API.config.list);
+                if (response.data && response.data.configs) {
+                    const configs = response.data.configs;
+                    
+                    // 从系统配置加载过滤器设置
+                    this.filterSettings = {
+                        // 内容清理过滤器 (基于系统配置推断)
+                        tail_filter: this.parseBooleanValue(configs['filter.tail_filter_enabled']?.value, true),
+                        footer_promo_filter: true, // 暂时默认启用，后续可扩展配置
+                        markdown_filter: true,     // 暂时默认启用，后续可扩展配置
+                        promo_vector_filter: true, // 暂时默认启用，后续可扩展配置
+                        
+                        // 内容检测过滤器 (基于系统配置推断)
+                        duplicate_detector: this.parseBooleanValue(configs['filter.enabled']?.value, true),
+                        ad_detector: this.parseBooleanValue(configs['filter.enabled']?.value, true),
+                        chat_content_filter: this.parseBooleanValue(configs['filter.enabled']?.value, true),
+                        
+                        // 额外功能
+                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled']?.value, true),
+                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads']?.value, true)
+                    };
+                }
+            } catch (error) {
+                console.error('加载过滤器设置失败:', error);
+                // 使用默认设置
+            }
+        },
+        
+        async saveFilterSettings() {
+            try {
+                // 准备保存的配置数据 - 映射到系统配置项
+                const configData = {
+                    // 基础过滤开关
+                    'filter.enabled': Boolean(
+                        this.filterSettings.duplicate_detector || 
+                        this.filterSettings.ad_detector || 
+                        this.filterSettings.chat_content_filter
+                    ),
+                    'filter.tail_filter_enabled': Boolean(this.filterSettings.tail_filter),
+                    'filter.ocr_enabled': Boolean(this.filterSettings.ocr_enabled),
+                    'review.auto_reject_ads': Boolean(this.filterSettings.auto_reject_ads)
+                };
+                
+                console.log('保存过滤器配置:', configData);
+                
+                // 批量保存配置
+                const response = await axios.post(API.admin.configBatch, configData);
+                
+                if (response.data.success) {
+                    MessageManager.success('过滤器配置保存成功');
+                    
+                    // 保存成功后重新加载配置
+                    await this.loadFilterSettings();
+                    
+                    // 通知系统重新加载过滤器
+                    await this.reloadFilters();
+                } else {
+                    throw new Error(response.data.message || '保存过滤器配置失败');
+                }
+            } catch (error) {
+                console.error('保存过滤器配置失败:', error);
+                MessageManager.error('过滤器配置保存失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        async resetFilterSettings() {
+            // 重置为默认配置
+            this.filterSettings = {
+                // 内容清理过滤器
+                tail_filter: true,
+                footer_promo_filter: true,
+                markdown_filter: true,
+                promo_vector_filter: true,
+                
+                // 内容检测过滤器
+                duplicate_detector: true,
+                ad_detector: true,
+                chat_content_filter: true,
+                
+                // 额外功能
+                ocr_enabled: true,
+                auto_reject_ads: true
+            };
+            
+            MessageManager.success('过滤器配置已重置为默认值');
+        },
+        
+        async reloadFilters() {
+            try {
+                // 调用系统API重新加载过滤器配置
+                // 注：需要后端实现此API端点
+                const response = await axios.post(API.admin.reloadFilters || '/api/admin/reload-filters');
+                
+                if (response.data && response.data.success) {
+                    MessageManager.success('过滤器重新加载成功');
+                } else {
+                    console.warn('过滤器重新加载API响应异常，但配置可能已生效');
+                }
+            } catch (error) {
+                // 如果API不存在，仍然显示成功消息（配置已保存）
+                console.warn('过滤器重新加载API调用失败，但配置已保存:', error);
+                MessageManager.info('配置已保存，系统将在下次消息处理时应用新配置');
+            }
+        },
         
         showReviewGroupHelp() {
             // 如果已经有提示在显示，不再弹出新的

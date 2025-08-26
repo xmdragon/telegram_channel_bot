@@ -36,7 +36,7 @@ class UnifiedFilterEngine:
         self._initialize_components()
         
     def _init_filter_pipeline(self) -> FilterPipeline:
-        """初始化过滤器管道"""
+        """初始化过滤器管道 - 支持基于配置的动态加载"""
         config = PipelineConfig(
             enable_early_stopping=True,
             early_stop_filters={'duplicate_detector', 'ad_detector', 'chat_content_filter'},
@@ -46,19 +46,128 @@ class UnifiedFilterEngine:
         
         pipeline = FilterPipeline(config)
         
-        # 按新顺序添加7个过滤器（删除PromoContentFilter）
+        # 从配置中获取过滤器启用状态
+        filter_settings = self._load_filter_settings()
+        
+        # 按新顺序添加过滤器（基于配置动态启用/禁用）
         # 1-4: 内容清理类过滤器（先清理推广内容）
-        pipeline.add_filter(TailFilter())                # 1. 尾部过滤
-        pipeline.add_filter(FooterPromoFilter())         # 2. 尾部推广链接过滤器
-        pipeline.add_filter(MarkdownFilter())            # 3. Markdown格式清理
-        pipeline.add_filter(PromoVectorFilter())         # 4. 推广内容向量过滤
+        if filter_settings.get('tail_filter', True):
+            pipeline.add_filter(TailFilter())                # 1. 尾部过滤
+            
+        if filter_settings.get('footer_promo_filter', True):
+            pipeline.add_filter(FooterPromoFilter())         # 2. 尾部推广链接过滤器
+            
+        if filter_settings.get('markdown_filter', True):
+            pipeline.add_filter(MarkdownFilter())            # 3. Markdown格式清理
+            
+        if filter_settings.get('promo_vector_filter', True):
+            pipeline.add_filter(PromoVectorFilter())         # 4. 推广内容向量过滤
         
         # 5-7: 内容检测类过滤器（清理后再检测，避免误判）
-        pipeline.add_filter(DuplicateDetectorFilter())   # 5. 去重检测
-        pipeline.add_filter(AdDetectorFilter())          # 6. 广告检测
-        pipeline.add_filter(ChatContentFilter())         # 7. 聊天内容检测
+        if filter_settings.get('duplicate_detector', True):
+            pipeline.add_filter(DuplicateDetectorFilter())   # 5. 去重检测
+            
+        if filter_settings.get('ad_detector', True):
+            pipeline.add_filter(AdDetectorFilter())          # 6. 广告检测
+            
+        if filter_settings.get('chat_content_filter', True):
+            pipeline.add_filter(ChatContentFilter())         # 7. 聊天内容检测
+        
+        # 记录启用的过滤器
+        enabled_filters = [name for name, enabled in filter_settings.items() if enabled and name != 'ocr_enabled' and name != 'auto_reject_ads']
+        logger.info(f"过滤器管道初始化完成，启用的过滤器: {enabled_filters}")
         
         return pipeline
+        
+    def _load_filter_settings(self) -> Dict[str, bool]:
+        """从系统配置加载过滤器设置"""
+        try:
+            from app.services.config_manager import config_manager
+            
+            # 获取配置，同步调用配置管理器
+            import asyncio
+            loop = None
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # 如果没有事件循环，创建新的
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # 加载系统配置
+            filter_enabled = True
+            tail_filter_enabled = True
+            ocr_enabled = True
+            auto_reject_ads = True
+            
+            try:
+                if loop.is_running():
+                    # 如果已经在事件循环中，直接获取当前缓存值
+                    from app.services.config_manager import ConfigManager
+                    config_mgr = ConfigManager()
+                    if hasattr(config_mgr, '_cache') and config_mgr._cache:
+                        filter_enabled = config_mgr._cache.get('filter.enabled', {}).get('value', True)
+                        tail_filter_enabled = config_mgr._cache.get('filter.tail_filter_enabled', {}).get('value', True)
+                        ocr_enabled = config_mgr._cache.get('filter.ocr_enabled', {}).get('value', True)
+                        auto_reject_ads = config_mgr._cache.get('review.auto_reject_ads', {}).get('value', True)
+                else:
+                    # 如果不在事件循环中，运行异步调用
+                    filter_enabled = loop.run_until_complete(config_manager.get_config('filter.enabled', True))
+                    tail_filter_enabled = loop.run_until_complete(config_manager.get_config('filter.tail_filter_enabled', True))
+                    ocr_enabled = loop.run_until_complete(config_manager.get_config('filter.ocr_enabled', True))
+                    auto_reject_ads = loop.run_until_complete(config_manager.get_config('review.auto_reject_ads', True))
+            except Exception as e:
+                logger.warning(f"从config_manager加载配置失败，使用默认值: {e}")
+            
+            # 转换为布尔值
+            def to_bool(value):
+                if isinstance(value, bool):
+                    return value
+                elif isinstance(value, str):
+                    return value.lower() in ('true', '1', 'yes', 'on')
+                else:
+                    return bool(value)
+            
+            filter_enabled = to_bool(filter_enabled)
+            tail_filter_enabled = to_bool(tail_filter_enabled)
+            ocr_enabled = to_bool(ocr_enabled)
+            auto_reject_ads = to_bool(auto_reject_ads)
+            
+            # 基于系统配置推断各个过滤器的启用状态
+            settings = {
+                # 内容清理过滤器
+                'tail_filter': tail_filter_enabled,
+                'footer_promo_filter': filter_enabled,  # 基于全局过滤开关
+                'markdown_filter': filter_enabled,      # 基于全局过滤开关
+                'promo_vector_filter': filter_enabled,  # 基于全局过滤开关
+                
+                # 内容检测过滤器
+                'duplicate_detector': filter_enabled,   # 基于全局过滤开关
+                'ad_detector': filter_enabled,          # 基于全局过滤开关
+                'chat_content_filter': filter_enabled,  # 基于全局过滤开关
+                
+                # 额外功能
+                'ocr_enabled': ocr_enabled,
+                'auto_reject_ads': auto_reject_ads
+            }
+            
+            logger.info(f"过滤器设置加载完成: {settings}")
+            return settings
+            
+        except Exception as e:
+            logger.error(f"加载过滤器设置失败，使用默认配置: {e}")
+            # 返回默认设置（全部启用）
+            return {
+                'tail_filter': True,
+                'footer_promo_filter': True,
+                'markdown_filter': True,
+                'promo_vector_filter': True,
+                'duplicate_detector': True,
+                'ad_detector': True,
+                'chat_content_filter': True,
+                'ocr_enabled': True,
+                'auto_reject_ads': True
+            }
         
     def _initialize_components(self):
         """初始化所有组件"""

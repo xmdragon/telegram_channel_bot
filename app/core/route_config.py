@@ -69,6 +69,7 @@ class RouteConfig:
         review_group_status = "/admin/review-group-status"
         resolve_channel_ids = "/admin/resolve-channel-ids"
         resolve_channel_id = "/admin/resolve-channel-id"
+        reload_filters = "/admin/reload-filters"
     
     class AdminAuth:
         """管理员认证路由"""

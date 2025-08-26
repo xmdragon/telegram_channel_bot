@@ -874,37 +874,19 @@ class MessageProcessor:
                     logger.warning(f"消息没有内容可以过滤: {channel_id}:{message_id}")
                     return True
                 
-                # 执行尾部过滤
-                from app.services.filters.tail_filter import TailFilter
-                from app.services.filters.base import FilterContext
+                # 执行完整的过滤流程（使用统一过滤引擎，受开关控制）
+                from app.services.unified_filter_engine import unified_filter_engine
                 
-                # 创建过滤器上下文
-                context = FilterContext(
-                    message_id=message_id,
-                    channel_id=int(channel_id),
-                    timestamp=datetime.now().timestamp(),
-                    message_type=message.get('media_type', 'text')
+                # 使用统一过滤引擎进行重新过滤
+                is_ad, filtered_content, filter_reason = await unified_filter_engine.detect_advertisement(
+                    content=original_content,
+                    channel_id=channel_id,
+                    message_obj=message,
+                    media_files=message.get('media_files', [])
                 )
                 
-                # 添加元数据
-                context.add_metadata('is_history', False)
-                context.add_metadata('message_obj', message)
-                context.add_metadata('is_refilter', True)
-                
-                # 初始化尾部过滤器
-                tail_filter = TailFilter({
-                    'intelligent_threshold': 0.6,
-                    'semantic_threshold': 0.45,
-                    'enable_intelligent': True,
-                    'enable_semantic': True
-                })
-                
-                # 执行过滤
-                tail_filter = TailFilter()
-                filter_result = await tail_filter.filter(original_content, context)
-                filtered_content = filter_result.filtered_content
-                
                 logger.info(f"重新过滤: {channel_id}:{message_id} - {len(original_content)} -> {len(filtered_content)} 字符")
+                logger.info(f"过滤结果: 是否广告={is_ad}, 过滤原因='{filter_reason}'")
             
             # 更新消息的过滤内容
             update_data = {

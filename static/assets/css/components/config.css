@@ -948,3 +948,337 @@
         justify-content: flex-start;
     }
 }
+
+/* ===========================
+   过滤器管理标签页样式
+   =========================== */
+
+.filter-management-section {
+    margin-bottom: 32px;
+}
+
+.filter-management-section h3 {
+    color: #1e293b;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.filter-management-section h3::before {
+    content: "🔧";
+    font-size: 1rem;
+}
+
+/* 过滤器组 */
+.filter-group {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.filter-group:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    border-color: #d1d5db;
+}
+
+.filter-group h4 {
+    color: #374151;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+/* 内容清理过滤器组标题 */
+.filter-group.content-cleaning h4::before {
+    content: "🧹";
+    font-size: 0.9rem;
+}
+
+/* 内容检测过滤器组标题 */
+.filter-group.content-detection h4::before {
+    content: "🔍";
+    font-size: 0.9rem;
+}
+
+/* 自动拒绝设置组标题 */
+.filter-group.auto-rejection h4::before {
+    content: "⚠️";
+    font-size: 0.9rem;
+}
+
+/* 过滤器网格布局 */
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 0;
+}
+
+/* 单个过滤器项 */
+.filter-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    min-height: 60px;
+}
+
+.filter-item:hover {
+    background: #f8fafc;
+    border-color: #d1d5db;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* 过滤器信息 */
+.filter-info {
+    flex: 1;
+    margin-right: 16px;
+}
+
+.filter-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+
+.filter-description {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.3;
+    margin: 0;
+}
+
+/* 过滤器开关 */
+.filter-switch {
+    flex-shrink: 0;
+}
+
+.filter-switch .switch {
+    width: 40px;
+    height: 22px;
+}
+
+.filter-switch .slider:before {
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 2px;
+}
+
+.filter-switch .switch input:checked + .slider:before {
+    transform: translateX(18px);
+}
+
+/* 过滤器管理操作按钮 */
+.filter-management-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-start;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.filter-management-actions .btn {
+    min-width: 120px;
+}
+
+/* 过滤器状态指示器 */
+.filter-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+.filter-status.enabled {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.filter-status.disabled {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+/* 过滤器类型标签 */
+.filter-type-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 4px;
+}
+
+.filter-type-tag.cleaning {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.filter-type-tag.detection {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.filter-type-tag.feature {
+    background: #e0e7ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+}
+
+/* 过滤器统计信息 */
+.filter-stats {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.filter-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.filter-stat-item {
+    text-align: center;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+.filter-stat-number {
+    font-size: 18px;
+    font-weight: 700;
+    color: #5b63d3;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.filter-stat-label {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .filter-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .filter-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+    }
+    
+    .filter-info {
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+    
+    .filter-switch {
+        align-self: flex-end;
+    }
+    
+    .filter-management-actions {
+        flex-direction: column;
+    }
+    
+    .filter-management-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .filter-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+}
+
+/* 深色主题适配 (可选) */
+@media (prefers-color-scheme: dark) {
+    .filter-group {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .filter-group h4 {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        color: #f9fafb;
+        border-color: #374151;
+    }
+    
+    .filter-item {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .filter-item:hover {
+        background: #111827;
+        border-color: #4b5563;
+    }
+    
+    .filter-name {
+        color: #f9fafb;
+    }
+    
+    .filter-description {
+        color: #9ca3af;
+    }
+    
+    .filter-stats {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .filter-stat-item {
+        background: #111827;
+        border-color: #374151;
+    }
+}
