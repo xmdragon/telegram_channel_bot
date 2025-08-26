@@ -82,22 +82,24 @@ const ConfigApp = {
             // 过滤设置 - 系统自动管理
             filterConfig: {},
             
-            // 过滤器管理设置
+            // 过滤器管理设置 - 修复字段名一致性
             filterSettings: {
                 // 内容清理过滤器
-                tail_filter: true,                    // 尾部过滤器
-                footer_promo_filter: true,            // 尾部推广链接过滤器
-                markdown_filter: true,                // Markdown格式清理
-                promo_vector_filter: true,            // 推广内容向量过滤
+                tail_filter: true,        // 尾部过滤器
+                footer_promo: true,       // 尾部推广链接过滤器
+                markdown: true,           // Markdown格式清理
+                promo_vector: true,       // 推广内容向量过滤
                 
                 // 内容检测过滤器
-                duplicate_detector: true,             // 去重检测
-                ad_detector: true,                    // 广告检测
-                chat_content_filter: true,            // 聊天内容检测
+                duplicate: true,          // 去重检测
+                ad_detector: true,        // 广告检测
+                chat_content: true,       // 聊天内容检测
                 
                 // 额外功能
                 ocr_enabled: true,                    // OCR图片文字识别
-                auto_reject_ads: true                 // 自动拒绝广告
+                auto_reject_ads: true,                // 自动拒绝广告
+                auto_reject_duplicates: false,        // 自动拒绝重复消息
+                auto_reject_high_risk: false          // 自动拒绝高风险内容
             }
         }
     },
@@ -504,22 +506,24 @@ const ConfigApp = {
                 if (response.data && response.data.configs) {
                     const configs = response.data.configs;
                     
-                    // 从系统配置加载过滤器设置
+                    // 从系统配置加载过滤器设置 - 修复配置键名映射
                     this.filterSettings = {
-                        // 内容清理过滤器 (基于系统配置推断)
+                        // 内容清理过滤器
                         tail_filter: this.parseBooleanValue(configs['filter.tail_filter_enabled']?.value, true),
-                        footer_promo_filter: true, // 暂时默认启用，后续可扩展配置
-                        markdown_filter: true,     // 暂时默认启用，后续可扩展配置
-                        promo_vector_filter: true, // 暂时默认启用，后续可扩展配置
+                        footer_promo: this.parseBooleanValue(configs['filter.footer_promo_enabled']?.value, true),
+                        markdown: this.parseBooleanValue(configs['filter.markdown_enabled']?.value, true),
+                        promo_vector: this.parseBooleanValue(configs['filter.promo_vector_enabled']?.value, true),
                         
-                        // 内容检测过滤器 (基于系统配置推断)
-                        duplicate_detector: this.parseBooleanValue(configs['filter.enabled']?.value, true),
-                        ad_detector: this.parseBooleanValue(configs['filter.enabled']?.value, true),
-                        chat_content_filter: this.parseBooleanValue(configs['filter.enabled']?.value, true),
+                        // 内容检测过滤器
+                        duplicate: this.parseBooleanValue(configs['filter.duplicate_enabled']?.value, true),
+                        ad_detector: this.parseBooleanValue(configs['filter.ad_detector_enabled']?.value || configs['filter.enabled']?.value, true),
+                        chat_content: this.parseBooleanValue(configs['filter.chat_content_enabled']?.value, true),
                         
                         // 额外功能
                         ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled']?.value, true),
-                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads']?.value, true)
+                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads']?.value, true),
+                        auto_reject_duplicates: this.parseBooleanValue(configs['review.auto_reject_duplicates']?.value, false),
+                        auto_reject_high_risk: this.parseBooleanValue(configs['review.auto_reject_high_risk']?.value, false)
                     };
                 }
             } catch (error) {
@@ -530,17 +534,31 @@ const ConfigApp = {
         
         async saveFilterSettings() {
             try {
-                // 准备保存的配置数据 - 映射到系统配置项，转换为字符串格式
+                // 准备保存的配置数据 - 修复配置键名映射
                 const configData = {
-                    // 基础过滤开关
-                    'filter.enabled': String(Boolean(
-                        this.filterSettings.duplicate_detector || 
-                        this.filterSettings.ad_detector || 
-                        this.filterSettings.chat_content_filter
-                    )),
+                    // 内容清理过滤器
                     'filter.tail_filter_enabled': String(Boolean(this.filterSettings.tail_filter)),
+                    'filter.footer_promo_enabled': String(Boolean(this.filterSettings.footer_promo)),
+                    'filter.markdown_enabled': String(Boolean(this.filterSettings.markdown)),
+                    'filter.promo_vector_enabled': String(Boolean(this.filterSettings.promo_vector)),
+                    
+                    // 内容检测过滤器
+                    'filter.duplicate_enabled': String(Boolean(this.filterSettings.duplicate)),
+                    'filter.ad_detector_enabled': String(Boolean(this.filterSettings.ad_detector)),
+                    'filter.chat_content_enabled': String(Boolean(this.filterSettings.chat_content)),
+                    
+                    // 基础过滤开关（综合判断）
+                    'filter.enabled': String(Boolean(
+                        this.filterSettings.duplicate || 
+                        this.filterSettings.ad_detector || 
+                        this.filterSettings.chat_content
+                    )),
+                    
+                    // 额外功能
                     'filter.ocr_enabled': String(Boolean(this.filterSettings.ocr_enabled)),
-                    'review.auto_reject_ads': String(Boolean(this.filterSettings.auto_reject_ads))
+                    'review.auto_reject_ads': String(Boolean(this.filterSettings.auto_reject_ads)),
+                    'review.auto_reject_duplicates': String(Boolean(this.filterSettings.auto_reject_duplicates)),
+                    'review.auto_reject_high_risk': String(Boolean(this.filterSettings.auto_reject_high_risk))
                 };
                 
                 console.log('保存过滤器配置:', configData);
@@ -566,22 +584,24 @@ const ConfigApp = {
         },
         
         async resetFilterSettings() {
-            // 重置为默认配置
+            // 重置为默认配置 - 修复字段名一致性
             this.filterSettings = {
                 // 内容清理过滤器
                 tail_filter: true,
-                footer_promo_filter: true,
-                markdown_filter: true,
-                promo_vector_filter: true,
+                footer_promo: true,
+                markdown: true,
+                promo_vector: true,
                 
                 // 内容检测过滤器
-                duplicate_detector: true,
+                duplicate: true,
                 ad_detector: true,
-                chat_content_filter: true,
+                chat_content: true,
                 
                 // 额外功能
                 ocr_enabled: true,
-                auto_reject_ads: true
+                auto_reject_ads: true,
+                auto_reject_duplicates: false,
+                auto_reject_high_risk: false
             };
             
             MessageManager.success('过滤器配置已重置为默认值');

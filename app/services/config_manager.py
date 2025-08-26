@@ -426,6 +426,23 @@ DEFAULT_CONFIGS = {
     
     
     
+    # 过滤器配置
+    "filter.enabled": {
+        "value": True,
+        "description": "启用内容过滤",
+        "config_type": "boolean"
+    },
+    "filter.tail_filter_enabled": {
+        "value": True,
+        "description": "启用尾部过滤",
+        "config_type": "boolean"
+    },
+    "filter.ocr_enabled": {
+        "value": True,
+        "description": "启用OCR图片文字识别",
+        "config_type": "boolean"
+    },
+    
     # 审核配置
     "review.auto_forward_enabled": {
         "value": False,
@@ -437,7 +454,11 @@ DEFAULT_CONFIGS = {
         "description": "自动转发延迟(秒)",
         "config_type": "integer"
     },
-    
+    "review.auto_reject_ads": {
+        "value": True,
+        "description": "自动拒绝广告消息",
+        "config_type": "boolean"
+    },
     
     # 服务控制配置
     "collection.enabled": {
@@ -461,7 +482,8 @@ async def init_default_configs():
     for key, config_info in DEFAULT_CONFIGS.items():
         existing_value = await config_manager.get_config(key)
         # 只有当值为None或空字符串时才初始化（对于cached字段，保留已有的值）
-        if existing_value is None or (existing_value == "" and not key.endswith("_cached")):
+        # 🚨 Linus修复：认证配置永不覆盖，避免误清除用户配置的认证信息
+        if (existing_value is None or (existing_value == "" and not key.endswith("_cached"))) and not key.startswith("telegram."):
             # Linus风格：使用类型推断而不是显式传递config_type
             success = await config_manager.set_config(
                 key=key,
