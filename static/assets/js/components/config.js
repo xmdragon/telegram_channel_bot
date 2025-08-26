@@ -407,11 +407,11 @@ const ConfigApp = {
             try {
                 // 使用批量配置保存API
                 const configData = {
-                    'target.auto_forward_enabled': Boolean(this.forwardingConfig.enabled),
+                    'target.auto_forward_enabled': String(Boolean(this.forwardingConfig.enabled)),
                     'target.channel_link': this.forwardingConfig.target_channel.trim(),
                     'review.group_link': this.forwardingConfig.review_group.trim(),
-                    'review.auto_forward_delay': parseInt(this.forwardingConfig.delay),
-                    'review.auto_reject_ads': Boolean(this.forwardingConfig.auto_reject_ads),
+                    'review.auto_forward_delay': String(parseInt(this.forwardingConfig.delay)),
+                    'review.auto_reject_ads': String(Boolean(this.forwardingConfig.auto_reject_ads)),
                     'target.channel_id': this.forwardingConfig.target_channel_id,
                     'review.group_id': this.forwardingConfig.review_group_id
                 };
@@ -438,19 +438,19 @@ const ConfigApp = {
             try {
                 // 准备保存的配置数据
                 const configData = {
-                    'source.history_limit': parseInt(this.systemConfig.history_message_limit),
+                    'source.history_limit': String(parseInt(this.systemConfig.history_message_limit)),
                     'target.signature': this.systemConfig.channel_signature,
-                    'collection.enabled': Boolean(this.systemConfig.collection_enabled),
+                    'collection.enabled': String(Boolean(this.systemConfig.collection_enabled)),
                     // 过滤设置
-                    'filter.enabled': Boolean(this.systemConfig.filter_enabled),
-                    'filter.tail_filter_enabled': Boolean(this.systemConfig.tail_filter_enabled),
-                    'filter.ocr_enabled': Boolean(this.systemConfig.ocr_enabled),
+                    'filter.enabled': String(Boolean(this.systemConfig.filter_enabled)),
+                    'filter.tail_filter_enabled': String(Boolean(this.systemConfig.tail_filter_enabled)),
+                    'filter.ocr_enabled': String(Boolean(this.systemConfig.ocr_enabled)),
                     // 审核设置
-                    'review.require_approval': Boolean(this.systemConfig.require_approval),
-                    'review.auto_forward_after_collect': Boolean(this.systemConfig.auto_forward_after_collect),
+                    'review.require_approval': String(Boolean(this.systemConfig.require_approval)),
+                    'review.auto_forward_after_collect': String(Boolean(this.systemConfig.auto_forward_after_collect)),
                     // 系统设置
-                    'scheduler.enabled': Boolean(this.systemConfig.scheduler_enabled),
-                    'storage.delete_single_messages': Boolean(this.systemConfig.delete_single_messages)
+                    'scheduler.enabled': String(Boolean(this.systemConfig.scheduler_enabled)),
+                    'storage.delete_single_messages': String(Boolean(this.systemConfig.delete_single_messages))
                 };
                 
                 // 调试日志
@@ -530,17 +530,17 @@ const ConfigApp = {
         
         async saveFilterSettings() {
             try {
-                // 准备保存的配置数据 - 映射到系统配置项
+                // 准备保存的配置数据 - 映射到系统配置项，转换为字符串格式
                 const configData = {
                     // 基础过滤开关
-                    'filter.enabled': Boolean(
+                    'filter.enabled': String(Boolean(
                         this.filterSettings.duplicate_detector || 
                         this.filterSettings.ad_detector || 
                         this.filterSettings.chat_content_filter
-                    ),
-                    'filter.tail_filter_enabled': Boolean(this.filterSettings.tail_filter),
-                    'filter.ocr_enabled': Boolean(this.filterSettings.ocr_enabled),
-                    'review.auto_reject_ads': Boolean(this.filterSettings.auto_reject_ads)
+                    )),
+                    'filter.tail_filter_enabled': String(Boolean(this.filterSettings.tail_filter)),
+                    'filter.ocr_enabled': String(Boolean(this.filterSettings.ocr_enabled)),
+                    'review.auto_reject_ads': String(Boolean(this.filterSettings.auto_reject_ads))
                 };
                 
                 console.log('保存过滤器配置:', configData);
