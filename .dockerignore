@@ -1,0 +1,114 @@
+# Docker构建上下文优化
+# 排除不需要的大文件和目录，减少构建时间和镜像大小
+
+# Git仓库（1.1GB）
+.git
+.gitignore
+.gitattributes
+
+# Python虚拟环境（977MB）
+venv/
+.venv/
+env/
+.env/
+
+# Python缓存和临时文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 临时和运行时文件
+temp_media/
+*.tmp
+*.temp
+*.log
+logs/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE和编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 环境配置文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 备份和旧文件
+backups/
+*.bak
+*.backup
+*-backup.*
+*-old.*
+
+# 测试文件（保留必要的测试）
+tests/
+*_test.py
+test_*.py
+
+# 文档和说明文件（可选，根据需要调整）
+docs/
+README.md
+*.md
+!requirements.txt
+
+# Claude相关文件
+.claude/
+CLAUDE.md
+claude_code_*
+
+# Docker相关文件（避免递归）
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 大文件和媒体文件（运行时挂载）
+data/training/
+media/
+*.mp4
+*.avi
+*.mov
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# 工具和脚本（大部分不需要在容器内）
+tools/
+scripts/
+debug_imports.py
+*.sh
+!start.sh
+!stop.sh
+
+# 开发和调试文件
+dev_supervisor.py
+dev.sh
+install_ubuntu.sh
+setup_domain.sh
