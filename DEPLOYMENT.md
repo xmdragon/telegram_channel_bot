@@ -17,7 +17,9 @@ PYTHON_VERSION=3.11 ./install_ubuntu.sh   # Python 3.11（推荐性能）
 PYTHON_VERSION=3.10 ./install_ubuntu.sh   # Python 3.10（稳定）
 ```
 
-安装完成后**重新登录**以使Docker组权限生效。
+**注意**: 
+- 普通用户需要**重新登录**以使Docker组权限生效
+- root用户可以直接继续，无需重新登录
 
 ### 2. 项目部署
 
@@ -44,6 +46,7 @@ nano .env  # 编辑配置文件
 - **内存**: 最低2GB，推荐4GB+
 - **存储**: 最低10GB可用空间
 - **网络**: 能够访问Telegram API
+- **用户权限**: 支持root用户和sudo用户
 
 ### 2. 系统依赖安装
 

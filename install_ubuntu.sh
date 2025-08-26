@@ -29,12 +29,19 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# 检查是否为root用户
+# 检查用户权限
 check_root() {
     if [[ $EUID -eq 0 ]]; then
-        log_error "请不要使用root用户运行此脚本"
-        log_info "建议创建普通用户: sudo adduser telegram && sudo usermod -aG sudo telegram"
-        exit 1
+        log_warning "检测到root用户，将自动适配root环境"
+        log_info "如果是生产环境，建议使用普通用户：sudo adduser telegram"
+        
+        # root用户环境变量
+        export IS_ROOT=true
+        export PROJECT_USER="root"
+    else
+        log_info "使用普通用户部署"
+        export IS_ROOT=false
+        export PROJECT_USER="$USER"
     fi
 }
 
@@ -225,8 +232,13 @@ install_docker() {
         sudo apt update
         sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
         
-        # 将当前用户添加到docker组
-        sudo usermod -aG docker $USER
+        # 将用户添加到docker组
+        if [[ "$IS_ROOT" != "true" ]]; then
+            sudo usermod -aG docker $USER
+            log_info "已将用户 $USER 添加到docker组"
+        else
+            log_info "root用户无需添加到docker组"
+        fi
         
         log_success "Docker安装完成"
     fi
@@ -289,24 +301,36 @@ setup_project_environment() {
     # 创建项目目录
     PROJECT_DIR="/opt/telegram-bot"
     if [[ ! -d "$PROJECT_DIR" ]]; then
-        sudo mkdir -p "$PROJECT_DIR"
-        sudo chown $USER:$USER "$PROJECT_DIR"
+        if [[ "$IS_ROOT" == "true" ]]; then
+            mkdir -p "$PROJECT_DIR"
+        else
+            sudo mkdir -p "$PROJECT_DIR"
+            sudo chown $USER:$USER "$PROJECT_DIR"
+        fi
         log_info "创建项目目录: $PROJECT_DIR"
     fi
     
     # 创建日志目录
     LOG_DIR="/var/log/telegram-bot"
     if [[ ! -d "$LOG_DIR" ]]; then
-        sudo mkdir -p "$LOG_DIR"
-        sudo chown $USER:$USER "$LOG_DIR"
+        if [[ "$IS_ROOT" == "true" ]]; then
+            mkdir -p "$LOG_DIR"
+        else
+            sudo mkdir -p "$LOG_DIR"
+            sudo chown $USER:$USER "$LOG_DIR"
+        fi
         log_info "创建日志目录: $LOG_DIR"
     fi
     
     # 创建数据目录
     DATA_DIR="/var/lib/telegram-bot"
     if [[ ! -d "$DATA_DIR" ]]; then
-        sudo mkdir -p "$DATA_DIR"
-        sudo chown $USER:$USER "$DATA_DIR"
+        if [[ "$IS_ROOT" == "true" ]]; then
+            mkdir -p "$DATA_DIR"
+        else
+            sudo mkdir -p "$DATA_DIR"
+            sudo chown $USER:$USER "$DATA_DIR"
+        fi
         log_info "创建数据目录: $DATA_DIR"
     fi
     
@@ -326,8 +350,8 @@ Requires=redis.service
 
 [Service]
 Type=forking
-User=$USER
-Group=$USER
+User=$PROJECT_USER
+Group=$PROJECT_USER
 WorkingDirectory=/opt/telegram-bot
 Environment=PATH=/usr/bin:/usr/local/bin
 ExecStart=/opt/telegram-bot/start.sh
@@ -397,10 +421,10 @@ EOF
     
     # 设置用户限制
     sudo tee /etc/security/limits.d/telegram-bot.conf > /dev/null <<EOF
-$USER soft nofile 65535
-$USER hard nofile 65535
-$USER soft nproc 32768
-$USER hard nproc 32768
+$PROJECT_USER soft nofile 65535
+$PROJECT_USER hard nofile 65535
+$PROJECT_USER soft nproc 32768
+$PROJECT_USER hard nproc 32768
 EOF
     
     log_success "系统优化完成"
@@ -411,16 +435,21 @@ show_post_install_instructions() {
     log_success "🎉 安装完成！"
     echo
     log_info "接下来的步骤："
-    echo "1. 重新登录以使docker组权限生效："
-    echo "   exit"
-    echo "   # 重新SSH登录"
-    echo
-    echo "2. 克隆项目代码："
+    
+    if [[ "$IS_ROOT" != "true" ]]; then
+        echo "1. 重新登录以使docker组权限生效："
+        echo "   exit"
+        echo "   # 重新SSH登录"
+        echo
+        echo "2. 克隆项目代码："
+    else
+        echo "1. 克隆项目代码（root用户可直接继续）："
+    fi
     echo "   cd /opt/telegram-bot"
     echo "   git clone <your-repo-url> ."
     echo
     echo "3. 设置Python虚拟环境："
-    echo "   python3.11 -m venv venv"
+    echo "   python3 -m venv venv"
     echo "   source venv/bin/activate"
     echo "   pip install -r requirements.txt"
     echo
