@@ -10,7 +10,7 @@ services:
     container_name: telegram_bot_nginx
     ports:
       - "80:80"
-      - "443:443"
+      # 443端口被占用，如需SSL请在外部配置反向代理
     volumes:
       - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
       - ./static:/var/www/static:ro
