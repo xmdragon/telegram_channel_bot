@@ -49,15 +49,23 @@ def worker_int(worker):
     worker.log.info(f"Worker {worker.pid} 接收到中断信号")
 
 def post_fork(server, worker):
-    """Worker fork后的钩子，添加随机延迟避免同时初始化模型"""
+    """Worker fork后的钩子，添加延迟避免同时初始化"""
     import time
-    import random
+    import os
     
-    # 根据worker年龄计算延迟，避免所有worker同时初始化
-    delay = random.uniform(0, 2) * (worker.age % 4)  # 0-8秒随机延迟
-    if delay > 0:
-        worker.log.info(f"Worker {worker.pid} 延迟 {delay:.1f}秒启动，错开模型初始化")
-        time.sleep(delay)
+    try:
+        pid = os.getpid()
+        worker_age = getattr(worker, 'age', 0)
+        delay = (worker_age % 4) * 0.5  # 0, 0.5, 1.0, 1.5秒延迟
+        
+        if delay > 0:
+            server.log.info(f"🕐 Worker {pid} 延迟 {delay:.1f}秒启动，错开初始化")
+            time.sleep(delay)
+        else:
+            server.log.info(f"🚀 Worker {pid} 立即启动（首个worker）")
+            
+    except Exception as e:
+        server.log.error(f"Worker {pid} post_fork错误: {e}")
 
 def on_exit(server):
     """服务器退出回调"""

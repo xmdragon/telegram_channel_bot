@@ -515,58 +515,53 @@ class MessageGrouper:
                 pass  # 最终失败时静默处理，错误已在_save_to_redis中记录
     
     async def _create_combined_message(self, messages: List[Dict], channel_id: str) -> Dict:
-        """创建组合消息"""
+        """创建组合消息 - 修改为组合后统一过滤"""
         # 按时间排序
         messages.sort(key=lambda x: x['date'])
         
-        # 🔧 改进文本内容提取和合并逻辑
+        # 🔧 Linus式修复：收集所有原始内容（子消息已跳过过滤）
         all_texts = []
-        all_filtered_texts = []
-        is_ad = False
         text_message_count = 0  # 记录有文本的消息数量
         
         for i, msg in enumerate(messages):
             content = msg.get('content') or ''
-            filtered_content = msg.get('filtered_content')
             
             # 记录文本内容存在性
             has_content = bool(content.strip())
             
             if has_content:
                 text_message_count += 1
-            
-            # 始终保存原始内容（即使为空，保持消息顺序）
-            if content.strip():
                 all_texts.append(content.strip())
                 logger.debug(f"消息{i+1}原始内容: {len(content)}字符")
-            
-            # 🚀 Linus式修复：确保所有内容都经过统一的过滤管道
-            if has_content:
-                # 使用_ensure_filtered_content确保内容经过过滤
-                ensured_filtered = await self._ensure_filtered_content(content, filtered_content)
-                all_filtered_texts.append(ensured_filtered.strip())
-                logger.debug(f"消息{i+1}过滤后内容: {len(ensured_filtered)}字符 "
-                           f"(原始{len(content)}字符)")
-            
-            # 如果组内任何一条消息被判定为广告，整组都标记为广告
-            if msg.get('is_ad'):
-                is_ad = True
-                logger.info(f"🚫 消息组中检测到广告，整组标记为广告")
         
-        # 去重并合并文本内容
+        # 去重并合并原始文本内容
         deduplicated_texts = self._deduplicate_content(all_texts)
-        deduplicated_filtered_texts = self._deduplicate_content(all_filtered_texts)
-        
         combined_content = '\n\n'.join(deduplicated_texts) if deduplicated_texts else ""
-        combined_filtered_content = '\n\n'.join(deduplicated_filtered_texts) if deduplicated_filtered_texts else ""
         
         if len(deduplicated_texts) < len(all_texts):
             logger.info(f"🧹 内容去重：原始 {len(all_texts)} 条 → {len(deduplicated_texts)} 条")
-        if len(deduplicated_filtered_texts) < len(all_filtered_texts):
-            logger.info(f"🧹 过滤后内容去重：原始 {len(all_filtered_texts)} 条 → {len(deduplicated_filtered_texts)} 条")
+        
+        # 🚀 关键修复：组合完成后，对整体内容进行统一过滤
+        main_message_id = messages[0]['message_id'] if messages else None
+        combined_filtered_content = await self._ensure_filtered_content(
+            combined_content, 
+            channel_id,
+            main_message_id
+        )
+        
+        # 检测组合后的内容是否为广告
+        from app.services.unified_filter_engine import unified_filter_engine
+        is_ad, _, filter_reason = await unified_filter_engine.detect_advertisement(
+            combined_filtered_content,
+            channel_id=channel_id
+        )
+        
+        if is_ad:
+            logger.info(f"🚫 组合消息被检测为广告: {filter_reason}")
         
         # 记录文本合并结果
-        logger.info(f"组合消息文本合并: {len(messages)}条消息, {text_message_count}条有文本, 原始{len(combined_content)}字符, 过滤后{len(combined_filtered_content)}字符")
+        logger.info(f"组合消息统一处理: {len(messages)}条消息, {text_message_count}条有文本, "
+                   f"原始{len(combined_content)}字符, 过滤后{len(combined_filtered_content)}字符, 广告={is_ad}")
         
         # 提取所有媒体信息
         media_group = []
@@ -697,15 +692,11 @@ class MessageGrouper:
             'date': main_message['date']
         }
     
-    async def _ensure_filtered_content(self, original_content: str, filtered_content: Optional[str]) -> str:
-        """确保内容经过过滤处理
+    async def _ensure_filtered_content(self, original_content: str, channel_id: str, message_id: int = None) -> str:
+        """确保内容经过过滤处理 - 优化版本
         
-        如果没有提供filtered_content，则通过过滤管道处理原始内容
-        这样确保组合消息和单独消息使用相同的过滤逻辑
+        对组合后的内容进行统一过滤，使用正确的频道ID和消息上下文
         """
-        if filtered_content is not None:
-            return filtered_content
-            
         if not original_content:
             return ""
         
@@ -714,22 +705,26 @@ class MessageGrouper:
             from app.services.unified_filter_engine import unified_filter_engine
             from app.services.filters.base import FilterContext
             
-            # 创建过滤上下文
+            # 🔧 Linus式修复：创建过滤上下文 - 使用真实的频道ID和消息ID
             context = FilterContext(
-                message_id=0,  # 组合消息的临时ID
-                channel_id="grouper"
+                message_id=message_id if message_id else 0,
+                channel_id=channel_id  # 使用真实频道ID，而不是"grouper"
             )
+            
+            # 添加元数据标记这是组合消息的统一过滤
+            context.add_metadata('is_combined_filtering', True)
+            context.add_metadata('source_type', 'combined_message')
             
             # 执行过滤
             result = await unified_filter_engine.filter_pipeline.process(original_content, context)
             
             if result.final_content != original_content:
-                logger.info(f"组合消息内容过滤: {len(original_content)} -> {len(result.final_content)} 字符")
+                logger.info(f"组合消息统一过滤: {len(original_content)} -> {len(result.final_content)} 字符 (频道: {channel_id})")
             
             return result.final_content
             
         except Exception as e:
-            logger.error(f"组合消息过滤失败，使用原始内容: {e}")
+            logger.error(f"组合消息统一过滤失败，使用原始内容: {e}")
             return original_content
     
     async def _save_combined_message(self, combined_message: Dict, channel_id: str):

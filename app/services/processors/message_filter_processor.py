@@ -58,6 +58,18 @@ class MessageFilterProcessor(MessageProcessor):
             message = context.telegram_message
             content = context.processed_content
             
+            # 🔧 Linus式修复：检查是否为组合消息的子消息
+            # 组合消息子消息跳过所有过滤步骤，保持原始内容
+            if hasattr(message, 'grouped_id') and message.grouped_id:
+                context.filtered_content = context.original_content
+                context.is_ad = False
+                context.filter_reason = ""
+                context.should_reject = False
+                context.reject_reason = ""
+                
+                self.logger.info(f"📦 组合消息子消息 #{message.id} (组ID: {message.grouped_id}) 跳过过滤，等待组合后统一处理")
+                return ProcessorResult(True, context)
+            
             # 步骤1: 提取消息实体（包括隐藏链接）
             await self._extract_entities(context)
             

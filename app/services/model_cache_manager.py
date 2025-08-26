@@ -94,19 +94,30 @@ class ModelCacheManager:
                 logger.debug(f"从内存缓存获取模型: {model_id}")
                 return self._models[model_id]
             
+            # 🔧 Linus式：应用层延迟，确保不同worker错开模型初始化
+            import os
+            import time
+            pid = os.getpid()
+            
+            # 根据进程ID计算延迟，确保错开模型加载
+            pid_delay = (pid % 8) * 0.3  # 0, 0.3, 0.6, 0.9...秒延迟
+            if pid_delay > 0:
+                logger.info(f"Worker {pid} 应用层延迟 {pid_delay:.1f}秒后加载模型: {model_id}")
+                time.sleep(pid_delay)
+            else:
+                logger.info(f"Worker {pid} 立即开始加载模型: {model_id}")
+            
             # 加载模型
             try:
-                logger.info(f"首次加载模型: {model_id}")
-                
                 model = self._load_model_from_config(model_config)
                 if model:
                     # 缓存到内存
                     self._models[model_id] = model
-                    logger.info(f"✅ 模型加载完成并缓存: {model_id}")
+                    logger.info(f"✅ Worker {pid} 模型加载完成: {model_id}")
                     return model
                 
             except Exception as e:
-                logger.error(f"模型加载失败: {model_id}, 错误: {e}")
+                logger.error(f"Worker {pid} 模型加载失败: {model_id}, 错误: {e}")
         
         return None
     
@@ -152,22 +163,25 @@ class ModelCacheManager:
         """预加载常用模型（可在后台异步执行）"""
         try:
             import threading
+            import os
             
             def preload():
-                logger.info("🚀 开始预加载模型...")
+                pid = os.getpid()
+                logger.info(f"🚀 Worker {pid} 开始预加载模型...")
                 model = self.get_model()
                 if model:
-                    logger.info("✅ 模型预加载完成")
+                    logger.info(f"✅ Worker {pid} 模型预加载完成")
                 else:
-                    logger.error("❌ 模型预加载失败")
+                    logger.error(f"❌ Worker {pid} 模型预加载失败")
             
-            # 后台线程预加载
-            thread = threading.Thread(target=preload, daemon=True)
-            thread.start()
+            # 🔧 Linus式简化：直接加载，不用额外线程增加复杂度
+            # 多进程环境下，每个worker预加载自己的模型副本
+            preload()
             return True
             
         except Exception as e:
-            logger.error(f"预加载模型失败: {e}")
+            import os
+            logger.error(f"Worker {os.getpid()} 预加载模型失败: {e}")
             return False
     
     def get_cache_info(self) -> Dict[str, Any]:

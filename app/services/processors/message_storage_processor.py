@@ -157,6 +157,12 @@ class MessageStorageProcessor(MessageProcessor):
             'source_channel_link_prefix': self._generate_channel_link_prefix(context.channel_id)
         }
         
+        # 🔧 Linus式修复：为组合消息子消息添加特殊标记
+        if hasattr(message, 'grouped_id') and message.grouped_id:
+            save_data['is_group_child'] = True
+            save_data['grouped_id'] = str(message.grouped_id)
+            self.logger.debug(f"标记子消息 #{message.id} 属于组合消息 {message.grouped_id}")
+        
         # 添加过滤原因（如果有）
         if context.filter_reason:
             save_data['filter_reason'] = context.filter_reason
