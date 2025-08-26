@@ -165,9 +165,10 @@ class PromoVectorFilter(BaseFilter):
             cache_stats = promo_vector_manager.get_cache_stats()
             sample_count = cache_stats.get('total_vectors', 0)
             
-            # 如果训练样本极少（<5个），采用保守策略
-            if sample_count < 5:
-                logger.debug(f"训练样本不足({sample_count}个)，采用保守检测策略")
+            # 🚀 Linus式优化：只要有训练样本就使用向量检测，提高检测准确性
+            # 保守策略仅在完全没有训练样本时使用
+            if sample_count == 0:
+                logger.debug(f"无训练样本，采用保守检测策略")
                 return self._conservative_promo_detection(segment, content_analysis)
             
             # 🔍 第三步：向量相似度检测（作为参考）
