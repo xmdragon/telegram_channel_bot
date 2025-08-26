@@ -420,7 +420,8 @@ class MessageGrouper:
                 'visual_hash': processed_data.get('visual_hash'),
                 'grouped_id': processed_data.get('grouped_id'),
                 'is_combined': True,
-                'status': 'ads' if processed_data.get('is_ad') else 'pending',
+                'status': 'pending',
+                'is_ad': processed_data.get('is_ad', False),
                 'combined_messages': processed_data.get('combined_messages'),
                 'media_group': processed_data.get('media_group'),
                 'created_at': processed_data.get('date', combined_message.get('date'))
