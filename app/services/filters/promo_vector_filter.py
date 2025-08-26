@@ -309,63 +309,25 @@ class PromoVectorFilter(BaseFilter):
     def _make_comprehensive_decision(self, segment: str, content_analysis: dict, 
                                    vector_similarity: float, sample_count: int) -> Tuple[bool, float]:
         """
-        综合多种特征做出最终判断
+        🚀 Linus式决策：删掉所有垃圾，回归本质
+        
+        有向量相似度就比较，没有废话
+        相似度 >= 阈值 = 过滤
+        
+        删掉的垃圾：
+        - 权重计算（什么除以20？）
+        - 动态阈值（样本少还提高阈值？）
+        - 复杂规则（教育内容强制不过滤？）
         
         Args:
-            segment: 文本段落
-            content_analysis: 内容类型分析结果
-            vector_similarity: 向量相似度
-            sample_count: 训练样本数量
+            vector_similarity: 向量相似度（这才是重点）
+            其他参数: 保留接口兼容性，但不使用
             
         Returns:
-            (是否推广内容, 置信度)
+            (是否推广内容, 相似度)
         """
-        promotional_signals = content_analysis['promotional_signals']
-        educational_signals = content_analysis['educational_signals']
-        content_type = content_analysis['content_type']
-        context_clarity = content_analysis['context_clarity']
-        
-        # 🎯 规则1: 明确的教育/个人内容，强制不过滤
-        if content_type in ['educational', 'personal'] and educational_signals >= 3:
-            return False, max(0.1, 1.0 - vector_similarity)
-        
-        # 🎯 规则2: 明确的推广内容，必须过滤
-        if content_type == 'promotional' and promotional_signals >= 6:
-            return True, min(0.9, max(0.7, vector_similarity))
-        
-        # 🎯 规则3: 训练样本少时，降低向量相似度权重
-        vector_weight = min(0.4, sample_count / 20.0)  # 样本越少权重越低
-        context_weight = 1.0 - vector_weight
-        
-        # 计算综合置信度
-        # 向量相似度贡献 (降权)
-        vector_score = vector_similarity * vector_weight
-        
-        # 上下文分析贡献 (提权)
-        if promotional_signals > educational_signals + 2:
-            context_score = (promotional_signals / 10.0) * context_weight
-        elif educational_signals > promotional_signals:
-            context_score = -(educational_signals / 10.0) * context_weight
-        else:
-            context_score = 0.0
-        
-        final_score = vector_score + context_score
-        
-        # 🎯 规则4: 动态阈值调整
-        adjusted_threshold = self.similarity_threshold
-        
-        # 如果是明显的非推广内容，提高阈值
-        if content_type in ['educational', 'personal', 'news']:
-            adjusted_threshold = min(0.95, self.similarity_threshold + 0.1)
-        
-        # 如果训练样本很少，提高阈值
-        if sample_count < 3:
-            adjusted_threshold = min(0.95, self.similarity_threshold + 0.2)
-        
-        is_promo = final_score >= adjusted_threshold
-        confidence = abs(final_score)
-        
-        return is_promo, confidence
+        # 就这么简单
+        return vector_similarity >= self.similarity_threshold, vector_similarity
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
         """
