@@ -240,6 +240,8 @@ class RouteConfig:
         thresholds_stats = "/training/thresholds/stats"
         thresholds_optimize = "/training/thresholds/optimize"
         thresholds_reset = "/training/thresholds/{filter_name}/{metric_name}/reset"
+        thresholds_manual_update = "/training/thresholds/manual-update"
+        thresholds_preview = "/training/thresholds/preview"
         
         # 媒体文件
         media_files = "/training/media-files"

@@ -118,11 +118,12 @@
       "last_updated": null
     },
     "semantic_score": {
-      "current": 0.5,
+      "current": 0.679,
       "min": 0.2,
       "max": 0.8,
       "history": [
-        0.5
+        0.5,
+        0.679
       ],
       "feedback_stats": {
         "tp": 0,
@@ -130,7 +131,7 @@
         "tn": 0,
         "fn": 0
       },
-      "last_updated": null
+      "last_updated": "2025-08-26T08:53:44.961497"
     }
   },
   "promo_content_filter": {
@@ -167,19 +168,24 @@
   },
   "promo_vector_filter": {
     "similarity": {
-      "current": 0.85,
+      "current": 0.823,
       "min": 0.75,
       "max": 0.95,
       "history": [
-        0.85
+        0.85,
+        0.95,
+        0.9,
+        0.881,
+        0.851,
+        0.823
       ],
       "feedback_stats": {
         "tp": 0,
-        "fp": 0,
+        "fp": 1,
         "tn": 0,
         "fn": 0
       },
-      "last_updated": null
+      "last_updated": "2025-08-26T08:59:41.850634"
     },
     "min_length": {
       "current": 20,

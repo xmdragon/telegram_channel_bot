@@ -399,6 +399,54 @@
       "description": "自动学习的广告模式",
       "enabled": true,
       "patterns": []
+    },
+    
+    "promo_vector_keywords": {
+      "description": "PromoVectorFilter内容类型分析关键词",
+      "enabled": true,
+      "keyword_categories": {
+        "strong_promo_signals": {
+          "description": "强推广信号关键词",
+          "weight": 3,
+          "keywords": [
+            "订阅", "关注", "加群", "联系", "@", "商务合作", "投稿",
+            "频道", "群组", "客服", "咨询", "报名", "购买", "下单",
+            "优惠", "折扣", "促销", "限时", "活动", "奖励"
+          ]
+        },
+        "weak_promo_signals": {
+          "description": "弱推广信号关键词",
+          "weight": 1,
+          "keywords": [
+            "更多", "详情", "了解", "点击", "进入", "查看"
+          ]
+        },
+        "educational_signals": {
+          "description": "教育内容信号关键词",
+          "weight": 2,
+          "keywords": [
+            "学习", "教育", "知识", "技能", "课程", "培训", "指导",
+            "方法", "技巧", "经验", "分享", "总结", "分析", "研究",
+            "理论", "实践", "案例", "建议", "提醒", "注意", "避免"
+          ]
+        },
+        "entertainment_signals": {
+          "description": "娱乐内容信号关键词",
+          "weight": 1,
+          "keywords": [
+            "搞笑", "有趣", "娱乐", "故事", "段子", "笑话", "趣闻",
+            "八卦", "明星", "影视", "游戏", "音乐", "视频"
+          ]
+        },
+        "news_signals": {
+          "description": "新闻内容信号关键词",
+          "weight": 1,
+          "keywords": [
+            "新闻", "报道", "发布", "宣布", "公告", "通知", "政策",
+            "法规", "规定", "决定", "会议", "讨论", "发言", "表示"
+          ]
+        }
+      }
     }
   },
   

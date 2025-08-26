@@ -128,6 +128,8 @@ const API_ENDPOINTS = {
         thresholdsStats: '/api/training/thresholds/stats',          // GET - 获取阈值统计
         thresholdsOptimize: '/api/training/thresholds/optimize',    // POST - 优化阈值
         thresholdsReset: (filterName, metricName) => `/api/training/thresholds/${filterName}/${metricName}/reset`, // POST - 重置阈值
+        thresholdsManualUpdate: '/api/training/thresholds/manual-update', // POST - 手动更新阈值
+        thresholdsPreview: '/api/training/thresholds/preview',           // POST - 预览阈值调整效果
         thresholdsFeedback: '/api/training/thresholds/feedback',    // POST - 提交阈值反馈
         thresholdsOptimizeSettings: '/api/training/thresholds/optimize-settings' // GET/POST - 优化设置
     },

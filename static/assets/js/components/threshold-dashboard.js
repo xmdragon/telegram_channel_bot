@@ -19,7 +19,18 @@ const app = createApp({
             searchText: '',
             stats: {},
             resetting: {},
+            updating: {},
             charts: {},
+            
+            // 手动调整阈值相关状态
+            adjustmentVisible: {},
+            pendingValues: {},
+            thresholdRanges: {},
+            
+            // 实时预览相关状态
+            previewData: {},
+            testContents: {},
+            previewDebounceTimers: {},
             
             feedbackDialog: {
                 visible: false,
@@ -261,61 +272,103 @@ const app = createApp({
         },
 
         updateCharts() {
-            Object.keys(this.stats).forEach(filterName => {
-                Object.keys(this.stats[filterName]).forEach(metricName => {
-                    const metricData = this.stats[filterName][metricName];
-                    if (metricData.history && metricData.history.length > 1) {
-                        this.createChart(filterName, metricName, metricData.history);
-                    }
-                });
+            // 延迟一点时间确保DOM已更新
+            this.$nextTick(() => {
+                setTimeout(() => {
+                    Object.keys(this.stats).forEach(filterName => {
+                        Object.keys(this.stats[filterName]).forEach(metricName => {
+                            const metricData = this.stats[filterName][metricName];
+                            if (metricData.history && metricData.history.length > 1) {
+                                this.createChart(filterName, metricName, metricData.history);
+                            }
+                        });
+                    });
+                }, 200);
             });
         },
 
         createChart(filterName, metricName, history) {
             const refName = this.getChartRef(filterName, metricName);
-            const canvas = document.querySelector(`canvas[data-ref="${refName}"]`);
             
-            if (!canvas) return;
+            // 尝试多种方式查找canvas元素
+            let canvas = document.getElementById(refName) || 
+                        document.querySelector(`canvas[data-ref="${refName}"]`) ||
+                        document.querySelector(`#${refName}`);
             
-            const ctx = canvas.getContext('2d');
+            if (!canvas) {
+                // Canvas元素不存在，跳过图表创建
+                return;
+            }
+            
+            // 检查canvas的渲染状态
+            if (canvas.width === 0 || canvas.height === 0) {
+                // Canvas尺寸为0，延迟创建
+                setTimeout(() => {
+                    this.createChart(filterName, metricName, history);
+                }, 100);
+                return;
+            }
+            
+            let ctx;
+            try {
+                ctx = canvas.getContext('2d');
+            } catch (e) {
+                return;
+            }
+            
+            if (!ctx) {
+                return;
+            }
             
             // 销毁现有图表
             const chartKey = filterName + '_' + metricName;
             if (this.charts[chartKey]) {
-                this.charts[chartKey].destroy();
+                try {
+                    this.charts[chartKey].destroy();
+                    delete this.charts[chartKey];
+                } catch (e) {
+                    // 销毁失败时继续
+                }
             }
             
-            // 创建新图表
-            this.charts[chartKey] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: history.map((_, i) => `更新${i + 1}`),
-                    datasets: [{
-                        label: '阈值变化',
-                        data: history,
-                        borderColor: '#409eff',
-                        backgroundColor: 'rgba(64, 158, 255, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 1
-                        }
+            try {
+                // 创建新图表
+                this.charts[chartKey] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: history.map((_, i) => `更新${i + 1}`),
+                        datasets: [{
+                            label: '阈值变化',
+                            data: history,
+                            borderColor: '#409eff',
+                            backgroundColor: 'rgba(64, 158, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3
+                        }]
                     },
-                    plugins: {
-                        legend: {
-                            display: false
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 1
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
                         }
                     }
-                }
-            });
+                });
+            } catch (error) {
+                // 图表创建失败时不影响其他功能
+            }
         },
 
         // 工具函数
@@ -412,10 +465,193 @@ const app = createApp({
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5);
         },
 
+        // 手动阈值调整相关方法
+        toggleAdjustment(filterName, metricName) {
+            const key = filterName + '_' + metricName;
+            this.adjustmentVisible[key] = !this.adjustmentVisible[key];
+        },
+
+        updateSliderValue(filterName, metricName, value) {
+            const key = filterName + '_' + metricName;
+            this.pendingValues[key] = parseFloat(value);
+            
+            // 触发实时预览（带防抖）
+            this.debouncePreview(filterName, metricName, parseFloat(value));
+        },
+
+        updateInputValue(filterName, metricName, value) {
+            const key = filterName + '_' + metricName;
+            this.pendingValues[key] = parseFloat(value);
+        },
+
+        async applyThresholdChange(filterName, metricName, value) {
+            const key = filterName + '_' + metricName;
+            const numericValue = parseFloat(value);
+            
+            if (isNaN(numericValue)) {
+                window.SimpleUI.Message.error('请输入有效的数值');
+                return;
+            }
+            
+            const min = this.getMinThreshold(filterName, metricName);
+            const max = this.getMaxThreshold(filterName, metricName);
+            
+            if (numericValue < min || numericValue > max) {
+                window.SimpleUI.Message.error(`阈值必须在 ${min} - ${max} 范围内`);
+                return;
+            }
+            
+            try {
+                const confirmed = await window.SimpleUI.MessageBox.confirm(
+                    `确定将 ${this.getFilterDisplayName(filterName)} - ${this.getMetricDisplayName(metricName)} 的阈值从 ${this.stats[filterName][metricName].current_threshold.toFixed(3)} 调整为 ${numericValue.toFixed(3)} 吗？`
+                );
+                if (!confirmed) return;
+
+                this.updating[key] = true;
+                
+                const response = await axios.post(API.training.thresholdsManualUpdate, {
+                    filter_name: filterName,
+                    metric_name: metricName,
+                    new_value: numericValue
+                }, {
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
+                });
+                
+                if (response.data.success) {
+                    await this.refreshData(true);
+                    window.SimpleUI.Message.success(`阈值更新成功: ${response.data.old_value?.toFixed(3) || 'N/A'} → ${numericValue.toFixed(3)}`);
+                    
+                    // 清理待处理值
+                    delete this.pendingValues[key];
+                }
+            } catch (error) {
+                if (error !== 'cancel') {
+                    window.SimpleUI.Message.error('更新阈值失败: ' + (error.response?.data?.detail || error.message));
+                }
+            } finally {
+                this.updating[key] = false;
+            }
+        },
+
+        getMinThreshold(filterName, metricName) {
+            // 从thresholds.json获取最小值，或使用默认值
+            return this.thresholdRanges[filterName + '_' + metricName]?.min || 0.0;
+        },
+
+        getMaxThreshold(filterName, metricName) {
+            // 从thresholds.json获取最大值，或使用默认值
+            return this.thresholdRanges[filterName + '_' + metricName]?.max || 1.0;
+        },
+
+        loadThresholdRanges() {
+            // 基于常见过滤器的默认范围配置
+            const defaultRanges = {
+                'tail_filter_intelligent': { min: 0.3, max: 0.9 },
+                'tail_filter_semantic': { min: 0.2, max: 0.8 },
+                'ad_detector_classifier': { min: 0.4, max: 0.95 },
+                'ad_detector_keywords': { min: 0.5, max: 1.0 },
+                'footer_promo_filter_separator_confidence': { min: 0.3, max: 0.9 },
+                'footer_promo_filter_semantic_score': { min: 0.2, max: 0.8 },
+                'promo_filter_score': { min: 0.3, max: 0.9 },
+                'promo_content_filter_detection': { min: 0.4, max: 0.95 },
+                'promo_content_filter_semantic': { min: 0.3, max: 0.85 },
+                'promo_vector_filter_similarity': { min: 0.75, max: 0.95 },
+                'promo_vector_filter_min_length': { min: 10, max: 50 },
+                'chat_filter_detection': { min: 0.3, max: 0.8 }
+            };
+            
+            this.thresholdRanges = defaultRanges;
+        },
+
+        // 实时预览相关方法
+        debouncePreview(filterName, metricName, testValue) {
+            const key = filterName + '_' + metricName;
+            
+            // 清除之前的定时器
+            if (this.previewDebounceTimers[key]) {
+                clearTimeout(this.previewDebounceTimers[key]);
+            }
+            
+            // 设置新的防抖定时器
+            this.previewDebounceTimers[key] = setTimeout(() => {
+                this.fetchPreviewData(filterName, metricName, testValue);
+            }, 500); // 500ms防抖
+        },
+
+        async fetchPreviewData(filterName, metricName, testValue) {
+            const key = filterName + '_' + metricName;
+            
+            try {
+                const response = await axios.post(API.training.thresholdsPreview, {
+                    filter_name: filterName,
+                    metric_name: metricName,
+                    test_value: testValue,
+                    sample_content: this.testContents[key] || ""
+                }, {
+                    headers: { 'Authorization': 'Bearer ' + window.getAuthToken() }
+                });
+                
+                if (response.data.success) {
+                    this.previewData[key] = response.data;
+                }
+            } catch (error) {
+                // 预览失败时不显示错误消息，避免干扰用户体验
+                delete this.previewData[key];
+            }
+        },
+
+        updateTestContent(filterName, metricName, content) {
+            const key = filterName + '_' + metricName;
+            this.testContents[key] = content;
+            
+            // 如果有当前预览数据，重新获取预览
+            const currentValue = this.pendingValues[key] || this.stats[filterName][metricName].current_threshold;
+            if (this.previewData[key]) {
+                this.debouncePreview(filterName, metricName, currentValue);
+            }
+        },
+
+        async runContentPreview(filterName, metricName) {
+            const key = filterName + '_' + metricName;
+            const currentValue = this.pendingValues[key] || this.stats[filterName][metricName].current_threshold;
+            
+            // 立即获取内容预测
+            await this.fetchPreviewData(filterName, metricName, currentValue);
+        },
+
+        // 预览数据格式化方法
+        formatDelta(delta) {
+            const sign = delta > 0 ? '+' : '';
+            return `${sign}${delta.toFixed(3)}`;
+        },
+
+        getPreviewDeltaClass(delta) {
+            if (delta > 0) return 'delta-increase';
+            if (delta < 0) return 'delta-decrease';
+            return 'delta-neutral';
+        },
+
+        formatPredictionAction(action) {
+            const actionMap = {
+                'pass': '✅ 通过过滤',
+                'filter': '🚫 将被过滤',
+                'unknown': '❓ 未知',
+                '需要实际过滤器测试': '⚙️ 需要测试'
+            };
+            return actionMap[action] || action;
+        },
+
+        getPredictionActionClass(action) {
+            if (action === 'pass') return 'prediction-pass';
+            if (action === 'filter') return 'prediction-filter';
+            return 'prediction-unknown';
+        },
+
         // 消息提示已统一使用 window.SimpleUI.showMessage
     },
     
     mounted() {
+        this.loadThresholdRanges();
         this.refreshData();
         // 每30秒自动刷新
         setInterval(() => {

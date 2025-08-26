@@ -127,7 +127,10 @@
 
                                     <!-- 阈值历史图表 -->
                                     <div v-if="metricData.history && metricData.history.length > 1" class="chart-container">
-                                        <canvas :data-ref="getChartRef(filterName, metricName)"></canvas>
+                                        <canvas :data-ref="getChartRef(filterName, metricName)" 
+                                                :id="getChartRef(filterName, metricName)"
+                                                width="400" 
+                                                height="200"></canvas>
                                     </div>
 
                                     <!-- 详细统计 -->
@@ -152,6 +155,159 @@
                                             </div>
                                         </div>
                                     </details>
+
+                                    <!-- 手动调整阈值控件 -->
+                                    <div class="threshold-adjustment">
+                                        <div class="adjustment-header">
+                                            <span class="adjustment-label">手动调整</span>
+                                            <button class="btn btn-mini btn-outline" 
+                                                    @click="toggleAdjustment(filterName, metricName)">
+                                                {{ adjustmentVisible[filterName + '_' + metricName] ? '收起' : '展开' }}
+                                            </button>
+                                        </div>
+                                        
+                                        <div v-if="adjustmentVisible[filterName + '_' + metricName]" class="adjustment-controls">
+                                            <div class="slider-container">
+                                                <input type="range" 
+                                                       class="threshold-slider"
+                                                       :min="getMinThreshold(filterName, metricName)"
+                                                       :max="getMaxThreshold(filterName, metricName)"
+                                                       :step="0.001"
+                                                       :value="metricData.current_threshold"
+                                                       @input="updateSliderValue(filterName, metricName, $event.target.value)"
+                                                       @change="applyThresholdChange(filterName, metricName, $event.target.value)">
+                                                <div class="slider-labels">
+                                                    <span class="min-label">{{ getMinThreshold(filterName, metricName) }}</span>
+                                                    <span class="max-label">{{ getMaxThreshold(filterName, metricName) }}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="input-container">
+                                                <input type="number" 
+                                                       class="threshold-input"
+                                                       :min="getMinThreshold(filterName, metricName)"
+                                                       :max="getMaxThreshold(filterName, metricName)"
+                                                       :step="0.001"
+                                                       :value="pendingValues[filterName + '_' + metricName] || metricData.current_threshold"
+                                                       @input="updateInputValue(filterName, metricName, $event.target.value)"
+                                                       @blur="applyThresholdChange(filterName, metricName, $event.target.value)"
+                                                       @keyup.enter="applyThresholdChange(filterName, metricName, $event.target.value)">
+                                                <button class="btn btn-mini btn-success" 
+                                                        @click="applyThresholdChange(filterName, metricName, pendingValues[filterName + '_' + metricName] || metricData.current_threshold)"
+                                                        :disabled="updating[filterName + '_' + metricName]">
+                                                    <span v-if="updating[filterName + '_' + metricName]">更新中...</span>
+                                                    <span v-else>应用</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 实时预览区域 -->
+                                        <div v-if="previewData[filterName + '_' + metricName]" class="preview-section">
+                                            <div class="preview-header">
+                                                <span class="preview-title">📊 阈值调整预览</span>
+                                                <span class="preview-delta" 
+                                                      :class="getPreviewDeltaClass(previewData[filterName + '_' + metricName].threshold_delta)">
+                                                    {{ formatDelta(previewData[filterName + '_' + metricName].threshold_delta) }}
+                                                </span>
+                                            </div>
+                                            
+                                            <div class="preview-content">
+                                                <div class="impact-summary">
+                                                    <div class="impact-item">
+                                                        <strong>预期影响:</strong> 
+                                                        {{ previewData[filterName + '_' + metricName].predicted_impact.threshold_direction }}阈值
+                                                        {{ previewData[filterName + '_' + metricName].predicted_impact.delta_percentage }}%
+                                                    </div>
+                                                    
+                                                    <div class="expected-changes">
+                                                        <ul>
+                                                            <li v-for="change in previewData[filterName + '_' + metricName].predicted_impact.expected_changes" 
+                                                                :key="change">
+                                                                {{ change }}
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div v-if="previewData[filterName + '_' + metricName].filter_advice" class="advice-section">
+                                                    <div class="advice-item">
+                                                        <strong>专家建议:</strong> {{ previewData[filterName + '_' + metricName].filter_advice.specific_advice }}
+                                                    </div>
+                                                    <div class="optimal-range">
+                                                        <strong>最佳范围:</strong> {{ previewData[filterName + '_' + metricName].filter_advice.optimal_range }}
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- 内容测试区域 -->
+                                                <div class="content-test-section">
+                                                    <div class="test-input-group">
+                                                        <label class="test-label">测试内容预测：</label>
+                                                        <textarea class="test-content-input" 
+                                                                  :value="testContents[filterName + '_' + metricName] || ''"
+                                                                  @input="updateTestContent(filterName, metricName, $event.target.value)"
+                                                                  placeholder="输入测试内容，实时预测过滤结果..."
+                                                                  rows="3"></textarea>
+                                                        <button class="btn btn-mini btn-primary" 
+                                                                @click="runContentPreview(filterName, metricName)"
+                                                                :disabled="!testContents[filterName + '_' + metricName]">
+                                                            预测结果
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div v-if="previewData[filterName + '_' + metricName].content_prediction" 
+                                                         class="prediction-result">
+                                                        <div class="prediction-header">
+                                                            <span class="prediction-action" 
+                                                                  :class="getPredictionActionClass(previewData[filterName + '_' + metricName].content_prediction.predicted_action)">
+                                                                {{ formatPredictionAction(previewData[filterName + '_' + metricName].content_prediction.predicted_action) }}
+                                                            </span>
+                                                            <span class="prediction-confidence">
+                                                                置信度: {{ (previewData[filterName + '_' + metricName].content_prediction.confidence * 100).toFixed(1) }}%
+                                                            </span>
+                                                        </div>
+                                                        <div class="prediction-reasoning">
+                                                            {{ previewData[filterName + '_' + metricName].content_prediction.reasoning }}
+                                                        </div>
+                                                        
+                                                        <!-- 过滤后内容对比 -->
+                                                        <div v-if="previewData[filterName + '_' + metricName].content_prediction.filter_applied" 
+                                                             class="content-comparison">
+                                                            <div class="comparison-section">
+                                                                <div class="comparison-header">
+                                                                    <span class="section-title">✂️ 过滤后内容</span>
+                                                                    <span class="content-length">
+                                                                        {{ previewData[filterName + '_' + metricName].content_prediction.filtered_content.length }} 字符
+                                                                    </span>
+                                                                </div>
+                                                                <div class="comparison-content filtered-content">
+                                                                    {{ previewData[filterName + '_' + metricName].content_prediction.filtered_content || '(内容已完全过滤)' }}
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div v-if="previewData[filterName + '_' + metricName].content_prediction.removed_content" 
+                                                                 class="comparison-section">
+                                                                <div class="comparison-header">
+                                                                    <span class="section-title">🗑️ 被移除内容</span>
+                                                                    <span class="content-length">
+                                                                        {{ previewData[filterName + '_' + metricName].content_prediction.removed_content.length }} 字符
+                                                                    </span>
+                                                                </div>
+                                                                <div class="comparison-content removed-content">
+                                                                    {{ previewData[filterName + '_' + metricName].content_prediction.removed_content }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div v-else class="no-filtering-applied">
+                                                            <div class="info-message">
+                                                                💡 此阈值下内容将完整保留，不会被过滤
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     <!-- 操作按钮 -->
                                     <div class="metric-actions">

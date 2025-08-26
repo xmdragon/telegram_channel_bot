@@ -461,6 +461,45 @@ class ThresholdManager:
             
             return stats
     
+    def set_threshold(self, filter_name: str, metric_name: str, new_value: float):
+        """手动设置阈值"""
+        with self._lock:
+            try:
+                if filter_name not in self.thresholds:
+                    raise ValueError(f"过滤器 '{filter_name}' 不存在")
+                if metric_name not in self.thresholds[filter_name]:
+                    raise ValueError(f"指标 '{metric_name}' 在过滤器 '{filter_name}' 中不存在")
+                
+                config = self.thresholds[filter_name][metric_name]
+                min_val = config.get("min", 0.0)
+                max_val = config.get("max", 1.0)
+                
+                # 验证阈值范围
+                if new_value < min_val or new_value > max_val:
+                    raise ValueError(f"阈值 {new_value} 超出允许范围 [{min_val}, {max_val}]")
+                
+                old_value = config["current"]
+                config["current"] = round(new_value, 3)
+                config["last_updated"] = datetime.now().isoformat()
+                
+                # 更新历史记录
+                if "history" not in config:
+                    config["history"] = []
+                config["history"].append(round(new_value, 3))
+                
+                # 保留最近10个值
+                if len(config["history"]) > 10:
+                    config["history"] = config["history"][-10:]
+                
+                self._save_config()
+                
+                logger.info(f"🎯 手动设置阈值: {filter_name}.{metric_name} {old_value:.3f} → {new_value:.3f}")
+                return True
+                
+            except Exception as e:
+                logger.error(f"❌ 设置阈值失败: {filter_name}.{metric_name} = {new_value}: {e}")
+                raise
+    
     def reset_threshold(self, filter_name: str, metric_name: str):
         """重置特定阈值到默认值"""
         with self._lock:
