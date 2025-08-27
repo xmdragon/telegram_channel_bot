@@ -181,7 +181,7 @@ class MessageFilterProcessor(MessageProcessor):
             )
             
             # 添加元数据
-            filter_context.add_metadata('is_history', context.is_history)
+            filter_context.add_metadata('is_history', False)  # 统一处理：不区分历史/实时
             filter_context.add_metadata('media_files', media_files)
             filter_context.add_metadata('message_obj', context.telegram_message)
             

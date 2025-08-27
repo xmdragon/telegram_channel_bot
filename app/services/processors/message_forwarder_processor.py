@@ -58,18 +58,13 @@ class MessageForwarderProcessor(MessageProcessor):
             if enable_review is False:
                 return False
             
-            # 对于实时消息，默认转发
-            if not context.is_history:
-                return True
-            
-            # 对于历史消息，检查专门的配置
-            forward_history = await config_manager.get_config('review.forward_history_messages')
-            return forward_history if forward_history is not None else False
+            # 统一处理：所有消息默认转发到审核群
+            return True
             
         except Exception as e:
             self.logger.error(f"检查转发配置失败: {e}")
-            # 出错时的默认行为：实时消息转发，历史消息不转发
-            return not context.is_history
+            # 出错时的默认行为：统一转发
+            return True
     
     async def _forward_to_review(self, context: MessageContext):
         """转发消息到审核群"""
@@ -190,16 +185,12 @@ class ReviewForwarder(MessageProcessor):
             if enable_review is False:
                 return False
             
-            # 历史消息特殊处理
-            if context.is_history:
-                forward_history = await config_manager.get_config('review.forward_history_messages')
-                return forward_history if forward_history is not None else False
-            
+            # 统一处理：所有消息都转发
             return True
             
         except Exception as e:
             self.logger.error(f"检查转发配置失败: {e}")
-            return not context.is_history  # 默认策略
+            return True  # 统一策略：出错时也转发
     
     async def _execute_forward(self, context: MessageContext):
         """执行转发操作"""

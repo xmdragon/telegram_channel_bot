@@ -296,11 +296,7 @@ class MessageStorageProcessor(MessageProcessor):
     async def _should_use_active_fetch(self, context: MessageContext, grouped_id: str) -> bool:
         """判断是否应该使用Linus式主动获取"""
         try:
-            # 1. 历史消息优先使用主动获取（避免超时问题）
-            if context.is_history:
-                return True
-            
-            # 2. 检查是否已经存在不完整的组合消息
+            # 检查是否已经存在不完整的组合消息
             existing_combined = await self.message_grouper._get_existing_combined_message(context.channel_id, grouped_id)
             if existing_combined:
                 # 检查是否可能不完整（文本长度过短）
@@ -335,7 +331,7 @@ class MessageStorageProcessor(MessageProcessor):
                 context.media_info,
                 filtered_content=context.filtered_content,
                 is_ad=context.is_ad,
-                is_batch=context.is_history
+                is_batch=False  # 统一处理：不区分批量/单个
             )
             
             self.logger.debug(f"消息已注册到传统组合器，组ID: {grouped_id}")

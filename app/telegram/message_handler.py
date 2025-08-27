@@ -162,13 +162,13 @@ class MessageHandler:
             # 检查组消息
             telegram_msg = result.context.telegram_message
             if hasattr(telegram_msg, 'grouped_id') and telegram_msg.grouped_id:
-                logger.info(f"⏳ {message_type} #{message_id} 等待媒体组合并 (grouped_id: {telegram_msg.grouped_id})")
+                logger.info(f"⏳ 消息 #{message_id} 等待媒体组合并 (grouped_id: {telegram_msg.grouped_id})")
                 return "pending_group"
             else:
-                logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
+                logger.info(f"❓ 消息 #{message_id} 处理完成但未保存（原因未知）")
                 return "unknown"
         else:
-            logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
+            logger.info(f"❓ 消息 #{message_id} 处理完成但未保存（原因未知）")
             return "unknown"
 
     async def process_source_message(self, message: TLMessage, chat):

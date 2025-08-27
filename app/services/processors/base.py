@@ -18,7 +18,7 @@ class MessageContext:
     # 原始消息信息
     telegram_message: TLMessage
     channel_id: str
-    is_history: bool = False
+    # is_history已移除：统一处理所有消息，不区分历史/实时
     
     # 处理结果数据
     original_content: str = ""

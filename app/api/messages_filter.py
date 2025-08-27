@@ -134,7 +134,7 @@ async def filter_message_content(
         
         # 添加元数据
         has_media = msg_data.get('media_type') in ['photo', 'video', 'document']
-        filter_context.add_metadata('is_history', False)
+        # is_history已移除：统一处理，不区分历史/实时
         filter_context.add_metadata('has_media', has_media)
         filter_context.add_metadata('message_obj', msg_data)
         
