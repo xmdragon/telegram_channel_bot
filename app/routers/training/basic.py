@@ -138,19 +138,6 @@ async def add_separator_pattern(pattern_data: SeparatorPattern):
 
 @router.post(ROUTES.training.reload_model)
 async def reload_model():
-    """重新加载AI模型"""
-    try:
-        from app.services.ai_filter import ai_filter
-        
-        # 重新加载模型
-        success = await ai_filter.reload_model()
-        
-        if success:
-            return {"success": True, "message": "模型重新加载成功"}
-        else:
-            return {"success": False, "message": "模型重新加载失败"}
-            
-    except ImportError:
-        raise HTTPException(status_code=500, detail="AI过滤器模块未找到")
-    except Exception as e:
-        raise handle_api_error(e, "重新加载模型")
+    """重新加载AI模型 - 已简化，无需重载"""
+    # 🚀 Linus式简化：不再使用重量级AI模型
+    return {"success": True, "message": "系统已优化为轻量级文本匹配，无需模型重载"}

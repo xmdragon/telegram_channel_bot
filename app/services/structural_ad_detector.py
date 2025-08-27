@@ -19,11 +19,9 @@ class StructuralAdDetector:
         self.ad_detector = None
         
     def _get_ad_detector(self):
-        """获取广告检测器实例"""
-        if self.ad_detector is None:
-            from app.services.ad_detector import ad_detector
-            self.ad_detector = ad_detector
-        return self.ad_detector
+        """获取广告检测器实例 - 已简化为空实现"""
+        # 🚀 Linus式简化：不再使用重量级AI检测器
+        return None
         
     async def detect_structural_ads(self, message: Any) -> Dict:
         """

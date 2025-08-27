@@ -64,18 +64,10 @@ class SemanticContentFilter(BaseFilter):
             return False
     
     def _initialize_ai_services(self):
-        """初始化AI相关服务"""
-        # 初始化AI广告检测器
-        try:
-            from app.services.ai_filter import ai_filter
-            self._ai_filter = ai_filter
-            logger.debug("AI广告检测器初始化成功")
-        except ImportError as e:
-            logger.warning(f"无法导入AI广告检测器: {e}")
-            self._ai_filter = None
-        except Exception as e:
-            logger.error(f"AI广告检测器初始化失败: {e}")
-            self._ai_filter = None
+        """初始化AI相关服务 - 已简化为空实现"""
+        # 🚀 Linus式简化：不再使用AI过滤器
+        self._ai_filter = None
+        logger.debug("已移除AI过滤器依赖，使用轻量级方案")
         
         # 初始化智能尾部过滤器
         try:
