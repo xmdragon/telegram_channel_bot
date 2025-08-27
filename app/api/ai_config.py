@@ -57,7 +57,7 @@ async def get_ai_status():
         
         # 获取依赖状态
         dependencies = {
-            'sentence_transformers': ai_config.is_sentence_transformers_available(),
+            'sentence_transformers': False,  # 已移除
             'scikit_learn': True,  # 轻量级模式依赖
             'jieba': True  # 中文分词依赖
         }
@@ -245,7 +245,7 @@ async def get_ai_recommendations():
         ai_config = get_ai_config()
         
         dependencies = {
-            'sentence_transformers': ai_config.is_sentence_transformers_available(),
+            'sentence_transformers': False,  # 已移除
         }
         
         recommendations = _get_recommendations(ai_config, dependencies)
@@ -269,8 +269,8 @@ def _get_recommendations(ai_config, dependencies: Dict[str, bool]) -> List[Dict[
     if not dependencies.get('sentence_transformers', False):
         recommendations.append({
             'type': 'warning',
-            'title': 'sentence_transformers不可用',
-            'message': '深度学习模式不可用，建议使用轻量级模式或安装sentence_transformers',
+            'title': '深度学习模式已废弃',
+            'message': '系统已优化为轻量级模式，无需重量级依赖',
             'action': {
                 'type': 'install',
                 'command': 'pip install sentence-transformers',
@@ -284,7 +284,7 @@ def _get_recommendations(ai_config, dependencies: Dict[str, bool]) -> List[Dict[
             recommendations.append({
                 'type': 'error',
                 'title': f'模块{module_name}配置问题',
-                'message': f'模块设置为deep模式但sentence_transformers不可用',
+                'message': f'模块设置为deep模式但系统已改为轻量级',
                 'action': {
                     'type': 'config',
                     'module': module_name,
@@ -298,7 +298,7 @@ def _get_recommendations(ai_config, dependencies: Dict[str, bool]) -> List[Dict[
         recommendations.append({
             'type': 'info',
             'title': '性能优化建议',
-            'message': 'sentence_transformers可用，可以使用auto模式让系统自动选择最佳模式',
+            'message': '系统已优化，推荐使用auto或lightweight模式',
             'action': {
                 'type': 'config',
                 'suggested_mode': 'auto',
