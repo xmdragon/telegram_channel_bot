@@ -526,6 +526,40 @@ class MessageForwarder:
             logger.error(f"添加频道落款失败: {e}")
             return content
     
+    async def _check_caption_length(self, content: str, with_footer: bool = True) -> tuple[bool, int]:
+        """检查caption长度是否超限
+        
+        Args:
+            content: 消息内容
+            with_footer: 是否计算加上落款的长度
+            
+        Returns:
+            (是否合法, 超出字符数)
+        """
+        try:
+            if with_footer:
+                # 获取落款配置
+                from app.services.config_manager import config_manager
+                footer = await config_manager.get_config("target.signature", "")
+                if footer:
+                    footer = "\n\n" + footer.replace("\\n", "\n")
+                    content = (content or "") + footer
+            
+            max_length = 1024  # Telegram媒体caption限制
+            content_length = len(content)
+            
+            if content_length <= max_length:
+                return True, 0
+            else:
+                excess = content_length - max_length
+                logger.warning(f"Caption长度超限: {content_length} > {max_length} (超出{excess}字符)")
+                return False, excess
+                
+        except Exception as e:
+            logger.error(f"检查caption长度失败: {e}")
+            # 出错时保守处理，假设超限
+            return False, 0
+    
     async def _send_combined_message(self, client: TelegramClient, target_channel_id: str, message):
         """发送组合消息（媒体组）"""
         try:
@@ -533,6 +567,13 @@ class MessageForwarder:
             caption_text = message.filtered_content or message.content
             
             # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
+            
+            # 🔍 检查加上落款后的caption长度
+            is_valid, excess = await self._check_caption_length(caption_text, with_footer=True)
+            if not is_valid:
+                error_msg = f"组合消息发布失败：内容加落款后超过1024字符限制（超出{excess}字符）"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
             
             # 添加频道落款
             caption_text = await self._add_channel_footer(caption_text)
@@ -574,6 +615,14 @@ class MessageForwarder:
         try:
             # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
             caption_text = message.filtered_content or message.content
+            
+            # 🔍 检查加上落款后的caption长度
+            is_valid, excess = await self._check_caption_length(caption_text, with_footer=True)
+            if not is_valid:
+                error_msg = f"媒体消息发布失败：内容加落款后超过1024字符限制（超出{excess}字符）"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
             caption_with_footer = await self._add_channel_footer(caption_text)
             return await client.send_file(
                 entity=int(target_channel_id),

@@ -168,6 +168,7 @@ class HistoryCollector:
             # 详细统计各种处理结果
             stats = {
                 'saved': 0,         # 成功保存
+                'queued': 0,        # 异步入队（视为成功）
                 'filtered': 0,      # 被过滤
                 'duplicate': 0,     # 重复消息
                 'pending_group': 0, # 等待媒体组合并
@@ -214,6 +215,7 @@ class HistoryCollector:
             logger.info(f"📊 消息处理完成统计:")
             logger.info(f"   总共采集: {len(collected_messages)} 条")
             logger.info(f"   成功保存: {stats['saved']} 条")
+            logger.info(f"   异步入队: {stats['queued']} 条")
             logger.info(f"   被过滤掉: {stats['filtered']} 条")
             logger.info(f"   重复消息: {stats['duplicate']} 条")
             logger.info(f"   等待合并: {stats['pending_group']} 条")
@@ -222,9 +224,12 @@ class HistoryCollector:
             logger.info(f"   未知原因: {stats['unknown']} 条")
             logger.info(f"   处理率: {total_processed}/{len(collected_messages)} ({(total_processed/len(collected_messages)*100):.1f}%)")
             
-            # 如果保存数量太少，发出警告
-            if stats['saved'] < len(collected_messages) * 0.1:  # 少于10%
-                logger.warning(f"⚠️ 保存率较低: {stats['saved']}/{len(collected_messages)} ({(stats['saved']/len(collected_messages)*100):.1f}%)，请检查过滤规则")
+            # 计算成功处理的消息数（保存 + 入队）
+            success_count = stats['saved'] + stats['queued']
+            
+            # 如果成功数量太少，发出警告
+            if success_count < len(collected_messages) * 0.1:  # 少于10%
+                logger.warning(f"⚠️ 保存率较低: {success_count}/{len(collected_messages)} ({(success_count/len(collected_messages)*100):.1f}%)，请检查过滤规则")
             
             # 更新Redis采集点
             if latest_message_id > (checkpoint_id or 0):
@@ -232,7 +237,7 @@ class HistoryCollector:
                 logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
             
             collection_type = "历史消息" if not checkpoint_id else "增量"
-            logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 保存 {stats['saved']} 条，过滤 {stats['filtered']} 条，重复 {stats['duplicate']} 条，总计 {len(collected_messages)} 条")
+            logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 保存 {stats['saved']} 条，入队 {stats['queued']} 条，过滤 {stats['filtered']} 条，重复 {stats['duplicate']} 条，总计 {len(collected_messages)} 条")
             
         except Exception as e:
             import traceback
