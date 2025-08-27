@@ -30,7 +30,7 @@ class HybridTailFilter:
     - 利用训练数据（53+尾部样本）
     """
     
-    def __init__(self, vector_threshold: float = 0.2):
+    def __init__(self, vector_threshold: float = 0.15):
         """初始化混合过滤器
         
         Args:
@@ -324,16 +324,31 @@ class HybridTailFilter:
                     removed_lines.append(line)
                     logger.debug(f"✂️ 整行过滤 (第{i}行, 相似度: {similarity:.3f}): {line_stripped[:50]}...")
                 else:
-                    kept_lines.append(line)
-                    logger.debug(f"🟡 过滤范围内保留 (第{i}行, 相似度: {similarity:.3f}): {line_stripped[:50]}...")
+                    # 🚀 关键词兜底检测：即使相似度低，包含明显推广特征也过滤
+                    has_contact = '@' in line_stripped or 't.me/' in line_stripped
+                    promo_keywords = ['订阅', '加入', '关注', '频道', '群组', '投稿', '爆料', '联系', '商务', '合作']
+                    has_promo_keyword = any(keyword in line_stripped for keyword in promo_keywords)
+                    
+                    # Unicode emoji范围检测
+                    import re
+                    has_emoji = bool(re.search(r'[\U0001F300-\U0001F9FF]', line_stripped))
+                    
+                    # 兜底条件：联系方式 + (推广词 或 emoji)
+                    if has_contact and (has_promo_keyword or has_emoji):
+                        removed_lines.append(line)
+                        logger.debug(f"🎯 关键词兜底过滤 (第{i}行): {line_stripped[:50]}...")
+                        logger.debug(f"   触发条件: 联系方式={has_contact}, 推广词={has_promo_keyword}, emoji={has_emoji}")
+                    else:
+                        kept_lines.append(line)
+                        logger.debug(f"🟡 过滤范围内保留 (第{i}行, 相似度: {similarity:.3f}): {line_stripped[:50]}...")
         
         return kept_lines, removed_lines, similarities
     
     def _split_mixed_line(self, line: str) -> List[str]:
-        """分割包含正文和推广内容的混合行
+        """简化的混合行分割 - Linus式极简方案
         
-        检测模式：正文内容[空格]推广内容
-        如：'位公司老板看清楚此人的面目。 📣订阅新闻频道：@cn_zhm0'
+        只检测通用模式：任何emoji + @符号的组合
+        不依赖特定emoji列表，避免遗漏
         
         Args:
             line: 文本行
@@ -343,55 +358,36 @@ class HybridTailFilter:
         """
         import re
         
-        # 推广标志模式：表情+关键词+联系方式的组合
-        promo_patterns = [
-            r'📣.*?[@：][^\s]*',  # 📣订阅...@xxx 或 📣订阅...：@xxx
-            r'💬.*?[@：][^\s]*',  # 💬商务...@xxx
-            r'📱.*?[@：][^\s]*',  # 📱投稿...@xxx
-            r'🔔.*?[@：][^\s]*',  # 🔔关注...@xxx
-            r'[\u4e00-\u9fff]*?(订阅|加入|关注|频道|群组).*?[@：][^\s]*',  # 中文推广词+联系方式
-            r'[\u4e00-\u9fff]*?(爆料|投稿|联系|商务|合作).*?[@：][^\s]*',   # 模糊词+联系方式
-        ]
+        # 🚀 极简模式：只检测 任何emoji + @username 的通用模式
+        # 匹配任何Unicode emoji后跟@的内容
+        promo_pattern = r'[\U0001F300-\U0001F9FF].*?@[^\s]*'
         
-        # 寻找推广内容的位置
-        promo_start = -1
-        for pattern in promo_patterns:
-            match = re.search(pattern, line)
-            if match:
-                promo_start = match.start()
-                break
-        
-        if promo_start == -1:
-            # 没找到明显的推广模式，不分割
+        match = re.search(promo_pattern, line)
+        if not match:
             return [line]
         
-        # 寻找分割点：推广内容前的最后一个空格或标点
-        split_point = promo_start
+        # 找到推广内容起始位置
+        promo_start = match.start()
         
-        # 往前找最近的自然分割点（空格、句号、感叹号等）
-        for i in range(promo_start - 1, max(0, promo_start - 20), -1):
-            if line[i] in [' ', '。', '！', '？', '；', '，', '\n', '\t']:
+        # 简单分割：在emoji前寻找最近的空格
+        split_point = promo_start
+        for i in range(promo_start - 1, max(0, promo_start - 30), -1):
+            if line[i] == ' ':
                 split_point = i
                 break
         
         if split_point <= 0:
-            # 没找到合适的分割点，不分割
             return [line]
         
         # 执行分割
         regular_part = line[:split_point].strip()
         promo_part = line[split_point:].strip()
         
-        parts = []
-        if regular_part:
-            parts.append(regular_part)
-        if promo_part:
-            parts.append(promo_part)
-            
-        if len(parts) > 1:
-            logger.debug(f"🔪 行内分割: '{regular_part}' | '{promo_part}'")
+        if regular_part and promo_part:
+            logger.debug(f"🔪 简化分割: '{regular_part}' | '{promo_part}'")
+            return [regular_part, promo_part]
         
-        return parts if len(parts) > 1 else [line]
+        return [line]
     
     def _is_only_emojis_or_whitespace(self, text: str) -> bool:
         """检查文本是否只包含表情符号或空白字符"""
