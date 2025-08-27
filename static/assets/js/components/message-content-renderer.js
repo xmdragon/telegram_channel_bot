@@ -893,6 +893,13 @@ const MessageContentRenderer = {
                     🔄 恢复
                 </button>
             </div>
+            
+            <!-- 已发送消息的恢复按钮 -->
+            <div v-else-if="message.status === 'approved'" class="message-actions">
+                <button data-action="restoreMessage" :data-message-id="message.id" class="btn btn-sm btn-warning">
+                    🔄 恢复
+                </button>
+            </div>
         </div>
     `
 };

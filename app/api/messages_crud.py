@@ -521,8 +521,8 @@ async def restore_message(
         
         # 检查消息当前状态
         current_status = message.get("status", "pending")
-        if current_status != "rejected":
-            raise HTTPException(status_code=400, detail=f"只能恢复已拒绝的消息，当前状态: {current_status}")
+        if current_status not in ["rejected", "approved"]:
+            raise HTTPException(status_code=400, detail=f"只能恢复已拒绝或已发送的消息，当前状态: {current_status}")
         
         # 恢复消息状态为未审核
         success = redis_store.update_message_status(message_id, "pending", user.get('user_id'))
