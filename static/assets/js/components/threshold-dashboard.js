@@ -384,7 +384,6 @@ const app = createApp({
                 'promo_content_filter': '推广内容过滤器',
                 'promo_vector_filter': '推广向量过滤器',
                 'promo_filter': '推广过滤器',
-                'chat_filter': '聊天检测器'
             };
             return names[filterName] || filterName;
         },
@@ -397,7 +396,6 @@ const app = createApp({
                 'promo_content_filter': '🚫',
                 'promo_vector_filter': '🧠',
                 'promo_filter': '🚫',
-                'chat_filter': '💬'
             };
             return icons[filterName] || '🎯';
         },
@@ -557,7 +555,6 @@ const app = createApp({
                 'promo_content_filter_semantic': { min: 0.3, max: 0.85 },
                 'promo_vector_filter_similarity': { min: 0.75, max: 0.95 },
                 'promo_vector_filter_min_length': { min: 10, max: 50 },
-                'chat_filter_detection': { min: 0.3, max: 0.8 }
             };
             
             this.thresholdRanges = defaultRanges;

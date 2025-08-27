@@ -93,7 +93,6 @@ const ConfigApp = {
                 // 内容检测过滤器
                 duplicate: true,          // 去重检测
                 ad_detector: true,        // 广告检测
-                chat_content: true,       // 聊天内容检测
                 
                 // 额外功能
                 ocr_enabled: true,                    // OCR图片文字识别

@@ -19,7 +19,6 @@ from app.services.filters.tail_filter import TailFilter
 from app.services.filters.footer_promo_filter import FooterPromoFilter
 from app.services.filters.markdown_filter import MarkdownFilter
 from app.services.filters.promo_vector_filter import PromoVectorFilter
-from app.services.filters.chat_content_filter import ChatContentFilter
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ class UnifiedFilterEngine:
         """初始化过滤器管道 - 支持基于配置的动态加载"""
         config = PipelineConfig(
             enable_early_stopping=True,
-            early_stop_filters={'duplicate_detector', 'ad_detector', 'chat_content_filter'},
+            early_stop_filters={'duplicate_detector', 'ad_detector'},
             filter_timeout=30.0,
             pipeline_timeout=60.0
         )
@@ -70,8 +69,6 @@ class UnifiedFilterEngine:
         if filter_settings.get('ad_detector', True):
             pipeline.add_filter(AdDetectorFilter())          # 6. 广告检测
             
-        if filter_settings.get('chat_content_filter', True):
-            pipeline.add_filter(ChatContentFilter())         # 7. 聊天内容检测
         
         # 记录启用的过滤器
         enabled_filters = [name for name, enabled in filter_settings.items() if enabled and name != 'ocr_enabled' and name != 'auto_reject_ads']
@@ -144,7 +141,6 @@ class UnifiedFilterEngine:
                 # 内容检测过滤器
                 'duplicate_detector': filter_enabled,   # 基于全局过滤开关
                 'ad_detector': filter_enabled,          # 基于全局过滤开关
-                'chat_content_filter': filter_enabled,  # 基于全局过滤开关
                 
                 # 额外功能
                 'ocr_enabled': ocr_enabled,
@@ -164,7 +160,6 @@ class UnifiedFilterEngine:
                 'promo_vector_filter': True,
                 'duplicate_detector': True,
                 'ad_detector': True,
-                'chat_content_filter': True,
                 'ocr_enabled': True,
                 'auto_reject_ads': True
             }
