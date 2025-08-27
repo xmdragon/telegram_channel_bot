@@ -20,116 +20,91 @@ class TailVectorManager:
     """尾部向量管理器"""
     
     def __init__(self):
-        self.vectors = None  # numpy array of vectors
-        self.sample_ids = []  # 对应的样本ID列表
-        self.clusters = None  # 聚类结果
-        self.model = None
+        # 🚀 Linus式简化：不再使用向量，只存储文本和ID
+        self.samples = []  # [(sample_id, text), ...] 
         self._lock = threading.RLock()
         self._initialized = False  # 延迟初始化标记
         
-        # 文件路径
-        self.vector_file = PathConfig.TAIL_TRAINING_DIR / "tail_vectors.npz"
-        self.index_file = PathConfig.TAIL_TRAINING_DIR / "vector_index.json"
+        # 文件路径（只需要样本文件）
+        self.samples_file = PathConfig.TAIL_TRAINING_DIR / "tail_filter_samples.json"
         
-        # 聚类参数
-        self.cluster_eps = 0.3
-        self.cluster_min_samples = 2
-        
-        # 🎯 Linus式优化: 延迟初始化，按需加载模型
-        logger.debug("✅ 尾部向量管理器实例化（延迟初始化模式）")
+        # 🎯 Linus式优化: 延迟初始化，直接加载文本样本
+        logger.debug("✅ 尾部文本管理器实例化（轻量级模式）")
     
     def _ensure_initialized(self):
         """确保管理器已初始化（延迟加载）"""
         if not self._initialized:
             with self._lock:
                 if not self._initialized:  # 双检查锁定
-                    logger.info("🔄 首次使用，正在初始化尾部向量管理器...")
-                    self._load_model()
-                    self._load_vectors()
+                    logger.info("🔄 首次使用，正在初始化尾部文本管理器...")
+                    self._load_samples()
                     self._initialized = True
-                    logger.info("✅ 尾部向量管理器初始化完成")
+                    logger.info("✅ 尾部文本管理器初始化完成")
     
     def _load_model(self):
-        """加载sentence-transformers模型（使用缓存管理器）"""
-        try:
-            # 🔧 Linus式解决方案：使用专用模型缓存管理器避免重复下载
-            from app.services.model_cache_manager import ModelCacheManager
-            
-            cache_manager = ModelCacheManager()
-            self.model = cache_manager.get_model()  # 使用配置文件中的模型
-            
-            if self.model:
-                logger.info("✅ 向量管理器AI模型加载成功（使用缓存管理器）")
-            else:
-                logger.error("❌ 向量管理器AI模型加载失败，向量功能不可用")
-                
-        except Exception as e:
-            logger.error(f"❌ AI模型加载失败: {e}")
-            self.model = None
-            # 不抛出异常，允许程序继续运行
+        """废弃方法 - 不再加载重量级模型"""
+        logger.debug("_load_model 已废弃，使用轻量级文本相似度")
+        pass
     
-    def _load_vectors(self):
-        """从文件加载向量数据"""
+    def _load_samples(self):
+        """从文件加载样本数据 - Linus式简化版本"""
         try:
-            if self.vector_file.exists() and self.index_file.exists():
-                # 加载向量
-                data = np.load(self.vector_file)
-                self.vectors = data['vectors']
+            if self.samples_file.exists():
+                with open(self.samples_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    samples = data.get('samples', [])
+                    
+                    # 🚀 只存储ID和文本，不需要向量
+                    self.samples = []
+                    for sample in samples:
+                        sample_id = sample.get('id')
+                        tail_text = sample.get('tail_part', '').strip()
+                        if sample_id and tail_text:
+                            self.samples.append((sample_id, tail_text))
                 
-                # 加载索引
-                with open(self.index_file, 'r', encoding='utf-8') as f:
-                    index_data = json.load(f)
-                    self.sample_ids = index_data['sample_ids']
-                    self.clusters = np.array(index_data.get('clusters', []))
-                
-                logger.info(f"✅ 加载了 {len(self.vectors)} 个向量")
+                logger.info(f"📂 加载了 {len(self.samples)} 个尾部样本")
             else:
-                # 初始化空数据
-                self.vectors = np.empty((0, 384))  # MiniLM模型输出384维向量
-                self.sample_ids = []
-                self.clusters = np.array([])
-                logger.info("📝 初始化空向量数据库")
+                self.samples = []
+                logger.info("📝 初始化空样本存储")
                 
         except Exception as e:
-            logger.error(f"❌ 加载向量数据失败: {e}")
-            # 初始化空数据作为fallback
-            self.vectors = np.empty((0, 384))
-            self.sample_ids = []
-            self.clusters = np.array([])
+            logger.error(f"❌ 加载尾部样本失败: {e}")
+            self.samples = []
     
     def add_vector(self, text: str, sample_id: int) -> int:
         """
-        添加新的向量
+        添加新的样本 - Linus式简化版本（保留兼容性）
         
         Args:
             text: 文本内容
             sample_id: 样本ID
             
         Returns:
-            向量在数组中的索引
+            样本在列表中的索引
+        """
+        return self.add_sample(text, sample_id)
+    
+    def add_sample(self, text: str, sample_id: int) -> int:
+        """
+        添加新的样本
+        
+        Args:
+            text: 文本内容
+            sample_id: 样本ID
+            
+        Returns:
+            样本在列表中的索引
         """
         self._ensure_initialized()
         with self._lock:
-            if not self.model:
-                raise RuntimeError("AI模型未加载")
+            # 🚀 直接添加到样本列表，不需要向量计算
+            text = text.strip()
+            self.samples.append((sample_id, text))
             
-            # 向量化文本
-            vector = self.model.encode([text])[0]
+            sample_index = len(self.samples) - 1
             
-            # 添加到数组
-            if self.vectors.size == 0:
-                self.vectors = vector.reshape(1, -1)
-            else:
-                self.vectors = np.vstack([self.vectors, vector])
-            
-            # 添加ID
-            self.sample_ids.append(sample_id)
-            
-            # 返回索引
-            vector_index = len(self.sample_ids) - 1
-            
-            logger.debug(f"➕ 添加向量 - 样本ID: {sample_id}, 索引: {vector_index}")
-            return vector_index
+            logger.debug(f"➕ 添加样本 - ID: {sample_id}, 索引: {sample_index}")
+            return sample_index
     
     def update_vector(self, vector_index: int, text: str):
         """
@@ -181,7 +156,7 @@ class TailVectorManager:
     
     def find_similar(self, text: str, top_k: int = 5, threshold: float = 0.7) -> List[Dict]:
         """
-        查找相似的样本
+        查找相似的样本 - Linus式简化版本
         
         Args:
             text: 查询文本
@@ -189,34 +164,46 @@ class TailVectorManager:
             threshold: 相似度阈值
             
         Returns:
-            相似样本列表，每个包含 sample_id, similarity, vector_index
+            相似样本列表，每个包含 sample_id, similarity
         """
         self._ensure_initialized()
         with self._lock:
-            if not self.model or self.vectors.size == 0:
+            if not self.samples:
                 return []
             
-            # 向量化查询文本
-            query_vector = self.model.encode([text])[0].reshape(1, -1)
-            
-            # 计算相似度
-            similarities = cosine_similarity(query_vector, self.vectors)[0]
-            
-            # 获取最相似的结果
-            top_indices = np.argsort(similarities)[::-1][:top_k]
-            
             results = []
-            for idx in top_indices:
-                similarity = similarities[idx]
+            
+            # 🎯 完全匹配优先
+            for sample_id, sample_text in self.samples:
+                if sample_text.strip() == text.strip():
+                    return [{
+                        'sample_id': sample_id,
+                        'similarity': 1.0
+                    }]
+            
+            # 🚀 编辑距离相似度计算
+            for sample_id, sample_text in self.samples:
+                similarity = self._edit_distance_similarity(text, sample_text)
                 if similarity >= threshold:
                     results.append({
-                        'sample_id': int(self.sample_ids[idx]),  # 转换numpy类型为Python int
-                        'similarity': round(float(similarity), 4),
-                        'vector_index': int(idx)  # 转换numpy类型为Python int
+                        'sample_id': sample_id,
+                        'similarity': round(similarity, 4)
                     })
+            
+            # 按相似度排序，返回top-k
+            results.sort(key=lambda x: x['similarity'], reverse=True)
+            results = results[:top_k]
             
             logger.debug(f"🔍 找到 {len(results)} 个相似样本")
             return results
+    
+    def _edit_distance_similarity(self, text1: str, text2: str) -> float:
+        """计算编辑距离相似度 - Linus最爱的简单有效方案"""
+        try:
+            import difflib
+            return difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+        except:
+            return 0.0
     
     def find_most_similar(self, text: str, threshold: float = 0.5) -> Optional[Dict]:
         """

@@ -145,20 +145,18 @@ class PromoVectorManager:
         return hashlib.md5(text.encode('utf-8')).hexdigest()
     
     def _encode_texts(self, texts: List[str], rebuild: bool = False):
-        """编码文本为向量"""
+        """编码文本到缓存 - Linus式简化版本（无需向量）"""
         if not texts:
             return
             
         try:
-            self._load_model()
-            
             if rebuild:
                 # 完全重建
                 self._vector_cache = {}
                 self._texts = []
                 self._vectors = None
             
-            # 找出需要编码的新文本
+            # 🚀 只需要添加文本，不需要计算向量
             new_texts = []
             for text in texts:
                 text_hash = self._get_text_hash(text)
@@ -166,35 +164,28 @@ class PromoVectorManager:
                     new_texts.append(text)
             
             if not new_texts:
-                return  # 没有新文本需要编码
+                return  # 没有新文本需要添加
                 
-            # 编码新文本
-            logger.info(f"编码 {len(new_texts)} 个新推广文本")
-            new_vectors = self.model.encode(new_texts, normalize_embeddings=True)
+            # 🎯 直接添加文本到缓存，不计算向量
+            logger.info(f"添加 {len(new_texts)} 个新推广文本样本")
             
-            # 更新缓存
+            # 更新缓存映射
             start_idx = len(self._texts)
             for i, text in enumerate(new_texts):
                 text_hash = self._get_text_hash(text)
                 self._vector_cache[text_hash] = start_idx + i
                 self._texts.append(text)
             
-            # 合并向量
-            if self._vectors is None:
-                self._vectors = new_vectors
-            else:
-                self._vectors = np.vstack([self._vectors, new_vectors])
-            
             # 保存到文件
             self._save_vectors()
             
-            logger.info(f"推广向量缓存更新完成，总计 {len(self._texts)} 个向量")
+            logger.info(f"推广文本缓存更新完成，总计 {len(self._texts)} 个样本")
             
         except Exception as e:
-            logger.error(f"编码推广文本失败: {e}")
+            logger.error(f"添加推广文本失败: {e}")
     
     def add_sample_vector(self, content: str):
-        """添加单个推广样本的向量"""
+        """添加单个推广样本 - Linus式简化版本（无需向量）"""
         if self.disabled:
             return
         if not content or not content.strip():
@@ -207,11 +198,11 @@ class PromoVectorManager:
         if text_hash in self._vector_cache:
             return
             
-        # 编码新样本
+        # 🚀 直接添加文本样本，不计算向量
         self._encode_texts([content])
     
     def remove_sample_vector(self, content: str):
-        """移除推广样本的向量"""
+        """移除推广样本 - Linus式简化版本"""
         if self.disabled:
             return
         if not content:
@@ -231,9 +222,7 @@ class PromoVectorManager:
             # 从文本列表中移除
             self._texts.pop(remove_idx)
             
-            # 从向量数组中移除
-            if self._vectors is not None:
-                self._vectors = np.delete(self._vectors, remove_idx, axis=0)
+            # 🔥 不再操作向量数组，已废弃
             
             # 更新后续索引
             for key, idx in self._vector_cache.items():
@@ -243,13 +232,13 @@ class PromoVectorManager:
             # 保存更新
             self._save_vectors()
             
-            logger.info(f"移除推广向量成功，剩余 {len(self._texts)} 个向量")
+            logger.info(f"移除推广样本成功，剩余 {len(self._texts)} 个样本")
             
         except Exception as e:
-            logger.error(f"移除推广向量失败: {e}")
+            logger.error(f"移除推广样本失败: {e}")
     
     def update_cache(self):
-        """更新向量缓存（同步推广样本）"""
+        """更新文本缓存（同步推广样本）- Linus式简化版本"""
         if self.disabled:
             return
         try:
@@ -262,23 +251,23 @@ class PromoVectorManager:
                 if sample.get('promo_content'):
                     current_contents.add(sample['promo_content'].strip())
             
-            # 找出缓存中多余的向量（样本已删除）
+            # 找出缓存中多余的文本（样本已删除）
             cached_contents = set(self._texts)
             to_remove = cached_contents - current_contents
             
-            # 移除多余的向量
+            # 移除多余的样本
             for content in to_remove:
                 self.remove_sample_vector(content)
             
-            # 添加新的向量
+            # 添加新的样本
             to_add = current_contents - set(self._texts)
             if to_add:
                 self._encode_texts(list(to_add))
             
-            logger.info(f"推广向量缓存同步完成，现有 {len(self._texts)} 个向量")
+            logger.info(f"推广文本缓存同步完成，现有 {len(self._texts)} 个样本")
             
         except Exception as e:
-            logger.error(f"更新推广向量缓存失败: {e}")
+            logger.error(f"更新推广文本缓存失败: {e}")
     
     def find_similar_samples(
         self, 
@@ -323,50 +312,36 @@ class PromoVectorManager:
                     logger.info(f"🎯 完全匹配找到: {text[:50]}...")
                     return [(text, 1.0)]  # 100% 相似度
             
-            # 🚀 第二优先：轻量级相似度计算
-            try:
-                from app.services.lightweight_similarity import LightweightTextSimilarity
-                
-                lightweight_sim = LightweightTextSimilarity()
-                
-                # 如果轻量级模型能用，优先使用
-                all_texts = self._texts + [query_text]
-                vectors = lightweight_sim.encode(all_texts)
-                
-                if vectors is not None:
-                    query_vector = vectors[-1:].reshape(1, -1)
-                    sample_vectors = vectors[:-1]
-                    
-                    # 计算余弦相似度
-                    from sklearn.metrics.pairwise import cosine_similarity
-                    similarities = cosine_similarity(query_vector, sample_vectors).flatten()
-                    
-                    # 找到超过阈值的结果
-                    for i, similarity in enumerate(similarities):
-                        if similarity >= threshold:
-                            results.append((self._texts[i], float(similarity)))
-                    
-                    # 按相似度排序并返回top-k
-                    results.sort(key=lambda x: x[1], reverse=True)
-                    return results[:top_k]
-                
-            except Exception as e:
-                logger.warning(f"轻量级相似度计算失败，使用兜底方案: {e}")
-            
-            # 🔧 第三兜底：简单Jaccard相似度
-            logger.info("使用Jaccard相似度兜底计算")
+            # 🚀 第二优先：编辑距离相似度（最佳方案）
+            logger.debug("使用编辑距离计算相似度")
             for text in self._texts:
-                jaccard_sim = self._jaccard_similarity(query_text, text)
-                if jaccard_sim >= threshold:
-                    results.append((text, jaccard_sim))
+                edit_sim = self._edit_distance_similarity(query_text, text)
+                if edit_sim >= threshold:
+                    results.append((text, edit_sim))
             
-            # 排序返回
+            # 如果编辑距离没找到结果，降级使用Jaccard
+            if not results:
+                logger.debug("编辑距离无匹配，使用Jaccard兜底")
+                for text in self._texts:
+                    jaccard_sim = self._jaccard_similarity(query_text, text)
+                    if jaccard_sim >= threshold * 0.9:  # 降低阈值10%
+                        results.append((text, jaccard_sim))
+            
+            # 排序返回top-k
             results.sort(key=lambda x: x[1], reverse=True)
             return results[:top_k]
             
         except Exception as e:
             logger.error(f"查找相似推广样本失败: {e}")
             return []
+    
+    def _edit_distance_similarity(self, text1: str, text2: str) -> float:
+        """计算编辑距离相似度 - Linus最爱的简单有效方案"""
+        try:
+            import difflib
+            return difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+        except:
+            return 0.0
     
     def _jaccard_similarity(self, text1: str, text2: str) -> float:
         """计算Jaccard相似度"""
@@ -444,14 +419,14 @@ class PromoVectorManager:
     
     def rebuild_vectors_from_samples_file(self) -> Dict:
         """
-        从推广样本文件重建向量索引
+        从推广样本文件重建文本索引 - Linus式简化版本
         便捷方法，用于API调用和自动同步
         """
         if self.disabled:
-            return {'success': False, 'reason': 'sentence_transformers not available'}
+            return {'success': False, 'reason': 'PromoVectorManager disabled'}
         self._ensure_initialized()
         try:
-            logger.info("开始从推广样本文件重建向量索引...")
+            logger.info("开始从推广样本文件重建文本索引...")
             
             # 清空现有缓存
             self._vector_cache = {}
@@ -462,20 +437,20 @@ class PromoVectorManager:
             self.update_cache()
             
             # 统计结果
-            vector_count = len(self._texts)
+            sample_count = len(self._texts)
             
-            success_msg = f"推广向量重建完成，共 {vector_count} 个向量"
+            success_msg = f"推广文本重建完成，共 {sample_count} 个样本"
             logger.info(success_msg)
             
             return {
                 'success': True,
                 'message': success_msg,
-                'count': vector_count,
-                'total_vectors': vector_count
+                'count': sample_count,
+                'total_samples': sample_count
             }
             
         except Exception as e:
-            error_msg = f"推广向量重建失败: {str(e)}"
+            error_msg = f"推广文本重建失败: {str(e)}"
             logger.error(error_msg)
             return {
                 'success': False,
@@ -485,7 +460,7 @@ class PromoVectorManager:
             }
     
     def clear_cache(self):
-        """清空向量缓存"""
+        """清空文本缓存 - Linus式简化版本"""
         if self.disabled:
             return
         try:
@@ -496,13 +471,12 @@ class PromoVectorManager:
             # 删除缓存文件
             if self.vector_cache_file.exists():
                 self.vector_cache_file.unlink()
-            if self.vector_data_file.exists():
-                self.vector_data_file.unlink()
+            # 🔥 不再删除向量数据文件，已废弃
                 
-            logger.info("推广向量缓存已清空")
+            logger.info("推广文本缓存已清空")
             
         except Exception as e:
-            logger.error(f"清空推广向量缓存失败: {e}")
+            logger.error(f"清空推广文本缓存失败: {e}")
 
 # 全局实例
 promo_vector_manager = PromoVectorManager()
