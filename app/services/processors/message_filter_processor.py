@@ -47,13 +47,20 @@ class MessageFilterProcessor(MessageProcessor):
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
-        处理消息过滤阶段
+        处理消息过滤阶段（带性能监控）
         - 提取消息实体
         - 执行内容过滤
         - 进行广告检测
         - 处理OCR识别
         - 判断是否自动拒绝
         """
+        # 导入性能监控
+        try:
+            from app.services.performance_monitor import PerformanceTimer, perf_logger
+            filter_timer = PerformanceTimer("message_filter_processor").start()
+        except ImportError:
+            filter_timer = None
+        
         try:
             message = context.telegram_message
             content = context.processed_content
@@ -71,30 +78,72 @@ class MessageFilterProcessor(MessageProcessor):
                 return ProcessorResult(True, context)
             
             # 步骤1: 提取消息实体（包括隐藏链接）
+            if filter_timer:
+                entity_timer = filter_timer.add_child("extract_entities").start()
             await self._extract_entities(context)
+            if filter_timer:
+                entity_timer.stop()
             
             # 步骤2: 准备媒体文件列表用于OCR
             media_files = []
             if context.media_info and context.media_info.get('file_path'):
                 media_files.append(context.media_info['file_path'])
             
-            # 步骤3: 使用过滤管道进行内容过滤
+            # 步骤3: 使用过滤管道进行内容过滤（核心性能瓶颈）
+            if filter_timer:
+                pipeline_timer = filter_timer.add_child("content_filtering").start()
             await self._apply_content_filter(context, media_files)
+            if filter_timer:
+                pipeline_timer.stop()
+                pipeline_timer.set_metric("media_files_count", len(media_files))
+                pipeline_timer.set_metric("is_ad", context.is_ad)
             
             # 步骤4: 检查自动拒绝条件
+            if filter_timer:
+                rejection_timer = filter_timer.add_child("auto_rejection_check").start()
             await self._check_auto_rejection(context)
+            if filter_timer:
+                rejection_timer.stop()
+                rejection_timer.set_metric("should_reject", context.should_reject)
             
             # 步骤5: 检查配置的自动过滤设置
+            if filter_timer:
+                config_timer = filter_timer.add_child("auto_filter_config").start()
             await self._check_auto_filter_config(context)
+            if filter_timer:
+                config_timer.stop()
             
             # 最终状态日志
             status_summary = f"广告={context.is_ad}, 拒绝={context.should_reject}"
             if context.should_reject:
                 status_summary += f", 原因={context.reject_reason}"
             self.logger.info(f"📋 过滤处理完成: {status_summary}")
+            
+            # 记录性能数据
+            if filter_timer:
+                total_time = filter_timer.stop()
+                filter_timer.set_metric("is_ad", context.is_ad)
+                filter_timer.set_metric("should_reject", context.should_reject)
+                filter_timer.set_metric("content_length", len(content))
+                
+                # 如果耗时过长，记录详细的性能日志
+                if total_time > 1000:  # 超过1秒
+                    perf_data = {
+                        "operation": "message_filter_processor",
+                        "channel_id": context.channel_id,
+                        "message_id": message.id,
+                        "total_time_ms": total_time,
+                        "performance_breakdown": filter_timer.to_dict(),
+                        "bottleneck_warning": True
+                    }
+                    perf_logger.log_performance(perf_data)
+            
             return ProcessorResult(True, context)
             
         except Exception as e:
+            if filter_timer:
+                filter_timer.stop()
+                filter_timer.set_metric("error", str(e))
             return await self._handle_error(context, e)
     
     async def _extract_entities(self, context: MessageContext):

@@ -162,32 +162,90 @@ class MediaDownloader(MessageProcessor):
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
-        处理媒体下载
+        处理媒体下载（带性能监控）
         - 下载媒体文件
         - 计算文件哈希
+        - 处理OCR（如果是图片）
         - 更新媒体信息
         """
+        # 导入性能监控
+        try:
+            from app.services.performance_monitor import PerformanceTimer, perf_logger
+            media_timer = PerformanceTimer("media_downloader").start()
+        except ImportError:
+            media_timer = None
+        
         try:
             # 如果没有媒体，跳过
             if not context.media_type_info or not context.media_type_info.get('has_media'):
                 return ProcessorResult(True, context)
             
             message = context.telegram_message
+            media_type = context.media_type_info.get('media_type', 'unknown')
             
-            # 尝试下载媒体
+            if media_timer:
+                media_timer.set_metric("media_type", media_type)
+                media_timer.set_metric("message_id", message.id)
+            
+            # 阶段1: 媒体下载
+            if media_timer:
+                download_timer = media_timer.add_child("media_download").start()
+            
             media_info = await self._download_media(message, context.channel_id)
+            
+            if media_timer:
+                download_timer.stop()
+                download_timer.set_metric("download_success", media_info is not None)
+                if media_info:
+                    download_timer.set_metric("file_size", media_info.get('file_size', 0))
+                    download_timer.set_metric("file_path", media_info.get('file_path', ''))
             
             if media_info:
                 context.media_info = media_info
+                
+                # 阶段2: OCR处理（如果是图片）
+                if media_type in ['photo', 'sticker'] and media_info.get('file_path'):
+                    if media_timer:
+                        ocr_timer = media_timer.add_child("ocr_processing").start()
+                    
+                    try:
+                        # OCR处理在这里会被调用（通过其他模块）
+                        # 记录OCR阶段耗时
+                        pass  # OCR处理在后续的过滤阶段进行
+                    finally:
+                        if media_timer:
+                            ocr_timer.stop()
+                
                 self.logger.info(f"媒体下载成功: {media_info.get('file_path')}")
             else:
                 # 标记下载失败
                 context.media_type_info['download_failed'] = True
-                self.logger.warning(f"媒体下载失败，但已记录媒体类型: {context.media_type_info['media_type']}")
+                self.logger.warning(f"媒体下载失败，但已记录媒体类型: {media_type}")
+            
+            # 记录性能数据
+            if media_timer:
+                total_time = media_timer.stop()
+                media_timer.set_metric("total_time_ms", total_time)
+                
+                # 如果媒体处理耗时过长，记录详细日志
+                if total_time > 5000:  # 超过5秒
+                    perf_data = {
+                        "operation": "media_downloader",
+                        "channel_id": context.channel_id,
+                        "message_id": message.id,
+                        "media_type": media_type,
+                        "total_time_ms": total_time,
+                        "performance_breakdown": media_timer.to_dict(),
+                        "bottleneck_warning": True
+                    }
+                    perf_logger.log_performance(perf_data)
             
             return ProcessorResult(True, context)
             
         except Exception as e:
+            if media_timer:
+                media_timer.stop()
+                media_timer.set_metric("error", str(e))
             return await self._handle_error(context, e)
     
     async def _download_media(self, message: TLMessage, channel_id: str) -> Optional[dict]:

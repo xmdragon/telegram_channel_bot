@@ -125,7 +125,7 @@ class FilterPipeline:
         return [f.name for f in self.filters]
     
     async def process(self, content: str, context: FilterContext) -> PipelineResult:
-        """处理内容通过整个过滤器管道
+        """处理内容通过整个过滤器管道（带详细性能计时）
         
         Args:
             content: 要处理的内容
@@ -134,8 +134,15 @@ class FilterPipeline:
         Returns:
             PipelineResult: 管道处理结果
         """
-        start_time = time.time()
+        start_time = time.perf_counter()
         pipeline_result = PipelineResult(final_content=content)
+        
+        # 导入性能监控模块
+        try:
+            from app.services.performance_monitor import PerformanceTimer
+            pipeline_timer = PerformanceTimer("filter_pipeline").start()
+        except ImportError:
+            pipeline_timer = None
         
         try:
             logger.info(f"开始管道处理: message_id={context.message_id}, "
@@ -143,17 +150,33 @@ class FilterPipeline:
             
             current_content = content
             
-            # 逐个执行过滤器
+            # 逐个执行过滤器（带详细计时）
             for i, filter_instance in enumerate(self.filters):
                 if not filter_instance.is_enabled():
                     logger.debug(f"跳过已禁用的过滤器: {filter_instance.name}")
                     continue
                 
+                # 为每个过滤器创建计时器
+                filter_timer = None
+                if pipeline_timer:
+                    filter_timer = pipeline_timer.add_child(filter_instance.name).start()
+                
+                filter_start = time.perf_counter()
+                
                 try:
-                    # 执行单个过滤器
-                    filter_result = await self._execute_single_filter(
-                        filter_instance, current_content, context
+                    # 使用带计时的过滤器执行方法
+                    filter_result = await filter_instance.process_with_timing(
+                        current_content, context
                     )
+                    
+                    # 停止过滤器计时器并记录指标
+                    if filter_timer:
+                        filter_timer.stop()
+                        filter_timer.set_metric('content_length', len(current_content))
+                        filter_timer.set_metric('passed', filter_result.passed)
+                        filter_timer.set_metric('confidence', filter_result.confidence)
+                        if filter_result.reason:
+                            filter_timer.set_metric('reason', filter_result.reason)
                     
                     # 记录过滤器结果
                     pipeline_result.filter_results[filter_instance.name] = filter_result

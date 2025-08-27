@@ -182,7 +182,7 @@ class HistoryCollector:
                     if self._message_processor:
                         try:
                             result = await asyncio.wait_for(
-                                self._message_processor(message, channel_id, is_history=True),
+                                self._message_processor(message, entity),  # entity 就是 chat
                                 timeout=30.0  # 30秒超时保护
                             )
                             if result and result in stats:

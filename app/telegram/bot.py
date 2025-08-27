@@ -43,7 +43,7 @@ class TelegramBot:
         # 设置历史采集器的消息处理器 - 延迟导入避免循环依赖
         try:
             from app.telegram.history_collector import history_collector
-            history_collector.set_message_processor(self._message_handler.process_and_save_message)
+            history_collector.set_message_processor(self._message_handler.process_source_message)
         except ImportError:
             logger.warning("历史采集器未找到，跳过设置")
     

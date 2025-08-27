@@ -46,7 +46,7 @@
       "feedback_stats": {
         "tp": 0,
         "fp": 0,
-        "tn": 2,
+        "tn": 3,
         "fn": 8
       },
       "last_updated": null

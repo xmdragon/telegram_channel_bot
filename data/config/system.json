@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-27T13:02:45.882598",
+    "updated_at": "2025-08-27T15:00:59.597413",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-27T05:02:47.189216",
+  "updated_at": "2025-08-27T07:01:00.970537",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-27T13:02:45.885550",
+    "updated_at": "2025-08-27T15:00:59.599211",
     "created_at": "2025-08-26T11:00:39.026262"
   },
   "telegram.session": {
@@ -45,7 +45,7 @@
     "config_type": "boolean",
     "description": "启用内容过滤",
     "is_active": true,
-    "updated_at": "2025-08-26T12:36:30.279033",
+    "updated_at": "2025-08-27T14:33:10.981136",
     "created_at": "2025-08-15T19:03:51.230063"
   },
   "filter.tail_filter_enabled": {
@@ -53,7 +53,7 @@
     "config_type": "boolean",
     "description": "启用尾部过滤",
     "is_active": true,
-    "updated_at": "2025-08-26T12:36:30.280172",
+    "updated_at": "2025-08-27T14:33:10.982385",
     "created_at": "2025-08-15T19:03:51.230655"
   },
   "filter.ocr_enabled": {
@@ -61,15 +61,15 @@
     "config_type": "boolean",
     "description": "启用OCR图片文字识别",
     "is_active": true,
-    "updated_at": "2025-08-26T12:36:30.281465",
+    "updated_at": "2025-08-27T14:33:10.983446",
     "created_at": "2025-08-15T19:03:51.230934"
   },
   "review.require_approval": {
     "value": "true",
-    "config_type": "string",
+    "config_type": "boolean",
     "description": "需要人工审核",
     "is_active": true,
-    "updated_at": "2025-08-26T12:06:53.811134",
+    "updated_at": "2025-08-27T14:33:10.984510",
     "created_at": "2025-08-15T19:03:51.231269"
   },
   "review.auto_reject_ads": {
@@ -82,18 +82,18 @@
   },
   "review.auto_forward_after_collect": {
     "value": "false",
-    "config_type": "string",
+    "config_type": "boolean",
     "description": "采集消息后自动转发到审核群",
     "is_active": true,
-    "updated_at": "2025-08-26T12:06:53.812643",
+    "updated_at": "2025-08-27T14:33:10.985617",
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
-    "description": "启用Telegram消息采集",
+    "description": "系统重置时自动禁用采集",
     "is_active": true,
-    "updated_at": "2025-08-26T12:06:53.804319",
+    "updated_at": "2025-08-27T14:33:10.979635",
     "created_at": "2025-08-15T19:03:51.231938"
   },
   "collection.max_messages_per_batch": {
@@ -117,7 +117,7 @@
     "config_type": "boolean",
     "description": "启用消息调度服务（自动转发、清理）",
     "is_active": true,
-    "updated_at": "2025-08-26T12:36:30.282685",
+    "updated_at": "2025-08-27T14:33:10.986599",
     "created_at": "2025-08-16T22:23:50.891394"
   },
   "source.history_limit": {
@@ -125,7 +125,7 @@
     "config_type": "integer",
     "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
     "is_active": true,
-    "updated_at": "2025-08-26T12:36:30.277879",
+    "updated_at": "2025-08-27T14:35:14.034092",
     "created_at": "2025-08-14T22:53:30.663727"
   },
   "target.signature": {
@@ -133,7 +133,7 @@
     "config_type": "string",
     "description": "频道落款内容（支持多行，用\\n分隔）",
     "is_active": true,
-    "updated_at": "2025-08-26T12:06:53.802237",
+    "updated_at": "2025-08-27T14:33:10.977490",
     "created_at": "2025-08-14T22:53:30.665451"
   },
   "target.channel_id": {
@@ -157,8 +157,8 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-27T13:02:47.189211",
-    "created_at": "2025-08-27T13:02:44.798912"
+    "updated_at": "2025-08-27T15:01:00.970532",
+    "created_at": "2025-08-27T15:00:58.573966"
   },
   "review.group_link": {
     "value": "https://t.me/+HPbDzWj3ID01OTJl",
@@ -170,10 +170,10 @@
   },
   "storage.delete_single_messages": {
     "value": "true",
-    "config_type": "string",
+    "config_type": "boolean",
     "description": "组合消息保存后删除单独消息（性能优化，可回滚）",
     "is_active": true,
-    "updated_at": "2025-08-26T12:06:53.814964",
+    "updated_at": "2025-08-27T14:33:10.987534",
     "created_at": "2025-08-20T14:46:30.000000"
   },
   "review.auto_forward_enabled": {

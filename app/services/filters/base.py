@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, Tuple, List
 from dataclasses import dataclass, field
 import time
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,66 @@ class BaseFilter(ABC):
         # 更新统计信息
         self._update_stats(result)
         return result
+    
+    async def process_with_timing(self, content: str, context: FilterContext) -> FilterResult:
+        """带性能计时的过滤器处理方法
+        
+        Args:
+            content: 要过滤的内容
+            context: 过滤器上下文
+            
+        Returns:
+            FilterResult: 过滤结果（包含处理时间）
+        """
+        # 如果过滤器被禁用，直接返回原内容
+        if not self.enabled:
+            return FilterResult(
+                filtered_content=content,
+                passed=True,
+                processing_time_ms=0.0,
+                reason=f"{self.name} disabled"
+            )
+        
+        start_time = time.perf_counter()
+        
+        try:
+            # 预检查
+            should_process = await self.pre_filter(content, context)
+            if not should_process:
+                return FilterResult(
+                    filtered_content=content,
+                    passed=True,
+                    processing_time_ms=(time.perf_counter() - start_time) * 1000,
+                    reason=f"{self.name} pre-filter skipped"
+                )
+            
+            # 执行实际的过滤逻辑
+            result = await self.filter(content, context)
+            
+            # 设置处理时间
+            processing_time = (time.perf_counter() - start_time) * 1000
+            result.processing_time_ms = processing_time
+            
+            # 后处理
+            result = await self.post_filter(result, context)
+            
+            # 记录性能日志（如果耗时过长）
+            if processing_time > 500:  # 超过500ms记录警告
+                logger.warning(f"过滤器 {self.name} 处理耗时 {processing_time:.1f}ms")
+            
+            return result
+            
+        except Exception as e:
+            processing_time = (time.perf_counter() - start_time) * 1000
+            logger.error(f"过滤器 {self.name} 处理失败: {e}")
+            
+            # 返回失败结果
+            return FilterResult(
+                filtered_content=content,
+                passed=False,
+                processing_time_ms=processing_time,
+                reason=f"{self.name} error: {str(e)}"
+            )
     
     def _update_stats(self, result: FilterResult) -> None:
         """更新统计信息"""

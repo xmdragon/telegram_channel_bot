@@ -38,44 +38,154 @@ class MessageHandler:
         except Exception as e:
             logger.error(f"处理消息时出错: {e}")
     
-    async def process_source_message(self, message: TLMessage, chat):
-        """处理源频道消息 - 使用统一处理器"""
+    async def process_message_unified(self, message: TLMessage, channel_id: str, chat=None):
+        """统一的消息处理入口（符合Linus的好品味原则）
+        
+        消除重复代码路径，所有消息处理都使用相同的管道和性能监控
+        
+        Args:
+            message: Telegram消息对象
+            channel_id: 频道ID（格式化后）
+            chat: 聊天对象（用于获取频道信息）
+        """
+        # 导入性能监控
         try:
-            # 获取格式化的频道ID
-            raw_chat_id = chat.id
-            if raw_chat_id > 0:
-                channel_id = f"-100{raw_chat_id}"
-            else:
-                channel_id = str(raw_chat_id)
-            
-            # 使用新的处理器管道
-            from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
-            from app.services.processors.base import MessageContext
-            
-            # 创建处理上下文
-            context = MessageContext(
-                telegram_message=message,
-                channel_id=channel_id,
-                is_history=False
-            )
-            
-            # 创建处理管道
-            pipeline = MessagePipeline([
-                MessageReceiver(),
-                MediaDownloader(),
-                MessageFilterProcessor(), 
-                MessageStorageProcessor()
-            ])
-            
-            # 执行处理
-            result = await pipeline.process(context)
-            db_message = result.context.save_data if result.success else None
-            
-            if not db_message:
-                logger.debug(f"消息 {message.id} 处理完成（被过滤或等待组合）")
+            from app.services.performance_monitor import performance_monitor
+        except ImportError:
+            from contextlib import nullcontext
+            performance_monitor = nullcontext
+        
+        # 获取频道信息
+        channel_name = getattr(chat, 'title', 'Unknown') if chat else 'Unknown'
+        
+        # 获取消息基本信息
+        content = getattr(message, 'text', '') or getattr(message, 'caption', '')
+        media_type = 'text'
+        if hasattr(message, 'media') and message.media:
+            media_type = type(message.media).__name__.replace('MessageMedia', '').lower()
+        
+        operation_name = "process_source_message"
+        
+        # 统一的性能监控（所有消息都有）
+        async with performance_monitor(
+            operation_name,
+            channel_id=channel_id,
+            channel_name=channel_name,
+            message_id=message.id,
+            message_type=media_type,
+            content_length=len(content) if content else 0
+        ) as perf_ctx:
+            try:
+                # 阶段1: 管道初始化
+                perf_ctx.start_stage("pipeline_setup")
                 
-        except Exception as e:
-            logger.error(f"处理源频道消息时出错: {e}")
+                # 使用统一的处理器管道
+                from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
+                from app.services.processors.base import MessageContext
+                
+                # 创建处理上下文
+                context = MessageContext(
+                    telegram_message=message,
+                    channel_id=channel_id
+                )
+                
+                # 创建处理管道
+                pipeline = MessagePipeline([
+                    MessageReceiver(),
+                    MediaDownloader(),
+                    MessageFilterProcessor(), 
+                    MessageStorageProcessor()
+                ])
+                
+                perf_ctx.end_stage("pipeline_setup")
+                
+                # 阶段2: 执行处理管道
+                perf_ctx.start_stage("pipeline_execution")
+                result = await pipeline.process(context)
+                perf_ctx.end_stage("pipeline_execution", 
+                                 success=result.success,
+                                 processors_count=len(pipeline.processors))
+                
+                db_message = result.context.save_data if result.success else None
+                
+                # 记录处理结果元数据
+                perf_ctx.set_metadata(
+                    processing_success=result.success,
+                    message_saved=db_message is not None,
+                    final_content_length=len(result.context.filtered_content or '') if hasattr(result.context, 'filtered_content') else 0
+                )
+                
+                # 统一的结果处理
+                return await self._handle_processing_result(
+                    result, db_message, message
+                )
+                
+            except Exception as e:
+                perf_ctx.set_metadata(error=str(e), error_type=type(e).__name__)
+                logger.error(f"处理消息时出错: {e}")
+                return "error"
+    
+    async def _handle_processing_result(self, result, db_message, message):
+        """统一的处理结果处理"""
+        message_id = message.id
+        
+        if db_message:
+            # 处理成功并保存
+            status = db_message.get('status', 'unknown')
+            content_len = len(db_message.get('content', ''))
+            media_type = db_message.get('media_type', 'none')
+            logger.info(f"✅ 消息 #{message_id} 处理成功 - 状态:{status}, 内容:{content_len}字符, 媒体:{media_type}")
+            return "saved"
+        else:
+            # 分析未保存的原因
+            return await self._analyze_no_save_reason(result, message_id)
+    
+    async def _analyze_no_save_reason(self, result, message_id):
+        """分析消息未保存的原因"""
+        if not result.success:
+            reason = getattr(result, 'error_message', '未知错误')
+            logger.info(f"❌ 消息 #{message_id} 处理失败 - 原因: {reason}")
+            return "failed"
+        
+        # 成功但未保存的各种情况
+        if hasattr(result.context, 'filter_result') and result.context.filter_result:
+            filter_reason = result.context.filter_result.get('reason', '被过滤')
+            logger.info(f"🚫 消息 #{message_id} 被过滤 - 原因: {filter_reason}")
+            return "filtered"
+        elif hasattr(result.context, 'is_duplicate') and result.context.is_duplicate:
+            logger.info(f"🔄 消息 #{message_id} 检测为重复消息")
+            return "duplicate"
+        elif hasattr(result.context, 'pending_group'):
+            logger.info(f"⏳ 消息 #{message_id} 等待媒体组合并")
+            return "pending_group"
+        elif result.context.save_data is None and hasattr(result.context, 'telegram_message'):
+            # 检查组消息
+            telegram_msg = result.context.telegram_message
+            if hasattr(telegram_msg, 'grouped_id') and telegram_msg.grouped_id:
+                logger.info(f"⏳ {message_type} #{message_id} 等待媒体组合并 (grouped_id: {telegram_msg.grouped_id})")
+                return "pending_group"
+            else:
+                logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
+                return "unknown"
+        else:
+            logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
+            return "unknown"
+
+    async def process_source_message(self, message: TLMessage, chat):
+        """处理源频道消息 - 简化为统一方法的包装"""
+        # 获取格式化的频道ID
+        raw_chat_id = chat.id
+        if raw_chat_id > 0:
+            channel_id = f"-100{raw_chat_id}"
+        else:
+            channel_id = str(raw_chat_id)
+        
+        # 调用统一的处理方法
+        return await self.process_message_unified(
+            message=message,
+            channel_id=channel_id,
+            chat=chat
+        )
     
     async def process_review_message(self, message: TLMessage, chat):
         """处理审核群中的消息"""
@@ -98,81 +208,6 @@ class MessageHandler:
                 
         except Exception as e:
             logger.error(f"处理审核群消息时出错: {e}")
-    
-    async def process_and_save_message(self, message, channel_id: str, is_history: bool = False):
-        """处理并保存消息（用于历史消息采集）"""
-        message_id = getattr(message, 'id', 'unknown')
-        message_type = "历史消息" if is_history else "实时消息"
-        
-        try:
-            # 使用新的处理器管道
-            from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
-            from app.services.processors.base import MessageContext
-            
-            logger.info(f"🔄 开始处理{message_type} #{message_id}...")
-            
-            # 创建处理上下文
-            context = MessageContext(
-                telegram_message=message,
-                channel_id=channel_id,
-                is_history=True
-            )
-            
-            # 创建处理管道
-            pipeline = MessagePipeline([
-                MessageReceiver(),
-                MediaDownloader(),
-                MessageFilterProcessor(), 
-                MessageStorageProcessor()
-            ])
-            
-            # 执行处理
-            result = await pipeline.process(context)
-            db_message = result.context.save_data if result.success else None
-            
-            # 详细的处理结果日志
-            if db_message:
-                status = db_message.get('status', 'unknown')
-                content_len = len(db_message.get('content', ''))
-                media_type = db_message.get('media_type', 'none')
-                logger.info(f"✅ {message_type} #{message_id} 处理成功 - 状态:{status}, 内容:{content_len}字符, 媒体:{media_type}")
-                return "saved"
-            else:
-                # 分析失败原因
-                if not result.success:
-                    reason = getattr(result, 'error_message', '未知错误')
-                    logger.info(f"❌ {message_type} #{message_id} 处理失败 - 原因: {reason}")
-                    return "failed"
-                else:
-                    # 成功但未保存的情况
-                    if hasattr(result.context, 'filter_result') and result.context.filter_result:
-                        filter_reason = result.context.filter_result.get('reason', '被过滤')
-                        logger.info(f"🚫 {message_type} #{message_id} 被过滤 - 原因: {filter_reason}")
-                        return "filtered"
-                    elif hasattr(result.context, 'is_duplicate') and result.context.is_duplicate:
-                        logger.info(f"🔄 {message_type} #{message_id} 检测为重复消息")
-                        return "duplicate"
-                    elif hasattr(result.context, 'pending_group'):
-                        logger.info(f"⏳ {message_type} #{message_id} 等待媒体组合并")
-                        return "pending_group"
-                    elif result.context.save_data is None and hasattr(result.context, 'telegram_message'):
-                        # 检查是否为组消息（save_data为None通常表示等待组合）
-                        telegram_msg = result.context.telegram_message
-                        if hasattr(telegram_msg, 'grouped_id') and telegram_msg.grouped_id:
-                            logger.info(f"⏳ {message_type} #{message_id} 等待媒体组合并 (grouped_id: {telegram_msg.grouped_id})")
-                            return "pending_group"
-                        else:
-                            logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
-                            return "unknown"
-                    else:
-                        logger.info(f"❓ {message_type} #{message_id} 处理完成但未保存（原因未知）")
-                        return "unknown"
-                
-        except Exception as e:
-            logger.error(f"❌ 处理{message_type} #{message_id} 失败: {e}")
-            import traceback
-            logger.error(f"详细错误: {traceback.format_exc()}")
-            return "error"
     
     
     async def save_processed_message(self, message_data: dict, channel_id: str, is_history: bool = False, original_media_info: dict = None):
