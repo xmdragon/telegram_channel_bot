@@ -147,6 +147,7 @@ async def batch_approve_messages(
         
         # 使用任务队列批量转发到目标频道，避免客户端锁冲突
         forwarded_count = 0
+        forward_results = []  # 初始化转发结果列表
         try:
             from app.services.message_forward_queue import forward_queue
             
@@ -165,27 +166,66 @@ async def batch_approve_messages(
             # 等待所有任务完成（短暂等待，不阻塞用户响应）
             await asyncio.sleep(2)  # 给队列处理时间
             
-            # 检查已完成的任务
+            # 检查已完成的任务，收集详细结果
+            forward_results = []
             for msg_key, task_id in task_ids:
                 try:
                     result = await forward_queue.get_task_result(msg_key, timeout=1)  # 快速检查
                     if result and result.get('success'):
                         forwarded_count += 1
+                        forward_results.append({
+                            "message_id": msg_key,
+                            "status": "success"
+                        })
+                    elif result and not result.get('success'):
+                        error_msg = result.get('error_message', '未知错误')
+                        forward_results.append({
+                            "message_id": msg_key,
+                            "status": "failed", 
+                            "error": error_msg
+                        })
+                        logger.warning(f"消息转发失败 {msg_key}: {error_msg}")
+                    else:
+                        # 任务还在处理中
+                        forward_results.append({
+                            "message_id": msg_key,
+                            "status": "pending"
+                        })
                 except Exception as e:
                     logger.debug(f"检查转发任务结果失败 {msg_key}: {e}")
+                    forward_results.append({
+                        "message_id": msg_key,
+                        "status": "error",
+                        "error": f"检查任务状态失败: {str(e)}"
+                    })
             
         except ImportError:
             logger.warning("消息转发队列模块不可用，跳过自动转发")
         except Exception as e:
             logger.error(f"批量转发失败: {e}")
         
+        failed_count = len([r for r in forward_results if r.get('status') == 'failed'])
+        pending_count = len([r for r in forward_results if r.get('status') == 'pending'])
+        
+        # 构建响应消息
+        status_parts = [f"批准 {approved_count} 条"]
+        if forwarded_count > 0:
+            status_parts.append(f"转发成功 {forwarded_count} 条")
+        if failed_count > 0:
+            status_parts.append(f"转发失败 {failed_count} 条")
+        if pending_count > 0:
+            status_parts.append(f"处理中 {pending_count} 条")
+        
         return {
             "success": True,
-            "message": f"批量操作完成，批准 {approved_count} 条消息，转发 {forwarded_count} 条消息",
+            "message": f"批量操作完成，{', '.join(status_parts)}",
             "data": {
                 "approved_count": approved_count,
                 "forwarded_count": forwarded_count,
-                "total_processed": len(valid_messages)
+                "failed_count": failed_count,
+                "pending_count": pending_count,
+                "total_processed": len(valid_messages),
+                "forward_results": forward_results  # 详细结果供前端显示
             },
             "timestamp": format_for_api(get_current_time())
         }

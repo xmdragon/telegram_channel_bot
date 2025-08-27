@@ -281,12 +281,10 @@ class MessageForwarder:
             
             logger.info(f"消息重新发布成功: {getattr(message, 'id', 'unknown')} -> 目标频道: {target_channel_id}")
             
-            # 清理本地文件
-            await self._cleanup_message_files(message)
-            
         except Exception as e:
             logger.error(f"重新发布到目标频道时出错: {e}")
-            await self._cleanup_message_files(message)
+            # 不清理媒体文件 - 交给scheduler定期清理，保留文件用于重试
+            raise  # 重新抛出异常，让队列处理器知道失败
     
     async def update_review_message(self, client: TelegramClient, message):
         """更新审核群中的消息内容"""

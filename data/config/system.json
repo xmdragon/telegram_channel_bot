@@ -4,16 +4,16 @@
     "config_type": "integer",
     "description": "Telegram API ID",
     "is_active": true,
-    "updated_at": "2025-08-27T17:15:39.675229",
+    "updated_at": "2025-08-27T18:30:56.516856",
     "created_at": "2025-08-14T22:53:30.661829"
   },
-  "updated_at": "2025-08-27T09:15:41.048177",
+  "updated_at": "2025-08-27T10:30:56.518939",
   "telegram.api_hash": {
     "value": "a926790195b42a472477e7709a74fc24",
     "config_type": "string",
     "description": "Telegram API Hash",
     "is_active": true,
-    "updated_at": "2025-08-27T17:15:39.677126",
+    "updated_at": "2025-08-27T18:30:56.518915",
     "created_at": "2025-08-26T11:00:39.026262"
   },
   "telegram.session": {
@@ -157,8 +157,8 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "updated_at": "2025-08-27T17:15:41.048171",
-    "created_at": "2025-08-27T17:15:38.639737"
+    "updated_at": "2025-08-27T18:30:49.741057",
+    "created_at": "2025-08-27T18:30:49.741060"
   },
   "review.group_link": {
     "value": "https://t.me/+HPbDzWj3ID01OTJl",
