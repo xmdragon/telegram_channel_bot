@@ -51,7 +51,6 @@ class PathConfig:
     
     # 模型和缓存目录
     MODELS_DIR = DATA_DIR / "models"
-    # SENTENCE_TRANSFORMERS_CACHE_DIR = MODELS_DIR / "sentence_transformers"  # 已移除
     LIGHTWEIGHT_SIMILARITY_CACHE_FILE = MODELS_DIR / "lightweight_similarity_cache.pkl"
     
     # 日志文件
@@ -100,7 +99,6 @@ class PathConfig:
             
             # 创建模型缓存目录
             cls.MODELS_DIR.mkdir(exist_ok=True)
-            # cls.SENTENCE_TRANSFORMERS_CACHE_DIR.mkdir(exist_ok=True)  # 已移除
             
             # 创建OCR导出目录
             cls.OCR_EXPORT_DIR.mkdir(exist_ok=True)

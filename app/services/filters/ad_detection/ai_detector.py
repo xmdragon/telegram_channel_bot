@@ -1,7 +1,6 @@
 """
 轻量级广告检测器
-使用编辑距离进行文本相似度检测，替代重量级AI模型
-🚀 Linus式简化：去除sentence_transformers依赖
+使用编辑距离进行文本相似度检测
 """
 import logging
 import json

@@ -17,14 +17,13 @@ class AIConfig:
         # 从环境变量或配置文件读取AI功能开关
         self._ai_enabled = self._get_ai_enabled()
         self._startup_mode = self._get_startup_mode()
-        self._sentence_transformers_available = None
         self._cache = {}
         
         # AI模块列表
         self.ai_modules = {
             'ai_filter': {
                 'enabled': self._ai_enabled,
-                'mode': 'auto',  # auto, lightweight, deep, disabled
+                'mode': 'auto',  # auto, lightweight, disabled
                 'fallback_to_lightweight': True,
                 'description': 'AI智能过滤器',
                 'startup_required': False  # 启动时不必需
@@ -74,10 +73,10 @@ class AIConfig:
     def _load_env_config(self):
         """从环境变量加载配置"""
         try:
-            # AI_MODE: auto, lightweight, deep, disabled
+            # AI_MODE: auto, lightweight, disabled
             ai_mode = os.getenv('AI_MODE', 'auto').lower()
             
-            if ai_mode in ['auto', 'lightweight', 'deep', 'disabled']:
+            if ai_mode in ['auto', 'lightweight', 'disabled']:
                 for module in self.ai_modules:
                     if ai_mode == 'disabled':
                         self.ai_modules[module]['enabled'] = False
@@ -97,10 +96,6 @@ class AIConfig:
         except Exception as e:
             logger.error(f"加载AI配置失败：{e}")
     
-    def is_sentence_transformers_available(self) -> bool:
-        """检查sentence_transformers是否可用 - 轻量级系统不需要"""
-        # 🚀 Linus式简化：系统已改为轻量级，不使用sentence_transformers
-        return False
     
     def get_module_mode(self, module_name: str) -> str:
         """
@@ -110,7 +105,7 @@ class AIConfig:
             module_name: 模块名称
             
         Returns:
-            实际模式: lightweight, deep, rule_based, disabled
+            实际模式: lightweight, rule_based, disabled
         """
         cache_key = f"mode_{module_name}"
         if cache_key in self._cache:
@@ -136,22 +131,10 @@ class AIConfig:
             else:
                 mode = 'rule_based'
         
-        # deep模式已废弃，强制降级
-        elif mode == 'deep':
-            if config['fallback_to_lightweight']:
-                mode = 'lightweight'
-                logger.warning(f"模块 {module_name} 从deep模式降级到lightweight模式")
-            else:
-                mode = 'disabled'
-                logger.warning(f"模块 {module_name} 因缺少依赖而禁用")
-        
         self._cache[cache_key] = mode
         logger.debug(f"模块 {module_name} 运行模式：{mode}")
         return mode
     
-    def use_deep_learning(self, module_name: str) -> bool:
-        """检查模块是否使用深度学习"""
-        return self.get_module_mode(module_name) == 'deep'
     
     def use_lightweight(self, module_name: str) -> bool:
         """检查模块是否使用轻量级模式"""

@@ -57,7 +57,6 @@ async def get_ai_status():
         
         # 获取依赖状态
         dependencies = {
-            'sentence_transformers': False,  # 已移除
             'scikit_learn': True,  # 轻量级模式依赖
             'jieba': True  # 中文分词依赖
         }
@@ -244,9 +243,7 @@ async def get_ai_recommendations():
     try:
         ai_config = get_ai_config()
         
-        dependencies = {
-            'sentence_transformers': False,  # 已移除
-        }
+        dependencies = {}
         
         recommendations = _get_recommendations(ai_config, dependencies)
         
@@ -265,56 +262,28 @@ def _get_recommendations(ai_config, dependencies: Dict[str, bool]) -> List[Dict[
     """生成配置建议"""
     recommendations = []
     
-    # 检查sentence_transformers可用性
-    if not dependencies.get('sentence_transformers', False):
-        recommendations.append({
-            'type': 'warning',
-            'title': '深度学习模式已废弃',
-            'message': '系统已优化为轻量级模式，无需重量级依赖',
-            'action': {
-                'type': 'install',
-                'command': 'pip install sentence-transformers',
-                'description': '安装深度学习依赖'
-            }
-        })
-    
-    # 检查是否有模块使用了不可用的深度模式
-    for module_name, config in ai_config.ai_modules.items():
-        if config['mode'] == 'deep' and not dependencies.get('sentence_transformers', False):
-            recommendations.append({
-                'type': 'error',
-                'title': f'模块{module_name}配置问题',
-                'message': f'模块设置为deep模式但系统已改为轻量级',
-                'action': {
-                    'type': 'config',
-                    'module': module_name,
-                    'suggested_mode': 'lightweight',
-                    'description': '切换到轻量级模式'
-                }
-            })
     
     # 性能建议
-    if dependencies.get('sentence_transformers', False):
-        recommendations.append({
-            'type': 'info',
-            'title': '性能优化建议',
-            'message': '系统已优化，推荐使用auto或lightweight模式',
-            'action': {
-                'type': 'config',
-                'suggested_mode': 'auto',
-                'description': '使用自动模式'
-            }
-        })
-    else:
-        recommendations.append({
-            'type': 'info',
-            'title': '轻量级模式可用',
-            'message': '轻量级模式提供良好的性能和准确率，无需额外依赖',
-            'action': {
-                'type': 'config',
-                'suggested_mode': 'lightweight',
-                'description': '使用轻量级模式'
-            }
-        })
+    recommendations.append({
+        'type': 'info',
+        'title': '轻量级系统',
+        'message': '系统使用高效算法，推荐使用auto或lightweight模式',
+        'action': {
+            'type': 'config',
+            'suggested_mode': 'auto',
+            'description': '使用自动模式'
+        }
+    })
+    
+    recommendations.append({
+        'type': 'info',
+        'title': '轻量级模式可用',
+        'message': '轻量级模式提供良好的性能和准确率，无需额外依赖',
+        'action': {
+            'type': 'config',
+            'suggested_mode': 'lightweight',
+            'description': '使用轻量级模式'
+        }
+    })
     
     return recommendations

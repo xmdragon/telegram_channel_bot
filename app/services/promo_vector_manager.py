@@ -1,7 +1,6 @@
 """
 推广样本向量管理器
-基于TailVectorManager架构，管理推广链接过滤的向量数据
-⚠️ 注意：系统已切换到轻量级模式，不再依赖sentence_transformers
+基于轻量级架构，管理推广链接过滤的文本数据
 """
 import numpy as np
 import json
@@ -11,10 +10,6 @@ from pathlib import Path
 
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
-
-# 🚀 Linus式简化：彻底移除sentence_transformers依赖
-SENTENCE_TRANSFORMERS_AVAILABLE = False
-SentenceTransformer = None
 
 logger = logging.getLogger(__name__)
 
@@ -356,7 +351,7 @@ class PromoVectorManager:
     def check_sync_status(self) -> Dict:
         """检查推广向量同步状态"""
         if self.disabled:
-            return {'disabled': True, 'reason': 'sentence_transformers not available'}
+            return {'disabled': True, 'reason': 'lightweight mode only'}
         try:
             from app.routers.training.base import load_promo_samples
             samples = load_promo_samples()
@@ -400,7 +395,7 @@ class PromoVectorManager:
     def get_cache_stats(self) -> Dict:
         """获取缓存统计信息"""
         if self.disabled:
-            return {'disabled': True, 'reason': 'sentence_transformers not available'}
+            return {'disabled': True, 'reason': 'lightweight mode only'}
         
         # 确保初始化，以获取准确统计
         self._ensure_initialized()

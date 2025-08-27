@@ -1,6 +1,6 @@
 """
 轻量级文本相似度计算模块
-替代sentence_transformers的轻量化解决方案
+轻量化文本相似度计算方案
 使用TF-IDF + SVD降维实现语义相似度计算
 """
 import logging
@@ -298,7 +298,7 @@ class LightweightTextSimilarity:
 
 
 class LightweightAIFilter:
-    """轻量级AI过滤器，使用TF-IDF替代sentence_transformers"""
+    """轻量级AI过滤器，使用TF-IDF进行文本分析"""
     
     def __init__(self):
         self.similarity_engine = LightweightTextSimilarity()
