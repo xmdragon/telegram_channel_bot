@@ -126,14 +126,12 @@ class IntelligentTailFilter:
         return -1
     
     async def _semantic_boundary_detection(self, content: str) -> int:
-        """基于语义的边界检测"""
-        if not self.vector_manager.model:
-            return -1
-        
+        """基于语义的边界检测 - 轻量级版本"""
         lines = content.split('\n')
         if len(lines) < 3:
             return -1
         
+        # 🚀 Linus式简化：使用规则特征替代AI语义分析
         line_scores = []
         for line in lines:
             if len(line.strip()) > 5:

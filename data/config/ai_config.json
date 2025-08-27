@@ -2,8 +2,6 @@
   "ai_enabled": true,
   "mode": "lightweight",
   "startup_mode": "lazy", 
-  "description": "AI功能已启用 - 使用轻量级TF-IDF模型，无需外部依赖",
-  "updated_at": "2025-08-26T20:00:00",
-  "sentence_transformers_disabled": true,
-  "space_saved_mb": 631
+  "description": "轻量级文本处理系统 - 使用高效算法，无外部依赖",
+  "updated_at": "2025-08-27T10:30:00"
 }

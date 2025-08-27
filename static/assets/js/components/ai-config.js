@@ -262,10 +262,10 @@ const AIConfigApp = createApp({
          */
         getModeDescription(mode) {
             const descriptions = {
-                'auto': '自动选择最适合的模式，如果有sentence_transformers则使用深度学习，否则使用轻量级模式',
-                'lightweight': '使用TF-IDF+SVD实现的轻量级语义分析，无需额外依赖，启动快速',
-                'deep': '使用sentence_transformers深度学习模型，准确率最高但需要额外依赖',
-                'disabled': '完全禁用AI功能，仅使用规则匹配'
+                'auto': '自动选择最适合的模式，优先使用轻量级高效算法',
+                'lightweight': '使用优化算法实现高效文本处理，无外部依赖，启动快速',
+                'deep': '已弃用 - 系统已优化为轻量级模式',
+                'disabled': '完全禁用功能，仅使用基础规则匹配'
             };
             return descriptions[mode] || '未知模式';
         },

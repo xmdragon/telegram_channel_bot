@@ -12,13 +12,9 @@ from pathlib import Path
 from app.core.path_config import PathConfig
 from app.utils.safe_file_ops import SafeFileOperation
 
-# 可选导入sentence_transformers - 如果不可用则使用轻量级模式
-try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-    SentenceTransformer = None
+# 🚀 Linus式简化：彻底移除sentence_transformers依赖
+SENTENCE_TRANSFORMERS_AVAILABLE = False
+SentenceTransformer = None
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from app.core.ai_config import get_ai_config
-from app.services.model_cache_manager import get_model_cache_manager
 from app.services.lightweight_similarity import get_lightweight_filter
 # 临时移除权限检查，AI配置管理暂不需要特殊权限
 # from app.core.auth import check_permission

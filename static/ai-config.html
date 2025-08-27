@@ -48,10 +48,10 @@
                             <div class="status-value">{{ aiStatus.startup_mode || '未知' }}</div>
                         </div>
                         <div class="status-item">
-                            <div class="status-label">深度学习支持</div>
+                            <div class="status-label">系统模式</div>
                             <div class="status-value">
-                                <span class="badge" :class="aiStatus.dependencies?.sentence_transformers ? 'badge-success' : 'badge-warning'">
-                                    {{ aiStatus.dependencies?.sentence_transformers ? '可用' : '不可用' }}
+                                <span class="badge badge-info">
+                                    轻量级优化版
                                 </span>
                             </div>
                         </div>
@@ -151,7 +151,8 @@
                 </div>
 
                 <!-- 模型缓存管理 -->
-                <div class="card cache-management mb-24" v-if="aiStatus.dependencies?.sentence_transformers">
+                <!-- 模型缓存管理已移除 - 轻量级系统无需缓存 -->
+                <div class="card cache-management mb-24" v-if="false">
                     <div class="card-header">
                         <h3>模型缓存管理</h3>
                     </div>

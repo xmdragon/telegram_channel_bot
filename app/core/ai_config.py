@@ -98,17 +98,9 @@ class AIConfig:
             logger.error(f"加载AI配置失败：{e}")
     
     def is_sentence_transformers_available(self) -> bool:
-        """检查sentence_transformers是否可用"""
-        if self._sentence_transformers_available is None:
-            try:
-                import sentence_transformers
-                self._sentence_transformers_available = True
-                logger.info("✅ sentence_transformers 可用")
-            except ImportError:
-                self._sentence_transformers_available = False
-                logger.info("⚠️ sentence_transformers 不可用")
-        
-        return self._sentence_transformers_available
+        """检查sentence_transformers是否可用 - 轻量级系统不需要"""
+        # 🚀 Linus式简化：系统已改为轻量级，不使用sentence_transformers
+        return False
     
     def get_module_mode(self, module_name: str) -> str:
         """
@@ -136,17 +128,16 @@ class AIConfig:
         
         mode = config['mode']
         
-        # auto模式：自动选择
+        # auto模式：自动选择 - 轻量级优先
         if mode == 'auto':
-            if self.is_sentence_transformers_available():
-                mode = 'deep'
-            elif config['fallback_to_lightweight']:
+            # 🚀 Linus式简化：总是选择轻量级模式
+            if config['fallback_to_lightweight']:
                 mode = 'lightweight'
             else:
                 mode = 'rule_based'
         
-        # deep模式但sentence_transformers不可用
-        elif mode == 'deep' and not self.is_sentence_transformers_available():
+        # deep模式已废弃，强制降级
+        elif mode == 'deep':
             if config['fallback_to_lightweight']:
                 mode = 'lightweight'
                 logger.warning(f"模块 {module_name} 从deep模式降级到lightweight模式")

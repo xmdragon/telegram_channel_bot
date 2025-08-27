@@ -48,22 +48,10 @@ class TailFeatureExtractor:
         self._load_model()
     
     def _load_model(self):
-        """加载sentence-transformers模型（使用缓存管理器）"""
-        try:
-            # 🔧 Linus式解决方案：使用专用模型缓存管理器避免重复下载
-            from app.services.model_cache_manager import ModelCacheManager
-            
-            cache_manager = ModelCacheManager()
-            self.model = cache_manager.get_model()  # 使用配置文件中的模型
-            
-            if self.model:
-                logger.info("✅ 特征提取器AI模型加载成功（使用缓存管理器）")
-            else:
-                logger.warning("⚠️ AI模型加载失败，将使用基础特征提取")
-                
-        except Exception as e:
-            logger.warning(f"⚠️ AI模型加载失败: {e}")
-            self.model = None
+        """已简化：使用纯规则特征提取，无需AI模型"""
+        # 🚀 Linus式简化：完全基于规则的特征提取
+        self.model = None
+        logger.info("✅ 特征提取器初始化完成（轻量级规则模式）")
     
     def extract_features(self, text: str) -> Dict:
         """

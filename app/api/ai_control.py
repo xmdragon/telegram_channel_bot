@@ -73,49 +73,32 @@ async def disable_ai(admin: bool = Depends(require_admin)):
 
 @router.get(ROUTES.ai.cache_info)
 async def get_cache_info():
-    """获取模型缓存信息"""
-    try:
-        from app.services.model_cache_manager import get_model_cache_manager
-        cache_manager = get_model_cache_manager()
-        
-        return {
-            "success": True,
-            "data": cache_manager.get_cache_info()
+    """获取模型缓存信息 - 轻量级模式已无缓存"""
+    # 🚀 Linus式简化：系统已改为轻量级模式，无需模型缓存
+    return {
+        "success": True,
+        "data": {
+            "mode": "lightweight",
+            "message": "系统已优化为轻量级模式，无需模型缓存",
+            "models": [],
+            "cache_size": "0MB"
         }
-    except Exception as e:
-        logger.error(f"获取缓存信息失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    }
 
 @router.post(ROUTES.ai.cache_preload)
 async def preload_models(admin: bool = Depends(require_admin)):
-    """预加载AI模型"""
-    try:
-        from app.services.model_cache_manager import get_model_cache_manager
-        cache_manager = get_model_cache_manager()
-        
-        success = cache_manager.preload_models()
-        
-        return {
-            "success": success,
-            "message": "模型预加载已启动" if success else "模型预加载失败"
-        }
-    except Exception as e:
-        logger.error(f"预加载模型失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """预加载AI模型 - 轻量级模式已无需预加载"""
+    # 🚀 Linus式简化：轻量级算法无需预加载
+    return {
+        "success": True,
+        "message": "系统使用轻量级算法，无需模型预加载"
+    }
 
 @router.delete(ROUTES.ai.cache_clear)
 async def clear_cache(admin: bool = Depends(require_admin)):
-    """清理模型缓存"""
-    try:
-        from app.services.model_cache_manager import get_model_cache_manager
-        cache_manager = get_model_cache_manager()
-        
-        success = cache_manager.clear_cache()
-        
-        return {
-            "success": success,
-            "message": "缓存已清理" if success else "清理缓存失败"
-        }
-    except Exception as e:
-        logger.error(f"清理缓存失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """清理模型缓存 - 轻量级模式已无缓存"""
+    # 🚀 Linus式简化：无缓存可清理
+    return {
+        "success": True,
+        "message": "轻量级模式无缓存需要清理"
+    }
