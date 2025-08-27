@@ -172,7 +172,85 @@ class MessageHandler:
             return "unknown"
 
     async def process_source_message(self, message: TLMessage, chat):
-        """处理源频道消息 - 简化为统一方法的包装"""
+        """处理源频道消息 - 改为快速入队模式"""
+        from app.services.message_queue import get_message_queue, CollectedMessage
+        
+        # 获取格式化的频道ID
+        raw_chat_id = chat.id
+        if raw_chat_id > 0:
+            channel_id = f"-100{raw_chat_id}"
+        else:
+            channel_id = str(raw_chat_id)
+        
+        return await self.process_source_message_async_queue(message, channel_id, chat)
+    
+    async def process_source_message_async_queue(self, message: TLMessage, channel_id: str, chat):
+        """Linus式异步队列处理 - 采集器只管采集，不等处理结果"""
+        try:
+            # 1. 快速提取基础信息（< 1ms）
+            collected_msg = await self._extract_message_quickly(message, channel_id, chat)
+            
+            # 2. 立即入队（不等待处理）
+            queue = get_message_queue()
+            success = await queue.enqueue_message(collected_msg)
+            
+            if success:
+                logger.debug(f"⚡ 消息快速入队: {collected_msg.message_key}")
+                return "queued"  # 立即返回
+            else:
+                logger.error(f"消息入队失败: {collected_msg.message_key}")
+                # 失败时回退到同步处理
+                return await self.process_message_unified(message, channel_id, chat)
+                
+        except Exception as e:
+            logger.error(f"异步队列处理失败: {e}, 回退到同步模式")
+            # 任何错误都回退到原有的同步处理
+            return await self.process_message_unified(message, channel_id, chat)
+    
+    async def _extract_message_quickly(self, message: TLMessage, channel_id: str, chat) -> 'CollectedMessage':
+        """快速提取消息基础信息 - Linus式最小必要信息"""
+        from app.services.message_queue import CollectedMessage
+        from app.utils.timezone import get_current_time
+        
+        # 基础文本内容
+        content = ""
+        if hasattr(message, 'message') and message.message:
+            content = message.message.strip()
+        elif hasattr(message, 'caption') and message.caption:
+            content = message.caption.strip()
+        elif hasattr(message, 'text') and message.text:
+            content = message.text.strip()
+        
+        # 媒体信息（暂不下载，处理时再下载）
+        media_type = None
+        media_url = None
+        if hasattr(message, 'media') and message.media:
+            media_type = type(message.media).__name__.replace('MessageMedia', '').lower()
+        
+        # 组消息ID
+        grouped_id = None
+        if hasattr(message, 'grouped_id') and message.grouped_id:
+            grouped_id = str(message.grouped_id)
+        
+        return CollectedMessage(
+            channel_id=channel_id,
+            message_id=message.id,
+            grouped_id=grouped_id,
+            content=content,
+            media_type=media_type,
+            media_url=media_url,
+            timestamp=message.date or get_current_time(),
+            raw_data={
+                'chat_title': getattr(chat, 'title', 'Unknown'),
+                'sender_id': getattr(message.sender, 'id', None) if hasattr(message, 'sender') and message.sender else None,
+                'reply_to_msg_id': message.reply_to_msg_id if hasattr(message, 'reply_to_msg_id') else None,
+                'forward_info': str(message.forward) if hasattr(message, 'forward') and message.forward else None,
+                'has_media': media_type is not None
+            }
+        )
+    
+    async def process_source_message_sync(self, message: TLMessage, chat):
+        """同步处理模式 - 保留原有功能作为回退方案"""
         # 获取格式化的频道ID
         raw_chat_id = chat.id
         if raw_chat_id > 0:
