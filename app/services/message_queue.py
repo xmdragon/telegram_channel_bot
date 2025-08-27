@@ -181,7 +181,7 @@ class MessageQueue:
             pipe.lpush(self.QUEUE_KEYS['raw'], json.dumps(queue_data))
             pipe.hincrby(self.QUEUE_KEYS['stats'], 'enqueued_single', 1)
             pipe.hincrby(self.QUEUE_KEYS['stats'], 'total_enqueued', 1)
-            await pipe.execute()
+            pipe.execute()
             
             logger.debug(f"✅ 单消息入队: {message.message_key}")
             return True
@@ -199,10 +199,10 @@ class MessageQueue:
             pipe = self.redis.pipeline()
             pipe.hset(group_key, str(message.message_id), json.dumps(message.to_dict()))
             pipe.expire(group_key, self.GROUP_BUFFER_TIMEOUT)
-            await pipe.execute()
+            pipe.execute()
             
             # 检查组是否可以入队
-            group_size = await self.redis.hlen(group_key)
+            group_size = self.redis.hlen(group_key)
             if await self._should_enqueue_group(message.grouped_id, group_size):
                 return await self._enqueue_complete_group(message.grouped_id, group_key)
             
@@ -223,7 +223,7 @@ class MessageQueue:
         # 2. 检查最近是否有新消息（简单的完整性判断）
         # 实际场景中，可以根据业务逻辑调整
         group_key = self.QUEUE_KEYS['group_buffer'].format(grouped_id)
-        ttl = await self.redis.ttl(group_key)
+        ttl = self.redis.ttl(group_key)
         
         # 如果缓冲时间超过30秒且有多条消息，可能已完整
         if ttl <= 30 and current_size >= 2:
@@ -238,7 +238,7 @@ class MessageQueue:
             pipe = self.redis.pipeline()
             pipe.hgetall(group_key)
             pipe.delete(group_key)
-            results = await pipe.execute()
+            results = pipe.execute()
             
             group_data = results[0]
             if not group_data:
@@ -270,7 +270,7 @@ class MessageQueue:
             pipe.lpush(self.QUEUE_KEYS['raw'], json.dumps(queue_data))
             pipe.hincrby(self.QUEUE_KEYS['stats'], 'enqueued_groups', 1)
             pipe.hincrby(self.QUEUE_KEYS['stats'], 'total_enqueued', 1)
-            await pipe.execute()
+            pipe.execute()
             
             logger.info(f"✅ 组消息入队: {grouped_id} ({len(messages)}条)")
             return True
@@ -292,7 +292,7 @@ class MessageQueue:
         """
         try:
             # 使用BRPOP阻塞等待
-            result = await self.redis.brpop(self.QUEUE_KEYS['raw'], timeout=timeout)
+            result = self.redis.brpop(self.QUEUE_KEYS['raw'], timeout=timeout)
             if not result:
                 return None
             
@@ -302,10 +302,10 @@ class MessageQueue:
             
             # 记录处理开始
             processing_key = self.QUEUE_KEYS['processing'].format(worker_id)
-            await self.redis.setex(processing_key, 300, message_json)  # 5分钟过期
+            self.redis.setex(processing_key, 300, message_json)  # 5分钟过期
             
             # 更新统计
-            await self.redis.hincrby(self.QUEUE_KEYS['stats'], 'dequeued', 1)
+            self.redis.hincrby(self.QUEUE_KEYS['stats'], 'dequeued', 1)
             
             logger.debug(f"📤 消息出队: {message_data.get('type')} (worker: {worker_id})")
             return message_data
@@ -323,7 +323,7 @@ class MessageQueue:
             pipe = self.redis.pipeline()
             pipe.delete(processing_key)
             pipe.hincrby(self.QUEUE_KEYS['stats'], 'completed', 1)
-            await pipe.execute()
+            pipe.execute()
             
             return True
             
@@ -350,7 +350,7 @@ class MessageQueue:
             pipe.delete(processing_key)
             pipe.lpush(self.QUEUE_KEYS['failed'], json.dumps(failed_data))
             pipe.hincrby(self.QUEUE_KEYS['stats'], 'failed', 1)
-            await pipe.execute()
+            pipe.execute()
             
             logger.warning(f"消息处理失败: {error} (worker: {worker_id})")
             return True
@@ -363,15 +363,15 @@ class MessageQueue:
         """获取队列状态"""
         try:
             # 获取各种统计
-            raw_count = await self.redis.llen(self.QUEUE_KEYS['raw'])
-            failed_count = await self.redis.llen(self.QUEUE_KEYS['failed'])
-            stats = await self.redis.hgetall(self.QUEUE_KEYS['stats']) or {}
+            raw_count = self.redis.llen(self.QUEUE_KEYS['raw'])
+            failed_count = self.redis.llen(self.QUEUE_KEYS['failed'])
+            stats = self.redis.hgetall(self.QUEUE_KEYS['stats']) or {}
             
             # 获取组缓冲数量
             group_buffers = 0
             cursor = '0'
             while True:
-                cursor, keys = await self.redis.scan(
+                cursor, keys = self.redis.scan(
                     cursor, 
                     match=self.QUEUE_KEYS['group_buffer'].format('*')
                 )
@@ -405,7 +405,7 @@ class MessageQueue:
         try:
             for _ in range(max_retries):
                 # 获取一个失败的消息
-                failed_json = await self.redis.rpop(self.QUEUE_KEYS['failed'])
+                failed_json = self.redis.rpop(self.QUEUE_KEYS['failed'])
                 if not failed_json:
                     break
                 
@@ -415,13 +415,13 @@ class MessageQueue:
                 # 检查是否可以重试
                 if get_current_time() >= retry_time:
                     # 重新入队
-                    await self.redis.lpush(self.QUEUE_KEYS['raw'], 
+                    self.redis.lpush(self.QUEUE_KEYS['raw'], 
                                          json.dumps(failed_data['message']))
                     retried += 1
                     logger.info(f"重试失败消息: {failed_data.get('worker_id')}")
                 else:
                     # 还没到重试时间，放回队列
-                    await self.redis.rpush(self.QUEUE_KEYS['failed'], failed_json)
+                    self.redis.rpush(self.QUEUE_KEYS['failed'], failed_json)
                     break
             
             return retried
