@@ -13,6 +13,7 @@ from app.storage.redis_store import get_redis_message_store
 from app.services.message_processor import MessageProcessor
 from app.services.unified_filter_engine import filter_engine_compat
 from app.services.config_manager import config_manager
+from app.services.message_queue import get_message_queue, CollectedMessage
 
 logger = logging.getLogger(__name__)
 
@@ -173,8 +174,6 @@ class MessageHandler:
 
     async def process_source_message(self, message: TLMessage, chat):
         """处理源频道消息 - 改为快速入队模式"""
-        from app.services.message_queue import get_message_queue, CollectedMessage
-        
         # 获取格式化的频道ID
         raw_chat_id = chat.id
         if raw_chat_id > 0:
@@ -207,9 +206,8 @@ class MessageHandler:
             # 任何错误都回退到原有的同步处理
             return await self.process_message_unified(message, channel_id, chat)
     
-    async def _extract_message_quickly(self, message: TLMessage, channel_id: str, chat) -> 'CollectedMessage':
+    async def _extract_message_quickly(self, message: TLMessage, channel_id: str, chat) -> CollectedMessage:
         """快速提取消息基础信息 - Linus式最小必要信息"""
-        from app.services.message_queue import CollectedMessage
         from app.utils.timezone import get_current_time
         
         # 基础文本内容
