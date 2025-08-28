@@ -98,8 +98,7 @@ class ConfigManager:
                     'value': serialized_value,
                     'config_type': actual_config_type,
                     'description': description or (existing_config.get('description', '') if existing_config else ''),
-                    'is_active': True,
-                    'updated_at': datetime.now().isoformat()
+                    'is_active': True
                 }
                 
                 # 如果是新配置，添加创建时间
@@ -219,7 +218,6 @@ class ConfigManager:
                         'config_type': config_type,
                         'description': description or (existing_config.get('description', '') if existing_config else ''),
                         'is_active': True,
-                        'updated_at': datetime.now().isoformat(),
                         'created_at': existing_config.get('created_at', datetime.now().isoformat()) if existing_config else datetime.now().isoformat()
                     }
                 

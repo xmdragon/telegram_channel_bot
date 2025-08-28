@@ -21,8 +21,8 @@ class TelegramProcessLock:
         self.lock_key = "telegram:process:lock"
         self.lock_owner_key = "telegram:process:owner"
         self.heartbeat_key = "telegram:process:heartbeat"
-        self.lock_timeout = 15  # 锁超时时间（秒）
-        self.heartbeat_interval = 5   # 心跳间隔（秒）
+        self.lock_timeout = 30  # 锁超时时间（秒）- 增加以防止正常操作超时
+        self.heartbeat_interval = 3   # 心跳间隔（秒）- 缩短以提高死锁检测灵敏度
         self.process_id = str(uuid.uuid4())  # 进程唯一标识
         self._redis: Optional[redis.Redis] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
@@ -55,7 +55,7 @@ class TelegramProcessLock:
                         return None
         return self._redis
     
-    async def acquire(self, timeout: float = 10.0) -> bool:
+    async def acquire(self, timeout: float = 20.0) -> bool:
         """
         尝试获取锁
         

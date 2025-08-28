@@ -62,8 +62,8 @@ class TelegramLockCleaner:
                 "is_expired": False
             }
             
-            # 判断是否过期（超过15秒无心跳认为过期）
-            if info["heartbeat_age"] and info["heartbeat_age"] > 15:
+            # 判断是否过期（超过30秒无心跳认为过期，与进程锁超时保持一致）
+            if info["heartbeat_age"] and info["heartbeat_age"] > 30:
                 info["is_expired"] = True
             
             return info

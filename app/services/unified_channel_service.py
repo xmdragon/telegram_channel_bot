@@ -111,8 +111,7 @@ class UnifiedChannelService:
                 'description': description,
                 'is_active': True,
                 'config': {},
-                'created_at': get_current_time().isoformat(),
-                'updated_at': get_current_time().isoformat()
+                'created_at': get_current_time().isoformat()
             }
             
             # 保存到存储
@@ -172,7 +171,6 @@ class UnifiedChannelService:
             
             # 更新数据
             channel_data.update(updates)
-            channel_data['updated_at'] = get_current_time().isoformat()
             
             # 保存更新
             success = channel_store.update_channel(channel_data)
@@ -306,7 +304,6 @@ class UnifiedChannelService:
                     # 如果标题不同，更新它
                     if real_title != old_title:
                         channel['channel_title'] = real_title
-                        channel['updated_at'] = get_current_time().isoformat()
                         
                         # 保存更新
                         if channel_store.update_channel(channel):
@@ -346,7 +343,6 @@ class UnifiedChannelService:
             
             # 更新last_collected_message_id
             channel_data['last_collected_message_id'] = message_id
-            channel_data['updated_at'] = get_current_time().isoformat()
             
             # 保存更新
             success = channel_store.update_channel(channel_data)

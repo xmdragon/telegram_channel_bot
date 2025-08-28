@@ -58,7 +58,11 @@ async def add_promo_sample(request: PromoTrainingRequest):
         if not save_promo_samples(samples):
             raise HTTPException(status_code=500, detail="保存样本失败")
         
-        logger.info(f"推广内容训练样本已添加: {sample_data['id']}")
+        # 更新向量管理器缓存，确保立即生效
+        from app.services.promo_vector_manager import promo_vector_manager
+        promo_vector_manager.add_sample_vector(request.promo_content.strip())
+        
+        logger.info(f"推广内容训练样本已添加并更新缓存: {sample_data['id']}")
         
         return {
             "success": True,
@@ -203,8 +207,11 @@ async def update_promo_sample(sample_id: str, request: PromoTrainingRequest):
         
         # 查找要更新的样本
         sample_found = False
+        old_content = None
         for i, sample in enumerate(samples):
             if sample.get('id') == sample_id:
+                # 保存旧内容用于更新缓存
+                old_content = sample.get('promo_content', '')
                 # 更新样本数据
                 samples[i]['promo_content'] = request.promo_content.strip()
                 samples[i]['separator_type'] = request.separator_type or ""
@@ -219,7 +226,13 @@ async def update_promo_sample(sample_id: str, request: PromoTrainingRequest):
         if not save_promo_samples(samples):
             raise HTTPException(status_code=500, detail="更新样本失败")
         
-        logger.info(f"推广内容训练样本已更新: {sample_id}")
+        # 更新向量管理器缓存
+        from app.services.promo_vector_manager import promo_vector_manager
+        if old_content:
+            promo_vector_manager.remove_sample_vector(old_content)
+        promo_vector_manager.add_sample_vector(request.promo_content.strip())
+        
+        logger.info(f"推广内容训练样本已更新并同步缓存: {sample_id}")
         
         return {
             "success": True,
@@ -245,6 +258,13 @@ async def delete_promo_sample(sample_id: str):
         # 加载现有样本
         samples = load_promo_samples()
         
+        # 查找要删除的样本内容（用于更新缓存）
+        deleted_content = None
+        for s in samples:
+            if s.get('id') == sample_id:
+                deleted_content = s.get('promo_content', '')
+                break
+        
         # 查找并删除样本
         original_count = len(samples)
         samples = [s for s in samples if s.get('id') != sample_id]
@@ -256,7 +276,12 @@ async def delete_promo_sample(sample_id: str):
         if not save_promo_samples(samples):
             raise HTTPException(status_code=500, detail="删除样本失败")
         
-        logger.info(f"推广内容训练样本已删除: {sample_id}")
+        # 从向量管理器缓存中移除，确保立即生效
+        if deleted_content:
+            from app.services.promo_vector_manager import promo_vector_manager
+            promo_vector_manager.remove_sample_vector(deleted_content)
+        
+        logger.info(f"推广内容训练样本已删除并更新缓存: {sample_id}")
         
         return {
             "success": True,

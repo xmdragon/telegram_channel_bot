@@ -116,8 +116,8 @@ class PromoVectorManager:
             # 提取所有文本
             texts = []
             for sample in samples:
-                if sample.get('content'):
-                    texts.append(sample['content'].strip())
+                if sample.get('promo_content'):
+                    texts.append(sample['promo_content'].strip())
             
             if not texts:
                 logger.info("推广样本中没有有效文本内容")
