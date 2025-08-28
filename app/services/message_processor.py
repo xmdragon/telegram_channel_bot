@@ -730,7 +730,7 @@ class MessageProcessor:
                             if sub_messages and sub_messages[0] and sub_messages[0].media:
                                 # 下载该子消息的媒体
                                 media_info = await media_handler.download_media(
-                                    client, sub_messages[0], msg_id, timeout=60
+                                    client, sub_messages[0], msg_id
                                 )
                                 if media_info:
                                     # 生成显示URL
@@ -762,8 +762,7 @@ class MessageProcessor:
                     media_info = await media_handler.download_media(
                         client, 
                         telegram_message, 
-                        message_id,
-                        timeout=60  # 60秒超时
+                        message_id
                     )
                     
                     if not media_info:

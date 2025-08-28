@@ -155,15 +155,45 @@ class TelegramCollectorService:
             bot_module.telegram_bot = None
             
             if not auth_status.get('authorized', False):
-                await self.health_monitor.set_unhealthy("Telegram未认证", {
-                    "auth_status": "unauthorized",
-                    "auth_url": "http://localhost:8000/static/telegram-auth.html"
+                # 输出详细认证诊断报告
+                print("\n" + "="*60)
+                print("📡 === Collector服务认证诊断报告 ===")
+                print("="*60)
+                
+                print(f"\n🔍 配置检查:")
+                print(f"   {auth_status.get('config_status', '未知')}")
+                if auth_status.get('config_issues'):
+                    for issue in auth_status.get('config_issues', []):
+                        print(f"   • {issue}")
+                
+                print(f"\n🔗 连接检查:")
+                print(f"   {auth_status.get('connection_status', '未知')}")
+                
+                if auth_status.get('session_length', 0) > 0:
+                    print(f"\n📊 Session信息:")
+                    print(f"   • Session长度: {auth_status.get('session_length')} 字符")
+                    print(f"   • API配置: {'✅ 完整' if auth_status.get('api_configured') else '❌ 缺失'}")
+                
+                if auth_status.get('error_detail'):
+                    print(f"\n❌ 错误详情:")
+                    print(f"   {auth_status.get('error_detail')}")
+                
+                print(f"\n💡 解决方案:")
+                print(f"   {auth_status.get('solution', '访问认证页面完成设置')}")
+                
+                print(f"\n🔗 认证页面: http://localhost:8080/static/telegram-auth.html")
+                print(f"🔗 API申请: https://my.telegram.org")
+                print("="*60)
+                
+                await self.health_monitor.set_unhealthy("Telegram Listener认证失败", {
+                    "auth_status": "listener_unauthorized", 
+                    "config_issues": auth_status.get('config_issues', []),
+                    "auth_url": "http://localhost:8080/static/telegram-auth.html",
+                    "solution": auth_status.get('solution', '')
                 })
-                logger.error("❌ Telegram未认证，采集服务无法启动")
-                logger.error("请访问 http://localhost:8000/static/telegram-auth.html 完成Telegram登录")
-                logger.error("获取API凭据请访问: https://my.telegram.org")
-                logger.warning("采集服务将在有限功能模式下运行，等待用户完成认证...")
-                logger.error("🚨 安全策略：认证失败，服务立即退出")
+                
+                logger.error("❌ Collector服务无法启动 - Listener认证失败")
+                logger.error("详细诊断信息已输出到控制台")
                 sys.exit(1)
             else:
                 # Telegram已认证，正常启动

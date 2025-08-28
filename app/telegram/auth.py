@@ -44,28 +44,76 @@ class AuthManagerCompat:
         return "idle"
     
     async def get_auth_status(self) -> dict:
-        """获取认证状态详情 - 兼容性方法"""
+        """获取认证状态详情 - 兼容性方法，专注listener认证诊断"""
+        from app.services.config_manager import ConfigManager
+        
         try:
+            config_manager = ConfigManager()
+            
+            # === 第一层：配置诊断 ===
+            listener_session = await config_manager.get_config("telegram.listener_session")
+            listener_api_id = await config_manager.get_config("telegram.listener_api_id") 
+            listener_api_hash = await config_manager.get_config("telegram.listener_api_hash")
+            
+            # 构建配置状态报告
+            config_issues = []
+            if not listener_session:
+                config_issues.append("listener_session缺失")
+            elif len(listener_session) < 100:
+                config_issues.append("listener_session格式无效")
+            
+            if not listener_api_id:
+                config_issues.append("listener_api_id缺失")
+            if not listener_api_hash:
+                config_issues.append("listener_api_hash缺失")
+            
+            # === 第二层：连接诊断 ===
             connection_status = await dual_session_manager.get_connection_status()
+            listener_connected = connection_status.get("listener_connected", False)
+            
+            # 判断认证状态
+            config_ok = len(config_issues) == 0
+            listener_authorized = config_ok  # 有配置就视为已认证，无需实时连接
+            
+            # === 第三层：诊断报告生成 ===
+            if config_ok:
+                config_status = "✅ Listener配置完整"
+                solution = "配置正常，如连接失败请检查网络或Session有效性"
+            else:
+                config_status = f"❌ 配置问题: {', '.join(config_issues)}"
+                solution = "访问 http://localhost:8080/static/telegram-auth.html 完成Telegram认证"
+            
+            connection_detail = "✅ 已连接" if listener_connected else "❌ 未连接"
             
             return {
                 "success": True,
-                "authenticated": (connection_status.get("listener_connected", False) or 
-                                connection_status.get("sender_connected", False)),
-                "listener_connected": connection_status.get("listener_connected", False),
+                "authorized": listener_authorized,  # collector检查的关键字段
+                "authenticated": listener_authorized,  # 向后兼容
+                "listener_connected": listener_connected,
                 "sender_connected": connection_status.get("sender_connected", False),
-                "status": "authorized" if (connection_status.get("listener_connected", False) or 
-                                         connection_status.get("sender_connected", False)) else "idle"
+                "status": "authorized" if listener_authorized else "idle",
+                # 诊断信息
+                "config_status": config_status,
+                "connection_status": f"Listener连接: {connection_detail}",
+                "config_issues": config_issues,
+                "solution": solution,
+                "session_length": len(listener_session) if listener_session else 0,
+                "api_configured": bool(listener_api_id and listener_api_hash)
             }
+            
         except Exception as e:
             logger.error(f"获取认证状态失败: {e}")
             return {
                 "success": False,
+                "authorized": False,
                 "authenticated": False,
                 "listener_connected": False,
                 "sender_connected": False,
                 "status": "error",
-                "error": str(e)
+                "config_status": "❌ 诊断失败",
+                "connection_status": "❌ 检查失败", 
+                "error_detail": str(e),
+                "solution": "检查系统配置和存储服务状态"
             }
 
 # 兼容性实例
