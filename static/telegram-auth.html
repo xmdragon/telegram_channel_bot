@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📱 Telegram认证</title>
+    <title>📱 Telegram双Session认证</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <!-- 动态版本号 - 防缓存 -->
@@ -13,176 +13,229 @@
         document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/inline-styles.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/auth.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/dual-session-auth.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="📱 Telegram认证"></nav-bar>
+        <nav-bar page-title="📱 Telegram双Session认证"></nav-bar>
 
         <div class="container">
-            <div class="form-container">
-                <div class="form-title">Telegram 认证</div>
-                
-                <!-- 已保存的认证信息 -->
-                <div v-if="showSavedInfo" class="saved-auth-info">
-                    <div class="text-center mb-32">
-                        <div class="success-icon">✅</div>
-                        <h3 class="success-title">认证成功！</h3>
-                        <p class="success-text">Telegram 客户端已成功连接</p>
-                    </div>
-                    
-                    <div class="auth-info-item">
-                        <label>API ID:</label>
-                        <span>{{ savedAuthInfo.api_id }}</span>
-                    </div>
-                    <div class="auth-info-item">
-                        <label>API Hash:</label>
-                        <span>{{ savedAuthInfo.api_hash ? '••••••••••••••••••••••••••••••••' : '未设置' }}</span>
-                    </div>
-                    
-                    <div class="text-center mt-32 flex-gap-16">
-                        <button class="btn btn-primary btn-lg min-w-120" @click="goToMain">
-                            进入系统
-                        </button>
-                        <button class="btn btn-secondary btn-lg min-w-120" 
-                                @click="startReAuth" 
-                                :disabled="loading">
-                            <span v-if="loading" class="btn-icon">⏳</span>
-                            重新认证
-                        </button>
-                        <button class="btn btn-danger btn-lg min-w-120" 
-                                @click="clearAuthData" 
-                                :disabled="loading || !hasSavedSession">
-                            <span v-if="loading" class="btn-icon">⏳</span>
-                            清除数据
-                        </button>
+            <!-- 双Session认证界面 -->
+            <div class="dual-session-container">
+                <!-- API配置提示 -->
+                <div v-if="!hasSharedApi" class="api-config-prompt">
+                    <div class="prompt-card">
+                        <div class="prompt-icon">🔧</div>
+                        <div class="prompt-content">
+                            <h3 class="prompt-title">需要配置 Telegram API</h3>
+                            <p class="prompt-text">在开始认证之前，请先在系统配置中设置您的 API ID 和 API Hash</p>
+                            <div class="prompt-actions">
+                                <button class="btn btn-primary btn-lg" @click="goToConfig">
+                                    配置 API_ID / API_HASH
+                                </button>
+                                <button class="btn btn-secondary" @click="checkApiConfig">
+                                    重新检查配置
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- 步骤指示器 -->
-                <div v-if="!showSavedInfo" class="step-indicator">
-                    <div class="step" :class="{ active: currentStep >= 1, completed: currentStep > 1 }">配置</div>
-                    <div class="step-line"></div>
-                    <div class="step" :class="{ active: currentStep >= 2, completed: currentStep > 2 }">手机</div>
-                    <div class="step-line"></div>
-                    <div class="step" :class="{ active: currentStep >= 3, completed: currentStep > 3 }">验证</div>
-                    <div class="step-line"></div>
-                    <div class="step" :class="{ active: currentStep >= 4, completed: currentStep > 4 }">两步</div>
-                    <div class="step-line"></div>
-                    <div class="step" :class="{ active: currentStep >= 5, completed: currentStep > 5 }">完成</div>
+                <!-- 双Session认证区域 -->
+                <div v-if="hasSharedApi" class="dual-session-auth">
+                    <!-- 采集Session认证 -->
+                    <div class="session-card listener-session">
+                        <div class="session-header success-theme">
+                            <h3>📡 采集认证</h3>
+                            <span class="session-purpose">用于监听和采集消息</span>
+                        </div>
+                        
+                        <div class="session-content">
+                            <!-- 步骤指示器 -->
+                            <div class="step-indicator">
+                                <div class="step" :class="{ active: listenerSession.currentStep >= 1, completed: listenerSession.currentStep > 1 }">手机</div>
+                                <div class="step-line"></div>
+                                <div class="step" :class="{ active: listenerSession.currentStep >= 2, completed: listenerSession.currentStep > 2 }">验证</div>
+                                <div class="step-line"></div>
+                                <div class="step" :class="{ active: listenerSession.currentStep >= 3, completed: listenerSession.currentStep > 3 }">完成</div>
+                            </div>
+                            
+                            <!-- 认证步骤 -->
+                            <div v-if="!listenerSession.completed">
+                                <!-- 手机号步骤 -->
+                                <div v-if="listenerSession.currentStep === 1" class="auth-step">
+                                    <div class="form-group">
+                                        <label class="form-label">手机号码</label>
+                                        <input class="form-input" 
+                                               v-model="listenerSession.phone" 
+                                               placeholder="请输入手机号码 (格式: +8613800138000)"
+                                               type="text">
+                                    </div>
+                                    <button class="btn btn-success" 
+                                            @click="sendCode('listener')" 
+                                            :disabled="!listenerSession.phone || listenerSession.loading">
+                                        <span v-if="listenerSession.loading" class="btn-icon">⏳</span>
+                                        采集认证
+                                    </button>
+                                </div>
+                                
+                                <!-- 验证码步骤 -->
+                                <div v-if="listenerSession.currentStep === 2" class="auth-step">
+                                    <div class="form-group">
+                                        <label class="form-label">验证码</label>
+                                        <input class="form-input" 
+                                               v-model="listenerSession.verificationCode" 
+                                               placeholder="请输入收到的验证码"
+                                               type="text">
+                                    </div>
+                                    <button class="btn btn-success" 
+                                            @click="verifyCode('listener')" 
+                                            :disabled="!listenerSession.verificationCode || listenerSession.loading">
+                                        <span v-if="listenerSession.loading" class="btn-icon">⏳</span>
+                                        验证
+                                    </button>
+                                </div>
+                                
+                                <!-- 两步验证步骤 -->
+                                <div v-if="listenerSession.currentStep === 3 && listenerSession.needsPassword" class="auth-step">
+                                    <div class="form-group">
+                                        <label class="form-label">两步验证密码</label>
+                                        <input class="form-input" 
+                                               v-model="listenerSession.password" 
+                                               placeholder="请输入两步验证密码"
+                                               type="password">
+                                    </div>
+                                    <button class="btn btn-success" 
+                                            @click="verifyPassword('listener')" 
+                                            :disabled="!listenerSession.password || listenerSession.loading">
+                                        <span v-if="listenerSession.loading" class="btn-icon">⏳</span>
+                                        验证密码
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 完成状态 -->
+                            <div v-if="listenerSession.completed" class="auth-complete">
+                                <div class="success-icon">✅</div>
+                                <p class="success-text">采集认证完成</p>
+                                <button class="btn btn-outline-danger" @click="clearSession('listener')">
+                                    重新认证
+                                </button>
+                            </div>
+                            
+                            <!-- 错误信息 -->
+                            <div v-if="listenerSession.errorMessage" class="error-message-small">
+                                {{ listenerSession.errorMessage }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 发送Session认证 -->
+                    <div class="session-card sender-session">
+                        <div class="session-header primary-theme">
+                            <h3>📤 发布认证</h3>
+                            <span class="session-purpose">用于发送和转发消息</span>
+                        </div>
+                        
+                        <div class="session-content">
+                            <!-- 步骤指示器 -->
+                            <div class="step-indicator">
+                                <div class="step" :class="{ active: senderSession.currentStep >= 1, completed: senderSession.currentStep > 1 }">手机</div>
+                                <div class="step-line"></div>
+                                <div class="step" :class="{ active: senderSession.currentStep >= 2, completed: senderSession.currentStep > 2 }">验证</div>
+                                <div class="step-line"></div>
+                                <div class="step" :class="{ active: senderSession.currentStep >= 3, completed: senderSession.currentStep > 3 }">完成</div>
+                            </div>
+                            
+                            <!-- 认证步骤 -->
+                            <div v-if="!senderSession.completed">
+                                <!-- 手机号步骤 -->
+                                <div v-if="senderSession.currentStep === 1" class="auth-step">
+                                    <div class="form-group">
+                                        <label class="form-label">手机号码</label>
+                                        <input class="form-input" 
+                                               v-model="senderSession.phone" 
+                                               placeholder="请输入手机号码 (格式: +8613800138000)"
+                                               type="text">
+                                    </div>
+                                    <button class="btn btn-primary" 
+                                            @click="sendCode('sender')" 
+                                            :disabled="!senderSession.phone || senderSession.loading">
+                                        <span v-if="senderSession.loading" class="btn-icon">⏳</span>
+                                        发布认证
+                                    </button>
+                                </div>
+                                
+                                <!-- 验证码步骤 -->
+                                <div v-if="senderSession.currentStep === 2" class="auth-step">
+                                    <div class="form-group">
+                                        <label class="form-label">验证码</label>
+                                        <input class="form-input" 
+                                               v-model="senderSession.verificationCode" 
+                                               placeholder="请输入收到的验证码"
+                                               type="text">
+                                    </div>
+                                    <button class="btn btn-primary" 
+                                            @click="verifyCode('sender')" 
+                                            :disabled="!senderSession.verificationCode || senderSession.loading">
+                                        <span v-if="senderSession.loading" class="btn-icon">⏳</span>
+                                        验证
+                                    </button>
+                                </div>
+                                
+                                <!-- 两步验证步骤 -->
+                                <div v-if="senderSession.currentStep === 3 && senderSession.needsPassword" class="auth-step">
+                                    <div class="form-group">
+                                        <label class="form-label">两步验证密码</label>
+                                        <input class="form-input" 
+                                               v-model="senderSession.password" 
+                                               placeholder="请输入两步验证密码"
+                                               type="password">
+                                    </div>
+                                    <button class="btn btn-primary" 
+                                            @click="verifyPassword('sender')" 
+                                            :disabled="!senderSession.password || senderSession.loading">
+                                        <span v-if="senderSession.loading" class="btn-icon">⏳</span>
+                                        验证密码
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 完成状态 -->
+                            <div v-if="senderSession.completed" class="auth-complete">
+                                <div class="success-icon">✅</div>
+                                <p class="success-text">发布认证完成</p>
+                                <button class="btn btn-outline-danger" @click="clearSession('sender')">
+                                    重新认证
+                                </button>
+                            </div>
+                            
+                            <!-- 错误信息 -->
+                            <div v-if="senderSession.errorMessage" class="error-message-small">
+                                {{ senderSession.errorMessage }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
-                <!-- 步骤1: 配置信息 -->
-                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 1 }">
-                    <div class="form-group">
-                        <label class="form-label">API ID</label>
-                        <input class="form-input" 
-                               v-model="config.api_id" 
-                               placeholder="请输入 Telegram API ID"
-                               type="text">
+                
+                <!-- 底部操作 -->
+                <div v-if="hasSharedApi && bothSessionsCompleted" class="bottom-actions">
+                    <div class="text-center">
+                        <div class="success-icon-large">🎉</div>
+                        <h3 class="success-title-large">双Session认证完成！</h3>
+                        <p class="success-text">采集和发布功能已就绪</p>
+                        
+                        <div class="flex-gap-16 mt-32">
+                            <button class="btn btn-primary btn-lg min-w-140" @click="goToMain">
+                                进入系统
+                            </button>
+                            <button class="btn btn-secondary btn-lg min-w-120" @click="resetAllSessions">
+                                重新配置
+                            </button>
+                        </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">API Hash</label>
-                        <input class="form-input" 
-                               v-model="config.api_hash" 
-                               placeholder="请输入 Telegram API Hash"
-                               type="text">
-                    </div>
-                    
-                    
-                    <div class="text-center mt-30">
-                        <button class="btn btn-primary" 
-                                @click="submitConfig" 
-                                :disabled="!canProceed || loading">
-                            <span v-if="loading" class="btn-icon">⏳</span>
-                            提交配置
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 步骤2: 手机号码 -->
-                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 2 }">
-                    <div class="form-group">
-                        <label class="form-label">手机号码</label>
-                        <input class="form-input" 
-                               v-model="config.phone" 
-                               placeholder="请输入手机号码 (格式: +8613800138000)"
-                               type="text">
-                    </div>
-                    
-                    <div class="text-center mt-30">
-                        <button class="btn btn-secondary" @click="prevStep">
-                            上一步
-                        </button>
-                        <button class="btn btn-primary" @click="sendCode" :disabled="loading">
-                            <span v-if="loading" class="btn-icon">⏳</span>
-                            发送验证码
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 步骤3: 验证码 -->
-                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 3 }">
-                    <div class="form-group">
-                        <label class="form-label">验证码</label>
-                        <input class="form-input" 
-                               v-model="verificationCode" 
-                               placeholder="请输入收到的验证码"
-                               type="text">
-                    </div>
-                    
-                    <div class="text-center mt-30">
-                        <button class="btn btn-secondary" @click="prevStep">
-                            上一步
-                        </button>
-                        <button class="btn btn-primary" @click="verifyCode" :disabled="verifying">
-                            <span v-if="verifying" class="btn-icon">⏳</span>
-                            验证
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 步骤4: 两步验证 -->
-                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 4 }">
-                    <div class="form-group">
-                        <label class="form-label">两步验证密码</label>
-                        <input class="form-input" 
-                               v-model="password" 
-                               placeholder="请输入两步验证密码"
-                               type="password">
-                    </div>
-                    
-                    <div class="text-center mt-30">
-                        <button class="btn btn-secondary" @click="prevStep">
-                            上一步
-                        </button>
-                        <button class="btn btn-primary" @click="verifyPassword" :disabled="verifying">
-                            <span v-if="verifying" class="btn-icon">⏳</span>
-                            验证
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 步骤5: 完成 -->
-                <div v-if="!showSavedInfo" class="form-step" :class="{ active: currentStep === 5 }">
-                    <div class="text-center" style="margin: 32px 0;">
-                        <div class="success-icon-large">✅</div>
-                        <h3 class="success-title-large">认证成功！</h3>
-                        <p class="success-text">Telegram 客户端已成功连接</p>
-                    </div>
-                    
-                    <div class="text-center mt-32">
-                        <button class="btn btn-primary btn-lg min-w-140" @click="goToMain">
-                            进入系统
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 错误信息 -->
-                <div v-if="errorMessage" class="error-message">
-                    {{ errorMessage }}
                 </div>
             </div>
         </div>
@@ -210,7 +263,7 @@
         document.write('<script src="assets/js/utils/websocket-factory.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
-        document.write('<script src="assets/js/components/telegram-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/telegram-dual-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
     </script>
 
 

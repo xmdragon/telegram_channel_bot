@@ -1,25 +1,4 @@
 {
-  "telegram.api_id": {
-    "value": "24382238",
-    "config_type": "integer",
-    "description": "Telegram API ID",
-    "is_active": true,
-    "created_at": "2025-08-14T22:53:30.661829"
-  },
-  "telegram.api_hash": {
-    "value": "a926790195b42a472477e7709a74fc24",
-    "config_type": "string",
-    "description": "Telegram API Hash",
-    "is_active": true,
-    "created_at": "2025-08-26T11:00:39.026262"
-  },
-  "telegram.session": {
-    "value": "1BVtsOHIBu1N8S-F7BN_0-SFAOb7amOU9B-5NHt5HKCqg1RgtwGGnH6fLv3v-Z0u7NguGk7yrn_PVQnQ2UvV7Uys9VE_jWlefgX_oJ8JwaXVVsEEeeTuEuA3z_OS6exlSCoBKDYoNAt6mm7xeEjKe5yiAjIkC90nfReqM81og2ThtaSHayNvShwjZCYJb8LlZCVuuJ1iDZ66VJd4k1o0HfwRJkiiskBKfyteMMinWKKf4N2ICbQEY2VVgCVzyeaejjP4TgUv56x5dvsfgpVQ4Cl_R5ZkPQs4jFodNyIXdN-CHmOTWydcxSjz862RuolfjjeaeWJxtsV5dBTgL9G7QrwC--uCo-nQ=",
-    "config_type": "string",
-    "description": "Telegram Session (StringSession格式)",
-    "is_active": true,
-    "created_at": "2025-08-14T23:39:48.869953"
-  },
   "target.auto_forward_enabled": {
     "value": "false",
     "config_type": "boolean",
@@ -137,7 +116,7 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "created_at": "2025-08-28T08:38:12.114533"
+    "created_at": "2025-08-28T14:20:20.277214"
   },
   "review.group_link": {
     "value": "https://t.me/+HPbDzWj3ID01OTJl",
@@ -208,5 +187,26 @@
     "description": "",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.490779"
+  },
+  "telegram.listener_session": {
+    "value": "1BVtsOHIBu1N8S-F7BN_0-SFAOb7amOU9B-5NHt5HKCqg1RgtwGGnH6fLv3v-Z0u7NguGk7yrn_PVQnQ2UvV7Uys9VE_jWlefgX_oJ8JwaXVVsEEeeTuEuA3z_OS6exlSCoBKDYoNAt6mm7xeEjKe5yiAjIkC90nfReqM81og2ThtaSHayNvShwjZCYJb8LlZCVuuJ1iDZ66VJd4k1o0HfwRJkiiskBKfyteMMinWKKf4N2ICbQEY2VVgCVzyeaejjP4TgUv56x5dvsfgpVQ4Cl_R5ZkPQs4jFodNyIXdN-CHmOTWydcxSjz862RuolfjjeaeWJxtsV5dBTgL9G7QrwC--uCo-nQ=",
+    "config_type": "string",
+    "description": "Telegram采集Session",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.807676"
+  },
+  "telegram.listener_api_id": {
+    "value": "24382238",
+    "config_type": "string",
+    "description": "Telegram采集API ID",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.808646"
+  },
+  "telegram.listener_api_hash": {
+    "value": "a926790195b42a472477e7709a74fc24",
+    "config_type": "string",
+    "description": "Telegram采集API Hash",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.809428"
   }
 }

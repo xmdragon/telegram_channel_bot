@@ -11,6 +11,7 @@ from .linus_stats_api import router as linus_stats_router
 from .admin import router as admin_router
 from .config import router as config_router
 from .telegram_auth import router as auth_router
+from .telegram_dual_auth import router as dual_auth_router
 # 系统模块已重构为多个子模块
 from .system_health import router as system_health_router
 from .system_monitor import router as system_monitor_router
@@ -42,6 +43,7 @@ api_router.include_router(linus_stats_router, tags=["linus-stats"])
 api_router.include_router(admin_router, tags=["admin"])
 api_router.include_router(config_router, tags=["config"])
 api_router.include_router(auth_router, tags=["telegram-auth"])  # Telegram用户认证（非管理员认证）
+api_router.include_router(dual_auth_router, prefix="/dual-auth", tags=["telegram-dual-auth"])  # 双Session认证
 api_router.include_router(admin_auth_router, tags=["admin-auth"])  # 管理员认证，使用不同路径
 # 注册重构后的系统模块路由
 api_router.include_router(system_health_router, tags=["system-health"])

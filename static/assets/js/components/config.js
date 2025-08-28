@@ -67,6 +67,9 @@ const ConfigApp = {
                 history_message_limit: 50,
                 channel_signature: '',
                 collection_enabled: true,
+                // Telegram API 配置
+                telegram_api_id: '',
+                telegram_api_hash: '',
                 // 过滤设置
                 filter_enabled: true,
                 tail_filter_enabled: true,
@@ -236,6 +239,9 @@ const ConfigApp = {
                         history_message_limit: parseInt(configs['source.history_limit']?.value) || 50,
                         channel_signature: configs['target.signature']?.value || '',
                         collection_enabled: this.parseBooleanValue(configs['collection.enabled']?.value, true),
+                        // Telegram API 配置
+                        telegram_api_id: configs['telegram.api_id']?.value || '',
+                        telegram_api_hash: configs['telegram.api_hash']?.value || '',
                         // 过滤设置
                         filter_enabled: this.parseBooleanValue(configs['filter.enabled']?.value, true),
                         tail_filter_enabled: this.parseBooleanValue(configs['filter.tail_filter_enabled']?.value, true),
@@ -442,6 +448,9 @@ const ConfigApp = {
                     'source.history_limit': String(parseInt(this.systemConfig.history_message_limit)),
                     'target.signature': this.systemConfig.channel_signature,
                     'collection.enabled': this.systemConfig.collection_enabled,
+                    // Telegram API 配置
+                    'telegram.api_id': this.systemConfig.telegram_api_id || '',
+                    'telegram.api_hash': this.systemConfig.telegram_api_hash || '',
                     // 过滤设置
                     'filter.enabled': this.systemConfig.filter_enabled,
                     'filter.tail_filter_enabled': this.systemConfig.tail_filter_enabled,
@@ -799,6 +808,25 @@ const ConfigApp = {
             } catch (error) {
                 MessageManager.error('添加频道失败: ' + (error.response?.data?.detail || error.message));
             }
+        },
+        
+        // Telegram API 配置验证
+        validateApiId() {
+            const apiId = this.systemConfig.telegram_api_id;
+            if (apiId && !/^\d+$/.test(apiId)) {
+                MessageManager.warning('API ID 应该是纯数字');
+                return false;
+            }
+            return true;
+        },
+        
+        validateApiHash() {
+            const apiHash = this.systemConfig.telegram_api_hash;
+            if (apiHash && apiHash.length !== 32) {
+                MessageManager.warning('API Hash 应该是32位字符串');
+                return false;
+            }
+            return true;
         }
     }
 };

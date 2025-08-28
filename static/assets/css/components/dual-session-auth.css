@@ -1,0 +1,365 @@
+/* 双Session认证界面样式 */
+
+.dual-session-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* API配置提示区域 */
+.api-config-prompt {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+    margin-bottom: 32px;
+}
+
+.prompt-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+}
+
+.prompt-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+    display: block;
+}
+
+.prompt-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+}
+
+.prompt-text {
+    font-size: 16px;
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 32px;
+}
+
+.prompt-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+.prompt-actions .btn {
+    min-width: 200px;
+}
+
+@media (min-width: 480px) {
+    .prompt-actions {
+        flex-direction: row;
+        justify-content: center;
+    }
+    
+    .prompt-actions .btn {
+        min-width: 160px;
+    }
+}
+
+.form-subtitle {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+/* 双Session认证区域 */
+.dual-session-auth {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 968px) {
+    .dual-session-auth {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+}
+
+/* Session卡片 */
+.session-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.session-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Session头部 */
+.session-header {
+    padding: 24px;
+    text-align: center;
+    position: relative;
+}
+
+.session-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.session-purpose {
+    font-size: 14px;
+    opacity: 0.8;
+    margin: 0;
+}
+
+/* 主题颜色 */
+.success-theme {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+}
+
+.primary-theme {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    color: white;
+}
+
+/* Session内容区域 */
+.session-content {
+    padding: 24px;
+    min-height: 300px;
+}
+
+/* 步骤指示器 - 简化版本 */
+.session-card .step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.session-card .step {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #6c757d;
+    transition: all 0.2s ease;
+    min-width: 50px;
+    text-align: center;
+}
+
+.session-card .step.active {
+    background: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.session-card .step.completed {
+    background: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.session-card .step-line {
+    width: 20px;
+    height: 2px;
+    background: #dee2e6;
+    margin: 0 8px;
+}
+
+/* 认证步骤区域 */
+.auth-step {
+    text-align: center;
+}
+
+.auth-step .form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.auth-step .btn {
+    width: 100%;
+    margin-top: 12px;
+}
+
+/* 完成状态 */
+.auth-complete {
+    text-align: center;
+    padding: 20px;
+}
+
+.auth-complete .success-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.auth-complete .success-text {
+    margin-bottom: 20px;
+    color: #28a745;
+    font-weight: 500;
+}
+
+/* 错误信息 - 小版本 */
+.error-message-small {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-top: 12px;
+    border-left: 3px solid #dc3545;
+}
+
+/* 底部操作区域 */
+.bottom-actions {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.bottom-actions .success-icon-large {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.bottom-actions .success-title-large {
+    font-size: 28px;
+    margin-bottom: 12px;
+    color: #28a745;
+    font-weight: 600;
+}
+
+.bottom-actions .success-text {
+    color: #666;
+    margin-bottom: 24px;
+    font-size: 16px;
+}
+
+/* 按钮样式增强 */
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    color: white;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.btn-outline-danger {
+    background: transparent;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-danger:hover {
+    background: #dc3545;
+    color: white;
+}
+
+/* 加载状态 */
+.session-card .btn-icon {
+    margin-right: 8px;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+    .dual-session-container {
+        padding: 16px;
+    }
+    
+    .shared-api-config,
+    .session-content {
+        padding: 20px;
+    }
+    
+    .session-header {
+        padding: 20px;
+    }
+    
+    .session-header h3 {
+        font-size: 18px;
+    }
+    
+    .bottom-actions {
+        padding: 24px;
+    }
+    
+    .bottom-actions .success-icon-large {
+        font-size: 48px;
+    }
+    
+    .bottom-actions .success-title-large {
+        font-size: 24px;
+    }
+}
+
+/* 动画效果 */
+.session-card {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.auth-step,
+.auth-complete {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* 状态指示器 */
+.session-card.completed .session-header::after {
+    content: '✓';
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+}

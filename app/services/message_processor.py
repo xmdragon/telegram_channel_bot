@@ -630,8 +630,8 @@ class MessageProcessor:
             try:
                 from app.telegram.message_forwarder import message_forwarder
                 
-                # 使用临时客户端转发（自动管理锁）
-                await message_forwarder.forward_to_target_with_temp_client(message)
+                # 使用发送Session转发（无锁设计）
+                await message_forwarder.forward_to_target_with_sender_session(message)
                 logger.info(f"消息转发成功: {message_id}")
                 return True
                 

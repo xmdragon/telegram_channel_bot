@@ -652,39 +652,45 @@ class MessageForwarder:
         except Exception as e:
             logger.error(f"清理消息文件时出错: {e}")
 
-    async def forward_to_target_with_temp_client(self, message):
-        """使用临时客户端转发到目标频道"""
-        from app.telegram.client_manager import client_manager
+    async def forward_to_target_with_sender_session(self, message):
+        """使用发送Session转发到目标频道（无锁设计）"""
+        from app.telegram.dual_session_manager import dual_session_manager
         
-        temp_client = None
         try:
-            # 创建临时客户端，自动获取锁
-            temp_client = await client_manager.create_temp_client_with_lock(timeout=5)
-            
-            # 执行转发
-            await self.forward_to_target(temp_client, message)
-            
-        finally:
-            # 清理临时客户端，自动释放锁
-            if temp_client:
-                await client_manager.cleanup_temp_client(temp_client)
+            # 确保发送Session已连接
+            if await dual_session_manager.ensure_sender_connected():
+                sender_client = await dual_session_manager.get_sender_client()
+                if sender_client:
+                    # 执行转发
+                    await self.forward_to_target(sender_client, message)
+                else:
+                    raise RuntimeError("发送Session客户端未可用")
+            else:
+                raise RuntimeError("无法连接发送Session")
+                
+        except Exception as e:
+            logger.error(f"使用发送Session转发失败: {e}")
+            raise
     
-    async def forward_to_review_with_temp_client(self, message_data: dict):
-        """使用临时客户端转发到审核群"""
-        from app.telegram.client_manager import client_manager
+    async def forward_to_review_with_sender_session(self, message_data: dict):
+        """使用发送Session转发到审核群（无锁设计）"""
+        from app.telegram.dual_session_manager import dual_session_manager
         
-        temp_client = None
         try:
-            # 创建临时客户端，自动获取锁
-            temp_client = await client_manager.create_temp_client_with_lock(timeout=5)
-            
-            # 执行转发
-            await self.forward_to_review(temp_client, message_data)
-            
-        finally:
-            # 清理临时客户端，自动释放锁
-            if temp_client:
-                await client_manager.cleanup_temp_client(temp_client)
+            # 确保发送Session已连接
+            if await dual_session_manager.ensure_sender_connected():
+                sender_client = await dual_session_manager.get_sender_client()
+                if sender_client:
+                    # 执行转发
+                    await self.forward_to_review(sender_client, message_data)
+                else:
+                    raise RuntimeError("发送Session客户端未可用")
+            else:
+                raise RuntimeError("无法连接发送Session")
+                
+        except Exception as e:
+            logger.error(f"使用发送Session转发到审核群失败: {e}")
+            raise
 
 # 全局转发器实例
 message_forwarder = MessageForwarder()

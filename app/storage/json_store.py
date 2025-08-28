@@ -87,7 +87,6 @@ class JSONConfigStore(JSONStore):
         try:
             config = self._get_config()
             config[key] = value
-            config['updated_at'] = get_current_time().isoformat()
             
             if self._save_json(self.CONFIG_FILE, config):
                 self._config_cache = config  # 更新缓存
@@ -107,7 +106,6 @@ class JSONConfigStore(JSONStore):
         try:
             config = self._get_config()
             config.update(configs)
-            config['updated_at'] = get_current_time().isoformat()
             
             if self._save_json(self.CONFIG_FILE, config):
                 self._config_cache = config
@@ -124,7 +122,6 @@ class JSONConfigStore(JSONStore):
             config = self._get_config()
             if key in config:
                 del config[key]
-                config['updated_at'] = get_current_time().isoformat()
                 
                 if self._save_json(self.CONFIG_FILE, config):
                     self._config_cache = config

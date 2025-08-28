@@ -70,6 +70,20 @@ const API_ENDPOINTS = {
         logout: '/api/telegram-auth/logout'                         // POST - 登出Telegram
     },
 
+    // 双Session认证模块 - /api/dual-auth
+    dualAuth: {
+        sharedApiConfig: '/api/dual-auth/shared-api-config',           // POST - 设置共享API配置
+        initSession: '/api/dual-auth/init-session',                    // POST - 初始化Session认证
+        sendCode: '/api/dual-auth/send-code',                          // POST - 发送验证码
+        verifyCode: '/api/dual-auth/verify-code',                      // POST - 验证验证码
+        verifyPassword: '/api/dual-auth/verify-password',              // POST - 验证两步验证密码
+        sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}`, // GET - 获取Session状态
+        dualSessionStatus: '/api/dual-auth/dual-session-status',       // GET - 获取双Session状态
+        clearSession: '/api/dual-auth/clear-session',                  // POST - 清除Session
+        migrateConfig: '/api/dual-auth/migrate-config',                // POST - 迁移配置
+        disconnectAll: '/api/dual-auth/disconnect-all'                 // POST - 断开所有连接
+    },
+
     // 训练数据模块 - /api/training
     training: {
         // 分隔符模式管理
