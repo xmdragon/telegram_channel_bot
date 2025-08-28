@@ -32,16 +32,41 @@ class AuthManagerCompat:
         return (await dual_session_manager.ensure_listener_connected() or 
                 await dual_session_manager.ensure_sender_connected())
     
-    def is_authorized(self) -> bool:
+    async def is_authorized(self) -> bool:
         """检查是否已认证 - 任意Session可用即可"""
-        return (dual_session_manager.is_listener_authorized() or 
-                dual_session_manager.is_sender_authorized())
+        return (await dual_session_manager.is_listener_connected() or 
+                await dual_session_manager.is_sender_connected())
     
-    def get_auth_state(self) -> str:
+    async def get_auth_state(self) -> str:
         """获取认证状态"""
-        if self.is_authorized():
+        if await self.is_authorized():
             return "authorized"
         return "idle"
+    
+    async def get_auth_status(self) -> dict:
+        """获取认证状态详情 - 兼容性方法"""
+        try:
+            connection_status = await dual_session_manager.get_connection_status()
+            
+            return {
+                "success": True,
+                "authenticated": (connection_status.get("listener_connected", False) or 
+                                connection_status.get("sender_connected", False)),
+                "listener_connected": connection_status.get("listener_connected", False),
+                "sender_connected": connection_status.get("sender_connected", False),
+                "status": "authorized" if (connection_status.get("listener_connected", False) or 
+                                         connection_status.get("sender_connected", False)) else "idle"
+            }
+        except Exception as e:
+            logger.error(f"获取认证状态失败: {e}")
+            return {
+                "success": False,
+                "authenticated": False,
+                "listener_connected": False,
+                "sender_connected": False,
+                "status": "error",
+                "error": str(e)
+            }
 
 # 兼容性实例
 auth_manager = AuthManagerCompat()
