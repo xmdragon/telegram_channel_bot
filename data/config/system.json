@@ -1,11 +1,4 @@
 {
-  "target.auto_forward_enabled": {
-    "value": "false",
-    "config_type": "boolean",
-    "description": "是否启用自动转发到目标频道",
-    "is_active": true,
-    "created_at": "2025-08-14T22:53:30.664735"
-  },
   "review.auto_forward_delay": {
     "value": "1800",
     "config_type": "integer",
@@ -86,7 +79,7 @@
   "source.history_limit": {
     "value": "100",
     "config_type": "integer",
-    "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
+    "description": "首次采集频道时获取的历史消息条数",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.308901"
   },
@@ -141,50 +134,50 @@
   },
   "filter.footer_promo_enabled": {
     "value": "true",
-    "config_type": "string",
-    "description": "",
+    "config_type": "boolean",
+    "description": "启用尾部推广过滤",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.482099"
   },
   "filter.markdown_enabled": {
     "value": "true",
-    "config_type": "string",
-    "description": "",
+    "config_type": "boolean",
+    "description": "启用Markdown格式过滤",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.483169"
   },
   "filter.promo_vector_enabled": {
     "value": "true",
-    "config_type": "string",
-    "description": "",
+    "config_type": "boolean",
+    "description": "启用推广向量检测",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.484163"
   },
   "filter.duplicate_enabled": {
     "value": "false",
-    "config_type": "string",
-    "description": "",
+    "config_type": "boolean",
+    "description": "启用重复内容检测",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.485026"
   },
   "filter.ad_detector_enabled": {
     "value": "false",
-    "config_type": "string",
-    "description": "",
+    "config_type": "boolean",
+    "description": "启用AI广告检测",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.485861"
   },
   "review.auto_reject_duplicates": {
     "value": "false",
-    "config_type": "string",
-    "description": "",
+    "config_type": "boolean",
+    "description": "自动拒绝重复消息",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.489874"
   },
   "review.auto_reject_high_risk": {
     "value": "false",
-    "config_type": "string",
-    "description": "",
+    "config_type": "boolean",
+    "description": "自动拒绝高风险消息",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.490779"
   },
