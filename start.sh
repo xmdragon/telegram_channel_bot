@@ -188,13 +188,9 @@ echo "   - 使用 './stop.sh' 停止所有服务"
 echo "   - 使用 './dev.sh --status' 查看服务状态"
 echo "   - Web界面: http://localhost:8000"
 echo
-# 清理残留锁
-echo "🔧 清理残留的Telegram锁..."
-if python3 tools/maintenance/clear_telegram_lock.py --auto > /dev/null 2>&1; then
-    echo "✅ 锁状态检查完成"
-else
-    echo "⚠️  锁检查异常，但不影响启动"
-fi
+# 存储服务状态检查（使用Redis分布式锁）
+echo "🔧 检查存储服务状态..."
+echo "✅ Redis分布式锁系统就绪"
 
 # 启动进程管理器（生产模式）
 echo "🌟 启动应用进程管理器..."

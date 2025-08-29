@@ -413,7 +413,7 @@ class StartupChecker:
         return result
     
     async def _check_telegram_auth(self) -> Dict:
-        """检查Telegram认证和存储系统状态"""
+        """检查Telegram双Session认证和存储系统状态"""
         result = {
             'authenticated': False,
             'error': None,
@@ -421,20 +421,29 @@ class StartupChecker:
         }
         
         try:
-            # 检查API凭据
+            # 检查共用API凭据
             api_id = await self.config_manager.get_config('telegram.api_id')
             api_hash = await self.config_manager.get_config('telegram.api_hash')
-            session = await self.config_manager.get_config('telegram.session')
+            
+            # 检查双Session配置
+            listener_session = await self.config_manager.get_config('telegram.listener_session')
+            sender_session = await self.config_manager.get_config('telegram.sender_session')
             
             if not api_id or not api_hash:
                 result['error'] = "缺少Telegram API凭据"
                 logger.error("  - 缺少API ID或API Hash")
-            elif not session:
-                result['warning'] = "未完成Telegram认证，请访问 /auth.html 进行认证"
-                logger.warning("  - 未找到会话信息")
+            elif not listener_session and not sender_session:
+                result['warning'] = "未完成Telegram认证，请访问 /telegram-auth.html 进行认证"
+                logger.warning("  - 未找到任何会话信息（listener和sender都未配置）")
+            elif not listener_session:
+                result['warning'] = "监听Session未配置，消息采集功能不可用"
+                logger.warning("  - 未找到listener会话信息")
+            elif not sender_session:
+                result['warning'] = "发送Session未配置，部分功能可能受限"
+                logger.warning("  - 未找到sender会话信息")
             else:
                 result['authenticated'] = True
-                logger.info("  - Telegram认证状态: ✅ 已认证")
+                logger.info("  - Telegram认证状态: ✅ 双Session已认证")
             
             # 检查存储系统状态
             await self._check_storage_system()

@@ -618,9 +618,11 @@
                             <!-- Telegram API 配置 -->
                             <div class="form-group">
                                 <label class="form-label">📡 Telegram API 配置</label>
-                                <div class="input-line">
-                                    <div class="form-group">
-                                        <label class="form-label-small">API ID</label>
+                                
+                                <!-- API ID -->
+                                <div class="form-group">
+                                    <label class="form-label-small">API ID</label>
+                                    <div class="input-line">
                                         <input 
                                             class="form-input"
                                             type="text"
@@ -628,12 +630,15 @@
                                             placeholder="请输入 Telegram API ID"
                                             @blur="validateApiId">
                                         <div class="form-hint">
-                                            在 <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> 获取您的 API ID
+                                            从 <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> 获取
                                         </div>
                                     </div>
-                                    
-                                    <div class="form-group">
-                                        <label class="form-label-small">API Hash</label>
+                                </div>
+                                
+                                <!-- API Hash -->
+                                <div class="form-group">
+                                    <label class="form-label-small">API Hash</label>
+                                    <div class="input-line">
                                         <input 
                                             class="form-input"
                                             type="password"
@@ -641,16 +646,17 @@
                                             placeholder="请输入 Telegram API Hash"
                                             @blur="validateApiHash">
                                         <div class="form-hint">
-                                            在 <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> 获取您的 API Hash
+                                            从 <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> 获取
                                         </div>
                                     </div>
-                                    
-                                    <div class="form-hint config-warning" v-if="!systemConfig.telegram_api_id || !systemConfig.telegram_api_hash">
-                                        ⚠️ 未配置 API 信息，Telegram 认证功能将不可用
-                                    </div>
-                                    <div class="form-hint config-success" v-if="systemConfig.telegram_api_id && systemConfig.telegram_api_hash">
-                                        ✅ API 配置完成，可以进行 Telegram 认证
-                                    </div>
+                                </div>
+                                
+                                <!-- 配置状态提示 -->
+                                <div class="config-warning" v-if="!systemConfig.telegram_api_id || !systemConfig.telegram_api_hash">
+                                    ⚠️ 未配置 API 信息，Telegram 认证功能将不可用
+                                </div>
+                                <div class="config-success" v-if="systemConfig.telegram_api_id && systemConfig.telegram_api_hash">
+                                    ✅ API 配置完成
                                 </div>
                             </div>
                             

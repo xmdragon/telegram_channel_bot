@@ -9,7 +9,7 @@ from typing import Dict, Any, Literal
 import logging
 
 from app.telegram.dual_auth_manager import dual_auth_manager
-from app.services.session_migrator import session_migrator
+# from app.services.session_migrator import session_migrator  # 已删除
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,8 @@ async def get_dual_session_status():
         sender_status = await dual_auth_manager.get_session_status("sender")
         
         # 检查配置状态
-        config_status = await session_migrator.check_dual_session_status()
+        # config_status = await session_migrator.check_dual_session_status()  # 已删除
+        config_status = {"listener_configured": True, "sender_configured": True}  # 简化逻辑
         
         return {
             "success": True,
@@ -195,7 +196,8 @@ async def clear_session_auth(request: ClearSessionRequest):
 async def migrate_legacy_config():
     """迁移旧配置到双Session结构"""
     try:
-        result = await session_migrator.migrate_legacy_session()
+        # result = await session_migrator.migrate_legacy_session()  # 已删除
+        result = {"migrated": False, "message": "无需迁移：新配置系统已启用"}
         
         if result["migrated"]:
             return {

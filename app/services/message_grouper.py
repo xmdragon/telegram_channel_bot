@@ -327,7 +327,7 @@ class MessageGrouper:
             
             api_id = int(config_data.get('telegram.api_id', {}).get('value', '0'))
             api_hash = config_data.get('telegram.api_hash', {}).get('value', '')
-            session_string = config_data.get('telegram.session', {}).get('value', '')
+            session_string = config_data.get('telegram.listener_session', {}).get('value', '')
             
             if not api_id or not api_hash or not session_string:
                 logger.error("Telegram配置不完整，无法初始化客户端")

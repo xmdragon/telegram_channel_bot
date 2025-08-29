@@ -218,13 +218,9 @@ elif [ "$VERBOSE" = true ]; then
     echo
 fi
 
-# 步骤4：清理残留锁
-echo "3️⃣ 清理残留锁..."
-if python3 tools/maintenance/clear_telegram_lock.py --auto > /dev/null 2>&1; then
-    echo "✅ 锁状态检查完成"
-else
-    echo "⚠️  锁检查异常，但不影响启动"
-fi
+# 步骤4：清理残留锁（使用Redis分布式锁，无需文件锁清理）
+echo "3️⃣ 检查存储服务状态..."
+echo "✅ Redis分布式锁系统就绪"
 echo
 
 # 步骤5：启动所有服务

@@ -12,7 +12,7 @@ class AuthManagerCompat:
     """兼容性适配器 - 模拟旧auth_manager接口"""
     
     def __init__(self):
-        pass
+        self._client = None
     
     async def initialize(self) -> bool:
         """初始化认证管理器 - 兼容性方法"""
@@ -25,12 +25,32 @@ class AuthManagerCompat:
         if not client:
             # 如果监听Session不可用，尝试发送Session
             client = await dual_session_manager.get_sender_client()
+        self._client = client
         return client
+    
+    @property 
+    def client(self):
+        """客户端属性 - 兼容旧代码直接访问client属性"""
+        # 如果没有缓存的客户端，尝试同步获取（可能返回None）
+        if self._client is None:
+            # 由于这是同步属性，无法调用异步方法
+            # 返回None，调用方应该先调用get_client()或ensure_connected()
+            return None
+        return self._client
+    
+    @client.setter
+    def client(self, value):
+        """客户端属性setter - 兼容startup_checker的临时客户端设置"""
+        self._client = value
     
     async def ensure_connected(self) -> bool:
         """确保连接 - 检查任意一个Session可用"""
-        return (await dual_session_manager.ensure_listener_connected() or 
-                await dual_session_manager.ensure_sender_connected())
+        connected = (await dual_session_manager.ensure_listener_connected() or 
+                    await dual_session_manager.ensure_sender_connected())
+        if connected:
+            # 缓存客户端
+            await self.get_client()
+        return connected
     
     async def is_authorized(self) -> bool:
         """检查是否已认证 - 任意Session可用即可"""
@@ -52,8 +72,8 @@ class AuthManagerCompat:
             
             # === 第一层：配置诊断 ===
             listener_session = await config_manager.get_config("telegram.listener_session")
-            listener_api_id = await config_manager.get_config("telegram.listener_api_id") 
-            listener_api_hash = await config_manager.get_config("telegram.listener_api_hash")
+            listener_api_id = await config_manager.get_config("telegram.api_id") 
+            listener_api_hash = await config_manager.get_config("telegram.api_hash")
             
             # 构建配置状态报告
             config_issues = []
