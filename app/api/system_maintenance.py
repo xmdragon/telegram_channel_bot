@@ -87,6 +87,16 @@ async def reset_system() -> Dict[str, Any]:
     operation = "system_reset"
     message_keys = []
     
+    # 清理步骤状态追踪
+    cleanup_status = {
+        "redis_messages": {"success": False, "error": None, "count": 0},
+        "redis_pending": {"success": False, "error": None, "count": 0},
+        "redis_websocket": {"success": False, "error": None, "count": 0},
+        "redis_checkpoints": {"success": False, "error": None, "count": 0},
+        "temp_media": {"success": False, "error": None, "count": 0},
+        "channel_reset": {"success": False, "error": None, "count": 0}
+    }
+    
     try:
         # 步骤1：开始重置 (5%)
         await websocket_manager.broadcast_progress(operation, 5, "开始系统重置...")
@@ -107,83 +117,242 @@ async def reset_system() -> Dict[str, Any]:
         await websocket_manager.broadcast_progress(operation, 45, "清空Redis消息数据...")
         if redis_store and redis_store.redis:
             # 删除所有消息键
-            message_keys = redis_store.redis.keys("msg:*")
-            if message_keys:
-                # 分批删除，避免阻塞
-                batch_size = 1000
-                for i in range(0, len(message_keys), batch_size):
-                    batch = message_keys[i:i + batch_size]
-                    redis_store.redis.delete(*batch)
-                    progress = 45 + (10 * (i + len(batch)) / len(message_keys))
-                    await websocket_manager.broadcast_progress(
-                        operation, 
-                        int(progress), 
-                        f"删除消息 {i + len(batch)}/{len(message_keys)}..."
-                    )
-                logger.info(f"清空了 {len(message_keys)} 条Redis消息")
-            
-            # 删除其他消息相关的键
-            pending_keys = redis_store.redis.keys("pending_messages")
-            if pending_keys:
-                redis_store.redis.delete(*pending_keys)
-            
-            # 清空WebSocket连接信息
-            ws_keys = redis_store.redis.keys("websocket:*")
-            if ws_keys:
-                redis_store.redis.delete(*ws_keys)
-            
-            # 清空频道采集点（checkpoint）- 修复采集问题
-            checkpoint_keys = redis_store.redis.keys("channel:checkpoint*")
-            if checkpoint_keys:
-                redis_store.redis.delete(*checkpoint_keys)
-                logger.info(f"清空了 {len(checkpoint_keys)} 个频道采集点")
-        
-        # 步骤5：清空临时媒体目录 (65%)
-        await websocket_manager.broadcast_progress(operation, 65, "清空临时媒体目录...")
-        temp_media_dir = Path(PathConfig.TEMP_MEDIA_DIR)
-        if temp_media_dir.exists():
-            # 删除目录内容但保留目录
-            items = list(temp_media_dir.iterdir())
-            for i, item in enumerate(items):
-                try:
-                    if item.is_file():
-                        item.unlink()
-                    elif item.is_dir():
-                        shutil.rmtree(item)
-                    
-                    # 更新进度
-                    if i % 10 == 0 or i == len(items) - 1:
-                        progress = 65 + (10 * (i + 1) / len(items))
+            try:
+                message_keys = redis_store.redis.keys("msg:*")
+                if message_keys:
+                    # 分批删除，避免阻塞
+                    batch_size = 1000
+                    deleted_total = 0
+                    for i in range(0, len(message_keys), batch_size):
+                        batch = message_keys[i:i + batch_size]
+                        deleted_count = redis_store.redis.delete(*batch)
+                        deleted_total += deleted_count
+                        progress = 45 + (10 * (i + len(batch)) / len(message_keys))
                         await websocket_manager.broadcast_progress(
                             operation, 
                             int(progress), 
-                            f"清理媒体文件 {i + 1}/{len(items)}..."
+                            f"删除消息 {i + len(batch)}/{len(message_keys)}..."
                         )
-                except Exception as e:
-                    logger.warning(f"删除媒体文件失败 {item}: {e}")
-            logger.info(f"清空临时媒体目录: {temp_media_dir}")
+                    cleanup_status["redis_messages"] = {
+                        "success": True, 
+                        "error": None, 
+                        "count": deleted_total
+                    }
+                    logger.info(f"✅ 成功清空了 {len(message_keys)} 条Redis消息 (实际删除: {deleted_total})")
+                else:
+                    cleanup_status["redis_messages"] = {
+                        "success": True, 
+                        "error": None, 
+                        "count": 0
+                    }
+                    logger.info("ℹ️ 没有找到消息数据需要清理")
+            except Exception as message_error:
+                cleanup_status["redis_messages"] = {
+                    "success": False, 
+                    "error": str(message_error), 
+                    "count": 0
+                }
+                logger.error(f"❌ 清理消息数据失败: {message_error}")
+            
+            # 删除其他消息相关的键
+            try:
+                pending_keys = redis_store.redis.keys("pending_messages")
+                if pending_keys:
+                    deleted_count = redis_store.redis.delete(*pending_keys)
+                    cleanup_status["redis_pending"] = {
+                        "success": True, 
+                        "error": None, 
+                        "count": deleted_count
+                    }
+                    logger.info(f"✅ 清空了 {deleted_count} 个待处理消息键")
+                else:
+                    cleanup_status["redis_pending"] = {
+                        "success": True, 
+                        "error": None, 
+                        "count": 0
+                    }
+            except Exception as pending_error:
+                cleanup_status["redis_pending"] = {
+                    "success": False, 
+                    "error": str(pending_error), 
+                    "count": 0
+                }
+                logger.error(f"❌ 清理待处理消息失败: {pending_error}")
+            
+            # 清空WebSocket连接信息
+            try:
+                ws_keys = redis_store.redis.keys("websocket:*")
+                if ws_keys:
+                    deleted_count = redis_store.redis.delete(*ws_keys)
+                    cleanup_status["redis_websocket"] = {
+                        "success": True, 
+                        "error": None, 
+                        "count": deleted_count
+                    }
+                    logger.info(f"✅ 清空了 {deleted_count} 个WebSocket连接键")
+                else:
+                    cleanup_status["redis_websocket"] = {
+                        "success": True, 
+                        "error": None, 
+                        "count": 0
+                    }
+            except Exception as ws_error:
+                cleanup_status["redis_websocket"] = {
+                    "success": False, 
+                    "error": str(ws_error), 
+                    "count": 0
+                }
+                logger.error(f"❌ 清理WebSocket连接失败: {ws_error}")
+            
+            # 清空频道采集点（checkpoint）- 增强版本，包含重试机制
+            checkpoint_cleanup_success = False
+            max_retries = 3
+            for retry in range(max_retries):
+                try:
+                    checkpoint_keys = redis_store.redis.keys("channel:checkpoint*")
+                    if checkpoint_keys:
+                        logger.info(f"🔄 第 {retry + 1} 次尝试清理 {len(checkpoint_keys)} 个checkpoint键")
+                        deleted_count = redis_store.redis.delete(*checkpoint_keys)
+                        
+                        # 验证清理结果
+                        remaining_keys = redis_store.redis.keys("channel:checkpoint*")
+                        if remaining_keys:
+                            logger.warning(f"⚠️ 第 {retry + 1} 次清理后仍有 {len(remaining_keys)} 个checkpoint键未清理")
+                            if retry < max_retries - 1:
+                                logger.info("🔄 将进行重试...")
+                                await asyncio.sleep(1)  # 等待1秒后重试
+                                continue
+                        else:
+                            cleanup_status["redis_checkpoints"] = {
+                                "success": True, 
+                                "error": None, 
+                                "count": deleted_count
+                            }
+                            logger.info(f"✅ checkpoint清理验证通过 (第 {retry + 1} 次尝试成功)")
+                            checkpoint_cleanup_success = True
+                            break
+                    else:
+                        cleanup_status["redis_checkpoints"] = {
+                            "success": True, 
+                            "error": None, 
+                            "count": 0
+                        }
+                        logger.info("ℹ️ 没有找到checkpoint数据需要清理")
+                        checkpoint_cleanup_success = True
+                        break
+                except Exception as checkpoint_error:
+                    if retry == max_retries - 1:  # 最后一次重试失败
+                        cleanup_status["redis_checkpoints"] = {
+                            "success": False, 
+                            "error": str(checkpoint_error), 
+                            "count": 0
+                        }
+                        logger.error(f"❌ 清理checkpoint失败（尝试 {max_retries} 次后）: {checkpoint_error}")
+                    else:
+                        logger.warning(f"⚠️ 第 {retry + 1} 次清理checkpoint失败: {checkpoint_error}，将重试...")
+                        await asyncio.sleep(1)  # 等待1秒后重试
+        
+        # 步骤5：清空临时媒体目录 (65%)
+        await websocket_manager.broadcast_progress(operation, 65, "清空临时媒体目录...")
+        try:
+            temp_media_dir = Path(PathConfig.TEMP_MEDIA_DIR)
+            if temp_media_dir.exists():
+                # 删除目录内容但保留目录
+                items = list(temp_media_dir.iterdir())
+                deleted_count = 0
+                failed_count = 0
+                
+                for i, item in enumerate(items):
+                    try:
+                        if item.is_file():
+                            item.unlink()
+                            deleted_count += 1
+                        elif item.is_dir():
+                            shutil.rmtree(item)
+                            deleted_count += 1
+                        
+                        # 更新进度
+                        if i % 10 == 0 or i == len(items) - 1:
+                            progress = 65 + (10 * (i + 1) / len(items))
+                            await websocket_manager.broadcast_progress(
+                                operation, 
+                                int(progress), 
+                                f"清理媒体文件 {i + 1}/{len(items)}..."
+                            )
+                    except Exception as e:
+                        failed_count += 1
+                        logger.warning(f"删除媒体文件失败 {item}: {e}")
+                
+                cleanup_status["temp_media"] = {
+                    "success": failed_count == 0,
+                    "error": f"删除失败 {failed_count} 个文件" if failed_count > 0 else None,
+                    "count": deleted_count
+                }
+                
+                if failed_count == 0:
+                    logger.info(f"✅ 成功清空临时媒体目录: {temp_media_dir} (删除 {deleted_count} 个文件/文件夹)")
+                else:
+                    logger.warning(f"⚠️ 临时媒体目录清理完成: 成功删除 {deleted_count} 个，失败 {failed_count} 个")
+            else:
+                cleanup_status["temp_media"] = {
+                    "success": True,
+                    "error": None,
+                    "count": 0
+                }
+                logger.info(f"ℹ️ 临时媒体目录不存在: {temp_media_dir}")
+        except Exception as media_error:
+            cleanup_status["temp_media"] = {
+                "success": False,
+                "error": str(media_error),
+                "count": 0
+            }
+            logger.error(f"❌ 清理临时媒体目录失败: {media_error}")
         
         # 步骤6：重置频道采集点 (85%)
         await websocket_manager.broadcast_progress(operation, 85, "重置频道采集点...")
-        all_channels = channel_store.get_all_channels()
-        source_channels = [ch for ch in all_channels if ch.get('channel_type') == 'source']
-        reset_count = 0
-        
-        for i, channel in enumerate(source_channels):
-            old_id = channel.get('last_message_id', 0)
-            channel['last_message_id'] = 0
-            channel_store.update_channel(channel)
-            reset_count += 1
+        try:
+            all_channels = channel_store.get_all_channels()
+            source_channels = [ch for ch in all_channels if ch.get('channel_type') == 'source']
+            reset_count = 0
+            failed_count = 0
             
-            # 更新进度
-            progress = 85 + (10 * (i + 1) / len(source_channels))
-            channel_name = channel.get('channel_title', channel.get('channel_name', channel['channel_id']))
-            await websocket_manager.broadcast_progress(
-                operation, 
-                int(progress), 
-                f"重置频道 {channel_name} ({i + 1}/{len(source_channels)})"
-            )
-            logger.info(f"重置频道 {channel.get('channel_id')} 采集点: {old_id} -> 0")
+            for i, channel in enumerate(source_channels):
+                try:
+                    old_id = channel.get('last_message_id', 0)
+                    channel['last_message_id'] = 0
+                    channel_store.update_channel(channel)
+                    reset_count += 1
+                    
+                    # 更新进度
+                    progress = 85 + (10 * (i + 1) / len(source_channels))
+                    channel_name = channel.get('channel_title', channel.get('channel_name', channel['channel_id']))
+                    await websocket_manager.broadcast_progress(
+                        operation, 
+                        int(progress), 
+                        f"重置频道 {channel_name} ({i + 1}/{len(source_channels)})"
+                    )
+                    logger.info(f"重置频道 {channel.get('channel_id')} 采集点: {old_id} -> 0")
+                except Exception as channel_error:
+                    failed_count += 1
+                    logger.error(f"重置频道 {channel.get('channel_id', 'unknown')} 采集点失败: {channel_error}")
+            
+            cleanup_status["channel_reset"] = {
+                "success": failed_count == 0,
+                "error": f"重置失败 {failed_count} 个频道" if failed_count > 0 else None,
+                "count": reset_count
+            }
+            
+            if failed_count == 0:
+                logger.info(f"✅ 成功重置 {reset_count} 个源频道的采集点")
+            else:
+                logger.warning(f"⚠️ 频道采集点重置完成: 成功重置 {reset_count} 个，失败 {failed_count} 个")
+        except Exception as channel_reset_error:
+            cleanup_status["channel_reset"] = {
+                "success": False,
+                "error": str(channel_reset_error),
+                "count": 0
+            }
+            logger.error(f"❌ 重置频道采集点失败: {channel_reset_error}")
         
         # 步骤7：重置采集标志 (95%)
         await websocket_manager.broadcast_progress(operation, 95, "重置采集标志...")
@@ -202,15 +371,20 @@ async def reset_system() -> Dict[str, Any]:
         # 步骤8：完成 (100%)
         await websocket_manager.broadcast_progress(operation, 100, "系统重置完成")
         
+        # 计算总体成功状态
+        overall_success = all(status["success"] for status in cleanup_status.values())
+        failed_operations = [k for k, v in cleanup_status.items() if not v["success"]]
+        
         result = {
-            "success": True,
-            "message": "系统重置完成，请手动启用采集开关",
+            "success": overall_success,
+            "message": "系统重置完成，请手动启用采集开关" if overall_success else f"系统重置部分失败，失败操作: {', '.join(failed_operations)}",
             "details": {
                 "collection_restored": False,
-                "cleared_messages": len(message_keys),
-                "reset_channels": reset_count,
-                "temp_media_cleared": True,
-                "auto_collection_ready": True
+                "cleared_messages": cleanup_status["redis_messages"]["count"],
+                "reset_channels": cleanup_status["channel_reset"]["count"],
+                "temp_media_cleared": cleanup_status["temp_media"]["success"],
+                "auto_collection_ready": True,
+                "cleanup_status": cleanup_status
             }
         }
         
@@ -222,5 +396,15 @@ async def reset_system() -> Dict[str, Any]:
         await websocket_manager.broadcast_progress(operation, 100, f"重置失败: {str(e)}")
         return {
             "success": False,
-            "message": f"系统重置失败: {str(e)}"
+            "message": f"系统重置失败: {str(e)}",
+            "details": {
+                "cleanup_status": cleanup_status if 'cleanup_status' in locals() else {
+                    "redis_messages": {"success": False, "error": "未执行", "count": 0},
+                    "redis_pending": {"success": False, "error": "未执行", "count": 0},
+                    "redis_websocket": {"success": False, "error": "未执行", "count": 0},
+                    "redis_checkpoints": {"success": False, "error": "未执行", "count": 0},
+                    "temp_media": {"success": False, "error": "未执行", "count": 0},
+                    "channel_reset": {"success": False, "error": "未执行", "count": 0}
+                }
+            }
         }
