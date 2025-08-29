@@ -202,14 +202,14 @@ const ConfigApp = {
                     const configs = response.data;
                     
                     this.forwardingConfig = {
-                        enabled: this.parseBooleanValue(configs['auto_forward_enabled'], false),
-                        target_channel: configs['target_channel'] || '',
-                        review_group: configs['review_group'] || '',
-                        delay: parseInt(configs['auto_forward_delay']) || 1800,
-                        auto_reject_ads: this.parseBooleanValue(configs['auto_reject_ads'], false),
+                        enabled: this.parseBooleanValue(configs['target.auto_forward_enabled'], false),
+                        target_channel: configs['target.channel_link'] || '',
+                        review_group: configs['review.group_link'] || '',
+                        delay: parseInt(configs['review.auto_forward_delay']) || 1800,
+                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads'], false),
                         // 加载已解析的ID
-                        target_channel_id: configs['target_channel_id'] || '',
-                        review_group_id: configs['review_group_id'] || ''
+                        target_channel_id: configs['target.channel_id'] || '',
+                        review_group_id: configs['review.group_id'] || ''
                     };
                     
                 }
@@ -236,22 +236,22 @@ const ConfigApp = {
                     
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
-                        history_message_limit: parseInt(configs['history_message_limit']) || 50,
-                        signature: configs['signature'] || '',
+                        history_message_limit: parseInt(configs['source.history_limit']) || 50,
+                        signature: configs['target.signature'] || '',
                         collection_enabled: this.parseBooleanValue(configs['collection.enabled'], true),
                         // Telegram API 配置
-                        telegram_api_id: configs['telegram_api_id'] || '',
-                        telegram_api_hash: configs['telegram_api_hash'] || '',
+                        telegram_api_id: configs['telegram.api_id'] || '',
+                        telegram_api_hash: configs['telegram.api_hash'] || '',
                         // 过滤设置
-                        filter_enabled: this.parseBooleanValue(configs['filter_enabled'], true),
-                        tail_filter_enabled: this.parseBooleanValue(configs['tail_filter_enabled'], true),
-                        ocr_enabled: this.parseBooleanValue(configs['ocr_enabled'], true),
+                        filter_enabled: this.parseBooleanValue(configs['filter.enabled'], true),
+                        tail_filter_enabled: this.parseBooleanValue(configs['filter.tail_filter_enabled'], true),
+                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled'], true),
                         // 审核设置
-                        require_approval: this.parseBooleanValue(configs['require_approval'], true),
-                        auto_forward_after_collect: this.parseBooleanValue(configs['auto_forward_after_collect'], true),
+                        require_approval: this.parseBooleanValue(configs['review.require_approval'], true),
+                        auto_forward_after_collect: this.parseBooleanValue(configs['review.auto_forward_after_collect'], true),
                         // 系统设置
-                        scheduler_enabled: this.parseBooleanValue(configs['scheduler_enabled'], true),
-                        delete_single_messages: this.parseBooleanValue(configs['delete_single_messages'], true)
+                        scheduler_enabled: this.parseBooleanValue(configs['scheduler.enabled'], true),
+                        delete_single_messages: this.parseBooleanValue(configs['storage.delete_single_messages'], true)
                     };
                     
                 }
@@ -517,21 +517,21 @@ const ConfigApp = {
                     // 从系统配置加载过滤器设置 - 修复配置键名映射
                     this.filterSettings = {
                         // 内容清理过滤器
-                        tail_filter: this.parseBooleanValue(configs['tail_filter_enabled'], true),
-                        footer_promo: this.parseBooleanValue(configs['footer_promo_enabled'], true),
-                        markdown: this.parseBooleanValue(configs['markdown_enabled'], true),
-                        promo_vector: this.parseBooleanValue(configs['promo_vector_enabled'], true),
+                        tail_filter: this.parseBooleanValue(configs['filter.tail_filter_enabled'], true),
+                        footer_promo: this.parseBooleanValue(configs['filter.footer_promo_enabled'], true),
+                        markdown: this.parseBooleanValue(configs['filter.markdown_enabled'], true),
+                        promo_vector: this.parseBooleanValue(configs['filter.promo_vector_enabled'], true),
                         
                         // 内容检测过滤器
-                        duplicate: this.parseBooleanValue(configs['duplicate_enabled'], true),
-                        ad_detector: this.parseBooleanValue(configs['ad_detector_enabled'] || configs['filter_enabled'], true),
-                        chat_content: this.parseBooleanValue(configs['chat_content_enabled'], true),
+                        duplicate: this.parseBooleanValue(configs['filter.duplicate_enabled'], true),
+                        ad_detector: this.parseBooleanValue(configs['filter.ad_detector_enabled'], true),
+                        chat_content: this.parseBooleanValue(configs['filter.chat_content_enabled'], true),
                         
                         // 额外功能
-                        ocr_enabled: this.parseBooleanValue(configs['ocr_enabled'], true),
-                        auto_reject_ads: this.parseBooleanValue(configs['auto_reject_ads'], true),
-                        auto_reject_duplicates: this.parseBooleanValue(configs['auto_reject_duplicates'], false),
-                        auto_reject_high_risk: this.parseBooleanValue(configs['auto_reject_high_risk'], false)
+                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled'], true),
+                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads'], true),
+                        auto_reject_duplicates: this.parseBooleanValue(configs['review.auto_reject_duplicates'], false),
+                        auto_reject_high_risk: this.parseBooleanValue(configs['review.auto_reject_high_risk'], false)
                     };
                 }
             } catch (error) {

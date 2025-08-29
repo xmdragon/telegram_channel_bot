@@ -70,47 +70,38 @@ async def get_system_config():
     from app.core.config import db_settings
     
     return {
-        # 目标频道配置 - 前端期望字段名
-        "target_channel": await config_manager.get_config('target.channel_link', ''),
-        "target_channel_id": await config_manager.get_config('target.channel_id', ''),
+        # 转发配置 - 使用点分格式字段名
+        "target.auto_forward_enabled": await config_manager.get_config('target.auto_forward_enabled', False),
+        "target.channel_link": await config_manager.get_config('target.channel_link', ''),
+        "target.channel_id": await config_manager.get_config('target.channel_id', ''),
+        "review.group_link": await config_manager.get_config('review.group_link', ''),
+        "review.group_id": await config_manager.get_config('review.group_id', ''),
+        "review.auto_forward_delay": await db_settings.get_auto_forward_delay(),
+        "review.auto_reject_ads": await config_manager.get_config('review.auto_reject_ads', False),
         
-        # 审核群配置
-        "review_group": await config_manager.get_config('review.group_link', ''),
-        "review_group_id": await config_manager.get_config('review.group_id', ''),
+        # 系统配置 - 使用点分格式字段名
+        "source.history_limit": await db_settings.get_history_message_limit(),
+        "target.signature": await config_manager.get_config('target.signature', ''),
+        "collection.enabled": await config_manager.get_config('collection.enabled', False),
+        "telegram.api_id": await config_manager.get_config('telegram.api_id', ''),
+        "telegram.api_hash": await config_manager.get_config('telegram.api_hash', ''),
+        "filter.enabled": await config_manager.get_config('filter.enabled', True),
+        "filter.tail_filter_enabled": await config_manager.get_config('filter.tail_filter_enabled', True),
+        "filter.ocr_enabled": await config_manager.get_config('filter.ocr_enabled', True),
+        "review.require_approval": await config_manager.get_config('review.require_approval', True),
+        "review.auto_forward_after_collect": await config_manager.get_config('review.auto_forward_after_collect', True),
+        "scheduler.enabled": await config_manager.get_config('scheduler.enabled', True),
+        "storage.delete_single_messages": await config_manager.get_config('storage.delete_single_messages', True),
         
-        # 采集配置 - 前端期望字段名
-        "collection_enabled": await config_manager.get_config('collection.enabled', False),
-        
-        # Telegram API 配置 - 前端期望字段名
-        "telegram_api_id": await config_manager.get_config('telegram.api_id', ''),
-        "telegram_api_hash": await config_manager.get_config('telegram.api_hash', ''),
-        
-        # 频道签名 - 统一字段名
-        "signature": await config_manager.get_config('target.signature', ''),
-        
-        # 系统配置 - 前端期望字段名
-        "history_message_limit": await db_settings.get_history_message_limit(),
-        "filter_enabled": await config_manager.get_config('filter.enabled', True),
-        "tail_filter_enabled": await config_manager.get_config('filter.tail_filter_enabled', True),
-        "ocr_enabled": await config_manager.get_config('filter.ocr_enabled', True),
-        "require_approval": await config_manager.get_config('review.require_approval', True),
-        "auto_forward_after_collect": await config_manager.get_config('review.auto_forward_after_collect', True),
-        "scheduler_enabled": await config_manager.get_config('scheduler.enabled', True),
-        "delete_single_messages": await config_manager.get_config('storage.delete_single_messages', True),
-        
-        # 转发配置
-        "auto_forward_enabled": await config_manager.get_config('target.auto_forward_enabled', False),
-        "auto_forward_delay": await db_settings.get_auto_forward_delay(),
-        "auto_reject_ads": await config_manager.get_config('review.auto_reject_ads', False),
-        
-        # 过滤器详细配置
-        "footer_promo_enabled": await config_manager.get_config('filter.footer_promo_enabled', True),
-        "markdown_enabled": await config_manager.get_config('filter.markdown_enabled', True),
-        "promo_vector_enabled": await config_manager.get_config('filter.promo_vector_enabled', True),
-        "duplicate_enabled": await config_manager.get_config('filter.duplicate_enabled', True),
-        "ad_detector_enabled": await config_manager.get_config('filter.ad_detector_enabled', True),
-        "auto_reject_duplicates": await config_manager.get_config('review.auto_reject_duplicates', False),
-        "auto_reject_high_risk": await config_manager.get_config('review.auto_reject_high_risk', False),
+        # 过滤器配置 - 使用点分格式字段名
+        "filter.footer_promo_enabled": await config_manager.get_config('filter.footer_promo_enabled', True),
+        "filter.markdown_enabled": await config_manager.get_config('filter.markdown_enabled', True),
+        "filter.promo_vector_enabled": await config_manager.get_config('filter.promo_vector_enabled', True),
+        "filter.duplicate_enabled": await config_manager.get_config('filter.duplicate_enabled', True),
+        "filter.ad_detector_enabled": await config_manager.get_config('filter.ad_detector_enabled', True),
+        "filter.chat_content_enabled": await config_manager.get_config('filter.chat_content_enabled', True),
+        "review.auto_reject_duplicates": await config_manager.get_config('review.auto_reject_duplicates', False),
+        "review.auto_reject_high_risk": await config_manager.get_config('review.auto_reject_high_risk', False),
         
         # 源频道列表
         "source_channels": await db_settings.get_source_channels()
