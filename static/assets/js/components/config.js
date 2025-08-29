@@ -65,7 +65,7 @@ const ConfigApp = {
             // 系统设置
             systemConfig: {
                 history_message_limit: 50,
-                channel_signature: '',
+                signature: '',
                 collection_enabled: true,
                 // Telegram API 配置
                 telegram_api_id: '',
@@ -237,7 +237,7 @@ const ConfigApp = {
                     // 从系统配置中提取系统设置
                     this.systemConfig = {
                         history_message_limit: parseInt(configs['history_message_limit']) || 50,
-                        channel_signature: configs['target.signature'] || '',
+                        signature: configs['signature'] || '',
                         collection_enabled: this.parseBooleanValue(configs['collection.enabled'], true),
                         // Telegram API 配置
                         telegram_api_id: configs['telegram_api_id'] || '',
@@ -446,7 +446,7 @@ const ConfigApp = {
                 // 准备保存的配置数据
                 const configData = {
                     'source.history_limit': String(parseInt(this.systemConfig.history_message_limit)),
-                    'target.signature': this.systemConfig.channel_signature,
+                    'target.signature': this.systemConfig.signature,
                     'collection.enabled': this.systemConfig.collection_enabled,
                     // Telegram API 配置
                     'telegram.api_id': this.systemConfig.telegram_api_id || '',
@@ -484,7 +484,7 @@ const ConfigApp = {
         async resetSystemConfig() {
             this.systemConfig = {
                 history_message_limit: 50,
-                channel_signature: '',
+                signature: '',
                 collection_enabled: true,
                 // 过滤设置
                 filter_enabled: true,
