@@ -101,7 +101,7 @@ class HistoryCollector:
                 # 继续增量采集
                 logger.info(f"从checkpoint {checkpoint_id} 继续增量采集")
                 min_id = checkpoint_id
-                batch_limit = 500  # 增量采集限制
+                batch_limit = limit  # 使用配置的限制，保持一致性
             else:
                 # 首次采集历史消息 - 使用传入的limit参数
                 logger.info(f"首次采集，获取最近 {limit} 条历史消息")
