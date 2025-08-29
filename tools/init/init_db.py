@@ -44,10 +44,6 @@ async def legacy_init_support():
             print("❌ JSON存储初始化失败")
             return False
             
-        # 初始化配置系统
-        from app.services.config_manager import init_default_configs
-        await init_default_configs()
-        
         # 初始化认证服务
         from app.services.auth_service import init_auth_service
         if not init_auth_service():

@@ -72,15 +72,7 @@ class MessageForwarder:
             review_group_id = await channel_cache.get_review_group_id()
             
             if not review_group_id:
-                logger.error("❌ 审核群未配置！为了安全起见，消息不会被转发")
-                # 更新消息状态为错误，防止自动转发
-                message_store = get_redis_message_store()
-                if message_store:
-                    message_store.update_message_status(
-                        message_data['channel_id'], message_data['message_id'], 
-                        'error', reject_reason='审核群未配置，消息被阻止'
-                    )
-                raise ValueError("审核群未配置，消息转发被阻止。请先配置审核群！")
+                logger.info("ℹ️ 审核群未配置，跳过审核群转发（不影响目标频道转发）")
                 return
             
             sent_message = None

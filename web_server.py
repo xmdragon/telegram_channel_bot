@@ -144,10 +144,6 @@ async def lifespan(app: FastAPI):
         # 阶段2：配置和认证初始化（并行处理）
         config_start = time.time()
         
-        # 初始化默认配置
-        from app.services.config_manager import init_default_configs
-        await init_default_configs()
-        
         # 初始化认证服务
         from app.services.auth_service import init_auth_service
         if not init_auth_service():

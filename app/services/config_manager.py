@@ -23,10 +23,16 @@ class ConfigManager:
         self._json_store: Optional[JSONConfigStore] = None
         self._last_file_mtime = 0.0  # 上次文件修改时间
     
-    def _get_store(self) -> JSONConfigStore:
+    def _get_store(self) -> Optional[JSONConfigStore]:
         """获取JSON存储实例"""
         if self._json_store is None:
-            self._json_store = get_json_config_store()
+            try:
+                self._json_store = get_json_config_store()
+            except RuntimeError as e:
+                if "未初始化" in str(e):
+                    logger.debug("JSON存储层未初始化")
+                    return None
+                raise
         return self._json_store
     
     def _check_file_updated(self) -> bool:
@@ -46,17 +52,31 @@ class ConfigManager:
     async def get_config(self, key: str, default: Any = None) -> Any:
         """获取配置值"""
         with self._cache_lock:
-            # 🔄 检查配置文件是否已更新，如果是则重新加载缓存
+            # 检查配置文件是否已更新，如果是则重新加载缓存
             if self._cache_loaded and self._check_file_updated():
                 logger.debug("检测到配置文件更新，重新加载缓存")
                 self._cache = {}
                 self._cache_loaded = False
             
+            # 尝试从缓存加载（考虑存储层时序）
             if not self._cache_loaded:
                 await self._load_cache()
             
+            # 缓存命中
             if key in self._cache:
                 return self._parse_value(self._cache[key]['value'], self._cache[key]['config_type'])
+            
+            # 缓存未命中，直接从文件读取（按需加载）
+            try:
+                store = self._get_store()
+                if store is not None:  # 存储层已可用
+                    config_data = store.get_config(key) 
+                    if config_data and isinstance(config_data, dict) and config_data.get('is_active', True):
+                        # 保存到缓存
+                        self._cache[key] = config_data
+                        return self._parse_value(config_data['value'], config_data['config_type'])
+            except Exception as e:
+                logger.debug(f"按需读取配置 {key} 失败: {e}")
             
             return default
     
@@ -279,6 +299,11 @@ class ConfigManager:
         """加载配置到缓存"""
         try:
             store = self._get_store()
+            # 检查存储层是否已初始化
+            if store is None:
+                logger.debug("JSON存储层未初始化，稍后重试")
+                return  # 不标记为已加载，允许后续重试
+                
             all_configs = store.get_all_config()
             
             # 只加载活跃的配置
@@ -291,8 +316,7 @@ class ConfigManager:
             
         except Exception as e:
             logger.error(f"加载配置缓存失败: {e}")
-            # 如果加载失败，至少标记为已加载，避免无限循环
-            self._cache_loaded = True
+            # 不标记为已加载，允许后续重试
     
     def _determine_config_type(self, key: str, value: Any, explicit_type: str = None) -> str:
         """
@@ -306,11 +330,7 @@ class ConfigManager:
         if explicit_type is not None:
             return explicit_type
             
-        # 优先级2：DEFAULT_CONFIGS中的类型定义（单一真相源）
-        if key in DEFAULT_CONFIGS:
-            return DEFAULT_CONFIGS[key]['config_type']
-            
-        # 优先级3：根据Python类型自动推断
+        # 优先级2：根据Python类型自动推断
         return self._infer_type_from_value(value)
     
     def _infer_type_from_value(self, value: Any) -> str:
@@ -353,8 +373,18 @@ class ConfigManager:
     
     def _parse_value(self, value: str, config_type: str) -> Any:
         """解析配置值"""
-        if not value:
+        # 只有真正的None才返回None，空字符串应该保持
+        if value is None:
             return None
+        
+        # 空字符串按类型处理
+        if value == "":
+            if config_type == "integer":
+                return 0
+            elif config_type == "boolean":
+                return False
+            else:
+                return ""  # 字符串类型保持空字符串
             
         try:
             if config_type == "json" or config_type == "list":
@@ -373,176 +403,13 @@ class ConfigManager:
 config_manager = ConfigManager()
 
 # 配置项定义
-DEFAULT_CONFIGS = {
-    # Telegram配置
-    "telegram.api_id": {
-        "value": "",
-        "description": "Telegram API ID (从 https://my.telegram.org 获取)",
-        "config_type": "integer"
-    },
-    "telegram.api_hash": {
-        "value": "",
-        "description": "Telegram API Hash (从 https://my.telegram.org 获取)",
-        "config_type": "string"
-    },
-    
-    # 目标频道配置
-    "target.channel_link": {
-        "value": "",
-        "description": "目标频道链接（用户配置）",
-        "config_type": "string"
-    },
-    "target.channel_id": {
-        "value": "",
-        "description": "目标频道ID（系统解析缓存）",
-        "config_type": "string"
-    },
-    "target.signature": {
-        "value": "",
-        "description": "频道落款内容（支持多行，用\\n分隔）",
-        "config_type": "string"
-    },
-    
-    # 审核群配置
-    "review.group_link": {
-        "value": "",
-        "description": "审核群链接（用户配置）",
-        "config_type": "string"
-    },
-    "review.group_id": {
-        "value": "",
-        "description": "审核群ID（系统解析缓存）",
-        "config_type": "string"
-    },
-    
-    # 消息采集配置
-    "source.history_limit": {
-        "value": 50,
-        "description": "首次采集频道时获取的历史消息条数 (包括进程中断后重启)",
-        "config_type": "integer"
-    },
-    
-    
-    
-    # 过滤器配置
-    "filter.enabled": {
-        "value": True,
-        "description": "启用内容过滤",
-        "config_type": "boolean"
-    },
-    "filter.tail_filter_enabled": {
-        "value": True,
-        "description": "启用尾部过滤",
-        "config_type": "boolean"
-    },
-    "filter.ocr_enabled": {
-        "value": True,
-        "description": "启用OCR图片文字识别",
-        "config_type": "boolean"
-    },
-    
-    # 审核配置
-    "review.auto_forward_enabled": {
-        "value": False,
-        "description": "是否启用自动转发",
-        "config_type": "boolean"
-    },
-    "review.auto_forward_delay": {
-        "value": 1800,
-        "description": "自动转发延迟(秒)",
-        "config_type": "integer"
-    },
-    "review.auto_reject_ads": {
-        "value": True,
-        "description": "自动拒绝广告消息",
-        "config_type": "boolean"
-    },
-    
-    # 服务控制配置
-    "collection.enabled": {
-        "value": True,
-        "description": "启用Telegram消息采集",
-        "config_type": "boolean"
-    },
-    "scheduler.enabled": {
-        "value": True, 
-        "description": "启用消息调度服务（自动转发、清理）",
-        "config_type": "boolean"
-    },
-    
-}
 
-async def init_default_configs():
-    """初始化默认配置"""
-    logger.info("正在初始化默认配置...")
-    
-    initialized_count = 0
-    for key, config_info in DEFAULT_CONFIGS.items():
-        existing_value = await config_manager.get_config(key)
-        # 只有当值为None或空字符串时才初始化（对于cached字段，保留已有的值）
-        # 🚨 Linus修复：认证配置永不覆盖，避免误清除用户配置的认证信息
-        if (existing_value is None or (existing_value == "" and not key.endswith("_cached"))) and not key.startswith("telegram."):
-            # Linus风格：使用类型推断而不是显式传递config_type
-            success = await config_manager.set_config(
-                key=key,
-                value=config_info["value"],
-                description=config_info["description"]
-                # config_type自动从DEFAULT_CONFIGS推断，消除重复信息
-            )
-            if success:
-                logger.info(f"已初始化配置: {key}")
-                initialized_count += 1
-            else:
-                logger.error(f"初始化配置失败: {key}")
-    
-    logger.info(f"默认配置初始化完成，共初始化 {initialized_count} 个配置项")
-    
-    # 执行配置类型验证（Linus风格防御）
-    await validate_config_types()
 
 
 async def validate_config_types():
     """
-    Linus风格配置类型验证器
-    启动时验证所有配置的类型是否与DEFAULT_CONFIGS一致
-    发现不一致时自动修复
+    配置类型验证器 - 已废弃
+    配置直接从system.json读取，无需验证
     """
-    logger.info("🔍 执行配置类型一致性验证...")
-    
-    fixed_count = 0
-    all_configs = await config_manager.get_all_configs()
-    
-    for key, expected_config in DEFAULT_CONFIGS.items():
-        expected_type = expected_config['config_type']
-        
-        if key in all_configs:
-            stored_config = all_configs[key]
-            
-            # 🚨 Linus风格防护：检查数据类型，避免在字符串上调用.get()
-            if not isinstance(stored_config, dict):
-                logger.error(f"🔧 配置数据格式错误: {key} 不是字典格式，是 {type(stored_config)}")
-                continue
-                
-            actual_type = stored_config.get('config_type', 'unknown')
-            
-            if actual_type != expected_type:
-                logger.warning(f"🔧 配置类型不一致修复: {key} ({actual_type} -> {expected_type})")
-                
-                # 重新保存配置以修复类型
-                current_value = await config_manager.get_config(key)
-                success = await config_manager.set_config(
-                    key=key,
-                    value=current_value if current_value is not None else expected_config['value'],
-                    description=stored_config.get('description', expected_config['description'])
-                )
-                
-                if success:
-                    fixed_count += 1
-                    logger.info(f"✅ 修复完成: {key}")
-                else:
-                    logger.error(f"❌ 修复失败: {key}")
-    
-    if fixed_count > 0:
-        logger.info(f"🎯 配置类型验证完成，修复了 {fixed_count} 个问题")
-    else:
-        logger.info("✅ 所有配置类型验证通过")
+    logger.info("ℹ️ validate_config_types 已废弃，配置由system.json直接管理")
+    return

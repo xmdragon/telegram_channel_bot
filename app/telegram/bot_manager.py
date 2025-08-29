@@ -121,8 +121,7 @@ class BotManager:
             if check_results['review_group']:
                 logger.info(f"审核群已配置: {check_results['review_group']}")
             else:
-                logger.error("❌ 审核群未配置！为了安全起见，消息不会被转发到目标频道")
-                logger.error("请通过Web界面配置审核群，否则所有消息将被阻止！")
+                logger.info("ℹ️ 审核群未配置，审核功能将不可用（不影响目标频道转发）")
                 
         except Exception as e:
             logger.error(f"启动检查失败: {e}")
