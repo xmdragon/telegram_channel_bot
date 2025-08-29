@@ -132,7 +132,7 @@ if [[ $(type -t check_system_status) == function ]]; then
         print_warning "检测到剩余进程，进行强制清理..."
         
         # 清理PID文件
-        for service in "dev_supervisor" "web_server" "telegram_collector" "message_scheduler"; do
+        for service in "dev_supervisor" "web_server" "telegram_collector" "message_scheduler" "message_processor"; do
             cleanup_pid_file "$service"
         done
         
@@ -141,6 +141,7 @@ if [[ $(type -t check_system_status) == function ]]; then
         pkill -9 -f "web_server.py" 2>/dev/null || true
         pkill -9 -f "telegram_collector.py" 2>/dev/null || true
         pkill -9 -f "message_scheduler.py" 2>/dev/null || true
+        pkill -9 -f "message_processor.py" 2>/dev/null || true
         
         # 等待端口释放
         wait_for_port_release 8000 10 || print_warning "端口 8000 未在预期时间内释放"
@@ -149,13 +150,14 @@ if [[ $(type -t check_system_status) == function ]]; then
     fi
 else
     # 降级为原始检查方式
-    REMAINING_PROCESSES=$(ps aux | grep -E "(dev_supervisor|web_server|telegram_collector|message_scheduler)" | grep -v grep | wc -l)
+    REMAINING_PROCESSES=$(ps aux | grep -E "(dev_supervisor|web_server|telegram_collector|message_scheduler|message_processor)" | grep -v grep | wc -l)
     if [ "$REMAINING_PROCESSES" -gt 0 ]; then
         echo "⚠️  仍有 $REMAINING_PROCESSES 个进程未停止，强制清理..."
         pkill -9 -f "dev_supervisor.py" 2>/dev/null || true
         pkill -9 -f "web_server.py" 2>/dev/null || true
         pkill -9 -f "telegram_collector.py" 2>/dev/null || true
         pkill -9 -f "message_scheduler.py" 2>/dev/null || true
+        pkill -9 -f "message_processor.py" 2>/dev/null || true
     fi
 fi
 
