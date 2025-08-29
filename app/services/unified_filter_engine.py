@@ -95,7 +95,14 @@ class UnifiedFilterEngine:
             filter_enabled = True
             tail_filter_enabled = True
             ocr_enabled = True
+            footer_promo_enabled = True
+            markdown_enabled = True
+            promo_vector_enabled = True
+            duplicate_enabled = False  # 默认禁用
+            ad_detector_enabled = False  # 默认禁用
             auto_reject_ads = True
+            auto_reject_duplicates = False
+            auto_reject_high_risk = False
             
             try:
                 if loop.is_running():
@@ -106,13 +113,27 @@ class UnifiedFilterEngine:
                         filter_enabled = config_mgr._cache.get('filter.enabled', {}).get('value', True)
                         tail_filter_enabled = config_mgr._cache.get('filter.tail_filter_enabled', {}).get('value', True)
                         ocr_enabled = config_mgr._cache.get('filter.ocr_enabled', {}).get('value', True)
+                        footer_promo_enabled = config_mgr._cache.get('filter.footer_promo_enabled', {}).get('value', True)
+                        markdown_enabled = config_mgr._cache.get('filter.markdown_enabled', {}).get('value', True)
+                        promo_vector_enabled = config_mgr._cache.get('filter.promo_vector_enabled', {}).get('value', True)
+                        duplicate_enabled = config_mgr._cache.get('filter.duplicate_enabled', {}).get('value', False)
+                        ad_detector_enabled = config_mgr._cache.get('filter.ad_detector_enabled', {}).get('value', False)
                         auto_reject_ads = config_mgr._cache.get('review.auto_reject_ads', {}).get('value', True)
+                        auto_reject_duplicates = config_mgr._cache.get('review.auto_reject_duplicates', {}).get('value', False)
+                        auto_reject_high_risk = config_mgr._cache.get('review.auto_reject_high_risk', {}).get('value', False)
                 else:
                     # 如果不在事件循环中，运行异步调用
                     filter_enabled = loop.run_until_complete(config_manager.get_config('filter.enabled', True))
                     tail_filter_enabled = loop.run_until_complete(config_manager.get_config('filter.tail_filter_enabled', True))
                     ocr_enabled = loop.run_until_complete(config_manager.get_config('filter.ocr_enabled', True))
+                    footer_promo_enabled = loop.run_until_complete(config_manager.get_config('filter.footer_promo_enabled', True))
+                    markdown_enabled = loop.run_until_complete(config_manager.get_config('filter.markdown_enabled', True))
+                    promo_vector_enabled = loop.run_until_complete(config_manager.get_config('filter.promo_vector_enabled', True))
+                    duplicate_enabled = loop.run_until_complete(config_manager.get_config('filter.duplicate_enabled', False))
+                    ad_detector_enabled = loop.run_until_complete(config_manager.get_config('filter.ad_detector_enabled', False))
                     auto_reject_ads = loop.run_until_complete(config_manager.get_config('review.auto_reject_ads', True))
+                    auto_reject_duplicates = loop.run_until_complete(config_manager.get_config('review.auto_reject_duplicates', False))
+                    auto_reject_high_risk = loop.run_until_complete(config_manager.get_config('review.auto_reject_high_risk', False))
             except Exception as e:
                 logger.warning(f"从config_manager加载配置失败，使用默认值: {e}")
             
@@ -128,23 +149,32 @@ class UnifiedFilterEngine:
             filter_enabled = to_bool(filter_enabled)
             tail_filter_enabled = to_bool(tail_filter_enabled)
             ocr_enabled = to_bool(ocr_enabled)
+            footer_promo_enabled = to_bool(footer_promo_enabled)
+            markdown_enabled = to_bool(markdown_enabled)
+            promo_vector_enabled = to_bool(promo_vector_enabled)
+            duplicate_enabled = to_bool(duplicate_enabled)
+            ad_detector_enabled = to_bool(ad_detector_enabled)
             auto_reject_ads = to_bool(auto_reject_ads)
+            auto_reject_duplicates = to_bool(auto_reject_duplicates)
+            auto_reject_high_risk = to_bool(auto_reject_high_risk)
             
-            # 基于系统配置推断各个过滤器的启用状态
+            # 基于系统配置的各个过滤器启用状态（每个过滤器使用自己的配置）
             settings = {
-                # 内容清理过滤器
+                # 内容清理过滤器 - 使用各自的配置
                 'tail_filter': tail_filter_enabled,
-                'footer_promo_filter': filter_enabled,  # 基于全局过滤开关
-                'markdown_filter': filter_enabled,      # 基于全局过滤开关
-                'promo_vector_filter': filter_enabled,  # 基于全局过滤开关
+                'footer_promo_filter': footer_promo_enabled,  # 使用独立配置
+                'markdown_filter': markdown_enabled,          # 使用独立配置
+                'promo_vector_filter': promo_vector_enabled,  # 使用独立配置
                 
-                # 内容检测过滤器
-                'duplicate_detector': filter_enabled,   # 基于全局过滤开关
-                'ad_detector': filter_enabled,          # 基于全局过滤开关
+                # 内容检测过滤器 - 使用各自的配置
+                'duplicate_detector': duplicate_enabled,      # 使用独立配置
+                'ad_detector': ad_detector_enabled,           # 使用独立配置
                 
                 # 额外功能
                 'ocr_enabled': ocr_enabled,
-                'auto_reject_ads': auto_reject_ads
+                'auto_reject_ads': auto_reject_ads,
+                'auto_reject_duplicates': auto_reject_duplicates,
+                'auto_reject_high_risk': auto_reject_high_risk
             }
             
             logger.info(f"过滤器设置加载完成: {settings}")
@@ -152,16 +182,18 @@ class UnifiedFilterEngine:
             
         except Exception as e:
             logger.error(f"加载过滤器设置失败，使用默认配置: {e}")
-            # 返回默认设置（全部启用）
+            # 返回默认设置（与配置文件默认值一致）
             return {
                 'tail_filter': True,
                 'footer_promo_filter': True,
                 'markdown_filter': True,
                 'promo_vector_filter': True,
-                'duplicate_detector': True,
-                'ad_detector': True,
+                'duplicate_detector': False,  # 默认禁用
+                'ad_detector': False,         # 默认禁用
                 'ocr_enabled': True,
-                'auto_reject_ads': True
+                'auto_reject_ads': True,
+                'auto_reject_duplicates': False,
+                'auto_reject_high_risk': False
             }
         
     def _initialize_components(self):
