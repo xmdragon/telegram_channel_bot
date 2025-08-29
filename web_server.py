@@ -191,10 +191,8 @@ async def lifespan(app: FastAPI):
                 await channel_cache.init_cache()
                 logger.info("✅ 频道缓存初始化完成")
                 
-                # 延迟初始化：Telegram认证管理器（耗时较长）
-                from app.telegram.auth import auth_manager
-                await auth_manager.initialize()
-                logger.info("✅ Telegram认证管理器初始化完成")
+                # 双Session管理器无需额外初始化，按需创建连接
+                logger.info("✅ Telegram双Session管理器就绪（按需连接）")
                 
                 # StatsBroadcaster已移至scheduler服务，避免多进程重复广播
                 # Web服务仅负责WebSocket连接管理，不启动广播器

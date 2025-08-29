@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
-from app.telegram.auth import auth_manager
+from app.telegram.dual_session_manager import dual_session_manager
 from app.core.config import db_settings
 from app.services.channel_manager import ChannelManager
 from app.storage.redis_store import get_redis_message_store, get_redis_store
@@ -114,47 +114,34 @@ class SystemMonitor:
             logger.error(f"检查系统状态出错: {e}")
             
     async def _check_telegram_auth(self) -> Dict:
-        """检查Telegram认证状态"""
+        """检查Telegram双Session认证状态"""
         errors = []
         warnings = []
-        authorized = False
-        connected = False
         
         try:
-            # 检查认证状态
-            auth_status = await auth_manager.get_auth_status()
-            authorized = auth_status.get('authorized', False)
+            # 直接使用双Session管理器检查状态
+            connection_status = await dual_session_manager.get_connection_status()
             
-            # 首先检查是否有客户端实例
-            if auth_manager.client:
-                # 有客户端，尝试检查连接状态
-                try:
-                    # 尝试获取当前用户信息来测试连接
-                    me = await auth_manager.client.get_me()
-                    connected = True
-                    authorized = True  # 能获取用户信息说明已认证
-                    logger.debug(f"Telegram连接正常，用户: {me.username or me.first_name}")
-                except Exception as e:
-                    # 连接失败，但不一定是未认证
-                    error_msg = str(e).lower()
-                    if 'flood' in error_msg:
-                        errors.append(f"Telegram API限流: {str(e)}")
-                    elif 'network' in error_msg or 'connection' in error_msg or 'timeout' in error_msg:
-                        errors.append(f"网络连接问题: {str(e)}")
-                    elif 'unauthorized' in error_msg or 'auth' in error_msg:
-                        errors.append("Telegram认证已失效，请重新登录")
-                    else:
-                        errors.append(f"Telegram连接异常: {str(e)}")
-                    connected = False
-            elif not authorized:
-                # 既没有客户端也没有认证
-                errors.append("Telegram未认证，请先完成登录")
+            listener_connected = connection_status.get('listener_connected', False)
+            sender_connected = connection_status.get('sender_connected', False)
+            
+            # 只要有一个Session连接就认为系统可用
+            authorized = listener_connected or sender_connected
+            connected = authorized
+            
+            if not listener_connected and not sender_connected:
+                errors.append("Telegram双Session未连接，请完成认证")
+            elif not listener_connected:
+                warnings.append("Telegram Listener Session未连接")
+            elif not sender_connected:
+                warnings.append("Telegram Sender Session未连接")
             else:
-                # 有认证状态但没有客户端实例
-                errors.append("Telegram客户端未初始化")
-                    
+                logger.debug("Telegram双Session连接正常")
+                
         except Exception as e:
-            errors.append(f"检查Telegram认证出错: {str(e)}")
+            errors.append(f"检查Telegram双Session状态出错: {str(e)}")
+            authorized = False
+            connected = False
             
         return {
             'authorized': authorized,

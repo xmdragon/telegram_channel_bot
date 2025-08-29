@@ -142,13 +142,14 @@ class TelegramCollectorService:
             # 加载数据库配置
             await settings.load_db_configs()
             
-            # 初始化认证服务
-            from app.telegram.auth import auth_manager
-            await auth_manager.initialize()
-            logger.info("认证服务已初始化")
+            # 检查Telegram双Session认证状态
+            from app.telegram.dual_session_manager import dual_session_manager
+            connection_status = await dual_session_manager.get_connection_status()
             
-            # 检查Telegram认证状态
-            auth_status = await auth_manager.get_auth_status()
+            # 至少需要Listener Session连接才能采集消息
+            auth_status = {
+                'authorized': connection_status.get('listener_connected', False)
+            }
             
             # 初始化全局变量
             from app.telegram import bot as bot_module
@@ -272,9 +273,9 @@ class TelegramCollectorService:
                         continue
                     
                     await asyncio.sleep(10)
-                    # 定期检查认证状态
-                    from app.telegram.auth import auth_manager
-                    auth_status = await auth_manager.get_auth_status()
+                    # 定期检查双Session认证状态
+                    connection_status = await dual_session_manager.get_connection_status()
+                    auth_status = {'authorized': connection_status.get('listener_connected', False)}
                     if auth_status.get('authorized', False):
                         logger.info("检测到Telegram认证完成，重新启动采集服务...")
                         if await self.initialize():

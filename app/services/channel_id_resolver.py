@@ -5,7 +5,7 @@
 import re
 import logging
 from typing import Optional, Union
-from app.telegram.auth import auth_manager
+from app.telegram.dual_session_manager import dual_session_manager
 from app.storage.json_store import get_json_channel_store
 
 logger = logging.getLogger(__name__)
@@ -58,8 +58,9 @@ class ChannelIdResolver:
         支持用户名、链接和已有ID
         """
         try:
-            if not auth_manager.client:
-                logger.error("Telegram客户端未连接")
+            client = await dual_session_manager.get_listener_client()
+            if not client:
+                logger.error("Telegram双Session未连接")
                 return None
             
             parsed = self.parse_channel_input(channel_input)
@@ -73,7 +74,7 @@ class ChannelIdResolver:
                 username = parsed['username']
                 try:
                     # 使用Telethon获取实体信息
-                    entity = await auth_manager.client.get_entity(username)
+                    entity = await client.get_entity(username)
                     
                     if hasattr(entity, 'id'):
                         channel_id = entity.id
@@ -204,11 +205,12 @@ class ChannelIdResolver:
     async def get_channel_info(self, channel_id_or_name: str) -> Optional[dict]:
         """获取频道详细信息"""
         try:
-            if not auth_manager.client:
-                logger.error("Telegram客户端未连接")
+            client = await dual_session_manager.get_listener_client()
+            if not client:
+                logger.error("Telegram双Session未连接")
                 return None
             
-            entity = await auth_manager.client.get_entity(channel_id_or_name)
+            entity = await client.get_entity(channel_id_or_name)
             
             if entity:
                 return {

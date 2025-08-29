@@ -44,12 +44,7 @@ class StartupChecker:
             results['errors'].extend(json_check['errors'])
             return results
         
-        # 如果提供了客户端，临时设置到auth_manager
-        original_client = None
-        if client:
-            from app.telegram.auth import auth_manager
-            original_client = auth_manager.client
-            auth_manager.client = client
+        # 客户端直接传递给需要的方法，不再使用全局auth_manager
         
         results = {
             'success': True,
@@ -132,10 +127,8 @@ class StartupChecker:
             results['errors'].append(f"检查过程异常: {str(e)}")
             return results
         finally:
-            # 恢复原始客户端
-            if client and original_client is not None:
-                from app.telegram.auth import auth_manager
-                auth_manager.client = original_client
+            # 清理工作（不再需要恢复客户端）
+            pass
     
     async def _check_source_channels(self) -> Dict:
         """检查源频道配置"""

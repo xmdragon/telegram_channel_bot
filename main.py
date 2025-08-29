@@ -138,13 +138,15 @@ async def lifespan(app: FastAPI):
     from app.core.config import settings
     await settings.load_db_configs()
     
-    # 初始化认证服务
-    from app.telegram.auth import auth_manager
-    await auth_manager.initialize()
-    logger.info("认证服务已初始化")
+    # 检查Telegram双Session认证状态
+    from app.telegram.dual_session_manager import dual_session_manager
+    connection_status = await dual_session_manager.get_connection_status()
     
-    # 检查Telegram认证状态
-    auth_status = await auth_manager.get_auth_status()
+    # 至少有一个Session连接即可启动完整功能
+    auth_status = {
+        'authorized': (connection_status.get('listener_connected', False) or 
+                      connection_status.get('sender_connected', False))
+    }
     
     # 初始化全局变量
     from app.telegram import bot as bot_module
