@@ -73,14 +73,21 @@ class CollectedMessage:
         return None
     
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """转换为字典，递归处理datetime对象"""
         data = asdict(self)
-        # 处理datetime序列化
-        if self.timestamp:
-            data['timestamp'] = self.timestamp.isoformat()
-        if self.collected_at:
-            data['collected_at'] = self.collected_at.isoformat()
-        return data
+        return self._serialize_datetime_recursive(data)
+    
+    @staticmethod
+    def _serialize_datetime_recursive(obj: Any) -> Any:
+        """递归序列化datetime对象 - Linus式通用解决方案"""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {key: CollectedMessage._serialize_datetime_recursive(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [CollectedMessage._serialize_datetime_recursive(item) for item in obj]
+        else:
+            return obj
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CollectedMessage':

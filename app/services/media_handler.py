@@ -77,7 +77,7 @@ class MediaHandler:
                 "file_size": 0,
                 "file_name": None,
                 "mime_type": None,
-                "download_time": datetime.utcnow(),
+                "download_time": datetime.utcnow().isoformat(),
                 "hash": None  # 添加哈希字段
             }
             
