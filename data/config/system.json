@@ -56,7 +56,7 @@
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "系统重置时自动禁用采集",
     "is_active": true,
@@ -116,7 +116,7 @@
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
-    "created_at": "2025-08-29T14:02:14.103461"
+    "created_at": "2025-08-29T14:41:39.579915"
   },
   "review.group_link": {
     "value": "https://t.me/+HPbDzWj3ID01OTJl",
