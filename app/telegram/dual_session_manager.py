@@ -257,21 +257,12 @@ class TelegramDualSessionManager:
             "listener_connected": self.listener_connected,
             "sender_connected": self.sender_connected,
             "listener_client_available": self.listener_client is not None,
-            "sender_client_available": self.sender_client is not None
+            "sender_client_available": self.sender_client is not None,
+            "listener_status": "已连接" if self.listener_connected else "未连接",
+            "sender_status": "按需连接" if not self.sender_connected else "已连接",
+            "system_operational": self.listener_connected  # 只要Listener连接就可运行
         }
     
-    # 向后兼容方法 - 保持现有API不变
-    async def connect(self) -> bool:
-        """向后兼容：连接监听客户端"""
-        return await self.ensure_listener_connected()
-    
-    async def get_client(self) -> Optional[TelegramClient]:
-        """向后兼容：获取监听客户端"""
-        return await self.get_listener_client()
-    
-    async def is_client_connected(self) -> bool:
-        """向后兼容：检查监听客户端连接状态"""
-        return await self.is_listener_connected()
 
 # 全局双Session管理器实例
 dual_session_manager = TelegramDualSessionManager()

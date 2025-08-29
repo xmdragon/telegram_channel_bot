@@ -13,7 +13,6 @@ from datetime import datetime
 from app.services.system_monitor import system_monitor
 from app.storage.redis_store import get_redis_message_store
 from app.storage.json_store import get_json_channel_store
-from app.telegram.auth import auth_manager
 from app.core.routes import ROUTES
 from app.api.websocket import websocket_manager
 
@@ -155,13 +154,17 @@ async def get_detailed_status() -> Dict[str, Any]:
         # 获取Telegram状态
         telegram_status = "未连接"
         telegram_user = None
-        if auth_manager and auth_manager.client:
-            try:
-                me = await auth_manager.client.get_me()
+        try:
+            # 使用双Session管理器获取状态
+            from app.telegram.dual_session_manager import dual_session_manager
+            client = await dual_session_manager.get_listener_client()
+            
+            if client:
+                me = await client.get_me()
                 telegram_status = "已连接"
                 telegram_user = f"@{me.username}" if me.username else me.first_name
-            except:
-                telegram_status = "连接错误"
+        except Exception:
+            telegram_status = "连接错误"
         
         # 获取监控状态
         current_status = await system_monitor.get_current_status()

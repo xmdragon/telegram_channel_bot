@@ -7,7 +7,6 @@ import logging
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse, parse_qs
 
-from app.telegram.auth import auth_manager
 from app.services.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
@@ -64,9 +63,9 @@ class TelegramLinkResolver:
     async def resolve_group_id(self, link: str) -> Optional[int]:
         """解析群组链接获取真实ID"""
         try:
-            # 使用全局客户端管理器获取客户端
-            from app.telegram.client_manager import client_manager
-            client = await client_manager.get_client()
+            # 使用双Session管理器获取监听客户端
+            from app.telegram.dual_session_manager import dual_session_manager
+            client = await dual_session_manager.get_listener_client()
             if not client:
                 logger.error("Telegram客户端未连接")
                 return None
@@ -203,9 +202,9 @@ class TelegramLinkResolver:
             if review_group_config.startswith('@') and not self.is_telegram_link(review_group_config):
                 logger.info(f"检测到用户名格式: {review_group_config}")
                 try:
-                    # 使用全局客户端管理器获取客户端
-                    from app.telegram.client_manager import client_manager
-                    client = await client_manager.get_client()
+                    # 使用双Session管理器获取监听客户端
+                    from app.telegram.dual_session_manager import dual_session_manager
+                    client = await dual_session_manager.get_listener_client()
                     if not client:
                         logger.error("Telegram客户端未连接")
                         return None

@@ -132,13 +132,16 @@ class UnifiedChannelService:
         """
         try:
             # 尝试通过Telegram客户端获取频道信息
-            from app.telegram.auth import auth_manager
-            if not auth_manager.client:
+            # 使用双Session系统获取客户端
+            from app.telegram.dual_session_manager import dual_session_manager
+            client = await dual_session_manager.get_listener_client()
+            
+            if not client:
                 logger.warning("Telegram客户端未连接，无法解析频道标题")
                 return channel_name.lstrip('@')
             
             # 获取频道实体信息
-            entity = await auth_manager.client.get_entity(int(channel_id) if channel_id.lstrip('-').isdigit() else channel_name)
+            entity = await client.get_entity(int(channel_id) if channel_id.lstrip('-').isdigit() else channel_name)
             
             # 返回频道标题
             if hasattr(entity, 'title') and entity.title:

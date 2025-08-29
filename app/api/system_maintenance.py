@@ -14,7 +14,6 @@ from app.core.path_config import PathConfig
 from app.storage.redis_store import get_redis_message_store
 from app.storage.json_store import get_json_channel_store
 from app.services.system_monitor import system_monitor
-from app.telegram.auth import auth_manager
 from app.core.routes import ROUTES
 from app.api.websocket import websocket_manager
 
@@ -52,11 +51,14 @@ async def restart_services() -> Dict[str, Any]:
                 )
                 logger.info(f"重启Telegram采集器进程: PID {result.pid}")
             
-            # 同时重启内部客户端连接（兼容性）
-            if auth_manager and auth_manager.client:
-                await auth_manager.client.disconnect()
-                await auth_manager.ensure_connected()
-                logger.info("Telegram内部客户端连接已重启")
+            # 同时重启内部客户端连接（使用双Session系统）
+            try:
+                from app.telegram.dual_session_manager import dual_session_manager
+                # 重置双Session系统连接
+                await dual_session_manager.disconnect_all()
+                logger.info("Telegram双Session系统已断开连接，需要重新认证")
+            except Exception as dual_error:
+                logger.error(f"重置双Session系统失败: {dual_error}")
                 
         except Exception as e:
             logger.error(f"重启Telegram服务失败: {e}")

@@ -123,20 +123,15 @@ class SystemMonitor:
             connection_status = await dual_session_manager.get_connection_status()
             
             listener_connected = connection_status.get('listener_connected', False)
-            sender_connected = connection_status.get('sender_connected', False)
             
-            # 只要有一个Session连接就认为系统可用
-            authorized = listener_connected or sender_connected
+            # 系统运行只依赖Listener Session，Sender Session按需连接不需要监控
+            authorized = listener_connected
             connected = authorized
             
-            if not listener_connected and not sender_connected:
-                errors.append("Telegram双Session未连接，请完成认证")
-            elif not listener_connected:
-                warnings.append("Telegram Listener Session未连接")
-            elif not sender_connected:
-                warnings.append("Telegram Sender Session未连接")
+            if not listener_connected:
+                errors.append("Telegram Listener Session未连接，请完成认证")
             else:
-                logger.debug("Telegram双Session连接正常")
+                logger.debug("Telegram Listener Session连接正常，系统可用")
                 
         except Exception as e:
             errors.append(f"检查Telegram双Session状态出错: {str(e)}")
@@ -200,8 +195,10 @@ class SystemMonitor:
                     warnings.append("未配置审核群")
                 
             # 验证频道可访问性（只验证ID，不验证私有链接）
-            auth_status = await auth_manager.get_auth_status()
-            if auth_manager.client and auth_status.get('authorized', False):
+            # 使用双Session管理器检查连接状态
+            connection_status = await dual_session_manager.get_connection_status()
+            
+            if connection_status.get('listener_connected', False) or connection_status.get('sender_connected', False):
                 channels_to_verify = source_channels.copy()
                 
                 # 只添加已解析的ID进行验证
@@ -225,7 +222,9 @@ class SystemMonitor:
         
     async def _verify_channel_access(self, channel_ids: List[str]):
         """验证频道访问权限"""
-        if not auth_manager.client:
+        # 获取双Session管理器的监听客户端
+        client = await dual_session_manager.get_listener_client()
+        if not client:
             return
             
         for channel_id in channel_ids:
@@ -239,15 +238,15 @@ class SystemMonitor:
                     continue
                 elif channel_id.startswith('@'):
                     # 用户名格式，直接使用
-                    entity = await auth_manager.client.get_entity(channel_id)
+                    entity = await client.get_entity(channel_id)
                 elif channel_id.startswith('-'):
                     # 数字ID格式，转换为整数
-                    entity = await auth_manager.client.get_entity(int(channel_id))
+                    entity = await client.get_entity(int(channel_id))
                 elif channel_id.startswith('https://t.me/'):
                     # 公开链接格式，提取用户名部分
                     username = channel_id.replace('https://t.me/', '')
                     if not username.startswith('+'):  # 确保不是私有链接
-                        entity = await auth_manager.client.get_entity(username)
+                        entity = await client.get_entity(username)
                     else:
                         logger.debug(f"跳过私有链接验证: {channel_id}")
                         continue
@@ -255,17 +254,17 @@ class SystemMonitor:
                     # t.me链接格式，提取用户名部分
                     username = channel_id.replace('t.me/', '')
                     if not username.startswith('+'):  # 确保不是私有链接
-                        entity = await auth_manager.client.get_entity(username)
+                        entity = await client.get_entity(username)
                     else:
                         logger.debug(f"跳过私有链接验证: {channel_id}")
                         continue
                 else:
                     # 尝试作为整数处理
                     try:
-                        entity = await auth_manager.client.get_entity(int(channel_id))
+                        entity = await client.get_entity(int(channel_id))
                     except ValueError:
                         # 如果不是数字，尝试作为用户名处理
-                        entity = await auth_manager.client.get_entity(channel_id)
+                        entity = await client.get_entity(channel_id)
                         
                 logger.debug(f"频道 {channel_id} 可访问: {entity.title}")
             except Exception as e:

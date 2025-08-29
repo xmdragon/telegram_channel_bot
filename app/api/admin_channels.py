@@ -90,18 +90,17 @@ async def add_channel(
         
         # 自动解析频道信息
         from app.services.channel_id_resolver import channel_id_resolver
-        from app.telegram.auth import auth_manager
         
         resolved_id = request.channel_id if request.channel_id else None
         resolved_title = request.channel_title if request.channel_title else None
         
         # 如果没有提供ID或标题，尝试自动解析
         if not resolved_id or not resolved_title:
-            # 确保Telegram客户端已连接
-            if not auth_manager.client:
-                await auth_manager.ensure_connected()
+            # 使用双Session系统获取客户端
+            from app.telegram.dual_session_manager import dual_session_manager
+            client = await dual_session_manager.get_listener_client()
             
-            if auth_manager.client:
+            if client:
                 try:
                     # 获取频道详细信息
                     channel_info = await channel_id_resolver.get_channel_info(request.channel_name)
@@ -290,20 +289,18 @@ async def resolve_channel_ids():
     """解析所有缺失的频道ID"""
     try:
         from app.services.channel_manager import channel_manager
-        from app.telegram.auth import auth_manager
         
-        # 先检查Telegram客户端连接状态
-        if not auth_manager.client:
-            logger.info("Telegram客户端未连接，尝试重新连接...")
-            try:
-                await auth_manager.ensure_connected()
-            except Exception as e:
-                logger.error(f"重新连接Telegram失败: {e}")
-                return {
-                    "success": False,
-                    "resolved_count": 0,
-                    "message": "Telegram客户端未连接，请先完成Telegram认证"
-                }
+        # 使用双Session系统检查连接状态
+        from app.telegram.dual_session_manager import dual_session_manager
+        client = await dual_session_manager.get_listener_client()
+        
+        if not client:
+            logger.info("Telegram客户端未连接")
+            return {
+                "success": False,
+                "resolved_count": 0,
+                "message": "Telegram客户端未连接，请先完成Telegram认证"
+            }
         
         resolved_count = await channel_manager.resolve_missing_channel_ids()
         
@@ -325,18 +322,15 @@ async def resolve_single_channel_id(request: ChannelResolveRequest):
     """解析单个频道的ID"""
     try:
         from app.services.channel_id_resolver import channel_id_resolver
-        from app.telegram.auth import auth_manager
         
-        # 先检查Telegram客户端连接状态
-        if not auth_manager.client:
-            # 尝试重新连接
-            logger.info("Telegram客户端未连接，尝试重新连接...")
-            try:
-                await auth_manager.ensure_connected()
-            except Exception as e:
-                logger.error(f"重新连接Telegram失败: {e}")
-                return {
-                    "success": False,
+        # 使用双Session系统检查连接状态
+        from app.telegram.dual_session_manager import dual_session_manager
+        client = await dual_session_manager.get_listener_client()
+        
+        if not client:
+            logger.info("Telegram客户端未连接")
+            return {
+                "success": False,
                     "message": "Telegram客户端未连接，请先完成Telegram认证"
                 }
         

@@ -9,7 +9,6 @@ import logging
 
 from app.services.config_manager import ConfigManager
 from app.services.channel_id_resolver import channel_id_resolver
-from app.telegram.auth import auth_manager
 from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
@@ -33,11 +32,11 @@ async def resolve_channel(request: ResolveRequest):
         if not channel_input:
             return {"success": False, "message": "请输入频道名称或链接"}
         
-        # 确保客户端已连接
-        if not auth_manager.client:
-            await auth_manager.ensure_connected()
+        # 使用双Session系统获取客户端
+        from app.telegram.dual_session_manager import dual_session_manager
+        client = await dual_session_manager.get_listener_client()
         
-        if not auth_manager.client:
+        if not client:
             return {"success": False, "message": "Telegram客户端未连接，请先完成认证"}
         
         # 解析频道ID
@@ -52,7 +51,7 @@ async def resolve_channel(request: ResolveRequest):
         # 获取频道详细信息
         channel_info = None
         try:
-            entity = await auth_manager.client.get_entity(int(resolved_id))
+            entity = await client.get_entity(int(resolved_id))
             channel_info = {
                 "id": resolved_id,
                 "title": getattr(entity, 'title', '未知'),
@@ -93,17 +92,17 @@ async def resolve_all_channels():
     包括源频道、目标频道、审核群
     """
     try:
-        # 确保客户端已连接
-        if not auth_manager.client:
-            await auth_manager.ensure_connected()
+        # 使用双Session系统获取客户端
+        from app.telegram.dual_session_manager import dual_session_manager
+        client = await dual_session_manager.get_listener_client()
         
-        if not auth_manager.client:
+        if not client:
             return {"success": False, "message": "Telegram客户端未连接，请先完成认证"}
         
         from app.services.startup_checker import startup_checker
         
         # 执行完整的频道检查和解析
-        results = await startup_checker.check_and_resolve_all_channels(auth_manager.client)
+        results = await startup_checker.check_and_resolve_all_channels(client)
         
         return {
             "success": results['success'],
@@ -142,11 +141,11 @@ async def resolve_target_channel():
                 "resolved_id": target_channel
             }
         
-        # 确保客户端已连接
-        if not auth_manager.client:
-            await auth_manager.ensure_connected()
+        # 使用双Session系统获取客户端
+        from app.telegram.dual_session_manager import dual_session_manager
+        client = await dual_session_manager.get_listener_client()
         
-        if not auth_manager.client:
+        if not client:
             return {"success": False, "message": "Telegram客户端未连接，请先完成认证"}
         
         # 解析频道ID
@@ -168,7 +167,7 @@ async def resolve_target_channel():
         # 获取频道信息
         channel_info = None
         try:
-            entity = await auth_manager.client.get_entity(int(resolved_id))
+            entity = await client.get_entity(int(resolved_id))
             channel_info = {
                 "title": getattr(entity, 'title', '未知'),
                 "username": getattr(entity, 'username', None)
@@ -211,11 +210,11 @@ async def resolve_review_group():
                 "resolved_id": review_group
             }
         
-        # 确保客户端已连接
-        if not auth_manager.client:
-            await auth_manager.ensure_connected()
+        # 使用双Session系统获取客户端
+        from app.telegram.dual_session_manager import dual_session_manager
+        client = await dual_session_manager.get_listener_client()
         
-        if not auth_manager.client:
+        if not client:
             return {"success": False, "message": "Telegram客户端未连接，请先完成认证"}
         
         # 解析群组ID
@@ -237,7 +236,7 @@ async def resolve_review_group():
         # 获取群组信息
         group_info = None
         try:
-            entity = await auth_manager.client.get_entity(int(resolved_id))
+            entity = await client.get_entity(int(resolved_id))
             group_info = {
                 "title": getattr(entity, 'title', '未知'),
                 "username": getattr(entity, 'username', None)

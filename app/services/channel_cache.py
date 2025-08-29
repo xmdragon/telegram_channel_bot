@@ -34,10 +34,11 @@ class ChannelCache:
             
             # 尝试使用频道ID解析器
             from app.services.channel_id_resolver import channel_id_resolver
-            from app.telegram.auth import auth_manager
+            from app.telegram.dual_session_manager import dual_session_manager
             
-            # 检查Telegram客户端是否已连接
-            if not auth_manager.client:
+            # 检查双Session客户端是否已连接
+            client = await dual_session_manager.get_listener_client()
+            if not client:
                 logger.debug(f"Telegram客户端未连接，跳过频道解析: {channel_input}")
                 return None
             
@@ -139,7 +140,7 @@ class ChannelCache:
                 
                 if cache_data:
                     try:
-                        await self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
+                        self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
                         logger.info(f"监听频道缓存已保存: {len(cache_data)}个频道")
                     except Exception as cache_error:
                         logger.warning(f"监听频道缓存失败（Redis不可用）: {cache_error}")
@@ -261,7 +262,7 @@ class ChannelCache:
             if source_channels:
                 # 清除旧缓存
                 await self._ensure_redis()
-                await self.redis_store.redis.delete('cache:source_channels')
+                self.redis_store.redis.delete('cache:source_channels')
                 
                 # 重新缓存
                 cache_data = {}
@@ -274,7 +275,7 @@ class ChannelCache:
                             logger.info(f"监听频道缓存已刷新: {channel_name} -> {resolved_id}")
                 
                 if cache_data:
-                    await self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
+                    self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
                 
                 logger.info("所有监听频道缓存已刷新")
                 return True
@@ -287,7 +288,7 @@ class ChannelCache:
         """清除所有频道ID缓存"""
         try:
             await self._ensure_redis()
-            await self.redis_store.redis.delete(
+            self.redis_store.redis.delete(
                 'cache:target_channel_id',
                 'cache:review_group_id', 
                 'cache:source_channels'
