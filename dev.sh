@@ -17,6 +17,7 @@ show_help() {
     echo "  all         启动所有服务 (默认)"
     echo "              ├── Web服务器 (端口8000)"
     echo "              ├── Telegram消息采集服务"
+    echo "              ├── 消息队列处理器"
     echo "              └── 消息调度和清理服务"
     echo ""
     echo "  web         仅启动Web服务器"
@@ -27,6 +28,11 @@ show_help() {
     echo "              • 从源频道采集消息"
     echo "              • 内容过滤和去重处理"
     echo "              • 发送到审核群组"
+    echo ""
+    echo "  processor   仅启动消息队列处理器"
+    echo "              • 处理队列中的消息"
+    echo "              • 消息保存到存储系统"
+    echo "              • 3个工作线程并发处理"
     echo ""
     echo "  scheduler   仅启动消息调度服务"
     echo "              • 自动转发已审核消息"
@@ -42,6 +48,7 @@ show_help() {
     echo "  $0                    # 启动所有服务"
     echo "  $0 web               # 仅启动Web服务"
     echo "  $0 web collector     # 启动Web和采集服务"
+    echo "  $0 collector processor  # 启动采集和处理服务"
     echo "  $0 --status          # 查看服务状态"
     echo "  $0 --legacy          # 使用传统模式"
     echo ""
@@ -66,7 +73,7 @@ while [[ $# -gt 0 ]]; do
             USE_LEGACY=true
             shift
             ;;
-        web|collector|scheduler|all)
+        web|collector|scheduler|processor|all)
             SERVICES+=("$1")
             shift
             ;;

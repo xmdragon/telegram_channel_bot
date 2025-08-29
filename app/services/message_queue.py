@@ -33,7 +33,8 @@ class CollectedMessage:
     # 内容信息
     content: str = ""
     media_type: Optional[str] = None
-    media_url: Optional[str] = None
+    media_url: Optional[str] = None  # 远程URL（保持兼容）
+    media_info: Optional[Dict] = None  # 完整媒体信息（包括本地路径）
     
     # 时间信息
     timestamp: datetime = None
@@ -62,7 +63,14 @@ class CollectedMessage:
     @property
     def has_media(self) -> bool:
         """是否包含媒体"""
-        return self.media_type is not None
+        return self.media_type is not None or (self.media_info and self.media_info.get('has_media', False))
+    
+    @property
+    def local_media_path(self) -> Optional[str]:
+        """本地媒体文件路径"""
+        if self.media_info:
+            return self.media_info.get('file_path')
+        return None
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -76,13 +84,16 @@ class CollectedMessage:
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CollectedMessage':
-        """从字典创建"""
+        """从字典创建（不修改原始数据）"""
+        # 创建数据副本，避免污染原始字典
+        data_copy = data.copy()
+        
         # 处理datetime反序列化
-        if data.get('timestamp') and isinstance(data['timestamp'], str):
-            data['timestamp'] = datetime.fromisoformat(data['timestamp'])
-        if data.get('collected_at') and isinstance(data['collected_at'], str):
-            data['collected_at'] = datetime.fromisoformat(data['collected_at'])
-        return cls(**data)
+        if data_copy.get('timestamp') and isinstance(data_copy['timestamp'], str):
+            data_copy['timestamp'] = datetime.fromisoformat(data_copy['timestamp'])
+        if data_copy.get('collected_at') and isinstance(data_copy['collected_at'], str):
+            data_copy['collected_at'] = datetime.fromisoformat(data_copy['collected_at'])
+        return cls(**data_copy)
 
 @dataclass
 class GroupedMessages:

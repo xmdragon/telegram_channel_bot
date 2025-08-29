@@ -184,18 +184,45 @@ class MessageHandler:
         return await self.process_source_message_async_queue(message, channel_id, chat)
     
     async def process_source_message_async_queue(self, message: TLMessage, channel_id: str, chat):
-        """Linus式异步队列处理 - 采集器只管采集，不等处理结果"""
+        """Linus式异步队列处理 - collector负责完整采集（含媒体下载）"""
         try:
-            # 1. 快速提取基础信息（< 1ms）
+            # 1. 快速提取基础信息
             collected_msg = await self._extract_message_quickly(message, channel_id, chat)
             
-            # 2. 立即入队（不等待处理）
+            # 2. 如果有媒体，在collector环境中立即下载
+            if collected_msg.has_media:
+                try:
+                    from app.services.processors.message_receiver import MediaDownloader
+                    downloader = MediaDownloader()
+                    # 创建临时上下文用于媒体下载
+                    from app.services.processors.base import MessageContext
+                    temp_context = MessageContext(
+                        telegram_message=message,
+                        channel_id=channel_id
+                    )
+                    temp_context.media_type_info = {'has_media': True, 'media_type': collected_msg.media_type}
+                    
+                    # 在collector中下载媒体
+                    result = await downloader.process(temp_context)
+                    if result.success and temp_context.media_info:
+                        # 保存完整媒体信息到消息对象
+                        collected_msg.media_info = temp_context.media_info
+                        logger.info(f"媒体已在collector中下载完成: {collected_msg.message_key}")
+                    else:
+                        logger.warning(f"媒体下载失败，但继续处理: {collected_msg.message_key}")
+                        
+                except Exception as media_error:
+                    logger.error(f"collector媒体下载异常: {media_error}, 继续处理")
+                    # 媒体下载失败不影响消息入队
+            
+            # 3. 消息入队（现在包含完整信息）
             queue = get_message_queue()
             success = await queue.enqueue_message(collected_msg)
             
             if success:
-                logger.debug(f"⚡ 消息快速入队: {collected_msg.message_key}")
-                return "queued"  # 立即返回
+                media_status = "含媒体" if collected_msg.has_media else "纯文本"
+                logger.debug(f"⚡ 完整消息入队: {collected_msg.message_key} ({media_status})")
+                return "queued"
             else:
                 logger.error(f"消息入队失败: {collected_msg.message_key}")
                 # 失败时回退到同步处理

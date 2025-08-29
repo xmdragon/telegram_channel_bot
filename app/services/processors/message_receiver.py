@@ -159,6 +159,8 @@ class MediaDownloader(MessageProcessor):
     
     def __init__(self):
         super().__init__("MediaDownloader")
+        # 重写logger使用正确的模块名称
+        self.logger = logging.getLogger(f"{__name__}.MediaDownloader")
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
@@ -178,6 +180,11 @@ class MediaDownloader(MessageProcessor):
         try:
             # 如果没有媒体，跳过
             if not context.media_type_info or not context.media_type_info.get('has_media'):
+                return ProcessorResult(True, context)
+            
+            # 如果媒体已经在collector中处理完成，直接跳过
+            if context.media_info and context.media_info.get('processed_in') == 'collector':
+                self.logger.debug("媒体已在collector中处理完成，跳过重复处理")
                 return ProcessorResult(True, context)
             
             message = context.telegram_message
@@ -216,11 +223,24 @@ class MediaDownloader(MessageProcessor):
                         if media_timer:
                             ocr_timer.stop()
                 
-                self.logger.info(f"媒体下载成功: {media_info.get('file_path')}")
+                # 根据环境选择日志级别
+                if media_info.get('processed_in') == 'collector':
+                    self.logger.info(f"媒体下载成功: {media_info.get('file_path')}")
+                else:
+                    self.logger.debug(f"媒体元数据处理完成: {media_type}")
             else:
-                # 标记下载失败
-                context.media_type_info['download_failed'] = True
-                self.logger.warning(f"媒体下载失败，但已记录媒体类型: {media_type}")
+                # 检测运行环境
+                from app.telegram.bot import telegram_bot
+                has_client = telegram_bot and getattr(telegram_bot, 'client', None) is not None
+                
+                if has_client:
+                    # collector环境：真正的下载失败
+                    context.media_type_info['download_failed'] = True
+                    self.logger.warning(f"媒体下载失败，但已记录媒体类型: {media_type}")
+                else:
+                    # processor环境：正常跳过，不记录为失败
+                    context.media_type_info['download_skipped'] = True  
+                    self.logger.debug(f"processor环境跳过媒体下载: {media_type}")
             
             # 记录性能数据
             if media_timer:
@@ -249,42 +269,93 @@ class MediaDownloader(MessageProcessor):
             return await self._handle_error(context, e)
     
     async def _download_media(self, message: TLMessage, channel_id: str) -> Optional[dict]:
-        """下载媒体文件"""
+        """智能媒体处理 - 根据运行环境决定行为
+        
+        collector环境：下载媒体文件
+        processor环境：跳过下载，记录媒体类型信息
+        """
         try:
             if not message.media:
                 return None
             
-            # 确定超时时间
-            timeout = 30.0  # 默认30秒
-            if hasattr(message.media, 'document'):
-                document = message.media.document
-                if document:
-                    mime_type = getattr(document, 'mime_type', '') or ""
-                    if mime_type.startswith("video/"):
-                        timeout = 120.0  # 视频文件2分钟
-                    else:
-                        timeout = 60.0   # 其他文档1分钟
-            
-            # 获取Telegram客户端
+            # 获取Telegram客户端连接状态
             from app.telegram.bot import telegram_bot
-            if not telegram_bot or not telegram_bot.client:
-                self.logger.warning("Telegram客户端未连接，无法下载媒体")
-                return None
+            has_client = telegram_bot and getattr(telegram_bot, 'client', None) is not None
             
-            # 下载媒体
-            from app.services.media_handler import media_handler
-            media_info = await media_handler.download_media(
-                telegram_bot.client,
-                message,
-                message.id,
-                timeout=timeout
-            )
+            if has_client:
+                # collector环境：正常下载媒体
+                return await self._download_media_with_client(message, channel_id)
+            else:
+                # processor环境：静默记录媒体类型，不显示警告
+                self.logger.debug("processor环境，跳过媒体下载")
+                return await self._process_media_metadata_only(message)
+                
+        except Exception as e:
+            # 检测运行环境，processor环境降级为debug
+            from app.telegram.bot import telegram_bot
+            has_client = telegram_bot and getattr(telegram_bot, 'client', None) is not None
             
-            if not media_info or not media_info.get('file_path'):
-                return None
+            if has_client:
+                # collector环境：记录为错误
+                self.logger.error(f"媒体处理失败: {e}")
+            else:
+                # processor环境：降级为debug，避免噪音
+                self.logger.debug(f"processor环境媒体处理异常（正常）: {e}")
+            return None
+    
+    async def _download_media_with_client(self, message: TLMessage, channel_id: str) -> Optional[dict]:
+        """在有Telegram客户端的环境中下载媒体"""
+        # 确定超时时间
+        timeout = 30.0  # 默认30秒
+        if hasattr(message.media, 'document'):
+            document = message.media.document
+            if document:
+                mime_type = getattr(document, 'mime_type', '') or ""
+                if mime_type.startswith("video/"):
+                    timeout = 120.0  # 视频文件2分钟
+                else:
+                    timeout = 60.0   # 其他文档1分钟
+        
+        # 下载媒体
+        from app.telegram.bot import telegram_bot
+        from app.services.media_handler import media_handler
+        
+        media_info = await media_handler.download_media(
+            telegram_bot.client,
+            message,
+            message.id,
+            timeout=timeout
+        )
+        
+        if not media_info or not media_info.get('file_path'):
+            return None
+        
+        # 标记为collector环境处理
+        media_info['processed_in'] = 'collector'
+        self.logger.info(f"媒体下载完成: {media_info.get('file_path')}")
+        return media_info
+    
+    async def _process_media_metadata_only(self, message: TLMessage) -> Optional[dict]:
+        """在processor环境中只处理媒体元数据，不下载文件"""
+        try:
+            # 创建基本的媒体信息记录
+            media_type = 'unknown'
+            if hasattr(message.media, '__class__'):
+                media_type = message.media.__class__.__name__.replace('MessageMedia', '').lower()
             
+            media_info = {
+                'media_type': media_type,
+                'file_path': None,  # processor环境不下载文件
+                'file_size': 0,
+                'has_media': True,
+                'processed_in': 'processor',  # 标记处理环境
+                'download_skipped': True
+            }
+            
+            self.logger.debug(f"媒体元数据记录: {media_type} (processor环境，跳过下载)")
             return media_info
             
         except Exception as e:
-            self.logger.error(f"媒体下载失败: {e}")
+            # processor环境的元数据处理异常，降级为debug避免噪音
+            self.logger.debug(f"processor环境媒体元数据处理异常: {e}")
             return None

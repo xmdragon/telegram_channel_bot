@@ -20,14 +20,70 @@ from typing import Optional, Dict, Any, List
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+# 确保日志目录存在
+os.makedirs('./logs', exist_ok=True)
+
+from logging.handlers import TimedRotatingFileHandler
+
+# 创建自定义的文件处理器，过滤数据库日志
+class FilteredTimedRotatingFileHandler(TimedRotatingFileHandler):
+    """过滤特定模块的按时间轮转文件处理器"""
+    def emit(self, record):
+        # 过滤掉数据库相关的日志
+        if record.name.startswith(('sqlalchemy', 'asyncpg', 'databases')):
+            return
+        super().emit(record)
+
+# 在日志初始化前导入PathConfig
+from app.core.path_config import PathConfig
+
+file_handler = FilteredTimedRotatingFileHandler(
+    filename=str(PathConfig.LOGS_DIR / "message_processor.log"),
+    when='H',  # 按小时轮转
+    interval=1,  # 每1小时
+    backupCount=24*7,  # 保留7天的日志
+    encoding='utf-8'
+)
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter(
+    '[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+))
+
+# 创建错误级别的文件处理器
+error_handler = FilteredTimedRotatingFileHandler(
+    filename=str(PathConfig.ERROR_LOG_FILE),
+    when='H',
+    interval=1,
+    backupCount=24*7,
+    encoding='utf-8'
+)
+error_handler.setLevel(logging.WARNING)
+error_handler.setFormatter(logging.Formatter(
+    '[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+))
+
+# 配置根日志记录器
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(file_handler)
+root_logger.addHandler(error_handler)
+
+# 控制台输出（开发环境）
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter(
+    '[%(asctime)s] [%(levelname)s] %(message)s',
+    datefmt='%H:%M:%S'
+))
+root_logger.addHandler(console_handler)
+
+logger = logging.getLogger(__name__)
+
 from app.services.message_queue import get_message_queue, CollectedMessage, GroupedMessages, MessageType
 from app.services.performance_monitor import performance_monitor
-from app.core.logging_config import setup_logging
 from app.utils.timezone import get_current_time
-
-# 设置日志
-setup_logging()
-logger = logging.getLogger(__name__)
 
 class MessageProcessor:
     """
@@ -178,7 +234,7 @@ class MessageProcessor:
             telegram_message = await self._rebuild_telegram_message(collected_msg)
             
             # 使用现有的处理管道
-            from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
+            from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageStorageProcessor
             from app.services.processors.base import MessageContext
             
             perf_ctx.start_stage("pipeline_setup")
@@ -187,9 +243,18 @@ class MessageProcessor:
                 channel_id=collected_msg.channel_id
             )
             
+            # 预填充collector已处理的媒体信息
+            if collected_msg.media_info:
+                context.media_info = collected_msg.media_info
+                context.media_type_info = {
+                    'has_media': True,
+                    'media_type': collected_msg.media_type or 'unknown'
+                }
+                logger.debug(f"预填充媒体信息: {collected_msg.message_key}")
+            
             pipeline = MessagePipeline([
                 MessageReceiver(),
-                MediaDownloader(),
+                # MediaDownloader已移除：collector负责媒体下载，processor专注业务逻辑
                 MessageFilterProcessor(), 
                 MessageStorageProcessor()
             ])
@@ -233,8 +298,8 @@ class MessageProcessor:
             'content': combined_content,
             'media_type': first_msg.media_type,
             'media_url': first_msg.media_url,
-            'timestamp': first_msg.timestamp,
-            'collected_at': first_msg.collected_at,
+            'timestamp': first_msg.timestamp.isoformat() if first_msg.timestamp else None,
+            'collected_at': first_msg.collected_at.isoformat() if first_msg.collected_at else None,
             'raw_data': {
                 **first_msg.raw_data,
                 'is_combined': True,
@@ -324,6 +389,25 @@ async def main():
     
     # 设置日志级别
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
+    
+    logger.info("🚀 启动消息处理器...")
+    
+    # 初始化存储层
+    logger.info("初始化存储层...")
+    
+    # 初始化Redis存储层
+    from app.storage.redis_store import init_redis_stores
+    if not init_redis_stores():
+        logger.error("❌ Redis存储层初始化失败")
+        return 1
+    logger.info("✅ Redis连接已初始化")
+    
+    # 初始化JSON存储层
+    from app.storage.json_store import init_json_stores
+    if not init_json_stores():
+        logger.error("❌ JSON存储层初始化失败")
+        return 1
+    logger.info("✅ JSON存储层已初始化")
     
     # 创建处理器
     processor = MessageProcessor(worker_count=args.workers)

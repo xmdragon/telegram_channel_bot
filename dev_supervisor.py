@@ -242,6 +242,11 @@ class DevSupervisor:
                 name="scheduler",
                 command=["python3", "message_scheduler.py"], 
                 description="消息调度服务 (自动转发、数据清理)"
+            ),
+            "processor": ServiceConfig(
+                name="processor",
+                command=["python3", "message_processor.py", "--workers", "3"],
+                description="消息队列处理器 (3个工作线程)"
             )
         }
         
@@ -450,7 +455,7 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="开发环境进程管理器")
-    parser.add_argument("services", nargs="*", choices=["web", "collector", "scheduler", "all"], 
+    parser.add_argument("services", nargs="*", choices=["web", "collector", "scheduler", "processor", "all"], 
                        help="要启动的服务")
     parser.add_argument("--status", action="store_true", help="显示服务状态")
     

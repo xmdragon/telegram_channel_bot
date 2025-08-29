@@ -87,12 +87,17 @@ class DuplicateDetectorFilter(BaseFilter):
         # Redis存储实例（延迟初始化）
         self.redis_store = None
         
+        # 性能优化缓存
+        self._channel_cache = None
+        self._channel_cache_time = None
+        self._channel_cache_ttl = 300  # 5分钟缓存
+        
         # 媒体检测参数
         self.media_cache_hours = self.config.get('media_cache_hours', 72)
         
-        # 文本检测参数
+        # 文本检测参数（优化性能：缩短时间窗口）
         self.text_similarity_threshold = self.config.get('text_similarity_threshold', 0.75)
-        self.text_time_window_minutes = self.config.get('text_time_window_minutes', 2880)  # 48小时
+        self.text_time_window_minutes = self.config.get('text_time_window_minutes', 1440)  # 24小时
         
         # 视觉相似度检测窗口
         self.visual_cache_hours = self.config.get('visual_cache_hours', 96)
@@ -447,25 +452,36 @@ class DuplicateDetectorFilter(BaseFilter):
                 time_start, time_end, message_id
             )
             
-            # 检查相似度
+            # 检查相似度（优化版本）
             for msg_data in recent_messages:
                 msg_content = msg_data.get('content')
                 if not msg_content:
                     continue
                 
-                # 计算多种相似度
+                # 快速预筛选：长度差异过大直接跳过
+                if abs(len(content) - len(msg_content)) > max(len(content), len(msg_content)) * 0.5:
+                    continue
+                
+                # 优先计算更快的文本相似度
                 text_similarity = self._calculate_text_similarity(content, msg_content)
-                jieba_similarity = self._calculate_jieba_similarity(content, msg_content)
                 
-                # 取最高相似度
-                max_similarity = max(text_similarity, jieba_similarity)
-                
-                logger.debug(f"相似度检查: {max_similarity:.2f} (文本: {text_similarity:.2f}, jieba: {jieba_similarity:.2f})")
-                
-                if max_similarity >= self.text_similarity_threshold:
+                # 如果文本相似度已经达到阈值，直接返回，避免计算jieba
+                if text_similarity >= self.text_similarity_threshold:
                     orig_msg_id = msg_data.get('message_id')
-                    logger.info(f"发现文本重复消息，相似度: {max_similarity:.2f}")
+                    logger.info(f"发现文本重复消息（快速检测），相似度: {text_similarity:.2f}")
                     return True, orig_msg_id
+                
+                # 只有在文本相似度接近但未达到阈值时，才计算jieba相似度
+                if text_similarity >= self.text_similarity_threshold * 0.8:
+                    jieba_similarity = self._calculate_jieba_similarity(content, msg_content)
+                    max_similarity = max(text_similarity, jieba_similarity)
+                    
+                    logger.debug(f"相似度检查: {max_similarity:.2f} (文本: {text_similarity:.2f}, jieba: {jieba_similarity:.2f})")
+                    
+                    if max_similarity >= self.text_similarity_threshold:
+                        orig_msg_id = msg_data.get('message_id')
+                        logger.info(f"发现文本重复消息，相似度: {max_similarity:.2f}")
+                        return True, orig_msg_id
             
             return False, None
             
@@ -558,9 +574,8 @@ class DuplicateDetectorFilter(BaseFilter):
         try:
             messages = []
             
-            # 获取所有频道
-            from app.services.unified_channel_service import unified_channel_service
-            channel_configs = await unified_channel_service.get_all_channels(active_only=True)
+            # 使用缓存的频道列表
+            channel_configs = await self._get_cached_active_channels()
             
             for channel_config in channel_configs:
                 channel_id = channel_config.get('channel_id')
@@ -582,13 +597,16 @@ class DuplicateDetectorFilter(BaseFilter):
                                     exclude_message_id: Optional[int]) -> List[Dict]:
         """获取单个频道的视觉哈希消息 - 消除嵌套的辅助方法"""
         try:
-            # 获取该频道最近的消息（限制数量以提高性能）
-            channel_messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
+            # 获取该频道最近的消息（优化性能：减少查询量）
+            channel_messages = self.redis_store.get_messages_by_channel(channel_id, limit=100)
             messages = []
             
             for msg_data in channel_messages:
                 if self._is_valid_visual_message(msg_data, time_threshold, exclude_message_id):
                     messages.append(msg_data)
+                elif self._is_message_too_old(msg_data, time_threshold):
+                    # 如果消息太旧，由于是按时间倒序，后续消息也都太旧，可以提前退出
+                    break
             
             return messages
                             
@@ -623,24 +641,71 @@ class DuplicateDetectorFilter(BaseFilter):
             logger.debug(f"处理消息失败: {e}")
             return False
     
+    def _is_message_too_old(self, msg_data: dict, time_threshold: datetime) -> bool:
+        """检查消息是否太旧（用于早期退出优化）"""
+        try:
+            msg = MessageCompat(msg_data)
+            return msg.created_at < time_threshold
+        except Exception:
+            return False
+    
+    async def _get_cached_active_channels(self) -> List[Dict]:
+        """获取缓存的活跃频道列表（性能优化）"""
+        try:
+            import time
+            current_time = time.time()
+            
+            # 检查缓存是否有效
+            if (self._channel_cache is not None and 
+                self._channel_cache_time is not None and
+                current_time - self._channel_cache_time < self._channel_cache_ttl):
+                return self._channel_cache
+            
+            # 重新获取频道列表
+            from app.services.unified_channel_service import unified_channel_service
+            channel_configs = await unified_channel_service.get_all_channels(active_only=True)
+            
+            # 更新缓存
+            self._channel_cache = channel_configs
+            self._channel_cache_time = current_time
+            
+            logger.debug(f"更新频道缓存，共 {len(channel_configs)} 个活跃频道")
+            return channel_configs
+            
+        except Exception as e:
+            logger.error(f"获取活跃频道失败: {e}")
+            # 如果获取失败，返回空列表避免整个检测失败
+            return []
+    
     async def _get_recent_messages_with_content(self, time_start: datetime, time_end: datetime,
                                                exclude_message_id: Optional[int] = None) -> List[Dict]:
-        """获取有文本内容的最近消息"""
+        """获取有文本内容的最近消息 - 性能优化版本"""
         try:
             messages = []
             
-            # 由于Redis没有复杂时间范围查询，我们遍历最近的消息
-            all_channels = self.redis_store.redis.keys("msg:idx:*")
+            # 使用缓存的活跃频道列表，而不是扫描所有频道
+            channel_configs = await self._get_cached_active_channels()
             
-            for channel_key in all_channels:
-                if not self._is_valid_channel_key(channel_key):
+            # 限制扫描频道数量以提升性能
+            max_channels = 10  # 最多检查10个活跃频道
+            active_channels = channel_configs[:max_channels]
+            
+            for channel_config in active_channels:
+                channel_id = channel_config.get('channel_id')
+                if not channel_id:
                     continue
-                    
-                channel_id = channel_key.split(':', 2)[2]
+                
+                # 构建频道键
+                channel_key = f"msg:idx:{channel_id}"
+                
                 channel_messages = self._get_channel_content_messages(
                     channel_key, channel_id, time_start, time_end, exclude_message_id
                 )
                 messages.extend(channel_messages)
+                
+                # 早期退出优化：如果已经找到足够的消息，停止扫描
+                if len(messages) >= 100:  # 限制总消息数量
+                    break
             
             return messages
             
@@ -659,8 +724,8 @@ class DuplicateDetectorFilter(BaseFilter):
         """获取单个频道的文本消息 - 消除嵌套的辅助方法"""
         messages = []
         
-        # 获取最近200条消息（覆盖更大时间范围）
-        recent_msg_ids = self.redis_store.redis.zrevrange(channel_key, 0, 199)
+        # 获取最近15条消息（进一步优化性能）
+        recent_msg_ids = self.redis_store.redis.zrevrange(channel_key, 0, 14)
         
         for msg_id in recent_msg_ids:
             try:
@@ -680,6 +745,10 @@ class DuplicateDetectorFilter(BaseFilter):
                 continue
             if msg_data:
                 messages.append(msg_data)
+                
+                # 早期退出：每个频道最多返回5条有效消息
+                if len(messages) >= 5:
+                    break
         
         return messages
     
