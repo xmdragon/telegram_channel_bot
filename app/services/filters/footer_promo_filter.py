@@ -72,7 +72,7 @@ class FooterPromoFilter(BaseFilter):
         self.stats = {
             'total_processed': 0,
             'separator_detected': 0,
-            'promo_content_removed': 0,
+            'footer_content_removed': 0,
             'link_lists_detected': 0,
             'semantic_matches': 0
         }
@@ -195,7 +195,7 @@ class FooterPromoFilter(BaseFilter):
             semantic_result = self._analyze_semantic_content(content, separator_result)
             
             # 执行过滤
-            filtered_content, modifications = self._filter_promo_content(
+            filtered_content, modifications = self._filter_footer_content(
                 content, separator_result, semantic_result
             )
             
@@ -209,7 +209,7 @@ class FooterPromoFilter(BaseFilter):
             if semantic_result['has_promo']:
                 self.stats['semantic_matches'] += 1
             if len(filtered_content) < len(content):
-                self.stats['promo_content_removed'] += 1
+                self.stats['footer_content_removed'] += 1
             
             # 构建结果
             filter_result = FilterResult(
@@ -449,7 +449,7 @@ class FooterPromoFilter(BaseFilter):
         
         return ngrams
     
-    def _filter_promo_content(self, content: str, separator_result: Dict[str, Any], 
+    def _filter_footer_content(self, content: str, separator_result: Dict[str, Any], 
                             semantic_result: Dict[str, Any]) -> Tuple[str, List[str]]:
         """过滤推广内容"""
         modifications = []
@@ -537,7 +537,7 @@ class FooterPromoFilter(BaseFilter):
         if self.stats['total_processed'] > 0:
             base_stats['separator_detection_rate'] = self.stats['separator_detected'] / self.stats['total_processed']
             base_stats['semantic_match_rate'] = self.stats['semantic_matches'] / self.stats['total_processed']
-            base_stats['filter_rate'] = self.stats['promo_content_removed'] / self.stats['total_processed']
+            base_stats['filter_rate'] = self.stats['footer_content_removed'] / self.stats['total_processed']
         
         return base_stats
     
@@ -547,7 +547,7 @@ class FooterPromoFilter(BaseFilter):
         self.stats = {
             'total_processed': 0,
             'separator_detected': 0,
-            'promo_content_removed': 0,
+            'footer_content_removed': 0,
             'link_lists_detected': 0,
             'semantic_matches': 0
         }

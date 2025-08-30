@@ -381,7 +381,6 @@ const app = createApp({
                 'tail_filter': '尾部过滤器',
                 'ad_detector': '广告检测器',
                 'footer_promo_filter': '推广链接过滤器',
-                'promo_content_filter': '推广内容过滤器',
                 'promo_vector_filter': '推广向量过滤器',
                 'promo_filter': '推广过滤器',
             };
@@ -393,7 +392,6 @@ const app = createApp({
                 'tail_filter': '✂️',
                 'ad_detector': '🛡️',
                 'footer_promo_filter': '🔗',
-                'promo_content_filter': '🚫',
                 'promo_vector_filter': '🧠',
                 'promo_filter': '🚫',
             };
@@ -551,8 +549,6 @@ const app = createApp({
                 'footer_promo_filter_separator_confidence': { min: 0.3, max: 0.9 },
                 'footer_promo_filter_semantic_score': { min: 0.2, max: 0.8 },
                 'promo_filter_score': { min: 0.3, max: 0.9 },
-                'promo_content_filter_detection': { min: 0.4, max: 0.95 },
-                'promo_content_filter_semantic': { min: 0.3, max: 0.85 },
                 'promo_vector_filter_similarity': { min: 0.75, max: 0.95 },
                 'promo_vector_filter_min_length': { min: 10, max: 50 },
             };
