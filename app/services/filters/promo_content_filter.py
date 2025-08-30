@@ -280,56 +280,13 @@ class PromoContentFilter(BaseFilter):
             result['analysis']['basis'] = 'embedded_patterns'
             return result
         
-        # 如果有分隔符，分析分隔符后的内容
-        if separator_result['found'] and separator_result['boundaries']:
-            first_boundary = separator_result['boundaries'][0]
-            lines = content.split('\n')
-            
-            if first_boundary['line_index'] < len(lines) - 1:
-                post_separator_content = '\n'.join(lines[first_boundary['line_index'] + 1:])
-                
-                # 分析分隔符后的内容是否包含推广元素
-                has_promo_elements = self._has_promo_elements(post_separator_content)
-                
-                if has_promo_elements:
-                    result['has_promo'] = True
-                    result['analysis']['basis'] = 'post_separator_analysis'
+        # 如果有分隔符，直接标记为推广内容
+        if separator_result['found']:
+            result['has_promo'] = True
+            result['analysis']['basis'] = 'separator_detected'
         
         return result
     
-    def _has_promo_elements(self, text: str) -> bool:
-        """检查文本是否包含推广元素"""
-        if not text.strip():
-            return False
-        
-        promo_patterns = [
-            r'[@＠][a-zA-Z0-9_]+',  # @用户名
-            r'[订订閱阅订][阅閱][频频頻道道]',  # 订阅频道
-            r'[投投][稿稿]',  # 投稿
-            r'[商商務务][务務]',  # 商务
-            r'[联聯联][系係系]',  # 联系
-            r'[群群][组組]',  # 群组
-            r'[t][.][me]',  # Telegram链接
-            r'[频頻频][道道][:：]',  # 频道:
-            r'[爆爆][料料]',  # 爆料
-        ]
-        
-        # 检查是否包含任何推广元素
-        for pattern in promo_patterns:
-            if re.search(pattern, text, re.IGNORECASE):
-                return True
-        
-        # 检查多个@用户名（2个以上）
-        at_mentions = len(re.findall(r'[@＠][a-zA-Z0-9_]+', text))
-        if at_mentions >= 2:
-            return True
-            
-        # 检查多个链接（2个以上）
-        links = len(re.findall(r'https?://[^\s]+', text))
-        if links >= 2:
-            return True
-        
-        return False
     
     def _filter_promo_content(self, content: str, embedded_result: Dict, 
                             separator_result: Dict, semantic_result: Dict) -> Tuple[str, List[str]]:
