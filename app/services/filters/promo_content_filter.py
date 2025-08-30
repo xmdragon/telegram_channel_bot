@@ -67,11 +67,15 @@ class PromoContentFilter(BaseFilter):
                     self.separator_list = data.get('separators', [])
                     logger.info(f"加载了 {len(self.embedded_patterns)} 个内嵌推广模式")
             else:
-                logger.warning("内嵌推广模式配置文件不存在，使用默认模式")
-                self._init_default_patterns()
+                logger.warning("内嵌推广模式配置文件不存在，使用空配置")
+                self.embedded_patterns = []
+                self.context_patterns = []
+                self.separator_list = []
         except Exception as e:
             logger.error(f"加载内嵌推广模式失败: {e}")
-            self._init_default_patterns()
+            self.embedded_patterns = []
+            self.context_patterns = []
+            self.separator_list = []
     
     def load_separator_patterns(self):
         """加载分隔符模式"""
@@ -83,36 +87,13 @@ class PromoContentFilter(BaseFilter):
                     self.separator_patterns = [p['regex'] for p in data.get('patterns', [])]
                     logger.info(f"加载了 {len(self.separator_patterns)} 个分隔符模式")
             else:
-                logger.warning("分隔符模式文件不存在，使用默认模式")
-                self.separator_patterns = self._get_default_separators()
+                logger.warning("分隔符模式文件不存在，使用空配置")
+                self.separator_patterns = []
         except Exception as e:
             logger.error(f"加载分隔符模式失败: {e}")
-            self.separator_patterns = self._get_default_separators()
+            self.separator_patterns = []
     
-    def _init_default_patterns(self):
-        """初始化默认推广模式"""
-        self.embedded_patterns = [
-            {
-                "pattern": "[🔥💥⚡]{2,}.*[N][0-9]+.*娱乐城",
-                "weight": 0.9,
-                "category": "casino"
-            },
-            {
-                "pattern": "充值送[0-9]+[UuDd]",
-                "weight": 0.8,
-                "category": "casino_promo"
-            }
-        ]
-        self.context_patterns = []
-        self.separator_list = ["━━━━━", "🔥🔥🔥", "💥💥💥"]
     
-    def _get_default_separators(self) -> List[str]:
-        """获取默认分隔符模式"""
-        return [
-            r'━{3,}', r'═{3,}', r'─{3,}', r'▬{3,}',
-            r'-{5,}', r'={5,}', r'\*{5,}', r'\+{3,}',
-            r'🔜{2,}', r'[📢📣🔔]{2,}', r'[🔥💥⚡]{3,}'
-        ]
     
     async def pre_filter(self, content: str, context: FilterContext) -> bool:
         """预检查是否包含推广内容"""
@@ -280,36 +261,29 @@ class PromoContentFilter(BaseFilter):
             # 检查分隔符模式
             for pattern in self.separator_patterns:
                 if re.search(pattern, line_stripped):
-                    # 计算置信度
-                    confidence = self._calculate_separator_confidence(
-                        line_stripped, i, total_lines, pattern
-                    )
-                    
                     result['boundaries'].append({
                         'line_index': i,
                         'pattern': pattern,
                         'text': line_stripped,
-                        'confidence': confidence,
+                        'confidence': 1.0,  # 简化：检测到就是100%置信度
                         'position_ratio': i / max(total_lines - 1, 1)
                     })
                     
-                    result['confidence'] = max(result['confidence'], confidence)
+                    result['confidence'] = 1.0
                     result['found'] = True
             
             # 检查配置中的分隔符字符串
             for separator in self.separator_list:
                 if separator in line_stripped:
-                    confidence = 0.8 if i > total_lines * 0.5 else 0.6
-                    
                     result['boundaries'].append({
                         'line_index': i,
                         'separator': separator,
                         'text': line_stripped,
-                        'confidence': confidence,
+                        'confidence': 1.0,  # 简化：检测到就是100%置信度
                         'position_ratio': i / max(total_lines - 1, 1)
                     })
                     
-                    result['confidence'] = max(result['confidence'], confidence)
+                    result['confidence'] = 1.0
                     result['found'] = True
         
         # 按置信度排序
@@ -317,28 +291,6 @@ class PromoContentFilter(BaseFilter):
         
         return result
     
-    def _calculate_separator_confidence(self, line: str, line_pos: int, total_lines: int, pattern: str) -> float:
-        """计算分隔符置信度"""
-        confidence = 0.0
-        
-        # 基础置信度：分隔符匹配
-        match = re.search(pattern, line)
-        if match:
-            separator_length = len(match.group())
-            confidence += min(separator_length / 8.0, 0.4)
-        
-        # 位置权重：越靠后置信度越高
-        position_ratio = line_pos / max(total_lines - 1, 1)
-        if position_ratio > 0.6:
-            confidence += 0.3
-        if position_ratio > 0.8:
-            confidence += 0.2
-        
-        # 行内容权重：纯分隔符行
-        if len(line.strip()) <= 15:  # 短行更可能是分隔符
-            confidence += 0.2
-        
-        return min(confidence, 1.0)
     
     def _analyze_promo_semantics(self, content: str, embedded_result: Dict, separator_result: Dict, semantic_threshold: float) -> Dict[str, Any]:
         """语义分析推广内容"""
