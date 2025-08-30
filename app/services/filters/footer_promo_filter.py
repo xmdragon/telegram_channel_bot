@@ -191,12 +191,9 @@ class FooterPromoFilter(BaseFilter):
             # 检测分隔符位置
             separator_result = self._detect_separators(content)
             
-            # 分析内容语义
-            semantic_result = self._analyze_semantic_content(content, separator_result)
-            
             # 执行过滤
             filtered_content, modifications = self._filter_footer_content(
-                content, separator_result, semantic_result
+                content, separator_result
             )
             
             # 计算处理时间
@@ -206,8 +203,6 @@ class FooterPromoFilter(BaseFilter):
             self.stats['total_processed'] += 1
             if separator_result['found']:
                 self.stats['separator_detected'] += 1
-            if semantic_result['has_promo']:
-                self.stats['semantic_matches'] += 1
             if len(filtered_content) < len(content):
                 self.stats['footer_content_removed'] += 1
             
@@ -217,11 +212,9 @@ class FooterPromoFilter(BaseFilter):
                 passed=True,  # 不阻止消息通过，只是清理内容
                 processing_time_ms=processing_time,
                 reason=f"检测到尾部推广内容" if len(filtered_content) < len(content) else None,
-                confidence=max(separator_result['confidence'], semantic_result['confidence']),
                 details={
                     'separator_detected': separator_result['found'],
                     'separator_position': separator_result.get('position'),
-                    'semantic_matches': semantic_result['matches'],
                     'original_length': len(content),
                     'filtered_length': len(filtered_content),
                     'removed_content_length': len(content) - len(filtered_content)
@@ -301,7 +294,6 @@ class FooterPromoFilter(BaseFilter):
         """分析内容语义"""
         result = {
             'has_promo': False,
-            'confidence': 0.0,
             'matches': [],
             'promo_section': None
         }
@@ -324,7 +316,6 @@ class FooterPromoFilter(BaseFilter):
         result['promo_section'] = promo_section
         
         # 检测推广模式
-        confidence_scores = []
         
         # 1. 关键词匹配
         keyword_matches = 0
@@ -333,20 +324,12 @@ class FooterPromoFilter(BaseFilter):
                 keyword_matches += 1
                 result['matches'].append(f"关键词: {keyword}")
         
-        if keyword_matches > 0:
-            keyword_confidence = min(keyword_matches / 3.0, 0.4)
-            confidence_scores.append(keyword_confidence)
-        
         # 2. 推广模式匹配
         pattern_matches = 0
         for pattern in self.promo_patterns:
             if re.search(pattern, promo_section):
                 pattern_matches += 1
                 result['matches'].append(f"模式匹配: {pattern}")
-        
-        if pattern_matches > 0:
-            pattern_confidence = min(pattern_matches / 2.0, 0.3)
-            confidence_scores.append(pattern_confidence)
         
         # 3. 链接列表检测
         link_list_matches = 0
@@ -357,27 +340,20 @@ class FooterPromoFilter(BaseFilter):
                 result['matches'].append(f"链接列表: {len(matches)}个")
                 self.stats['link_lists_detected'] += 1
         
-        if link_list_matches > 0:
-            link_confidence = min(link_list_matches / 3.0, 0.4)
-            confidence_scores.append(link_confidence)
-        
         # 4. @用户名密度检测
         at_mentions = re.findall(r'@\w+', promo_section)
         if len(at_mentions) >= 2:
-            mention_confidence = min(len(at_mentions) / 5.0, 0.3)
-            confidence_scores.append(mention_confidence)
             result['matches'].append(f"@用户名: {len(at_mentions)}个")
         
         # 5. 基于训练数据的相似度匹配
-        training_confidence = self._calculate_training_similarity(promo_section)
-        if training_confidence > 0.3:
-            confidence_scores.append(training_confidence)
-            result['matches'].append(f"训练数据匹配: {training_confidence:.2f}")
+        training_similarity = self._calculate_training_similarity(promo_section)
+        if training_similarity > 0.3:
+            result['matches'].append(f"训练数据匹配: {training_similarity:.2f}")
         
-        # 计算综合置信度
-        if confidence_scores:
-            result['confidence'] = min(sum(confidence_scores), 1.0)
-            result['has_promo'] = result['confidence'] > self.semantic_threshold
+        # 简化判断：有任何匹配就认为是推广
+        result['has_promo'] = (keyword_matches > 0 or pattern_matches > 0 or 
+                              link_list_matches > 2 or len(at_mentions) >= 2 or
+                              training_similarity > 0.3)
         
         return result
     
@@ -449,48 +425,33 @@ class FooterPromoFilter(BaseFilter):
         
         return ngrams
     
-    def _filter_footer_content(self, content: str, separator_result: Dict[str, Any], 
-                            semantic_result: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def _filter_footer_content(self, content: str, separator_result: Dict[str, Any]) -> Tuple[str, List[str]]:
         """过滤推广内容"""
         modifications = []
         
-        # 如果没有检测到推广内容，直接返回
-        if not separator_result['found'] and not semantic_result['has_promo']:
+        # 如果没有检测到分隔符，直接返回
+        if not separator_result['found']:
             return content, modifications
         
-        lines = content.split('\n')
+        # 基于分隔符过滤（按字符位置截断）
+        separator_text = separator_result['separator_text']
+        separator_pos = content.find(separator_text)
         
-        # 确定过滤位置
-        if separator_result['found']:
-            # 基于分隔符过滤
-            cut_position = separator_result['position']
-            filtered_lines = lines[:cut_position]
+        logger.info(f"分隔符检测: separator_text='{separator_text}', position={separator_pos}")
+        
+        if separator_pos != -1:
+            # 从分隔符位置截断到结尾
+            filtered_content = content[:separator_pos].rstrip()
+            removed_chars = len(content) - len(filtered_content)
+            modifications.append(f"基于分隔符截断，移除了 {removed_chars} 个字符")
+            logger.info(f"基于分隔符过滤: 从位置 {separator_pos} 截断内容")
             
-            removed_lines = len(lines) - cut_position
-            modifications.append(f"基于分隔符移除尾部 {removed_lines} 行内容")
-            logger.info(f"基于分隔符过滤: 移除第 {cut_position} 行之后的内容")
-            
-        elif semantic_result['has_promo'] and semantic_result['confidence'] > self.semantic_threshold:
-            # 基于语义分析过滤
-            # 找到推广内容开始位置
-            cut_position = self._find_promo_start_position(lines, semantic_result)
-            filtered_lines = lines[:cut_position]
-            
-            removed_lines = len(lines) - cut_position
-            modifications.append(f"基于语义分析移除尾部 {removed_lines} 行推广内容")
-            logger.info(f"基于语义分析过滤: 移除第 {cut_position} 行之后的内容")
-            
+            # 清理多余的空行
+            filtered_content = re.sub(r'\n\s*\n\s*$', '', filtered_content)
+            return filtered_content, modifications
         else:
-            # 不过滤
+            logger.warning(f"分隔符文本在内容中未找到: '{separator_text}'")
             return content, modifications
-        
-        # 构建过滤后的内容
-        filtered_content = '\n'.join(filtered_lines).rstrip()
-        
-        # 清理多余的空行
-        filtered_content = re.sub(r'\n\s*\n\s*$', '', filtered_content)
-        
-        return filtered_content, modifications
     
     def _find_promo_start_position(self, lines: List[str], semantic_result: Dict[str, Any]) -> int:
         """找到推广内容开始位置"""
