@@ -99,7 +99,27 @@
       "regex": "[-=*_]{3,}\\s*[-=*_]{3,}",
       "description": "混合分隔符模式",
       "weight": 0.8
+    },
+    {
+      "regex": "➡️{3,}",
+      "description": "右箭头emoji分隔符（3个以上）",
+      "weight": 0.9
+    },
+    {
+      "regex": "[➡️⬇️⬆️⬅️]{2,}",
+      "description": "方向箭头emoji分隔符",
+      "weight": 0.8
+    },
+    {
+      "regex": "——{3,}",
+      "description": "中文破折号分隔符（3个以上）",
+      "weight": 0.8
+    },
+    {
+      "regex": "—{5,}",
+      "description": "长破折号分隔符（5个以上）",
+      "weight": 0.8
     }
   ],
-  "updated_at": "2025-08-16T18:02:11.094856"
+  "updated_at": "2025-08-30T16:00:00"
 }
