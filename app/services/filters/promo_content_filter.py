@@ -300,7 +300,7 @@ class PromoContentFilter(BaseFilter):
             modifications.append(f"移除{len(embedded_result['matches'])}个内嵌推广模式")
         
         # 优先级2: 基于分隔符边界过滤
-        if separator_result['found'] and semantic_result.get('has_promo', False):
+        if separator_result['found']:
             
             best_boundary = separator_result['boundaries'][0]
             lines = filtered_content.split('\n')
