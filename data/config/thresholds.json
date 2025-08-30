@@ -151,8 +151,8 @@
   },
   "promo_vector_filter": {
     "similarity": {
-      "current": 0.75,
-      "min": 0.75,
+      "current": 0.7,
+      "min": 0.65,
       "max": 0.95,
       "history": [
         0.85,
@@ -161,7 +161,8 @@
         0.881,
         0.851,
         0.823,
-        0.75
+        0.75,
+        0.7
       ],
       "feedback_stats": {
         "tp": 0,
@@ -169,14 +170,15 @@
         "tn": 0,
         "fn": 0
       },
-      "last_updated": "2025-08-26T21:35:32.418422"
+      "last_updated": "2025-08-30T08:20:00.000000"
     },
     "min_length": {
-      "current": 20,
+      "current": 15,
       "min": 10,
       "max": 50,
       "history": [
-        20
+        20,
+        15
       ],
       "feedback_stats": {
         "tp": 0,
@@ -184,7 +186,7 @@
         "tn": 0,
         "fn": 0
       },
-      "last_updated": null
+      "last_updated": "2025-08-30T08:20:00.000000"
     }
   }
 }

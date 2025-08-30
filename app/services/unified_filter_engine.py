@@ -56,11 +56,11 @@ class UnifiedFilterEngine:
         if filter_settings.get('footer_promo_filter', True):
             pipeline.add_filter(FooterPromoFilter())         # 2. 尾部推广链接过滤器
             
-        if filter_settings.get('markdown_filter', True):
-            pipeline.add_filter(MarkdownFilter())            # 3. Markdown格式清理
-            
         if filter_settings.get('promo_vector_filter', True):
-            pipeline.add_filter(PromoVectorFilter())         # 4. 推广内容向量过滤
+            pipeline.add_filter(PromoVectorFilter())         # 3. 推广内容向量过滤
+            
+        if filter_settings.get('markdown_filter', True):
+            pipeline.add_filter(MarkdownFilter())            # 4. Markdown格式清理
         
         # 5-7: 内容检测类过滤器（清理后再检测，避免误判）
         if filter_settings.get('duplicate_detector', True):

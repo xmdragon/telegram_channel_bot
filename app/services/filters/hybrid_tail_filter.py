@@ -75,6 +75,12 @@ class HybridTailFilter:
         if not content or not content.strip():
             return content, False, None, {'reason': '内容为空'}
         
+        # 🚀 将连续5个或更多空格转换为换行符（与PromoVectorFilter保持一致）
+        import re
+        if re.search(r' {5,}', content):
+            content = re.sub(r' {5,}', '\n', content)
+            logger.debug("检测到连续空格，已转换为换行符")
+        
         lines = content.split('\n')
         if len(lines) < 2:
             logger.debug("内容行数不足，跳过过滤")

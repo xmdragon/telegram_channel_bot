@@ -107,22 +107,22 @@ async def filter_message_content(
         
         pipeline = FilterPipeline(PipelineConfig(enable_early_stopping=False))
         
-        # 按新顺序添加过滤器（基于配置动态启用/禁用）
+        # 🚀 统一过滤器顺序：与UnifiedFilterEngine保持完全一致
         # 只添加内容清理类过滤器（1-4），不包含检测类过滤器（5-7）
         if filter_settings.get('tail_filter', True):
             pipeline.add_filter(TailFilter())           # 1. 尾部过滤
             
         if filter_settings.get('footer_promo_filter', True):
-            pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤
-            
-        if filter_settings.get('markdown_filter', True):
-            pipeline.add_filter(MarkdownFilter())       # 3. Markdown格式清理
+            pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤器
             
         if filter_settings.get('promo_vector_filter', True):
-            pipeline.add_filter(PromoVectorFilter())    # 4. 推广内容向量过滤
+            pipeline.add_filter(PromoVectorFilter())    # 3. 推广内容向量过滤（与统一引擎顺序一致）
+            
+        if filter_settings.get('markdown_filter', True):
+            pipeline.add_filter(MarkdownFilter())       # 4. Markdown格式清理
         
-        # 记录启用的过滤器
-        enabled_filters = [name for name in ['tail_filter', 'footer_promo_filter', 'markdown_filter', 'promo_vector_filter'] 
+        # 记录启用的过滤器（按实际执行顺序）
+        enabled_filters = [name for name in ['tail_filter', 'footer_promo_filter', 'promo_vector_filter', 'markdown_filter'] 
                           if filter_settings.get(name, True)]
         logger.info(f"手动内容过滤启用的过滤器: {enabled_filters}")
         
