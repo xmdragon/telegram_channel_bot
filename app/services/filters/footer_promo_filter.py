@@ -250,13 +250,11 @@ class FooterPromoFilter(BaseFilter):
         result = {
             'found': False,
             'position': -1,
-            'confidence': 0.0,
             'separator_type': None,
             'separator_text': None
         }
         
         lines = content.split('\n')
-        total_lines = len(lines)
         
         for i, line in enumerate(lines):
             line_stripped = line.strip()
@@ -266,49 +264,16 @@ class FooterPromoFilter(BaseFilter):
             # 检查每个分隔符模式
             for pattern in self.separator_patterns:
                 if re.search(pattern, line_stripped):
-                    # 计算置信度
-                    confidence = self._calculate_separator_confidence(
-                        line_stripped, i, total_lines, pattern
-                    )
-                    
-                    if confidence > result['confidence']:
-                        result.update({
-                            'found': True,
-                            'position': i,
-                            'confidence': confidence,
-                            'separator_type': pattern,
-                            'separator_text': line_stripped
-                        })
+                    result.update({
+                        'found': True,
+                        'position': i,
+                        'separator_type': pattern,
+                        'separator_text': line_stripped
+                    })
+                    return result  # 找到第一个分隔符就返回
         
         return result
     
-    def _calculate_separator_confidence(self, line: str, line_pos: int, total_lines: int, pattern: str) -> float:
-        """计算分隔符置信度"""
-        confidence = 0.0
-        
-        # 基础置信度：分隔符长度
-        separator_match = re.search(pattern, line)
-        if separator_match:
-            separator_length = len(separator_match.group())
-            confidence += min(separator_length / 10.0, 0.4)  # 最多0.4
-        
-        # 位置权重：越靠后置信度越高
-        position_ratio = line_pos / max(total_lines - 1, 1)
-        if position_ratio > 0.5:  # 后半部分
-            confidence += 0.3
-        if position_ratio > 0.8:  # 最后20%
-            confidence += 0.2
-        
-        # 行内容权重：如果行只有分隔符，置信度更高
-        if len(line.strip()) == len(separator_match.group() if separator_match else ""):
-            confidence += 0.2
-        
-        # 周围内容权重：检查分隔符后是否有推广内容
-        remaining_lines = total_lines - line_pos - 1
-        if remaining_lines > 0:
-            confidence += min(remaining_lines / 5.0, 0.2)  # 最多0.2
-        
-        return min(confidence, 1.0)
     
     def _quick_similarity_check(self, content: str) -> bool:
         """基于训练数据的快速相似度检查"""
@@ -496,7 +461,7 @@ class FooterPromoFilter(BaseFilter):
         lines = content.split('\n')
         
         # 确定过滤位置
-        if separator_result['found'] and separator_result['confidence'] > self.separator_threshold:
+        if separator_result['found']:
             # 基于分隔符过滤
             cut_position = separator_result['position']
             filtered_lines = lines[:cut_position]
