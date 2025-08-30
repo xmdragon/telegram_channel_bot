@@ -106,12 +106,6 @@ class MessageFilterProcessor(MessageProcessor):
                 rejection_timer.stop()
                 rejection_timer.set_metric("should_reject", context.should_reject)
             
-            # 步骤5: 检查配置的自动过滤设置
-            if filter_timer:
-                config_timer = filter_timer.add_child("auto_filter_config").start()
-            await self._check_auto_filter_config(context)
-            if filter_timer:
-                config_timer.stop()
             
             # 最终状态日志
             status_summary = f"广告={context.is_ad}, 拒绝={context.should_reject}"
@@ -250,56 +244,47 @@ class MessageFilterProcessor(MessageProcessor):
     
     async def _check_auto_rejection(self, context: MessageContext):
         """检查是否应该自动拒绝消息"""
+        self.logger.info(f"🔍 自动拒绝检查: is_ad={context.is_ad}")
+        
         if not context.is_ad:
+            self.logger.debug("消息未被标记为广告，跳过自动拒绝检查")
+            return
+        
+        # 检查自动拒绝配置
+        try:
+            from app.services.config_manager import config_manager
+            auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
+            self.logger.info(f"🔧 自动拒绝广告配置: {auto_reject_ads}")
+            
+            if not auto_reject_ads:
+                self.logger.info("自动拒绝广告未启用，保持待审核状态")
+                return
+                
+        except Exception as e:
+            self.logger.error(f"获取自动拒绝配置失败: {e}")
             return
         
         try:
             should_reject, reject_reason = await self._should_reject_pure_ad(context)
+            self.logger.info(f"📋 精准拒绝判断结果: should_reject={should_reject}, reason={reject_reason}")
             
             if should_reject:
                 context.should_reject = True
                 context.auto_rejected = True
                 context.reject_reason = reject_reason
-                self.logger.info(f"自动拒绝消息: {reject_reason}")
+                self.logger.info(f"⚡ 自动拒绝消息: {reject_reason}")
                 
                 # 保存被拒绝的OCR样本
                 await self._save_rejected_sample(context, reject_reason)
+            else:
+                # 🚀 如果精准逻辑没有拒绝但配置了自动拒绝，根据配置直接拒绝
+                context.should_reject = True
+                context.auto_rejected = True
+                context.reject_reason = f"自动拒绝广告消息: {context.filter_reason}"
+                self.logger.info(f"⚡ 根据配置自动拒绝广告消息: {context.filter_reason}")
             
         except Exception as e:
             self.logger.error(f"自动拒绝检查失败: {e}")
-    
-    async def _check_auto_filter_config(self, context: MessageContext):
-        """检查配置的自动过滤设置"""
-        if not context.is_ad:
-            self.logger.debug("消息未被标记为广告，跳过自动拒绝检查")
-            return
-            
-        if context.should_reject:
-            self.logger.debug("消息已被标记为拒绝，跳过自动拒绝检查")
-            return
-        
-        try:
-            from app.services.config_manager import config_manager
-            auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
-            
-            self.logger.info(f"🔧 自动拒绝广告配置: {auto_reject_ads}")
-            
-            if auto_reject_ads:
-                # 🎯 Linus式优化：只拒绝纯广告，有有效内容的混合消息不拒绝
-                has_valid_content = bool(context.filtered_content.strip())
-                
-                if not has_valid_content:
-                    context.should_reject = True
-                    context.auto_rejected = True
-                    context.reject_reason = f"自动拒绝纯广告消息: {context.filter_reason}"
-                    self.logger.info(f"⚡ 根据配置自动拒绝纯广告消息（无有效内容）")
-                else:
-                    self.logger.info(f"💡 检测到广告但保留有效内容，保持待审核状态")
-            else:
-                self.logger.info(f"💡 广告消息保持待审核状态（自动拒绝未启用）")
-                
-        except Exception as e:
-            self.logger.error(f"检查自动拒绝广告配置失败: {e}")
     
     async def _should_reject_pure_ad(self, context: MessageContext) -> Tuple[bool, str]:
         """
@@ -334,15 +319,10 @@ class MessageFilterProcessor(MessageProcessor):
             return True, f"图片广告内容自动拒绝（OCR分数:{ocr_result.get('ad_score', 0)}）"
         
         # 优先级2：检查高危关键词（从规则管理器获取）
-        # 🎯 Linus式优化：只在没有有效内容时拒绝高危关键词
+        # 🚀 简化逻辑：检测到高危关键词直接拒绝
         for pattern, weight in high_risk_patterns:
             if pattern.search(all_text):
-                # 如果有媒体但过滤后无有效内容，拒绝
-                if media_info and len(filtered_content.strip()) < 20:
-                    return True, "高风险广告自动拒绝（赌博/色情/诈骗+媒体，无有效内容）"
-                # 如果无媒体且过滤后无有效内容，拒绝
-                elif not media_info and len(filtered_content.strip()) < 20:
-                    return True, "高风险广告自动拒绝（赌博/色情/诈骗内容，无有效内容）"
+                return True, f"高风险广告自动拒绝（检测到赌博/色情/诈骗关键词）"
         
         # 优先级3：纯媒体广告
         if not content.strip() and media_info and ocr_result.get('ad_score', 0) >= 30:
