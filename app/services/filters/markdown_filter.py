@@ -9,6 +9,8 @@ Created: 2025-08-15
 import re
 import time
 import logging
+import json
+import os
 from typing import Dict, Any, Optional
 
 from .base import BaseFilter, FilterResult, FilterContext
@@ -28,40 +30,14 @@ class MarkdownFilter(BaseFilter):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__("markdown_filter", config)
         
-        # 推广关键词列表
-        self.promo_keywords = [
-            '订阅', '订閱', '关注', '關注', '加入', 
-            '投稿', '商务', '商務', '联系', '聯繫',
-            '频道', '頻道', 'channel', 'group', '失联', 
-            '导航', '備用', '官方', '联系方式', '聯繫方式'
-        ]
-        
-        # 赌博推广关键词
-        self.gambling_keywords = [
-            '返水', '返利', '首存', '首充', '赠送', '優惠', '优惠', 'USDT',
-            '出款', '提款', '娱乐', '娛樂', '全网独家', '全網獨家', 
-            '最高', '无忧', '無憂', '千万', '千萬', '巨款', '实力', '實力',
-            '日出', '日赚', '日賺', '稳赚', '穩賺', '信誉保障', '信譽保障',
-            '全新起航', '全球娱乐', '全球娛樂', '充值', '存款', '无限IP', 
-            '不限IP', '666U', '1588U', '体验金', '體驗金'
-        ]
-        
-        # 引导性文字
-        self.guide_words = [
-            '查看详情', '订阅频道', '订阅我们', '关注我们', '更多信息', 
-            '查看更多', '点击查看', '了解更多', '商务合作', '投稿爆料'
-        ]
+        # 从配置文件加载关键词
+        self._load_filter_rules()
         
         # Markdown链接正则
         self.markdown_pattern = re.compile(r'\[([^\]]*)\]\(([^\)]+)\)')
         
-        # emoji+广告词+链接模式
-        self.emoji_ad_pattern = re.compile(
-            r'[\U0001F300-\U0001F9FF\s]{2,}\s*\[([^\]]*(?:' + 
-            '|'.join(self.gambling_keywords) + 
-            ')[^\]]*)\]\([^\)]+\)',
-            re.IGNORECASE
-        )
+        # emoji+广告词+链接模式（动态构建）
+        self._build_emoji_ad_pattern()
         
         # 统计信息
         self.stats = {
@@ -71,6 +47,116 @@ class MarkdownFilter(BaseFilter):
             'telegram_links_removed': 0,
             'non_telegram_links_processed': 0
         }
+    
+    def _load_filter_rules(self):
+        """从配置文件加载过滤规则"""
+        config_file = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 
+            'data', 'config', 'markdown_filter_rules.json'
+        )
+        
+        try:
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    rules = json.load(f)
+                    self.promo_keywords = rules.get('promo_keywords', [])
+                    self.gambling_keywords = rules.get('gambling_keywords', [])
+                    self.guide_words = rules.get('guide_words', [])
+                    logger.info(f"加载了{len(self.promo_keywords)}个推广关键词，{len(self.gambling_keywords)}个赌博关键词")
+            else:
+                logger.warning("配置文件不存在，使用空关键词列表")
+                self.promo_keywords = []
+                self.gambling_keywords = []
+                self.guide_words = []
+        except Exception as e:
+            logger.error(f"加载过滤规则失败: {e}")
+            self.promo_keywords = []
+            self.gambling_keywords = []
+            self.guide_words = []
+    
+    def _build_emoji_ad_pattern(self):
+        """构建emoji+广告词+链接匹配模式"""
+        if self.gambling_keywords:
+            pattern = (
+                r'[\U0001F300-\U0001F9FF\s]{2,}\s*\[([^\]]*(?:' + 
+                '|'.join(re.escape(kw) for kw in self.gambling_keywords) + 
+                ')[^\]]*)\]\([^\)]+\)'
+            )
+            self.emoji_ad_pattern = re.compile(pattern, re.IGNORECASE)
+        else:
+            # 如果没有关键词，创建一个永不匹配的模式
+            self.emoji_ad_pattern = re.compile(r'(?!.*)', re.IGNORECASE)
+    
+    def _filter_by_entities(self, content: str, context: FilterContext) -> tuple[str, int]:
+        """优先使用entities检测并过滤推广链接"""
+        try:
+            # 从context中获取message entities
+            entities = context.get_metadata('entities')
+            if not entities:
+                return content, 0
+            
+            # 寻找url和text_link类型的实体
+            promo_entities = []
+            for entity in entities:
+                entity_type = entity.get('type')
+                if entity_type in ['url', 'text_link']:
+                    # 提取实体文本
+                    offset = entity.get('offset', 0) 
+                    length = entity.get('length', 0)
+                    entity_text = content[offset:offset + length] if offset + length <= len(content) else ''
+                    entity_url = entity.get('url', '') if entity_type == 'text_link' else entity_text
+                    
+                    # 检查是否为推广链接
+                    if self._is_promo_entity(entity_text, entity_url):
+                        promo_entities.append({
+                            'offset': offset,
+                            'length': length,
+                            'text': entity_text,
+                            'url': entity_url,
+                            'type': entity_type
+                        })
+            
+            if not promo_entities:
+                return content, 0
+            
+            # 按偏移量倒序排序，从后往前删除以避免位置偏移问题
+            promo_entities.sort(key=lambda x: x['offset'], reverse=True)
+            
+            filtered_content = content
+            for entity in promo_entities:
+                # 删除推广链接实体
+                start = entity['offset']
+                end = start + entity['length']
+                filtered_content = filtered_content[:start] + filtered_content[end:]
+                logger.debug(f"删除推广链接实体: {entity['text'][:30]}... -> {entity['url'][:50]}...")
+            
+            # 清理多余空行
+            filtered_content = re.sub(r'\n{3,}', '\n\n', filtered_content).strip()
+            
+            return filtered_content, len(promo_entities)
+            
+        except Exception as e:
+            logger.error(f"entities过滤失败: {e}")
+            return content, 0
+    
+    def _is_promo_entity(self, entity_text: str, entity_url: str) -> bool:
+        """检查实体是否为推广内容"""
+        # 1. 检查URL是否指向推广域名
+        if entity_url:
+            if any(domain in entity_url.lower() for domain in ['t.me', 'telegram']):
+                return True
+        
+        # 2. 检查文本是否包含推广关键词
+        if entity_text:
+            text_lower = entity_text.lower()
+            for keyword in self.promo_keywords:
+                if keyword in text_lower:
+                    return True
+            for keyword in self.gambling_keywords:
+                if keyword in text_lower:
+                    return True
+        
+        return False
     
     async def pre_filter(self, content: str, context: FilterContext) -> bool:
         """预检查是否包含Markdown链接"""
@@ -93,10 +179,23 @@ class MarkdownFilter(BaseFilter):
             )
         
         try:
-            # 获取频道信息
-            channel_id = context.get_metadata('channel_id')
-            channel_name = self._extract_channel_name(channel_id)
+            # 优先使用entities检测推广链接
+            entities_filtered_content, entities_removed = self._filter_by_entities(content, context)
+            if entities_removed > 0:
+                # 如果entities过滤有结果，使用entities过滤后的内容
+                logger.info(f"通过entities检测过滤了{entities_removed}个推广链接")
+                processing_time = (time.time() - start_time) * 1000
+                return FilterResult(
+                    filtered_content=entities_filtered_content,
+                    passed=True,
+                    processing_time_ms=processing_time,
+                    reason=f"通过entities检测过滤了{entities_removed}个推广链接",
+                    confidence=1.0,
+                    details={'entities_filtered': entities_removed},
+                    modifications=[f"通过entities移除{entities_removed}个推广链接"]
+                )
             
+            # 如果entities检测无结果，回退到markdown正则检测
             # 处理每一行
             lines = content.split('\n')
             filtered_lines = []
@@ -110,7 +209,7 @@ class MarkdownFilter(BaseFilter):
                     continue
                 
                 original_line = line
-                processed_line = self._process_line_with_links(line, channel_name)
+                processed_line = self._process_line_with_links(line)
                 
                 # 记录修改
                 if processed_line != original_line:
@@ -151,9 +250,7 @@ class MarkdownFilter(BaseFilter):
                 details={
                     'links_processed': links_removed,
                     'original_length': len(content),
-                    'filtered_length': len(result_content),
-                    'channel_id': channel_id,
-                    'channel_name': channel_name
+                    'filtered_length': len(result_content)
                 },
                 should_early_stop=False,  # 不设置Early Stop，继续后续过滤
                 modifications=modifications
@@ -174,27 +271,8 @@ class MarkdownFilter(BaseFilter):
                 confidence=0.0
             )
     
-    def _extract_channel_name(self, channel_id: str) -> Optional[str]:
-        """提取频道名称"""
-        if not channel_id:
-            return None
-        
-        if isinstance(channel_id, str):
-            if channel_id.startswith('@'):
-                return channel_id[1:].lower()
-            elif channel_id.startswith('-100'):
-                # 使用已知映射
-                known_channels = {
-                    '-1001153220419': 'dny185',
-                    '-1001875033283': 'dubai0',
-                }
-                return known_channels.get(channel_id, '').lower()
-            else:
-                return channel_id.lower()
-        
-        return None
     
-    def _process_line_with_links(self, line: str, channel_name: Optional[str]) -> str:
+    def _process_line_with_links(self, line: str) -> str:
         """处理包含链接的行"""
         original_line = line
         
@@ -211,12 +289,7 @@ class MarkdownFilter(BaseFilter):
             should_remove_completely = False
             removal_reason = ""
             
-            # 1. 检查是否包含频道相关标签
-            if channel_name and link_text:
-                if channel_name in link_text.lower():
-                    should_remove_completely = True
-                    removal_reason = f"频道相关标签: {link_text}"
-                    logger.debug(f"检测到频道相关标签: {link_text}")
+            # 删除频道相关检查 - 过滤与来源频道无关
             
             # 2. 检查是否包含推广关键词
             if link_text:
