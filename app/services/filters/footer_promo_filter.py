@@ -36,45 +36,11 @@ class FooterPromoFilter(BaseFilter):
         self.separator_patterns = []
         self.load_separator_patterns()
         
-        # 训练数据
-        self.training_samples = []
-        self.load_training_data()
-        
-        # 推广关键词
-        self.promo_keywords = [
-            '订阅', '订閱', '关注', '關注', '加入', '投稿', '爆料',
-            '商务', '商務', '联系', '聯繫', '频道', '頻道', '群组',
-            'channel', 'group', 'subscribe', '导航', '備用', '官方',
-            '联系方式', '聯繫方式', '合作', '推广', '推廣'
-        ]
-        
-        # 推广模式
-        self.promo_patterns = [
-            r'[\d\w]*订阅[\d\w]*[:：]?\s*[@\w]+',  # 订阅: @channel
-            r'[\d\w]*投稿[\d\w]*[:：]?\s*[@\w]+',  # 投稿: @someone
-            r'[\d\w]*商务[\d\w]*[:：]?\s*[@\w]+',  # 商务: @someone
-            r'[\d\w]*联系[\d\w]*[:：]?\s*[@\w]+',  # 联系: @someone
-            r'[\d\w]*频道[\d\w]*[:：]?\s*[@\w]+',  # 频道: @channel
-        ]
-        
-        # 链接模式 - 检测连续的链接列表
-        self.link_list_patterns = [
-            r'(\[([^\]]*)\]\(([^\)]+)\)\s*){2,}',  # 2个或更多连续的Markdown链接
-            r'([@\w]+\s*[：:]\s*[@\w]+\s*){2,}',   # 2个或更多连续的@用户名模式
-            r'(https?://[^\s]+\s*){2,}',           # 2个或更多连续的URL
-        ]
-        
-        # 默认阈值
-        self.separator_threshold = 0.6  # 分隔符置信度阈值
-        self.semantic_threshold = 0.5   # 语义分析阈值
-        
         # 统计信息
         self.stats = {
             'total_processed': 0,
             'separator_detected': 0,
-            'footer_content_removed': 0,
-            'link_lists_detected': 0,
-            'semantic_matches': 0
+            'footer_content_removed': 0
         }
     
     def load_separator_patterns(self):
@@ -87,93 +53,22 @@ class FooterPromoFilter(BaseFilter):
                     self.separator_patterns = [p['regex'] for p in data.get('patterns', [])]
                     logger.info(f"加载了 {len(self.separator_patterns)} 个分隔符模式")
             else:
-                # 使用默认分隔符模式
-                self.separator_patterns = self._get_default_separators()
-                logger.warning("分隔符模式文件不存在，使用默认模式")
+                logger.warning("分隔符模式文件不存在，分隔符检测将不可用")
+                self.separator_patterns = []
         except Exception as e:
             logger.error(f"加载分隔符模式失败: {e}")
-            self.separator_patterns = self._get_default_separators()
-    
-    def load_training_data(self):
-        """加载训练数据用于相似度匹配"""
-        try:
-            # 尝试加载推广链接训练数据
-            training_dir = PathConfig.DATA_DIR / "training/promo"
-            if training_dir.exists():
-                for file_path in training_dir.glob("*.json"):
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        if isinstance(data, list):
-                            self.training_samples.extend(data)
-                        elif isinstance(data, dict) and 'samples' in data:
-                            self.training_samples.extend(data['samples'])
-                
-                logger.info(f"加载了 {len(self.training_samples)} 个训练样本")
-            
-            # 如果没有训练数据，创建一些基础样本
-            if not self.training_samples:
-                self.training_samples = self._get_default_training_samples()
-                logger.info("使用默认训练样本")
-                
-        except Exception as e:
-            logger.error(f"加载训练数据失败: {e}")
-            self.training_samples = self._get_default_training_samples()
-    
-    def _get_default_training_samples(self) -> List[Dict[str, Any]]:
-        """获取默认训练样本"""
-        return [
-            {
-                "content": "📣 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
-                "is_promo": True,
-                "category": "channel_subscription"
-            },
-            {
-                "content": "🔔 频道导航：@channellist\n💬 商务合作：@business\n📱 投稿爆料：@submit",
-                "is_promo": True,
-                "category": "multi_contact"
-            },
-            {
-                "content": "订阅我们的频道获取最新消息\n联系方式：@contact_us",
-                "is_promo": True,
-                "category": "simple_promo"
-            }
-        ]
-    
-    def _get_default_separators(self) -> List[str]:
-        """获取默认分隔符模式"""
-        return [
-            r'━{3,}',      # 横线分隔符（3个以上）
-            r'═{3,}',      # 双线分隔符
-            r'─{3,}',      # 细线分隔符
-            r'▬{3,}',      # 粗线分隔符
-            r'-{5,}',      # 短横线（5个以上）
-            r'={5,}',      # 等号线
-            r'\*{5,}',     # 星号线
-            r'\+{3,}',     # 加号线
-            r'<{3,}',      # 小于号
-            r'>{3,}',      # 大于号
-            r'🔜{2,}',     # emoji分隔符
-            r'[📢📣🔔]{2,}', # 通知类emoji
-        ]
+            self.separator_patterns = []
     
     async def pre_filter(self, content: str, context: FilterContext) -> bool:
         """预检查是否需要处理"""
-        if not content or len(content) < 50:  # 降低最小长度限制
+        if not content or len(content) < 50:
             return False
         
-        # 快速检查是否包含分隔符
-        has_separator = any(re.search(pattern, content) for pattern in self.separator_patterns[:5])
+        # 只检查是否包含分隔符
+        if not self.separator_patterns:
+            return False
         
-        # 快速检查是否包含推广关键词
-        has_promo_keywords = any(keyword in content for keyword in self.promo_keywords[:5])
-        
-        # 快速检查是否包含链接列表
-        has_link_list = any(re.search(pattern, content) for pattern in self.link_list_patterns)
-        
-        # 基于训练数据的快速相似度检查
-        has_training_similarity = self._quick_similarity_check(content)
-        
-        return has_separator or has_promo_keywords or has_link_list or has_training_similarity
+        return any(re.search(pattern, content) for pattern in self.separator_patterns)
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
         """过滤尾部推广链接"""
@@ -267,164 +162,6 @@ class FooterPromoFilter(BaseFilter):
         
         return result
     
-    
-    def _quick_similarity_check(self, content: str) -> bool:
-        """基于训练数据的快速相似度检查"""
-        if not self.training_samples:
-            return False
-        
-        # 简单的关键词重叠检查
-        content_lower = content.lower()
-        for sample in self.training_samples[:5]:  # 只检查前5个样本
-            if sample.get('is_promo', False):
-                sample_content = sample.get('content', '').lower()
-                
-                # 计算关键词重叠
-                sample_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]', sample_content))
-                content_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]', content_lower))
-                
-                if sample_keywords and content_keywords:
-                    overlap = len(sample_keywords & content_keywords) / len(sample_keywords | content_keywords)
-                    if overlap > 0.3:  # 30%重叠度
-                        return True
-        
-        return False
-    
-    def _analyze_semantic_content(self, content: str, separator_result: Dict[str, Any]) -> Dict[str, Any]:
-        """分析内容语义"""
-        result = {
-            'has_promo': False,
-            'matches': [],
-            'promo_section': None
-        }
-        
-        # 确定分析区域
-        if separator_result['found'] and separator_result['position'] >= 0:
-            # 分析分隔符后的内容
-            lines = content.split('\n')
-            start_pos = separator_result['position'] + 1
-            promo_section = '\n'.join(lines[start_pos:])
-        else:
-            # 分析最后1/3的内容
-            lines = content.split('\n')
-            start_pos = max(0, len(lines) * 2 // 3)
-            promo_section = '\n'.join(lines[start_pos:])
-        
-        if not promo_section.strip():
-            return result
-        
-        result['promo_section'] = promo_section
-        
-        # 检测推广模式
-        
-        # 1. 关键词匹配
-        keyword_matches = 0
-        for keyword in self.promo_keywords:
-            if keyword in promo_section:
-                keyword_matches += 1
-                result['matches'].append(f"关键词: {keyword}")
-        
-        # 2. 推广模式匹配
-        pattern_matches = 0
-        for pattern in self.promo_patterns:
-            if re.search(pattern, promo_section):
-                pattern_matches += 1
-                result['matches'].append(f"模式匹配: {pattern}")
-        
-        # 3. 链接列表检测
-        link_list_matches = 0
-        for pattern in self.link_list_patterns:
-            matches = re.findall(pattern, promo_section)
-            if matches:
-                link_list_matches += len(matches)
-                result['matches'].append(f"链接列表: {len(matches)}个")
-                self.stats['link_lists_detected'] += 1
-        
-        # 4. @用户名密度检测
-        at_mentions = re.findall(r'@\w+', promo_section)
-        if len(at_mentions) >= 2:
-            result['matches'].append(f"@用户名: {len(at_mentions)}个")
-        
-        # 5. 基于训练数据的相似度匹配
-        training_similarity = self._calculate_training_similarity(promo_section)
-        if training_similarity > 0.3:
-            result['matches'].append(f"训练数据匹配: {training_similarity:.2f}")
-        
-        # 简化判断：有任何匹配就认为是推广
-        result['has_promo'] = (keyword_matches > 0 or pattern_matches > 0 or 
-                              link_list_matches > 2 or len(at_mentions) >= 2 or
-                              training_similarity > 0.3)
-        
-        return result
-    
-    def _calculate_training_similarity(self, text: str) -> float:
-        """计算与训练数据的相似度"""
-        if not self.training_samples or not text.strip():
-            return 0.0
-        
-        text_lower = text.lower()
-        max_similarity = 0.0
-        
-        for sample in self.training_samples:
-            if not sample.get('is_promo', False):
-                continue
-            
-            sample_content = sample.get('content', '').lower()
-            if not sample_content:
-                continue
-            
-            # 计算多种相似度指标
-            similarities = []
-            
-            # 1. 关键词重叠度
-            text_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]|[联聯联][系係系]', text_lower))
-            sample_keywords = set(re.findall(r'[@＠]\w+|[订订閱阅订][阅閱]|[频频頻道道]|[投投][稿稿]|[商商務务][务務]|[联聯联][系係系]', sample_content))
-            
-            if text_keywords and sample_keywords:
-                keyword_similarity = len(text_keywords & sample_keywords) / len(text_keywords | sample_keywords)
-                similarities.append(keyword_similarity * 0.4)
-            
-            # 2. 字符n-gram相似度（简化版）
-            text_ngrams = self._get_character_ngrams(text_lower, 3)
-            sample_ngrams = self._get_character_ngrams(sample_content, 3)
-            
-            if text_ngrams and sample_ngrams:
-                ngram_similarity = len(text_ngrams & sample_ngrams) / len(text_ngrams | sample_ngrams)
-                similarities.append(ngram_similarity * 0.3)
-            
-            # 3. 结构相似度（行数、@符号数量等）
-            text_lines = len(text.strip().split('\n'))
-            sample_lines = len(sample_content.strip().split('\n'))
-            text_ats = len(re.findall(r'[@＠]', text))
-            sample_ats = len(re.findall(r'[@＠]', sample_content))
-            
-            structure_similarity = 0.0
-            if max(text_lines, sample_lines) > 0:
-                structure_similarity += 0.15 * (1 - abs(text_lines - sample_lines) / max(text_lines, sample_lines))
-            if max(text_ats, sample_ats) > 0:
-                structure_similarity += 0.15 * (1 - abs(text_ats - sample_ats) / max(text_ats, sample_ats))
-            
-            similarities.append(structure_similarity)
-            
-            # 计算总相似度
-            total_similarity = sum(similarities)
-            max_similarity = max(max_similarity, total_similarity)
-        
-        return min(max_similarity, 1.0)
-    
-    def _get_character_ngrams(self, text: str, n: int) -> set:
-        """获取字符n-gram集合"""
-        if len(text) < n:
-            return {text}
-        
-        ngrams = set()
-        for i in range(len(text) - n + 1):
-            ngram = text[i:i + n]
-            if not ngram.isspace():  # 跳过纯空白的n-gram
-                ngrams.add(ngram)
-        
-        return ngrams
-    
     def _filter_footer_content(self, content: str, separator_result: Dict[str, Any]) -> Tuple[str, List[str]]:
         """过滤推广内容"""
         modifications = []
@@ -453,41 +190,6 @@ class FooterPromoFilter(BaseFilter):
             logger.warning(f"分隔符文本在内容中未找到: '{separator_text}'")
             return content, modifications
     
-    def _find_promo_start_position(self, lines: List[str], semantic_result: Dict[str, Any]) -> int:
-        """找到推广内容开始位置"""
-        total_lines = len(lines)
-        
-        # 从后往前查找第一个包含推广内容的行
-        for i in range(total_lines - 1, -1, -1):
-            line = lines[i]
-            
-            # 检查是否包含推广关键词
-            has_promo_keyword = any(keyword in line for keyword in self.promo_keywords)
-            
-            # 检查是否包含@用户名
-            has_at_mention = bool(re.search(r'@\w+', line))
-            
-            # 检查是否包含链接
-            has_link = bool(re.search(r'\[([^\]]*)\]\(([^\)]+)\)', line))
-            
-            if has_promo_keyword or (has_at_mention and has_link):
-                # 找到推广内容的开始，尝试向前查找更多上下文
-                start_pos = i
-                
-                # 向前查找2-3行，看是否有相关内容
-                for j in range(max(0, i - 3), i):
-                    prev_line = lines[j].strip()
-                    if prev_line and (
-                        any(keyword in prev_line for keyword in self.promo_keywords[:3]) or
-                        bool(re.search(r'@\w+', prev_line))
-                    ):
-                        start_pos = j
-                        break
-                
-                return start_pos
-        
-        # 如果没找到明确的开始位置，从最后1/4开始
-        return max(0, total_lines * 3 // 4)
     
     def get_stats(self) -> Dict[str, Any]:
         """获取过滤器统计信息"""
@@ -497,7 +199,6 @@ class FooterPromoFilter(BaseFilter):
         # 计算效率指标
         if self.stats['total_processed'] > 0:
             base_stats['separator_detection_rate'] = self.stats['separator_detected'] / self.stats['total_processed']
-            base_stats['semantic_match_rate'] = self.stats['semantic_matches'] / self.stats['total_processed']
             base_stats['filter_rate'] = self.stats['footer_content_removed'] / self.stats['total_processed']
         
         return base_stats
@@ -508,18 +209,6 @@ class FooterPromoFilter(BaseFilter):
         self.stats = {
             'total_processed': 0,
             'separator_detected': 0,
-            'footer_content_removed': 0,
-            'link_lists_detected': 0,
-            'semantic_matches': 0
+            'footer_content_removed': 0
         }
     
-    def update_thresholds(self, separator_threshold: Optional[float] = None,
-                         semantic_threshold: Optional[float] = None) -> None:
-        """更新阈值"""
-        if separator_threshold is not None:
-            self.separator_threshold = max(0.0, min(1.0, separator_threshold))
-            logger.info(f"更新分隔符阈值: {self.separator_threshold}")
-        
-        if semantic_threshold is not None:
-            self.semantic_threshold = max(0.0, min(1.0, semantic_threshold))
-            logger.info(f"更新语义阈值: {self.semantic_threshold}")
