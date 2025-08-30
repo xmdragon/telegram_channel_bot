@@ -80,7 +80,7 @@ class MarkdownFilter(BaseFilter):
             pattern = (
                 r'[\U0001F300-\U0001F9FF\s]{2,}\s*\[([^\]]*(?:' + 
                 '|'.join(re.escape(kw) for kw in self.gambling_keywords) + 
-                ')[^\]]*)\]\([^\)]+\)'
+                r')[^\]]*)\]\([^\)]+\)'
             )
             self.emoji_ad_pattern = re.compile(pattern, re.IGNORECASE)
         else:
