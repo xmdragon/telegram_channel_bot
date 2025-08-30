@@ -117,12 +117,6 @@ class PromoContentFilter(BaseFilter):
         start_time = time.time()
         
         # 更新动态阈值
-        detection_threshold = threshold_manager.get_threshold(
-            self.filter_name, "detection"
-        )
-        semantic_threshold = threshold_manager.get_threshold(
-            self.filter_name, "semantic"
-        )
         
         if not content:
             return FilterResult(
@@ -141,12 +135,12 @@ class PromoContentFilter(BaseFilter):
             
             # 3. 语义分析
             semantic_result = self._analyze_promo_semantics(
-                content, embedded_result, separator_result, semantic_threshold
+                content, embedded_result, separator_result
             )
             
             # 4. 执行过滤
             filtered_content, modifications = self._filter_promo_content(
-                content, embedded_result, separator_result, semantic_result, detection_threshold
+                content, embedded_result, separator_result, semantic_result
             )
             
             # 计算处理时间
@@ -166,9 +160,6 @@ class PromoContentFilter(BaseFilter):
                 passed=True,  # 不阻止消息通过，只清理内容
                 processing_time_ms=processing_time,
                 reason=f"检测到推广内容并过滤" if len(filtered_content) < len(content) else None,
-                confidence=max(embedded_result['confidence'], 
-                             separator_result['confidence'], 
-                             semantic_result['confidence']),
                 details={
                     'embedded_patterns_detected': embedded_result['matches'],
                     'separator_boundaries': separator_result['boundaries'],
@@ -200,7 +191,6 @@ class PromoContentFilter(BaseFilter):
         """检测内嵌推广模式"""
         result = {
             'detected': False,
-            'confidence': 0.0,
             'matches': [],
             'positions': []
         }
@@ -212,16 +202,12 @@ class PromoContentFilter(BaseFilter):
                     result['matches'].append({
                         'pattern': pattern_info['pattern'],
                         'category': pattern_info.get('category', 'unknown'),
-                        'weight': pattern_info['weight'],
                         'text': match.group(),
                         'start': match.start(),
                         'end': match.end()
                     })
                     result['positions'].append((match.start(), match.end()))
                 
-                # 更新置信度
-                pattern_confidence = pattern_info['weight']
-                result['confidence'] = max(result['confidence'], pattern_confidence)
                 result['detected'] = True
         
         # 检查上下文模式
@@ -230,12 +216,9 @@ class PromoContentFilter(BaseFilter):
             after_score = sum(1 for kw in context.get('after_keywords', []) if kw in content.lower())
             
             if before_score > 0 and after_score > 0:
-                context_confidence = context['weight'] * min(before_score + after_score, 3) / 3
-                result['confidence'] = max(result['confidence'], context_confidence)
                 result['detected'] = True
                 result['matches'].append({
                     'type': 'context',
-                    'weight': context_confidence,
                     'before_matches': before_score,
                     'after_matches': after_score
                 })
@@ -246,7 +229,6 @@ class PromoContentFilter(BaseFilter):
         """检测分隔符边界"""
         result = {
             'found': False,
-            'confidence': 0.0,
             'boundaries': []
         }
         
@@ -264,12 +246,9 @@ class PromoContentFilter(BaseFilter):
                     result['boundaries'].append({
                         'line_index': i,
                         'pattern': pattern,
-                        'text': line_stripped,
-                        'confidence': 1.0,  # 简化：检测到就是100%置信度
-                        'position_ratio': i / max(total_lines - 1, 1)
+                        'text': line_stripped
                     })
                     
-                    result['confidence'] = 1.0
                     result['found'] = True
             
             # 检查配置中的分隔符字符串
@@ -278,108 +257,93 @@ class PromoContentFilter(BaseFilter):
                     result['boundaries'].append({
                         'line_index': i,
                         'separator': separator,
-                        'text': line_stripped,
-                        'confidence': 1.0,  # 简化：检测到就是100%置信度
-                        'position_ratio': i / max(total_lines - 1, 1)
+                        'text': line_stripped
                     })
                     
-                    result['confidence'] = 1.0
                     result['found'] = True
         
-        # 按置信度排序
-        result['boundaries'].sort(key=lambda x: x['confidence'], reverse=True)
+        # 不需要排序，找到第一个就用
         
         return result
     
     
-    def _analyze_promo_semantics(self, content: str, embedded_result: Dict, separator_result: Dict, semantic_threshold: float) -> Dict[str, Any]:
+    def _analyze_promo_semantics(self, content: str, embedded_result: Dict, separator_result: Dict) -> Dict[str, Any]:
         """语义分析推广内容"""
         result = {
             'has_promo': False,
-            'confidence': 0.0,
             'analysis': {}
         }
         
-        # 如果已经检测到明确的内嵌模式，直接返回高置信度
-        if embedded_result['detected'] and embedded_result['confidence'] > 0.8:
+        # 如果已经检测到明确的内嵌模式，直接返回
+        if embedded_result['detected']:
             result['has_promo'] = True
-            result['confidence'] = embedded_result['confidence']
             result['analysis']['basis'] = 'embedded_patterns'
             return result
         
         # 如果有分隔符，分析分隔符后的内容
         if separator_result['found'] and separator_result['boundaries']:
-            best_boundary = separator_result['boundaries'][0]
+            first_boundary = separator_result['boundaries'][0]
             lines = content.split('\n')
             
-            if best_boundary['line_index'] < len(lines) - 1:
-                post_separator_content = '\n'.join(lines[best_boundary['line_index'] + 1:])
+            if first_boundary['line_index'] < len(lines) - 1:
+                post_separator_content = '\n'.join(lines[first_boundary['line_index'] + 1:])
                 
-                # 分析分隔符后的内容
-                promo_score = self._analyze_text_promo_likelihood(post_separator_content)
+                # 分析分隔符后的内容是否包含推广元素
+                has_promo_elements = self._has_promo_elements(post_separator_content)
                 
-                if promo_score > semantic_threshold:
+                if has_promo_elements:
                     result['has_promo'] = True
-                    result['confidence'] = promo_score
                     result['analysis']['basis'] = 'post_separator_analysis'
-                    result['analysis']['separator_confidence'] = best_boundary['confidence']
-                    result['analysis']['content_score'] = promo_score
         
         return result
     
-    def _analyze_text_promo_likelihood(self, text: str) -> float:
-        """分析文本推广可能性"""
+    def _has_promo_elements(self, text: str) -> bool:
+        """检查文本是否包含推广元素"""
         if not text.strip():
-            return 0.0
+            return False
         
-        promo_indicators = [
-            (r'[@＠][a-zA-Z0-9_]+', 0.3),  # @用户名
-            (r'[订订閱阅订][阅閱][频频頻道道]', 0.4),  # 订阅频道
-            (r'[投投][稿稿]', 0.3),  # 投稿
-            (r'[商商務务][务務]', 0.3),  # 商务
-            (r'[联聯联][系係系]', 0.3),  # 联系
-            (r'[群群][组組]', 0.2),  # 群组
-            (r'[t][.][me]', 0.4),  # Telegram链接
-            (r'[频頻频][道道][:：]', 0.3),  # 频道:
-            (r'[爆爆][料料]', 0.3),  # 爆料
+        promo_patterns = [
+            r'[@＠][a-zA-Z0-9_]+',  # @用户名
+            r'[订订閱阅订][阅閱][频频頻道道]',  # 订阅频道
+            r'[投投][稿稿]',  # 投稿
+            r'[商商務务][务務]',  # 商务
+            r'[联聯联][系係系]',  # 联系
+            r'[群群][组組]',  # 群组
+            r'[t][.][me]',  # Telegram链接
+            r'[频頻频][道道][:：]',  # 频道:
+            r'[爆爆][料料]',  # 爆料
         ]
         
-        score = 0.0
-        matches = 0
-        
-        for pattern, weight in promo_indicators:
+        # 检查是否包含任何推广元素
+        for pattern in promo_patterns:
             if re.search(pattern, text, re.IGNORECASE):
-                score += weight
-                matches += 1
+                return True
         
-        # @用户名密度
+        # 检查多个@用户名（2个以上）
         at_mentions = len(re.findall(r'[@＠][a-zA-Z0-9_]+', text))
         if at_mentions >= 2:
-            score += min(at_mentions * 0.15, 0.4)
-        
-        # 链接密度
+            return True
+            
+        # 检查多个链接（2个以上）
         links = len(re.findall(r'https?://[^\s]+', text))
         if links >= 2:
-            score += min(links * 0.1, 0.3)
+            return True
         
-        # 归一化分数
-        return min(score, 1.0)
+        return False
     
     def _filter_promo_content(self, content: str, embedded_result: Dict, 
-                            separator_result: Dict, semantic_result: Dict, detection_threshold: float) -> Tuple[str, List[str]]:
+                            separator_result: Dict, semantic_result: Dict) -> Tuple[str, List[str]]:
         """过滤推广内容"""
         modifications = []
         filtered_content = content
         
         # 优先级1: 基于内嵌模式过滤
-        if embedded_result['detected'] and embedded_result['confidence'] > detection_threshold:
+        if embedded_result['detected']:
             filtered_content = self._filter_by_embedded_patterns(filtered_content, embedded_result)
             modifications.append(f"移除{len(embedded_result['matches'])}个内嵌推广模式")
         
         # 优先级2: 基于分隔符边界过滤
-        if (separator_result['found'] and 
-            separator_result['confidence'] > 0.6 and
-            semantic_result.get('has_promo', False)):
+        if separator_result['found'] and semantic_result.get('has_promo', False):
             
             best_boundary = separator_result['boundaries'][0]
             lines = filtered_content.split('\n')
