@@ -110,7 +110,7 @@ class LinusStatsMigrator:
                         analysis['filter_reasons'][filter_reason] += 1
                     
                     # 分析布尔标志
-                    for flag in ['is_ad', 'is_duplicate', 'is_chat']:
+                    for flag in ['is_ad', 'is_duplicate']:
                         if decoded_data.get(flag) == 'True':
                             analysis['boolean_flags'][flag] += 1
                     
@@ -128,7 +128,6 @@ class LinusStatsMigrator:
                             'source_channel': source_channel,
                             'is_ad': decoded_data.get('is_ad'),
                             'is_duplicate': decoded_data.get('is_duplicate'),
-                            'is_chat': decoded_data.get('is_chat')
                         })
                 
                 except Exception as e:

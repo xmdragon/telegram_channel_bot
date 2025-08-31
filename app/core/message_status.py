@@ -34,7 +34,6 @@ class RejectionReason(Enum):
     """
     AD = "ad"                # 广告内容
     DUPLICATE = "duplicate"   # 重复消息  
-    CHAT = "chat"            # 聊天消息（非频道内容）
     LOW_QUALITY = "low_quality"  # 低质量内容
     INAPPROPRIATE = "inappropriate"  # 不当内容
     OTHER = "other"          # 其他原因
@@ -71,8 +70,8 @@ class StatusMapper:
         'advertisement': RejectionReason.AD,
         'duplicate': RejectionReason.DUPLICATE,
         'dup': RejectionReason.DUPLICATE,
-        'chat': RejectionReason.CHAT,
-        'private_chat': RejectionReason.CHAT,
+        'chat': RejectionReason.OTHER,
+        'private_chat': RejectionReason.OTHER,
         'low_quality': RejectionReason.LOW_QUALITY,
         'short': RejectionReason.LOW_QUALITY,
         'inappropriate': RejectionReason.INAPPROPRIATE,
@@ -124,9 +123,6 @@ class StatusMapper:
         if message_data.get('is_duplicate', False):
             return RejectionReason.DUPLICATE
         
-        if message_data.get('is_chat', False):
-            return RejectionReason.CHAT
-        
         return RejectionReason.OTHER
 
 
@@ -154,7 +150,7 @@ def normalize_message_data(message_data: Dict[str, Any]) -> Dict[str, Any]:
             normalized['rejection_reason'] = rejection_reason.value
         
         # 清理遗留的布尔字段
-        legacy_flags = ['is_ad', 'is_duplicate', 'is_chat', 'is_spam']
+        legacy_flags = ['is_ad', 'is_duplicate', 'is_spam']
         for flag in legacy_flags:
             normalized.pop(flag, None)
     
@@ -198,7 +194,6 @@ def get_rejection_reason_display_name(reason: RejectionReason) -> str:
     display_names = {
         RejectionReason.AD: "广告内容",
         RejectionReason.DUPLICATE: "重复消息",
-        RejectionReason.CHAT: "聊天消息",
         RejectionReason.LOW_QUALITY: "低质量内容", 
         RejectionReason.INAPPROPRIATE: "不当内容",
         RejectionReason.OTHER: "其他原因"
