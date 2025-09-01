@@ -37,7 +37,7 @@ class HistoryCollector:
             # 获取历史消息采集配置
             history_limit = await self.config_manager.get_config("source.history_limit", 50)
             
-            if history_limit <= 0:
+            if int(history_limit) <= 0:
                 logger.info("历史消息采集已禁用")
                 return
             
@@ -97,20 +97,20 @@ class HistoryCollector:
             redis_channel_store = get_redis_channel_store()
             checkpoint_id = redis_channel_store.get_checkpoint(channel_id)
             
+            # 🔥 Linus式解决方案：在源头确保类型安全
+            min_id = int(checkpoint_id) if checkpoint_id else 0
+            batch_limit = int(limit)  # 确保limit也是int类型
+            
             if checkpoint_id:
                 # 继续增量采集
                 logger.info(f"从checkpoint {checkpoint_id} 继续增量采集")
-                min_id = checkpoint_id
-                batch_limit = limit  # 使用配置的限制，保持一致性
             else:
                 # 首次采集历史消息 - 使用传入的limit参数
                 logger.info(f"首次采集，获取最近 {limit} 条历史消息")
-                min_id = 0
-                batch_limit = limit
             
             # 采集历史消息 - 先收集到列表，然后按时间顺序处理
             collected_messages = []
-            latest_message_id = checkpoint_id or 0
+            latest_message_id = int(checkpoint_id or 0)
             
             logger.info(f"开始采集，min_id={min_id}, limit={batch_limit}")
             
@@ -174,7 +174,7 @@ class HistoryCollector:
                         logger.error(f"详细错误: {traceback.format_exc()}")
                         
                         # 如果有部分消息已收集，保存中间进度
-                        if collected_messages and latest_message_id > (checkpoint_id or 0):
+                        if collected_messages and latest_message_id > int(checkpoint_id or 0):
                             logger.info(f"保存中间进度: {len(collected_messages)} 条消息")
                             redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                         
@@ -190,7 +190,7 @@ class HistoryCollector:
                 logger.info(f"{collection_type} {channel_name} 没有新消息，已是最新")
                     
                 # 更新Redis采集点为最新值（如果有更新的消息ID）
-                if latest_message_id > (checkpoint_id or 0):
+                if latest_message_id > int(checkpoint_id or 0):
                     redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                     logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
                 return
@@ -272,7 +272,7 @@ class HistoryCollector:
                 logger.warning(f"⚠️ 保存率较低: {success_count}/{len(collected_messages)} ({(success_count/len(collected_messages)*100):.1f}%)，请检查过滤规则")
             
             # 更新Redis采集点
-            if latest_message_id > (checkpoint_id or 0):
+            if latest_message_id > int(checkpoint_id or 0):
                 redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                 logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
             
