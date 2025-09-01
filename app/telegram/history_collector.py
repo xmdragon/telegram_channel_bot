@@ -20,6 +20,7 @@ class HistoryCollector:
     def __init__(self):
         self.config_manager = ConfigManager()
         self._message_processor: Optional[Callable] = None
+        self.collection_tasks = {}  # channel_id -> task
         
     def set_message_processor(self, processor: Callable):
         """设置消息处理器回调"""
@@ -283,6 +284,25 @@ class HistoryCollector:
             import traceback
             logger.error(f"采集频道 {channel.get('channel_name', 'unknown')} 历史消息失败: {e}")
             logger.error(f"详细错误信息: {traceback.format_exc()}")
+            
+    async def stop_collection(self, channel_id: str) -> bool:
+        """停止特定频道的采集任务"""
+        try:
+            if channel_id in self.collection_tasks:
+                task = self.collection_tasks[channel_id]
+                if not task.done():
+                    task.cancel()
+                    logger.info(f"已停止频道 {channel_id} 的历史消息采集")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"停止历史消息采集失败: {e}")
+            return False
+            
+    async def stop_all_collections(self):
+        """停止所有采集任务"""
+        for channel_id in list(self.collection_tasks.keys()):
+            await self.stop_collection(channel_id)
 
 # 全局历史采集器实例
 history_collector = HistoryCollector()

@@ -219,8 +219,8 @@ class BotManager:
         await system_monitor.stop()
         
         # 停止历史采集
-        from app.services.history_collector import history_collector as old_history_collector
-        await old_history_collector.stop_all_collections()
+        from app.telegram.history_collector import history_collector
+        await history_collector.stop_all_collections()
         
         # 停止媒体处理器
         from app.services.media_handler import media_handler

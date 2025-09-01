@@ -21,9 +21,6 @@ class ROUTES:
         services = "/system/services"
         
         # 监控相关
-        history_progress = "/system/history-collection/progress"
-        history_start = "/system/history-collection/start/{channel_id}"
-        history_stop = "/system/history-collection/stop/{channel_id}"
         logs_realtime = "/system/logs/realtime"
         
         # 维护操作

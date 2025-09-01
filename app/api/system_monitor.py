@@ -1,88 +1,16 @@
 """
 系统监控API
-负责历史消息采集进度监控和实时状态跟踪
+负责实时日志和系统状态监控
 """
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 import logging
 from datetime import datetime, timedelta
-from app.services.history_collector import history_collector
 from app.storage.redis_store import get_redis_message_store
 from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system-monitor"])
-
-@router.get(ROUTES.system.history_progress)
-async def get_collection_progress() -> Dict[str, Any]:
-    """获取历史消息采集进度"""
-    try:
-        all_progress = await history_collector.get_all_progress()
-        
-        progress_data = {}
-        for channel_id, progress in all_progress.items():
-            progress_data[channel_id] = {
-                "channel_id": progress.channel_id,
-                "channel_name": progress.channel_name,
-                "total_messages": progress.total_messages,
-                "collected_messages": progress.collected_messages,
-                "status": progress.status,
-                "start_time": progress.start_time.isoformat(),
-                "end_time": progress.end_time.isoformat() if progress.end_time else None,
-                "error_message": progress.error_message,
-                "progress_percent": (
-                    int((progress.collected_messages / progress.total_messages) * 100) 
-                    if progress.total_messages > 0 else 0
-                )
-            }
-        
-        return {
-            "success": True,
-            "data": progress_data
-        }
-    except Exception as e:
-        logger.error(f"获取历史采集进度失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post(ROUTES.system.history_start)
-async def start_history_collection(channel_id: str, limit: int = 100) -> Dict[str, Any]:
-    """开始历史消息采集"""
-    try:
-        success = await history_collector.start_collection(channel_id, limit)
-        
-        if success:
-            return {
-                "success": True,
-                "message": f"已开始采集频道 {channel_id} 的历史消息"
-            }
-        else:
-            return {
-                "success": False,
-                "message": f"启动频道 {channel_id} 历史消息采集失败"
-            }
-    except Exception as e:
-        logger.error(f"启动历史消息采集失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post(ROUTES.system.history_stop)
-async def stop_history_collection(channel_id: str) -> Dict[str, Any]:
-    """停止历史消息采集"""
-    try:
-        success = await history_collector.stop_collection(channel_id)
-        
-        if success:
-            return {
-                "success": True,
-                "message": f"已停止频道 {channel_id} 的历史消息采集"
-            }
-        else:
-            return {
-                "success": False,
-                "message": f"频道 {channel_id} 没有正在进行的采集任务"
-            }
-    except Exception as e:
-        logger.error(f"停止历史消息采集失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get(ROUTES.system.logs_realtime)  
 async def get_realtime_logs(since: str = None) -> Dict[str, Any]:

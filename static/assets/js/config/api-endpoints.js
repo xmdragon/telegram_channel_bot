@@ -173,10 +173,6 @@ const API_ENDPOINTS = {
         logs: '/api/system/logs',                                  // GET - 系统日志
         logsRealtime: '/api/system/logs/realtime',                 // GET - 实时日志更新
         
-        // 历史消息采集监控
-        historyProgress: '/api/system/history-collection/progress', // GET - 历史消息采集进度
-        historyStart: (channelId) => `/api/system/history-collection/start/${channelId}`, // POST - 开始历史消息采集
-        historyStop: (channelId) => `/api/system/history-collection/stop/${channelId}`,   // POST - 停止历史消息采集
         
         // 系统维护操作
         restart: '/api/system/restart',                            // POST - 重启系统服务
