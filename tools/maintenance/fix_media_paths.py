@@ -19,7 +19,7 @@ from pathlib import Path
 # 添加项目路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import init_json_stores, get_json_channel_store
 from app.core.path_config import PathConfig
 
@@ -28,9 +28,9 @@ class MediaPathFixer:
     """媒体路径修复器"""
     
     def __init__(self):
-        init_redis_stores()
+        redis_manager.is_healthy()
         init_json_stores()
-        self.redis_store = get_redis_message_store()
+        self.redis_store = redis_manager
         self.temp_media_dir = PathConfig.TEMP_MEDIA_DIR
         
     async def check_missing_media_paths(self) -> List[Dict]:
@@ -52,7 +52,7 @@ class MediaPathFixer:
             print(f"\n📡 检查频道: {channel_title}")
             
             # 获取该频道的组合消息
-            messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
+            messages = self.redis_manager.get_messages_by_channel(channel_id, limit=500)
             
             for msg in messages:
                 if not msg.get('is_combined') or not msg.get('media_group'):
@@ -97,10 +97,10 @@ class MediaPathFixer:
             
             # 获取当前消息数据 - 处理redis_id为None的情况
             if redis_id is not None:
-                current_msg = self.redis_store.get_message(channel_id, redis_id, silent=True)
+                current_msg = self.redis_manager.get_message(channel_id, redis_id, silent=True)
             else:
                 # 如果redis_id为None，通过message_id查找
-                messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
+                messages = self.redis_manager.get_messages_by_channel(channel_id, limit=500)
                 current_msg = None
                 for msg in messages:
                     if msg.get('message_id') == message_id and msg.get('is_combined'):
@@ -179,7 +179,7 @@ class MediaPathFixer:
         """更新Redis中的消息"""
         try:
             # 使用Redis存储的保存方法 - 按message_id保存
-            success = self.redis_store.save_message(channel_id, message_id, updated_msg)
+            success = self.redis_manager.save_message(channel_id, message_id, updated_msg)
             return success
         except Exception as e:
             print(f"更新Redis消息失败: {e}")
@@ -231,7 +231,7 @@ class MediaPathFixer:
                 return False
         
         # 查找Redis中的消息
-        messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
+        messages = self.redis_manager.get_messages_by_channel(channel_id, limit=500)
         target_message = None
         
         for msg in messages:
@@ -266,7 +266,7 @@ class MediaPathFixer:
             if not channel_id:
                 continue
             
-            messages = self.redis_store.get_messages_by_channel(channel_id, limit=500)
+            messages = self.redis_manager.get_messages_by_channel(channel_id, limit=500)
             for msg in messages:
                 if msg.get('message_id') == message_id:
                     return channel_id

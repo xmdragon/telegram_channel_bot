@@ -9,7 +9,7 @@ from datetime import datetime
 from telethon import TelegramClient
 
 from app.services.config_manager import ConfigManager
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.unified_channel_service import unified_channel_service
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,44 @@ class HistoryCollector:
     def set_message_processor(self, processor: Callable):
         """设置消息处理器回调"""
         self._message_processor = processor
+    
+    def calculate_dynamic_timeout(self, message) -> float:
+        """根据媒体文件大小动态计算超时时间"""
+        base_timeout = 30.0    # 基础处理时间（文本处理、过滤、存储等）
+        buffer_time = 5.0      # 安全缓冲时间
+        
+        if not message or not message.media:
+            return base_timeout
+        
+        # 获取媒体文件大小
+        file_size = self.get_media_file_size(message)
+        if not file_size:
+            return base_timeout + 15  # 未知大小，增加15秒
+        
+        # 预估下载时间（假设平均下载速度 500KB/s）
+        download_time = file_size / (500 * 1024)  # 转换为秒
+        
+        # 最终超时 = 基础时间 + 下载时间 + 缓冲时间
+        total_timeout = base_timeout + download_time + buffer_time
+        
+        # 设置合理范围：30秒-600秒（10分钟）
+        return max(30.0, min(total_timeout, 600.0))
+    
+    def get_media_file_size(self, message) -> int:
+        """从消息中提取媒体文件大小（字节）"""
+        if not message or not message.media:
+            return 0
+            
+        # 文档类型（视频、音频等）
+        if hasattr(message.media, 'document') and message.media.document:
+            return message.media.document.size or 0
+        
+        # 图片类型（通常较小，估算）
+        elif message.photo:
+            # 图片大小通常在几百KB，预估500KB
+            return 500 * 1024
+        
+        return 0
     
     async def collect_channel_history(self, client: TelegramClient):
         """采集所有监听频道的历史消息"""
@@ -85,17 +123,17 @@ class HistoryCollector:
                 logger.error(f"获取频道 {channel_name} 实体失败: {e}")
                 return
             
+            # 🔥 Linus式简化：checkpoint是唯一真相源
+            from app.storage.channel_store import RedisChannelStore
+            from app.storage.redis_manager import redis_manager
+            
             # 获取Redis消息存储
-            message_store = get_redis_message_store()
-            if not message_store:
+            if not redis_manager:
                 logger.error(f"无法获取Redis消息存储，跳过频道 {channel_name}")
                 return
             
-            # 🔥 Linus式简化：checkpoint是唯一真相源
-            from app.storage.redis_store import get_redis_channel_store
-            from app.services.config_manager import config_manager
-            
-            redis_channel_store = get_redis_channel_store()
+            # 直接使用redis_manager作为频道存储
+            redis_channel_store = RedisChannelStore(redis_manager.client)
             checkpoint_id = redis_channel_store.get_checkpoint(channel_id)
             
             # 🔥 Linus式解决方案：在源头确保类型安全
@@ -220,19 +258,32 @@ class HistoryCollector:
             
             for idx, message in enumerate(collected_messages, 1):
                 try:
-                    # 调用消息处理器处理消息（添加超时保护）
+                    # 调用消息处理器处理消息（添加动态超时保护）
                     if self._message_processor:
                         try:
+                            # 根据媒体文件大小动态计算超时时间
+                            dynamic_timeout = self.calculate_dynamic_timeout(message)
+                            file_size = self.get_media_file_size(message)
+                            file_size_mb = file_size / (1024 * 1024) if file_size > 0 else 0
+                            
+                            logger.debug(f"消息#{message.id} 动态超时: {dynamic_timeout:.1f}秒 "
+                                       f"(文件大小: {file_size_mb:.1f}MB)")
+                            
                             result = await asyncio.wait_for(
                                 self._message_processor(message, entity),  # entity 就是 chat
-                                timeout=30.0  # 30秒超时保护
+                                timeout=dynamic_timeout  # 动态超时保护
                             )
                             if result and result in stats:
                                 stats[result] += 1
                             else:
                                 stats['unknown'] += 1
                         except asyncio.TimeoutError:
-                            logger.error(f"处理消息#{message.id if message else 'None'}超时（30秒），跳过该消息")
+                            file_size = self.get_media_file_size(message)
+                            file_size_mb = file_size / (1024 * 1024) if file_size > 0 else 0
+                            timeout_used = self.calculate_dynamic_timeout(message)
+                            
+                            logger.error(f"处理消息#{message.id if message else 'None'}超时"
+                                       f"（{timeout_used:.1f}秒，文件大小: {file_size_mb:.1f}MB），跳过该消息")
                             stats['error'] += 1
                             continue
                     else:

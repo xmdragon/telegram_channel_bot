@@ -26,7 +26,7 @@ from collections import defaultdict
 # 添加项目路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 from app.storage.linus_stats_store import get_linus_stats_store, init_linus_stats_store, MessageState, RejectionReason
 from app.core.message_status import StatusMapper, normalize_message_data
 import logging
@@ -39,9 +39,9 @@ class LinusStatsMigrator:
     """Linus式统计数据迁移器"""
     
     def __init__(self):
-        init_redis_stores()
+        redis_manager.is_healthy()
         init_linus_stats_store()
-        self.redis_store = get_redis_message_store()
+        self.redis_store = redis_manager
         self.linus_stats = get_linus_stats_store()
         
         # 迁移统计
@@ -70,7 +70,7 @@ class LinusStatsMigrator:
         try:
             # 获取所有消息键
             pattern = "msg:*"
-            keys = self.redis_store.redis.keys(pattern)
+            keys = self.redis_manager.client.keys(pattern)
             
             # 过滤出消息数据键（排除计数器和索引）
             message_keys = [k for k in keys if not any(x in (k.decode() if isinstance(k, bytes) else k) for x in ['count:', 'idx:', 'hash:', 'group:'])]
@@ -82,7 +82,7 @@ class LinusStatsMigrator:
             
             for i, key in enumerate(sample_keys):
                 try:
-                    msg_data = self.redis_store.redis.hgetall(key)
+                    msg_data = self.redis_manager.client.hgetall(key)
                     if not msg_data:
                         continue
                     
@@ -216,7 +216,7 @@ class LinusStatsMigrator:
         try:
             # 获取所有消息键
             pattern = "msg:*"
-            keys = self.redis_store.redis.keys(pattern)
+            keys = self.redis_manager.client.keys(pattern)
             message_keys = [k for k in keys if not any(x in (k.decode() if isinstance(k, bytes) else k) for x in ['count:', 'idx:', 'hash:', 'group:'])]
             
             print(f"📝 开始处理 {len(message_keys)} 个消息...")
@@ -227,7 +227,7 @@ class LinusStatsMigrator:
             for i, key in enumerate(message_keys):
                 try:
                     # 读取消息数据
-                    msg_data = self.redis_store.redis.hgetall(key)
+                    msg_data = self.redis_manager.client.hgetall(key)
                     if not msg_data:
                         continue
                     

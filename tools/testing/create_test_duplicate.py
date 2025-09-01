@@ -10,7 +10,7 @@ from datetime import datetime
 # 添加项目路径
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import RedisMessageStore
+from app.storage.redis_manager import redis_manager
 
 async def create_test_duplicate():
     """创建测试重复消息数据"""
@@ -18,7 +18,7 @@ async def create_test_duplicate():
     
     try:
         # 初始化Redis
-        redis_store = RedisMessageStore()
+        # redis_store = RedisMessageStore()  # 已替换为redis_manager
         
         # 测试数据
         test_channel = "test_channel_duplicate"
@@ -58,18 +58,18 @@ async def create_test_duplicate():
         
         # 3. 保存消息
         print(f"保存原始消息: {test_channel}:{original_msg_id}")
-        success1 = redis_store.save_message(test_channel, original_msg_id, original_msg)
+        success1 = redis_manager.save_message(test_channel, original_msg_id, original_msg)
         
         print(f"保存重复消息: {test_channel}:{duplicate_msg_id}")
-        success2 = redis_store.save_message(test_channel, duplicate_msg_id, duplicate_msg)
+        success2 = redis_manager.save_message(test_channel, duplicate_msg_id, duplicate_msg)
         
         if success1 and success2:
             print("✅ 测试消息创建成功！")
             
             # 4. 验证数据
             print("\n验证数据...")
-            orig_retrieved = redis_store.get_message(test_channel, original_msg_id)
-            dup_retrieved = redis_store.get_message(test_channel, duplicate_msg_id)
+            orig_retrieved = redis_manager.get_message(test_channel, original_msg_id)
+            dup_retrieved = redis_manager.get_message(test_channel, duplicate_msg_id)
             
             if orig_retrieved and dup_retrieved:
                 print("✅ 数据验证成功")
@@ -87,7 +87,7 @@ async def create_test_duplicate():
                 print(f"\n🧹 清理测试数据命令:")
                 print(f"   python3 -c \"")
                 print(f"import sys; sys.path.append('/Users/eric/workspace/telegram_channel_bot')") 
-                print(f"from app.storage.redis_store import RedisMessageStore")
+                print(f"from app.storage.redis_manager import redis_manager")
                 print(f"r = RedisMessageStore()")
                 print(f"r.delete_message('{test_channel}', {original_msg_id})")
                 print(f"r.delete_message('{test_channel}', {duplicate_msg_id})")

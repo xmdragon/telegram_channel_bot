@@ -9,7 +9,7 @@ from datetime import datetime
 from telethon.tl.types import Message as TLMessage
 
 from app.utils.timezone import format_for_api
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.message_processor import MessageProcessor
 from app.services.unified_filter_engine import filter_engine_compat
 from app.services.config_manager import config_manager

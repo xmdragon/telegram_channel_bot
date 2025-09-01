@@ -256,7 +256,7 @@ class TelegramLinkResolver:
             try:
                 from app.services.channel_cache import channel_cache
                 await channel_cache._ensure_redis()
-                await channel_cache.redis_store.redis.set('cache:review_group_id', str(resolved_id))
+                await channel_cache.redis_manager.client.set('cache:review_group_id', str(resolved_id))
                 logger.debug(f"已同步更新Redis缓存: {resolved_id}")
             except Exception as redis_error:
                 logger.warning(f"更新Redis缓存失败: {redis_error}")

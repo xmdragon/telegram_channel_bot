@@ -214,7 +214,7 @@ class TelegramMessageFetcher:
     async def compare_with_system(self, channel_username: str, message_id: int, fetched_messages: List[Dict]):
         """与系统中的消息对比"""
         try:
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             
             # 尝试查找系统中的消息
             # 需要先获取频道ID
@@ -239,7 +239,7 @@ class TelegramMessageFetcher:
             if len(fetched_messages) == 1:
                 # 单条消息
                 msg = fetched_messages[0]
-                system_msg = redis_store.get_message(channel_id, message_id, silent=True)
+                system_msg = redis_manager.get_message(channel_id, message_id, silent=True)
                 
                 if system_msg:
                     self._compare_single_message(msg, system_msg)
@@ -252,7 +252,7 @@ class TelegramMessageFetcher:
                 
                 # 查找系统中对应的组合消息
                 main_msg_id = fetched_messages[0]['id']
-                system_msg = redis_store.get_message(channel_id, main_msg_id, silent=True)
+                system_msg = redis_manager.get_message(channel_id, main_msg_id, silent=True)
                 
                 if system_msg:
                     if system_msg.get('is_combined'):

@@ -5,7 +5,7 @@
 import logging
 from typing import Dict, List, Optional
 import redis.asyncio as redis
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
@@ -14,13 +14,10 @@ class ChannelCache:
     """频道ID缓存管理器"""
     
     def __init__(self):
-        self.redis_store = None
         self.config_manager = config_manager
         
-    async def _ensure_redis(self):
-        """确保Redis连接"""
-        if self.redis_store is None:
-            self.redis_store = get_redis_message_store()
+    # Linus式简化：移除冗余的Redis连接管理
+    # 直接使用导入的redis_manager，保持代码简洁
     
     async def resolve_channel(self, channel_input: str) -> Optional[str]:
         """解析频道用户名为数字ID"""
@@ -87,7 +84,6 @@ class ChannelCache:
     async def init_cache(self):
         """应用启动时预加载所有频道ID到Redis缓存"""
         try:
-            await self._ensure_redis()
             logger.info("开始初始化频道ID缓存...")
             
             # 解析并缓存目标频道（优先使用已保存的ID）
@@ -102,7 +98,7 @@ class ChannelCache:
             if target_channel_id:
                 # Linus式：Redis不可用时优雅降级，不阻塞服务启动
                 try:
-                    self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
+                    redis_manager.client.set('cache:target_channel_id', target_channel_id)
                     logger.info(f"目标频道ID已缓存: {target_channel_id}")
                 except Exception as cache_error:
                     logger.warning(f"目标频道ID缓存失败（Redis不可用）: {cache_error}")
@@ -118,7 +114,7 @@ class ChannelCache:
             
             if review_group_id:
                 try:
-                    self.redis_store.redis.set('cache:review_group_id', review_group_id)
+                    redis_manager.client.set('cache:review_group_id', review_group_id)
                     logger.info(f"审核群ID已缓存: {review_group_id}")
                 except Exception as cache_error:
                     logger.warning(f"审核群ID缓存失败（Redis不可用）: {cache_error}")
@@ -140,7 +136,7 @@ class ChannelCache:
                 
                 if cache_data:
                     try:
-                        self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
+                        redis_manager.client.hset('cache:source_channels', mapping=cache_data)
                         logger.info(f"监听频道缓存已保存: {len(cache_data)}个频道")
                     except Exception as cache_error:
                         logger.warning(f"监听频道缓存失败（Redis不可用）: {cache_error}")
@@ -160,8 +156,7 @@ class ChannelCache:
                 return target_channel_id
             
             # 降级方案：尝试从缓存获取（同步调用）
-            await self._ensure_redis()
-            cached_id = self.redis_store.redis.get('cache:target_channel_id')
+            cached_id = redis_manager.client.get('cache:target_channel_id')
             if cached_id:
                 return cached_id.decode('utf-8') if isinstance(cached_id, bytes) else cached_id
             
@@ -181,8 +176,7 @@ class ChannelCache:
                 return review_group_id
             
             # 降级方案：尝试从缓存获取（同步调用）
-            await self._ensure_redis()
-            cached_id = self.redis_store.redis.get('cache:review_group_id')
+            cached_id = redis_manager.client.get('cache:review_group_id')
             if cached_id:
                 return cached_id.decode('utf-8') if isinstance(cached_id, bytes) else cached_id
             
@@ -195,8 +189,7 @@ class ChannelCache:
     async def get_source_channel_id(self, channel_name: str) -> Optional[str]:
         """获取指定监听频道的ID（从Redis缓存）"""
         try:
-            await self._ensure_redis()
-            cached_id = await self.redis_store.redis.hget('cache:source_channels', channel_name)
+            cached_id = await redis_manager.client.hget('cache:source_channels', channel_name)
             return cached_id.decode('utf-8') if cached_id else None
         except Exception as e:
             logger.error(f"获取监听频道ID缓存失败 {channel_name}: {e}")
@@ -208,8 +201,7 @@ class ChannelCache:
             # 优先使用已保存的ID
             target_channel_id = await self.config_manager.get_config('target.channel_id', '')
             if target_channel_id:
-                await self._ensure_redis()
-                self.redis_store.redis.set('cache:target_channel_id', target_channel_id)
+                redis_manager.client.set('cache:target_channel_id', target_channel_id)
                 logger.info(f"目标频道缓存已刷新（使用保存ID）: {target_channel_id}")
                 return target_channel_id
             
@@ -218,8 +210,7 @@ class ChannelCache:
             if target_channel:
                 resolved_id = await self.resolve_channel(target_channel)
                 if resolved_id:
-                    await self._ensure_redis()
-                    self.redis_store.redis.set('cache:target_channel_id', resolved_id)
+                    redis_manager.client.set('cache:target_channel_id', resolved_id)
                     logger.info(f"目标频道缓存已刷新: {target_channel} -> {resolved_id}")
                     return resolved_id
             return None
@@ -233,8 +224,7 @@ class ChannelCache:
             # 优先使用已保存的ID
             review_group_id = await self.config_manager.get_config('review.group_id', '')
             if review_group_id:
-                await self._ensure_redis()
-                self.redis_store.redis.set('cache:review_group_id', review_group_id)
+                redis_manager.client.set('cache:review_group_id', review_group_id)
                 logger.info(f"审核群缓存已刷新（使用保存ID）: {review_group_id}")
                 return review_group_id
             
@@ -243,8 +233,7 @@ class ChannelCache:
             if review_group:
                 resolved_id = await self.resolve_group(review_group)
                 if resolved_id:
-                    await self._ensure_redis()
-                    self.redis_store.redis.set('cache:review_group_id', resolved_id)
+                    redis_manager.client.set('cache:review_group_id', resolved_id)
                     logger.info(f"审核群缓存已刷新: {review_group} -> {resolved_id}")
                     return resolved_id
             return None
@@ -261,8 +250,7 @@ class ChannelCache:
             
             if source_channels:
                 # 清除旧缓存
-                await self._ensure_redis()
-                self.redis_store.redis.delete('cache:source_channels')
+                redis_manager.client.delete('cache:source_channels')
                 
                 # 重新缓存
                 cache_data = {}
@@ -275,7 +263,7 @@ class ChannelCache:
                             logger.info(f"监听频道缓存已刷新: {channel_name} -> {resolved_id}")
                 
                 if cache_data:
-                    self.redis_store.redis.hset('cache:source_channels', mapping=cache_data)
+                    redis_manager.client.hset('cache:source_channels', mapping=cache_data)
                 
                 logger.info("所有监听频道缓存已刷新")
                 return True
@@ -287,8 +275,7 @@ class ChannelCache:
     async def clear_all_cache(self):
         """清除所有频道ID缓存"""
         try:
-            await self._ensure_redis()
-            self.redis_store.redis.delete(
+            redis_manager.client.delete(
                 'cache:target_channel_id',
                 'cache:review_group_id', 
                 'cache:source_channels'

@@ -136,15 +136,24 @@ fi
 # 创建必要的目录
 mkdir -p logs data temp_media
 
-# Linus式Redis启动：无等待，让服务自己处理依赖
-echo "🐳 检查Redis服务..."
-if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
-    echo "📦 启动Redis（后台，零等待）..."
-    docker compose up -d redis
+# 启动并等待Docker服务就绪（修复启动时序问题）
+echo "🐳 启动Docker基础设施服务..."
+if [ -f "tools/docker/wait_for_services_simple.sh" ]; then
+    echo "📋 使用智能等待机制确保服务就绪"
+    if ! bash tools/docker/wait_for_services_simple.sh; then
+        echo "❌ Docker服务启动失败"
+        exit 1
+    fi
 else
-    echo "✅ Redis已在运行中"
+    # 后备方案：传统启动方式
+    echo "⚠️  等待脚本未找到，使用传统启动方式"
+    if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
+        echo "📦 启动Redis和Nginx..."
+        docker compose up -d
+    else
+        echo "✅ Docker服务已在运行中"
+    fi
 fi
-echo "💡 Redis连接会在服务启动时自动重试"
 
 
 # 如果使用传统模式

@@ -86,7 +86,7 @@ async def main():
         redis_store = RedisMessageStore()
         
         # 获取所有消息
-        all_messages = redis_store.get_all_messages(limit=1000)
+        all_messages = redis_manager.get_all_messages(limit=1000)
         logger.info(f"找到 {len(all_messages)} 条消息")
         
         fixed_count = 0
@@ -103,7 +103,7 @@ async def main():
                     # 更新消息数据
                     channel_id = message['source_channel']
                     msg_id = message['message_id']
-                    success = await redis_store.update_message(channel_id, msg_id, {
+                    success = await redis_manager.update_message(channel_id, msg_id, {
                         'removed_hidden_links': message['removed_hidden_links']
                     })
                     

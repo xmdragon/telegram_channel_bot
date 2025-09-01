@@ -3,14 +3,28 @@
 处理频道采集点、状态追踪和统计
 """
 import logging
+import json
 from typing import Dict, Optional, List, Any
 from app.utils.timezone import get_current_time
-from .redis_client import RedisBaseStore
 
 logger = logging.getLogger(__name__)
 
-class RedisChannelStore(RedisBaseStore):
+class RedisChannelStore:
     """频道状态管理"""
+    
+    def __init__(self, redis_client):
+        """初始化频道存储"""
+        self.redis = redis_client
+    
+    def _serialize_json(self, data: Any) -> str:
+        """序列化JSON数据"""
+        return json.dumps(data, ensure_ascii=False)
+    
+    def _deserialize_json(self, data: str) -> Any:
+        """反序列化JSON数据"""
+        if isinstance(data, bytes):
+            data = data.decode('utf-8')
+        return json.loads(data)
     
     def set_checkpoint(self, channel_id: str, last_message_id: int) -> bool:
         """设置频道采集点 - 强制int类型"""

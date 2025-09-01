@@ -157,8 +157,8 @@ class BotManager:
                         
                         # 使用发送Session转发消息
                         from app.telegram.message_forwarder import message_forwarder
-                        from app.storage.redis_store import get_redis_message_store
-                        redis_store = get_redis_message_store()
+                        from app.storage.redis_manager import redis_manager
+                        redis_store = redis_manager
                         
                         for message in messages:
                             try:
@@ -172,7 +172,7 @@ class BotManager:
                                 msg_id = f"{channel_id}:{message_id}"
                                 
                                 # 获取完整的消息对象
-                                full_message = redis_store.get_message(channel_id, message_id, silent=True)
+                                full_message = redis_manager.get_message(channel_id, message_id, silent=True)
                                 if not full_message:
                                     logger.error(f"无法获取消息详情: {msg_id}")
                                     continue
@@ -181,7 +181,7 @@ class BotManager:
                                 await message_forwarder.forward_to_target_with_sender_session(full_message)
                                 
                                 # 只有在没有抛出异常的情况下才更新状态为已发布
-                                redis_store.update_message_status(msg_id, "approved", "auto_forward")
+                                redis_manager.update_message_status(msg_id, "approved", "auto_forward")
                                 
                                 logger.info(f"自动转发成功: {msg_id}")
                                 

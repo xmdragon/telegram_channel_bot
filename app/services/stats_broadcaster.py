@@ -132,20 +132,21 @@ class StatsBroadcaster:
     async def _get_current_stats(self) -> Optional[Dict]:
         """获取当前统计数据"""
         try:
-            from app.storage.redis_store import redis_message_store
+            from app.storage.redis_manager import redis_manager
             from datetime import datetime
             
             # 真正的统计数据获取
-            if redis_message_store is None:
+            if redis_manager is None:
                 logger.warning("Redis消息存储未初始化")
                 return None
             
             # 按Linus原则：直接获取所需的统计数据
+            system_stats = redis_manager.get_statistics()
             stats = {
-                "total_messages": redis_message_store.get_message_count(),
-                "pending_count": redis_message_store.get_message_count(status='pending'),
-                "approved_count": redis_message_store.get_message_count(status='approved'),
-                "rejected_count": redis_message_store.get_message_count(status='rejected'),
+                "total_messages": system_stats.get("total_messages", 0),
+                "pending_count": system_stats.get("pending_messages", 0),
+                "approved_count": system_stats.get("approved_messages", 0),
+                "rejected_count": system_stats.get("rejected_messages", 0),
                 "timestamp": datetime.utcnow().isoformat()
             }
             

@@ -108,27 +108,14 @@ async def lifespan(app: FastAPI):
         logger.info("📦 初始化存储层...")
         storage_start = time.time()
         
-        # 初始化Redis存储层（使用连接池，带重试机制）
-        from app.storage.redis_store import init_redis_stores
-        import time
+        # Redis管理器自动初始化 - Linus式简洁
+        from app.storage.redis_manager import redis_manager
         
-        redis_retries = 5
-        redis_delay = 1
-        redis_success = False
-        
-        for attempt in range(redis_retries):
-            if init_redis_stores():
-                redis_success = True
-                break
-            else:
-                if attempt < redis_retries - 1:
-                    logger.warning(f"Redis初始化失败，{redis_delay}s后重试 ({attempt + 1}/{redis_retries})")
-                    time.sleep(redis_delay)
-                    redis_delay *= 1.5  # 指数退避
-        
-        if not redis_success:
-            await health_monitor.set_unhealthy("Redis存储层初始化失败")
-            raise RuntimeError("Redis初始化失败")
+        # 检查Redis连接（触发lazy初始化）
+        if not redis_manager.is_healthy():
+            await health_monitor.set_unhealthy("Redis连接不可用")
+            raise RuntimeError("Redis连接失败")
+        logger.info("✅ Redis管理器已就绪")
         
         # 初始化JSON存储层（带重试机制）
         from app.storage.json_store import init_json_stores, is_json_stores_initialized

@@ -162,8 +162,16 @@ class SemanticExtractor:
             return True
             
         except Exception as e:
-            logger.error(f"使用默认模型失败: {e}")
-            return False
+            logger.error(f"使用默认模型失败: {e}", exc_info=True)
+            # 即使异常也要设置基础属性，确保系统可用
+            try:
+                self.default_features = ['微信', 'QQ', '群', '联系', '客服']  # 最基础的特征
+                self.initialized = True
+                logger.error(f"异常恢复成功，设置了{len(self.default_features)}个基础特征")
+                return True
+            except Exception as e2:
+                logger.error(f"异常恢复也失败: {e2}", exc_info=True)
+                return False
     
     def extract_vector(self, text: str) -> Optional[List[float]]:
         """

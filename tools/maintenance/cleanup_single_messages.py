@@ -36,9 +36,9 @@ class SingleMessageCleaner:
     
     def __init__(self):
         # 初始化Redis存储
-        from app.storage.redis_store import init_redis_stores, get_redis_message_store
-        init_redis_stores()
-        self.redis_store = get_redis_message_store()
+        from app.storage.redis_manager import redis_manager
+        redis_manager.is_healthy()
+        self.redis_store = redis_manager
         self.stats = {
             'total_messages': 0,
             'combined_messages': 0,
@@ -54,7 +54,7 @@ class SingleMessageCleaner:
         
         try:
             # 获取所有消息
-            all_messages = self.redis_store.get_all_messages(limit=10000)
+            all_messages = self.redis_manager.get_all_messages(limit=10000)
             self.stats['total_messages'] = len(all_messages)
             
             # 按grouped_id分组分析
@@ -173,7 +173,7 @@ class SingleMessageCleaner:
             }
             
             # 获取所有消息并分组
-            all_messages = self.redis_store.get_all_messages(limit=10000)
+            all_messages = self.redis_manager.get_all_messages(limit=10000)
             grouped_data = defaultdict(list)
             
             for msg in all_messages:
@@ -219,7 +219,7 @@ class SingleMessageCleaner:
                     logger.info(f"[试运行] 将删除消息: {msg_id}")
                     stats['deleted_count'] += 1
                 else:
-                    success = self.redis_store.delete_message(msg_id)
+                    success = self.redis_manager.delete_message(msg_id)
                     if success:
                         stats['deleted_count'] += 1
                         stats['channels_affected'].add(channel)

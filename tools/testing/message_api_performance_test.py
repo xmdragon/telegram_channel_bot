@@ -25,7 +25,7 @@ import os
 # 添加项目根目录到路径
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 from app.core.config import settings
 
 class MessageAPIPerformanceTest:
@@ -51,12 +51,12 @@ class MessageAPIPerformanceTest:
         """初始化Redis连接和测试环境"""
         print("🔧 正在初始化Redis连接...")
         
-        success = init_redis_stores()
+        success = redis_manager.is_healthy()
         if not success:
             print("❌ Redis连接初始化失败")
             return False
         
-        self.redis_store = get_redis_message_store()
+        self.redis_store = redis_manager
         
         # 验证连接
         try:
@@ -72,9 +72,9 @@ class MessageAPIPerformanceTest:
     def _test_redis_connection(self):
         """测试Redis连接"""
         test_key = "perf_test:connection"
-        self.redis_store.redis.set(test_key, "ok", ex=5)
-        result = self.redis_store.redis.get(test_key)
-        self.redis_store.redis.delete(test_key)
+        self.redis_manager.client.set(test_key, "ok", ex=5)
+        result = self.redis_manager.client.get(test_key)
+        self.redis_manager.client.delete(test_key)
         if result != b'ok':
             raise Exception("Redis读写测试失败")
     
@@ -88,7 +88,7 @@ class MessageAPIPerformanceTest:
             for status in statuses:
                 count = await asyncio.get_event_loop().run_in_executor(
                     None, 
-                    lambda s=status: self.redis_store.redis.zcard(f"msg:idx:{s}")
+                    lambda s=status: self.redis_manager.client.zcard(f"msg:idx:{s}")
                 )
                 self.test_data_stats["statuses"][status] = count
                 print(f"  📋 {status}: {count} 条消息")
@@ -96,7 +96,7 @@ class MessageAPIPerformanceTest:
             # 统计重复消息数量
             duplicate_count = await asyncio.get_event_loop().run_in_executor(
                 None, 
-                lambda: self.redis_store.redis.zcard("msg:idx:duplicates")
+                lambda: self.redis_manager.client.zcard("msg:idx:duplicates")
             )
             self.test_data_stats["duplicate_messages"] = duplicate_count
             print(f"  🔄 重复消息: {duplicate_count} 条")
@@ -105,7 +105,7 @@ class MessageAPIPerformanceTest:
             channel_pattern = "msg:idx:*"
             keys = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.redis.keys(channel_pattern)
+                lambda: self.redis_manager.client.keys(channel_pattern)
             )
             
             channels = set()
@@ -158,7 +158,7 @@ class MessageAPIPerformanceTest:
             batch_end = min(batch_start + batch_size, count)
             batch_count = batch_end - batch_start
             
-            pipe = self.redis_store.redis.pipeline()
+            pipe = self.redis_manager.client.pipeline()
             
             for i in range(batch_count):
                 msg_id = generated + i + 1000000  # 使用大ID避免冲突
@@ -219,7 +219,7 @@ class MessageAPIPerformanceTest:
                 # 执行查询
                 messages = await asyncio.get_event_loop().run_in_executor(
                     None, 
-                    lambda: self.redis_store.get_all_messages(limit=page_size, offset=0)
+                    lambda: self.redis_manager.get_all_messages(limit=page_size, offset=0)
                 )
                 
                 end_time = time.perf_counter()
@@ -252,7 +252,7 @@ class MessageAPIPerformanceTest:
             # 执行查询
             messages = await asyncio.get_event_loop().run_in_executor(
                 None, 
-                lambda: self.redis_store.get_duplicate_messages(limit=50, offset=0)
+                lambda: self.redis_manager.get_duplicate_messages(limit=50, offset=0)
             )
             
             end_time = time.perf_counter()
@@ -295,7 +295,7 @@ class MessageAPIPerformanceTest:
                 # 执行查询
                 messages = await asyncio.get_event_loop().run_in_executor(
                     None, 
-                    lambda s=status: self.redis_store.get_messages_by_status(s, limit=50, offset=0)
+                    lambda s=status: self.redis_manager.get_messages_by_status(s, limit=50, offset=0)
                 )
                 
                 end_time = time.perf_counter()
@@ -340,7 +340,7 @@ class MessageAPIPerformanceTest:
                 # 执行查询
                 messages = await asyncio.get_event_loop().run_in_executor(
                     None, 
-                    lambda: self.redis_store.get_all_messages(limit=page_size, offset=offset)
+                    lambda: self.redis_manager.get_all_messages(limit=page_size, offset=offset)
                 )
                 
                 end_time = time.perf_counter()
@@ -376,7 +376,7 @@ class MessageAPIPerformanceTest:
             start_time = time.perf_counter()
             messages = await asyncio.get_event_loop().run_in_executor(
                 None, 
-                lambda: self.redis_store.get_all_messages(limit=20, offset=0)
+                lambda: self.redis_manager.get_all_messages(limit=20, offset=0)
             )
             end_time = time.perf_counter()
             return end_time - start_time, len(messages)

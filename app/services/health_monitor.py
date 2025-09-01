@@ -103,9 +103,9 @@ class HealthMonitor:
     async def update_status(self):
         """更新服务状态到Redis"""
         try:
-            from app.storage.redis_store import get_async_redis_client
+            from app.storage.redis_manager import redis_manager
             
-            redis = await get_async_redis_client()
+            redis = redis_manager.client
             if not redis:
                 return
             
@@ -148,9 +148,9 @@ class HealthCheckService:
     async def get_all_service_health() -> Dict[str, ServiceHealth]:
         """获取所有服务的健康状态"""
         try:
-            from app.storage.redis_store import get_async_redis_client
+            from app.storage.redis_manager import redis_manager
             
-            redis = await get_async_redis_client()
+            redis = redis_manager.client
             if not redis:
                 return {}
             

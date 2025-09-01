@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import init_redis_stores, get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.media_handler import MediaHandler
 
 # 直接使用Redis URL，避免复杂的配置依赖
@@ -30,10 +30,10 @@ async def find_missing_media():
     
     # 初始化Redis存储
     init_redis_stores(REDIS_URL)
-    redis_store = get_redis_message_store()
+    redis_store = redis_manager
     
     # 获取所有有媒体的消息
-    all_messages = redis_store.get_all_messages(limit=5000)
+    all_messages = redis_manager.get_all_messages(limit=5000)
     
     for msg in all_messages:
         has_missing = False
@@ -95,13 +95,13 @@ async def refetch_media(message, media_handler):
             if media_url:
                 # 更新Redis存储
                 init_redis_stores(settings.redis_url)
-                redis_store = get_redis_message_store()
+                redis_store = redis_manager
                 
                 # 获取完整消息数据并更新
-                full_msg = redis_store.get_message(str(channel_id), int(message_id))
+                full_msg = redis_manager.get_message(str(channel_id), int(message_id))
                 if full_msg:
                     full_msg['media_url'] = media_url
-                    redis_store.save_message(str(channel_id), int(message_id), full_msg)
+                    redis_manager.save_message(str(channel_id), int(message_id), full_msg)
                     logger.info(f"成功补抓消息 {channel_id}:{message_id} 的媒体: {media_url}")
                 return True
             else:

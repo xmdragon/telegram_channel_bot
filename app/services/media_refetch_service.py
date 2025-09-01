@@ -72,9 +72,9 @@ class MediaRefetchService:
     def get_redis(self):
         """获取Redis客户端"""
         if not self.redis:
-            from app.storage.redis_store import get_redis_message_store
-            redis_store = get_redis_message_store()
-            self.redis = redis_store.redis if redis_store else None
+            from app.storage.redis_manager import redis_manager
+            redis_store = redis_manager
+            self.redis = redis_manager.client if redis_store else None
         return self.redis
     
     def submit_task(self, message_id: str) -> str:

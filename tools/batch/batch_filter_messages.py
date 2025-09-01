@@ -11,7 +11,7 @@ from datetime import datetime
 # 添加项目路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.storage.redis_store import init_redis_stores, get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.tail_filter_engine import TailFilterEngine
 
 # 直接使用Redis URL，避免复杂的配置依赖
@@ -24,14 +24,14 @@ async def batch_filter_messages():
     
     # 初始化Redis存储
     init_redis_stores(REDIS_URL)
-    redis_store = get_redis_message_store()
+    redis_store = redis_manager
     
     # 初始化过滤引擎
     filter_engine = TailFilterEngine()
     
     try:
         # 获取所有未审核的消息
-        messages = redis_store.get_messages_by_status('pending', limit=1000)
+        messages = redis_manager.get_messages_by_status('pending', limit=1000)
         
         if not messages:
             print("📭 没有找到未审核的消息")
@@ -64,10 +64,10 @@ async def batch_filter_messages():
                 )
                 
                 # 更新Redis中的过滤后内容
-                full_msg = redis_store.get_message(channel_id, message_id)
+                full_msg = redis_manager.get_message(channel_id, message_id)
                 if full_msg:
                     full_msg['filtered_content'] = filtered_content
-                    redis_store.save_message(channel_id, message_id, full_msg)
+                    redis_manager.save_message(channel_id, message_id, full_msg)
                 
                 processed_count += 1
                 
@@ -102,11 +102,11 @@ async def show_filter_statistics():
     
     # 初始化Redis存储
     init_redis_stores(REDIS_URL)
-    redis_store = get_redis_message_store()
+    redis_store = redis_manager
     
     try:
         # 获取所有消息
-        messages = redis_store.get_all_messages(limit=5000)
+        messages = redis_manager.get_all_messages(limit=5000)
         
         if not messages:
             print("📭 没有找到过滤数据")

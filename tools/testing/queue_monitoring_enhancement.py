@@ -66,7 +66,7 @@ class QueueMonitoringEnhancer:
         from app.storage.redis_store import init_redis_stores
         from app.storage.json_store import init_json_stores
         
-        if not init_redis_stores():
+        if not redis_manager.is_healthy():
             raise RuntimeError("Redis存储层初始化失败")
         if not init_json_stores():
             raise RuntimeError("JSON存储层初始化失败")

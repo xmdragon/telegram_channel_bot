@@ -42,6 +42,13 @@ services:
     command: redis-server --appendonly yes --appendfsync everysec
     networks:
       - telegram_network
+    # 🔍 Redis健康检查
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
   telegram_network:

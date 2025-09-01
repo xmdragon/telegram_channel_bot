@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import init_redis_stores, get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import init_json_stores
 
 async def fix_missing_media_placeholders():
@@ -16,17 +16,17 @@ async def fix_missing_media_placeholders():
         print("🔍 修复缺少媒体占位符的消息...")
         
         # 初始化存储层
-        init_redis_stores()
+        redis_manager.is_healthy()
         init_json_stores()
         
-        redis_store = get_redis_message_store()
+        redis_store = redis_manager
         if not redis_store:
             print("❌ 无法获取Redis存储")
             return False
         
         # 获取所有消息键
         pattern = "msg:*"
-        keys = redis_store.redis.keys(pattern)
+        keys = redis_manager.client.keys(pattern)
         
         fixed_count = 0
         checked_count = 0
@@ -43,7 +43,7 @@ async def fix_missing_media_placeholders():
                 
             try:
                 # 获取消息数据
-                msg_data = redis_store.redis.hgetall(key)
+                msg_data = redis_manager.client.hgetall(key)
                 if not msg_data:
                     continue
                 
@@ -93,7 +93,7 @@ async def fix_missing_media_placeholders():
                             }
                             
                             for field, value in updates.items():
-                                redis_store.redis.hset(key, field, value)
+                                redis_manager.client.hset(key, field, value)
                             
                             print(f"✅ 修复消息 {channel_id}:{message_id} - 添加占位符: {suggested_media_type}")
                             fixed_count += 1

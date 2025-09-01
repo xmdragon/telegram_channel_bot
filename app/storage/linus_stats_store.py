@@ -12,7 +12,7 @@ import logging
 from typing import Dict, Optional, Any
 from enum import Enum
 from dataclasses import dataclass
-from .redis_client import RedisBaseStore
+from .redis_manager import redis_manager
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class MessageStats:
 
 
 
-class LinusStatsStore(RedisBaseStore):
+class LinusStatsStore:
     """
     Linus式统计存储
     
@@ -60,7 +60,7 @@ class LinusStatsStore(RedisBaseStore):
     REJECTION_STATS_KEY = "stats:rejection"
     
     def __init__(self, redis_url: str = None):
-        super().__init__(redis_url)
+        self.redis = redis_manager.client
         self._init_global_stats()
     
     def _init_global_stats(self):

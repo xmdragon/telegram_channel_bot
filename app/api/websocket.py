@@ -141,7 +141,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
         elif msg_type == "request_stats":
             # 请求统计数据 - 使用真正的统计功能
             try:
-                from app.storage.redis_store import redis_message_store
+                from app.storage.redis_manager import redis_manager
                 
                 if redis_message_store is None:
                     raise RuntimeError("Redis消息存储未初始化")

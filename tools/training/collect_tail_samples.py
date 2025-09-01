@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import init_redis_stores, get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.core.path_config import PathConfig
 
 async def collect_tail_samples():
@@ -23,7 +23,7 @@ async def collect_tail_samples():
             print("❌ Redis连接失败")
             return 0
         
-        store = get_redis_message_store()
+        store = redis_manager
         
         # 获取所有消息（限制数量避免内存过载）
         print("🔍 正在获取所有消息...")

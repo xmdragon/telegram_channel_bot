@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 import jieba
 
 from .base import BaseFilter, FilterContext, FilterResult
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 
 # 导入视觉相似度检测器
 try:
@@ -84,8 +84,7 @@ class DuplicateDetectorFilter(BaseFilter):
     def __init__(self, config: Optional[Dict[str, any]] = None):
         super().__init__("duplicate_detector", config)
         
-        # Redis存储实例（延迟初始化）
-        self.redis_store = None
+        # Redis管理器已经处理所有连接管理
         
         # 性能优化缓存
         self._channel_cache = None
@@ -117,15 +116,14 @@ class DuplicateDetectorFilter(BaseFilter):
         # 编译正则表达式
         self.tag_patterns = [re.compile(pattern) for pattern in self.common_tags]
     
+    # Redis连接管理已由RedisManager统一处理，无需复杂的连接检查
+    
     async def pre_filter(self, content: str, context: FilterContext) -> bool:
         """预检查是否需要进行重复检测"""
-        # 延迟初始化Redis存储
-        if self.redis_store is None:
-            try:
-                self.redis_store = get_redis_message_store()
-            except RuntimeError:
-                logger.debug("Redis存储未初始化，跳过重复检测")
-                return False
+        # 确保Redis连接可用
+        if not self._ensure_redis_connection():
+            # Redis不可用，跳过重复检测（优雅降级）
+            return False
         
         # 如果没有内容也没有媒体信息，跳过检测
         if not content and not context.get_metadata('media_hash') and not context.get_metadata('visual_hashes'):
@@ -341,6 +339,11 @@ class DuplicateDetectorFilter(BaseFilter):
         """检查媒体重复（跨频道，使用Redis）"""
         if not media_hash and not combined_media_hash:
             return False, None
+        
+        # Redis管理器自动处理连接
+        if not redis_manager.is_healthy():
+            logger.debug("Redis不可用，跳过媒体重复检测")
+            return False, None
             
         try:
             # 确保时间没有时区信息
@@ -353,15 +356,22 @@ class DuplicateDetectorFilter(BaseFilter):
             # 检查媒体哈希重复
             duplicate_keys = []
             
-            # 检查单个媒体哈希
+            # 检查单个媒体哈希  
             if media_hash:
-                duplicates = self.redis_store.find_duplicate_by_hash(media_hash)
-                duplicate_keys.extend(duplicates)
+                # 使用Redis SET来查找哈希重复
+                try:
+                    duplicates = redis_manager.client.smembers(f"msg:hash:media:{media_hash}")
+                    duplicate_keys.extend(duplicates)
+                except Exception as e:
+                    logger.debug(f"查找媒体哈希重复失败: {e}")
             
             # 检查组合媒体哈希
             if combined_media_hash:
-                duplicates = self.redis_store.find_duplicate_by_hash(combined_media_hash)
-                duplicate_keys.extend(duplicates)
+                try:
+                    duplicates = redis_manager.client.smembers(f"msg:hash:combined:{combined_media_hash}")
+                    duplicate_keys.extend(duplicates)
+                except Exception as e:
+                    logger.debug(f"查找组合哈希重复失败: {e}")
             
             # 检查重复消息是否在时间窗口内且不是被拒绝的
             for dup_key in duplicate_keys:
@@ -381,6 +391,8 @@ class DuplicateDetectorFilter(BaseFilter):
                                      time_threshold: datetime, media_hash: Optional[str], 
                                      combined_media_hash: Optional[str]) -> Tuple[bool, Optional[int]]:
         """检查单个媒体重复 - 消除嵌套的辅助方法"""
+        # Redis管理器自动处理连接
+            
         try:
             if ':' not in dup_key:
                 return False, None
@@ -400,8 +412,8 @@ class DuplicateDetectorFilter(BaseFilter):
             if message_id is not None and dup_message_id == message_id:
                 return False, None
             
-            # 获取重复消息的详细信息（静默模式，避免产生不必要的警告）
-            dup_msg_data = self.redis_store.get_message(channel_id, dup_message_id, silent=True)
+            # 获取重复消息的详细信息
+            dup_msg_data = redis_manager.get_message(channel_id, dup_message_id)
             if not dup_msg_data:
                 # 消息不存在，从哈希索引中清理这个无效引用
                 self._cleanup_invalid_hash_reference(dup_key, media_hash, combined_media_hash)
@@ -427,12 +439,15 @@ class DuplicateDetectorFilter(BaseFilter):
                                        combined_media_hash: Optional[str]):
         """清理无效哈希索引引用 - 分离清理逻辑"""
         logger.debug(f"清理无效哈希索引引用: {dup_key}")
-        pipe = self.redis_store.redis.pipeline()
-        if media_hash:
-            pipe.srem(f"msg:hash:media:{media_hash}", dup_key)
-        if combined_media_hash:
-            pipe.srem(f"msg:hash:media:{combined_media_hash}", dup_key)
-        pipe.execute()
+        try:
+            pipeline = redis_manager.client.pipeline()
+            if media_hash:
+                pipeline.srem(f"msg:hash:media:{media_hash}", dup_key)
+            if combined_media_hash:
+                pipeline.srem(f"msg:hash:combined:{combined_media_hash}", dup_key)
+            pipeline.execute()
+        except Exception as e:
+            logger.debug(f"清理哈希索引引用失败: {e}")
     
     async def _check_text_duplicate(self, content: str, source_channel: Optional[str],
                                    message_time: datetime,
@@ -596,9 +611,11 @@ class DuplicateDetectorFilter(BaseFilter):
     def _get_channel_visual_messages(self, channel_id: str, time_threshold: datetime, 
                                     exclude_message_id: Optional[int]) -> List[Dict]:
         """获取单个频道的视觉哈希消息 - 消除嵌套的辅助方法"""
+        # Redis管理器自动处理连接
+            
         try:
             # 获取该频道最近的消息（优化性能：减少查询量）
-            channel_messages = self.redis_store.get_messages_by_channel(channel_id, limit=100)
+            channel_messages = redis_manager.get_messages_by_channel(channel_id, limit=100)
             messages = []
             
             for msg_data in channel_messages:
@@ -724,8 +741,14 @@ class DuplicateDetectorFilter(BaseFilter):
         """获取单个频道的文本消息 - 消除嵌套的辅助方法"""
         messages = []
         
-        # 获取最近15条消息（进一步优化性能）
-        recent_msg_ids = self.redis_store.redis.zrevrange(channel_key, 0, 14)
+        # Redis管理器自动处理连接
+            
+        try:
+            # 获取最近15条消息（进一步优化性能）
+            recent_msg_ids = redis_manager.client.zrevrange(channel_key, 0, 14)
+        except Exception as e:
+            logger.debug(f"获取频道消息ID失败: {e}")
+            return messages
         
         for msg_id in recent_msg_ids:
             try:
@@ -756,8 +779,10 @@ class DuplicateDetectorFilter(BaseFilter):
                                          time_start: datetime, time_end: datetime,
                                          exclude_message_id: Optional[int]) -> Optional[Dict]:
         """获取并验证单个文本消息 - 简化验证逻辑"""
+        # Redis管理器自动处理连接
+            
         try:
-            msg_data = self.redis_store.get_message(channel_id, msg_id, silent=True)
+            msg_data = redis_manager.get_message(channel_id, msg_id)
             if not msg_data:
                 return None
             

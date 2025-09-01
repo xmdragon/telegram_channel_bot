@@ -126,7 +126,7 @@ class VisualDuplicateDetector:
                     
                     # 获取消息状态（仅获取状态字段，避免完整数据读取）
                     msg_key = f"msg:{channel_id}:{message_id}"
-                    status = self.redis_store.redis.hget(msg_key, 'status')
+                    status = self.redis_store.client.hget(msg_key, 'status')
                     
                     if status and status.decode() == 'rejected':
                         continue
@@ -169,7 +169,7 @@ class VisualDuplicateDetector:
             max_process = 500  # 限制处理数量
             
             while True:
-                cursor, keys = self.redis_store.redis.scan(cursor, match="msg:*", count=50)
+                cursor, keys = self.redis_store.client.scan(cursor, match="msg:*", count=50)
                 
                 for key in keys:
                     if processed_count >= max_process:
@@ -177,7 +177,7 @@ class VisualDuplicateDetector:
                     
                     try:
                         # 获取消息数据
-                        message_data = self.redis_store.redis.hgetall(key)
+                        message_data = self.redis_store.client.hgetall(key)
                         if not message_data:
                             continue
                         

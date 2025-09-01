@@ -12,7 +12,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 from app.services.unified_filter_engine import filter_engine_compat
 
 
@@ -23,8 +23,8 @@ async def check_message_filtering(message_id: str):
     
     # 初始化存储
     try:
-        init_redis_stores()
-        redis_store = get_redis_message_store()
+        redis_manager.is_healthy()
+        redis_store = redis_manager
         
         # 分离频道ID和消息ID
         if ':' not in message_id:
@@ -34,7 +34,7 @@ async def check_message_filtering(message_id: str):
         channel_id, msg_id = message_id.split(':', 1)
         
         # 获取消息
-        message = redis_store.get_message(channel_id, msg_id)
+        message = redis_manager.get_message(channel_id, msg_id)
         if not message:
             print(f"❌ 消息 {message_id} 不存在")
             return

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 import logging
 from datetime import datetime, timedelta
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.core.routes import ROUTES
 
 logger = logging.getLogger(__name__)
@@ -37,11 +37,11 @@ async def get_realtime_logs(since: str = None) -> Dict[str, Any]:
             
             # 检查是否有新的日志记录
             # 这里我们模拟一些系统活动日志
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             
             # 检查Redis连接状态
             try:
-                redis_store.redis.ping()
+                redis_manager.client.ping()
                 logs.append({
                     "timestamp": current_time.strftime('%Y-%m-%d %H:%M:%S'),
                     "level": "INFO",
@@ -57,7 +57,7 @@ async def get_realtime_logs(since: str = None) -> Dict[str, Any]:
                 })
             
             # 检查最近的消息处理活动
-            recent_keys = redis_store.redis.keys("msg:*")
+            recent_keys = redis_manager.client.keys("msg:*")
             if recent_keys:
                 recent_count = len(recent_keys)
                 logs.append({
@@ -72,7 +72,7 @@ async def get_realtime_logs(since: str = None) -> Dict[str, Any]:
                     latest_processed = 0
                     for key in recent_keys[:10]:  # 检查最近10条
                         try:
-                            msg_data = redis_store.redis.hgetall(key)
+                            msg_data = redis_manager.client.hgetall(key)
                             created_at_str = msg_data.get(b'created_at', b'').decode('utf-8')
                             if created_at_str:
                                 created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))

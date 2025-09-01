@@ -1,9 +1,9 @@
 """
-广告向量检测器 - Linus式简洁设计
-基于语义向量的真正广告检测方案（区别于推广检测）
+推广内容向量检测器 - Linus式简洁设计
+基于语义向量的推广内容检测方案
 
 Author: Claude
-Created: 2025-09-01
+Created: 2025-08-31
 """
 
 import logging
@@ -18,18 +18,18 @@ from app.services.semantic_extractor import get_semantic_extractor
 logger = logging.getLogger(__name__)
 
 
-class VectorAdDetector(BaseFilter):
-    """广告向量检测器 - 专门检测违法广告内容"""
+class PromoVectorDetector(BaseFilter):
+    """推广内容向量检测器 - 消除特殊情况的统一设计"""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("vector_ad_detector", config)
+        super().__init__("promo_vector_detector", config)
         
         # 核心组件
         self.vector_manager = vector_manager
         self.semantic_extractor = get_semantic_extractor()
         
         # 配置参数
-        self.similarity_threshold = self.config.get('similarity_threshold', 0.8)  # 广告检测阈值更高
+        self.similarity_threshold = self.config.get('similarity_threshold', 0.7)
         self.enable_self_learning = self.config.get('enable_self_learning', True)
         self.auto_reject_ads = self.config.get('auto_reject_ads', True)
         
@@ -46,7 +46,7 @@ class VectorAdDetector(BaseFilter):
             'avg_similarity': 0.0
         }
         
-        logger.info(f"广告向量检测器初始化 - 阈值: {self.similarity_threshold}, 自学习: {self.enable_self_learning}")
+        logger.info(f"向量广告检测器初始化 - 阈值: {self.similarity_threshold}, 自学习: {self.enable_self_learning}")
     
     def _init_fallback_engine(self):
         """懒加载降级引擎"""
@@ -55,12 +55,12 @@ class VectorAdDetector(BaseFilter):
                 # 懒加载，避免循环导入
                 from app.services.unified_filter_engine import UnifiedFilterEngine
                 self.fallback_engine = UnifiedFilterEngine()
-                logger.debug("广告检测降级引擎初始化完成")
+                logger.debug("降级引擎初始化完成")
             except Exception as e:
-                logger.error(f"广告检测降级引擎初始化失败: {e}")
+                logger.error(f"降级引擎初始化失败: {e}")
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
-        """广告向量检测主方法"""
+        """向量化广告检测主方法"""
         start_time = time.time()
         
         # 初始化结果
@@ -152,7 +152,7 @@ class VectorAdDetector(BaseFilter):
             })
             
         except Exception as e:
-            logger.error(f"广告向量检测异常: {e}", exc_info=True)
+            logger.error(f"向量广告检测异常: {e}", exc_info=True)
             # 异常时默认通过
             result.reason = f"检测异常: {str(e)}"
             result.details['error'] = str(e)
@@ -263,12 +263,12 @@ class VectorAdDetector(BaseFilter):
                 
                 if success:
                     self.detection_stats['self_learning_count'] += 1
-                    logger.info(f"广告自学习成功: {learn_type} - {content[:50]}...")
+                    logger.info(f"自学习成功: {learn_type} - {content[:50]}...")
                 else:
-                    logger.debug(f"广告自学习跳过（重复向量）: {content[:50]}...")
+                    logger.debug(f"自学习跳过（重复向量）: {content[:50]}...")
             
         except Exception as e:
-            logger.error(f"广告自学习失败: {e}")
+            logger.error(f"自学习失败: {e}")
     
     def _update_avg_similarity(self, similarity: float):
         """更新平均相似度统计"""
@@ -298,7 +298,7 @@ class VectorAdDetector(BaseFilter):
             return True
             
         except Exception as e:
-            logger.error(f"手动学习广告失败: {e}")
+            logger.error(f"手动学习失败: {e}")
             return False
     
     def get_detection_stats(self) -> Dict[str, Any]:
@@ -322,12 +322,12 @@ class VectorAdDetector(BaseFilter):
         return self.vector_manager.cleanup_duplicates()
 
 
-# 全局广告向量检测器实例
-_vector_ad_detector = None
+# 全局推广内容向量检测器实例
+_promo_vector_detector = None
 
-def get_vector_ad_detector() -> VectorAdDetector:
-    """获取广告向量检测器实例（单例）"""
-    global _vector_ad_detector
-    if _vector_ad_detector is None:
-        _vector_ad_detector = VectorAdDetector()
-    return _vector_ad_detector
+def get_promo_vector_detector() -> PromoVectorDetector:
+    """获取推广内容向量检测器实例（单例）"""
+    global _promo_vector_detector
+    if _promo_vector_detector is None:
+        _promo_vector_detector = PromoVectorDetector()
+    return _promo_vector_detector

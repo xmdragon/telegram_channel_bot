@@ -8,7 +8,7 @@ from typing import Optional, Union, Dict, Any
 from datetime import datetime
 from telethon import TelegramClient
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.services.telegram_link_resolver import link_resolver
 # 新架构：使用统一过滤引擎的兼容层
@@ -156,7 +156,7 @@ class MessageForwarder:
             # 更新Redis记录
             if sent_message:
                 try:
-                    message_store = get_redis_message_store()
+                    message_store = redis_manager
                     if not message_store:
                         logger.error("无法获取Redis消息存储")
                         return
@@ -247,8 +247,8 @@ class MessageForwarder:
                 # 如果是字典类型，更新Redis中的记录
                 if isinstance(message.data if hasattr(message, 'data') else message, dict):
                     try:
-                        from app.storage.redis_store import get_redis_message_store
-                        redis_store = get_redis_message_store()
+                        from app.storage.redis_manager import redis_manager
+                        redis_store = redis_manager
                         if redis_store:
                             channel_id = message.get('source_channel')
                             message_id = message.get('message_id')
@@ -257,10 +257,10 @@ class MessageForwarder:
                             # 🚀 Linus修复：只更新主消息，子消息已删除无需更新
                             if channel_id and message_id:
                                 # 单个消息更新
-                                redis_store.update_message_field(
+                                redis_manager.update_message_field(
                                     channel_id, int(message_id), 'target_message_id', str(target_msg_id)
                                 )
-                                redis_store.update_message_field(
+                                redis_manager.update_message_field(
                                     channel_id, int(message_id), 'forwarded_time', datetime.now().isoformat()
                                 )
                                 logger.info(f"已更新Redis记录: {channel_id}:{message_id} -> 目标消息ID: {target_msg_id}")
@@ -342,7 +342,7 @@ class MessageForwarder:
                 # 3. 更新Redis中的review_message_id和filtered_content
                 if sent_message:
                     try:
-                        message_store = get_redis_message_store()
+                        message_store = redis_manager
                         if not message_store:
                             logger.error("无法获取Redis消息存储")
                             return

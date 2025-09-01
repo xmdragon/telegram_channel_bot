@@ -11,7 +11,7 @@ import asyncio
 import subprocess
 from pathlib import Path
 from app.core.path_config import PathConfig
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.services.system_monitor import system_monitor
 from app.core.routes import ROUTES
@@ -110,22 +110,22 @@ async def reset_system() -> Dict[str, Any]:
         
         # 步骤3：连接存储层 (25%)
         await websocket_manager.broadcast_progress(operation, 25, "连接存储层...")
-        redis_store = get_redis_message_store()
+        redis_store = redis_manager
         channel_store = get_json_channel_store()
         
         # 步骤4：清空Redis消息数据 (45%)
         await websocket_manager.broadcast_progress(operation, 45, "清空Redis消息数据...")
-        if redis_store and redis_store.redis:
+        if redis_store and redis_manager.client:
             # 删除所有消息键
             try:
-                message_keys = redis_store.redis.keys("msg:*")
+                message_keys = redis_manager.client.keys("msg:*")
                 if message_keys:
                     # 分批删除，避免阻塞
                     batch_size = 1000
                     deleted_total = 0
                     for i in range(0, len(message_keys), batch_size):
                         batch = message_keys[i:i + batch_size]
-                        deleted_count = redis_store.redis.delete(*batch)
+                        deleted_count = redis_manager.client.delete(*batch)
                         deleted_total += deleted_count
                         progress = 45 + (10 * (i + len(batch)) / len(message_keys))
                         await websocket_manager.broadcast_progress(
@@ -156,9 +156,9 @@ async def reset_system() -> Dict[str, Any]:
             
             # 删除其他消息相关的键
             try:
-                pending_keys = redis_store.redis.keys("pending_messages")
+                pending_keys = redis_manager.client.keys("pending_messages")
                 if pending_keys:
-                    deleted_count = redis_store.redis.delete(*pending_keys)
+                    deleted_count = redis_manager.client.delete(*pending_keys)
                     cleanup_status["redis_pending"] = {
                         "success": True, 
                         "error": None, 
@@ -181,9 +181,9 @@ async def reset_system() -> Dict[str, Any]:
             
             # 清空WebSocket连接信息
             try:
-                ws_keys = redis_store.redis.keys("websocket:*")
+                ws_keys = redis_manager.client.keys("websocket:*")
                 if ws_keys:
-                    deleted_count = redis_store.redis.delete(*ws_keys)
+                    deleted_count = redis_manager.client.delete(*ws_keys)
                     cleanup_status["redis_websocket"] = {
                         "success": True, 
                         "error": None, 
@@ -209,13 +209,13 @@ async def reset_system() -> Dict[str, Any]:
             max_retries = 3
             for retry in range(max_retries):
                 try:
-                    checkpoint_keys = redis_store.redis.keys("channel:checkpoint*")
+                    checkpoint_keys = redis_manager.client.keys("channel:checkpoint*")
                     if checkpoint_keys:
                         logger.info(f"🔄 第 {retry + 1} 次尝试清理 {len(checkpoint_keys)} 个checkpoint键")
-                        deleted_count = redis_store.redis.delete(*checkpoint_keys)
+                        deleted_count = redis_manager.client.delete(*checkpoint_keys)
                         
                         # 验证清理结果
-                        remaining_keys = redis_store.redis.keys("channel:checkpoint*")
+                        remaining_keys = redis_manager.client.keys("channel:checkpoint*")
                         if remaining_keys:
                             logger.warning(f"⚠️ 第 {retry + 1} 次清理后仍有 {len(remaining_keys)} 个checkpoint键未清理")
                             if retry < max_retries - 1:

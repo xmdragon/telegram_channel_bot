@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from app.telegram.dual_session_manager import dual_session_manager
 from app.core.config import db_settings
 from app.services.channel_manager import ChannelManager
-from app.storage.redis_store import get_redis_message_store, get_redis_store
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 
 logger = logging.getLogger(__name__)
@@ -277,9 +277,8 @@ class SystemMonitor:
     async def _check_last_message(self) -> Optional[datetime]:
         """检查最近消息时间"""
         try:
-            redis_store = get_redis_message_store()
-            # 获取最近的消息
-            recent_messages = redis_store.get_all_messages(limit=1)
+            # 获取最近的消息（从pending消息中获取最新一条）
+            recent_messages = redis_manager.get_pending_messages(limit=1)
             if recent_messages:
                 last_message_time = recent_messages[0].get('created_at')
                 if last_message_time:
@@ -297,14 +296,15 @@ class SystemMonitor:
             if (self._cache_time is None or 
                 (now - self._cache_time).seconds > 60):  # 1分钟缓存
                 
-                redis_store = get_redis_message_store()
+                redis_store = redis_manager
                 
                 # 获取各状态消息统计
+                system_stats = redis_manager.get_statistics()
                 stats = {
-                    'total_messages': redis_store.get_message_count(),
-                    'pending_messages': redis_store.get_message_count(status='pending'),
-                    'approved_messages': redis_store.get_message_count(status='approved'),
-                    'rejected_messages': redis_store.get_message_count(status='rejected'),
+                    'total_messages': system_stats.get('total_messages', 0),
+                    'pending_messages': system_stats.get('pending_messages', 0),
+                    'approved_messages': system_stats.get('approved_messages', 0),
+                    'rejected_messages': system_stats.get('rejected_messages', 0),
                     'timestamp': now.isoformat()
                 }
                 

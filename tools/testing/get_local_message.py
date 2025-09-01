@@ -19,7 +19,7 @@ from datetime import datetime
 # 添加项目路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 from app.utils.timezone import format_for_api
 
 
@@ -27,7 +27,7 @@ class LocalMessageViewer:
     """本地消息查看器"""
     
     def __init__(self):
-        self.redis_store = get_redis_message_store()
+        self.redis_store = redis_manager
         
     def parse_message_id(self, message_id: str) -> tuple:
         """解析消息ID
@@ -44,7 +44,7 @@ class LocalMessageViewer:
     
     def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:
         """获取消息"""
-        return self.redis_store.get_message(channel_id, message_id, silent=True)
+        return self.redis_manager.get_message(channel_id, message_id, silent=True)
     
     def display_message(self, msg: Dict[str, Any], show_raw: bool = False, show_media: bool = False):
         """显示消息信息"""
@@ -227,7 +227,7 @@ class LocalMessageViewer:
             for cm in msg['combined_messages']:
                 sub_msg_id = cm.get('message_id')
                 if sub_msg_id:
-                    sub_msg = self.redis_store.get_message(channel_id, int(sub_msg_id), silent=True)
+                    sub_msg = self.redis_manager.get_message(channel_id, int(sub_msg_id), silent=True)
                     if sub_msg:
                         print(f"  ✅ 消息 #{sub_msg_id} 存在 (已合并)")
                     else:
@@ -243,7 +243,7 @@ class LocalMessageViewer:
         print(f"\n邻近消息:")
         for offset in [-2, -1, 1, 2]:
             nearby_id = message_id + offset
-            nearby_msg = self.redis_store.get_message(channel_id, nearby_id, silent=True)
+            nearby_msg = self.redis_manager.get_message(channel_id, nearby_id, silent=True)
             if nearby_msg:
                 marker = "📦" if nearby_msg.get('is_combined') else "📄"
                 status = nearby_msg.get('status', 'unknown')
@@ -260,7 +260,7 @@ def main():
     args = parser.parse_args()
     
     # 初始化Redis连接
-    init_redis_stores()
+    redis_manager.is_healthy()
     
     viewer = LocalMessageViewer()
     

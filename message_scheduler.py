@@ -101,12 +101,12 @@ class MessageSchedulerService:
             # 基础系统初始化
             logger.info("初始化存储层和认证服务...")
             
-            # 初始化Redis存储层
-            from app.storage.redis_store import init_redis_stores
-            if not init_redis_stores():
-                await self.health_monitor.set_unhealthy("Redis存储层初始化失败")
-                raise RuntimeError("初始化失败")
-            logger.info("Redis连接已初始化")
+            # Redis管理器自动处理连接管理 - Linus式简洁
+            from app.storage.redis_manager import redis_manager
+            if not redis_manager.is_healthy():
+                await self.health_monitor.set_unhealthy("Redis连接不可用")
+                raise RuntimeError("Redis连接失败")
+            logger.info("Redis管理器已就绪")
             
             # 初始化JSON存储层
             from app.storage.json_store import init_json_stores

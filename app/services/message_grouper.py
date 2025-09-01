@@ -6,7 +6,7 @@ import asyncio
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from app.utils.timezone import get_current_time
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 
 logger = logging.getLogger(__name__)
 
@@ -445,7 +445,7 @@ class MessageGrouper:
                     
                     # 只在前5次失败时记录详细错误，避免日志泛滥
                     if failure_count < 5:
-                        from app.storage.redis_store import redis_message_store
+                        from app.storage.redis_manager import redis_manager
                         if redis_message_store is None:
                             failure_reason = "Redis存储未初始化"
                         else:
@@ -482,7 +482,7 @@ class MessageGrouper:
         """安全保存组合消息到Redis - 处理重复保存情况"""
         try:
             from app.services.message_processor import MessageProcessor
-            from app.storage.redis_store import redis_message_store
+            from app.storage.redis_manager import redis_manager
             
             # 🔧 Linus式优化：先检查是否已存在，避免重复检测器误报
             message_id = processed_data['message_id']
@@ -815,11 +815,11 @@ class MessageGrouper:
     async def _get_existing_combined_message(self, channel_id: str, grouped_id: str) -> Optional[Dict]:
         """检查是否已存在组合消息"""
         try:
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             
             # 改进：使用组合消息的索引来查找，而不是遍历所有消息
             # 查询指定频道最近的消息（限制数量）
-            messages = redis_store.get_messages_by_channel(channel_id, limit=100)
+            messages = redis_manager.get_messages_by_channel(channel_id, limit=100)
             
             # 查找已存在的组合消息
             for message in messages:
@@ -837,17 +837,17 @@ class MessageGrouper:
     async def _get_existing_single_message(self, channel_id: str, message_id: int) -> Optional[Dict]:
         """检查是否已存在单独消息"""
         try:
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             
             # 直接尝试获取消息，避免遍历（静默模式，避免产生不必要的警告）
             # 首先尝试根据message_id直接查找
-            existing_message = redis_store.get_message(channel_id, message_id, silent=True)
+            existing_message = redis_manager.get_message(channel_id, message_id, silent=True)
             if existing_message and existing_message.get('telegram_message_id') == message_id:
                 logger.debug(f"找到现有单独消息: message_id={message_id}")
                 return existing_message
             
             # 如果直接查找失败，再查询最近的消息（限制数量）
-            messages = redis_store.get_messages_by_channel(channel_id, limit=100)
+            messages = redis_manager.get_messages_by_channel(channel_id, limit=100)
             
             # 查找已存在的单独消息
             for message in messages:
@@ -867,13 +867,13 @@ class MessageGrouper:
             if not combined_message.get('combined_messages'):
                 return
             
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             
             # 获取所有相关的单独消息ID
             message_ids = [msg['message_id'] for msg in combined_message['combined_messages']]
             
             # 查询指定频道的所有消息
-            messages = redis_store.get_messages_by_channel(channel_id)
+            messages = redis_manager.get_messages_by_channel(channel_id)
             
             # 查找需要删除的单独消息
             messages_to_delete = []
@@ -887,7 +887,7 @@ class MessageGrouper:
             for msg in messages_to_delete:
                 msg_id = msg.get('message_id')
                 if msg_id:
-                    success = redis_store.delete_message(channel_id, msg_id)
+                    success = redis_manager.delete_message(channel_id, msg_id)
                     if success:
                         delete_count += 1
                         logger.info(f"删除已被组合的单独消息: Redis ID={msg_id}, telegram_id={msg.get('telegram_message_id')}")

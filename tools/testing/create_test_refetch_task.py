@@ -19,7 +19,7 @@ async def create_test_task():
         from app.services.media_refetch_service import media_refetch_service
         
         # 初始化Redis存储
-        if not init_redis_stores():
+        if not redis_manager.is_healthy():
             logger.error("❌ Redis初始化失败")
             return
         
@@ -31,8 +31,8 @@ async def create_test_task():
         
         # 检查队列状态
         from app.storage.redis_store import get_redis_message_store
-        redis_store = get_redis_message_store()
-        queue_length = redis_store.redis.llen(media_refetch_service.TASK_QUEUE_KEY)
+        redis_store = redis_manager
+        queue_length = redis_manager.client.llen(media_refetch_service.TASK_QUEUE_KEY)
         logger.info(f"📊 当前队列长度: {queue_length}")
         
     except Exception as e:

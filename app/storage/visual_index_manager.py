@@ -391,8 +391,8 @@ def get_visual_index_manager(redis_client: Optional[redis.Redis] = None):
     global _visual_index_manager
     if _visual_index_manager is None:
         if redis_client is None:
-            from app.storage.redis_store import get_redis_message_store
-            store = get_redis_message_store()
+            from app.storage.redis_manager import redis_manager
+            store = redis_manager
             redis_client = store.redis
         _visual_index_manager = VisualIndexManager(redis_client)
     return _visual_index_manager

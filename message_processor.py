@@ -371,10 +371,10 @@ class MessageProcessor:
                 logger.error(f"统计报告异常: {e}")
 
 def setup_signal_handlers(processor: MessageProcessor):
-    """设置信号处理"""
+    """设置信号处理 - Linus式简化版"""
     def signal_handler(signum, frame):
         logger.info(f"收到信号 {signum}, 准备停止...")
-        asyncio.create_task(processor.stop())
+        processor.is_running = False  # 直接设置运行标志，简洁明了
     
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -395,12 +395,12 @@ async def main():
     # 初始化存储层
     logger.info("初始化存储层...")
     
-    # 初始化Redis存储层
-    from app.storage.redis_store import init_redis_stores
-    if not init_redis_stores():
-        logger.error("❌ Redis存储层初始化失败")
+    # Redis管理器自动处理连接管理 - Linus式简洁
+    from app.storage.redis_manager import redis_manager
+    if not redis_manager.is_healthy():
+        logger.error("❌ Redis连接不可用")
         return 1
-    logger.info("✅ Redis连接已初始化")
+    logger.info("✅ Redis管理器已就绪")
     
     # 初始化JSON存储层
     from app.storage.json_store import init_json_stores

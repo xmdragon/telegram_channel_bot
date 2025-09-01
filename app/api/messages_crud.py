@@ -10,7 +10,7 @@ from app.utils.timezone import get_current_time, format_for_api
 import logging
 import os
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
@@ -116,7 +116,7 @@ async def get_messages(
     支持分页、筛选、搜索和排序
     """
     try:
-        redis_store = get_redis_message_store()
+        redis_store = redis_manager
         
         # 计算分页参数
         offset = (page - 1) * page_size
@@ -124,10 +124,10 @@ async def get_messages(
         # 🚀 Linus式性能优化：根据查询类型选择最优方法
         if show_duplicates:
             # 🚀 重复消息专用查询，避免扫描所有消息
-            all_messages = redis_store.get_duplicate_messages(limit=page_size, offset=offset)
+            all_messages = redis_manager.get_duplicate_messages(limit=page_size, offset=offset)
         elif source_channel:
             # 从指定频道获取消息
-            all_messages = redis_store.get_messages_by_channel(
+            all_messages = redis_manager.get_messages_by_channel(
                 source_channel, 
                 limit=page_size,
                 offset=offset
@@ -135,14 +135,14 @@ async def get_messages(
         else:
             # 根据状态获取消息 - 精确获取所需数量
             if status == "pending":
-                all_messages = redis_store.get_pending_messages(limit=page_size, offset=offset)
+                all_messages = redis_manager.get_pending_messages(limit=page_size, offset=offset)
             elif status == "approved":
-                all_messages = redis_store.get_messages_by_status("approved", limit=page_size, offset=offset)
+                all_messages = redis_manager.get_messages_by_status("approved", limit=page_size, offset=offset)
             elif status == "rejected":
-                all_messages = redis_store.get_messages_by_status("rejected", limit=page_size, offset=offset)
+                all_messages = redis_manager.get_messages_by_status("rejected", limit=page_size, offset=offset)
             else:
                 # 🚀 优化后的get_all_messages（使用索引合并，不再扫描）
-                all_messages = redis_store.get_all_messages(limit=page_size, offset=offset)
+                all_messages = redis_manager.get_all_messages(limit=page_size, offset=offset)
         
         # 🚀 性能优化：简化过滤逻辑（单独消息已清理，无需去重）
         filtered_messages = []
@@ -235,7 +235,7 @@ async def get_messages(
             if message.get('duplicate_original_id'):
                 try:
                     # 直接查询原始消息（不再需要缓存，因为数据量大幅减少）
-                    original_message = redis_store.get_message_by_id(message['duplicate_original_id'])
+                    original_message = redis_manager.get_message_by_id(message['duplicate_original_id'])
                     if original_message:
                         # 处理原始消息的单个媒体URL（支持多种字段名）
                         original_media_path = original_message.get('media_path') or original_message.get('media_url')
@@ -361,8 +361,8 @@ async def get_message(
     获取单个消息详情
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
+        redis_store = redis_manager
+        message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
@@ -439,8 +439,8 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
     统一的发布消息逻辑 - 批准并转发到目标频道
     供 approve_message、publish_message、resend_message 复用
     """
-    redis_store = get_redis_message_store()
-    message = redis_store.get_message_by_id(message_id)
+    redis_store = redis_manager
+    message = redis_manager.get_message_by_id(message_id)
     if not message:
         raise HTTPException(status_code=404, detail="消息不存在")
     
@@ -459,7 +459,7 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
         if task_result:
             if task_result.get("success"):
                 # 任务成功，更新状态为已发布
-                redis_store.update_message_status(message_id, "approved", user_id)
+                redis_manager.update_message_status(message_id, "approved", user_id)
                 logger.info(f"消息发布成功: {message_id}")
             else:
                 # 任务失败
@@ -472,7 +472,7 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
                 }
         else:
             # 任务还在处理中或超时，先更新为处理中状态
-            redis_store.update_message_status(message_id, "processing", user_id)
+            redis_manager.update_message_status(message_id, "processing", user_id)
             logger.info(f"消息发布任务处理中: {message_id}")
             
     except Exception as e:
@@ -518,13 +518,13 @@ async def reject_message(
     拒绝单个消息
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
+        redis_store = redis_manager
+        message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 更新消息状态为已拒绝
-        success = redis_store.update_message_status(message_id, "rejected", user.get('user_id'), reason)
+        success = redis_manager.update_message_status(message_id, "rejected", user.get('user_id'), reason)
         if not success:
             raise HTTPException(status_code=500, detail="拒绝消息失败")
         
@@ -553,8 +553,8 @@ async def restore_message(
     恢复被拒绝的消息到未审核状态
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
+        redis_store = redis_manager
+        message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
@@ -564,7 +564,7 @@ async def restore_message(
             raise HTTPException(status_code=400, detail=f"只能恢复已拒绝或已发送的消息，当前状态: {current_status}")
         
         # 恢复消息状态为未审核
-        success = redis_store.update_message_status(message_id, "pending", user.get('user_id'))
+        success = redis_manager.update_message_status(message_id, "pending", user.get('user_id'))
         if not success:
             raise HTTPException(status_code=500, detail="恢复消息状态失败")
         
@@ -592,13 +592,13 @@ async def delete_message(
     删除消息
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
+        redis_store = redis_manager
+        message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 删除消息
-        success = redis_store.delete_message(message_id)
+        success = redis_manager.delete_message(message_id)
         if not success:
             raise HTTPException(status_code=500, detail="删除消息失败")
         
@@ -625,8 +625,8 @@ async def update_message(
     更新消息内容
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
+        redis_store = redis_manager
+        message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
@@ -661,7 +661,7 @@ async def update_message(
             raise HTTPException(status_code=400, detail="无法确定消息的频道ID")
         
         # 执行更新
-        success = await redis_store.update_message(channel_id, msg_id, update_data)
+        success = await redis_manager.update_message(channel_id, msg_id, update_data)
         if not success:
             raise HTTPException(status_code=500, detail="更新消息失败")
         
@@ -803,8 +803,8 @@ async def delete_review_message(
     删除审核群中的消息
     """
     try:
-        redis_store = get_redis_message_store()
-        message = redis_store.get_message_by_id(message_id)
+        redis_store = redis_manager
+        message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         

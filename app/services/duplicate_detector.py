@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Tuple
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from .duplicate_detection import VisualDuplicateDetector, MediaDuplicateDetector, TextDuplicateDetector, MessageCompat
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class DuplicateDetector:
         """确保检测器已初始化"""
         if self.redis_store is None:
             try:
-                self.redis_store = get_redis_message_store()
+                self.redis_store = redis_manager
             except RuntimeError:
                 logger.debug("Redis存储未初始化，跳过重复检测")
                 return False
@@ -227,7 +227,7 @@ class DuplicateDetector:
             message_key = f"msg:{channel_id}:{message_id}"
             
             # 更新消息状态
-            self.redis_store.redis.hset(message_key, mapping={
+            self.redis_manager.client.hset(message_key, mapping={
                 'status': 'duplicate',
                 'original_message_id': str(original_message_id),
                 'duplicate_detected_at': datetime.utcnow().isoformat()

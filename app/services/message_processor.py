@@ -6,7 +6,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
-from app.storage.redis_store import get_redis_message_store, RedisMessageStore
+from app.storage.redis_manager import redis_manager
 from .duplicate_detector import DuplicateDetector
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class MessageProcessor:
         try:
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                 except RuntimeError:
                     return []
             return self.redis_store.get_pending_messages(limit=limit)
@@ -37,7 +37,7 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                 except RuntimeError:
                     return []
             
@@ -165,7 +165,7 @@ class MessageProcessor:
         try:
             # 确保redis_store已初始化
             if self.redis_store is None:
-                self.redis_store = get_redis_message_store()
+                self.redis_store = redis_manager
             
             channel_id = str(message_data.get('source_channel', ''))
             message_id = message_data.get('message_id')
@@ -241,7 +241,7 @@ class MessageProcessor:
                 logger.error(f"Redis操作失败 {channel_id}:{message_id}: {redis_error}")
                 # 重新初始化Redis连接并重试一次
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                     success = self.redis_store.save_message(channel_id, int(message_id), message_data)
                     if success:
                         saved_message = self.redis_store.get_message(channel_id, int(message_id))
@@ -389,7 +389,7 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                     logger.debug("MessageProcessor: redis_store初始化成功")
                 except RuntimeError as e:
                     logger.error(f"MessageProcessor: redis_store初始化失败: {e}")
@@ -415,7 +415,7 @@ class MessageProcessor:
             # 🔧 修复：确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                     logger.debug("MessageProcessor: redis_store初始化成功（状态更新）")
                 except RuntimeError as e:
                     logger.error(f"MessageProcessor: redis_store初始化失败（状态更新）: {e}")
@@ -441,7 +441,7 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                     logger.debug("MessageProcessor: redis_store初始化成功（删除操作）")
                 except RuntimeError as e:
                     logger.error(f"MessageProcessor: redis_store初始化失败（删除操作）: {e}")
@@ -555,7 +555,7 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                 except RuntimeError:
                     logger.error("Redis连接失败")
                     return False
@@ -627,7 +627,7 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                 except RuntimeError:
                     logger.error("Redis连接失败")
                     return False
@@ -675,7 +675,7 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                 except RuntimeError:
                     logger.error("Redis连接失败")
                     return False
@@ -864,7 +864,7 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 try:
-                    self.redis_store = get_redis_message_store()
+                    self.redis_store = redis_manager
                 except RuntimeError:
                     logger.error("Redis连接失败")
                     return False

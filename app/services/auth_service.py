@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from fastapi import HTTPException
 
-from app.storage.redis_store import get_redis_session_store
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_admin_store
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,8 @@ class AuthService:
     """认证服务"""
     
     def __init__(self):
-        self.session_store = get_redis_session_store()
+        from app.storage.redis_manager import redis_manager
+        self.session_store = redis_manager
         self.admin_store = get_json_admin_store()
         self.default_session_expire = 24 * 3600  # 24小时
         # 暴力破解防护配置

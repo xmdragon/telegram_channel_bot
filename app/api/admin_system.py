@@ -131,9 +131,9 @@ async def health_check():
     """系统健康检查"""
     try:
         # 检查Redis连接
-        from app.storage.redis_store import get_redis_store
-        redis_store = get_redis_store()
-        redis_store.redis.ping()  # 测试Redis连接
+        from app.storage.redis_manager import redis_manager
+        redis_store = redis_manager
+        redis_manager.client.ping()  # 测试Redis连接
         
         # 检查JSON存储
         channel_store = get_json_channel_store()

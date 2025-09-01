@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple, List, Dict, Any
 
-from app.storage.redis_store import init_redis_stores, get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.content_filter import ContentFilter
 from app.services.ad_detector import AdDetector
 
@@ -97,12 +97,12 @@ class MessageReprocessor:
             result['ad_confidence'] = confidence
             
             # 3. 更新消息数据
-            redis_store = get_redis_message_store()
-            full_msg = redis_store.get_message(str(channel_id), int(message_id))
+            redis_store = redis_manager
+            full_msg = redis_manager.get_message(str(channel_id), int(message_id))
             if full_msg:
                 full_msg['filtered_content'] = filtered_content
                 full_msg['is_ad'] = is_ad
-                redis_store.save_message(str(channel_id), int(message_id), full_msg)
+                redis_manager.save_message(str(channel_id), int(message_id), full_msg)
             
             result['filtered_length'] = len(filtered_content)
             
@@ -168,10 +168,10 @@ class MessageReprocessor:
         
         # 初始化Redis存储
         init_redis_stores(REDIS_URL)
-        redis_store = get_redis_message_store()
+        redis_store = redis_manager
         
         # 获取待处理消息
-        all_messages = redis_store.get_messages_by_status('pending', limit=limit or 5000)
+        all_messages = redis_manager.get_messages_by_status('pending', limit=limit or 5000)
         
         # 过滤掉没有内容的消息
         messages = [msg for msg in all_messages 

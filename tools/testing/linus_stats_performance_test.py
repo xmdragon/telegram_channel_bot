@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from app.storage.linus_stats_store import get_linus_stats_store, init_linus_stats_store, MessageState, RejectionReason
 from app.services.message_processor import MessageProcessor
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -55,10 +55,10 @@ class LinusStatsPerformanceTester:
     """Linus式统计性能测试器"""
     
     def __init__(self):
-        init_redis_stores()
+        redis_manager.is_healthy()
         init_linus_stats_store()
         self.linus_stats = get_linus_stats_store()
-        self.redis_store = get_redis_message_store()
+        self.redis_store = redis_manager
         self.legacy_processor = MessageProcessor()
         
         # 准备测试数据

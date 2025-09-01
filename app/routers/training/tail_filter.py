@@ -309,14 +309,11 @@ async def add_tail_filter_sample(request: dict):
         # 如果有message_id，直接使用用户编辑的内容更新filtered_content
         if message_id and normal_part:
             try:
-                # 确保Redis存储层已初始化
-                from app.storage.redis_store import init_redis_stores
-                if not init_redis_stores():
-                    logger.error("Redis存储层初始化失败，无法更新消息")
+                # 使用Redis管理器 - Linus式简洁
+                from app.storage.redis_manager import redis_manager
+                if not redis_manager.is_healthy():
+                    logger.error("Redis不可用，无法更新消息")
                     return {"success": True, "message": "训练样本已提交，但Redis连接失败，请手动刷新页面", "id": sample_id}
-                
-                from app.storage.redis_store import get_redis_store
-                redis_store = get_redis_store()
                 
                 # 解析消息ID
                 if ':' in message_id:
@@ -324,7 +321,7 @@ async def add_tail_filter_sample(request: dict):
                     
                     # 直接更新filtered_content为用户编辑的内容
                     update_data = {"filtered_content": normal_part}
-                    success = await redis_store.update_message(channel_id, int(msg_id), update_data)
+                    success = redis_manager.update_message(channel_id, int(msg_id), update_data)
                     
                     if success:
                         logger.info(f"成功更新消息的filtered_content: {message_id}")

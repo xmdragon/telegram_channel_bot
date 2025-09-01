@@ -10,7 +10,7 @@ from app.utils.timezone import get_current_time, format_for_api
 import logging
 import asyncio
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.core.api_paths import api_paths
@@ -61,7 +61,7 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
     解析消息ID并收集相关的组合消息
     避免重复处理组合消息
     """
-    redis_store = get_redis_message_store()
+    redis_store = redis_manager
     message_tuples = []
     valid_messages = []
     processed_group_ids = set()
@@ -78,7 +78,7 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
                 continue
                 
             # 检查消息是否存在且为指定状态
-            msg_data = redis_store.get_message(channel_id, int(message_id), silent=True)
+            msg_data = redis_manager.get_message(channel_id, int(message_id), silent=True)
             # 如果status_filter为None，接受任何状态的消息；否则只接受匹配状态的消息
             status_matches = status_filter is None or msg_data.get('status') == status_filter
             if msg_data and status_matches:
@@ -88,7 +88,7 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
                     if grouped_id not in processed_group_ids:
                         processed_group_ids.add(grouped_id)
                         # 查找同组的所有单独消息，一起处理
-                        group_messages = redis_store.get_messages_by_channel(channel_id, limit=100)
+                        group_messages = redis_manager.get_messages_by_channel(channel_id, limit=100)
                         for group_msg in group_messages:
                             group_status_matches = status_filter is None or group_msg.get('status') == status_filter
                             if (group_msg.get('grouped_id') == grouped_id and 

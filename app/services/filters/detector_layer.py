@@ -3,7 +3,7 @@
 
 负责管理2个内容检测器的执行和Early Stopping机制：
 1. DuplicateDetectorFilter - 去重检测
-2. VectorAdDetector - 向量化广告检测
+2. PromoVectorDetector - 推广内容向量检测
 
 检测器层的特点：
 - 支持Early Stopping机制
@@ -22,7 +22,7 @@ from datetime import datetime
 
 from .base import BaseFilter, FilterContext, FilterResult, PipelineResult
 from .duplicate_detector import DuplicateDetectorFilter
-from app.services.vector_ad_detector import VectorAdDetector
+from app.services.promo_vector_detector import PromoVectorDetector
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class DetectorLayerConfig:
     
     def __post_init__(self):
         if self.early_stop_detectors is None:
-            self.early_stop_detectors = {'duplicate_detector', 'vector_ad_detector'}
+            self.early_stop_detectors = {'duplicate_detector', 'promo_vector_detector'}
 
 
 class DetectorLayer:
@@ -46,7 +46,7 @@ class DetectorLayer:
     
     职责单一：只负责内容检测，不做内容清理
     支持Early Stopping：检测到问题时立即停止
-    执行顺序：DuplicateDetector → VectorAdDetector
+    执行顺序：DuplicateDetector → PromoVectorDetector
     """
     
     def __init__(self, config: Optional[DetectorLayerConfig] = None):
@@ -66,7 +66,7 @@ class DetectorLayer:
         # 固定顺序，符合Linus"消除特殊情况"原则
         detector_instances = [
             DuplicateDetectorFilter(),      # 1. 去重检测 - 快速，优先执行
-            VectorAdDetector(),             # 2. 向量广告检测 - 统一简洁设计
+            PromoVectorDetector(),          # 2. 推广内容向量检测 - 统一简洁设计
         ]
         
         for detector in detector_instances:
@@ -242,7 +242,7 @@ class DetectorLayer:
             'detector_names': [d.name for d in self.detectors],
             'execution_order': [
                 'DuplicateDetectorFilter',
-                'VectorAdDetector'
+                'PromoVectorDetector'
             ],
             'supports_early_stopping': True,
             'early_stop_detectors': list(self.config.early_stop_detectors),

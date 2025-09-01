@@ -24,7 +24,7 @@ from datetime import datetime
 # 添加项目路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 from app.services.message_grouper import message_grouper
 from app.utils.timezone import format_for_api
 
@@ -33,8 +33,8 @@ class IncompleteGroupsFixer:
     """不完整消息组修复器"""
     
     def __init__(self):
-        init_redis_stores()
-        self.redis_store = get_redis_message_store()
+        redis_manager.is_healthy()
+        self.redis_store = redis_manager
         
         # 初始化JSON存储层
         from app.storage.json_store import init_json_stores
@@ -62,7 +62,7 @@ class IncompleteGroupsFixer:
             print(f"\n📡 检查频道: {channel_info.get('title', channel_id)}")
             
             # 获取该频道的所有消息
-            messages = self.redis_store.get_messages_by_channel(channel_id, limit=1000)
+            messages = self.redis_manager.get_messages_by_channel(channel_id, limit=1000)
             
             # 按grouped_id分组
             grouped_messages = {}
@@ -174,7 +174,7 @@ class IncompleteGroupsFixer:
             # 删除旧的组合消息
             old_redis_id = existing_msg.get('id')
             if old_redis_id:
-                success = self.redis_store.delete_message(channel_id, old_redis_id)
+                success = self.redis_manager.delete_message(channel_id, old_redis_id)
                 if success:
                     print(f"🗑️  删除旧的不完整消息: {old_redis_id}")
                 else:
@@ -210,7 +210,7 @@ class IncompleteGroupsFixer:
             channel_id = channel.get('channel_id')
             if not channel_id:
                 continue
-            messages = self.redis_store.get_messages_by_channel(channel_id, limit=100)
+            messages = self.redis_manager.get_messages_by_channel(channel_id, limit=100)
             for msg in messages:
                 if msg.get('grouped_id') == grouped_id:
                     return channel_id
@@ -218,7 +218,7 @@ class IncompleteGroupsFixer:
     
     async def _get_existing_combined_message(self, channel_id: str, grouped_id: str) -> Optional[Dict]:
         """获取现有的组合消息"""
-        messages = self.redis_store.get_messages_by_channel(channel_id, limit=200)
+        messages = self.redis_manager.get_messages_by_channel(channel_id, limit=200)
         for message in messages:
             if (message.get('grouped_id') == grouped_id and 
                 message.get('is_combined') == True):

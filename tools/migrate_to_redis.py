@@ -16,7 +16,7 @@ from typing import Dict, List, Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.database import AsyncSessionLocal, Message, Channel, SystemConfig, Admin, Permission, AdminPermission, AdminSession
-from app.storage.redis_store import init_redis_stores, get_redis_message_store, get_redis_session_store, get_redis_channel_store
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import init_json_stores, get_json_config_store, get_json_channel_store, get_json_admin_store
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -308,7 +308,7 @@ class PostgreSQLMigrator:
         
         try:
             # 初始化存储系统
-            redis_success = init_redis_stores()
+            redis_success = redis_manager.is_healthy()
             json_success = init_json_stores()
             
             if not redis_success or not json_success:
@@ -347,7 +347,7 @@ class PostgreSQLMigrator:
         """迁移消息到Redis"""
         logger.info(f"开始迁移 {len(messages)} 条消息到Redis...")
         
-        redis_store = get_redis_message_store()
+        redis_store = redis_manager
         success_count = 0
         error_count = 0
         
@@ -356,7 +356,7 @@ class PostgreSQLMigrator:
                 channel_id = msg_data["source_channel"]
                 message_id = msg_data["message_id"]
                 
-                if redis_store.save_message(channel_id, message_id, msg_data):
+                if redis_manager.save_message(channel_id, message_id, msg_data):
                     success_count += 1
                 else:
                     error_count += 1
@@ -372,7 +372,7 @@ class PostgreSQLMigrator:
         """迁移会话到Redis"""
         logger.info(f"开始迁移 {len(sessions)} 个会话到Redis...")
         
-        redis_store = get_redis_session_store()
+        redis_store = redis_manager
         success_count = 0
         error_count = 0
         
@@ -385,7 +385,7 @@ class PostgreSQLMigrator:
                 if expires_at and expires_at > datetime.now():
                     expire_seconds = int((expires_at - datetime.now()).total_seconds())
                     
-                    if redis_store.save_session(token, session_data, expire_seconds):
+                    if redis_manager.save_session(token, session_data, expire_seconds):
                         success_count += 1
                     else:
                         error_count += 1
@@ -414,7 +414,7 @@ class PostgreSQLMigrator:
                 last_message_id = channel_data.get("last_collected_message_id")
                 
                 if channel_id and last_message_id:
-                    if redis_store.set_checkpoint(channel_id, last_message_id):
+                    if redis_manager.set_checkpoint(channel_id, last_message_id):
                         success_count += 1
                     else:
                         error_count += 1

@@ -11,10 +11,10 @@ sys.path.insert(0, '/Users/eric/workspace/telegram_channel_bot')
 def clear_checkpoints():
     """清除所有频道的 checkpoint"""
     try:
-        from app.storage.redis_client import get_redis_client
+        from app.storage.redis_manager import redis_manager
         
-        # 直接连接 Redis
-        redis = get_redis_client()
+        # 直接使用 Redis
+        redis = redis_manager.client
         if not redis:
             print("❌ 无法连接到 Redis")
             return False

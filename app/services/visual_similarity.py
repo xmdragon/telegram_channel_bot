@@ -10,7 +10,7 @@ from PIL import Image
 import imagehash
 import hashlib
 from datetime import datetime, timedelta
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 
 logger = logging.getLogger(__name__)
 
@@ -171,19 +171,19 @@ class VisualSimilarityDetector:
             message_time = message_time.replace(tzinfo=None)
         
         try:
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             time_threshold = message_time - timedelta(hours=self.cache_hours)
             
             # 获取消息列表
             if channel_id:
                 # 只在指定频道内检查
-                all_messages = redis_store.get_messages_by_channel(channel_id)
+                all_messages = redis_manager.get_messages_by_channel(channel_id)
             else:
                 # 跨频道检查（获取所有消息）
                 all_messages = []
-                channels = redis_store.get_all_channels()
+                channels = redis_manager.get_all_channels()
                 for ch_id in channels:
-                    channel_messages = redis_store.get_messages_by_channel(ch_id)
+                    channel_messages = redis_manager.get_messages_by_channel(ch_id)
                     all_messages.extend(channel_messages)
             
             # 过滤符合条件的消息
@@ -259,10 +259,10 @@ class VisualSimilarityDetector:
             # 计算视觉哈希
             hashes = self.calculate_perceptual_hashes(image_data)
             
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             
             # 获取消息
-            message = redis_store.get_message(channel_id, message_id)
+            message = redis_manager.get_message(channel_id, message_id)
             if message:
                 # 更新视觉哈希
                 import json
@@ -274,7 +274,7 @@ class VisualSimilarityDetector:
                 if not message.get('media_hash'):
                     update_data['media_hash'] = hashes.get('sha256')
                 
-                success = await redis_store.update_message(channel_id, message_id, update_data)
+                success = await redis_manager.update_message(channel_id, message_id, update_data)
                 
                 if success:
                     logger.debug(f"已存储消息 {message_id} 的视觉哈希")

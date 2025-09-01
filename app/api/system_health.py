@@ -11,7 +11,7 @@ import json
 import asyncio
 from datetime import datetime
 from app.services.system_monitor import system_monitor
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.core.routes import ROUTES
 from app.api.websocket import websocket_manager
@@ -44,7 +44,7 @@ async def get_system_status() -> Dict[str, Any]:
         uptime_seconds = (datetime.now() - START_TIME).total_seconds()
         
         # 连接存储层（快速检查）
-        redis_store = get_redis_message_store()
+        redis_store = redis_manager
         channel_store = get_json_channel_store()
         
         # 获取频道信息（快速）
@@ -124,11 +124,11 @@ async def get_detailed_status() -> Dict[str, Any]:
         uptime_str = f"{uptime.days}天 {uptime.seconds // 3600}小时 {(uptime.seconds % 3600) // 60}分钟"
         
         # 从 Redis 和 JSON 获取统计数据
-        redis_store = get_redis_message_store()
+        redis_store = redis_manager
         channel_store = get_json_channel_store()
         
         # 消息统计
-        all_message_keys = redis_store.redis.keys("msg:*")
+        all_message_keys = redis_manager.client.keys("msg:*")
         total_messages = len(all_message_keys)
         
         # 今日消息数（简化版，从最新消息中算出）
@@ -136,7 +136,7 @@ async def get_detailed_status() -> Dict[str, Any]:
         today_messages = 0
         for key in all_message_keys[:500]:  # 限制检查数量
             try:
-                msg_data = redis_store.redis.hgetall(key)
+                msg_data = redis_manager.client.hgetall(key)
                 created_at_str = msg_data.get(b'created_at', b'').decode('utf-8')
                 if created_at_str:
                     created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
@@ -220,8 +220,8 @@ async def health_check() -> Dict[str, Any]:
         # 检查存储连接
         storage_status = "unknown"
         try:
-            redis_store = get_redis_message_store()
-            redis_store.redis.ping()  # 测试Redis连接
+            redis_store = redis_manager
+            redis_manager.client.ping()  # 测试Redis连接
             
             channel_store = get_json_channel_store()
             channel_store.get_all_channels()  # 测试JSON文件访问

@@ -164,13 +164,25 @@ fi
 echo "✅ 所有服务已停止"
 echo
 
-# 步骤2：Linus式Redis重启 - 零等待
+# 步骤2：智能重启Docker服务（修复启动时序问题）
 if [ "$KEEP_REDIS" = false ]; then
-    echo "2️⃣ 重启Redis（零等待）..."
-    docker compose restart redis > /dev/null 2>&1 || true
-    echo "💡 Redis连接会在服务启动时自动重试"
+    echo "2️⃣ 重启Docker基础设施服务..."
+    if [ -f "tools/docker/wait_for_services_simple.sh" ]; then
+        echo "📋 重启并等待服务就绪"
+        docker compose restart redis nginx > /dev/null 2>&1 || true
+        sleep 2  # 短暂等待容器重启
+        if ! bash tools/docker/wait_for_services_simple.sh; then
+            echo "❌ Docker服务重启失败，但继续尝试启动"
+        fi
+    else
+        # 后备方案：传统重启
+        echo "⚠️  等待脚本未找到，使用传统重启方式"
+        docker compose restart redis nginx > /dev/null 2>&1 || true
+        echo "⏳ 等待服务重启（3秒）..."
+        sleep 3
+    fi
 else
-    [ "$VERBOSE" = true ] && echo "2️⃣ 保持Redis服务不变..."
+    [ "$VERBOSE" = true ] && echo "2️⃣ 保持Docker服务不变..."
 fi
 
 echo

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from app.utils.timezone import get_current_time, format_for_api
 import logging
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager

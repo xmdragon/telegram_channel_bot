@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional, List
 
 from app.services.message_queue import get_message_queue
 from app.utils.timezone import get_current_time
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +52,10 @@ class QueueMonitor:
     def _ensure_redis(self):
         """确保Redis连接"""
         if not self.redis:
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             if not redis_store:
                 raise RuntimeError("无法获取Redis连接")
-            self.redis = redis_store.redis
+            self.redis = redis_manager.client
     
     async def start(self):
         """启动监控器"""

@@ -193,13 +193,13 @@ class TextDuplicateDetector:
             time_end_str = time_end.strftime('%Y-%m-%dT%H:%M:%S')
             
             # 扫描所有消息键
-            message_keys = self.redis_store.redis.keys("msg:*")
+            message_keys = self.redis_store.client.keys("msg:*")
             
             messages_with_content = []
             for key in message_keys:
                 try:
                     # 获取消息数据
-                    message_data = self.redis_store.redis.hgetall(key)
+                    message_data = self.redis_store.client.hgetall(key)
                     if not message_data:
                         continue
                     

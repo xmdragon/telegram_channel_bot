@@ -11,7 +11,7 @@ import logging
 import json
 import os
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.core.route_config import ROUTES
@@ -153,13 +153,13 @@ async def filter_message_content(
         # 更新过滤后的内容
         content_changed = removed_length > 0
         if content_changed:
-            redis_store = get_redis_message_store()
+            redis_store = redis_manager
             msg_key = f"msg:{channel_id}:{msg_id}"
             update_data = {
                 'filtered_content': filtered_content,
                 'updated_at': get_current_time().isoformat()
             }
-            redis_store.redis.hset(msg_key, mapping=update_data)
+            redis_manager.client.hset(msg_key, mapping=update_data)
             logger.info(f"✂️ 内容过滤完成: 移除 {removed_length} 字符")
         
         return {

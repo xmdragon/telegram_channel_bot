@@ -25,7 +25,7 @@ import os
 # 添加项目根目录到路径
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import get_redis_message_store, init_redis_stores
+from app.storage.redis_manager import redis_manager
 
 class OptimizationValidationTest:
     """优化效果验证测试类"""
@@ -43,12 +43,12 @@ class OptimizationValidationTest:
         """初始化测试环境"""
         print("🔧 初始化优化验证测试环境...")
         
-        success = init_redis_stores()
+        success = redis_manager.is_healthy()
         if not success:
             print("❌ Redis初始化失败")
             return False
         
-        self.redis_store = get_redis_message_store()
+        self.redis_store = redis_manager
         print("✅ 测试环境初始化完成")
         return True
     
@@ -68,7 +68,7 @@ class OptimizationValidationTest:
             # 执行优化后的查询
             messages = await asyncio.get_event_loop().run_in_executor(
                 None, 
-                lambda: self.redis_store.get_all_messages(limit=50, offset=0)
+                lambda: self.redis_manager.get_all_messages(limit=50, offset=0)
             )
             
             end_time = time.perf_counter()
@@ -88,20 +88,20 @@ class OptimizationValidationTest:
             # 1. keys() 扫描所有消息键
             await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.redis.keys("msg:*:*")
+                lambda: self.redis_manager.client.keys("msg:*:*")
             )
             
             # 2. 模拟对每个key的单独查询（只计时前10个避免过慢）
             keys = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.redis.keys("msg:*:*")
+                lambda: self.redis_manager.client.keys("msg:*:*")
             )
             
             sample_keys = keys[:min(10, len(keys))]  # 只测试前10个key
             for key in sample_keys:
                 await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda k=key: self.redis_store.redis.hgetall(k)
+                    lambda k=key: self.redis_manager.client.hgetall(k)
                 )
             
             end_time = time.perf_counter()
@@ -145,7 +145,7 @@ class OptimizationValidationTest:
             # 执行索引查询
             messages = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.get_duplicate_messages(limit=50, offset=0)
+                lambda: self.redis_manager.get_duplicate_messages(limit=50, offset=0)
             )
             
             end_time = time.perf_counter()
@@ -165,7 +165,7 @@ class OptimizationValidationTest:
             # 获取所有消息然后筛选重复消息（模拟传统方法）
             all_messages = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.get_all_messages(limit=200, offset=0)  # 获取更多消息用于筛选
+                lambda: self.redis_manager.get_all_messages(limit=200, offset=0)  # 获取更多消息用于筛选
             )
             
             # 筛选重复消息
@@ -220,7 +220,7 @@ class OptimizationValidationTest:
             # GET /api/messages/?show_duplicates=true
             messages = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.get_duplicate_messages(limit=20, offset=0)
+                lambda: self.redis_manager.get_duplicate_messages(limit=20, offset=0)
             )
             
             end_time = time.perf_counter()
@@ -241,7 +241,7 @@ class OptimizationValidationTest:
             # GET /api/messages/?status=
             all_messages = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.get_all_messages(limit=100, offset=0)
+                lambda: self.redis_manager.get_all_messages(limit=100, offset=0)
             )
             
             # 模拟前端筛选重复消息
@@ -295,12 +295,12 @@ class OptimizationValidationTest:
         for i in range(5):
             messages = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.get_all_messages(limit=50, offset=0)
+                lambda: self.redis_manager.get_all_messages(limit=50, offset=0)
             )
             
             duplicate_messages = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_store.get_duplicate_messages(limit=20, offset=0)
+                lambda: self.redis_manager.get_duplicate_messages(limit=20, offset=0)
             )
         
         snapshot2 = tracemalloc.take_snapshot()

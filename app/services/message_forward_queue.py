@@ -78,10 +78,10 @@ class MessageForwardQueue:
     def _ensure_redis(self):
         """确保Redis连接可用"""
         if not self.redis:
-            from app.storage.redis_store import get_redis_message_store
-            redis_store = get_redis_message_store()
+            from app.storage.redis_manager import redis_manager
+            redis_store = redis_manager
             if redis_store:
-                self.redis = redis_store.redis
+                self.redis = redis_manager.client
             else:
                 raise RuntimeError("无法获取Redis连接")
     

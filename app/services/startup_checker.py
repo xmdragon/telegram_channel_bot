@@ -10,7 +10,7 @@ from app.services.config_manager import config_manager
 from app.services.channel_id_resolver import channel_id_resolver
 from app.services.channel_manager import channel_manager
 from app.storage.json_store import get_json_channel_store
-from app.storage.redis_store import get_redis_store
+from app.storage.redis_manager import redis_manager
 
 logger = logging.getLogger(__name__)
 
@@ -458,8 +458,8 @@ class StartupChecker:
         try:
             # 检查 Redis 连接
             try:
-                redis_store = get_redis_store()
-                redis_store.redis.ping()
+                redis_store = redis_manager
+                redis_manager.client.ping()
                 result['redis_available'] = True
                 logger.info("  - Redis存储: ✅ 连接正常")
             except Exception as e:

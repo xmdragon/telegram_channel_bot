@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from app.services.config_manager import config_manager
 from app.storage.json_store import get_json_config_store
-from app.storage.redis_store import init_redis_stores, get_redis_store
+from app.storage.redis_manager import redis_manager
 import sys
 import logging
 
@@ -22,7 +22,7 @@ async def export_configs():
     """导出所有配置数据"""
     try:
         # 初始化存储系统
-        init_redis_stores()
+        redis_manager.is_healthy()
         json_store = get_json_config_store()
         
         export_data = {

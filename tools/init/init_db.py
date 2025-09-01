@@ -33,10 +33,10 @@ async def legacy_init_support():
         print("🔄 执行兼容性初始化...")
         
         # 初始化存储层
-        from app.storage.redis_store import init_redis_stores
+        from app.storage.redis_manager import redis_manager
         from app.storage.json_store import init_json_stores
         
-        if not init_redis_stores():
+        if not redis_manager.is_healthy():
             print("❌ Redis初始化失败")
             return False
             

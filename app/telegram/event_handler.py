@@ -134,16 +134,16 @@ class EventHandler:
             
             # 这里可以添加兼容性代码
             # 例如：直接操作Redis或数据库
-            from app.storage.redis_store import get_redis_message_store
-            redis_store = get_redis_message_store()
+            from app.storage.redis_manager import redis_manager
+            redis_store = redis_manager
             
             # 获取消息
-            message = await redis_store.get_message(message_id)
+            message = await redis_manager.get_message(message_id)
             if message:
                 # 更新状态
                 message['status'] = 'approved'
                 message['reviewer'] = reviewer
-                await redis_store.update_message(message_id, message)
+                await redis_manager.update_message(message_id, message)
                 logger.info(f"✅ 兼容模式：消息 {message_id} 已批准")
             else:
                 logger.error(f"❌ 兼容模式：找不到消息 {message_id}")
@@ -158,16 +158,16 @@ class EventHandler:
             logger.info("建议使用新的统一消息处理器进行消息审核")
             
             # 这里可以添加兼容性代码
-            from app.storage.redis_store import get_redis_message_store
-            redis_store = get_redis_message_store()
+            from app.storage.redis_manager import redis_manager
+            redis_store = redis_manager
             
             # 获取消息
-            message = await redis_store.get_message(message_id)
+            message = await redis_manager.get_message(message_id)
             if message:
                 # 更新状态
                 message['status'] = 'rejected'
                 message['reviewer'] = reviewer
-                await redis_store.update_message(message_id, message)
+                await redis_manager.update_message(message_id, message)
                 logger.info(f"✅ 兼容模式：消息 {message_id} 已拒绝")
             else:
                 logger.error(f"❌ 兼容模式：找不到消息 {message_id}")

@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import init_redis_stores
+from app.storage.redis_manager import redis_manager
 from app.storage.json_store import init_json_stores
 from app.services.config_manager import config_manager
 
@@ -340,7 +340,7 @@ async def initialize_storage_system():
     # 3. 初始化Redis存储
     logger.info("🔴 初始化Redis存储...")
     redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
-    redis_success = init_redis_stores(redis_url)
+    redis_success = redis_manager.is_healthy()
     if redis_success:
         logger.info("✅ Redis存储初始化完成")
     else:
@@ -381,15 +381,15 @@ async def check_storage_status():
     # 检查Redis连接
     try:
         redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
-        if init_redis_stores(redis_url):
+        if redis_manager.is_healthy():
             logger.info("✅ Redis连接正常")
             
             # 获取Redis统计信息
-            from app.storage.redis_store import get_redis_message_store
-            store = get_redis_message_store()
+            # from app.storage.redis_store import get_redis_message_store  # 已删除
+            # store = redis_manager  # 直接使用redis_manager
             
-            total_messages = len(store.get_all_messages(limit=1000))
-            pending_messages = len(store.get_messages_by_status('pending', 100))
+            total_messages = len(redis_manager.get_all_messages(limit=1000))
+            pending_messages = len(redis_manager.get_messages_by_status('pending', 100))
             
             logger.info(f"📊 Redis消息统计: 总计 {total_messages} 条，待审核 {pending_messages} 条")
         else:

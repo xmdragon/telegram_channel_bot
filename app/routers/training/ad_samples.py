@@ -282,9 +282,9 @@ async def mark_ad_message(request: dict):
             return {"success": False, "message": "消息ID不能为空"}
         
         # 获取消息
-        from app.storage.redis_store import get_redis_message_store
-        redis_store = get_redis_message_store()
-        message_data = redis_store.get_message_by_id(message_id)
+        from app.storage.redis_manager import redis_manager
+        redis_store = redis_manager
+        message_data = redis_manager.get_message_by_id(message_id)
         
         if not message_data:
             return {"success": False, "message": "未找到消息"}
@@ -317,7 +317,7 @@ async def mark_ad_message(request: dict):
         msg_id = int(parts[1])
         
         # 保存更新
-        success = await redis_store.update_message(channel_id, msg_id, update_data)
+        success = await redis_manager.update_message(channel_id, msg_id, update_data)
         if not success:
             return {"success": False, "message": "更新消息失败"}
         

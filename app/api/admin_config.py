@@ -17,8 +17,8 @@ async def _trigger_history_collection():
     """触发历史消息采集"""
     try:
         # 检查是否需要触发采集（只有采集点为0时才触发）
-        from app.storage.redis_store import get_redis_message_store
-        message_store = get_redis_message_store()
+        from app.storage.redis_manager import redis_manager
+        message_store = redis_manager
         
         if not message_store:
             logger.error("无法获取Redis存储，跳过历史采集触发")

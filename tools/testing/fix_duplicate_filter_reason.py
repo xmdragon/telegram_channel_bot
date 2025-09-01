@@ -19,12 +19,12 @@ async def fix_duplicate_filter_reason():
         redis_store = RedisMessageStore()
         
         # 查找所有包含duplicate_original_id的消息
-        msg_keys = redis_store.redis.keys("msg:*")
+        msg_keys = redis_manager.client.keys("msg:*")
         fixed_count = 0
         
         for key in msg_keys:
             try:
-                msg_data = redis_store.redis.hgetall(key)
+                msg_data = redis_manager.client.hgetall(key)
                 if not msg_data:
                     continue
                 
@@ -49,7 +49,7 @@ async def fix_duplicate_filter_reason():
                     message_id = msg.get('message_id')
                     
                     if channel_id and message_id:
-                        redis_store.save_message(channel_id, int(message_id), msg)
+                        redis_manager.save_message(channel_id, int(message_id), msg)
                         fixed_count += 1
                         print(f"   ✅ 修复消息: {channel_id}:{message_id}")
                         
@@ -64,7 +64,7 @@ async def fix_duplicate_filter_reason():
         
         for key in msg_keys:
             try:
-                msg_data = redis_store.redis.hgetall(key)
+                msg_data = redis_manager.client.hgetall(key)
                 if not msg_data:
                     continue
                 

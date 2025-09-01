@@ -64,14 +64,14 @@ class MessageScheduler:
     async def cleanup_old_data(self):
         """清理旧数据 - 删除7天前已发布或拒绝的消息"""
         try:
-            from app.storage.redis_store import get_redis_message_store
+            from app.storage.redis_manager import redis_manager
             from datetime import datetime, timedelta
             
             # 计算7天前的时间
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
             
             # 使用Redis存储获取旧消息
-            message_store = get_redis_message_store()
+            message_store = redis_manager
             messages_to_delete = await message_store.get_old_messages_for_cleanup(seven_days_ago)
             
             if not messages_to_delete:
@@ -138,8 +138,8 @@ class MessageScheduler:
             one_day_ago = current_time - 86400
             
             # 获取Redis中所有引用的媒体文件
-            from app.storage.redis_store import get_redis_message_store
-            message_store = get_redis_message_store()
+            from app.storage.redis_manager import redis_manager
+            message_store = redis_manager
             referenced_files = set()
             
             # 从所有频道获取消息信息
