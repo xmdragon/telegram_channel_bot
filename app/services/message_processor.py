@@ -594,6 +594,18 @@ class MessageProcessor:
                 logger.error(f"清理训练数据失败: {e}")
                 # 不因为清理失败而让整个操作失败
             
+            # 从向量数据库移除相关广告向量（仅使用filtered_content）
+            try:
+                from app.services.vector_manager import vector_manager
+                content = msg_data.get('filtered_content', '')
+                if content:
+                    removed_count = vector_manager.remove_vector_by_content(content)
+                    logger.info(f"🚫 标记非广告：从向量库移除 {removed_count} 个向量")
+                else:
+                    logger.warning("消息缺少filtered_content，跳过向量移除")
+            except Exception as e:
+                logger.error(f"移除广告向量失败: {e}")
+            
             logger.info(f"消息 {channel_id}:{message_id} 已标记为非广告")
             return True
             
@@ -687,15 +699,14 @@ class MessageProcessor:
                 from app.services.media_handler import media_handler
                 from app.telegram.client_manager import client_manager
                 
-                # 确保客户端连接并获取实例
-                if not await client_manager.ensure_connected():
-                    logger.error("Telegram客户端连接失败")
+                # 获取专用媒体处理客户端（使用发送Session）
+                client = await client_manager.get_media_client()
+                if not client:
+                    logger.error("💥 无法获取发送Session客户端，补抓失败")
+                    logger.error("请检查发送认证是否正确配置")
                     return False
                 
-                client = await client_manager.get_client()
-                if not client:
-                    logger.error("无法获取Telegram客户端实例")
-                    return False
+                logger.info(f"🔧 使用发送Session进行媒体补抓: {channel_id}:{message_id}")
                 
                 # 获取原始消息对象（用于重新下载媒体）
                 original_message = await client.get_messages(
@@ -703,7 +714,8 @@ class MessageProcessor:
                 )
                 
                 if not original_message or len(original_message) == 0:
-                    logger.error(f"无法获取原始消息: {channel_id}:{message_id}")
+                    logger.error(f"💥 补抓失败：无法从Telegram获取原始消息 {channel_id}:{message_id}")
+                    logger.error("可能原因：1) 消息已被删除 2) 发送认证缺少访问权限 3) 频道ID错误")
                     return False
                 
                 # Linus式"好品味"：统一处理单个媒体和组合消息
@@ -792,14 +804,17 @@ class MessageProcessor:
                     return False
                     
             except ImportError as e:
-                logger.error(f"导入媒体处理器失败: {e}")
+                logger.error(f"💥 导入媒体处理器失败: {e}")
+                logger.error("系统模块缺失，请检查服务完整性")
                 return False
             except Exception as e:
-                logger.error(f"重新获取媒体失败: {e}")
+                logger.error(f"💥 补抓媒体过程出错 {channel_id}:{message_id}: {e}")
+                logger.error("详细错误信息请查看上述日志")
                 return False
                 
         except Exception as e:
-            logger.error(f"重新获取媒体失败 {channel_id}:{message_id}: {e}")
+            logger.error(f"💥 补抓功能整体异常 {channel_id}:{message_id}: {e}")
+            logger.error("建议检查：1) 发送认证状态 2) 网络连接 3) 消息是否存在")
             return False
     
     async def _notify_media_refetched(self, channel_id: str, message_id: int, media_data: dict):

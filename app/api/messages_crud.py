@@ -50,13 +50,52 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
     return user
 
 def check_permission(permission_name: str):
-    """检查权限装饰器"""
+    """检查权限装饰器 - 真正的权限验证"""
     def decorator(func):
         import functools
+        
+        # 获取函数签名，找到用户参数
+        import inspect
+        sig = inspect.signature(func)
+        
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # 这里可以添加具体的权限检查逻辑
-            return await func(*args, **kwargs)
+            # 获取用户参数
+            user = None
+            for param_name, param in sig.parameters.items():
+                if param_name == 'user' or 'user' in str(param.annotation):
+                    user = kwargs.get(param_name) or (args[len([p for p in sig.parameters.values() if p != param])] if len(args) > 0 else None)
+                    break
+            
+            if not user:
+                raise HTTPException(status_code=401, detail="用户认证信息缺失")
+            
+            try:
+                auth_service = get_auth_service()
+                # 超级管理员拥有所有权限
+                if user.get('is_super_admin'):
+                    return await func(*args, **kwargs)
+                
+                # 检查具体权限
+                has_permission = await auth_service.check_permission(
+                    user.get('token', ''), permission_name
+                )
+                
+                if not has_permission:
+                    logger.warning(f"用户 {user.get('username')} 缺少权限: {permission_name}")
+                    raise HTTPException(
+                        status_code=403, 
+                        detail=f"缺少必要权限: {permission_name}"
+                    )
+                
+                return await func(*args, **kwargs)
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"权限检查失败: {e}")
+                raise HTTPException(status_code=500, detail="权限检查系统错误")
+        
         return wrapper
     return decorator
 

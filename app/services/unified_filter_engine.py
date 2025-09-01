@@ -10,71 +10,48 @@ from typing import Tuple, List, Optional, Dict, Any
 from pathlib import Path
 import json
 
-# 导入新的过滤器架构
-from app.services.filters.filter_pipeline import FilterPipeline, PipelineConfig
+# 导入新的分层过滤器架构
+from app.services.filters.layer_pipeline import LayerPipeline, LayerPipelineConfig
 from app.services.filters.base import FilterContext
-from app.services.filters.duplicate_detector import DuplicateDetectorFilter
-from app.services.filters.ad_detector import AdDetectorFilter  
-from app.services.filters.tail_filter import TailFilter
-from app.services.filters.footer_promo_filter import FooterPromoFilter
-from app.services.filters.markdown_filter import MarkdownFilter
-from app.services.filters.promo_vector_filter import PromoVectorFilter
 
 logger = logging.getLogger(__name__)
 
 class UnifiedFilterEngine:
-    """统一的消息过滤引擎 - 使用新的FilterPipeline架构"""
+    """统一的消息过滤引擎 - 使用新的分层架构"""
     
     def __init__(self):
         """初始化引擎"""
-        self.filter_pipeline = None
+        self.layer_pipeline = None
         self.high_risk_patterns = []
         self._initialized = False
         
         # 初始化组件
         self._initialize_components()
         
-    def _init_filter_pipeline(self) -> FilterPipeline:
-        """初始化过滤器管道 - 支持基于配置的动态加载"""
-        config = PipelineConfig(
-            enable_early_stopping=True,
-            early_stop_filters={'duplicate_detector', 'ad_detector'},
-            filter_timeout=30.0,
-            pipeline_timeout=60.0
-        )
-        
-        pipeline = FilterPipeline(config)
-        
-        # 从配置中获取过滤器启用状态
+    def _init_layer_pipeline(self) -> LayerPipeline:
+        """初始化分层管道 - 基于配置的动态启用/禁用"""
+        # 从配置中获取设置
         filter_settings = self._load_filter_settings()
         
-        # 按新顺序添加过滤器（基于配置动态启用/禁用）
-        # 1-4: 内容清理类过滤器（先清理推广内容）
-        if filter_settings.get('tail_filter', True):
-            pipeline.add_filter(TailFilter())                # 1. 尾部过滤
+        config = LayerPipelineConfig(
+            # 内容清理层配置
+            content_layer_enabled=filter_settings.get('content_layer_enabled', True),
+            content_layer_timeout=30.0,
             
-        if filter_settings.get('footer_promo_filter', True):
-            pipeline.add_filter(FooterPromoFilter())         # 2. 尾部推广链接过滤器
+            # 检测器层配置  
+            detector_layer_enabled=filter_settings.get('detector_layer_enabled', True),
+            detector_layer_timeout=30.0,
+            enable_early_stopping=True,
             
-        if filter_settings.get('promo_vector_filter', True):
-            pipeline.add_filter(PromoVectorFilter())         # 3. 推广内容向量过滤
-            
-        if filter_settings.get('markdown_filter', True):
-            pipeline.add_filter(MarkdownFilter())            # 4. Markdown格式清理
+            # 管道全局配置
+            pipeline_timeout=60.0,
+            enable_detailed_stats=True,
+            enable_performance_monitoring=True
+        )
         
-        # 5-7: 内容检测类过滤器（清理后再检测，避免误判）
-        if filter_settings.get('duplicate_detector', True):
-            pipeline.add_filter(DuplicateDetectorFilter())   # 5. 去重检测
-            
-        if filter_settings.get('ad_detector', True):
-            pipeline.add_filter(AdDetectorFilter())          # 6. 广告检测
-            
+        logger.info(f"分层管道初始化完成 - 内容清理层: {config.content_layer_enabled}, 检测器层: {config.detector_layer_enabled}")
         
-        # 记录启用的过滤器
-        enabled_filters = [name for name, enabled in filter_settings.items() if enabled and name != 'ocr_enabled' and name != 'auto_reject_ads']
-        logger.info(f"过滤器管道初始化完成，启用的过滤器: {enabled_filters}")
-        
-        return pipeline
+        return LayerPipeline(config)
         
     def _load_filter_settings(self) -> Dict[str, bool]:
         """从系统配置加载过滤器设置"""
@@ -158,19 +135,23 @@ class UnifiedFilterEngine:
             auto_reject_duplicates = to_bool(auto_reject_duplicates)
             auto_reject_high_risk = to_bool(auto_reject_high_risk)
             
-            # 基于系统配置的各个过滤器启用状态（每个过滤器使用自己的配置）
+            # 分层架构配置
             settings = {
-                # 内容清理过滤器 - 使用各自的配置
+                # 分层控制
+                'content_layer_enabled': True,  # 内容清理层默认启用
+                'detector_layer_enabled': True, # 检测器层默认启用
+                
+                # 内容清理过滤器 - 通过层级管理
                 'tail_filter': tail_filter_enabled,
-                'footer_promo_filter': footer_promo_enabled,  # 使用独立配置
-                'markdown_filter': markdown_enabled,          # 使用独立配置
-                'promo_vector_filter': promo_vector_enabled,  # 使用独立配置
+                'footer_promo_filter': footer_promo_enabled,
+                'markdown_filter': markdown_enabled,
+                'promo_vector_filter': promo_vector_enabled,
                 
-                # 内容检测过滤器 - 使用各自的配置
-                'duplicate_detector': duplicate_enabled,      # 使用独立配置
-                'ad_detector': ad_detector_enabled,           # 使用独立配置
+                # 内容检测过滤器 - 通过层级管理
+                'duplicate_detector': duplicate_enabled,
+                'ad_detector': ad_detector_enabled,
                 
-                # 额外功能
+                # 其他配置
                 'ocr_enabled': ocr_enabled,
                 'auto_reject_ads': auto_reject_ads,
                 'auto_reject_duplicates': auto_reject_duplicates,
@@ -182,14 +163,16 @@ class UnifiedFilterEngine:
             
         except Exception as e:
             logger.error(f"加载过滤器设置失败，使用默认配置: {e}")
-            # 返回默认设置（与配置文件默认值一致）
+            # 返回默认分层设置
             return {
+                'content_layer_enabled': True,
+                'detector_layer_enabled': True,
                 'tail_filter': True,
                 'footer_promo_filter': True,
                 'markdown_filter': True,
                 'promo_vector_filter': True,
-                'duplicate_detector': False,  # 默认禁用
-                'ad_detector': False,         # 默认禁用
+                'duplicate_detector': False,
+                'ad_detector': False,
                 'ocr_enabled': True,
                 'auto_reject_ads': True,
                 'auto_reject_duplicates': False,
@@ -199,34 +182,37 @@ class UnifiedFilterEngine:
     def _initialize_components(self):
         """初始化所有组件"""
         try:
-            # 初始化新的过滤器管道
-            self.filter_pipeline = self._init_filter_pipeline()
+            # 初始化新的分层管道
+            self.layer_pipeline = self._init_layer_pipeline()
+            
+            # 为了保持兼容性，同时提供filter_pipeline属性
+            self.filter_pipeline = self.layer_pipeline
             
             # 初始化高风险模式
             self._init_high_risk_patterns()
             
             self._initialized = True
-            logger.info("✅ 统一过滤引擎初始化成功（使用FilterPipeline架构）")
+            logger.info("✅ 统一过滤引擎初始化成功（使用分层架构）")
             
         except Exception as e:
             logger.error(f"统一过滤引擎初始化失败: {e}")
             
     def get_pipeline_stats(self) -> Dict[str, Any]:
-        """获取过滤器管道统计信息"""
-        if self.filter_pipeline:
-            return self.filter_pipeline.get_pipeline_stats()
+        """获取分层管道统计信息"""
+        if self.layer_pipeline:
+            return self.layer_pipeline.get_pipeline_stats()
         return {}
         
     def get_performance_metrics(self) -> Dict[str, Any]:
         """获取性能指标"""
-        if self.filter_pipeline:
-            return self.filter_pipeline.get_performance_metrics()
+        if self.layer_pipeline:
+            return self.layer_pipeline.get_performance_metrics()
         return {}
         
     def reset_stats(self) -> None:
         """重置统计信息"""
-        if self.filter_pipeline:
-            self.filter_pipeline.reset_stats()
+        if self.layer_pipeline:
+            self.layer_pipeline.reset_stats()
             
     def _init_high_risk_patterns(self):
         """初始化高风险广告检测模式"""
@@ -345,7 +331,7 @@ class UnifiedFilterEngine:
         media_files: Optional[List[str]] = None
     ) -> Tuple[bool, str, str]:
         """
-        统一的广告检测方法 - 使用新的FilterPipeline架构
+        统一的广告检测方法 - 使用新的LayerPipeline分层架构
         
         Args:
             content: 消息内容
@@ -359,8 +345,8 @@ class UnifiedFilterEngine:
         if not content:
             return False, content, ""
             
-        if not self.filter_pipeline:
-            logger.error("FilterPipeline未初始化，降级到高风险检测")
+        if not self.layer_pipeline:
+            logger.error("LayerPipeline未初始化，降级到高风险检测")
             is_high_risk, _ = self.is_high_risk_ad(content)
             return is_high_risk, content if not is_high_risk else "", "高风险广告" if is_high_risk else ""
             
@@ -376,8 +362,8 @@ class UnifiedFilterEngine:
             if message_obj:
                 filter_context.add_metadata('message_obj', message_obj)
             
-            # 执行过滤器管道
-            pipeline_result = await self.filter_pipeline.process(content, filter_context)
+            # 执行分层管道
+            pipeline_result = await self.layer_pipeline.process(content, filter_context)
             
             # 提取结果
             is_ad = not pipeline_result.passed
@@ -395,7 +381,7 @@ class UnifiedFilterEngine:
             return is_ad, filtered_content, filter_reason
             
         except Exception as e:
-            logger.error(f"FilterPipeline执行失败: {e}")
+            logger.error(f"LayerPipeline执行失败: {e}")
             # 降级到高风险检测
             is_high_risk, _ = self.is_high_risk_ad(content)
             return is_high_risk, content if not is_high_risk else "", "高风险广告" if is_high_risk else ""
@@ -441,7 +427,7 @@ unified_filter_engine = UnifiedFilterEngine()
 class FilterEngineCompat:
     """
     统一过滤引擎的兼容层接口
-    提供与旧content_filter相同的接口，但使用新的FilterPipeline架构
+    提供与旧content_filter相同的接口，但使用新的LayerPipeline分层架构
     """
     
     def __init__(self):

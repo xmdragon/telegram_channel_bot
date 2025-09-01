@@ -130,14 +130,68 @@ async def lifespan(app: FastAPI):
             await health_monitor.set_unhealthy("Redis存储层初始化失败")
             raise RuntimeError("Redis初始化失败")
         
-        # 初始化JSON存储层
-        from app.storage.json_store import init_json_stores
-        if not init_json_stores():
+        # 初始化JSON存储层（带重试机制）
+        from app.storage.json_store import init_json_stores, is_json_stores_initialized
+        json_retries = 3
+        json_success = False
+        
+        for attempt in range(json_retries):
+            if init_json_stores():
+                # 验证初始化是否真正成功
+                if is_json_stores_initialized():
+                    json_success = True
+                    break
+                else:
+                    logger.warning(f"JSON存储层初始化状态异常，重试 ({attempt + 1}/{json_retries})")
+            else:
+                logger.warning(f"JSON存储层初始化失败，重试 ({attempt + 1}/{json_retries})")
+            
+            if attempt < json_retries - 1:
+                time.sleep(1.0)  # 短暂等待后重试
+        
+        if not json_success:
             await health_monitor.set_unhealthy("JSON存储层初始化失败")
             raise RuntimeError("JSON存储初始化失败")
+            
+        # 验证配置管理器是否能正常工作
+        logger.info("🔧 验证配置管理器...")
+        from app.services.config_manager import config_manager
+        
+        # 使用新的ensure_ready方法进行配置管理器验证
+        config_ready = await config_manager.ensure_ready()
+        
+        if not config_ready:
+            # 如果ensure_ready失败，获取详细诊断信息
+            try:
+                diagnostics = await config_manager.get_storage_diagnostics()
+                logger.error(f"配置管理器就绪失败，诊断信息: {diagnostics}")
+                
+                # 最后一次尝试：强制重载
+                logger.info("最后一次尝试：强制重载配置...")
+                if await config_manager.force_reload_with_retry(max_retries=3):
+                    config_ready = await config_manager.ensure_ready()
+                    if config_ready:
+                        logger.info("✅ 强制重载后配置管理器已就绪")
+                    else:
+                        logger.error("强制重载后配置管理器仍未就绪")
+                
+            except Exception as e:
+                logger.error(f"获取配置诊断信息失败: {e}")
+        
+        if not config_ready:
+            await health_monitor.set_unhealthy("配置管理器验证失败")
+            raise RuntimeError("配置管理器初始化或验证失败")
+            
+        # 获取最终状态信息
+        try:
+            final_diagnostics = await config_manager.get_storage_diagnostics()
+            logger.info(f"✅ 配置管理器验证成功 (缓存: {final_diagnostics['cache_size']}项, 状态同步: {final_diagnostics.get('state_sync_ok', 'unknown')})")
+        except Exception as e:
+            logger.warning(f"获取最终诊断信息失败: {e}")
+            logger.info("✅ 配置管理器验证成功")
         
         storage_time = time.time() - storage_start
-        logger.info(f"✅ 存储层初始化完成 ({storage_time:.2f}s)")
+        logger.info(f"✅ 存储层初始化和验证完成 ({storage_time:.2f}s)")
         
         # 版本管理已废除 - 使用客户端动态时间戳
         

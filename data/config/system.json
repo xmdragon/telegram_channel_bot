@@ -49,7 +49,7 @@
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "系统重置时自动禁用采集",
     "is_active": true,
@@ -78,7 +78,7 @@
   },
   "source.history_limit": {
     "value": "100",
-    "config_type": "integer",
+    "config_type": "string",
     "description": "首次采集频道时获取的历史消息条数",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.308901"

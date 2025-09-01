@@ -23,16 +23,58 @@ class ConfigManager:
         self._json_store: Optional[JSONConfigStore] = None
         self._last_file_mtime = 0.0  # 上次文件修改时间
     
-    def _get_store(self) -> Optional[JSONConfigStore]:
-        """获取JSON存储实例"""
+    def _get_store(self, max_retries: int = 3) -> Optional[JSONConfigStore]:
+        """获取JSON存储实例 - 修复状态同步问题"""
         if self._json_store is None:
-            try:
-                self._json_store = get_json_config_store()
-            except RuntimeError as e:
-                if "未初始化" in str(e):
-                    logger.debug("JSON存储层未初始化")
+            for attempt in range(max_retries):
+                try:
+                    # 关键修复：每次重试都尝试获取新的存储实例
+                    store = get_json_config_store()
+                    
+                    # 验证存储实例是否真正可用
+                    if store is not None:
+                        # 尝试简单的操作验证存储实例
+                        try:
+                            _ = store.get_all_config()
+                            # 验证成功，更新实例状态
+                            self._json_store = store
+                            logger.debug(f"JSON存储实例获取并验证成功 (尝试 {attempt + 1}/{max_retries})")
+                            return self._json_store
+                        except Exception as verify_e:
+                            logger.warning(f"JSON存储实例验证失败: {verify_e}")
+                            store = None
+                    
+                    if store is None and attempt < max_retries - 1:
+                        logger.debug(f"JSON存储实例获取失败，重试 {attempt + 1}/{max_retries}")
+                        
+                except RuntimeError as e:
+                    if "未初始化" in str(e):
+                        if attempt < max_retries - 1:
+                            logger.debug(f"JSON存储层未初始化，重试 {attempt + 1}/{max_retries}")
+                            # 尝试强制重新初始化
+                            from app.storage.json_store import force_reinit_json_stores
+                            if force_reinit_json_stores():
+                                logger.info("JSON存储层强制重新初始化成功")
+                                # 重新初始化后不使用continue，让循环自然重试
+                            else:
+                                logger.warning("JSON存储层强制重新初始化失败")
+                        else:
+                            logger.error("JSON存储层多次初始化失败")
+                            return None
+                    else:
+                        logger.error(f"获取JSON存储实例时发生异常: {e}")
+                        if attempt == max_retries - 1:
+                            return None
+                except Exception as e:
+                    logger.error(f"获取JSON存储实例失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                    if attempt == max_retries - 1:
+                        return None
+                        
+                # 最后一次尝试失败
+                if attempt == max_retries - 1:
+                    logger.error("JSON存储实例获取多次重试后仍然失败")
                     return None
-                raise
+                    
         return self._json_store
     
     def _check_file_updated(self) -> bool:
@@ -263,13 +305,165 @@ class ConfigManager:
                 logger.error(f"批量设置配置失败: {e}")
                 return False
     
-    async def reload_cache(self):
-        """重新加载缓存"""
+    async def reload_cache(self, force_reinit_storage: bool = False):
+        """重新加载缓存 - 增强版本"""
         with self._cache_lock:
+            logger.info("开始重新加载配置缓存...")
+            
+            if force_reinit_storage:
+                logger.info("强制重新初始化存储层...")
+                # 重置存储实例
+                self._json_store = None
+                # 强制重新初始化JSON存储层
+                from app.storage.json_store import force_reinit_json_stores
+                if not force_reinit_json_stores():
+                    logger.error("强制重新初始化存储层失败")
+                    return False
+            
+            # 清空缓存并重新加载
             self._cache = {}
             self._cache_loaded = False
-            await self._load_cache()
-            logger.info("配置缓存已重新加载")
+            await self._load_cache(force_reload=True)
+            
+            if self._cache_loaded:
+                logger.info("配置缓存重新加载成功")
+                return True
+            else:
+                logger.error("配置缓存重新加载失败")
+                return False
+
+    async def force_reload_with_retry(self, max_retries: int = 3):
+        """强制重载配置，带存储层重新初始化和多次重试"""
+        logger.info("开始强制重载配置...")
+        
+        for attempt in range(max_retries):
+            try:
+                # 第一次尝试普通重载，后续尝试强制重新初始化存储层
+                force_storage = attempt > 0
+                success = await self.reload_cache(force_reinit_storage=force_storage)
+                
+                if success:
+                    logger.info(f"强制重载配置成功 (尝试 {attempt + 1}/{max_retries})")
+                    return True
+                    
+            except Exception as e:
+                logger.error(f"强制重载配置失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+            
+            if attempt < max_retries - 1:
+                import asyncio
+                await asyncio.sleep(2.0 * (attempt + 1))  # 递增等待时间
+        
+        logger.error("强制重载配置多次重试后仍然失败")
+        return False
+
+    def is_storage_healthy(self) -> bool:
+        """检查存储层健康状态"""
+        try:
+            from app.storage.json_store import is_json_stores_initialized
+            return is_json_stores_initialized()
+        except Exception as e:
+            logger.error(f"检查存储层健康状态失败: {e}")
+            return False
+
+    async def get_storage_diagnostics(self) -> dict:
+        """获取存储层诊断信息 - 区分全局和实例状态"""
+        # 检查全局存储状态
+        global_storage_healthy = self.is_storage_healthy()
+        
+        # 检查实例存储状态
+        instance_store_available = self._json_store is not None
+        
+        # 尝试获取存储实例（如果当前为None）
+        store_access_test = None
+        if not instance_store_available:
+            try:
+                test_store = self._get_store()
+                store_access_test = test_store is not None
+            except Exception as e:
+                store_access_test = f"获取失败: {e}"
+        
+        diagnostics = {
+            "cache_loaded": self._cache_loaded,
+            "cache_size": len(self._cache),
+            "storage_healthy": global_storage_healthy,
+            "json_store_available": instance_store_available,
+            "store_access_test": store_access_test,
+            "state_sync_ok": global_storage_healthy and instance_store_available,
+            "critical_configs_status": {}
+        }
+        
+        # 检查关键配置
+        critical_configs = [
+            'telegram.api_id',
+            'telegram.api_hash', 
+            'telegram.sender_session',
+            'telegram.listener_session'
+        ]
+        
+        for config_key in critical_configs:
+            try:
+                value = await self.get_config(config_key)
+                diagnostics["critical_configs_status"][config_key] = {
+                    "exists": value is not None,
+                    "has_value": bool(value) if value is not None else False,
+                    "type": type(value).__name__ if value is not None else "None"
+                }
+            except Exception as e:
+                diagnostics["critical_configs_status"][config_key] = {
+                    "exists": False,
+                    "error": str(e)
+                }
+        
+        return diagnostics
+    
+    def sync_instance_state(self) -> bool:
+        """同步实例状态 - 修复状态不一致问题"""
+        try:
+            # 如果全局存储健康但实例存储不可用，尝试同步
+            if self.is_storage_healthy() and self._json_store is None:
+                logger.debug("检测到状态不同步，尝试修复...")
+                
+                # 强制重新获取存储实例
+                store = self._get_store()
+                if store is not None:
+                    logger.info("实例状态同步成功")
+                    return True
+                else:
+                    logger.warning("实例状态同步失败")
+                    return False
+            
+            return True  # 已经同步或无需同步
+            
+        except Exception as e:
+            logger.error(f"同步实例状态时发生异常: {e}")
+            return False
+    
+    async def ensure_ready(self) -> bool:
+        """确保ConfigManager处于就绪状态"""
+        try:
+            # 1. 检查并修复状态同步
+            if not self.sync_instance_state():
+                logger.error("ConfigManager状态同步失败")
+                return False
+            
+            # 2. 确保缓存已加载
+            if not self._cache_loaded:
+                logger.debug("缓存未加载，尝试加载...")
+                await self._load_cache()
+                
+                if not self._cache_loaded:
+                    logger.error("缓存加载失败")
+                    return False
+            
+            # 3. 验证关键配置
+            await self._validate_critical_configs()
+            
+            logger.debug("ConfigManager已就绪")
+            return True
+            
+        except Exception as e:
+            logger.error(f"确保ConfigManager就绪时发生异常: {e}")
+            return False
     
     async def clear_cache(self):
         """清理缓存"""
@@ -295,28 +489,92 @@ class ConfigManager:
             except Exception as e:
                 logger.error(f"配置变更监听器错误: {e}")
     
-    async def _load_cache(self):
-        """加载配置到缓存"""
-        try:
-            store = self._get_store()
-            # 检查存储层是否已初始化
-            if store is None:
-                logger.debug("JSON存储层未初始化，稍后重试")
-                return  # 不标记为已加载，允许后续重试
+    async def _load_cache(self, force_reload: bool = False):
+        """加载配置到缓存 - 增强错误恢复机制"""
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                store = self._get_store()
+                # 检查存储层是否已初始化
+                if store is None:
+                    if attempt < max_retries - 1:
+                        logger.debug(f"JSON存储层未初始化，稍后重试 ({attempt + 1}/{max_retries})")
+                        # 短暂等待后重试
+                        import asyncio
+                        await asyncio.sleep(0.5 * (attempt + 1))
+                        continue
+                    else:
+                        logger.warning("JSON存储层多次重试后仍未初始化")
+                        return  # 不标记为已加载，允许后续重试
+                    
+                all_configs = store.get_all_config()
                 
-            all_configs = store.get_all_config()
-            
-            # 只加载活跃的配置
-            for key, config_data in all_configs.items():
-                if isinstance(config_data, dict) and config_data.get('is_active', True):
-                    self._cache[key] = config_data
-            
-            self._cache_loaded = True
-            logger.info(f"已从JSON存储加载 {len(self._cache)} 个配置项到缓存")
-            
-        except Exception as e:
-            logger.error(f"加载配置缓存失败: {e}")
-            # 不标记为已加载，允许后续重试
+                if not all_configs:
+                    logger.warning("JSON存储返回空配置，可能存在问题")
+                    if attempt < max_retries - 1:
+                        # 尝试强制重新初始化存储层
+                        from app.storage.json_store import force_reinit_json_stores
+                        if force_reinit_json_stores():
+                            logger.info("强制重新初始化存储层后重试")
+                            # 重新初始化后，重置存储实例，让下一次循环重新获取
+                            self._json_store = None
+                            # 短暂等待后重试
+                            import asyncio
+                            await asyncio.sleep(0.2)
+                            continue
+                        else:
+                            logger.warning("强制重新初始化存储层失败")
+                    else:
+                        logger.error("多次重试后仍无法加载配置")
+                        return
+                
+                # 清空缓存（如果是强制重载）
+                if force_reload:
+                    self._cache.clear()
+                
+                # 只加载活跃的配置
+                loaded_count = 0
+                for key, config_data in all_configs.items():
+                    if isinstance(config_data, dict) and config_data.get('is_active', True):
+                        self._cache[key] = config_data
+                        loaded_count += 1
+                
+                self._cache_loaded = True
+                logger.info(f"已从JSON存储加载 {loaded_count} 个配置项到缓存")
+                
+                # 验证关键配置是否存在
+                await self._validate_critical_configs()
+                return  # 成功加载，退出重试循环
+                
+            except Exception as e:
+                logger.error(f"加载配置缓存失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    logger.error("配置加载多次重试失败，将影响系统功能")
+                    # 不标记为已加载，允许后续重试
+                else:
+                    # 短暂等待后重试
+                    import asyncio
+                    await asyncio.sleep(1.0 * (attempt + 1))
+
+    async def _validate_critical_configs(self):
+        """验证关键配置是否存在"""
+        critical_configs = [
+            'telegram.api_id',
+            'telegram.api_hash',
+            'telegram.sender_session',
+            'telegram.listener_session'
+        ]
+        
+        missing_configs = []
+        for config_key in critical_configs:
+            if config_key not in self._cache or not self._cache[config_key].get('value'):
+                missing_configs.append(config_key)
+        
+        if missing_configs:
+            logger.warning(f"关键配置缺失: {', '.join(missing_configs)}")
+        else:
+            logger.debug("所有关键配置验证通过")
     
     def _determine_config_type(self, key: str, value: Any, explicit_type: str = None) -> str:
         """

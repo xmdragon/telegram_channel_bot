@@ -502,49 +502,131 @@ class JSONAdminStore(JSONStore):
         except Exception as e:
             logger.error(f"初始化权限失败: {e}")
 
-# 全局实例
+# 全局实例和初始化同步机制
+import threading
+_init_lock = threading.RLock()  # 可重入锁，支持嵌套调用
+_initialization_complete = False
+_initialization_in_progress = False
+
 json_config_store = None
 json_channel_store = None
 json_admin_store = None
 
 def init_json_stores(data_dir: str = None):
-    """初始化JSON存储实例 - 单例模式，避免重复初始化"""
+    """初始化JSON存储实例 - 线程安全的单例模式"""
     global json_config_store, json_channel_store, json_admin_store
+    global _initialization_complete, _initialization_in_progress
     
-    # 检查是否已经初始化
-    if json_config_store is not None and json_channel_store is not None and json_admin_store is not None:
-        logger.debug("JSON存储层已经初始化，跳过重复初始化")
-        return True
+    with _init_lock:
+        # 如果已经完成初始化，直接返回
+        if _initialization_complete:
+            logger.debug("JSON存储层已经初始化完成，跳过重复初始化")
+            return True
+        
+        # 如果正在初始化中，等待完成
+        if _initialization_in_progress:
+            logger.debug("JSON存储层正在初始化中，等待完成...")
+            # 释放锁让其他线程完成初始化，然后重新检查
+            return _wait_for_initialization()
+        
+        # 标记初始化开始
+        _initialization_in_progress = True
+        logger.debug("开始JSON存储层初始化...")
     
     try:
-        json_config_store = JSONConfigStore(data_dir)
-        json_channel_store = JSONChannelStore(data_dir)
-        json_admin_store = JSONAdminStore(data_dir)
+        # 实际的初始化过程（在锁外进行，避免长时间占用锁）
+        config_store = JSONConfigStore(data_dir)
+        channel_store = JSONChannelStore(data_dir)
+        admin_store = JSONAdminStore(data_dir)
         
         # 初始化默认权限
-        json_admin_store.init_default_permissions()
+        admin_store.init_default_permissions()
+        
+        # 原子性设置全局变量
+        with _init_lock:
+            json_config_store = config_store
+            json_channel_store = channel_store
+            json_admin_store = admin_store
+            _initialization_complete = True
+            _initialization_in_progress = False
         
         logger.info("JSON存储层初始化成功")
         return True
         
     except Exception as e:
+        # 重置状态，允许重试
+        with _init_lock:
+            _initialization_in_progress = False
+            _initialization_complete = False
+        
         logger.error(f"JSON存储层初始化失败: {e}")
         return False
 
+def _wait_for_initialization(timeout=30):
+    """等待其他线程完成初始化"""
+    import time
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        with _init_lock:
+            if _initialization_complete:
+                return True
+            if not _initialization_in_progress:
+                # 初始化进程异常结束，需要重新初始化
+                break
+        
+        time.sleep(0.1)  # 短暂等待
+    
+    logger.warning("等待JSON存储层初始化超时或失败")
+    return False
+
 def get_json_config_store() -> JSONConfigStore:
-    """获取配置存储实例"""
+    """获取配置存储实例 - 带自动初始化重试"""
     if json_config_store is None:
-        raise RuntimeError("JSON存储层未初始化")
+        logger.debug("配置存储未初始化，尝试自动初始化...")
+        if not init_json_stores():
+            raise RuntimeError("JSON存储层未初始化且自动初始化失败")
     return json_config_store
 
 def get_json_channel_store() -> JSONChannelStore:
-    """获取频道存储实例"""
+    """获取频道存储实例 - 带自动初始化重试"""
     if json_channel_store is None:
-        raise RuntimeError("JSON存储层未初始化")
+        logger.debug("频道存储未初始化，尝试自动初始化...")
+        if not init_json_stores():
+            raise RuntimeError("JSON存储层未初始化且自动初始化失败")
     return json_channel_store
 
 def get_json_admin_store() -> JSONAdminStore:
-    """获取管理员存储实例"""
+    """获取管理员存储实例 - 带自动初始化重试"""
     if json_admin_store is None:
-        raise RuntimeError("JSON存储层未初始化")
+        logger.debug("管理员存储未初始化，尝试自动初始化...")
+        if not init_json_stores():
+            raise RuntimeError("JSON存储层未初始化且自动初始化失败")
     return json_admin_store
+
+def force_reinit_json_stores(data_dir: str = None):
+    """强制重新初始化JSON存储层"""
+    global json_config_store, json_channel_store, json_admin_store
+    global _initialization_complete, _initialization_in_progress
+    
+    logger.info("强制重新初始化JSON存储层...")
+    
+    with _init_lock:
+        # 重置所有状态
+        json_config_store = None
+        json_channel_store = None
+        json_admin_store = None
+        _initialization_complete = False
+        _initialization_in_progress = False
+    
+    # 重新初始化
+    return init_json_stores(data_dir)
+
+def is_json_stores_initialized() -> bool:
+    """检查JSON存储层是否已初始化"""
+    with _init_lock:
+        return _initialization_complete and all([
+            json_config_store is not None,
+            json_channel_store is not None, 
+            json_admin_store is not None
+        ])

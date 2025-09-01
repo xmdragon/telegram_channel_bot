@@ -29,7 +29,21 @@ class RedisChannelStore(RedisBaseStore):
         """获取频道采集点"""
         try:
             checkpoint = self.redis.hget("channel:checkpoint", channel_id)
-            return int(checkpoint) if checkpoint else None
+            if checkpoint is None:
+                return None
+            
+            # 安全的类型转换
+            try:
+                return int(checkpoint)
+            except (ValueError, TypeError) as conv_e:
+                logger.warning(f"采集点类型转换失败 {channel_id}: {checkpoint} -> {conv_e}")
+                # 尝试清理无效的采集点数据
+                try:
+                    self.redis.hdel("channel:checkpoint", channel_id)
+                    logger.info(f"已清理无效采集点数据: {channel_id}")
+                except Exception as clean_e:
+                    logger.error(f"清理无效采集点失败: {clean_e}")
+                return None
             
         except Exception as e:
             logger.error(f"获取采集点失败 {channel_id}: {e}")

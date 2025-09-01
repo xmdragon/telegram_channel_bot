@@ -25,11 +25,15 @@ class ClientManagerCompat:
         return await dual_session_manager.ensure_listener_connected()
     
     async def get_client(self) -> Optional[TelegramClient]:
-        """获取客户端 - 优先返回监听Session"""
-        client = await dual_session_manager.get_listener_client()
+        """获取客户端 - 媒体处理优先使用发送Session"""
+        client = await dual_session_manager.get_sender_client()
         if not client:
-            client = await dual_session_manager.get_sender_client()
+            client = await dual_session_manager.get_listener_client()
         return client
+    
+    async def get_media_client(self) -> Optional[TelegramClient]:
+        """获取专用媒体处理客户端 - 强制使用发送Session"""
+        return await dual_session_manager.get_sender_client()
     
     async def ensure_connected(self) -> bool:
         """确保连接 - 检查任意Session可用"""

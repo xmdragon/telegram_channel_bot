@@ -14,6 +14,16 @@ from app.services.unified_channel_service import unified_channel_service
 
 logger = logging.getLogger(__name__)
 
+def safe_int(value, default=0):
+    """安全的整数转换，用于处理checkpoint类型问题"""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        logger.warning(f"安全整数转换失败: {value} -> 使用默认值 {default}")
+        return default
+
 class HistoryCollector:
     """历史消息采集器 - 使用Redis+JSON存储"""
     
@@ -95,7 +105,7 @@ class HistoryCollector:
             from app.services.config_manager import config_manager
             
             redis_channel_store = get_redis_channel_store()
-            checkpoint_id = redis_channel_store.get_checkpoint(channel_id)
+            checkpoint_id = safe_int(redis_channel_store.get_checkpoint(channel_id))
             
             if checkpoint_id:
                 # 继续增量采集
@@ -110,39 +120,79 @@ class HistoryCollector:
             
             # 采集历史消息 - 先收集到列表，然后按时间顺序处理
             collected_messages = []
-            latest_message_id = checkpoint_id or 0
+            latest_message_id = safe_int(checkpoint_id)
             
             logger.info(f"开始采集，min_id={min_id}, limit={batch_limit}")
             
             message_count = 0
-            try:
-                async for message in client.iter_messages(entity, limit=batch_limit, min_id=min_id):
-                    try:
-                        # 与实时监听保持一致，处理所有消息（包括纯媒体）
-                        if not message or not message.id:
-                            continue
-                        
-                        message_count += 1
-                        if message_count % 10 == 0:  # 更频繁的进度日志
-                            logger.info(f"已获取 {message_count} 条消息 (最新ID: {message.id})")
-                        
-                        # 记录最新的消息ID
-                        if message.id and message.id > latest_message_id:
-                            latest_message_id = message.id
-                        
-                        collected_messages.append(message)
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    async for message in client.iter_messages(entity, limit=batch_limit, min_id=min_id):
+                        try:
+                            # 与实时监听保持一致，处理所有消息（包括纯媒体）
+                            if not message or not message.id:
+                                continue
                             
-                    except Exception as e:
-                        logger.error(f"收集单条消息失败: {e}")
+                            message_count += 1
+                            if message_count % 10 == 0:  # 更频繁的进度日志
+                                logger.info(f"已获取 {message_count} 条消息 (最新ID: {message.id})")
+                            
+                            # 记录最新的消息ID
+                            if message.id and safe_int(message.id) > latest_message_id:
+                                latest_message_id = safe_int(message.id)
+                            
+                            collected_messages.append(message)
+                                
+                        except Exception as e:
+                            logger.error(f"收集单条消息失败: {e}")
+                            continue
+                    
+                    # 成功获取消息，跳出重试循环
+                    break
+                    
+                except Exception as e:
+                    retry_count += 1
+                    import traceback
+                    error_msg = str(e).lower()
+                    
+                    # 检查是否是网络连接错误
+                    is_network_error = any(keyword in error_msg for keyword in [
+                        'connection', 'network', 'timeout', 'server closed', 
+                        'bytes read', 'connection lost', 'socket'
+                    ])
+                    
+                    if is_network_error and retry_count < max_retries:
+                        wait_time = 2 ** retry_count  # 指数退避
+                        logger.warning(f"网络连接错误，{wait_time}秒后重试 ({retry_count}/{max_retries}): {e}")
+                        await asyncio.sleep(wait_time)
+                        
+                        # 尝试重新连接客户端
+                        try:
+                            if not client.is_connected():
+                                logger.info("重新连接Telegram客户端...")
+                                await client.connect()
+                        except Exception as reconnect_e:
+                            logger.error(f"重新连接失败: {reconnect_e}")
+                        
                         continue
+                    else:
+                        # 非网络错误或重试次数用完
+                        logger.error(f"iter_messages异常 (重试{retry_count}次后失败): {e}")
+                        logger.error(f"详细错误: {traceback.format_exc()}")
                         
-                logger.info(f"消息获取完成: 共获取 {message_count} 条消息，范围 min_id={min_id}, limit={batch_limit}")
+                        # 如果有部分消息已收集，保存中间进度
+                        if collected_messages and latest_message_id > safe_int(checkpoint_id):
+                            logger.info(f"保存中间进度: {len(collected_messages)} 条消息")
+                            redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                         
-            except Exception as e:
-                import traceback
-                logger.error(f"iter_messages异常: {e}")
-                logger.error(f"详细错误: {traceback.format_exc()}")
-                return
+                        return
+                        
+            logger.info(f"消息获取完成: 共获取 {message_count} 条消息，范围 min_id={min_id}, limit={batch_limit}")
+            if retry_count > 0:
+                logger.info(f"网络重试 {retry_count} 次后成功")
             
             # 如果没有新消息
             if not collected_messages:
@@ -150,7 +200,7 @@ class HistoryCollector:
                 logger.info(f"{collection_type} {channel_name} 没有新消息，已是最新")
                     
                 # 更新Redis采集点为最新值（如果有更新的消息ID）
-                if latest_message_id > (checkpoint_id or 0):
+                if latest_message_id > safe_int(checkpoint_id):
                     redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                     logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
                 return
@@ -232,7 +282,7 @@ class HistoryCollector:
                 logger.warning(f"⚠️ 保存率较低: {success_count}/{len(collected_messages)} ({(success_count/len(collected_messages)*100):.1f}%)，请检查过滤规则")
             
             # 更新Redis采集点
-            if latest_message_id > (checkpoint_id or 0):
+            if latest_message_id > safe_int(checkpoint_id):
                 redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                 logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
             

@@ -11,61 +11,33 @@ from .base import (
     handle_api_error, validate_pagination_params,
     paginate_data, generate_sample_id
 )
-from app.core.path_config import PathConfig
 from app.core.route_config import ROUTES
-from app.utils.safe_file_ops import SafeFileOperation
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["training-ad-samples"])
 
-# 广告样本文件路径
-AD_SAMPLES_FILE = PathConfig.AD_TRAINING_FILE
-
-def load_ad_samples():
-    """加载广告样本"""
-    try:
-        if AD_SAMPLES_FILE.exists():
-            data = SafeFileOperation.read_json_safe(AD_SAMPLES_FILE)
-            return data.get('samples', []) if data else []
-        return []
-    except Exception as e:
-        logger.error(f"加载广告样本失败: {e}")
-        return []
-
-def save_ad_samples(samples: List[Dict]) -> bool:
-    """保存广告样本"""
-    try:
-        AD_SAMPLES_FILE.parent.mkdir(parents=True, exist_ok=True)
-        data = {
-            'samples': samples,
-            'updated_at': datetime.now().isoformat(),
-            'total_count': len(samples)
-        }
-        return SafeFileOperation.write_json_safe(AD_SAMPLES_FILE, data)
-    except Exception as e:
-        logger.error(f"保存广告样本失败: {e}")
-        return False
+# 向量学习系统 - 不再使用传统文件训练样本
 
 @router.get(ROUTES.training.ad_samples)
 async def get_ad_samples(page: int = 1, page_size: int = 20):
-    """获取广告样本列表"""
+    """获取广告向量统计（替代传统样本列表）"""
     try:
-        samples = load_ad_samples()
+        from app.services.vector_manager import vector_manager
         
-        # 应用分页
-        page, page_size = validate_pagination_params(page, page_size)
-        paginated_result = paginate_data(samples, page, page_size)
+        # 获取向量统计
+        stats = vector_manager.get_stats()
         
         return {
             "success": True,
-            "samples": paginated_result['items'],
-            "total": paginated_result['total'],
-            "page": paginated_result['page'],
-            "page_size": paginated_result['page_size'],
-            "total_pages": paginated_result['total_pages']
+            "samples": [],  # 保持API兼容性，但返回空列表
+            "total": stats.get('total_vectors', 0),
+            "page": 1,
+            "page_size": page_size,
+            "total_pages": 1,
+            "vector_stats": stats  # 新增向量统计信息
         }
     except Exception as e:
-        logger.error(f"获取广告样本失败: {e}")
+        logger.error(f"获取向量统计失败: {e}")
         return {
             "success": False,
             "samples": [],
@@ -77,47 +49,33 @@ async def get_ad_samples(page: int = 1, page_size: int = 20):
 
 @router.get(ROUTES.training.ad_statistics)
 async def get_ad_statistics():
-    """获取广告统计信息"""
+    """获取广告向量统计信息（替代传统样本统计）"""
     try:
-        samples = load_ad_samples()
+        from app.services.vector_manager import vector_manager
+        from app.services.vector_ad_detector import get_vector_ad_detector
         
-        # 计算基础统计
-        total_samples = len(samples)
-        confirmed_ads = len([s for s in samples if s.get('is_ad', False)])
-        non_ads = total_samples - confirmed_ads
+        # 获取向量管理器统计
+        vector_stats = vector_manager.get_stats()
         
-        # 计算今日新增
-        today = datetime.now().date()
-        today_added = 0
-        for sample in samples:
-            created_at = sample.get('created_at', '')
-            if created_at:
-                try:
-                    sample_date = datetime.fromisoformat(created_at).date()
-                    if sample_date == today:
-                        today_added += 1
-                except:
-                    pass
-        
-        # 统计频道分布
-        channels = {}
-        for sample in samples:
-            channel_id = sample.get('channel_id', 'unknown')
-            channels[channel_id] = channels.get(channel_id, 0) + 1
+        # 获取向量检测器统计
+        vector_detector = get_vector_ad_detector()
+        detector_stats = vector_detector.get_detection_stats()
         
         return {
             "success": True,
             "statistics": {
-                "total_samples": total_samples,
-                "confirmed_ads": confirmed_ads,
-                "non_ads": non_ads,
-                "today_added": today_added,
-                "channel_count": len(channels),
-                "top_channels": sorted(channels.items(), key=lambda x: x[1], reverse=True)[:5]
+                "total_samples": vector_stats.get('total_vectors', 0),  # 兼容性字段
+                "confirmed_ads": vector_stats.get('total_vectors', 0),  # 向量都是确认的广告
+                "non_ads": 0,  # 向量系统中没有非广告样本
+                "today_added": 0,  # 暂不统计今日新增
+                "channel_count": vector_stats.get('unique_sources', 0),
+                "top_channels": [],  # 暂不提供频道排行
+                "vector_stats": vector_stats,  # 新增向量统计
+                "detector_stats": detector_stats  # 新增检测器统计
             }
         }
     except Exception as e:
-        logger.error(f"获取广告统计失败: {e}")
+        logger.error(f"获取向量统计失败: {e}")
         return {
             "success": False,
             "statistics": {
@@ -363,9 +321,33 @@ async def mark_ad_message(request: dict):
         if not success:
             return {"success": False, "message": "更新消息失败"}
         
-        # 如果标记为广告，添加到训练样本
+        # 向量学习系统
         if is_marking_as_ad:
-            _add_to_training_samples(message_data, True)
+            # 学习广告向量
+            from app.services.vector_ad_detector import get_vector_ad_detector
+            from app.services.filters.base import FilterContext
+            
+            vector_detector = get_vector_ad_detector()
+            content = message_data.get('filtered_content', '')
+            
+            if content:
+                context = FilterContext(
+                    message_id=str(message_data.get('message_id', '')),
+                    channel_id=message_data.get('source_channel', '')
+                )
+                success = vector_detector.manual_learn_ad(content, context)
+                logger.info(f"✅ 向量学习{'成功' if success else '失败'}: {content[:50]}...")
+            else:
+                logger.warning("filtered_content为空，跳过向量学习")
+        else:
+            # 取消广告标记，移除错误向量
+            from app.services.vector_manager import vector_manager
+            content = message_data.get('filtered_content', '')
+            if content:
+                removed_count = vector_manager.remove_vector_by_content(content)
+                logger.info(f"🗑️ 取消广告标记：从向量库移除 {removed_count} 个向量")
+            else:
+                logger.warning("filtered_content为空，跳过向量移除")
         
         # 构建响应
         response_data = {
@@ -427,46 +409,7 @@ def _record_threshold_feedback(message_data: dict, is_marking_as_ad: bool):
         return None
 
 
-def _add_to_training_samples(message_data: dict, is_ad: bool):
-    """添加到训练样本"""
-    try:
-        content = message_data.get('content', '') or message_data.get('filtered_content', '')
-        if not content:
-            return
-        
-        samples = load_ad_samples()
-        
-        # 生成样本ID
-        sample_id = generate_sample_id(content)
-        
-        # 检查是否已存在
-        content_hash = hashlib.md5(content.encode()).hexdigest()
-        for sample in samples:
-            if sample.get('content_hash') == content_hash:
-                return  # 已存在，不重复添加
-        
-        # 创建新样本
-        new_sample = {
-            "id": sample_id,
-            "content": content,
-            "channel_id": message_data.get('source_channel', 'unknown'),
-            "channel_name": message_data.get('source_channel', 'unknown'),
-            "is_ad": is_ad,
-            "confidence_score": 1.0,  # 用户标记的置信度为100%
-            "content_hash": content_hash,
-            "created_by": "user_feedback",
-            "created_at": datetime.now().isoformat(),
-            "message_id": message_data.get('id', ''),
-            "feedback_type": "manual_marking"
-        }
-        
-        samples.append(new_sample)
-        save_ad_samples(samples)
-        
-        logger.info(f"✅ 已添加训练样本: {sample_id}, 类型: {'广告' if is_ad else '正常'}")
-        
-    except Exception as e:
-        logger.error(f"添加训练样本失败: {e}")
+# _add_to_training_samples 函数已删除 - 使用向量学习系统替代
 
 @router.post(ROUTES.training.add_ad_sample)
 async def add_ad_sample(request: dict):

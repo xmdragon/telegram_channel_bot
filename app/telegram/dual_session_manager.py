@@ -6,6 +6,7 @@
 """
 import logging
 import asyncio
+import time
 from typing import Optional, Callable, List
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -24,6 +25,11 @@ class TelegramDualSessionManager:
         
         self.listener_connected = False
         self.sender_connected = False
+        
+        # 添加连接状态缓存，避免频繁网络检查
+        self._listener_last_check = 0
+        self._sender_last_check = 0
+        self._check_interval = 30  # 30秒内不重复检查连接状态
         
         self.config_manager = ConfigManager()
         
@@ -63,35 +69,54 @@ class TelegramDualSessionManager:
         return self.sender_client
     
     async def _connect_listener(self) -> bool:
-        """连接采集Session - 用于长期监听"""
+        """连接采集Session - 用于长期监听，增强依赖检查"""
         try:
-            session = await self.config_manager.get_config("telegram.listener_session")
-            api_id = await self.config_manager.get_config("telegram.api_id")
-            api_hash = await self.config_manager.get_config("telegram.api_hash")
+            # 增强配置依赖检查
+            config_validation = await self._validate_listener_config()
+            if not config_validation["valid"]:
+                logger.error(f"采集Session配置验证失败: {config_validation['errors']}")
+                
+                # 尝试重新加载配置
+                logger.info("尝试重新加载配置...")
+                if await self._retry_config_load():
+                    config_validation = await self._validate_listener_config()
+                    if not config_validation["valid"]:
+                        logger.error("重新加载配置后验证仍然失败")
+                        return False
+                else:
+                    logger.error("重新加载配置失败")
+                    return False
             
-            if not all([session, api_id, api_hash]):
-                logger.warning("采集Session配置不完整，无法连接监听客户端")
-                return False
-            
-            # 验证Session格式
-            if len(session) < 100 or not session.startswith('1'):
-                logger.warning("采集Session格式无效")
-                return False
+            session = config_validation["session"]
+            api_id = config_validation["api_id"] 
+            api_hash = config_validation["api_hash"]
             
             logger.info(f"连接采集Session，API ID: {api_id}")
             
-            # 创建监听客户端
+            # 创建监听客户端（增强连接稳定性）
             self.listener_client = TelegramClient(
                 StringSession(session),
                 int(api_id),
                 api_hash,
-                connection_retries=5,
-                retry_delay=3,
-                auto_reconnect=True
+                connection_retries=8,          # 增加重试次数 5->8
+                retry_delay=2,                 # 减少重试延迟 3->2
+                auto_reconnect=True,
+                flood_sleep_threshold=60,      # 60秒flood控制
+                request_retries=3,             # API请求重试
+                sequential_updates=True        # 顺序更新，提高稳定性
             )
             
-            # 启动客户端
-            await self.listener_client.start()
+            # 启动客户端（带重试机制）
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    await self.listener_client.start()
+                    break
+                except Exception as start_e:
+                    if attempt == max_retries - 1:
+                        raise start_e
+                    await asyncio.sleep(2 ** attempt)  # 指数退避
+                    logger.warning(f"监听客户端启动重试 {attempt + 1}/{max_retries}: {start_e}")
             
             # 验证连接
             me = await self.listener_client.get_me()
@@ -121,35 +146,54 @@ class TelegramDualSessionManager:
             return False
     
     async def _connect_sender(self) -> bool:
-        """连接发送Session - 用于API调用"""
+        """连接发送Session - 用于API调用，增强依赖检查"""
         try:
-            session = await self.config_manager.get_config("telegram.sender_session")
-            api_id = await self.config_manager.get_config("telegram.api_id")
-            api_hash = await self.config_manager.get_config("telegram.api_hash")
+            # 增强配置依赖检查
+            config_validation = await self._validate_sender_config()
+            if not config_validation["valid"]:
+                logger.error(f"发送Session配置验证失败: {config_validation['errors']}")
+                
+                # 尝试重新加载配置
+                logger.info("尝试重新加载配置...")
+                if await self._retry_config_load():
+                    config_validation = await self._validate_sender_config()
+                    if not config_validation["valid"]:
+                        logger.error("重新加载配置后验证仍然失败")
+                        return False
+                else:
+                    logger.error("重新加载配置失败")
+                    return False
             
-            if not all([session, api_id, api_hash]):
-                logger.warning("发送Session配置不完整，无法连接发送客户端")
-                return False
-            
-            # 验证Session格式
-            if len(session) < 100 or not session.startswith('1'):
-                logger.warning("发送Session格式无效")
-                return False
+            session = config_validation["session"]
+            api_id = config_validation["api_id"]
+            api_hash = config_validation["api_hash"]
             
             logger.info(f"连接发送Session，API ID: {api_id}")
             
-            # 创建发送客户端
+            # 创建发送客户端（增强连接稳定性）
             self.sender_client = TelegramClient(
                 StringSession(session),
                 int(api_id),
                 api_hash,
-                connection_retries=5,
-                retry_delay=3,
-                auto_reconnect=True
+                connection_retries=8,          # 增加重试次数 5->8
+                retry_delay=2,                 # 减少重试延迟 3->2
+                auto_reconnect=True,
+                flood_sleep_threshold=60,      # 60秒flood控制
+                request_retries=3,             # API请求重试
+                sequential_updates=True        # 顺序更新，提高稳定性
             )
             
-            # 启动客户端
-            await self.sender_client.start()
+            # 启动客户端（带重试机制）
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    await self.sender_client.start()
+                    break
+                except Exception as start_e:
+                    if attempt == max_retries - 1:
+                        raise start_e
+                    await asyncio.sleep(2 ** attempt)  # 指数退避
+                    logger.warning(f"发送客户端启动重试 {attempt + 1}/{max_retries}: {start_e}")
             
             # 验证连接
             me = await self.sender_client.get_me()
@@ -179,27 +223,55 @@ class TelegramDualSessionManager:
             return False
     
     async def is_listener_connected(self) -> bool:
-        """检查监听客户端连接状态"""
+        """检查监听客户端连接状态（带缓存优化）"""
         if not self.listener_client or not self.listener_connected:
             return False
         
+        # 使用缓存避免频繁网络检查
+        current_time = time.time()
+        if current_time - self._listener_last_check < self._check_interval:
+            return self.listener_connected
+        
         try:
-            await self.listener_client.get_me()
-            return True
-        except Exception:
+            # 使用简单的连接检查，避免复杂的API调用
+            if self.listener_client.is_connected():
+                self._listener_last_check = current_time
+                return True
+            else:
+                # 只有在真的断开时才调用get_me确认
+                await self.listener_client.get_me()
+                self._listener_last_check = current_time
+                return True
+        except Exception as e:
+            logger.debug(f"监听客户端连接检查失败: {e}")
             self.listener_connected = False
+            self._listener_last_check = current_time
             return False
     
     async def is_sender_connected(self) -> bool:
-        """检查发送客户端连接状态"""
+        """检查发送客户端连接状态（带缓存优化）"""
         if not self.sender_client or not self.sender_connected:
             return False
         
+        # 使用缓存避免频繁网络检查
+        current_time = time.time()
+        if current_time - self._sender_last_check < self._check_interval:
+            return self.sender_connected
+        
         try:
-            await self.sender_client.get_me()
-            return True
-        except Exception:
+            # 使用简单的连接检查，避免复杂的API调用
+            if self.sender_client.is_connected():
+                self._sender_last_check = current_time
+                return True
+            else:
+                # 只有在真的断开时才调用get_me确认
+                await self.sender_client.get_me()
+                self._sender_last_check = current_time
+                return True
+        except Exception as e:
+            logger.debug(f"发送客户端连接检查失败: {e}")
             self.sender_connected = False
+            self._sender_last_check = current_time
             return False
     
     async def ensure_listener_connected(self) -> bool:
@@ -262,6 +334,119 @@ class TelegramDualSessionManager:
             "sender_status": "按需连接" if not self.sender_connected else "已连接",
             "system_operational": self.listener_connected  # 只要Listener连接就可运行
         }
+    
+    async def _validate_listener_config(self) -> dict:
+        """验证监听客户端配置"""
+        errors = []
+        session = None
+        api_id = None
+        api_hash = None
+        
+        try:
+            session = await self.config_manager.get_config("telegram.listener_session")
+            api_id = await self.config_manager.get_config("telegram.api_id")
+            api_hash = await self.config_manager.get_config("telegram.api_hash")
+            
+            # 检查配置存在性
+            if not session:
+                errors.append("listener_session配置缺失或为空")
+            elif len(session) < 100:
+                errors.append("listener_session格式无效（长度不足）")
+            elif not session.startswith('1'):
+                errors.append("listener_session格式无效（格式错误）")
+                
+            if not api_id:
+                errors.append("api_id配置缺失或为空")
+            elif not isinstance(api_id, int):
+                errors.append("api_id必须是整数")
+                
+            if not api_hash:
+                errors.append("api_hash配置缺失或为空")
+            elif len(api_hash) != 32:
+                errors.append("api_hash格式无效（长度应为32字符）")
+                
+        except Exception as e:
+            errors.append(f"读取配置时发生异常: {e}")
+        
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors,
+            "session": session,
+            "api_id": api_id,
+            "api_hash": api_hash
+        }
+    
+    async def _validate_sender_config(self) -> dict:
+        """验证发送客户端配置"""
+        errors = []
+        session = None
+        api_id = None
+        api_hash = None
+        
+        try:
+            session = await self.config_manager.get_config("telegram.sender_session")
+            api_id = await self.config_manager.get_config("telegram.api_id")
+            api_hash = await self.config_manager.get_config("telegram.api_hash")
+            
+            # 检查配置存在性
+            if not session:
+                errors.append("sender_session配置缺失或为空")
+            elif len(session) < 100:
+                errors.append("sender_session格式无效（长度不足）")
+            elif not session.startswith('1'):
+                errors.append("sender_session格式无效（格式错误）")
+                
+            if not api_id:
+                errors.append("api_id配置缺失或为空")
+            elif not isinstance(api_id, int):
+                errors.append("api_id必须是整数")
+                
+            if not api_hash:
+                errors.append("api_hash配置缺失或为空")
+            elif len(api_hash) != 32:
+                errors.append("api_hash格式无效（长度应为32字符）")
+                
+        except Exception as e:
+            errors.append(f"读取配置时发生异常: {e}")
+        
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors,
+            "session": session,
+            "api_id": api_id,
+            "api_hash": api_hash
+        }
+    
+    async def _retry_config_load(self, max_retries: int = 2) -> bool:
+        """重试配置加载"""
+        try:
+            # 尝试重新加载配置管理器
+            success = await self.config_manager.force_reload_with_retry(max_retries=max_retries)
+            if success:
+                logger.info("配置重新加载成功")
+                return True
+            else:
+                logger.error("配置重新加载失败")
+                return False
+        except Exception as e:
+            logger.error(f"重试配置加载时发生异常: {e}")
+            return False
+    
+    async def get_config_diagnostics(self) -> dict:
+        """获取配置诊断信息"""
+        diagnostics = {
+            "listener_config": await self._validate_listener_config(),
+            "sender_config": await self._validate_sender_config(),
+            "config_manager_healthy": self.config_manager.is_storage_healthy()
+        }
+        
+        diagnostics["overall_config_valid"] = (
+            diagnostics["listener_config"]["valid"] and 
+            diagnostics["sender_config"]["valid"] and
+            diagnostics["config_manager_healthy"]
+        )
+        
+        return diagnostics
     
 
 # 全局双Session管理器实例
