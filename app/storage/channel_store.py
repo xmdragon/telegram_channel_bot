@@ -13,38 +13,37 @@ class RedisChannelStore(RedisBaseStore):
     """频道状态管理"""
     
     def set_checkpoint(self, channel_id: str, last_message_id: int) -> bool:
-        """设置频道采集点"""
+        """设置频道采集点 - 强制int类型"""
         try:
-            self.redis.hset(f"channel:checkpoint", channel_id, str(last_message_id))
+            # 强制转换为int，确保类型统一
+            message_id_int = int(last_message_id)
+            
+            self.redis.hset(f"channel:checkpoint", channel_id, str(message_id_int))
             self.redis.hset(f"channel:checkpoint:time", channel_id, get_current_time().isoformat())
             
-            logger.debug(f"采集点已更新: {channel_id} -> {last_message_id}")
+            logger.debug(f"采集点已更新: {channel_id} -> {message_id_int}")
             return True
             
+        except (ValueError, TypeError) as e:
+            logger.error(f"采集点类型错误 {channel_id}: {last_message_id} -> {e}")
+            return False
         except Exception as e:
             logger.error(f"设置采集点失败 {channel_id}: {e}")
             return False
     
     def get_checkpoint(self, channel_id: str) -> Optional[int]:
-        """获取频道采集点"""
+        """获取频道采集点 - 强制返回int类型"""
         try:
             checkpoint = self.redis.hget("channel:checkpoint", channel_id)
             if checkpoint is None:
                 return None
             
-            # 安全的类型转换
-            try:
-                return int(checkpoint)
-            except (ValueError, TypeError) as conv_e:
-                logger.warning(f"采集点类型转换失败 {channel_id}: {checkpoint} -> {conv_e}")
-                # 尝试清理无效的采集点数据
-                try:
-                    self.redis.hdel("channel:checkpoint", channel_id)
-                    logger.info(f"已清理无效采集点数据: {channel_id}")
-                except Exception as clean_e:
-                    logger.error(f"清理无效采集点失败: {clean_e}")
-                return None
+            # 强制转换为int，确保类型统一
+            return int(checkpoint)
             
+        except (ValueError, TypeError) as e:
+            logger.error(f"采集点类型转换失败 {channel_id}: {checkpoint} -> {e}")
+            return None
         except Exception as e:
             logger.error(f"获取采集点失败 {channel_id}: {e}")
             return None

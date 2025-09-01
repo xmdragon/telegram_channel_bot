@@ -14,16 +14,6 @@ from app.services.unified_channel_service import unified_channel_service
 
 logger = logging.getLogger(__name__)
 
-def safe_int(value, default=0):
-    """安全的整数转换，用于处理checkpoint类型问题"""
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        logger.warning(f"安全整数转换失败: {value} -> 使用默认值 {default}")
-        return default
-
 class HistoryCollector:
     """历史消息采集器 - 使用Redis+JSON存储"""
     
@@ -105,7 +95,7 @@ class HistoryCollector:
             from app.services.config_manager import config_manager
             
             redis_channel_store = get_redis_channel_store()
-            checkpoint_id = safe_int(redis_channel_store.get_checkpoint(channel_id))
+            checkpoint_id = redis_channel_store.get_checkpoint(channel_id)
             
             if checkpoint_id:
                 # 继续增量采集
@@ -120,7 +110,7 @@ class HistoryCollector:
             
             # 采集历史消息 - 先收集到列表，然后按时间顺序处理
             collected_messages = []
-            latest_message_id = safe_int(checkpoint_id)
+            latest_message_id = checkpoint_id or 0
             
             logger.info(f"开始采集，min_id={min_id}, limit={batch_limit}")
             
@@ -141,8 +131,8 @@ class HistoryCollector:
                                 logger.info(f"已获取 {message_count} 条消息 (最新ID: {message.id})")
                             
                             # 记录最新的消息ID
-                            if message.id and safe_int(message.id) > latest_message_id:
-                                latest_message_id = safe_int(message.id)
+                            if message.id and message.id > latest_message_id:
+                                latest_message_id = message.id
                             
                             collected_messages.append(message)
                                 
@@ -184,7 +174,7 @@ class HistoryCollector:
                         logger.error(f"详细错误: {traceback.format_exc()}")
                         
                         # 如果有部分消息已收集，保存中间进度
-                        if collected_messages and latest_message_id > safe_int(checkpoint_id):
+                        if collected_messages and latest_message_id > (checkpoint_id or 0):
                             logger.info(f"保存中间进度: {len(collected_messages)} 条消息")
                             redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                         
@@ -200,7 +190,7 @@ class HistoryCollector:
                 logger.info(f"{collection_type} {channel_name} 没有新消息，已是最新")
                     
                 # 更新Redis采集点为最新值（如果有更新的消息ID）
-                if latest_message_id > safe_int(checkpoint_id):
+                if latest_message_id > (checkpoint_id or 0):
                     redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                     logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
                 return
@@ -282,7 +272,7 @@ class HistoryCollector:
                 logger.warning(f"⚠️ 保存率较低: {success_count}/{len(collected_messages)} ({(success_count/len(collected_messages)*100):.1f}%)，请检查过滤规则")
             
             # 更新Redis采集点
-            if latest_message_id > safe_int(checkpoint_id):
+            if latest_message_id > (checkpoint_id or 0):
                 redis_channel_store.set_checkpoint(channel_id, latest_message_id)
                 logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
             
