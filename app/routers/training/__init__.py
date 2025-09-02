@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from .basic import router as basic_router
 from .tail_filter import router as tail_filter_router
 from .media import router as media_router
-from .ad_samples import router as ad_samples_router
+from .ad_vector import router as ad_vector_router
 from .ocr import router as ocr_router
 from .admin import router as admin_router
 from .thresholds import router as thresholds_router
@@ -29,8 +29,8 @@ def register_training_routes():
     # 媒体文件管理
     router.include_router(media_router, tags=["training-media"])
     
-    # 广告样本管理
-    router.include_router(ad_samples_router, tags=["training-ad-samples"])
+    # 广告向量管理
+    router.include_router(ad_vector_router, tags=["training-ad-vector"])
     
     # OCR样本管理
     router.include_router(ocr_router, tags=["training-ocr"])

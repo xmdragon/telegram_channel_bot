@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class VectorManager:
     """广告向量管理器 - 统一的向量存储和检索系统"""
     
-    def __init__(self, vector_dir: str = "data/config/ad/vectors"):
+    def __init__(self, vector_dir: str = "data/training/ad/vectors"):
         self.vector_dir = vector_dir
         self.vector_file = os.path.join(vector_dir, "ad_vectors.json")
         self.metadata_file = os.path.join(vector_dir, "metadata.json")

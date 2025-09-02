@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>广告检测数据管理</title>
+    <title>广告向量管理</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <!-- 动态版本号 - 防缓存 -->
@@ -29,16 +29,12 @@
             <div class="stats-section compact">
                 <div class="stats-inline">
                     <div class="stat-item-inline">
-                        <span class="stat-label">总样本数:</span>
-                        <span class="stat-value">{{ stats.totalSamples }}</span>
+                        <span class="stat-label">总向量数:</span>
+                        <span class="stat-value">{{ stats.totalVectors }}</span>
                     </div>
                     <div class="stat-item-inline">
-                        <span class="stat-label">去重后数量:</span>
-                        <span class="stat-value">{{ stats.uniqueSamples }}</span>
-                    </div>
-                    <div class="stat-item-inline">
-                        <span class="stat-label">存储占用:</span>
-                        <span class="stat-value">{{ formatSize(stats.storageSize) }}</span>
+                        <span class="stat-label">最后更新:</span>
+                        <span class="stat-value">{{ stats.lastUpdate || '未知' }}</span>
                     </div>
                 </div>
             </div>
@@ -53,31 +49,30 @@
                                 <input 
                                     type="text" 
                                     v-model="searchText" 
-                                    placeholder="搜索广告训练样本..." 
+                                    placeholder="搜索广告向量..." 
                                     class="search-input"
-                                    @keyup.enter="loadSamples">
-                                <button class="search-btn" @click="loadSamples" title="搜索">
+                                    @keyup.enter="searchVectors">
+                                <button class="search-btn" @click="searchVectors" title="搜索">
                                     🔍
                                 </button>
                                 <button v-if="searchText" class="clear-btn" @click="clearSearch" title="清除">
                                     ✖️
                                 </button>
                             </div>
-                            <select v-model="filterType" class="filter-select" @change="loadSamples">
-                                <option value="all">全部</option>
-                                <option value="duplicate">疑似重复</option>
-                            </select>
                         </div>
                         <!-- 按钮栏 -->
                         <div class="button-bar">
-                            <button @click="showDuplicates" class="btn btn-warning">
+                            <button @click="addDialog = true" class="btn btn-success">
+                                ➕ 添加向量
+                            </button>
+                            <button @click="testDialog = true" class="btn btn-info">
+                                🧪 测试检测
+                            </button>
+                            <button @click="detectDuplicates" class="btn btn-warning" :disabled="duplicateLoading">
                                 📄 检测重复
                             </button>
-                            <button @click="optimizeStorage" class="btn btn-info">
-                                📁 优化存储
-                            </button>
-                            <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedSamples.length">
-                                🗑️ 批量删除 ({{ selectedSamples.length }})
+                            <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedVectors.length">
+                                🗑️ 批量删除 ({{ selectedVectors.length }})
                             </button>
                         </div>
                     </div>
@@ -88,7 +83,7 @@
             <div class="table-section">
                 <div class="table-card">
                     <div class="table-header">
-                        <h3 class="table-title">🎯 广告检测样本数据</h3>
+                        <h3 class="table-title">🎯 广告向量数据</h3>
                     </div>
                     <div class="table-content">
                         <div v-if="loading" class="loading-container">
@@ -100,15 +95,15 @@
                                 <thead>
                                     <tr>
                                         <th class="checkbox-column">
-                                            <input type="checkbox" @change="selectAll" v-model="allSelected">
+                                            <input type="checkbox" @change="toggleAllSelection" v-model="allSelected">
                                         </th>
-                                        <th class="id-column" @click="sortBy('id')">
+                                        <th class="id-column" @click="handleSort('id')">
                                             ID
                                             <span class="sort-indicator" v-if="sortField === 'id'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
                                         </th>
                                         <th class="content-column">内容预览</th>
                                         <th class="source-column">来源</th>
-                                        <th class="time-column" @click="sortBy('created_at')">
+                                        <th class="time-column" @click="handleSort('created_at')">
                                             创建时间
                                             <span class="sort-indicator" v-if="sortField === 'created_at'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
                                         </th>
@@ -116,38 +111,33 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="sample in samples" :key="sample.id" class="table-row">
+                                    <tr v-for="vector in vectors" :key="vector.id" class="table-row">
                                         <td class="checkbox-cell">
-                                            <input type="checkbox" :value="sample" @change="handleSampleSelection" v-model="selectedSampleIds" :true-value="sample.id">
+                                            <input type="checkbox" :value="vector" @change="handleSelectionChange" v-model="selectedVectorIds" :true-value="vector.id">
                                         </td>
-                                        <td class="id-cell">{{ sample.id }}</td>
+                                        <td class="id-cell">{{ vector.id }}</td>
                                         <td class="content-cell">
-                                            <div class="content-preview" @click="showDetail(sample)">
-                                                {{ truncateText(sample.content, 100) }}
-                                            </div>
-                                            <div v-if="sample.similarity_group" class="similarity-tag">
-                                                <span class="tag tag-warning">
-                                                    相似组 #{{ sample.similarity_group }}
-                                                </span>
+                                            <div class="content-preview" @click="showDetail(vector)">
+                                                {{ truncateText(vector.content, 100) }}
                                             </div>
                                         </td>
                                         <td class="source-cell">
-                                            <span :class="'tag tag-' + getSourceType(sample.source)">
-                                                {{ formatSource(sample.source) }}
+                                            <span :class="'tag tag-' + getSourceTypeClass(vector.source)">
+                                                {{ vector.source }}
                                             </span>
                                         </td>
-                                        <td class="time-cell">{{ formatTime(sample.created_at) }}</td>
+                                        <td class="time-cell">{{ formatTime(vector.created_at) }}</td>
                                         <td class="action-cell">
-                                            <button class="btn btn-danger btn-small" @click="deleteSample(sample)">
+                                            <button class="btn btn-danger btn-small" @click="deleteVector(vector)">
                                                 删除
                                             </button>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
-                            <div v-if="!samples.length" class="empty-state">
+                            <div v-if="!vectors.length" class="empty-state">
                                 <div class="empty-icon">📄</div>
-                                <div class="empty-text">暂无训练数据</div>
+                                <div class="empty-text">暂无向量数据</div>
                             </div>
                         </div>
                     </div>
@@ -168,13 +158,13 @@
         <div v-if="detailDialog" class="modal-overlay" @click="closeDetailDialog">
             <div class="modal-content" @click.stop>
                 <div class="modal-header">
-                    <h3>样本详情</h3>
+                    <h3>向量详情</h3>
                     <button class="modal-close" @click="closeDetailDialog">✖️</button>
                 </div>
-                <div class="modal-body" v-if="currentSample">
+                <div class="modal-body" v-if="currentVector">
                     <div class="detail-section">
                         <h4>内容：</h4>
-                        <div class="detail-content">{{ currentSample.content }}</div>
+                        <div class="detail-content">{{ currentVector.content }}</div>
                     </div>
                     
                     
@@ -182,21 +172,21 @@
                         <div class="detail-grid">
                             <div class="detail-item">
                                 <label>ID:</label>
-                                <span>{{ currentSample.id }}</span>
+                                <span>{{ currentVector.id }}</span>
                             </div>
                             <div class="detail-item">
                                 <label>来源:</label>
-                                <span :class="'tag tag-' + getSourceType(currentSample.source)">
-                                    {{ formatSource(currentSample.source) }}
+                                <span :class="'tag tag-' + getSourceTypeClass(currentVector.source)">
+                                    {{ currentVector.source }}
                                 </span>
                             </div>
                             <div class="detail-item">
                                 <label>描述:</label>
-                                <span>{{ currentSample.description || '无' }}</span>
+                                <span>{{ currentVector.description || '无' }}</span>
                             </div>
                             <div class="detail-item">
                                 <label>创建时间:</label>
-                                <span>{{ formatTime(currentSample.created_at) }}</span>
+                                <span>{{ formatTime(currentVector.created_at) }}</span>
                             </div>
                         </div>
                     </div>
@@ -211,17 +201,17 @@
         <div v-if="duplicateDialog" class="modal-overlay" @click="closeDuplicateDialog">
             <div class="modal-content modal-large" @click.stop>
                 <div class="modal-header">
-                    <h3>重复样本检测</h3>
+                    <h3>重复向量检测</h3>
                     <button class="modal-close" @click="closeDuplicateDialog">✖️</button>
                 </div>
                 <div class="modal-body">
                     <div v-if="duplicateLoading" class="loading-container">
                         <div class="loading-spinner"></div>
-                        <div class="loading-text">正在检测重复样本...</div>
+                        <div class="loading-text">正在检测重复向量...</div>
                     </div>
                     <div v-else>
                         <div v-if="duplicateGroups.length" class="alert alert-warning">
-                            发现 {{ duplicateGroups.length }} 组重复/相似样本，共 {{ duplicateSamplesCount }} 个样本
+                            发现 {{ duplicateGroups.length }} 组重复/相似向量，共 {{ duplicateVectorsCount }} 个向量
                         </div>
                         
                         <div v-for="(group, idx) in duplicateGroups" :key="idx" class="duplicate-group">
@@ -264,7 +254,7 @@
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/pagination.js?v=' + RESOURCE_VERSION + '"><\/script>');
-        document.write('<script src="assets/js/components/ad-training-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/ad-vector-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
     </script>
 
 </body>

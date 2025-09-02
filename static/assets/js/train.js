@@ -51,8 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 广告训练表单
                 adTrainingForm: {
                     content: '',
-                    is_ad: true,
-                    description: ''
+                    source: 'manual'
                 },
                 
                 // 推广链接训练表单
@@ -143,14 +142,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 this.submitting = true;
                 try {
-                    const response = await axios.post(API.training.addAdSample, {
+                    const response = await axios.post(API.training.adVectorAddFromText, {
                         content: this.adTrainingForm.content,
-                        is_ad: this.adTrainingForm.is_ad,
-                        description: this.adTrainingForm.description
+                        source: 'manual'
                     });
                     
                     this.showMessage('广告训练样本提交成功！', 'success');
-                    this.adTrainingForm = { content: '', is_ad: true, description: '' };
+                    this.adTrainingForm = { content: '', source: 'manual' };
                     this.loadStats();
                 } catch (error) {
                     console.error('提交广告训练样本失败:', error);
@@ -266,9 +264,9 @@ document.addEventListener('DOMContentLoaded', function() {
             openTrainingManager(type) {
                 // 根据类型跳转到相应的管理页面
                 if (type === 'tail') {
-                    window.location.href = '/static/tail-filter-manager.html';
+                    window.location.href = API.pages.tailFilterManager;
                 } else if (type === 'ad') {
-                    window.location.href = '/static/ad-training-manager.html';
+                    window.location.href = API.pages.adVectorManager;
                 }
             },
             
@@ -440,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     const token = localStorage.getItem('authToken');
                     if (!token) {
-                        window.location.href = '/static/login.html';
+                        window.location.href = API.pages.login;
                         return false;
                     }
                     
@@ -450,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (error) {
                     if (error.response && error.response.status === 401) {
                         localStorage.removeItem('authToken');
-                        window.location.href = '/static/login.html';
+                        window.location.href = API.pages.login;
                     }
                     return false;
                 }

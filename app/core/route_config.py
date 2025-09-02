@@ -174,18 +174,16 @@ class RouteConfig:
     
     class Training:
         """训练数据管理路由"""
-        # 广告样本
-        ad_samples = "/training/ad-samples"
-        ad_statistics = "/training/ad-statistics"
-        ad_samples_by_id = "/training/ad-samples/{sample_id}"
-        ad_samples_batch = "/training/ad-samples/batch"
-        ad_samples_detect_duplicates = "/training/ad-samples/detect-duplicates"
-        ad_samples_deduplicate = "/training/ad-samples/deduplicate"
-        mark_ad_test = "/training/mark-ad-test"
-        mark_ad_message = "/training/mark-ad-message"
-        add_ad_sample = "/training/add-ad-sample"
-        ad_stats = "/training/ad-stats"
-        ad_samples_reload = "/training/ad-samples/reload"
+        # 广告向量
+        ad_vectors = "/training/ad-vectors"
+        ad_vector_statistics = "/training/ad-vector-statistics"
+        ad_vector_by_id = "/training/ad-vectors/{vector_id}"
+        ad_vectors_batch = "/training/ad-vectors/batch"
+        ad_vectors_detect_duplicates = "/training/ad-vectors/detect-duplicates"
+        ad_vectors_deduplicate = "/training/ad-vectors/deduplicate"
+        ad_vector_test_detection = "/training/ad-vectors/test-detection"
+        ad_vector_add_from_text = "/training/ad-vectors/add-from-text"
+        ad_vector_stats = "/training/ad-vector-stats"
         
         # 基础训练
         channels = "/training/channels"

@@ -56,7 +56,8 @@ const ConfigApp = {
                 target_channel_id: '',
                 review_group_id: '',
                 delay: 0,
-                auto_reject_ads: false
+                auto_reject_ads: false,
+                auto_forward_after_collect: false
             },
             
             // 帮助提示标记
@@ -68,15 +69,12 @@ const ConfigApp = {
                 signature: '',
                 collection_enabled: true,
                 // Telegram API 配置
-                telegram_api_id: '',
-                telegram_api_hash: '',
+                'telegram.api_id': '',
+                'telegram.api_hash': '',
                 // 过滤设置
                 filter_enabled: true,
-                tail_filter_enabled: true,
-                ocr_enabled: true,
                 // 审核设置
                 require_approval: true,
-                auto_forward_after_collect: true,
                 // 系统设置
                 scheduler_enabled: true,
                 delete_single_messages: true
@@ -98,10 +96,7 @@ const ConfigApp = {
                 ad_detector: true,        // 广告检测
                 
                 // 额外功能
-                ocr_enabled: true,                    // OCR图片文字识别
-                auto_reject_ads: true,                // 自动拒绝广告
-                auto_reject_duplicates: false,        // 自动拒绝重复消息
-                auto_reject_high_risk: false          // 自动拒绝高风险内容
+                ocr_enabled: true         // OCR图片文字识别
             }
         }
     },
@@ -207,6 +202,7 @@ const ConfigApp = {
                         review_group: configs['review.group_link'] || '',
                         delay: parseInt(configs['review.auto_forward_delay']) || 1800,
                         auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads'], false),
+                        auto_forward_after_collect: this.parseBooleanValue(configs['review.auto_forward_after_collect'], false),
                         // 加载已解析的ID
                         target_channel_id: configs['target.channel_id'] || '',
                         review_group_id: configs['review.group_id'] || ''
@@ -240,15 +236,12 @@ const ConfigApp = {
                         signature: configs['target.signature'] || '',
                         collection_enabled: this.parseBooleanValue(configs['collection.enabled'], true),
                         // Telegram API 配置
-                        telegram_api_id: configs['telegram.api_id'] || '',
-                        telegram_api_hash: configs['telegram.api_hash'] || '',
+                        'telegram.api_id': configs['telegram.api_id'] || '',
+                        'telegram.api_hash': configs['telegram.api_hash'] || '',
                         // 过滤设置
                         filter_enabled: this.parseBooleanValue(configs['filter.enabled'], true),
-                        tail_filter_enabled: this.parseBooleanValue(configs['filter.tail_filter_enabled'], true),
-                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled'], true),
                         // 审核设置
                         require_approval: this.parseBooleanValue(configs['review.require_approval'], true),
-                        auto_forward_after_collect: this.parseBooleanValue(configs['review.auto_forward_after_collect'], true),
                         // 系统设置
                         scheduler_enabled: this.parseBooleanValue(configs['scheduler.enabled'], true),
                         delete_single_messages: this.parseBooleanValue(configs['storage.delete_single_messages'], true)
@@ -419,6 +412,7 @@ const ConfigApp = {
                     'review.group_link': this.forwardingConfig.review_group.trim(),
                     'review.auto_forward_delay': String(parseInt(this.forwardingConfig.delay)),
                     'review.auto_reject_ads': this.forwardingConfig.auto_reject_ads,
+                    'review.auto_forward_after_collect': this.forwardingConfig.auto_forward_after_collect,
                     'target.channel_id': this.forwardingConfig.target_channel_id,
                     'review.group_id': this.forwardingConfig.review_group_id
                 };
@@ -449,15 +443,12 @@ const ConfigApp = {
                     'target.signature': this.systemConfig.signature,
                     'collection.enabled': this.systemConfig.collection_enabled,
                     // Telegram API 配置
-                    'telegram.api_id': this.systemConfig.telegram_api_id || '',
-                    'telegram.api_hash': this.systemConfig.telegram_api_hash || '',
+                    'telegram.api_id': this.systemConfig['telegram.api_id'] || '',
+                    'telegram.api_hash': this.systemConfig['telegram.api_hash'] || '',
                     // 过滤设置
                     'filter.enabled': this.systemConfig.filter_enabled,
-                    'filter.tail_filter_enabled': this.systemConfig.tail_filter_enabled,
-                    'filter.ocr_enabled': this.systemConfig.ocr_enabled,
                     // 审核设置
                     'review.require_approval': this.systemConfig.require_approval,
-                    'review.auto_forward_after_collect': this.systemConfig.auto_forward_after_collect,
                     // 系统设置
                     'scheduler.enabled': this.systemConfig.scheduler_enabled,
                     'storage.delete_single_messages': this.systemConfig.delete_single_messages
@@ -488,11 +479,8 @@ const ConfigApp = {
                 collection_enabled: true,
                 // 过滤设置
                 filter_enabled: true,
-                tail_filter_enabled: true,
-                ocr_enabled: true,
                 // 审核设置
                 require_approval: true,
-                auto_forward_after_collect: true,
                 // 系统设置
                 scheduler_enabled: true,
                 delete_single_messages: true
@@ -525,13 +513,9 @@ const ConfigApp = {
                         // 内容检测过滤器
                         duplicate: this.parseBooleanValue(configs['filter.duplicate_enabled'], true),
                         ad_detector: this.parseBooleanValue(configs['filter.ad_detector_enabled'], true),
-                        chat_content: this.parseBooleanValue(configs['filter.chat_content_enabled'], true),
                         
                         // 额外功能
-                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled'], true),
-                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads'], true),
-                        auto_reject_duplicates: this.parseBooleanValue(configs['review.auto_reject_duplicates'], false),
-                        auto_reject_high_risk: this.parseBooleanValue(configs['review.auto_reject_high_risk'], false)
+                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled'], true)
                     };
                 }
             } catch (error) {
@@ -553,20 +537,15 @@ const ConfigApp = {
                     // 内容检测过滤器
                     'filter.duplicate_enabled': this.filterSettings.duplicate,
                     'filter.ad_detector_enabled': this.filterSettings.ad_detector,
-                    'filter.chat_content_enabled': this.filterSettings.chat_content,
                     
                     // 基础过滤开关（综合判断）
                     'filter.enabled': Boolean(
                         this.filterSettings.duplicate || 
-                        this.filterSettings.ad_detector || 
-                        this.filterSettings.chat_content
+                        this.filterSettings.ad_detector
                     ),
                     
                     // 额外功能
-                    'filter.ocr_enabled': this.filterSettings.ocr_enabled,
-                    'review.auto_reject_ads': this.filterSettings.auto_reject_ads,
-                    'review.auto_reject_duplicates': this.filterSettings.auto_reject_duplicates,
-                    'review.auto_reject_high_risk': this.filterSettings.auto_reject_high_risk
+                    'filter.ocr_enabled': this.filterSettings.ocr_enabled
                 };
                 
                 console.log('保存过滤器配置:', configData);
@@ -603,13 +582,9 @@ const ConfigApp = {
                 // 内容检测过滤器
                 duplicate: true,
                 ad_detector: true,
-                chat_content: true,
                 
                 // 额外功能
-                ocr_enabled: true,
-                auto_reject_ads: true,
-                auto_reject_duplicates: false,
-                auto_reject_high_risk: false
+                ocr_enabled: true
             };
             
             MessageManager.success('过滤器配置已重置为默认值');
@@ -812,7 +787,7 @@ const ConfigApp = {
         
         // Telegram API 配置验证
         validateApiId() {
-            const apiId = this.systemConfig.telegram_api_id;
+            const apiId = this.systemConfig['telegram.api_id'];
             if (apiId && !/^\d+$/.test(apiId)) {
                 MessageManager.warning('API ID 应该是纯数字');
                 return false;
@@ -821,7 +796,7 @@ const ConfigApp = {
         },
         
         validateApiHash() {
-            const apiHash = this.systemConfig.telegram_api_hash;
+            const apiHash = this.systemConfig['telegram.api_hash'];
             if (apiHash && apiHash.length !== 32) {
                 MessageManager.warning('API Hash 应该是32位字符串');
                 return false;

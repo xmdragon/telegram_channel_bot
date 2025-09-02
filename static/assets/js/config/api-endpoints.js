@@ -89,13 +89,16 @@ const API_ENDPOINTS = {
         // 分隔符模式管理
         separatorPatterns: '/api/training/separator-patterns',   // GET/POST - 获取/保存分隔符模式
 
-        // 广告样本管理
-        adSamples: '/api/training/ad-samples',                   // GET - 获取广告样本列表（分页）
-        adSampleById: (id) => `/api/training/ad-samples/${id}`,  // DELETE - 删除单个广告样本
-        adSamplesBatch: '/api/training/ad-samples/batch',        // DELETE - 批量删除广告样本
-        adSamplesDetectDuplicates: '/api/training/ad-samples/detect-duplicates', // POST - 检测重复广告样本
-        adSamplesDeduplicate: '/api/training/ad-samples/deduplicate', // POST - 去重广告样本
-        adStatistics: '/api/training/ad-statistics',             // GET - 获取广告训练统计
+        // 广告向量管理
+        adVectors: '/api/training/ad-vectors',                   // GET - 获取广告向量列表（分页）
+        adVectorById: (id) => `/api/training/ad-vectors/${id}`,  // DELETE - 删除单个广告向量
+        adVectorsBatch: '/api/training/ad-vectors/batch',        // DELETE - 批量删除广告向量
+        adVectorsDetectDuplicates: '/api/training/ad-vectors/detect-duplicates', // POST - 检测重复广告向量
+        adVectorsDeduplicate: '/api/training/ad-vectors/deduplicate', // POST - 去重广告向量
+        adVectorStatistics: '/api/training/ad-vector-statistics', // GET - 获取广告向量统计
+        adVectorTestDetection: '/api/training/ad-vectors/test-detection', // POST - 测试广告检测
+        adVectorAddFromText: '/api/training/ad-vectors/add-from-text', // POST - 从文本添加向量
+        adVectorStats: '/api/training/ad-vector-stats',          // GET - 获取向量简化统计
 
         // 尾部过滤样本管理
         tailFilterSamples: '/api/training/tail-filter-samples',  // GET/POST - 获取/添加尾部过滤样本
@@ -254,7 +257,7 @@ const API_ENDPOINTS = {
         // 训练模块页面
         tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
         tailFilterTraining: '/static/tail-filter-training.html',   // 尾部过滤训练独立页面
-        adTrainingManager: '/static/ad-training-manager.html',     // 广告检测训练管理页面
+        adVectorManager: '/static/ad-vector-manager.html',         // 广告向量管理页面
         promoManager: '/static/promo-manager.html',                // 推广链接数据管理页面
         promoTraining: '/static/promo-training.html',              // 推广链接训练页面
         separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
