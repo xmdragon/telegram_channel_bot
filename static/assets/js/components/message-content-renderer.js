@@ -161,7 +161,26 @@ const MessageContentRenderer = {
             });
             
             return displayItems;
+        },
+        
+        // 准备媒体项数据用于新的TelegramAlbum组件
+        prepareMediaItemsForAlbum() {
+            if (!this.isCombinedMessage) return [];
+            
+            return this.message.media_group_display.map((media, index) => ({
+                ...media,
+                // 确保有默认尺寸
+                width: media.width || 640,
+                height: media.height || 640,
+                // 统一URL字段
+                url: media.url || media.display_url,
+                display_url: media.url || media.display_url
+            }));
         }
+    },
+    
+    components: {
+        TelegramAlbum: window.TelegramAlbum
     },
     
     methods: {
@@ -309,6 +328,16 @@ const MessageContentRenderer = {
         // 获取媒体类型图标
         getMediaTypeIcon(mediaType) {
             return this.$emit('get-media-type-icon', mediaType);
+        },
+        
+        // 🚀 处理相册媒体点击事件
+        handleAlbumMediaClick({ mediaItem, index, url }) {
+            this.openMediaPreview(url);
+        },
+        
+        // 🚀 处理单个媒体点击事件
+        handleSingleMediaClick({ mediaItem, index, url }) {
+            this.openMediaPreview(url);
         }
     },
     template: `
@@ -716,89 +745,33 @@ const MessageContentRenderer = {
                 <div v-else class="single-content-display">
                     <!-- 媒体内容 -->
                     <div v-if="message.media_type" class="message-media">
-                        <!-- Telegram风格组合消息媒体组 -->
-                        <div v-if="isCombinedMessage" class="telegram-media-container">
-                            <!-- 媒体网格 -->
-                            <div class="telegram-media-grid" :class="telegramMediaGridClass">
-                                <div v-for="(media, index) in displayMediaItems" 
-                                     :key="index"
-                                     class="media-item">
-                                    
-                                    <!-- 图片 -->
-                                    <img v-if="media.media_type === 'photo' && (media.url || media.display_url)" 
-                                         :src="media.url || media.display_url"
-                                         class="media-content"
-                                         loading="lazy"
-                                         @click.stop="openMediaPreview(media.url || media.display_url)"
-                                         @error="handleMediaError">
-                                    
-                                    <!-- 视频 -->
-                                    <video v-else-if="media.media_type === 'video' && (media.url || media.display_url)"
-                                           :src="media.url || media.display_url"
-                                           class="media-content media-video"
-                                           controls
-                                           preload="none">
-                                    </video>
-                                    
-                                    <!-- 其他媒体类型或加载失败 -->
-                                    <div v-else class="media-placeholder">
-                                        <div class="icon">
-                                            {{ media.media_type === 'photo' ? '📷' :
-                                               media.media_type === 'video' ? '🎬' :
-                                               media.media_type === 'document' ? '📄' :
-                                               '❓' }}
-                                        </div>
-                                        <div>{{ media.media_type }}</div>
-                                        <div v-if="!media.url && !media.display_url" style="color: #ff6b6b; font-size: 10px;">缺失</div>
-                                    </div>
-                                    
-                                    <!-- 剩余媒体计数覆盖层 -->
-                                    <div v-if="media.isLast && media.remainingCount > 0" 
-                                         class="remaining-count"
-                                         @click.stop="openMediaPreview(media.url || media.display_url)">
-                                        +{{ media.remainingCount }}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- 🚀 Telegram官方风格相册 - 使用官方布局算法 -->
+                        <TelegramAlbum
+                            v-if="isCombinedMessage"
+                            :media-items="prepareMediaItemsForAlbum()"
+                            :is-own="false"
+                            :max-width="380"
+                            :is-mobile="false"
+                            :spacing="2"
+                            @media-click="handleAlbumMediaClick"
+                        />
                         
-                        <!-- 单个媒体（非组合消息） -->
-                        <div v-else class="telegram-media-container">
-                            <div class="telegram-media-grid count-1">
-                                <div class="media-item">
-                                    <!-- 图片 -->
-                                    <img v-if="message.media_type === 'photo' && message.media_display_url && !mediaLoadError" 
-                                         :src="message.media_display_url"
-                                         class="media-content"
-                                         loading="lazy"
-                                         @click.stop="openMediaPreview(message.media_display_url)"
-                                         @error="handleMediaError">
-                                    
-                                    <!-- 视频 -->
-                                    <video v-else-if="message.media_type === 'video' && message.media_display_url"
-                                           :src="message.media_display_url"
-                                           class="media-content media-video"
-                                           controls
-                                           preload="none">
-                                    </video>
-                                    
-                                    <!-- 媒体加载失败或其他媒体类型 -->
-                                    <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
-                                         class="media-placeholder">
-                                        <div class="icon">
-                                            {{ message.media_type === 'photo' ? '📷' : 
-                                              message.media_type === 'video' ? '🎬' : 
-                                              message.media_type === 'document' ? '📄' :
-                                              '❓' }}
-                                        </div>
-                                        <div>{{ message.media_type === 'photo' ? '图片' : 
-                                               message.media_type === 'video' ? '视频' : 
-                                               message.media_type }}</div>
-                                        <div style="color: #ff6b6b; font-size: 10px;">媒体文件缺失</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- 🚀 单个媒体也使用官方算法 -->
+                        <TelegramAlbum
+                            v-else
+                            :media-items="[{
+                                media_type: message.media_type,
+                                url: message.media_display_url,
+                                display_url: message.media_display_url,
+                                width: 640,
+                                height: 640
+                            }]"
+                            :is-own="false"
+                            :max-width="380"
+                            :is-mobile="false"
+                            :spacing="2"
+                            @media-click="handleSingleMediaClick"
+                        />
                     </div>
                     
                     <!-- 文本内容 -->

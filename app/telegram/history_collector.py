@@ -27,26 +27,12 @@ class HistoryCollector:
         self._message_processor = processor
     
     def calculate_dynamic_timeout(self, message) -> float:
-        """根据媒体文件大小动态计算超时时间"""
-        base_timeout = 30.0    # 基础处理时间（文本处理、过滤、存储等）
-        buffer_time = 5.0      # 安全缓冲时间
-        
-        if not message or not message.media:
-            return base_timeout
-        
-        # 获取媒体文件大小
-        file_size = self.get_media_file_size(message)
-        if not file_size:
-            return base_timeout + 15  # 未知大小，增加15秒
-        
-        # 预估下载时间（假设平均下载速度 500KB/s）
-        download_time = file_size / (500 * 1024)  # 转换为秒
-        
-        # 最终超时 = 基础时间 + 下载时间 + 缓冲时间
-        total_timeout = base_timeout + download_time + buffer_time
-        
-        # 设置合理范围：30秒-600秒（10分钟）
-        return max(30.0, min(total_timeout, 600.0))
+        """统一超时设置 - Linus式简化：直接返回1800秒"""
+        # 🔥 Linus式修复：删除复杂的动态计算，统一使用1800秒
+        # - 快速下载仍然快速完成（不会等到超时）
+        # - 大文件有充足时间下载
+        # - 避免复杂算法导致的超时过短问题
+        return 1800.0  # 30分钟，足够处理任何大小的媒体文件
     
     def get_media_file_size(self, message) -> int:
         """从消息中提取媒体文件大小（字节）"""

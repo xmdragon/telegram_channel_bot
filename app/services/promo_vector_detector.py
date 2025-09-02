@@ -114,33 +114,51 @@ class PromoVectorDetector(BaseFilter):
                 self._update_avg_similarity(vector_result['similarity'])
                 
             else:
-                # === 第二步：降级检测 ===
-                logger.warning(f"向量检测失败: {vector_result['error']}，启用降级模式")
+                # === 第二步：根据错误类型决定处理方式 ===
+                error_type = vector_result.get('error_type', 'unknown')
+                error_message = vector_result['error']
                 
-                fallback_result = await self._fallback_detection(content, context)
-                
-                if fallback_result['success']:
-                    self.detection_stats['fallback_detections'] += 1
+                if error_type == 'invalid_text':
+                    # 文本无效（正常情况）- 不触发降级，直接通过
+                    logger.debug(f"文本无效跳过向量检测: {error_message}")
+                    result.reason = "文本预处理后无有效内容，跳过检测"
+                    result.confidence = 0.1
+                    result.details['skip_reason'] = error_message
                     
-                    result.confidence = 0.8 if fallback_result['is_ad'] else 0.2
-                    result.details.update(fallback_result['details'])
+                elif error_type == 'technical_error':
+                    # 技术错误 - 启用降级检测
+                    logger.warning(f"向量检测技术故障: {error_message}，启用降级模式")
                     
-                    if fallback_result['is_ad']:
-                        if self.auto_reject_ads:
-                            result.passed = False
-                            result.should_early_stop = True
-                            result.reason = f"降级检测到广告: {fallback_result['reason']}"
+                    fallback_result = await self._fallback_detection(content, context)
+                    
+                    if fallback_result['success']:
+                        self.detection_stats['fallback_detections'] += 1
+                        
+                        result.confidence = 0.8 if fallback_result['is_ad'] else 0.2
+                        result.details.update(fallback_result['details'])
+                        
+                        if fallback_result['is_ad']:
+                            if self.auto_reject_ads:
+                                result.passed = False
+                                result.should_early_stop = True
+                                result.reason = f"降级检测到广告: {fallback_result['reason']}"
+                            else:
+                                result.passed = True
+                                result.should_early_stop = False
+                                result.reason = f"降级检测到疑似广告: {fallback_result['reason']}"
                         else:
-                            result.passed = True
-                            result.should_early_stop = False
-                            result.reason = f"降级检测到疑似广告: {fallback_result['reason']}"
+                            result.reason = "降级检测正常"
                     else:
-                        result.reason = "降级检测正常"
+                        # 完全失败，保守通过
+                        logger.error("向量检测和降级检测都失败，默认通过")
+                        result.reason = "检测失败，默认通过"
+                        result.details['error'] = error_message
+                        
                 else:
-                    # 完全失败，保守通过
-                    logger.error("向量检测和降级检测都失败，默认通过")
-                    result.reason = "检测失败，默认通过"
-                    result.details['error'] = vector_result['error']
+                    # 未知错误类型 - 保守处理
+                    logger.warning(f"向量检测未知错误: {error_message}")
+                    result.reason = f"检测异常，默认通过: {error_message}"
+                    result.details['error'] = error_message
             
             # 在context中记录检测结果
             context.add_metadata('vector_ad_detection', {
@@ -165,15 +183,23 @@ class PromoVectorDetector(BaseFilter):
     async def _vector_detection(self, content: str, context: FilterContext) -> Dict[str, Any]:
         """向量检测核心逻辑"""
         try:
-            # 提取文本语义向量
-            content_vector = self.semantic_extractor.extract_vector(content)
+            # 使用增强的向量提取方法获取详细信息
+            extract_result = self.semantic_extractor.extract_vector_with_info(content)
             
-            if not content_vector:
+            if not extract_result['success']:
+                error_type = extract_result['error_type']
+                error_message = extract_result['error_message']
+                
                 return {
                     'success': False,
-                    'error': '向量提取失败',
-                    'details': {}
+                    'error': error_message,
+                    'error_type': error_type,
+                    'details': {
+                        'processed_text': extract_result['processed_text']
+                    }
                 }
+            
+            content_vector = extract_result['vector']
             
             # 与向量库比较
             is_ad, similarity, match_info = self.vector_manager.is_advertisement(content_vector)
@@ -183,11 +209,13 @@ class PromoVectorDetector(BaseFilter):
                 'is_ad': is_ad,
                 'similarity': similarity,
                 'content_vector': content_vector,  # 用于自学习
+                'error_type': 'none',
                 'details': {
                     'vector_detection': True,
                     'match_info': match_info,
                     'vector_dim': len(content_vector),
-                    'threshold': self.similarity_threshold
+                    'threshold': self.similarity_threshold,
+                    'processed_text': extract_result['processed_text']
                 }
             }
             
@@ -195,6 +223,7 @@ class PromoVectorDetector(BaseFilter):
             return {
                 'success': False,
                 'error': str(e),
+                'error_type': 'technical_error',
                 'details': {}
             }
     

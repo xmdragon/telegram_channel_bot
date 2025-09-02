@@ -183,8 +183,33 @@ class SemanticExtractor:
         Returns:
             语义向量，如果失败返回None
         """
+        result = self.extract_vector_with_info(text)
+        return result['vector'] if result['success'] else None
+    
+    def extract_vector_with_info(self, text: str) -> Dict[str, Any]:
+        """
+        从文本中提取语义向量（带详细信息）
+        
+        Args:
+            text: 输入文本
+            
+        Returns:
+            包含向量和状态信息的字典: {
+                'success': bool,
+                'vector': List[float] | None,
+                'error_type': 'none' | 'invalid_text' | 'technical_error',
+                'error_message': str,
+                'processed_text': str
+            }
+        """
         if not text:
-            return None
+            return {
+                'success': False,
+                'vector': None,
+                'error_type': 'invalid_text',
+                'error_message': '输入文本为空',
+                'processed_text': ''
+            }
         
         try:
             # 确保模型已初始化
@@ -194,7 +219,13 @@ class SemanticExtractor:
             # 预处理文本
             processed_text = self._preprocess_ad_text(text)
             if not processed_text:
-                return None
+                return {
+                    'success': False,
+                    'vector': None,
+                    'error_type': 'invalid_text',
+                    'error_message': '文本预处理后为空（可能全为停用词、数字或特殊字符）',
+                    'processed_text': processed_text
+                }
             
             # 提取向量
             if self.vectorizer and self.svd:
@@ -209,14 +240,33 @@ class SemanticExtractor:
                 else:
                     result = result[:self.vector_dim]
                 
-                return result
+                return {
+                    'success': True,
+                    'vector': result,
+                    'error_type': 'none',
+                    'error_message': '',
+                    'processed_text': processed_text
+                }
             else:
                 # 使用默认特征向量
-                return self._extract_default_vector(processed_text)
+                result = self._extract_default_vector(processed_text)
+                return {
+                    'success': True,
+                    'vector': result,
+                    'error_type': 'none',
+                    'error_message': '',
+                    'processed_text': processed_text
+                }
                 
         except Exception as e:
             logger.error(f"提取语义向量失败: {e}")
-            return None
+            return {
+                'success': False,
+                'vector': None,
+                'error_type': 'technical_error',
+                'error_message': str(e),
+                'processed_text': processed_text if 'processed_text' in locals() else ''
+            }
     
     def _extract_default_vector(self, text: str) -> List[float]:
         """使用默认方法提取向量"""

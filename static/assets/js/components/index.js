@@ -2599,6 +2599,10 @@ function initializeVueApp() {
             app.component('message-content-renderer', window.MessageContentRenderer);
         }
         
+        if (window.TelegramAlbum) {
+            app.component('telegram-album', window.TelegramAlbum);
+        }
+        
         app.mount('#app');
     } catch (error) {
         console.error('Failed to mount Vue app:', error);

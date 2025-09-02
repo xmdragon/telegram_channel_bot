@@ -305,16 +305,8 @@ class MediaDownloader(MessageProcessor):
     
     async def _download_media_with_client(self, message: TLMessage, channel_id: str) -> Optional[dict]:
         """在有Telegram客户端的环境中下载媒体"""
-        # 确定超时时间
-        timeout = 30.0  # 默认30秒
-        if hasattr(message.media, 'document'):
-            document = message.media.document
-            if document:
-                mime_type = getattr(document, 'mime_type', '') or ""
-                if mime_type.startswith("video/"):
-                    timeout = 120.0  # 视频文件2分钟
-                else:
-                    timeout = 60.0   # 其他文档1分钟
+        # 🔥 Linus式修复：统一使用1800秒超时，不区分媒体类型
+        timeout = 1800.0  # 30分钟，统一处理所有媒体
         
         # 下载媒体
         from app.telegram.bot import telegram_bot

@@ -538,6 +538,78 @@ class MessageProcessor:
         except Exception as e:
             logger.error(f"清理过期数据失败: {e}")
     
+    async def get_old_messages_for_cleanup(self, cutoff_time):
+        """获取需要清理的旧消息 - 业务逻辑层实现"""
+        try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = redis_manager
+                except RuntimeError:
+                    logger.error("Redis连接失败")
+                    return []
+            
+            old_messages = []
+            
+            # 获取已完成状态的消息（approved、rejected）
+            for status in ['approved', 'rejected']:
+                try:
+                    # 使用Redis存储获取指定状态的消息
+                    message_keys = self.redis_store.redis.zrange(f"msg:idx:{status}", 0, -1)
+                    
+                    for key in message_keys:
+                        if ':' not in key:
+                            continue
+                        
+                        channel_id, message_id = key.split(':', 1)
+                        msg_data = await self.get_message(channel_id, int(message_id))
+                        
+                        if not msg_data:
+                            continue
+                        
+                        # 检查消息是否足够旧
+                        created_at = msg_data.get('created_at')
+                        review_time = msg_data.get('review_time') 
+                        forwarded_time = msg_data.get('forwarded_time')
+                        
+                        # 解析时间字符串
+                        times_to_check = []
+                        for time_str in [created_at, review_time, forwarded_time]:
+                            if time_str:
+                                try:
+                                    from datetime import datetime
+                                    time_obj = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                                    times_to_check.append(time_obj)
+                                except:
+                                    continue
+                        
+                        # 如果任何时间早于cutoff_time，则加入清理列表
+                        if times_to_check and any(t < cutoff_time for t in times_to_check):
+                            # 构造消息对象以兼容原有清理逻辑
+                            message_obj = type('Message', (), {
+                                'channel_id': channel_id,
+                                'message_id': int(message_id),
+                                'status': msg_data.get('status'),
+                                'media_url': msg_data.get('media_url'),
+                                'is_combined': msg_data.get('is_combined', False),
+                                'combined_messages': msg_data.get('combined_messages', []),
+                                'created_at': created_at,
+                                'review_time': review_time,
+                                'forwarded_time': forwarded_time
+                            })()
+                            old_messages.append(message_obj)
+                            
+                except Exception as status_e:
+                    logger.error(f"处理状态 {status} 的消息时出错: {status_e}")
+                    continue
+            
+            logger.debug(f"找到 {len(old_messages)} 条需要清理的旧消息")
+            return old_messages
+            
+        except Exception as e:
+            logger.error(f"获取旧消息失败: {e}")
+            return []
+    
     async def mark_as_not_ad(self, channel_id: str, message_id: int, user_id: str = None) -> bool:
         """
         标记消息为非广告

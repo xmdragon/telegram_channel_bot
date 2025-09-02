@@ -37,20 +37,9 @@ class MediaProcessor:
             else:
                 media_type = "other"
             
-            # 根据媒体类型设置超时时间
+            # 🔥 Linus式修复：统一超时设置
             if timeout is None:
-                if media_type == "photo":
-                    timeout = 30.0  # 图片30秒
-                elif media_type == "document" and hasattr(message.media, 'document'):
-                    # 检查是否为视频
-                    document = message.media.document
-                    mime_type = document.mime_type or ""
-                    if mime_type.startswith("video/"):
-                        timeout = 120.0  # 视频120秒
-                    else:
-                        timeout = 60.0  # 其他文档60秒
-                else:
-                    timeout = 60.0  # 默认60秒
+                timeout = 1800.0  # 30分钟，统一处理所有媒体类型
             
             # 检查是否为危险文件
             if await self._is_dangerous_file(message):
