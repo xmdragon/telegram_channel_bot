@@ -42,6 +42,101 @@
     pointer-events: auto;
 }
 
+/* 批量操作按钮组 */
+.batch-operations .button-group {
+    display: inline-flex;
+    gap: 8px;
+}
+
+.batch-operations .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.batch-operations .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.batch-operations .btn-success {
+    background: #52c41a;
+    color: white;
+}
+
+.batch-operations .btn-success:hover:not(:disabled) {
+    background: #73d13d;
+}
+
+.batch-operations .btn-warning {
+    background: #faad14;
+    color: white;
+}
+
+.batch-operations .btn-warning:hover:not(:disabled) {
+    background: #ffc53d;
+}
+
+.batch-operations .btn-danger {
+    background: #ff4d4f;
+    color: white;
+}
+
+.batch-operations .btn-danger:hover:not(:disabled) {
+    background: #ff7875;
+}
+
+.batch-operations .btn-secondary {
+    background: #8c8c8c;
+    color: white;
+}
+
+.batch-operations .btn-secondary:hover:not(:disabled) {
+    background: #a8a8a8;
+}
+
+/* 加载动画 */
+.batch-operations .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 进度条样式 */
+.operation-progress {
+    margin-top: 10px;
+}
+
+.operation-progress .progress-bar-container {
+    width: 100%;
+    height: 20px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.operation-progress .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #52c41a, #73d13d);
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
 /* 统计容器 */
 .stats-container {
     padding: 10px 10px 0 10px;

@@ -328,45 +328,45 @@ const BatchOperationPanel = {
             
             <!-- 批量操作区 -->
             <div class="batch-operations" v-if="hasSelection">
-                <el-button-group>
-                    <el-button 
+                <div class="button-group">
+                    <button 
                         v-if="shouldShowApprove"
-                        type="success" 
+                        class="btn btn-success" 
                         :disabled="isProcessing || !buttonVisibility.approve"
                         @click="batchApprove($event)"
-                        :loading="isProcessing && operationProgress.status.includes('发布')"
                     >
+                        <span v-if="isProcessing && operationProgress.status.includes('发布')" class="spinner"></span>
                         📤 发布 ({{ selectedMessageDetails.pending }})
-                    </el-button>
+                    </button>
                     
-                    <el-button 
+                    <button 
                         v-if="shouldShowReject"
-                        type="warning" 
+                        class="btn btn-warning" 
                         :disabled="isProcessing || !buttonVisibility.reject"
                         @click="batchReject"
-                        :loading="isProcessing && operationProgress.status.includes('拒绝')"
                     >
+                        <span v-if="isProcessing && operationProgress.status.includes('拒绝')" class="spinner"></span>
                         ❌ 拒绝 ({{ selectedMessageDetails.pending }})
-                    </el-button>
+                    </button>
                     
-                    <el-button 
+                    <button 
                         v-if="shouldShowDelete"
-                        type="danger" 
+                        class="btn btn-danger" 
                         :disabled="isProcessing || !buttonVisibility.delete"
                         @click="batchDelete"
-                        :loading="isProcessing && operationProgress.status.includes('删除')"
                     >
+                        <span v-if="isProcessing && operationProgress.status.includes('删除')" class="spinner"></span>
                         🗑️ 删除 ({{ selectedMessageDetails.approved + selectedMessageDetails.rejected }})
-                    </el-button>
+                    </button>
                     
-                    <el-button 
-                        type="info"
+                    <button 
+                        class="btn btn-secondary"
                         @click="clearSelection" 
                         :disabled="!hasSelection"
                     >
                         🗑️ 清空
-                    </el-button>
-                </el-button-group>
+                    </button>
+                </div>
             </div>
             
             <!-- 进度条 -->
@@ -375,11 +375,11 @@ const BatchOperationPanel = {
                     <span>{{ operationProgress.status }}</span>
                     <span>{{ operationProgress.current }} / {{ operationProgress.total }}</span>
                 </div>
-                <el-progress 
-                    :percentage="Math.round((operationProgress.current / operationProgress.total) * 100)"
-                    :show-text="false"
-                    status="success"
-                />
+                <div class="progress-bar-container">
+                    <div class="progress-bar" 
+                         :style="{ width: Math.round((operationProgress.current / operationProgress.total) * 100) + '%' }">
+                    </div>
+                </div>
             </div>
         </div>
     `

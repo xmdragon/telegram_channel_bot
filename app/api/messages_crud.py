@@ -661,7 +661,7 @@ async def update_message(
             raise HTTPException(status_code=400, detail="无法确定消息的频道ID")
         
         # 执行更新
-        success = await redis_manager.update_message(channel_id, msg_id, update_data)
+        success = redis_manager.update_message(channel_id, msg_id, update_data)
         if not success:
             raise HTTPException(status_code=500, detail="更新消息失败")
         

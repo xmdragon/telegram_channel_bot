@@ -23,8 +23,8 @@ from .admin_auth import router as admin_auth_router
 from .ai_control import router as ai_control_router
 from .ai_config import router as ai_config_router
 from .version import router as version_router
-# 使用重构后的训练路由模块
-from app.routers.training import router as training_router
+# 使用训练API模块
+from .training import router as training_router
 # from app.api.channel_resolver import router as channel_resolver_router  # 暂时禁用，包含数据库依赖
 
 api_router = APIRouter()
