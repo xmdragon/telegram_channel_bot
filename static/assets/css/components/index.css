@@ -560,23 +560,26 @@
     top: -8px;
     left: 50%;
     transform: translateX(-50%) translateY(-100%);
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.92);
     color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 10px 14px;
+    border-radius: 8px;
     font-size: 12px;
     white-space: nowrap;
     max-width: 400px;
     word-wrap: break-word;
     white-space: normal;
-    z-index: 1000;
+    z-index: 9999;
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px);
     line-height: 1.4;
     text-align: left;
+    /* 智能边界检测 - 当父元素接近右边界时自动右对齐 */
+    min-width: 120px;
 }
 
 /* tooltip箭头 */
@@ -588,13 +591,13 @@
     transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid rgba(0, 0, 0, 0.9);
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 7px solid rgba(0, 0, 0, 0.92);
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
-    z-index: 1001;
+    z-index: 10000;
 }
 
 /* 悬停显示tooltip */
@@ -602,6 +605,40 @@
 .reject-reason-hover:hover::after {
     opacity: 1;
     visibility: visible;
+}
+
+/* 智能边界检测 - 当"拒因"标签位于消息右侧时的特殊定位 */
+.message-item:last-child .reject-reason-hover::before,
+.message-tags .reject-reason-hover:last-child::before {
+    left: auto;
+    right: 0;
+    transform: translateY(-100%);
+    margin-right: 10px; /* 避免贴边 */
+}
+
+.message-item:last-child .reject-reason-hover::after,
+.message-tags .reject-reason-hover:last-child::after {
+    left: auto;
+    right: 20px;
+    transform: none;
+}
+
+/* 针对标签容器右侧位置的优化 */
+.message-tags {
+    position: relative;
+}
+
+.message-tags .reject-reason-hover:nth-last-child(-n+2)::before {
+    left: auto;
+    right: 0;
+    transform: translateY(-100%);
+    margin-right: 8px;
+}
+
+.message-tags .reject-reason-hover:nth-last-child(-n+2)::after {
+    left: auto;
+    right: 18px;
+    transform: none;
 }
 
 /* 媒体预览图片 */
