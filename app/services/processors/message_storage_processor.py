@@ -79,6 +79,16 @@ class MessageStorageProcessor(MessageProcessor):
                 msg_id = saved_message.get('message_id', 'N/A')
                 status = saved_message.get('status', 'unknown')
                 self.logger.info(f"消息已保存: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
+                
+                # 如果消息已自动批准（人工审核关闭），自动提交发布任务
+                if status == 'approved':
+                    try:
+                        from app.services.message_forward_queue import forward_queue
+                        message_id_str = f"{context.channel_id}:{msg_id}"
+                        await forward_queue.submit_forward_task(message_id_str, "forward_to_target")
+                        self.logger.info(f"人工审核已关闭，消息 {message_id_str} 已自动提交发布任务")
+                    except Exception as e:
+                        self.logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
             
             return ProcessorResult(True, context)
             
@@ -135,10 +145,22 @@ class MessageStorageProcessor(MessageProcessor):
             'visual_hash': visual_hash,
             'grouped_id': str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None,
             'is_combined': False,  # 单独消息不是组合消息
-            'status': 'pending',   # 默认状态
+            'status': 'pending',   # 状态将在下面根据配置设置
             'created_at': context.created_at,
             'source_channel_link_prefix': self._generate_channel_link_prefix(context.channel_id)
         }
+        
+        # 检查是否需要人工审核
+        from app.services.config_manager import config_manager
+        require_approval = await config_manager.get_config('review.require_approval', True)
+        
+        if require_approval:
+            # 需要人工审核，保持待审核状态
+            save_data['status'] = 'pending'
+        else:
+            # 不需要人工审核，直接设置为已批准状态
+            save_data['status'] = 'approved'
+            self.logger.info(f"人工审核已关闭，消息 #{message.id} 自动批准")
         
         # 🔧 Linus式修复：为组合消息子消息添加特殊标记
         if hasattr(message, 'grouped_id') and message.grouped_id:
@@ -189,51 +211,6 @@ class MessageStorageProcessor(MessageProcessor):
         
         return None
     
-    async def _check_duplicate(self, context: MessageContext):
-        """检查重复消息"""
-        try:
-            save_data = context.save_data
-            
-            # 🔧 新增：跳过组消息子消息的重复检测
-            # 子消息会作为组合消息的一部分进行整体重复检测
-            if save_data.get('grouped_id'):
-                self.logger.debug(f"跳过组消息子消息的重复检测: grouped_id={save_data['grouped_id']}")
-                return
-            
-            # 提取视觉哈希
-            visual_hashes = None
-            if context.media_info and context.media_info.get('visual_hashes'):
-                visual_hashes = context.media_info['visual_hashes']
-            
-            # 执行去重检测
-            is_duplicate, orig_id, dup_type = await self.duplicate_detector.is_duplicate_message(
-                source_channel=context.channel_id,
-                media_hash=save_data.get('media_hash'),
-                combined_media_hash=save_data.get('combined_media_hash'),
-                content=save_data.get('content'),
-                message_time=save_data.get('created_at'),
-                visual_hashes=visual_hashes
-            )
-            
-            if is_duplicate:
-                # 🔧 修复：构建完整的消息ID格式 channel_id:message_id
-                original_full_id = f"{context.channel_id}:{orig_id}" if orig_id else None
-                duplicate_info = {
-                    'original_id': original_full_id,
-                    'type': dup_type,
-                    'reason': f"{dup_type}重复"
-                }
-                context.duplicate_info = duplicate_info
-                
-                # 如果尚未被标记为拒绝，则标记为去重拒绝
-                if not context.should_reject:
-                    context.should_reject = True
-                    context.reject_reason = f"去重检测: {duplicate_info['reason']}"
-                
-                self.logger.info(f"检测到重复消息（{dup_type}），原始消息ID: {orig_id}")
-            
-        except Exception as e:
-            self.logger.error(f"重复检测失败: {e}")
     
     async def _handle_grouped_message(self, context: MessageContext, grouped_id: str):
         """处理组合消息 - 增强版，支持智能选择处理方式"""

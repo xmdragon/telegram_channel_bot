@@ -410,6 +410,10 @@ class MessageGrouper:
             from app.services.message_processor import MessageProcessor
             processor = MessageProcessor()
             
+            # 检查是否需要人工审核
+            from app.services.config_manager import config_manager
+            require_approval = await config_manager.get_config('review.require_approval', True)
+            
             # 准备保存数据
             save_data = {
                 'source_channel': channel_id,
@@ -420,12 +424,15 @@ class MessageGrouper:
                 'visual_hash': processed_data.get('visual_hash'),
                 'grouped_id': processed_data.get('grouped_id'),
                 'is_combined': True,
-                'status': 'pending',
+                'status': 'pending' if require_approval else 'approved',
                 'is_ad': processed_data.get('is_ad', False),
                 'combined_messages': processed_data.get('combined_messages'),
                 'media_group': processed_data.get('media_group'),
                 'created_at': processed_data.get('date', combined_message.get('date'))
             }
+            
+            if not require_approval:
+                logger.info(f"人工审核已关闭，组合消息 {channel_id}:{processed_data['message_id']} 自动批准")
             
             # 保存到Redis - Linus式：提供详细失败原因
             try:
@@ -435,6 +442,16 @@ class MessageGrouper:
                 saved_message = await processor.process_new_message(save_data)
                 if saved_message:
                     logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
+                    
+                    # 如果组合消息已自动批准（人工审核关闭），自动提交发布任务
+                    if saved_message.get('status') == 'approved':
+                        try:
+                            from app.services.message_forward_queue import forward_queue
+                            message_id_str = f"{channel_id}:{processed_data['message_id']}"
+                            await forward_queue.submit_forward_task(message_id_str, "forward_to_target")
+                            logger.info(f"人工审核已关闭，组合消息 {message_id_str} 已自动提交发布任务")
+                        except Exception as e:
+                            logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
                     
                     # 通知前端组合消息已创建
                     await self._notify_combined_message_created(saved_message)

@@ -74,10 +74,8 @@ const ConfigApp = {
                 // 过滤设置
                 filter_enabled: true,
                 // 审核设置
-                require_approval: true,
-                // 系统设置
-                scheduler_enabled: true,
-                delete_single_messages: true
+                require_approval: true
+                // 系统设置已简化，调度和单消息删除默认启用
             },
             
             // 过滤设置 - 系统自动管理
@@ -241,10 +239,8 @@ const ConfigApp = {
                         // 过滤设置
                         filter_enabled: this.parseBooleanValue(configs['filter.enabled'], true),
                         // 审核设置
-                        require_approval: this.parseBooleanValue(configs['review.require_approval'], true),
-                        // 系统设置
-                        scheduler_enabled: this.parseBooleanValue(configs['scheduler.enabled'], true),
-                        delete_single_messages: this.parseBooleanValue(configs['storage.delete_single_messages'], true)
+                        require_approval: this.parseBooleanValue(configs['review.require_approval'], true)
+                        // 系统设置已简化，调度和单消息删除默认启用
                     };
                     
                 }
@@ -448,10 +444,8 @@ const ConfigApp = {
                     // 过滤设置
                     'filter.enabled': this.systemConfig.filter_enabled,
                     // 审核设置
-                    'review.require_approval': this.systemConfig.require_approval,
-                    // 系统设置
-                    'scheduler.enabled': this.systemConfig.scheduler_enabled,
-                    'storage.delete_single_messages': this.systemConfig.delete_single_messages
+                    'review.require_approval': this.systemConfig.require_approval
+                    // 系统设置已简化，调度和单消息删除默认启用
                 };
                 
                 // 调试日志
@@ -480,10 +474,8 @@ const ConfigApp = {
                 // 过滤设置
                 filter_enabled: true,
                 // 审核设置
-                require_approval: true,
-                // 系统设置
-                scheduler_enabled: true,
-                delete_single_messages: true
+                require_approval: true
+                // 系统设置已简化，调度和单消息删除默认启用
             };
             MessageManager.success('系统配置已重置为默认值');
         },

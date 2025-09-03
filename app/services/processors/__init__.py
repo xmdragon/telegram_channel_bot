@@ -9,7 +9,7 @@ from .base import MessageContext, ProcessorResult, MessageProcessor, MessagePipe
 # 具体处理器
 from .message_receiver import MessageReceiver, MediaDownloader
 from .message_filter_processor import MessageFilterProcessor, ContentValidator
-from .message_storage_processor import MessageStorageProcessor, DuplicateChecker
+from .message_storage_processor import MessageStorageProcessor
 from .message_forwarder_processor import MessageForwarderProcessor, ReviewForwarder, WebSocketBroadcaster
 
 __all__ = [
@@ -29,7 +29,6 @@ __all__ = [
     
     # 存储处理器
     'MessageStorageProcessor',
-    'DuplicateChecker',
     
     # 转发处理器
     'MessageForwarderProcessor',

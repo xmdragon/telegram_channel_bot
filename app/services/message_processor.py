@@ -7,7 +7,6 @@ import time
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from app.storage.redis_manager import redis_manager
-from .duplicate_detector import DuplicateDetector
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,6 @@ class MessageProcessor:
     """消息处理器"""
     
     def __init__(self):
-        self.duplicate_detector = DuplicateDetector()
         self.redis_store = None  # 延迟初始化
     
     async def get_pending_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
@@ -87,70 +85,6 @@ class MessageProcessor:
     # Linus式重构：删除不必要的HTTP API调用层
     # 自动转发功能已移至collector服务中，直接使用Telegram客户端
     
-    async def check_and_filter_duplicates(self, message: Dict[str, Any]) -> bool:
-        """
-        检查并过滤重复消息
-        
-        Args:
-            message: 要检查的消息字典
-            
-        Returns:
-            True如果是重复消息，False如果不重复
-        """
-        try:
-            # 准备视觉哈希（如果有）
-            visual_hashes = None
-            if 'visual_hash' in message and message['visual_hash']:
-                try:
-                    if isinstance(message['visual_hash'], str):
-                        # 解析JSON格式的visual_hash
-                        import json
-                        visual_hashes = json.loads(message['visual_hash'])
-                    else:
-                        visual_hashes = message['visual_hash']
-                except Exception as e:
-                    logger.debug(f"解析视觉哈希失败: {e}")
-            
-            # 解析创建时间
-            message_time = datetime.utcnow()
-            if 'created_at' in message and message['created_at']:
-                try:
-                    message_time = datetime.fromisoformat(message['created_at'].replace('Z', '+00:00')).replace(tzinfo=None)
-                except:
-                    pass
-            
-            # 构造消息ID（由于新系统中没有自增主ID，使用channel:message_id组合）
-            msg_id = f"{message.get('source_channel')}:{message.get('message_id')}"
-            
-            is_duplicate, orig_id, dup_type = await self.duplicate_detector.is_duplicate_message(
-                source_channel=message.get('source_channel'),
-                media_hash=message.get('media_hash'),
-                combined_media_hash=message.get('combined_media_hash'),
-                content=message.get('content'),
-                message_time=message_time,
-                message_id=msg_id,
-                visual_hashes=visual_hashes
-            )
-            
-            if is_duplicate and orig_id:
-                # 直接标记为重复并指向原始消息
-                # 解析channel_id和message_id
-                if ':' in str(msg_id):
-                    ch_id, m_id = str(msg_id).split(':', 1)
-                    await self.duplicate_detector.mark_as_duplicate(
-                        channel_id=ch_id,
-                        message_id=int(m_id),
-                        original_message_id=orig_id
-                    )
-                
-                logger.info(f"消息 {msg_id} 被检测为{dup_type}重复消息（原消息ID: {orig_id}），已自动过滤")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            logger.error(f"检查重复消息时出错: {e}")
-            return False
     
     async def process_new_message(self, message_data: dict) -> Optional[Dict[str, Any]]:
         """
@@ -174,41 +108,7 @@ class MessageProcessor:
                 logger.error("消息数据缺少必要字段: source_channel 或 message_id")
                 return None
             
-            # 先进行重复检测（在保存之前）
-            message_time = datetime.utcnow()
-            if message_data.get('created_at'):
-                try:
-                    message_time = datetime.fromisoformat(message_data['created_at'].replace('Z', '+00:00')).replace(tzinfo=None)
-                except:
-                    pass
-                    
-            is_duplicate, original_msg_id, duplicate_type = await self.duplicate_detector.is_duplicate_message(
-                source_channel=channel_id,
-                media_hash=message_data.get('media_hash'),
-                combined_media_hash=message_data.get('combined_media_hash'),
-                content=message_data.get('content'),
-                message_time=message_time,
-                visual_hashes=message_data.get('visual_hash')
-            )
-            
-            # 🔧 Linus式优化：区分"真重复"和"组合消息重复保存"
-            if is_duplicate:
-                # 检查是否是对自己的重复保存（组合消息场景）
-                current_msg_key = f"{channel_id}:{message_id}"
-                if original_msg_id and original_msg_id.endswith(current_msg_key):
-                    # 这是对自己的重复检测，检查是否已存在
-                    existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
-                    if existing_message:
-                        logger.info(f"🔄 message_processor: 检测到组合消息重复保存，返回已存在消息: {channel_id}:{message_id}")
-                        return existing_message
-                    else:
-                        logger.warning(f"🔄 message_processor: 重复检测器检测到自己但Redis中不存在，继续保存: {channel_id}:{message_id}")
-                else:
-                    # 这是真正的重复消息，拒绝处理
-                    logger.info(f"🔄 message_processor: 检测到重复消息（{duplicate_type}），原始消息ID: {original_msg_id}，拒绝处理")
-                    return None
-            
-            # 非重复消息或特殊情况，检查Redis中是否已存在
+            # 直接检查Redis中是否已存在消息
             existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
             
             if existing_message:

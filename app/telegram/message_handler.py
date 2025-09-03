@@ -344,16 +344,7 @@ class MessageHandler:
             # 计算媒体哈希
             media_hash, combined_media_hash, visual_hash = await self._calculate_media_hashes(message_data, original_media_info)
             
-            # 执行重复检测
-            is_duplicate = await self._check_duplicate_message(
-                channel_id, media_hash, combined_media_hash, 
-                message_data.get('content'), message_data.get('date'), visual_hash
-            )
-            
-            if is_duplicate:
-                logger.info(f"{'历史' if is_history else '实时'}消息：发现重复消息，跳过处理")
-                await self._cleanup_message_media(message_data)
-                return
+            # 重复检测已删除，直接进行消息处理
             
             # 使用消息处理器进行处理
             process_message_data = {
@@ -443,39 +434,6 @@ class MessageHandler:
         
         return media_hash, combined_media_hash, visual_hash
     
-    async def _check_duplicate_message(self, channel_id: str, media_hash: str, combined_media_hash: str, 
-                                     content: str, message_time, visual_hash: str) -> bool:
-        """检查消息是否重复"""
-        try:
-            from app.services.duplicate_detector import DuplicateDetector
-            duplicate_detector = DuplicateDetector()
-            
-            visual_hashes_dict = None
-            if visual_hash:
-                try:
-                    import json
-                    if isinstance(visual_hash, str):
-                        visual_hashes_dict = json.loads(visual_hash)
-                    else:
-                        visual_hashes_dict = visual_hash
-                    if isinstance(visual_hashes_dict, list) and visual_hashes_dict:
-                        visual_hashes_dict = visual_hashes_dict[0]
-                except:
-                    pass
-            
-            is_duplicate, original_msg_id, duplicate_type = await duplicate_detector.is_duplicate_message(
-                source_channel=channel_id,
-                media_hash=media_hash,
-                combined_media_hash=combined_media_hash,
-                content=content,
-                message_time=message_time or datetime.now(),
-                visual_hashes=visual_hashes_dict
-            )
-            
-            return is_duplicate
-        except Exception as e:
-            logger.error(f"重复检测失败: {e}")
-            return False
     
     async def _cleanup_message_media(self, message_data: dict):
         """清理消息媒体文件"""
