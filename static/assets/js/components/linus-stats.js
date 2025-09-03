@@ -36,373 +36,190 @@ const LinusStatsComponent = {
     
     methods: {
         /**
-         * 初始化组件 - Linus式干净启动
+         * 加载统计数据 - Linus式极简实现
+         * 消除所有特殊情况：只有HTTP请求 + localStorage缓存
          */
-        async initializeComponent() {
-            try {
-                // 1. 订阅状态管理器
-                this.subscribeToStatsUpdates();
-                
-                // 2. 初始加载数据
-                await this.loadInitialData();
-                
-                // 3. 设置WebSocket监听
-                this.setupWebSocketListeners();
-                
-                
-            } catch (error) {
-                this.error = '组件初始化失败';
-            }
-        },
-        
-        /**
-         * 订阅统计数据更新
-         */
-        subscribeToStatsUpdates() {
-            if (!window.StateManager) {
-                return;
-            }
-            
-            this.subscriptionId = window.StateManager.subscribe(
-                'linus_stats',
-                (newStats, oldStats) => {
-                    this.handleStatsUpdate(newStats);
-                },
-                {
-                    immediate: true,
-                    component: 'linus-stats'
-                }
-            );
-        },
-        
-        /**
-         * 处理统计数据更新 - Linus式修复：直接映射后端数据格式
-         */
-        handleStatsUpdate(stats) {
-            if (!stats) return;
+        async loadStats() {
+            // 防抖：避免重复请求
+            if (this.isRefreshing) return;
             
             try {
-                // 直接映射后端数据格式到前端显示
-                if (stats.message_status) {
-                    this.messageStatus = { ...this.messageStatus, ...stats.message_status };
+                // 1. 检查缓存
+                const cached = this.getCachedStats();
+                if (cached) {
+                    this.updateStats(cached);
+                    return;
                 }
                 
-                
-                // 更新一致性状态
-                if (stats.consistency) {
-                    this.consistency = stats.consistency;
-                }
-                
-                // 更新系统信息
-                if (stats.system_info) {
-                    this.systemInfo = { ...this.systemInfo, ...stats.system_info };
-                }
-                
-                this.lastUpdate = new Date();
-                this.error = null;
-                this.loading = false;
-                
-                
-            } catch (error) {
-                this.error = '数据更新失败';
-            }
-        },
-        
-        /**
-         * 设置WebSocket监听器
-         */
-        setupWebSocketListeners() {
-            if (!window.WebSocketManager) {
-                return;
-            }
-            
-            // 监听连接状态
-            const originalConnect = window.WebSocketManager.handleOpen;
-            window.WebSocketManager.handleOpen = (event) => {
-                originalConnect?.call(window.WebSocketManager, event);
-                this.connected = true;
-            };
-            
-            const originalDisconnect = window.WebSocketManager.handleClose;
-            window.WebSocketManager.handleClose = (event) => {
-                originalDisconnect?.call(window.WebSocketManager, event);
-                this.connected = false;
-            };
-            
-            // 监听数据推送
-            const originalMessage = window.WebSocketManager.handleMessage;
-            window.WebSocketManager.handleMessage = (event) => {
-                originalMessage?.call(window.WebSocketManager, event);
-                
-                try {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.type === 'data_update' && data.data?.stats) {
-                        // 服务器主动推送的统计数据
-                        window.StateManager.setState('linus_stats', data.data.stats);
-                    } else if (data.type === 'stats_response') {
-                        // WebSocket请求的响应
-                        if (data.success && data.data) {
-                            window.StateManager.setState('linus_stats', data.data);
-                        }
-                    }
-                } catch (error) {
-                    // 忽略非JSON消息
-                }
-            };
-        },
-        
-        /**
-         * 初始加载数据 - 智能选择请求方式
-         */
-        async loadInitialData() {
-            this.error = null;
-            
-            try {
-                let stats = null;
-                
-                // 优先尝试从缓存获取
-                if (window.StateManager && window.StateManager.has('linus_stats')) {
-                    stats = window.StateManager.get('linus_stats');
-                    // 缓存有数据时立即显示，不显示loading
-                    if (stats) {
-                        this.handleStatsUpdate(stats);
-                        return;
-                    }
-                }
-                
-                // 只有在没有缓存数据时才显示loading
+                // 2. 显示加载状态
                 this.loading = true;
+                this.error = null;
                 
-                // 智能选择请求方式
-                stats = await this.requestStatsData();
+                // 3. 直接HTTP请求 - 消除WebSocket等复杂逻辑
+                const stats = await this.fetchStatsFromAPI();
                 
-                if (stats) {
-                    // 更新状态管理器
-                    if (window.StateManager) {
-                        window.StateManager.setState('linus_stats', stats);
-                    } else {
-                        // 降级处理
-                        this.handleStatsUpdate(stats);
-                    }
-                }
+                // 4. 更新界面和缓存
+                this.updateStats(stats);
+                this.setCachedStats(stats);
                 
             } catch (error) {
-                this.error = '加载数据失败';
+                this.error = '加载统计数据失败';
+                // 错误时尝试使用过期缓存
+                const cached = this.getCachedStats(true);
+                if (cached) {
+                    this.updateStats(cached);
+                    this.error = '数据可能不是最新的';
+                }
             } finally {
                 this.loading = false;
             }
         },
         
         /**
-         * 等待RequestManager初始化完成
+         * 从API获取统计数据 - 单一数据源
          */
-        async waitForRequestManager(maxRetries = 10) {
-            return new Promise((resolve) => {
-                let retries = 0;
-                const checkInterval = setInterval(() => {
-                    if (window.RequestManager && 
-                        typeof window.RequestManager.request === 'function' && 
-                        typeof window.RequestManager.requestViaWebSocket === 'function') {
-                        clearInterval(checkInterval);
-                        resolve(true);
-                    } else if (retries >= maxRetries) {
-                        clearInterval(checkInterval);
-                        resolve(false);
-                    }
-                    retries++;
-                }, 50);
+        async fetchStatsFromAPI() {
+            const response = await axios.get('/api/stats/linus-overview', {
+                headers: window.authManager?.getAuthHeaders?.() || {}
             });
+            
+            if (!response.data?.success) {
+                throw new Error('API响应失败');
+            }
+            
+            return response.data.data;
         },
         
         /**
-         * 请求统计数据 - 智能选择方式
+         * 更新统计显示 - 直接映射
          */
-        async requestStatsData() {
-            // 等待RequestManager初始化完成
-            const requestManagerReady = await this.waitForRequestManager();
-            
-            // 优先使用WebSocket请求（如果可用）
-            if (requestManagerReady && window.WebSocketManager && window.WebSocketManager.isConnected) {
-                try {
-                    return await window.RequestManager.requestViaWebSocket('request_stats');
-                } catch (error) {
-                    // WebSocket请求失败，降级到HTTP
-                }
+        updateStats(data) {
+            if (data?.message_status) {
+                // 保留标签，只更新数字
+                Object.keys(data.message_status).forEach(key => {
+                    if (key !== 'labels' && typeof data.message_status[key] === 'number') {
+                        this.messageStatus[key] = data.message_status[key];
+                    }
+                });
             }
             
-            // 降级到HTTP请求
-            if (requestManagerReady) {
-                return await window.RequestManager.request(window.API.messages.linusStatsOverview, {
-                    method: 'GET',
-                    headers: window.authManager?.getAuthHeaders?.() || {}
-                });
-            } else {
-                // 最后的降级方案
-                const response = await axios.get(window.API.messages.linusStatsOverview, {
-                    headers: window.authManager?.getAuthHeaders?.() || {}
-                });
-                return response.data?.data;
+            this.lastUpdate = new Date();
+            this.error = null;
+        },
+        
+        /**
+         * 获取缓存统计 - localStorage简单实现
+         */
+        getCachedStats(allowExpired = false) {
+            try {
+                const cached = localStorage.getItem('linus_stats');
+                if (!cached) return null;
+                
+                const { data, timestamp } = JSON.parse(cached);
+                const age = Date.now() - timestamp;
+                const TTL = 30 * 1000; // 30秒缓存
+                
+                if (age < TTL || allowExpired) {
+                    return data;
+                }
+                
+                // 过期时清理
+                localStorage.removeItem('linus_stats');
+                return null;
+            } catch {
+                return null;
             }
         },
         
         /**
-         * 手动刷新数据
+         * 设置缓存统计
+         */
+        setCachedStats(data) {
+            try {
+                localStorage.setItem('linus_stats', JSON.stringify({
+                    data,
+                    timestamp: Date.now()
+                }));
+            } catch {
+                // 忽略缓存错误
+            }
+        },
+        
+        /**
+         * 手动刷新 - 重新加载数据
          */
         async refreshStats() {
-            if (this.loading) return;
+            if (this.isRefreshing) return;
             
+            this.isRefreshing = true;
             try {
-                const stats = await this.requestStatsData();
-                if (stats && window.StateManager) {
-                    window.StateManager.setState('linus_stats', stats, { force: true });
-                }
-            } catch (error) {
-                this.error = '刷新失败';
+                // 清除缓存，强制重新请求
+                localStorage.removeItem('linus_stats');
+                await this.loadStats();
+            } finally {
+                this.isRefreshing = false;
             }
         },
         
         /**
-         * 验证数据一致性
+         * 处理统计点击事件 - 保持向后兼容
          */
-        async validateConsistency() {
-            try {
-                const requestManagerReady = await this.waitForRequestManager();
-                
-                if (requestManagerReady) {
-                    const result = await window.RequestManager.request('/api/stats/validate-consistency', {
-                        method: 'POST'
-                    });
-                    
-                    if (result?.success) {
-                        this.consistency = result.data;
-                        this.$message.success('一致性验证完成');
-                    }
-                } else {
-                    // 降级方案
-                    const response = await axios.post('/api/stats/validate-consistency', {}, {
-                        headers: window.authManager?.getAuthHeaders?.() || {}
-                    });
-                    
-                    if (response.data?.success) {
-                        this.consistency = response.data.data;
-                        this.$message.success('一致性验证完成');
-                    }
-                }
-            } catch (error) {
-                this.$message.error('一致性验证失败');
+        handleStatClick(statKey) {
+            if (this.$parent && typeof this.$parent.handleStatClick === 'function') {
+                this.$parent.handleStatClick(statKey);
             }
         },
         
         /**
-         * 设置页面可见性检测
-         */
-        setupVisibilityDetection() {
-            // 页面可见性API
-            document.addEventListener('visibilitychange', () => {
-                this.isVisible = !document.hidden;
-                
-                if (this.isVisible) {
-                    // 页面重新可见时，请求最新数据
-                    setTimeout(() => {
-                        this.refreshStats();
-                    }, 500);
-                }
-            });
-            
-            // 窗口焦点事件
-            window.addEventListener('focus', () => {
-                this.isVisible = true;
-                setTimeout(() => {
-                    this.refreshStats();
-                }, 500);
-            });
-            
-            window.addEventListener('blur', () => {
-                this.isVisible = false;
-            });
-        },
-        
-        /**
-         * 清理资源
-         */
-        cleanup() {
-            // 取消订阅
-            if (this.subscriptionId && window.StateManager) {
-                window.StateManager.unsubscribe('linus_stats', this.subscriptionId);
-            }
-            
-        },
-        
-        /**
-         * 获取格式化的最后更新时间
+         * 格式化更新时间 - 保持原有功能
          */
         getLastUpdateText() {
             if (!this.lastUpdate) return '从未更新';
             
-            const diff = Date.now() - this.lastUpdate.getTime();
-            const seconds = Math.floor(diff / 1000);
-            
+            const seconds = Math.floor((Date.now() - this.lastUpdate.getTime()) / 1000);
             if (seconds < 60) return `${seconds}秒前`;
+            
             const minutes = Math.floor(seconds / 60);
             if (minutes < 60) return `${minutes}分钟前`;
-            const hours = Math.floor(minutes / 60);
-            return `${hours}小时前`;
-        },
-
-        /**
-         * 处理统计标签点击事件
-         */
-        handleStatClick(statKey) {
-            // 调用父组件的切换筛选方法
-            if (this.$parent && typeof this.$parent.handleStatClick === 'function') {
-                this.$parent.handleStatClick(statKey);
-            } else {
-                console.warn('父组件未提供handleStatClick方法');
-            }
-        },
-
+            
+            return `${Math.floor(minutes / 60)}小时前`;
+        }
     },
     
     template: `
         <div class="linus-stats-container">
-            
             <!-- 错误提示 -->
             <div v-if="error" class="error-alert">
                 <span class="error-icon">⚠️</span>
                 <span class="error-text">{{ error }}</span>
             </div>
             
-            <!-- 加载状态 -->
-            <div v-if="loading && !messageStatus.pending && !messageStatus.approved && !messageStatus.rejected" class="loading-container">
+            <!-- 加载状态 - 简化判断条件 -->
+            <div v-if="loading" class="loading-container">
                 <div class="loading-bar">加载统计数据中...</div>
             </div>
             
-            <!-- 统计内容 -->
-            <div v-else class="stats-content">
+            <!-- 统计内容 - 始终显示，即使加载中 -->
+            <div v-show="!loading || messageStatus.pending > 0" class="stats-content">
                 <div class="stats-grid">
-                    <!-- 消息处理状态 -->
-                    <template v-for="(value, key) in messageStatus" :key="'status-'+key">
-                        <div v-if="key !== 'labels'" 
-                             class="stat-badge clickable"
-                             :class="'status-'+key"
-                             @click="handleStatClick(key)">
-                            <span class="stat-badge-number">{{ value.toLocaleString() }}</span>
-                            <span class="stat-badge-label">{{ messageStatus.labels[key] }}</span>
-                        </div>
-                    </template>
+                    <!-- 消息状态统计 - 简化模板 -->
+                    <div class="stat-badge clickable status-pending" @click="handleStatClick('pending')">
+                        <span class="stat-badge-number">{{ messageStatus.pending.toLocaleString() }}</span>
+                        <span class="stat-badge-label">{{ messageStatus.labels.pending }}</span>
+                    </div>
+                    <div class="stat-badge clickable status-approved" @click="handleStatClick('approved')">
+                        <span class="stat-badge-number">{{ messageStatus.approved.toLocaleString() }}</span>
+                        <span class="stat-badge-label">{{ messageStatus.labels.approved }}</span>
+                    </div>
+                    <div class="stat-badge clickable status-rejected" @click="handleStatClick('rejected')">
+                        <span class="stat-badge-number">{{ messageStatus.rejected.toLocaleString() }}</span>
+                        <span class="stat-badge-label">{{ messageStatus.labels.rejected }}</span>
+                    </div>
                 </div>
             </div>
         </div>
     `
 };
 
-// 注册到window对象供index.js使用
+// 全局注册 - 保持向后兼容
 window.LinusStatsComponent = LinusStatsComponent;
-
-// Vue 3 - 组件通过全局变量提供给app实例注册
-
-// 注册为全局变量
-if (typeof window !== 'undefined') {
-    window.LinusStatsComponent = LinusStatsComponent;
-}
