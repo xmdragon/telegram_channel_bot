@@ -562,13 +562,17 @@ async def restore_message(
         # 恢复消息状态为未审核
         success = redis_manager.update_message_status(message_id, "pending", user.get('user_id'))
         if not success:
-            raise HTTPException(status_code=500, detail="恢复消息状态失败")
+            logger.error(f"恢复消息状态失败: message_id={message_id}, current_status={current_status}, user={user.get('user_id')}")
+            raise HTTPException(status_code=500, detail="恢复消息状态失败，请检查消息ID格式或数据库连接")
         
-        logger.info(f"消息已恢复到未审核状态: {message_id}, 操作者: {user.get('user_id')}")
+        logger.info(f"✅ 消息恢复成功: {message_id} ({current_status} -> pending), 操作者: {user.get('user_id')}")
         
         return {
             "success": True,
             "message": "消息已恢复到未审核状态",
+            "message_id": message_id,
+            "previous_status": current_status,
+            "new_status": "pending",
             "timestamp": format_for_api(get_current_time())
         }
         

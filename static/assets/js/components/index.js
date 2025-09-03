@@ -800,6 +800,18 @@ const MainApp = {
                         this.showOriginalMessage(messageId);
                     }
                 }
+                
+                // 检查是否点击了带有data-action的按钮
+                const action = event.target.getAttribute('data-action');
+                if (action === 'restoreMessage') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.restoreMessage(messageId);
+                    }
+                }
             });
         },
         

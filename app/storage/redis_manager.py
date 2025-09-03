@@ -169,6 +169,40 @@ class RedisManager:
                 logger.error(f"获取消息失败: {e}")
             return None
     
+    def get_message_by_id(self, message_id: str, silent: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        通过组合ID获取消息
+        
+        Args:
+            message_id: 组合消息ID格式 "channel_id:message_id"
+            silent: 是否静默处理错误
+            
+        Returns:
+            消息数据或None
+        """
+        try:
+            # 解析组合ID
+            if ':' not in message_id:
+                if not silent:
+                    logger.error(f"消息ID格式错误: {message_id}, 应为 channel_id:message_id 格式")
+                return None
+            
+            channel_id, msg_id = message_id.rsplit(':', 1)
+            try:
+                msg_id = int(msg_id)
+            except ValueError:
+                if not silent:
+                    logger.error(f"消息ID格式错误: {message_id}, message_id部分必须为数字")
+                return None
+            
+            # 调用现有的get_message方法
+            return self.get_message(channel_id, msg_id, silent)
+            
+        except Exception as e:
+            if not silent:
+                logger.error(f"获取消息失败: {e}")
+            return None
+    
     def update_message(self, channel_id: str, message_id: int, update_data: Dict[str, Any]) -> bool:
         """更新消息"""
         try:
@@ -196,19 +230,92 @@ class RedisManager:
             logger.error(f"更新消息失败: {e}")
             return False
     
-    def delete_message(self, channel_id: str, message_id: int) -> bool:
-        """删除消息"""
+    def update_message_status(self, message_id: str, new_status: str, user_id: str = None) -> bool:
+        """
+        更新消息状态 - 支持完整消息ID格式
+        用于恢复功能和状态变更
+        
+        Args:
+            message_id: 完整消息ID格式 "channel_id:message_id" 
+            new_status: 新状态 (pending/approved/rejected)
+            user_id: 操作用户ID (可选)
+            
+        Returns:
+            bool: 是否更新成功
+        """
         try:
-            message_key = f"message:{channel_id}:{message_id}"
+            # 解析消息ID：channel_id:message_id
+            if ':' not in message_id:
+                logger.error(f"消息ID格式错误: {message_id}, 应为 channel_id:message_id 格式")
+                return False
+            
+            channel_id, msg_id = message_id.rsplit(':', 1)
+            try:
+                msg_id = int(msg_id)
+            except ValueError:
+                logger.error(f"消息ID格式错误: {message_id}, message_id部分必须为数字")
+                return False
+            
+            # 构建更新数据
+            update_data = {
+                'status': new_status,
+                'updated_at': get_current_time().isoformat()
+            }
+            
+            if user_id:
+                update_data['updated_by'] = user_id
+                
+            # 使用现有的update_message方法
+            success = self.update_message(channel_id, msg_id, update_data)
+            
+            if success:
+                logger.info(f"消息状态已更新: {message_id} -> {new_status}" + 
+                           (f" (by {user_id})" if user_id else ""))
+            else:
+                logger.error(f"消息状态更新失败: {message_id}")
+                
+            return success
+            
+        except Exception as e:
+            logger.error(f"更新消息状态失败: {e}")
+            return False
+    
+    def delete_message(self, channel_id_or_full_id: str, message_id: int = None) -> bool:
+        """
+        删除消息 - 支持两种调用方式
+        
+        Args:
+            channel_id_or_full_id: 频道ID或组合消息ID（"channel_id:message_id"）
+            message_id: 消息ID（当第一个参数是频道ID时使用）
+            
+        Returns:
+            bool: 是否删除成功
+        """
+        try:
+            # 判断是组合ID还是分开的参数
+            if message_id is None and ':' in channel_id_or_full_id:
+                # 组合ID格式
+                channel_id, msg_id = channel_id_or_full_id.rsplit(':', 1)
+                try:
+                    msg_id = int(msg_id)
+                except ValueError:
+                    logger.error(f"消息ID格式错误: {channel_id_or_full_id}")
+                    return False
+            else:
+                # 分开的参数格式
+                channel_id = channel_id_or_full_id
+                msg_id = message_id
+                
+            message_key = f"message:{channel_id}:{msg_id}"
             
             pipeline = self.client.pipeline()
             pipeline.delete(message_key)
-            pipeline.zrem(f"channel:{channel_id}:messages", message_id)
+            pipeline.zrem(f"channel:{channel_id}:messages", msg_id)
             pipeline.decr(f"channel:{channel_id}:count")
             
             pipeline.execute()
             
-            logger.debug(f"消息已删除: {channel_id}:{message_id}")
+            logger.debug(f"消息已删除: {channel_id}:{msg_id}")
             return True
             
         except Exception as e:
