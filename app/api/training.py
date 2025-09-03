@@ -15,6 +15,7 @@ from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.core.path_config import PathConfig
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -50,7 +51,7 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
         raise HTTPException(status_code=401, detail="未授权访问")
     return user
 
-@router.post("/training/mark-ad-message")
+@router.post(ROUTES.training.mark_ad_message)
 async def mark_ad_message(
     request: MarkAdRequest,
     user: Dict[str, Any] = Depends(require_auth),
@@ -228,7 +229,7 @@ async def remove_ad_training_sample(message_id: str):
         logger.error(f"移除广告训练样本失败: {e}")
 
 # 其他训练相关的API端点可以在这里添加
-@router.get("/training/ad-samples")
+@router.get(ROUTES.training.ad_samples)
 async def get_ad_samples(
     page: int = 1,
     page_size: int = 20,
@@ -267,7 +268,7 @@ async def get_ad_samples(
         logger.error(f"获取广告样本失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取广告样本失败: {str(e)}")
 
-@router.get("/training/stats")
+@router.get(ROUTES.training.stats)
 async def get_training_stats(
     user: Dict[str, Any] = Depends(require_auth)
 ):
@@ -314,3 +315,173 @@ async def get_training_stats(
     except Exception as e:
         logger.error(f"获取训练统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取训练统计失败: {str(e)}")
+
+@router.get(ROUTES.training.tail_filter_samples)
+async def get_tail_filter_samples(
+    page: int = 1,
+    page_size: int = 20,
+    search: Optional[str] = None,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """获取尾部过滤样本列表"""
+    try:
+        tail_samples_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
+        
+        # 读取样本数据
+        try:
+            with open(tail_samples_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                samples = data.get('samples', [])
+        except:
+            samples = []
+        
+        # 搜索过滤
+        if search:
+            samples = [s for s in samples if search.lower() in s.get('pattern', '').lower()]
+        
+        # 分页处理
+        total = len(samples)
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_samples = samples[start:end]
+        
+        return {
+            "success": True,
+            "data": {
+                "samples": page_samples,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取尾部过滤样本失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取尾部过滤样本失败: {str(e)}")
+
+@router.post(ROUTES.training.tail_filter_samples)
+async def add_tail_filter_sample(
+    sample_data: Dict[str, Any] = Body(...),
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """添加尾部过滤样本"""
+    try:
+        tail_samples_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
+        
+        # 读取现有样本
+        try:
+            with open(tail_samples_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                samples = data.get('samples', [])
+        except:
+            samples = []
+        
+        # 添加新样本
+        new_sample = {
+            "id": len(samples) + 1,
+            "pattern": sample_data.get('pattern', ''),
+            "description": sample_data.get('description', ''),
+            "is_enabled": sample_data.get('is_enabled', True),
+            "labeled_by": user.get('username', 'unknown'),
+            "created_at": datetime.now().isoformat()
+        }
+        samples.append(new_sample)
+        
+        # 保存数据
+        os.makedirs(os.path.dirname(tail_samples_file), exist_ok=True)
+        with open(tail_samples_file, 'w', encoding='utf-8') as f:
+            json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
+            
+        logger.info(f"尾部过滤样本已添加: {new_sample['pattern']}")
+        
+        return {
+            "success": True,
+            "data": new_sample
+        }
+        
+    except Exception as e:
+        logger.error(f"添加尾部过滤样本失败: {e}")
+        raise HTTPException(status_code=500, detail=f"添加尾部过滤样本失败: {str(e)}")
+
+@router.delete(ROUTES.training.tail_filter_samples_by_id)
+async def delete_tail_filter_sample(
+    sample_id: int,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """删除尾部过滤样本"""
+    try:
+        tail_samples_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
+        
+        # 读取现有样本
+        try:
+            with open(tail_samples_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                samples = data.get('samples', [])
+        except:
+            raise HTTPException(status_code=404, detail="样本文件不存在")
+        
+        # 查找并删除样本
+        original_count = len(samples)
+        samples = [s for s in samples if s.get('id') != sample_id]
+        
+        if len(samples) == original_count:
+            raise HTTPException(status_code=404, detail="样本不存在")
+        
+        # 保存更新后的数据
+        with open(tail_samples_file, 'w', encoding='utf-8') as f:
+            json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
+            
+        logger.info(f"尾部过滤样本已删除: ID={sample_id}")
+        
+        return {"success": True, "message": "样本已删除"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除尾部过滤样本失败: {e}")
+        raise HTTPException(status_code=500, detail=f"删除尾部过滤样本失败: {str(e)}")
+
+@router.get(ROUTES.training.tail_filter_statistics)
+async def get_tail_filter_statistics(
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """获取尾部过滤统计信息"""
+    try:
+        tail_samples_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
+        
+        # 读取样本数据
+        try:
+            with open(tail_samples_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                samples = data.get('samples', [])
+        except:
+            samples = []
+        
+        # 统计信息
+        total_samples = len(samples)
+        enabled_samples = len([s for s in samples if s.get('is_enabled', True)])
+        
+        # 计算今日新增
+        today = datetime.now().date()
+        today_added = 0
+        for sample in samples:
+            try:
+                created_at = datetime.fromisoformat(sample.get('created_at', ''))
+                if created_at.date() == today:
+                    today_added += 1
+            except:
+                pass
+        
+        return {
+            "success": True,
+            "data": {
+                "total_samples": total_samples,
+                "valid_samples": enabled_samples,
+                "today_added": today_added
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取尾部过滤统计失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取尾部过滤统计失败: {str(e)}")

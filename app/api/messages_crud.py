@@ -533,9 +533,16 @@ async def reject_message(
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 更新消息状态为已拒绝
-        success = redis_manager.update_message_status(message_id, "rejected", user.get('user_id'), reason)
+        success = redis_manager.update_message_status(message_id, "rejected", user.get('user_id'))
         if not success:
             raise HTTPException(status_code=500, detail="拒绝消息失败")
+        
+        # 如果有拒绝原因，单独更新
+        if reason:
+            # 解析消息ID获取channel_id和msg_id
+            if ':' in message_id:
+                channel_id, msg_id = message_id.rsplit(':', 1)
+                redis_manager.update_message(channel_id, int(msg_id), {"rejection_reason": reason})
         
         # 处理广告媒体保存（单个消息拒绝时）
         await _handle_single_reject_media_training(message, reason)

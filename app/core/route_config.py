@@ -189,6 +189,8 @@ class RouteConfig:
         ad_vector_stats = "/training/ad-vector-stats"
         
         # 基础训练
+        mark_ad_message = "/training/mark-ad-message"
+        ad_samples = "/training/ad-samples"
         channels = "/training/channels"
         stats = "/training/stats"
         history = "/training/history"
