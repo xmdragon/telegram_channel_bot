@@ -13,7 +13,7 @@ import asyncio
 from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
-from app.core.api_paths import api_paths
+from app.core.media_paths import media_paths
 from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)

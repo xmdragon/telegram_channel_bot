@@ -14,7 +14,7 @@ from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
-from app.core.api_paths import api_paths
+from app.core.media_paths import media_paths
 from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
@@ -62,12 +62,25 @@ def check_permission(permission_name: str):
         async def wrapper(*args, **kwargs):
             # 获取用户参数
             user = None
-            for param_name, param in sig.parameters.items():
-                if param_name == 'user' or 'user' in str(param.annotation):
-                    user = kwargs.get(param_name) or (args[len([p for p in sig.parameters.values() if p != param])] if len(args) > 0 else None)
-                    break
+            
+            # 首先尝试从kwargs获取
+            if 'user' in kwargs:
+                user = kwargs.get('user')
+            
+            # 如果kwargs中没有，尝试从args中根据参数位置获取
+            if not user and args:
+                # 获取所有参数名的列表
+                param_names = list(sig.parameters.keys())
+                # 查找user参数的位置
+                if 'user' in param_names:
+                    user_index = param_names.index('user')
+                    # 如果args有足够的参数
+                    if len(args) > user_index:
+                        user = args[user_index]
             
             if not user:
+                # 添加调试信息
+                logger.error(f"权限检查失败: 无法获取用户信息. 函数: {func.__name__}, args数量: {len(args)}, kwargs: {kwargs.keys()}")
                 raise HTTPException(status_code=401, detail="用户认证信息缺失")
             
             try:
@@ -185,7 +198,7 @@ async def get_messages(
             # 处理单个媒体显示URL（支持多种字段名）
             media_path = message.get('media_path') or message.get('media_url')
             if media_path:
-                message['media_display_url'] = api_paths.get_temp_media_url(
+                message['media_display_url'] = media_paths.get_temp_media_url(
                     os.path.basename(media_path)
                 )
                 # 统一字段名，确保前端能找到
@@ -207,7 +220,7 @@ async def get_messages(
                     }
                     # 添加显示URL
                     if media_item.get('media_path'):
-                        media_item['display_url'] = api_paths.get_temp_media_url(
+                        media_item['display_url'] = media_paths.get_temp_media_url(
                             os.path.basename(media_item['media_path'])
                         )
                     media_group_display.append(media_item)
@@ -223,7 +236,7 @@ async def get_messages(
             elif message.get('media_group_display'):
                 for media in message['media_group_display']:
                     if media.get('media_path'):
-                        media['display_url'] = api_paths.get_temp_media_url(
+                        media['display_url'] = media_paths.get_temp_media_url(
                             os.path.basename(media['media_path'])
                         )
             
@@ -236,7 +249,7 @@ async def get_messages(
                         # 处理原始消息的单个媒体URL（支持多种字段名）
                         original_media_path = original_message.get('media_path') or original_message.get('media_url')
                         if original_media_path:
-                            original_message['media_display_url'] = api_paths.get_temp_media_url(
+                            original_message['media_display_url'] = media_paths.get_temp_media_url(
                                 os.path.basename(original_media_path)
                             )
                             original_message['media_path'] = original_media_path
@@ -255,7 +268,7 @@ async def get_messages(
                                     'error': media.get('error')
                                 }
                                 if media_item.get('media_path'):
-                                    media_item['display_url'] = api_paths.get_temp_media_url(
+                                    media_item['display_url'] = media_paths.get_temp_media_url(
                                         os.path.basename(media_item['media_path'])
                                     )
                                 media_group_display.append(media_item)
@@ -268,7 +281,7 @@ async def get_messages(
                         elif original_message.get('media_group_display'):
                             for media in original_message['media_group_display']:
                                 if media.get('media_path'):
-                                    media['display_url'] = api_paths.get_temp_media_url(
+                                    media['display_url'] = media_paths.get_temp_media_url(
                                         os.path.basename(media['media_path'])
                                     )
                         
@@ -375,7 +388,7 @@ async def get_message(
         # 处理单个媒体显示URL（支持多种字段名）
         media_path = message.get('media_path') or message.get('media_url')
         if media_path:
-            message['media_display_url'] = api_paths.get_temp_media_url(
+            message['media_display_url'] = media_paths.get_temp_media_url(
                 os.path.basename(media_path)
             )
             # 统一字段名
@@ -397,7 +410,7 @@ async def get_message(
                 }
                 # 添加显示URL
                 if media_item.get('media_path'):
-                    media_item['display_url'] = api_paths.get_temp_media_url(
+                    media_item['display_url'] = media_paths.get_temp_media_url(
                         os.path.basename(media_item['media_path'])
                     )
                 media_group_display.append(media_item)
@@ -414,7 +427,7 @@ async def get_message(
         elif message.get('media_group_display'):
             for media in message['media_group_display']:
                 if media.get('media_path'):
-                    media['display_url'] = api_paths.get_temp_media_url(
+                    media['display_url'] = media_paths.get_temp_media_url(
                         os.path.basename(media['media_path'])
                     )
         

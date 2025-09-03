@@ -13,7 +13,7 @@ import logging
 
 from app.storage.json_store import get_json_channel_store
 from app.core.config import settings
-from app.core.routes import ROUTES
+from app.core.route_config import ROUTES
 from app.services.config_manager import config_manager
 
 router = APIRouter()

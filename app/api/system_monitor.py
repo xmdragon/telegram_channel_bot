@@ -7,7 +7,7 @@ from typing import Dict, Any
 import logging
 from datetime import datetime, timedelta
 from app.storage.redis_manager import redis_manager
-from app.core.routes import ROUTES
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system-monitor"])

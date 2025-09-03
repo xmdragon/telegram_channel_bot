@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # 🔥 Linus: 删除StaticFiles导入 - 静态文件由Nginx服务
 
 from app.core.config import settings
-from app.core.api_paths import api_paths
+from app.core.media_paths import media_paths
 from app.api import api_router
 
 # 确保日志目录存在
@@ -318,37 +318,37 @@ PathConfig.AD_TRAINING_DIR.mkdir(exist_ok=True)
 async def root():
     """根路径重定向到主界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=api_paths.INDEX_PAGE)
+    return RedirectResponse(url=media_paths.INDEX_PAGE)
 
 @app.get("/admin")
 async def admin():
     """管理界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=api_paths.ADMIN_PAGE)
+    return RedirectResponse(url=media_paths.ADMIN_PAGE)
 
 @app.get("/config")
 async def config():
     """配置管理界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=api_paths.CONFIG_PAGE)
+    return RedirectResponse(url=media_paths.CONFIG_PAGE)
 
 @app.get("/auth")
 async def auth():
     """Telegram 登录界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=api_paths.AUTH_PAGE)
+    return RedirectResponse(url=media_paths.AUTH_PAGE)
 
 @app.get("/status")
 async def status():
     """系统状态检查界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=api_paths.STATUS_PAGE)
+    return RedirectResponse(url=media_paths.STATUS_PAGE)
 
 @app.get("/train")
 async def train():
     """AI训练界面"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=api_paths.TRAIN_PAGE)
+    return RedirectResponse(url=media_paths.TRAIN_PAGE)
 
 # 健康检查API端点
 @app.get("/api/health")

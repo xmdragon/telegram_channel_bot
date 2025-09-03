@@ -2079,7 +2079,7 @@ const MainApp = {
                     
                     window.SimpleUI.Message.success(successMsg);
                     // 重新加载消息列表以反映状态变化
-                    await this.loadMessages();
+                    this.loadMessages();
                     this.refreshStats();
                 } else {
                     window.SimpleUI.Message.error(response.data.message || `${action}失败`);

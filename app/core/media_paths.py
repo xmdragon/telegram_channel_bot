@@ -1,14 +1,14 @@
 """
-API路径配置
-统一管理所有API路径和媒体路径，避免硬编码
+媒体和静态文件路径配置
+统一管理所有媒体路径和静态文件路径，避免硬编码
 """
 from dataclasses import dataclass
 from typing import Dict, Any
 
 
 @dataclass
-class APIPathsConfig:
-    """API路径配置类"""
+class MediaPathsConfig:
+    """媒体路径配置类"""
     
     # 媒体路径
     TEMP_MEDIA_PATH = "/temp_media"
@@ -41,4 +41,4 @@ class APIPathsConfig:
 
 
 # 全局配置实例
-api_paths = APIPathsConfig()
+media_paths = MediaPathsConfig()

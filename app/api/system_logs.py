@@ -8,7 +8,7 @@ import logging
 import os
 import glob
 from datetime import datetime
-from app.core.routes import ROUTES
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system-logs"])

@@ -14,7 +14,7 @@ from app.core.path_config import PathConfig
 from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.services.system_monitor import system_monitor
-from app.core.routes import ROUTES
+from app.core.route_config import ROUTES
 from app.api.websocket import websocket_manager
 
 logger = logging.getLogger(__name__)

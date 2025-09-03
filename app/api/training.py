@@ -108,8 +108,30 @@ async def mark_ad_message(
                 "message": f"消息已经是{'广告' if current_is_ad else '非广告'}状态"
             }
         
-        # 更新消息
-        await message_processor.update_message(channel_id, int(msg_id), msg_data)
+        # 初始化 redis_store
+        if message_processor.redis_store is None:
+            from app.storage.redis_manager import redis_manager
+            message_processor.redis_store = redis_manager
+        
+        # 准备更新数据
+        update_data = {
+            'is_ad': str(msg_data.get('is_ad', False)),  # 转换为字符串以保持一致性
+            'rejection_reason': msg_data.get('rejection_reason')
+        }
+        
+        # 先更新is_ad和rejection_reason字段
+        success = message_processor.redis_store.update_message(channel_id, int(msg_id), update_data)
+        
+        # 然后更新状态（这会同时更新状态索引）
+        if success:
+            full_message_id = f"{channel_id}:{msg_id}"
+            success = message_processor.redis_store.update_message_status(
+                full_message_id, 
+                msg_data['status'], 
+                user.get('username')
+            )
+        if not success:
+            raise HTTPException(status_code=500, detail="更新消息失败")
         
         # 动态阈值调整（如果启用）
         threshold_adjustment = None
@@ -142,7 +164,7 @@ async def add_ad_training_sample(msg_data: Dict[str, Any], user: Dict[str, Any])
     """添加广告训练样本"""
     try:
         # 获取广告样本文件路径
-        ad_samples_file = str(PathConfig.AD_SAMPLES_FILE)
+        ad_samples_file = str(PathConfig.AD_TRAINING_FILE)
         
         # 读取现有样本
         try:
@@ -182,7 +204,7 @@ async def remove_ad_training_sample(message_id: str):
     """移除广告训练样本"""
     try:
         # 获取广告样本文件路径
-        ad_samples_file = str(PathConfig.AD_SAMPLES_FILE)
+        ad_samples_file = str(PathConfig.AD_TRAINING_FILE)
         
         # 读取现有样本
         try:
@@ -214,7 +236,7 @@ async def get_ad_samples(
 ):
     """获取广告训练样本列表"""
     try:
-        ad_samples_file = str(PathConfig.AD_SAMPLES_FILE)
+        ad_samples_file = str(PathConfig.AD_TRAINING_FILE)
         
         # 读取样本数据
         try:
@@ -259,7 +281,7 @@ async def get_training_stats(
         
         # 统计广告样本
         try:
-            ad_samples_file = str(PathConfig.AD_SAMPLES_FILE)
+            ad_samples_file = str(PathConfig.AD_TRAINING_FILE)
             with open(ad_samples_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 stats["ad_samples"] = len(data.get('samples', []))

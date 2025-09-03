@@ -9,7 +9,7 @@ import logging
 
 from app.services.config_manager import ConfigManager
 from app.services.channel_id_resolver import channel_id_resolver
-from app.core.routes import ROUTES
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["channel-resolver"])

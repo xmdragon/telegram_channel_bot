@@ -70,18 +70,19 @@ class RouteConfig:
     
     class AdminAuth:
         """管理员认证路由"""
-        login = "/login"
-        logout = "/logout"
-        current = "/current"
-        change_password = "/change-password"
-        check_auth = "/check-auth"
-        admins = "/admins"
-        admin_by_id = "/admins/{admin_id}"
-        permissions = "/permissions"
-        sessions = "/sessions"
-        session_by_token = "/sessions/{token}"
-        me = "/me"
-        permissions_me = "/permissions/me"
+        # 保持与routes.py的兼容性，同时提供简化路径
+        login = "/admin/auth/login"  # 完整路径
+        logout = "/admin/auth/logout"
+        current = "/admin/auth/current"
+        change_password = "/admin/auth/change-password"
+        check_auth = "/admin/auth/check-auth"
+        admins = "/admin/auth/admins"
+        admin_by_id = "/admin/auth/admins/{admin_id}"
+        permissions = "/admin/auth/permissions"
+        sessions = "/admin/auth/sessions"
+        session_by_token = "/admin/auth/sessions/{token}"
+        me = "/admin/auth/me"
+        permissions_me = "/admin/auth/permissions/me"
     
     class Auth:
         """Telegram认证路由"""
@@ -161,16 +162,18 @@ class RouteConfig:
     
     class AI:
         """AI功能控制路由"""
-        status = "/ai/status"
+        # 兼容routes.py的路径格式
+        status = "/ai-config/status"
+        config = "/ai-config/global-config"
+        module_config = "/ai-config/module-config"
+        cache_clear = "/ai-config/cache/clear"
+        lightweight_train = "/ai-config/lightweight/train"
+        recommendations = "/ai-config/recommendations"
+        # 额外的功能路由
         enable = "/ai/enable"
         disable = "/ai/disable"
-        config = "/ai/config"
-        module_config = "/ai/module-config"
         cache_info = "/ai/cache/info"
         cache_preload = "/ai/cache/preload"
-        cache_clear = "/ai/cache/clear"
-        lightweight_train = "/ai/lightweight-train"
-        recommendations = "/ai/recommendations"
     
     class Training:
         """训练数据管理路由"""

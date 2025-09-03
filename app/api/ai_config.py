@@ -14,7 +14,7 @@ from app.services.lightweight_similarity import get_lightweight_filter
 
 logger = logging.getLogger(__name__)
 
-from app.core.routes import ROUTES
+from app.core.route_config import ROUTES
 
 router = APIRouter(tags=["AI配置"])
 
