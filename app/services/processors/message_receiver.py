@@ -47,12 +47,11 @@ class MessageReceiver(MessageProcessor):
             # 步骤3: 设置时间戳
             context.created_at = parse_telegram_time(message.date)
             
-            # 步骤4: 验证消息有效性
+            # 步骤4: Linus式源头拦截 - 直接丢弃空消息
             if not self._is_valid_message(context):
-                context.should_reject = True
-                context.reject_reason = "消息无有效内容"
-                self.logger.info(f"消息 #{message.id} 无有效内容，标记为拒绝")
-                return ProcessorResult(True, context)
+                self.logger.debug(f"消息 #{message.id} 无有效内容，直接丢弃（不进入处理流程）")
+                # 返回失败结果，表示此消息应被丢弃，不进入后续处理
+                return ProcessorResult(False, context, "无有效内容，直接丢弃")
             
             self.logger.info(f"消息接收完成: ID#{message.id}, 内容长度:{len(original_content)}, 媒体:{bool(message.media)}")
             return ProcessorResult(True, context)

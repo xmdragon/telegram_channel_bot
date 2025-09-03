@@ -415,30 +415,20 @@ class MessageFilterProcessor(MessageProcessor):
 
 
 class ContentValidator(MessageProcessor):
-    """内容验证处理器 - 验证消息是否有有效内容"""
+    """内容验证处理器 - Linus式简化版本"""
     
     def __init__(self):
         super().__init__("ContentValidator")
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
-        验证消息内容有效性
-        如果既没有媒体又没有有效内容，则拒绝消息
+        Linus式验证：由于MessageReceiver已在源头丢弃空消息，
+        此处只需处理已通过基础验证的消息，简化逻辑消除特殊情况
         """
         try:
-            # 检查是否已被其他处理器标记为拒绝
-            if context.should_reject:
-                return ProcessorResult(True, context)
-            
-            # 检查是否有有效内容
-            has_valid_content = bool(context.filtered_content.strip())
-            has_media = bool(context.media_info)
-            
-            if not has_valid_content and not has_media:
-                context.should_reject = True
-                context.reject_reason = f"消息既无媒体又无有效内容（原内容长度: {len(context.processed_content)}）"
-                self.logger.warning(f"消息无有效内容: {context.reject_reason}")
-            
+            # 能到达此处的消息已通过源头验证，直接通过
+            # 消除原有的重复检查逻辑，遵循"好品味"原则
+            self.logger.debug("消息已通过源头验证，继续处理")
             return ProcessorResult(True, context)
             
         except Exception as e:

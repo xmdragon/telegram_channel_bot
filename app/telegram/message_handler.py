@@ -144,9 +144,14 @@ class MessageHandler:
     async def _analyze_no_save_reason(self, result, message_id):
         """分析消息未保存的原因"""
         if not result.success:
-            reason = getattr(result, 'error_message', '未知错误')
-            logger.info(f"❌ 消息 #{message_id} 处理失败 - 原因: {reason}")
-            return "failed"
+            # Linus式优化：空消息丢弃是正常行为，使用debug级别日志
+            if hasattr(result, 'error') and "无有效内容，直接丢弃" in result.error:
+                logger.debug(f"🗑️ 消息 #{message_id} 为空消息，已优化丢弃")
+                return "empty_discarded"
+            else:
+                reason = getattr(result, 'error_message', getattr(result, 'error', '未知错误'))
+                logger.info(f"❌ 消息 #{message_id} 处理失败 - 原因: {reason}")
+                return "failed"
         
         # 成功但未保存的各种情况
         if hasattr(result.context, 'filter_result') and result.context.filter_result:
