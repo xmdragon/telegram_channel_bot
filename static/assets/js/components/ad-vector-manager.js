@@ -34,10 +34,6 @@ const app = createApp({
             // 对话框
             detailDialog: false,
             currentVector: null,
-            duplicateDialog: false,
-            duplicateLoading: false,
-            duplicateGroups: [],
-            duplicateVectorsCount: 0,
             
             // 测试功能
             testDialog: false,
@@ -257,49 +253,6 @@ const app = createApp({
             }
         },
         
-        // 检测重复向量
-        async detectDuplicates() {
-            this.duplicateLoading = true;
-            try {
-                const response = await axios.post(API.training.adVectorsDetectDuplicates);
-                
-                if (response.data.success) {
-                    this.duplicateGroups = response.data.groups || [];
-                    this.duplicateVectorsCount = response.data.total_duplicates || 0;
-                    
-                    if (this.duplicateGroups.length === 0) {
-                        window.SimpleUI.Message.info('未发现重复向量');
-                    } else {
-                        this.duplicateDialog = true;
-                    }
-                } else {
-                    window.SimpleUI.Message.error('检测重复向量失败: ' + response.data.message);
-                }
-            } catch (error) {
-                console.error('检测重复向量失败:', error);
-                window.SimpleUI.Message.error('检测重复向量失败');
-            } finally {
-                this.duplicateLoading = false;
-            }
-        },
-        
-        // 去重向量
-        async deduplicateVectors(removeIds) {
-            try {
-                const response = await axios.post(API.training.adVectorsDeduplicate, { remove_ids: removeIds });
-                
-                if (response.data.success) {
-                    window.SimpleUI.Message.success(response.data.message);
-                    this.duplicateDialog = false;
-                    await this.loadVectors();
-                } else {
-                    window.SimpleUI.Message.error('去重失败: ' + response.data.message);
-                }
-            } catch (error) {
-                console.error('去重失败:', error);
-                window.SimpleUI.Message.error('去重失败');
-            }
-        },
         
         // 测试广告检测
         async testDetection() {
@@ -409,11 +362,6 @@ const app = createApp({
             this.currentVector = null;
         },
         
-        closeDuplicateDialog() {
-            this.duplicateDialog = false;
-            this.duplicateGroups = [];
-            this.duplicateVectorsCount = 0;
-        },
         
         closeTestDialog() {
             this.testDialog = false;

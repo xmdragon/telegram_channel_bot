@@ -29,11 +29,6 @@ const app = createApp({
             editingSample: null,
             submitting: false,
             
-            // 重复检测模态框
-            duplicateDialog: false,
-            duplicateLoading: false,
-            duplicateGroups: [],
-            duplicateSamplesCount: 0,
             
             // 排序相关
             sortField: 'created_at',
@@ -319,35 +314,6 @@ const app = createApp({
             }
         },
         
-        // 显示重复检测
-        async showDuplicates() {
-            this.duplicateDialog = true;
-            this.duplicateLoading = true;
-            
-            try {
-                const response = await axios.post(API.training.tailFilterDetectDuplicates);
-                
-                // 检查API响应是否成功
-                if (response.data.success) {
-                    this.duplicateGroups = response.data.groups || [];
-                    this.duplicateSamplesCount = response.data.total_duplicates || 0;
-                    
-                    if (!this.duplicateGroups.length) {
-                        SimpleUI.showMessage('没有发现重复的样本', 'info');
-                        this.duplicateDialog = false;
-                    }
-                } else {
-                    SimpleUI.showMessage('检测重复失败: ' + (response.data.error || '未知错误'), 'error');
-                    this.duplicateDialog = false;
-                }
-            } catch (error) {
-                console.error('检测重复失败:', error);
-                SimpleUI.showMessage('检测重复失败: ' + (error.response?.data?.message || error.message), 'error');
-                this.duplicateDialog = false;
-            } finally {
-                this.duplicateLoading = false;
-            }
-        },
         
         // 同步向量索引
         async syncVectors() {
@@ -385,60 +351,6 @@ const app = createApp({
             }
         },
         
-        // 合并重复组
-        mergeGroup(group) {
-            // 默认保留第一个，删除其他
-            group.samples.forEach((sample, idx) => {
-                sample.keep = idx === 0;
-            });
-        },
-        
-        // 应用去重
-        async applyDeduplicate() {
-            try {
-                // 收集要删除的样本ID
-                const toDelete = [];
-                this.duplicateGroups.forEach(group => {
-                    group.samples.forEach(sample => {
-                        if (!sample.keep) {
-                            const sampleId = sample.id;
-                            if (sampleId) {
-                                toDelete.push(sampleId);
-                            }
-                        }
-                    });
-                });
-                
-                if (!toDelete.length) {
-                    SimpleUI.showMessage('没有选择要删除的样本', 'warning');
-                    return;
-                }
-                
-                let confirmed = false;
-                try {
-                    confirmed = await SimpleUI.showConfirm(
-                        `将删除 ${toDelete.length} 个重复样本，是否继续？`,
-                        '去重确认'
-                    );
-                } catch (error) {
-                    if (error === 'cancel') return;
-                    confirmed = confirm(`将删除 ${toDelete.length} 个重复样本，是否继续？`);
-                }
-                
-                if (!confirmed) return;
-                
-                const response = await axios.post(API.training.tailFilterDeduplicate, {
-                    remove_ids: toDelete
-                });
-                
-                SimpleUI.showMessage(response.data.message, 'success');
-                this.duplicateDialog = false;
-                await this.loadSamples();
-            } catch (error) {
-                console.error('去重失败:', error);
-                SimpleUI.showMessage('去重失败', 'error');
-            }
-        },
         
         // 格式化函数
         formatTime(timestamp) {

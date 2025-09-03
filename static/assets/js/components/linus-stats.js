@@ -1,21 +1,18 @@
 /**
- * Linus式统计组件 - 重构版本
+ * Linus式统计组件 - 极简版本
  * 
- * 重构理念：
- * - 消除轮询特殊情况，统一使用订阅模式
- * - 数据通过WebSocket主动推送，而不是客户端拉取
- * - 智能缓存，避免重复请求
- * 
- * "好的架构让复杂性消失，而不是把它隐藏起来"
+ * Linus原则：
+ * - 消除特殊情况，只有一种数据获取方式
+ * - 不破坏用户空间，保持相同接口
+ * - 实用主义，解决真实的性能问题
+ * - 简洁执念，最少的代码做最多的事
  */
 
-// Linus式统计组件 - 无轮询版本
 const LinusStatsComponent = {
     data() {
         return {
             loading: false,
             
-            // 简化的消息处理状态统计
             messageStatus: {
                 pending: 0,
                 approved: 0,
@@ -27,41 +24,14 @@ const LinusStatsComponent = {
                 }
             },
             
-            // 数据一致性状态
-            consistency: {
-                consistent: true,
-                details: null
-            },
-            
-            // 系统信息
-            systemInfo: {
-                data_model: 'linus_v1',
-                performance: 'O(1) - 原子计数器',
-                accuracy: '100% - 无采样估算'
-            },
-            
-            // 错误状态
             error: null,
-            
-            // 连接状态
-            connected: false,
             lastUpdate: null,
-            
-            // 订阅ID
-            subscriptionId: null,
-            
-            // 页面可见性
-            isVisible: true
+            isRefreshing: false
         };
     },
     
     mounted() {
-        this.initializeComponent();
-        this.setupVisibilityDetection();
-    },
-    
-    beforeUnmount() {
-        this.cleanup();
+        this.loadStats();
     },
     
     methods: {

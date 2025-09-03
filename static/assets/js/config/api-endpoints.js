@@ -93,8 +93,6 @@ const API_ENDPOINTS = {
         adVectors: '/api/training/ad-vectors',                   // GET - 获取广告向量列表（分页）
         adVectorById: (id) => `/api/training/ad-vectors/${id}`,  // DELETE - 删除单个广告向量
         adVectorsBatch: '/api/training/ad-vectors/batch',        // DELETE - 批量删除广告向量
-        adVectorsDetectDuplicates: '/api/training/ad-vectors/detect-duplicates', // POST - 检测重复广告向量
-        adVectorsDeduplicate: '/api/training/ad-vectors/deduplicate', // POST - 去重广告向量
         adVectorStatistics: '/api/training/ad-vector-statistics', // GET - 获取广告向量统计
         adVectorTestDetection: '/api/training/ad-vectors/test-detection', // POST - 测试广告检测
         adVectorAddFromText: '/api/training/ad-vectors/add-from-text', // POST - 从文本添加向量
@@ -105,8 +103,6 @@ const API_ENDPOINTS = {
         tailFilterSampleById: (id) => `/api/training/tail-filter-samples/${id}`, // PUT/DELETE - 更新/删除尾部过滤样本
         tailFilterStatistics: '/api/training/tail-filter-statistics', // GET - 获取尾部过滤统计
         tailFilterHistory: '/api/training/tail-filter-history',  // GET - 获取尾部过滤历史
-        tailFilterDetectDuplicates: '/api/training/tail-filter-samples/detect-duplicates', // POST - 检测重复尾部样本
-        tailFilterDeduplicate: '/api/training/tail-filter-samples/deduplicate', // POST - 去重尾部样本
         tailFilterRebuildVectors: '/api/training/tail-filter-rebuild-vectors', // POST - 重建尾部过滤向量索引
 
         // 媒体文件管理
@@ -115,8 +111,6 @@ const API_ENDPOINTS = {
         mediaFileOcr: (hash) => `/api/training/media-files/ocr/${hash}`, // GET - 获取媒体文件OCR结果
         mediaFilesExport: '/api/training/media-files/export',    // GET - 导出媒体文件
         mediaFilesCleanOrphaned: '/api/training/media-files/clean-orphaned', // POST - 清理孤立文件
-        mediaFilesDuplicates: '/api/training/media-files/duplicates', // GET - 检测重复媒体文件
-        mediaFilesDeduplicate: '/api/training/media-files/deduplicate', // POST - 去重媒体文件
         mediaFilesRebuildHashes: '/api/training/media-files/rebuild-visual-hashes', // POST - 重建视觉哈希
 
         // 其他训练功能

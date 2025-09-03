@@ -68,9 +68,6 @@
                             <button @click="testDialog = true" class="btn btn-info">
                                 🧪 测试检测
                             </button>
-                            <button @click="detectDuplicates" class="btn btn-warning" :disabled="duplicateLoading">
-                                📄 检测重复
-                            </button>
                             <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedVectors.length">
                                 🗑️ 批量删除 ({{ selectedVectors.length }})
                             </button>
@@ -197,49 +194,6 @@
             </div>
         </div>
 
-        <!-- 重复检测模态框 -->
-        <div v-if="duplicateDialog" class="modal-overlay" @click="closeDuplicateDialog">
-            <div class="modal-content modal-large" @click.stop>
-                <div class="modal-header">
-                    <h3>重复向量检测</h3>
-                    <button class="modal-close" @click="closeDuplicateDialog">✖️</button>
-                </div>
-                <div class="modal-body">
-                    <div v-if="duplicateLoading" class="loading-container">
-                        <div class="loading-spinner"></div>
-                        <div class="loading-text">正在检测重复向量...</div>
-                    </div>
-                    <div v-else>
-                        <div v-if="duplicateGroups.length" class="alert alert-warning">
-                            发现 {{ duplicateGroups.length }} 组重复/相似向量，共 {{ duplicateVectorsCount }} 个向量
-                        </div>
-                        
-                        <div v-for="(group, idx) in duplicateGroups" :key="idx" class="duplicate-group">
-                            <div class="group-header">
-                                <span class="group-title">相似组 #{{ idx + 1 }} (相似度: {{ group.similarity }}%)</span>
-                                <button class="btn btn-danger btn-small" @click="mergeGroup(group)">
-                                    合并为一个
-                                </button>
-                            </div>
-                            <div class="group-samples">
-                                <div v-for="sample in group.samples" :key="sample.id" class="duplicate-sample">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" v-model="sample.keep">
-                                        保留
-                                    </label>
-                                    <span class="sample-id">ID: {{ sample.id }}</span>
-                                    <span class="sample-preview">{{ truncateText(sample.content, 50) }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer" v-if="!duplicateLoading && duplicateGroups.length">
-                    <button class="btn btn-outline" @click="closeDuplicateDialog">取消</button>
-                    <button class="btn btn-primary" @click="applyDeduplicate">应用去重</button>
-                </div>
-            </div>
-        </div>
         
     </div>
 

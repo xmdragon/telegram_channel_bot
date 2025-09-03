@@ -1,6 +1,6 @@
 """
 消息存储处理器
-负责数据准备、去重检测、消息保存和组合消息处理
+负责数据准备、消息保存和组合消息处理
 """
 import logging
 import hashlib
@@ -18,17 +18,8 @@ class MessageStorageProcessor(MessageProcessor):
     def __init__(self):
         super().__init__("MessageStorageProcessor")
         # 延迟初始化依赖
-        self._duplicate_detector = None
         self._message_processor = None
         self._message_grouper = None
-    
-    @property
-    def duplicate_detector(self):
-        """延迟加载去重检测器"""
-        if self._duplicate_detector is None:
-            from app.services.duplicate_detector import DuplicateDetector
-            self._duplicate_detector = DuplicateDetector()
-        return self._duplicate_detector
     
     @property
     def message_processor(self):
@@ -50,7 +41,6 @@ class MessageStorageProcessor(MessageProcessor):
         """
         处理消息存储阶段
         - 准备保存数据
-        - 去重检测
         - 保存单独消息
         - 处理组合消息（如果有）
         """
@@ -60,18 +50,11 @@ class MessageStorageProcessor(MessageProcessor):
             # 步骤1: 准备保存数据
             await self._prepare_save_data(context)
             
-            # 步骤2: 去重检测
-            await self._check_duplicate(context)
-            
-            # 步骤3: 处理拒绝状态
+            # 步骤2: 处理拒绝状态
             if context.should_reject:
                 context.save_data['status'] = 'rejected'
                 context.save_data['reject_reason'] = context.reject_reason
                 
-                # 保存重复信息（如果有）
-                if context.duplicate_info:
-                    context.save_data['duplicate_original_id'] = context.duplicate_info.get('original_id')
-                    context.save_data['duplicate_type'] = context.duplicate_info.get('type')
             
             # 检查是否为组消息
             grouped_id = str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None
@@ -83,7 +66,7 @@ class MessageStorageProcessor(MessageProcessor):
                 context.save_data = None
                 self.logger.info(f"组消息 #{message.id} 已交给组合器处理，等待组合完成")
             else:
-                # 步骤4: 非组消息立即保存到Redis
+                # 步骤3: 非组消息立即保存到Redis
                 saved_message = await self.message_processor.process_new_message(context.save_data)
                 
                 if not saved_message:
@@ -398,64 +381,3 @@ class MessageStorageProcessor(MessageProcessor):
             # 降级到内部ID格式
             return f"https://t.me/c/{channel_id.lstrip('-')}"
 
-
-class DuplicateChecker(MessageProcessor):
-    """去重检测处理器 - 专门处理消息去重逻辑"""
-    
-    def __init__(self):
-        super().__init__("DuplicateChecker")
-        self._duplicate_detector = None
-    
-    @property
-    def duplicate_detector(self):
-        """延迟加载去重检测器"""
-        if self._duplicate_detector is None:
-            from app.services.duplicate_detector import DuplicateDetector
-            self._duplicate_detector = DuplicateDetector()
-        return self._duplicate_detector
-    
-    async def process(self, context: MessageContext) -> ProcessorResult:
-        """
-        执行去重检测
-        - 检查内容重复
-        - 检查媒体重复
-        - 检查视觉相似度
-        """
-        try:
-            # 如果已经被标记为拒绝，跳过去重检测
-            if context.should_reject:
-                return ProcessorResult(True, context)
-            
-            # 准备去重检测数据
-            visual_hashes = None
-            if context.media_info and context.media_info.get('visual_hashes'):
-                visual_hashes = context.media_info['visual_hashes']
-            
-            # 执行去重检测
-            is_duplicate, orig_id, dup_type = await self.duplicate_detector.is_duplicate_message(
-                source_channel=context.channel_id,
-                media_hash=context.media_info.get('hash') if context.media_info else None,
-                combined_media_hash=None,  # 单独消息没有组合哈希
-                content=context.original_content,
-                message_time=context.created_at,
-                visual_hashes=visual_hashes
-            )
-            
-            if is_duplicate:
-                # 🔧 修复：构建完整的消息ID格式 channel_id:message_id
-                original_full_id = f"{context.channel_id}:{orig_id}" if orig_id else None
-                context.duplicate_info = {
-                    'original_id': original_full_id,
-                    'type': dup_type,
-                    'reason': f"{dup_type}重复"
-                }
-                
-                context.should_reject = True
-                context.reject_reason = f"去重检测: {context.duplicate_info['reason']}"
-                
-                self.logger.info(f"检测到重复消息（{dup_type}），原始消息ID: {orig_id}")
-            
-            return ProcessorResult(True, context)
-            
-        except Exception as e:
-            return await self._handle_error(context, e)

@@ -150,37 +150,6 @@
 
 /* 此部分样式已在下面统一定义 */
 
-.duplicate-group {
-    border: 1px solid #E4E7ED;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    padding: 15px;
-}
-
-.group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #EBEEF5;
-}
-
-.group-samples {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.duplicate-sample {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 10px;
-    background: #F5F7FA;
-    border-radius: 4px;
-}
-
 .sample-id {
     color: #909399;
     font-size: 12px;
@@ -506,47 +475,6 @@
     color: #e6a23c;
 }
 
-.duplicate-group {
-    border: 1px solid #e4e7ed;
-    border-radius: 6px;
-    margin-bottom: 20px;
-    overflow: hidden;
-    background: white;
-}
-
-.group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background: #fafafa;
-    border-bottom: 1px solid #ebeef5;
-}
-
-.group-title {
-    font-weight: 500;
-    color: #606266;
-    font-size: 14px;
-}
-
-.group-samples {
-    padding: 15px;
-}
-
-.duplicate-sample {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 12px;
-    background: #f5f7fa;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    border: 1px solid #e4e7ed;
-}
-
-.duplicate-sample:last-child {
-    margin-bottom: 0;
-}
 
 .checkbox-label {
     display: flex;

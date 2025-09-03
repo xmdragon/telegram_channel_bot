@@ -28,7 +28,6 @@ from .filter_pipeline import (
 )
 
 # 导入具体的过滤器实现
-from .duplicate_detector import DuplicateDetectorFilter, duplicate_detector_filter
 from .ad_detector import AdDetectorFilter, ad_detector_filter
 from .tail_filter import TailFilter
 from .markdown_filter import MarkdownFilter
@@ -45,13 +44,11 @@ __all__ = [
     'PipelineConfig',
     
     # 具体过滤器类
-    'DuplicateDetectorFilter',
     'AdDetectorFilter',
     'TailFilter',
     'MarkdownFilter',
     
     # 预配置的过滤器实例
-    'duplicate_detector_filter',
     'ad_detector_filter',
     
     # 异常类
@@ -76,7 +73,7 @@ __description__ = '过滤器基础架构 - 统一的过滤器接口和管道系�
 # 默认配置
 DEFAULT_PIPELINE_CONFIG = {
     'enable_early_stopping': True,
-    'early_stop_filters': {'duplicate_detector', 'ad_detector'},
+    'early_stop_filters': {'ad_detector'},
     'max_concurrent_filters': 1,
     'filter_timeout': 30.0,
     'pipeline_timeout': 60.0,
@@ -86,7 +83,6 @@ DEFAULT_PIPELINE_CONFIG = {
 
 # 支持的过滤器类型
 SUPPORTED_FILTER_TYPES = {
-    'duplicate_detector': '去重检测器',
     'ad_detector': '广告检测器', 
     'content_filter': '内容过滤器',
     'semantic_filter': '语义过滤器',
@@ -96,7 +92,6 @@ SUPPORTED_FILTER_TYPES = {
 
 # 早停支持的过滤器
 EARLY_STOP_CAPABLE_FILTERS = {
-    'duplicate_detector', 
     'ad_detector'
 }
 
@@ -108,7 +103,6 @@ def create_default_filters() -> dict:
         dict: 过滤器名称到实例的映射
     """
     return {
-        'duplicate_detector': duplicate_detector_filter,
         'ad_detector': ad_detector_filter,
         'tail_filter': TailFilter()
     }
@@ -118,12 +112,11 @@ def create_early_stop_pipeline() -> FilterPipeline:
     """创建支持早停的标准管道
     
     Returns:
-        FilterPipeline: 配置好的管道，包含去重和广告检测器
+        FilterPipeline: 配置好的管道，包含广告检测器
     """
     pipeline = create_pipeline()
     
-    # 添加早停过滤器（按优先级顺序：先去重，后广告检测）
-    pipeline.add_filter(duplicate_detector_filter)
+    # 添加早停过滤器
     pipeline.add_filter(ad_detector_filter)
     
     return pipeline
@@ -148,7 +141,7 @@ def create_pipeline(config: dict = None) -> FilterPipeline:
     
     pipeline_config = PipelineConfig(
         enable_early_stopping=config.get('enable_early_stopping', True),
-        early_stop_filters=set(config.get('early_stop_filters', ['duplicate_detector', 'ad_detector'])),
+        early_stop_filters=set(config.get('early_stop_filters', ['ad_detector'])),
         max_concurrent_filters=config.get('max_concurrent_filters', 1),
         filter_timeout=config.get('filter_timeout', 30.0),
         pipeline_timeout=config.get('pipeline_timeout', 60.0),

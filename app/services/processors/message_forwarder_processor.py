@@ -10,6 +10,22 @@ from app.services.processors.base import MessageProcessor, ProcessorResult, Mess
 logger = logging.getLogger(__name__)
 
 
+class MessageCompat:
+    """消息兼容类 - 本地实现"""
+    
+    def __init__(self, data: dict):
+        self.data = data
+        # 设置常用属性
+        self.id = data.get('message_id')
+        self.source_channel = data.get('source_channel')
+        self.content = data.get('content')
+        self.filtered_content = data.get('filtered_content')
+        self.media_type = data.get('media_type')
+    
+    def __getattr__(self, name):
+        return self.data.get(name)
+
+
 class MessageForwarderProcessor(MessageProcessor):
     """消息转发处理器 - 处理消息转发和广播"""
     
@@ -109,14 +125,7 @@ class MessageForwarderProcessor(MessageProcessor):
     
     def _create_message_compat(self, message_data: Dict):
         """创建兼容的消息对象用于转发"""
-        from app.services.duplicate_detector import MessageCompat
-        
         temp_message = MessageCompat(message_data)
-        temp_message.id = message_data.get('message_id')
-        temp_message.source_channel = message_data.get('source_channel')
-        temp_message.content = message_data.get('content')
-        temp_message.filtered_content = message_data.get('filtered_content')
-        temp_message.media_type = message_data.get('media_type')
         temp_message.media_url = message_data.get('media_url')
         temp_message.is_ad = message_data.get('is_ad')
         temp_message.status = message_data.get('status')
@@ -203,13 +212,7 @@ class ReviewForwarder(MessageProcessor):
                 return
             
             # 创建消息对象
-            from app.services.duplicate_detector import MessageCompat
             temp_message = MessageCompat(context.save_data)
-            temp_message.id = context.save_data.get('message_id')
-            temp_message.source_channel = context.save_data.get('source_channel')
-            temp_message.content = context.save_data.get('content')
-            temp_message.filtered_content = context.save_data.get('filtered_content')
-            temp_message.media_type = context.save_data.get('media_type')
             temp_message.media_url = context.save_data.get('media_url')
             temp_message.is_ad = context.save_data.get('is_ad')
             temp_message.status = context.save_data.get('status')

@@ -30,11 +30,6 @@ const app = createApp({
             editingSample: null,
             submitting: false,
             
-            // 重复检测模态框
-            duplicateDialog: false,
-            duplicateLoading: false,
-            duplicateGroups: [],
-            duplicateSamplesCount: 0,
             
             // 排序相关
             sortField: 'created_at',
@@ -381,27 +376,6 @@ const app = createApp({
             }
         },
         
-        // 检测重复样本
-        async showDuplicates() {
-            this.duplicateDialog = true;
-            this.duplicateLoading = true;
-            this.duplicateGroups = [];
-            
-            try {
-                // 注意：这里需要后端实现重复检测端点
-                const response = await axios.post('/api/training/promo-detect-duplicates');
-                
-                this.duplicateGroups = response.data.duplicate_groups || [];
-                this.duplicateSamplesCount = this.duplicateGroups.reduce((count, group) => 
-                    count + group.samples.length, 0);
-                    
-            } catch (error) {
-                console.error('检测重复失败:', error);
-                SimpleUI.showMessage('检测重复失败，暂不支持此功能', 'warning');
-            } finally {
-                this.duplicateLoading = false;
-            }
-        },
         
         // 同步向量
         async syncVectors() {

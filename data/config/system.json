@@ -153,26 +153,12 @@
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.484163"
   },
-  "filter.duplicate_enabled": {
-    "value": "false",
-    "config_type": "boolean",
-    "description": "启用重复内容检测",
-    "is_active": true,
-    "created_at": "2025-08-26T11:59:09.485026"
-  },
   "filter.ad_detector_enabled": {
     "value": "false",
     "config_type": "boolean",
     "description": "启用AI广告检测",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.485861"
-  },
-  "review.auto_reject_duplicates": {
-    "value": "false",
-    "config_type": "boolean",
-    "description": "自动拒绝重复消息",
-    "is_active": true,
-    "created_at": "2025-08-26T11:59:09.489874"
   },
   "review.auto_reject_high_risk": {
     "value": "false",

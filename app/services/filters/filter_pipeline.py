@@ -26,7 +26,7 @@ class PipelineConfig:
     
     # 可以触发早停的过滤器类型
     early_stop_filters: Set[str] = field(default_factory=lambda: {
-        'duplicate_detector', 'ad_detector'
+        'ad_detector'
     })
     
     # 并发处理限制
