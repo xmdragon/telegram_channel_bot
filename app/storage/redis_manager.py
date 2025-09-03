@@ -256,6 +256,14 @@ class RedisManager:
                 logger.error(f"消息ID格式错误: {message_id}, message_id部分必须为数字")
                 return False
             
+            # 🔥 修复核心问题：获取旧状态用于索引更新
+            existing_data = self.get_message(channel_id, msg_id)
+            if not existing_data:
+                logger.error(f"消息不存在: {message_id}")
+                return False
+                
+            old_status = existing_data.get('status', 'pending')
+            
             # 构建更新数据
             update_data = {
                 'status': new_status,
@@ -267,6 +275,31 @@ class RedisManager:
                 
             # 使用现有的update_message方法
             success = self.update_message(channel_id, msg_id, update_data)
+            
+            # 🔥 修复核心问题：更新状态索引
+            if success and old_status != new_status:
+                try:
+                    import time
+                    current_time = time.time()
+                    pipeline = self.client.pipeline()
+                    
+                    # 从旧状态索引中移除
+                    if old_status in ['pending', 'approved', 'rejected']:
+                        pipeline.zrem(f"msg:idx:{old_status}", message_id)
+                        logger.debug(f"从索引移除: msg:idx:{old_status} -> {message_id}")
+                    
+                    # 添加到新状态索引
+                    if new_status in ['pending', 'approved', 'rejected']:
+                        pipeline.zadd(f"msg:idx:{new_status}", {message_id: current_time})
+                        logger.debug(f"添加到索引: msg:idx:{new_status} -> {message_id}")
+                    
+                    pipeline.execute()
+                    logger.info(f"✅ 状态索引已更新: {old_status} -> {new_status} ({message_id})")
+                    
+                except Exception as e:
+                    logger.error(f"❌ 更新状态索引失败: {e}")
+                    # 即使索引更新失败，也不回滚消息状态更新，但需要记录警告
+                    logger.warning(f"消息状态已更新但索引可能不一致: {message_id}")
             
             if success:
                 logger.info(f"消息状态已更新: {message_id} -> {new_status}" + 

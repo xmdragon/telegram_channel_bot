@@ -630,15 +630,6 @@ const MainApp = {
                     // 检查是否还有更多数据
                     this.hasMore = newMessages.length === this.pageSize;
                     
-                    // 调试日志：检查分页状态
-                    console.log('📄 分页状态:', {
-                        当前页: this.currentPage,
-                        每页数量: this.pageSize,
-                        返回数量: newMessages.length,
-                        是否还有更多: this.hasMore,
-                        追加模式: append
-                    });
-                    
                     // 计算真正的新消息
                     const currentMessageIds = new Set(newMessages.map(msg => msg.message_id));
                     const reallyNewMessages = newMessages.filter(msg => !this.previousMessageIds.has(msg.message_id));
@@ -2504,19 +2495,8 @@ const MainApp = {
                 const canScroll = maxScrollTop > 50; // 至少要有50px的滚动空间
                 const nearBottom = scrollPercentage > 95;
                 
-                // 添加调试日志
-                console.log('🔍 滚动检测:', {
-                    滚动百分比: scrollPercentage.toFixed(2) + '%',
-                    可滚动: canScroll,
-                    接近底部: nearBottom,
-                    正在加载: this.isLoadingMore,
-                    还有更多: this.hasMore,
-                    剩余距离: scrollInfo.remaining
-                });
-                
                 // 只在真正接近底部且页面可滚动时加载
                 if (canScroll && nearBottom && !this.isLoadingMore && this.hasMore) {
-                    console.log('✅ 触发加载更多');
                     lastLoadTime = now;
                     this.loadMore();
                 }

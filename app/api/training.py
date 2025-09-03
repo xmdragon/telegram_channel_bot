@@ -50,7 +50,7 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
         raise HTTPException(status_code=401, detail="未授权访问")
     return user
 
-@router.post("/api/training/mark-ad-message")
+@router.post("/training/mark-ad-message")
 async def mark_ad_message(
     request: MarkAdRequest,
     user: Dict[str, Any] = Depends(require_auth),
@@ -206,7 +206,7 @@ async def remove_ad_training_sample(message_id: str):
         logger.error(f"移除广告训练样本失败: {e}")
 
 # 其他训练相关的API端点可以在这里添加
-@router.get("/api/training/ad-samples")
+@router.get("/training/ad-samples")
 async def get_ad_samples(
     page: int = 1,
     page_size: int = 20,
@@ -245,7 +245,7 @@ async def get_ad_samples(
         logger.error(f"获取广告样本失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取广告样本失败: {str(e)}")
 
-@router.get("/api/training/stats")
+@router.get("/training/stats")
 async def get_training_stats(
     user: Dict[str, Any] = Depends(require_auth)
 ):
