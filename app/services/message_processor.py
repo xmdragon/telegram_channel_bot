@@ -332,8 +332,10 @@ class MessageProcessor:
                     logger.error(f"MessageProcessor: redis_store初始化失败（状态更新）: {e}")
                     return False
             
+            # 修复：将参数格式化为Redis Manager期望的格式
+            full_message_id = f"{channel_id}:{message_id}"
             result = self.redis_store.update_message_status(
-                channel_id, message_id, new_status, reviewed_by
+                full_message_id, new_status, reviewed_by
             )
             
             if result:
