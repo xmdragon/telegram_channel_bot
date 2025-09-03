@@ -83,6 +83,7 @@ const ConfigApp = {
                 'review.group_id': '',
                 'review.auto_forward_delay': 1800,
                 // 系统设置
+                scheduler_enabled: true,
                 data_cleanup_interval_hours: 24
                 // 调度和单消息删除默认启用
             },
@@ -257,6 +258,7 @@ const ConfigApp = {
                         'review.group_id': configs['review.group_id'] || '',
                         'review.auto_forward_delay': parseInt(configs['review.auto_forward_delay']) || 1800,
                         // 系统设置
+                        scheduler_enabled: this.parseBooleanValue(configs['scheduler.enabled'], true),
                         data_cleanup_interval_hours: parseInt(configs['scheduler.data_cleanup_interval_hours']) || 24
                         // 调度和单消息删除默认启用
                     };
@@ -471,6 +473,7 @@ const ConfigApp = {
                     'review.group_id': this.systemConfig['review.group_id'],
                     'review.auto_forward_delay': this.systemConfig['review.auto_forward_delay'],
                     // 系统设置
+                    'scheduler.enabled': this.systemConfig.scheduler_enabled,
                     'scheduler.data_cleanup_interval_hours': this.systemConfig.data_cleanup_interval_hours
                     // 调度和单消息删除默认启用
                 };
@@ -510,6 +513,7 @@ const ConfigApp = {
                 'review.group_id': '',
                 'review.auto_forward_delay': 1800,
                 // 系统设置
+                scheduler_enabled: true,
                 data_cleanup_interval_hours: 24
                 // 调度和单消息删除默认启用
             };

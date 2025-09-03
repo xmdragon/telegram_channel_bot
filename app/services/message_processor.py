@@ -211,7 +211,7 @@ class MessageProcessor:
                 channel_id, 
                 message_id, 
                 visual_hashes, 
-                message_time
+                timestamp=message_time
             )
             
             if success:
