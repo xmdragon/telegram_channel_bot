@@ -46,7 +46,7 @@ class AdDetectorFilter(BaseFilter):
         logger.info("✅ 广告检测过滤器初始化完成 - 模块化架构")
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
-        """执行广告检测"""
+        """执行广告检测 - 使用统一检测器"""
         start_time = time.time()
         
         result = FilterResult(
@@ -57,58 +57,46 @@ class AdDetectorFilter(BaseFilter):
         )
         
         try:
-            # 获取消息结构信息
-            buttons = context.get_metadata('buttons', [])
-            entities = context.get_metadata('entities', [])
-            message = context.get_metadata('telegram_message')
+            # 🔧 新版本：使用统一广告检测器
+            from app.services.unified_ad_detector import get_unified_ad_detector
+            unified_detector = get_unified_ad_detector()
             
-            # 执行多种检测方法
-            detection_results = await self._comprehensive_ad_detection(
-                content, buttons, entities, message, context
-            )
+            # 构造统一检测器所需的上下文
+            unified_context = {
+                'message_id': context.message_id,
+                'channel_id': context.channel_id,
+                'media_files': context.get_metadata('media_files', []),
+                'telegram_message': context.get_metadata('telegram_message'),
+                'buttons': context.get_metadata('buttons', []),
+                'entities': context.get_metadata('entities', [])
+            }
             
-            # 综合评估
-            final_score, is_ad, main_reason = self._evaluate_detection_results(detection_results)
+            # 执行统一检测
+            detection_result = await unified_detector.detect_advertisement(content, unified_context)
+            
+            # 转换结果格式以保持兼容性
+            is_ad = detection_result['is_ad']
+            final_score = detection_result['confidence']
+            main_reason = detection_result['reason']
             
             if is_ad:
-                # 🔧 重要修改：根据配置决定是否early stop
-                # 检查自动拒绝广告配置
-                try:
-                    # 先尝试config_manager
-                    from app.services.config_manager import config_manager
-                    auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
-                    
-                    # 如果config_manager返回False，直接读取配置文件确认
-                    if not auto_reject_ads:
-                        import json
-                        with open('data/config/system.json', 'r') as f:
-                            config_data = json.load(f)
-                        raw_value = config_data.get('review.auto_reject_ads', {}).get('value', 'false')
-                        auto_reject_ads = (raw_value == 'true')
-                        logger.debug(f"直接读取配置文件: auto_reject_ads = {auto_reject_ads}")
-                    
-                    if auto_reject_ads:
-                        # 启用自动拒绝：拒绝消息并early stop
-                        result.passed = False
-                        result.should_early_stop = True
-                        result.reason = f"自动拒绝广告消息: {main_reason}"
-                        result.filtered_content = content  # 保持内容不变，检测器不修改内容
-                        logger.info(f"广告检测器自动拒绝: {main_reason}")
-                    else:
-                        # 仅检测标记：让消息继续通过后续过滤器
-                        result.passed = True
-                        result.should_early_stop = False
-                        result.reason = f"AI检测到疑似广告: {main_reason}"
-                        result.filtered_content = content  # 保持原始内容
-                        logger.debug(f"广告检测器仅标记（未启用自动拒绝）: {main_reason}")
-                        
-                except Exception as e:
-                    # 配置读取失败时，采用保守策略：仅检测标记
+                # 🔧 新版本：使用统一检测器的拒绝逻辑结果
+                should_reject = detection_result['should_reject']
+                
+                if should_reject:
+                    # 自动拒绝：拒绝消息并early stop
+                    result.passed = False
+                    result.should_early_stop = True
+                    result.reason = f"统一检测器自动拒绝: {main_reason}"
+                    result.filtered_content = content  # 保持内容不变
+                    logger.info(f"统一检测器自动拒绝: {main_reason}")
+                else:
+                    # 仅检测标记：让消息继续通过后续过滤器
                     result.passed = True
                     result.should_early_stop = False
-                    result.reason = f"AI检测到疑似广告: {main_reason}"
-                    result.filtered_content = content
-                    logger.warning(f"读取auto_reject_ads配置失败，采用保守策略: {e}")
+                    result.reason = f"统一检测器标记广告: {main_reason}"
+                    result.filtered_content = content  # 保持原始内容
+                    logger.debug(f"统一检测器仅标记（未启用自动拒绝）: {main_reason}")
                 
                 result.confidence = final_score
                 
@@ -117,29 +105,30 @@ class AdDetectorFilter(BaseFilter):
                     'is_ad': True,
                     'confidence': final_score,
                     'main_reason': main_reason,
-                    'detection_results': detection_results,
-                    'threshold': self.final_threshold,
-                    'methods_used': list(detection_results.keys())
+                    'detection_method': detection_result.get('detection_method', 'unified'),
+                    'step_results': detection_result.get('step_results', {}),
+                    'training_data_collected': detection_result.get('training_data_collected', False)
                 })
                 
                 # 记录详细判定依据
                 result.details = {
-                    'detection_results': detection_results,
+                    'unified_detection_result': detection_result,
                     'final_score': final_score,
                     'main_reason': main_reason,
-                    'threshold': self.final_threshold,
-                    'methods_used': list(detection_results.keys()),
-                    'action': 'detected_only'  # 标记为仅检测
+                    'detection_method': detection_result.get('detection_method', 'unified'),
+                    'should_reject': should_reject,
+                    'action': 'auto_rejected' if should_reject else 'detected_only'
                 }
                 
-                logger.info(f"🔍 AI广告检测（仅标记）: 置信度 {final_score:.2f}, 原因: {main_reason}")
+                logger.info(f"🔍 统一广告检测: 置信度 {final_score:.2f}, 方法: {detection_result.get('detection_method', 'unified')}")
             else:
                 result.details = {
-                    'detection_results': detection_results,
+                    'unified_detection_result': detection_result,
                     'final_score': final_score,
+                    'detection_method': detection_result.get('detection_method', 'none'),
                     'all_methods_passed': True
                 }
-                logger.debug(f"✅ 广告检测完成，综合评分: {final_score:.2f}，未超过阈值 {self.final_threshold}")
+                logger.debug(f"✅ 统一广告检测完成，置信度: {final_score:.2f}，未检测到广告")
                 
         except Exception as e:
             logger.error(f"广告检测失败: {e}", exc_info=True)
@@ -151,79 +140,8 @@ class AdDetectorFilter(BaseFilter):
         
         return result
     
-    async def _comprehensive_ad_detection(self, content: str, buttons: List[Dict], 
-                                        entities: List[Dict], message: Any,
-                                        context: FilterContext) -> Dict[str, Dict]:
-        """综合广告检测：整合所有检测方法"""
-        results = {}
-        
-        # 1. AI语义检测
-        if self.ai_detector.is_available() and content:
-            results['ai_detection'] = await self.ai_detector.detect(content)
-        
-        # 2. 结构化检测（按钮和实体）
-        if buttons or entities:
-            results['structural_detection'] = await self.structural_detector.detect(
-                content, buttons, entities, message, self.ai_detector
-            )
-        
-        # 3. 模式匹配检测
-        if content:
-            results['pattern_detection'] = await self.pattern_detector.detect(content)
-        
-        # 4. 推广实体模式检测
-        if entities:
-            results['promotional_entity_detection'] = await self.entity_detector.detect(
-                content, entities
-            )
-        
-        return results
-    
-    def _evaluate_detection_results(self, detection_results: Dict[str, Dict]) -> Tuple[float, bool, str]:
-        """综合评估检测结果"""
-        scores = []
-        reasons = []
-        
-        # AI检测结果
-        if 'ai_detection' in detection_results:
-            ai_result = detection_results['ai_detection']
-            if ai_result.get('is_ad', False):
-                # 对于AI检测，直接使用原始置信度，不降权
-                scores.append(ai_result['confidence'])  
-                reasons.append(f"AI检测(相似度:{ai_result.get('similarity_score', 0):.2f})")
-        
-        # 结构化检测结果
-        if 'structural_detection' in detection_results:
-            struct_result = detection_results['structural_detection']
-            if struct_result.get('is_ad', False):
-                scores.append(struct_result['confidence'] * 0.85)
-                reasons.append("结构化检测")
-        
-        # 模式检测结果
-        if 'pattern_detection' in detection_results:
-            pattern_result = detection_results['pattern_detection']
-            if pattern_result.get('is_ad', False):
-                scores.append(pattern_result['confidence'] * 0.8)
-                reasons.append(f"模式匹配(权重:{pattern_result.get('total_weight', 0)})")
-        
-        # 推广实体检测结果
-        if 'promotional_entity_detection' in detection_results:
-            promo_result = detection_results['promotional_entity_detection']
-            if promo_result.get('is_ad', False):
-                scores.append(promo_result['confidence'] * 0.75)
-                reasons.append("推广实体模式")
-        
-        # 计算最终得分
-        if scores:
-            final_score = max(scores)  # 使用最高分数
-            main_reason = reasons[scores.index(max(scores))]
-            is_ad = final_score >= self.final_threshold
-        else:
-            final_score = 0.0
-            main_reason = "无广告特征"
-            is_ad = False
-        
-        return final_score, is_ad, main_reason
+    # 🔧 已移除：_comprehensive_ad_detection 和 _evaluate_detection_results 
+    # 这些方法已被统一广告检测器替代，保持代码简洁
     
     async def validate_config(self) -> bool:
         """验证配置是否有效"""
