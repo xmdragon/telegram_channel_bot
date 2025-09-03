@@ -31,9 +31,7 @@ class OCRCore:
             if self.ocr_reader is None:
                 logger.info("正在初始化EasyOCR（支持中英文识别）...")
                 
-                # 多重设置抑制PyTorch警告
-                os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-                os.environ['TORCH_LOGS'] = 'error'
+                # PyTorch警告抑制（环境变量统一在启动脚本中设置）
                 
                 # 抑制torch的dataloader警告
                 torch_logging.getLogger('torch.utils.data.dataloader').setLevel(torch_logging.ERROR)

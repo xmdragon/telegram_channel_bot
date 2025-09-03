@@ -5,8 +5,7 @@ Telegram消息采集审核系统主入口
 import warnings
 import os
 
-# 抑制PyTorch MPS相关警告
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+# PyTorch相关警告抑制（环境变量统一在启动脚本中设置）
 warnings.filterwarnings("ignore", category=UserWarning, module="torch.utils.data.dataloader")
 warnings.filterwarnings("ignore", message=".*pin_memory.*not supported on MPS.*")
 

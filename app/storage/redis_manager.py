@@ -318,6 +318,17 @@ class RedisManager:
             logger.error(f"获取已拒绝消息失败: {e}")
             return []
     
+    def get_messages_by_status(self, status: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """根据状态获取消息 - 统一接口"""
+        if status == "pending":
+            return self.get_pending_messages(limit, offset)
+        elif status == "approved":
+            return self.get_approved_messages(limit, offset)
+        elif status == "rejected":
+            return self.get_rejected_messages(limit, offset)
+        else:
+            return []
+    
     def search_messages(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
         """搜索消息 - 简单文本匹配"""
         try:

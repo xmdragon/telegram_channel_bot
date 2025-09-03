@@ -133,16 +133,12 @@ async def get_messages(
                 offset=offset
             )
         else:
-            # 根据状态获取消息 - 精确获取所需数量
-            if status == "pending":
-                all_messages = redis_manager.get_pending_messages(limit=page_size, offset=offset)
-            elif status == "approved":
-                all_messages = redis_manager.get_messages_by_status("approved", limit=page_size, offset=offset)
-            elif status == "rejected":
-                all_messages = redis_manager.get_messages_by_status("rejected", limit=page_size, offset=offset)
+            # 🚀 Linus式统一逻辑：消除特殊情况
+            if status in ["pending", "approved", "rejected"]:
+                all_messages = redis_manager.get_messages_by_status(status, limit=page_size, offset=offset)
             else:
-                # 🚀 优化后的get_all_messages（使用索引合并，不再扫描）
-                all_messages = redis_manager.get_all_messages(limit=page_size, offset=offset)
+                # 无状态筛选时，默认显示待审核消息
+                all_messages = redis_manager.get_messages_by_status("pending", limit=page_size, offset=offset)
         
         # 🚀 性能优化：简化过滤逻辑（单独消息已清理，无需去重）
         filtered_messages = []

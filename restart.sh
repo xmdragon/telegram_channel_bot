@@ -5,6 +5,10 @@
 # 🚀 Linus式修复: 强制使用HuggingFace离线模式，避免API限流
 export HF_HUB_OFFLINE=1
 
+# 🔧 PyTorch MPS修复: 禁用MPS后端避免多进程Fork崩溃
+export PYTORCH_ENABLE_MPS_FALLBACK=1
+export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
+
 # 显示帮助信息
 show_help() {
     echo "🔄 Telegram消息采集审核系统 - 服务重启器"
