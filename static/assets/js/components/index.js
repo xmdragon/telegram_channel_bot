@@ -597,7 +597,7 @@ const MainApp = {
                 const params = {
                     ...apiFilters,
                     page: this.currentPage,
-                    size: this.pageSize,
+                    page_size: this.pageSize,
                     // 🚀 Linus式优化：传递show_duplicates参数到后端专用查询
                     show_duplicates: _show_duplicates || false
                 };
