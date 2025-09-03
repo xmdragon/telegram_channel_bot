@@ -26,7 +26,7 @@ class VectorAdDetector(BaseFilter):
         
         # 核心组件
         self.vector_manager = vector_manager
-        self.semantic_extractor = get_semantic_extractor()
+        self.semantic_extractor = get_semantic_extractor(768)
         
         # 配置参数
         self.similarity_threshold = self.config.get('similarity_threshold', 0.8)  # 广告检测阈值更高

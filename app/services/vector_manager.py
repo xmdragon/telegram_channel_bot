@@ -331,7 +331,7 @@ class VectorManager:
             
             # 提取查询向量
             from app.services.semantic_extractor import get_semantic_extractor
-            semantic_extractor = get_semantic_extractor()
+            semantic_extractor = get_semantic_extractor(768)
             query_vector = semantic_extractor.extract_vector(content)
             
             if not query_vector:

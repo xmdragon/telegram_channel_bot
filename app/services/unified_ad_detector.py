@@ -310,7 +310,7 @@ class UnifiedAdDetector:
             from app.services.vector_manager import vector_manager
             from app.services.semantic_extractor import get_semantic_extractor
             
-            extractor = get_semantic_extractor()
+            extractor = get_semantic_extractor(768)
             content_vector = extractor.extract_vector(content)
             
             if content_vector:

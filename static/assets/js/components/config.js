@@ -74,8 +74,17 @@ const ConfigApp = {
                 // 过滤设置
                 filter_enabled: true,
                 // 审核设置
-                require_approval: true
-                // 系统设置已简化，调度和单消息删除默认启用
+                require_approval: true,
+                // 转发设置
+                auto_forward_enabled: false,
+                'target.channel_link': '',
+                'target.channel_id': '',
+                'review.group_link': '',
+                'review.group_id': '',
+                'review.auto_forward_delay': 1800,
+                // 系统设置
+                data_cleanup_interval_hours: 24
+                // 调度和单消息删除默认启用
             },
             
             // 过滤设置 - 系统自动管理
@@ -239,8 +248,17 @@ const ConfigApp = {
                         // 过滤设置
                         filter_enabled: this.parseBooleanValue(configs['filter.enabled'], true),
                         // 审核设置
-                        require_approval: this.parseBooleanValue(configs['review.require_approval'], true)
-                        // 系统设置已简化，调度和单消息删除默认启用
+                        require_approval: this.parseBooleanValue(configs['review.require_approval'], true),
+                        // 转发设置
+                        auto_forward_enabled: this.parseBooleanValue(configs['review.auto_forward_enabled'], false),
+                        'target.channel_link': configs['target.channel_link'] || '',
+                        'target.channel_id': configs['target.channel_id'] || '',
+                        'review.group_link': configs['review.group_link'] || '',
+                        'review.group_id': configs['review.group_id'] || '',
+                        'review.auto_forward_delay': parseInt(configs['review.auto_forward_delay']) || 1800,
+                        // 系统设置
+                        data_cleanup_interval_hours: parseInt(configs['scheduler.data_cleanup_interval_hours']) || 24
+                        // 调度和单消息删除默认启用
                     };
                     
                 }
@@ -444,8 +462,17 @@ const ConfigApp = {
                     // 过滤设置
                     'filter.enabled': this.systemConfig.filter_enabled,
                     // 审核设置
-                    'review.require_approval': this.systemConfig.require_approval
-                    // 系统设置已简化，调度和单消息删除默认启用
+                    'review.require_approval': this.systemConfig.require_approval,
+                    // 转发设置
+                    'review.auto_forward_enabled': this.systemConfig.auto_forward_enabled,
+                    'target.channel_link': this.systemConfig['target.channel_link'],
+                    'target.channel_id': this.systemConfig['target.channel_id'],
+                    'review.group_link': this.systemConfig['review.group_link'],
+                    'review.group_id': this.systemConfig['review.group_id'],
+                    'review.auto_forward_delay': this.systemConfig['review.auto_forward_delay'],
+                    // 系统设置
+                    'scheduler.data_cleanup_interval_hours': this.systemConfig.data_cleanup_interval_hours
+                    // 调度和单消息删除默认启用
                 };
                 
                 // 调试日志
@@ -474,8 +501,17 @@ const ConfigApp = {
                 // 过滤设置
                 filter_enabled: true,
                 // 审核设置
-                require_approval: true
-                // 系统设置已简化，调度和单消息删除默认启用
+                require_approval: true,
+                // 转发设置
+                auto_forward_enabled: false,
+                'target.channel_link': '',
+                'target.channel_id': '',
+                'review.group_link': '',
+                'review.group_id': '',
+                'review.auto_forward_delay': 1800,
+                // 系统设置
+                data_cleanup_interval_hours: 24
+                // 调度和单消息删除默认启用
             };
             MessageManager.success('系统配置已重置为默认值');
         },

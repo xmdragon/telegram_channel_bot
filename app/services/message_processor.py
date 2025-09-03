@@ -16,6 +16,15 @@ class MessageProcessor:
     def __init__(self):
         self.redis_store = None  # 延迟初始化
     
+    def _extract_message_time(self, message_data: dict) -> datetime:
+        """从消息数据中提取时间信息"""
+        if message_data.get('created_at'):
+            try:
+                return datetime.fromisoformat(message_data['created_at'].replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                pass
+        return datetime.utcnow()
+    
     async def get_pending_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
         """获取待审核的消息"""
         try:
@@ -126,6 +135,7 @@ class MessageProcessor:
                         logger.info(f"💾 message_processor: 新消息 {channel_id}:{message_id} 成功保存到Redis [状态: {saved_message.get('status', 'unknown')}]")
                         
                         # 🚀 Linus式优化：同时更新视觉哈希专门索引
+                        message_time = self._extract_message_time(saved_message)
                         await self._update_visual_index(channel_id, int(message_id), message_data, message_time)
                         
                         # 检查是否启用采集后自动转发到审核群
@@ -148,6 +158,7 @@ class MessageProcessor:
                         if saved_message:
                             logger.info(f"💾 message_processor: 重试成功，消息 {channel_id}:{message_id} 已保存")
                             # 🚀 重试成功后也要更新视觉哈希索引
+                            message_time = self._extract_message_time(saved_message)
                             await self._update_visual_index(channel_id, int(message_id), message_data, message_time)
                             return saved_message
                     logger.error(f"重试保存消息失败: {channel_id}:{message_id}")

@@ -179,12 +179,12 @@ const DualAuthApp = {
         
         async checkApiConfiguration() {
             try {
-                // 从系统配置检查API是否已配置
-                const response = await axios.get(API.config.list);
-                if (response.data && response.data.configs) {
-                    const configs = response.data.configs;
-                    const hasApiId = configs['telegram.api_id']?.value;
-                    const hasApiHash = configs['telegram.api_hash']?.value;
+                // 从系统配置检查API是否已配置  
+                const response = await axios.get(API.admin.config);
+                if (response.data) {
+                    const configs = response.data;
+                    const hasApiId = configs['telegram.api_id'];
+                    const hasApiHash = configs['telegram.api_hash'];
                     
                     this.hasSharedApi = !!(hasApiId && hasApiHash);
                     

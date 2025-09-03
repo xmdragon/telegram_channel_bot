@@ -208,8 +208,7 @@ async def migrate_legacy_config():
         else:
             return {
                 "success": True,
-                "message": result["message"],
-                "reason": result["reason"]
+                "message": result["message"]
             }
             
     except Exception as e:

@@ -172,7 +172,7 @@ async def test_ad_detection(request: VectorTestRequest):
         from app.services.semantic_extractor import get_semantic_extractor
         
         # 提取向量
-        semantic_extractor = get_semantic_extractor()
+        semantic_extractor = get_semantic_extractor(768)
         test_vector = semantic_extractor.extract_vector(content)
         
         if not test_vector:
@@ -212,7 +212,7 @@ async def add_vector_from_text(request: AddVectorRequest):
         from app.services.semantic_extractor import get_semantic_extractor
         
         # 提取向量
-        semantic_extractor = get_semantic_extractor()
+        semantic_extractor = get_semantic_extractor(768)
         vector = semantic_extractor.extract_vector(content)
         
         if not vector:

@@ -76,6 +76,13 @@
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.310927"
   },
+  "scheduler.data_cleanup_interval_hours": {
+    "value": "24",
+    "config_type": "integer",
+    "description": "数据清理时间间隔（小时）",
+    "is_active": true,
+    "created_at": "2025-09-03T11:50:00.000000"
+  },
   "source.history_limit": {
     "value": "100",
     "config_type": "string",

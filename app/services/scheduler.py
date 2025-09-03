@@ -62,61 +62,68 @@ class MessageScheduler:
         logger.info("消息调度器已关闭")
     
     async def cleanup_old_data(self):
-        """清理旧数据 - 删除7天前已发布或拒绝的消息"""
+        """清理旧数据 - 删除配置时间前已发布或拒绝的消息"""
         try:
             from datetime import datetime, timedelta
+            from app.services.config_manager import config_manager
             
-            # 计算7天前的时间
-            seven_days_ago = datetime.utcnow() - timedelta(days=7)
+            # 从配置文件读取清理时间间隔（小时）
+            cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 24)
+            cleanup_interval_hours = int(cleanup_interval_hours)
+            
+            # 计算清理时间点
+            cleanup_time_ago = datetime.utcnow() - timedelta(hours=cleanup_interval_hours)
             
             # 使用MessageProcessor获取旧消息（业务逻辑层）
-            messages_to_delete = await self.message_processor.get_old_messages_for_cleanup(seven_days_ago)
+            messages_to_delete = await self.message_processor.get_old_messages_for_cleanup(cleanup_time_ago)
             
             if not messages_to_delete:
-                logger.debug("没有需要清理的旧消息")
+                logger.debug(f"没有需要清理的旧消息（清理间隔: {cleanup_interval_hours}小时）")
                 return
+            
+            logger.info(f"开始清理{cleanup_interval_hours}小时前的数据，找到 {len(messages_to_delete)} 条消息待处理")
+            
+            deleted_count = 0
+            deleted_media_count = 0
+            
+            # 收集要删除的媒体文件路径
+            media_files_to_delete = []
+            
+            for message in messages_to_delete:
+                # 检查是否有媒体文件
+                if message.media_url:
+                    # 媒体URL格式通常是 /temp_media/xxxxx 或本地路径
+                    if message.media_url.startswith(api_paths.TEMP_MEDIA_PATH):
+                        # 转换为本地文件路径
+                        media_path = Path('temp_media') / message.media_url.replace(api_paths.TEMP_MEDIA_PATH + '/', '')
+                        if media_path.exists():
+                            media_files_to_delete.append(media_path)
                 
-                deleted_count = 0
-                deleted_media_count = 0
+                # 如果是组合消息，检查组合消息中的媒体
+                if message.is_combined and message.combined_messages:
+                    for combined_msg in message.combined_messages:
+                        if isinstance(combined_msg, dict) and 'media_url' in combined_msg:
+                            media_url = combined_msg['media_url']
+                            if media_url and media_url.startswith('/temp_media/'):
+                                from app.core.path_config import PathConfig
+                                media_path = PathConfig.TEMP_MEDIA_DIR / media_url.replace('/temp_media/', '')
+                                if media_path.exists():
+                                    media_files_to_delete.append(media_path)
                 
-                # 收集要删除的媒体文件路径
-                media_files_to_delete = []
+                # 删除Redis中的消息记录 - 使用MessageProcessor
+                if await self.message_processor.delete_message(message.channel_id, message.message_id):
+                    deleted_count += 1
                 
-                for message in messages_to_delete:
-                    # 检查是否有媒体文件
-                    if message.media_url:
-                        # 媒体URL格式通常是 /temp_media/xxxxx 或本地路径
-                        if message.media_url.startswith(api_paths.TEMP_MEDIA_PATH):
-                            # 转换为本地文件路径
-                            media_path = Path('temp_media') / message.media_url.replace(api_paths.TEMP_MEDIA_PATH + '/', '')
-                            if media_path.exists():
-                                media_files_to_delete.append(media_path)
-                    
-                    # 如果是组合消息，检查组合消息中的媒体
-                    if message.is_combined and message.combined_messages:
-                        for combined_msg in message.combined_messages:
-                            if isinstance(combined_msg, dict) and 'media_url' in combined_msg:
-                                media_url = combined_msg['media_url']
-                                if media_url and media_url.startswith('/temp_media/'):
-                                    from app.core.path_config import PathConfig
-                                    media_path = PathConfig.TEMP_MEDIA_DIR / media_url.replace('/temp_media/', '')
-                                    if media_path.exists():
-                                        media_files_to_delete.append(media_path)
-                    
-                    # 删除Redis中的消息记录 - 使用MessageProcessor
-                    if await self.message_processor.delete_message(message.channel_id, message.message_id):
-                        deleted_count += 1
-                
-                # 删除媒体文件
-                for media_path in media_files_to_delete:
-                    try:
-                        media_path.unlink()
-                        deleted_media_count += 1
-                        logger.debug(f"删除媒体文件: {media_path.name}")
-                    except Exception as e:
-                        logger.error(f"删除媒体文件失败 {media_path.name}: {e}")
-                
-                logger.info(f"数据清理完成: 删除 {deleted_count} 条消息记录, {deleted_media_count} 个媒体文件")
+            # 删除媒体文件
+            for media_path in media_files_to_delete:
+                try:
+                    media_path.unlink()
+                    deleted_media_count += 1
+                    logger.debug(f"删除媒体文件: {media_path.name}")
+                except Exception as e:
+                    logger.error(f"删除媒体文件失败 {media_path.name}: {e}")
+            
+            logger.info(f"数据清理完成（间隔: {cleanup_interval_hours}小时）: 删除 {deleted_count} 条消息记录, {deleted_media_count} 个媒体文件")
             
         except Exception as e:
             logger.error(f"数据清理失败: {e}")
