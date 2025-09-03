@@ -60,9 +60,10 @@ class HealthMonitor:
         
     async def start(self):
         """启动健康监控"""
-        logger.info(f"启动服务健康监控: {self.service_name}")
+        logger.info(f"[{self.service_name}] 启动服务健康监控")
         self.status = ServiceStatus.HEALTHY
         self.heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        logger.info(f"[{self.service_name}] 心跳任务已启动，间隔: {self.heartbeat_interval}秒")
         await self.update_status()
     
     async def stop(self):
@@ -84,6 +85,7 @@ class HealthMonitor:
         self.error_message = None
         if metadata:
             self.metadata.update(metadata)
+        logger.info(f"[{self.service_name}] 设置为健康状态: {metadata}")
         await self.update_status()
     
     async def set_unhealthy(self, error_message: str, metadata: Dict[str, Any] = None):
@@ -107,6 +109,7 @@ class HealthMonitor:
             
             redis = redis_manager.client
             if not redis:
+                logger.warning(f"[{self.service_name}] Redis客户端不可用，无法更新健康状态")
                 return
             
             uptime = (datetime.now() - self.start_time).total_seconds()
@@ -125,21 +128,36 @@ class HealthMonitor:
             value = json.dumps(health.to_dict(), ensure_ascii=False)
             
             # 设置30分钟过期时间，防止僵尸记录
-            redis.setex(key, 1800, value)
+            result = redis.setex(key, 1800, value)
             
+            if result:
+                logger.debug(f"[{self.service_name}] 健康状态已更新到Redis: {key}")
+            else:
+                logger.warning(f"[{self.service_name}] Redis写入返回False: {key}")
+                
         except Exception as e:
-            logger.error(f"更新服务状态失败: {e}")
+            logger.error(f"[{self.service_name}] 更新服务状态失败: {e}")
+            import traceback
+            logger.error(f"[{self.service_name}] 错误详情: {traceback.format_exc()}")
     
     async def _heartbeat_loop(self):
         """心跳循环"""
+        heartbeat_count = 0
         while True:
             try:
                 await asyncio.sleep(self.heartbeat_interval)
+                heartbeat_count += 1
                 await self.update_status()
+                # 每10次心跳记录一次（5分钟一次）
+                if heartbeat_count % 10 == 0:
+                    logger.debug(f"[{self.service_name}] 心跳正常 #{heartbeat_count}")
             except asyncio.CancelledError:
+                logger.info(f"[{self.service_name}] 心跳循环已取消")
                 break
             except Exception as e:
-                logger.error(f"心跳更新失败: {e}")
+                logger.error(f"[{self.service_name}] 心跳更新失败: {e}")
+                import traceback
+                logger.error(f"[{self.service_name}] 心跳错误详情: {traceback.format_exc()}")
 
 class HealthCheckService:
     """健康检查服务 - 用于查询所有服务状态"""
