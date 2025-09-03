@@ -545,29 +545,63 @@
     margin-top: 5px;
 }
 
-/* 拒绝原因标签 */
-.reject-reason {
+/* 拒绝原因悬停标签 */
+.reject-reason-hover {
     background: #6c757d !important;
-    max-width: 300px !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: help;
+    position: relative;
     transition: all 0.3s ease;
 }
 
-/* 拒绝原因标签hover效果 - 显示完整内容 */
-.reject-reason:hover {
-    white-space: normal !important;
-    word-wrap: break-word !important;
-    overflow: visible !important;
+/* 拒绝原因tooltip */
+.reject-reason-hover::before {
+    content: attr(title);
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    max-width: 400px;
+    word-wrap: break-word;
+    white-space: normal;
     z-index: 1000;
-    position: relative;
-    background: #5a6268 !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-    border-radius: 4px !important;
-    max-width: none !important;
-    min-width: max-content;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    line-height: 1.4;
+    text-align: left;
+}
+
+/* tooltip箭头 */
+.reject-reason-hover::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1001;
+}
+
+/* 悬停显示tooltip */
+.reject-reason-hover:hover::before,
+.reject-reason-hover:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* 媒体预览图片 */

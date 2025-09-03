@@ -280,7 +280,7 @@ class MessageFilterProcessor(MessageProcessor):
                 # 🚀 如果精准逻辑没有拒绝但配置了自动拒绝，根据配置直接拒绝
                 context.should_reject = True
                 context.auto_rejected = True
-                context.reject_reason = f"自动拒绝广告消息: {context.filter_reason}"
+                context.reject_reason = "自动拒绝广告消息"
                 self.logger.info(f"⚡ 根据配置自动拒绝广告消息: {context.filter_reason}")
             
         except Exception as e:

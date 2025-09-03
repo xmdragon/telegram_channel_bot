@@ -115,9 +115,9 @@ class DetectorLayer:
                 detector_result = await detector.filter(content, context)
                 detector_results[detector.name] = detector_result
                 
-                # 记录检测原因
-                if detector_result.reason:
-                    reasons.append(f"{detector.name}: {detector_result.reason}")
+                # 只有检测到问题时才记录原因
+                if not detector_result.passed and detector_result.reason:
+                    reasons.append(f"检测到广告内容")
                 
                 # 更新统计信息
                 detector_time = (datetime.now() - detector_start).total_seconds() * 1000

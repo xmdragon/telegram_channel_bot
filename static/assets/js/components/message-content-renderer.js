@@ -381,9 +381,9 @@ const MessageContentRenderer = {
                         </span>)
                     </span>
                     <span v-if="(message.filter_reason || message.rejection_reason) && message.status === 'rejected'" 
-                          class="tag tag-secondary reject-reason" 
+                          class="tag tag-secondary reject-reason-hover" 
                           :title="message.filter_reason || message.rejection_reason">
-                        拒因: {{ message.filter_reason || message.rejection_reason }}
+                        拒因
                     </span>
                 </div>
             </div>

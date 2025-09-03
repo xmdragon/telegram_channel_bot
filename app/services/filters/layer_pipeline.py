@@ -136,7 +136,7 @@ class LayerPipeline:
                 # 合并结果
                 all_filter_results.update(content_result.filter_results)
                 if content_result.overall_reason:
-                    all_reasons.append(f"内容清理: {content_result.overall_reason}")
+                    all_reasons.append(content_result.overall_reason)
                 
                 # 记录清理效果
                 if current_content != content:
@@ -159,7 +159,7 @@ class LayerPipeline:
                 # 合并检测结果
                 all_filter_results.update(detector_result.filter_results)
                 if detector_result.overall_reason:
-                    all_reasons.append(f"内容检测: {detector_result.overall_reason}")
+                    all_reasons.append(detector_result.overall_reason)
                 
                 # 更新最终状态
                 final_passed = detector_result.passed

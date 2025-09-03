@@ -114,9 +114,8 @@ class ContentFilterLayer:
                     logger.debug(f"🔄 {filter_instance.name} 修改了内容: {len(current_content)} → {len(filter_result.filtered_content)} 字符")
                     current_content = filter_result.filtered_content
                 
-                # 记录过滤原因
-                if filter_result.reason:
-                    reasons.append(f"{filter_instance.name}: {filter_result.reason}")
+                # 过滤器阶段不记录原因，只专注于内容清理
+                # 原因信息留给检测阶段记录
                 
                 # 更新统计信息
                 filter_time = (datetime.now() - filter_start).total_seconds() * 1000
@@ -135,9 +134,10 @@ class ContentFilterLayer:
         # 计算总处理时间
         total_time = (datetime.now() - start_time).total_seconds() * 1000
         
-        # 统计过滤效果
+        # 统计过滤效果  
         was_filtered = current_content != content
-        overall_reason = "; ".join(reasons) if reasons else ""
+        # 内容清理层不产生原因信息，只负责内容清理
+        overall_reason = ""
         
         # 更新层级统计
         self.stats['total_processed'] += 1
