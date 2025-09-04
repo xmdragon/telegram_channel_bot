@@ -16,14 +16,8 @@ const app = createApp({
             // 标签页切换
             activeTab: 'config',
             
-            // 分隔符模式 - 从train.js复制的默认模式
-            separatorPatterns: [
-                { regex: '━{10,}', description: '横线分隔符' },
-                { regex: '═{10,}', description: '双线分隔符' },
-                { regex: '─{10,}', description: '细线分隔符' },
-                { regex: '\\*{10,}', description: '星号分隔符' },
-                { regex: '-{10,}', description: '短横线分隔符' }
-            ]
+            // 分隔符模式 - 初始化为空，从服务器加载实际数据
+            separatorPatterns: []
         };
     },
     
@@ -47,9 +41,14 @@ const app = createApp({
                 const response = await axios.get(API.training.separatorPatterns);
                 if (response.data.success && response.data.patterns) {
                     this.separatorPatterns = response.data.patterns;
+                    console.log(`成功加载 ${response.data.patterns.length} 条分隔符配置`);
+                } else {
+                    console.error('API响应格式错误:', response.data);
+                    window.SimpleUI.Message.error('分隔符配置格式错误');
                 }
             } catch (error) {
-                window.SimpleUI.Message.error('加载分隔符配置失败');
+                console.error('加载分隔符配置失败:', error);
+                window.SimpleUI.Message.error('加载分隔符配置失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         

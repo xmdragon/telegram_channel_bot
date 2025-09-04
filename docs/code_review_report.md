@@ -22,6 +22,8 @@
 - 风险：端点变更可能分叉，前端难以对齐，自动检测难覆盖。
 - 建议：统一到“新”的 `app/core/route_config.py:1`，从所有 API 模块移除 `app/core/routes.py:1` 引用。
 
+- done
+
 ### 2) 前后端页面/静态路径不一致
 
 - 认证页常量错误：后端重定向到 `api_paths.AUTH_PAGE = "/static/auth.html"`（`app/core/api_paths.py:1`），实际文件为 `"/static/telegram-auth.html"`（`static/telegram-auth.html`）。

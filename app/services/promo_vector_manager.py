@@ -103,7 +103,7 @@ class PromoVectorManager:
         """重新构建向量缓存"""
         try:
             # 从推广样本文件重新构建
-            from app.routers.training.base import load_promo_samples
+            from app.api.training.base import load_promo_samples
             samples = load_promo_samples()
             
             if not samples:
@@ -233,7 +233,7 @@ class PromoVectorManager:
         if self.disabled:
             return
         try:
-            from app.routers.training.base import load_promo_samples
+            from app.api.training.base import load_promo_samples
             samples = load_promo_samples()
             
             # 提取现有样本的内容
@@ -353,7 +353,7 @@ class PromoVectorManager:
         if self.disabled:
             return {'disabled': True, 'reason': 'lightweight mode only'}
         try:
-            from app.routers.training.base import load_promo_samples
+            from app.api.training.base import load_promo_samples
             samples = load_promo_samples()
             
             # 从样本中提取内容

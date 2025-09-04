@@ -34,8 +34,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# 临时和运行时文件
+# 临时和运行时文件（防止inotify风暴）
 temp_media/
+temp_media/**
+temp_media/**/*
 *.tmp
 *.temp
 *.log

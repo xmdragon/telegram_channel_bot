@@ -374,7 +374,7 @@ class TailVectorManager:
         """
         self._ensure_initialized()
         try:
-            from app.routers.training.base import load_tail_filter_samples
+            from app.api.training.base import load_tail_filter_samples
             samples = load_tail_filter_samples()
             
             # 过滤出有效样本（有尾部内容的）
@@ -458,7 +458,7 @@ class TailVectorManager:
             同步状态信息
         """
         try:
-            from app.routers.training.base import load_tail_filter_samples
+            from app.api.training.base import load_tail_filter_samples
             samples = load_tail_filter_samples()
             
             # 过滤出有效样本（有尾部内容的）

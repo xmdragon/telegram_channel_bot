@@ -99,6 +99,11 @@ git status && git log --oneline -1
 ✅ dev.sh, start.sh, stop.sh, restart.sh
 ✅ app/, data/, docs/, logs/, static/, tools/, temp_media/, venv/
 
+#### 📚 文档管理规范：
+- **根目录只保留**：`CLAUDE.md` 和 `README.md`
+- **所有其他md文档必须放在docs/目录**
+- **禁止在根目录创建新的md文件**（除非是CLAUDE.md或README.md的更新）
+
 ### tools/目录分类
 ```
 tools/
@@ -645,14 +650,19 @@ python3 tools/testing/fetch_telegram_message.py TELEGRAM_URL    # 抓取原始�
 
 ### 文件位置速查
 - API端点配置：`static/assets/js/config/api-endpoints.js`
-- 系统架构文档：`docs/SYSTEM_ARCHITECTURE.md`
-- 命名规范文档：`docs/NAMING_CONVENTIONS.md`
-- 清理工具：`tools/maintenance/cleanup_redundant_files.py`
 - 配置文件：`data/config/`
 - 日志文件：`logs/`
 - 测试脚本：`tools/testing/`
 - 本地消息查询：`tools/testing/get_local_message.py`
 - Telegram消息抓取：`tools/testing/fetch_telegram_message.py`
+- 清理工具：`tools/maintenance/cleanup_redundant_files.py`
+
+### 📚 文档速查（docs/目录）
+- 系统架构文档：`docs/SYSTEM_ARCHITECTURE.md`
+- 命名规范文档：`docs/NAMING_CONVENTIONS.md`
+- 部署文档：`docs/DEPLOYMENT.md`
+- API响应格式：`docs/API_RESPONSE_FORMAT.md`
+- Colima优化指南：`docs/COLIMA_OPTIMIZATION_SUMMARY.md`
 
 ### 故障排查步骤
 1. 检查服务状态：`./dev.sh --status`
