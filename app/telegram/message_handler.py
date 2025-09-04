@@ -212,7 +212,7 @@ class MessageHandler:
                     if result.success and temp_context.media_info:
                         # 保存完整媒体信息到消息对象
                         collected_msg.media_info = temp_context.media_info
-                        logger.info(f"媒体已在collector中下载完成: {collected_msg.message_key}")
+                        logger.debug(f"媒体已在collector中下载完成: {collected_msg.message_key}")
                     else:
                         logger.warning(f"媒体下载失败，但继续处理: {collected_msg.message_key}")
                         

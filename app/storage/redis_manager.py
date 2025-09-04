@@ -340,15 +340,41 @@ class RedisManager:
                 msg_id = message_id
                 
             message_key = f"message:{channel_id}:{msg_id}"
+            full_message_id = f"{channel_id}:{msg_id}"
+            
+            # 获取消息以确定其状态（用于清理状态索引）
+            message_data = self.get_message(channel_id, msg_id, silent=True)
             
             pipeline = self.client.pipeline()
+            
+            # 1. 删除消息数据
             pipeline.delete(message_key)
+            
+            # 2. 清理频道索引
+            pipeline.zrem(f"msg:idx:{channel_id}", msg_id)
             pipeline.zrem(f"channel:{channel_id}:messages", msg_id)
             pipeline.decr(f"channel:{channel_id}:count")
             
+            # 3. 清理状态索引（如果消息存在）
+            if message_data:
+                status = message_data.get('status', 'pending')
+                pipeline.zrem(f"msg:idx:{status}", full_message_id)
+                
+                # 4. 清理媒体哈希索引（如果有媒体）
+                if message_data.get('media_hash'):
+                    pipeline.srem(f"media:hash:{message_data['media_hash']}", full_message_id)
+            else:
+                # 如果消息不存在，尝试清理所有可能的状态索引（防止孤儿索引）
+                for status in ['pending', 'approved', 'rejected']:
+                    pipeline.zrem(f"msg:idx:{status}", full_message_id)
+            
+            # 5. 清理全局索引
+            pipeline.zrem("msg:idx:all", full_message_id)
+            
+            # 执行所有清理操作
             pipeline.execute()
             
-            logger.debug(f"消息已删除: {channel_id}:{msg_id}")
+            logger.debug(f"消息已删除并清理所有索引: {channel_id}:{msg_id}")
             return True
             
         except Exception as e:

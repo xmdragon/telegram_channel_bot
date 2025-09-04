@@ -102,7 +102,7 @@ class MediaHandler:
                     logger.warning(f"下载图片超时（{download_timeout}秒）: {file_name}")
                     # 检查文件是否实际已经下载完成
                     if file_path.exists() and file_path.stat().st_size > 0:
-                        logger.info(f"✅ 虽然超时，但图片下载完成: {file_name} ({file_path.stat().st_size} bytes)")
+                        logger.debug(f"✅ 虽然超时，但图片下载完成: {file_name} ({file_path.stat().st_size} bytes)")
                     else:
                         logger.error(f"❌ 图片下载真正失败，文件不存在: {file_name}")
                         return None
@@ -118,7 +118,7 @@ class MediaHandler:
                             with open(file_path, 'rb') as f:
                                 image_data = f.read()
                             visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
-                            logger.info(f"📊 图片视觉哈希计算成功: {file_name}")
+                            logger.debug(f"📊 图片视觉哈希计算成功: {file_name}")
                         except Exception as e:
                             logger.error(f"❌ 计算视觉哈希失败: {e}")
                     else:
@@ -133,7 +133,7 @@ class MediaHandler:
                     "visual_hashes": visual_hashes
                 })
                 
-                logger.info(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
+                logger.debug(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
                 
             elif isinstance(message.media, MessageMediaDocument):
                 # 处理文档/视频/动图等
@@ -195,7 +195,7 @@ class MediaHandler:
                     logger.warning(f"下载{media_info['media_type']}超时（{download_timeout}秒）: {file_name}")
                     # 检查文件是否实际已经下载完成
                     if file_path.exists() and file_path.stat().st_size > 0:
-                        logger.info(f"✅ 虽然超时，但文件下载完成: {file_name} ({file_path.stat().st_size} bytes)")
+                        logger.debug(f"✅ 虽然超时，但文件下载完成: {file_name} ({file_path.stat().st_size} bytes)")
                     else:
                         logger.error(f"❌ 下载真正失败，文件不存在: {file_name}")
                         return None
@@ -228,7 +228,7 @@ class MediaHandler:
                     "visual_hashes": visual_hashes
                 })
                 
-                logger.info(f"{media_info['media_type']}下载完成: {file_name} ({media_info['file_size']} bytes)")
+                logger.debug(f"{media_info['media_type']}下载完成: {file_name} ({media_info['file_size']} bytes)")
                 
             return media_info
             

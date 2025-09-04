@@ -63,13 +63,13 @@ class MediaManager:
                 return local_media_info
             
             # 3. 从Telegram下载新媒体
-            logger.info(f"开始下载媒体: 消息 #{message_id}")
+            logger.debug(f"开始下载媒体: 消息 #{message_id}")
             media_info = await self._download_media_from_telegram(message_id, telegram_msg, channel_id)
             
             if media_info and media_info.get('file_path'):
                 # 更新缓存
                 self._media_cache[message_id] = media_info['file_path']
-                logger.info(f"媒体下载成功: {message_id} -> {media_info['file_path']}")
+                logger.debug(f"媒体下载成功: {message_id} -> {media_info['file_path']}")
                 return media_info
             else:
                 logger.warning(f"媒体下载失败: 消息 #{message_id}")
@@ -169,7 +169,7 @@ class MediaManager:
                     'downloaded_at': datetime.now().isoformat()
                 }
                 
-                logger.info(f"媒体下载完成: {downloaded_file} ({file_size} bytes)")
+                logger.debug(f"媒体下载完成: {downloaded_file} ({file_size} bytes)")
                 return media_info
             else:
                 # 更准确的错误信息

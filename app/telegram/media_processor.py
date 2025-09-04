@@ -56,7 +56,7 @@ class MediaProcessor:
             )
             
             if media_info:
-                logger.info(f"✅ 媒体下载成功: {media_info.get('file_path')}")
+                logger.debug(f"✅ 媒体下载成功: {media_info.get('file_path')}")
                 return media_info
             else:
                 # 下载失败，创建占位信息

@@ -309,7 +309,7 @@ class MessageProcessor:
             message = self.redis_store.get_message(channel_id, message_id)
             
             if message is None:
-                logger.warning(f"MessageProcessor: 消息不存在 {channel_id}:{message_id}")
+                logger.debug(f"MessageProcessor: 消息不存在 {channel_id}:{message_id}")
                 return None
             
             logger.debug(f"MessageProcessor: 成功获取消息 {channel_id}:{message_id}, 状态: {message.get('status', 'unknown')}")
@@ -478,6 +478,9 @@ class MessageProcessor:
                         msg_data = await self.get_message(channel_id, int(message_id))
                         
                         if not msg_data:
+                            # 清理孤儿索引条目
+                            logger.debug(f"清理孤儿索引: {status} -> {key}")
+                            self.redis_store.redis.zrem(f"msg:idx:{status}", key)
                             continue
                         
                         # 检查消息是否足够旧
@@ -739,7 +742,7 @@ class MessageProcessor:
                                         'media_hash': media_info.get('hash'),
                                         'display_url': f'/media/{file_name}' if file_name else None
                                     })
-                                    logger.info(f"组合消息子媒体下载成功: {channel_id}:{msg_id}")
+                                    logger.debug(f"组合消息子媒体下载成功: {channel_id}:{msg_id}")
                         except Exception as sub_error:
                             logger.warning(f"下载组合消息子媒体失败 {channel_id}:{msg_id}: {sub_error}")
                             continue

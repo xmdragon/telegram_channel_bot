@@ -224,7 +224,7 @@ class MediaDownloader(MessageProcessor):
                 
                 # 根据环境选择日志级别
                 if media_info.get('processed_in') == 'collector':
-                    self.logger.info(f"媒体下载成功: {media_info.get('file_path')}")
+                    self.logger.debug(f"媒体下载成功: {media_info.get('file_path')}")
                 else:
                     self.logger.debug(f"媒体元数据处理完成: {media_type}")
             else:
@@ -323,7 +323,7 @@ class MediaDownloader(MessageProcessor):
         
         # 标记为collector环境处理
         media_info['processed_in'] = 'collector'
-        self.logger.info(f"媒体下载完成: {media_info.get('file_path')}")
+        self.logger.debug(f"媒体下载完成: {media_info.get('file_path')}")
         return media_info
     
     async def _process_media_metadata_only(self, message: TLMessage) -> Optional[dict]:

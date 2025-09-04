@@ -20,69 +20,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.media_paths import media_paths
+from app.core.path_config import PathConfig
 from app.api import api_router
 
-# 确保日志目录存在
-os.makedirs('./logs', exist_ok=True)
+# 使用统一的日志配置
+from app.core.logging_config import setup_logging, get_logger
 
-from logging.handlers import TimedRotatingFileHandler
-
-# 创建自定义的文件处理器，只过滤数据库驱动模块日志
-class FilteredTimedRotatingFileHandler(TimedRotatingFileHandler):
-    """过滤特定模块的按时间轮转文件处理器"""
-    def emit(self, record):
-        # 只过滤数据库驱动模块的日志（系统已不使用SQL数据库，但保留以防遗留组件）
-        if record.name.startswith(('sqlalchemy', 'asyncpg', 'databases')):
-            return
-        # 移除关键词过滤 - 避免误杀DELETE等正常操作日志
-        super().emit(record)
-
-# 在日志初始化前导入PathConfig
-from app.core.path_config import PathConfig
-
-file_handler = FilteredTimedRotatingFileHandler(
-    filename=str(PathConfig.APP_LOG_FILE),
-    when='H',  # 按小时轮转
-    interval=1,  # 每1小时
-    backupCount=24*7,  # 保留7天的日志
-    encoding='utf-8'
-)
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(logging.Formatter(
-    '[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-))
-
-# 创建错误级别的文件处理器
-error_handler = FilteredTimedRotatingFileHandler(
-    filename=str(PathConfig.ERROR_LOG_FILE),
-    when='H',
-    interval=1,
-    backupCount=24*7,
-    encoding='utf-8'
-)
-error_handler.setLevel(logging.WARNING)
-error_handler.setFormatter(logging.Formatter(
-    '[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-))
-
-# 配置根日志记录器
-root_logger = logging.getLogger()
-root_logger.setLevel(logging.INFO)
-root_logger.addHandler(file_handler)
-root_logger.addHandler(error_handler)
-
-# 控制台输出（开发环境）
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter(
-    '[%(asctime)s] [%(levelname)s] %(message)s',
-    datefmt='%H:%M:%S'
-))
-root_logger.addHandler(console_handler)
-
-logger = logging.getLogger(__name__)
+# 初始化日志系统
+setup_logging(service_name="web", log_level="INFO", console_output=True)
+logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

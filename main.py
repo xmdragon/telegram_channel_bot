@@ -28,71 +28,12 @@ from app.api import api_router
 from app.telegram.bot import TelegramBot
 from app.services.scheduler import MessageScheduler
 
-# 确保日志目录存在
-os.makedirs('./logs', exist_ok=True)
+# 使用统一的日志配置
+from app.core.logging_config import setup_logging, get_logger
 
-from logging.handlers import TimedRotatingFileHandler
-
-# 创建自定义的文件处理器，过滤数据库日志
-class FilteredTimedRotatingFileHandler(TimedRotatingFileHandler):
-    """过滤特定模块的按时间轮转文件处理器"""
-    def emit(self, record):
-        # 过滤掉数据库相关的日志
-        if record.name.startswith(('sqlalchemy', 'asyncpg', 'databases')):
-            return
-        # 过滤掉包含特定关键词的日志
-        if any(keyword in record.getMessage().lower() for keyword in ['sql', 'database', 'query', 'insert', 'update', 'delete', 'select']):
-            return
-        super().emit(record)
-
-# 创建按小时轮转的日志处理器
-# 在日志初始化前导入PathConfig
-from app.core.path_config import PathConfig
-
-file_handler = FilteredTimedRotatingFileHandler(
-    filename=str(PathConfig.APP_LOG_FILE),
-    when='H',  # 按小时轮转
-    interval=1,  # 每1小时
-    backupCount=24*7,  # 保留7天的日志
-    encoding='utf-8'
-)
-file_handler.suffix = "%Y%m%d_%H"  # 文件名后缀格式
-
-# 创建错误日志处理器（只记录WARNING及以上级别）
-error_handler = TimedRotatingFileHandler(
-    filename=str(PathConfig.ERROR_LOG_FILE),
-    when='D',  # 按天轮转
-    interval=1,  # 每1天
-    backupCount=30,  # 保留30天的日志
-    encoding='utf-8'
-)
-error_handler.suffix = "%Y%m%d"
-error_handler.setLevel(logging.WARNING)  # 只记录WARNING及以上级别
-error_formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s\n'
-    '%(pathname)s:%(lineno)d\n'  # 添加文件路径和行号
-)
-error_handler.setFormatter(error_formatter)
-
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # 输出到控制台
-        file_handler,  # 按时间轮转输出到文件
-        error_handler  # 错误日志单独记录
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# 减少不必要的日志输出
-logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)  # 只显示错误级别的SQL日志
-logging.getLogger('sqlalchemy.pool').setLevel(logging.ERROR)    # 关闭连接池日志
-logging.getLogger('sqlalchemy.orm').setLevel(logging.ERROR)     # 关闭ORM日志
-logging.getLogger('uvicorn.access').setLevel(logging.WARNING)   # 减少访问日志
-logging.getLogger('httpx').setLevel(logging.WARNING)            # 减少HTTP客户端日志
-logging.getLogger('telethon').setLevel(logging.WARNING)         # 减少Telethon日志
+# 初始化日志系统
+setup_logging(service_name="main", log_level="INFO", console_output=True)
+logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
