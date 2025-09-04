@@ -676,10 +676,10 @@ const TrainApp = {
             if (type === 'tail') {
                 url = '/static/tail-filter-manager.html';
             } else if (type === 'ad') {
-                url = '/static/ad-vector-manager.html';
+                url = '/static/ad-training-samples.html';
             } else {
-                // 默认跳转到广告向量管理页面
-                url = '/static/ad-vector-manager.html';
+                // 默认跳转到广告训练样本管理页面
+                url = '/static/ad-training-samples.html';
             }
             // 在当前页面打开，而不是新窗口
             window.location.href = url;

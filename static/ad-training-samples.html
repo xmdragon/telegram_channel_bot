@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>广告向量管理</title>
+    <title>广告训练样本管理</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <!-- 动态版本号 - 防缓存 -->
@@ -29,7 +29,7 @@
             <div class="stats-section compact">
                 <div class="stats-inline">
                     <div class="stat-item-inline">
-                        <span class="stat-label">总向量数:</span>
+                        <span class="stat-label">总样本数:</span>
                         <span class="stat-value">{{ stats.totalVectors }}</span>
                     </div>
                     <div class="stat-item-inline">
@@ -49,7 +49,7 @@
                                 <input 
                                     type="text" 
                                     v-model="searchText" 
-                                    placeholder="搜索广告向量..." 
+                                    placeholder="搜索训练样本..." 
                                     class="search-input"
                                     @keyup.enter="searchVectors">
                                 <button class="search-btn" @click="searchVectors" title="搜索">
@@ -63,7 +63,7 @@
                         <!-- 按钮栏 -->
                         <div class="button-bar">
                             <button @click="addDialog = true" class="btn btn-success">
-                                ➕ 添加向量
+                                ➕ 添加样本
                             </button>
                             <button @click="testDialog = true" class="btn btn-info">
                                 🧪 测试检测
@@ -80,7 +80,7 @@
             <div class="table-section">
                 <div class="table-card">
                     <div class="table-header">
-                        <h3 class="table-title">🎯 广告向量数据</h3>
+                        <h3 class="table-title">🎯 广告训练样本</h3>
                     </div>
                     <div class="table-content">
                         <div v-if="loading" class="loading-container">
@@ -95,13 +95,13 @@
                                             <input type="checkbox" @change="toggleAllSelection" v-model="allSelected">
                                         </th>
                                         <th class="id-column" @click="handleSort('id')">
-                                            ID
+                                            消息ID
                                             <span class="sort-indicator" v-if="sortField === 'id'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
                                         </th>
                                         <th class="content-column">内容预览</th>
-                                        <th class="source-column">来源</th>
+                                        <th class="source-column">标记者</th>
                                         <th class="time-column" @click="handleSort('created_at')">
-                                            创建时间
+                                            标记时间
                                             <span class="sort-indicator" v-if="sortField === 'created_at'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
                                         </th>
                                         <th class="action-column">操作</th>
@@ -134,7 +134,7 @@
                             </table>
                             <div v-if="!vectors.length" class="empty-state">
                                 <div class="empty-icon">📄</div>
-                                <div class="empty-text">暂无向量数据</div>
+                                <div class="empty-text">暂无训练样本</div>
                             </div>
                         </div>
                     </div>
@@ -155,7 +155,7 @@
         <div v-if="detailDialog" class="modal-overlay" @click="closeDetailDialog">
             <div class="modal-content" @click.stop>
                 <div class="modal-header">
-                    <h3>向量详情</h3>
+                    <h3>样本详情</h3>
                     <button class="modal-close" @click="closeDetailDialog">✖️</button>
                 </div>
                 <div class="modal-body" v-if="currentVector">
@@ -172,7 +172,7 @@
                                 <span>{{ currentVector.id }}</span>
                             </div>
                             <div class="detail-item">
-                                <label>来源:</label>
+                                <label>标记者:</label>
                                 <span :class="'tag tag-' + getSourceTypeClass(currentVector.source)">
                                     {{ currentVector.source }}
                                 </span>
@@ -182,7 +182,7 @@
                                 <span>{{ currentVector.description || '无' }}</span>
                             </div>
                             <div class="detail-item">
-                                <label>创建时间:</label>
+                                <label>标记时间:</label>
                                 <span>{{ formatTime(currentVector.created_at) }}</span>
                             </div>
                         </div>
@@ -208,7 +208,7 @@
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/pagination.js?v=' + RESOURCE_VERSION + '"><\/script>');
-        document.write('<script src="assets/js/components/ad-vector-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/ad-training-samples.js?v=' + RESOURCE_VERSION + '"><\/script>');
     </script>
 
 </body>

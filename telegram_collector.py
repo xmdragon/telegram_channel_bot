@@ -304,7 +304,7 @@ class TelegramCollectorService:
         logger.info("任务处理器已停止")
     
     async def process_forward_task(self, task):
-        """处理消息转发任务"""
+        """处理消息转发任务（带重试机制）"""
         from app.services.message_forward_queue import forward_queue
         from app.services.message_processor import MessageProcessor
         from app.telegram.message_forwarder import message_forwarder
@@ -318,6 +318,7 @@ class TelegramCollectorService:
                 forward_queue.complete_task(
                     task, False, error_message="无效的消息ID格式"
                 )
+                await self._notify_forward_failure(message_id, "无效的消息ID格式", True)
                 return
             
             channel_id, msg_id = message_id.split(':', 1)
@@ -328,13 +329,13 @@ class TelegramCollectorService:
                 forward_queue.complete_task(
                     task, False, error_message="消息不存在"
                 )
+                await self._notify_forward_failure(message_id, "消息不存在", True)
                 return
             
             # 检查Telegram客户端（采集服务已有客户端连接）
             if not self.telegram_bot or not self.telegram_bot.client:
-                forward_queue.complete_task(
-                    task, False, error_message="Telegram客户端未连接"
-                )
+                # 客户端未连接是临时性错误，应该重试
+                await self._handle_forward_retry(task, "Telegram客户端未连接")
                 return
             
             # 执行转发
@@ -344,6 +345,8 @@ class TelegramCollectorService:
                     task, True, result={"action": "forward_to_target", "message": "转发成功"}
                 )
                 logger.info(f"消息 {message_id} 成功转发到目标频道")
+                # 通知前端转发成功
+                await self._notify_forward_success(message_id)
                 
             elif task.action == "forward_to_review":
                 await message_forwarder.forward_to_review(self.telegram_bot.client, msg_data)
@@ -356,12 +359,105 @@ class TelegramCollectorService:
                 forward_queue.complete_task(
                     task, False, error_message=f"不支持的转发动作: {task.action}"
                 )
+                await self._notify_forward_failure(message_id, f"不支持的转发动作: {task.action}", True)
             
         except Exception as e:
             logger.error(f"处理转发任务失败: {e}", exc_info=True)
+            # 检查是否需要重试
+            await self._handle_forward_retry(task, str(e))
+    
+    async def _handle_forward_retry(self, task, error_message: str):
+        """处理转发任务重试逻辑"""
+        from app.services.message_forward_queue import forward_queue
+        
+        task.retry_count += 1
+        
+        if task.retry_count < 3:
+            # 重新入队重试
+            await forward_queue.requeue_task(task)
+            logger.info(f"转发任务失败，将重试 ({task.retry_count}/3): {task.message_id}")
+            # 通知前端正在重试
+            await self._notify_forward_retry(task.message_id, task.retry_count, error_message)
+        else:
+            # 3次失败，消息回到待审核状态
+            await self._revert_to_pending(task.message_id)
             forward_queue.complete_task(
-                task, False, error_message=str(e)
+                task, False, 
+                error_message=f"转发3次失败: {error_message}"
             )
+            # 通知前端最终失败
+            await self._notify_forward_failure(task.message_id, error_message, True)
+            logger.error(f"消息 {task.message_id} 转发3次失败，已回退到待审核状态")
+    
+    async def _revert_to_pending(self, message_id: str):
+        """将消息状态改回待审核"""
+        try:
+            from app.storage.redis_manager import redis_manager
+            
+            if ':' in message_id:
+                channel_id, msg_id = message_id.split(':', 1)
+                # 更新消息状态为pending
+                redis_manager.update_message_field(
+                    channel_id, int(msg_id), 
+                    'status', 'pending'
+                )
+                # 记录失败原因
+                redis_manager.update_message_field(
+                    channel_id, int(msg_id),
+                    'forward_failure_reason', '自动转发失败，需要手动处理'
+                )
+                logger.info(f"消息 {message_id} 已回退到待审核状态")
+        except Exception as e:
+            logger.error(f"回退消息状态失败: {e}")
+    
+    async def _notify_forward_success(self, message_id: str):
+        """通过WebSocket通知转发成功"""
+        try:
+            import json
+            from app.api.websocket import websocket_manager
+            payload = {
+                "type": "forward_success",
+                "message_id": message_id,
+                "message": f"消息 {message_id} 发布成功"
+            }
+            await websocket_manager.broadcast(json.dumps(payload, ensure_ascii=False))
+        except Exception as e:
+            logger.debug(f"WebSocket通知失败: {e}")
+    
+    async def _notify_forward_retry(self, message_id: str, retry_count: int, error: str):
+        """通过WebSocket通知正在重试"""
+        try:
+            import json
+            from app.api.websocket import websocket_manager
+            payload = {
+                "type": "forward_retry",
+                "message_id": message_id,
+                "retry_count": retry_count,
+                "error": error,
+                "message": f"消息 {message_id} 发布失败，正在重试 ({retry_count}/3)"
+            }
+            await websocket_manager.broadcast(json.dumps(payload, ensure_ascii=False))
+        except Exception as e:
+            logger.debug(f"WebSocket通知失败: {e}")
+    
+    async def _notify_forward_failure(self, message_id: str, error: str, is_final: bool):
+        """通过WebSocket通知转发失败"""
+        try:
+            import json
+            from app.api.websocket import websocket_manager
+            event_type = "forward_final_failure" if is_final else "forward_failed"
+            message = f"消息 {message_id} 发布失败，已回退到待审核状态" if is_final else f"消息 {message_id} 发布失败"
+            
+            payload = {
+                "type": event_type,
+                "message_id": message_id,
+                "error": error,
+                "action": "reverted_to_pending" if is_final else None,
+                "message": message
+            }
+            await websocket_manager.broadcast(json.dumps(payload, ensure_ascii=False))
+        except Exception as e:
+            logger.debug(f"WebSocket通知失败: {e}")
     
     async def process_refetch_task(self, task):
         """处理单个媒体补抓任务"""

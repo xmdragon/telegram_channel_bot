@@ -174,6 +174,30 @@ class MessageForwardQueue:
             await asyncio.sleep(0.1)
         return task
     
+    async def requeue_task(self, task: MessageForwardTask):
+        """重新将任务加入队列（用于重试）
+        
+        Args:
+            task: 要重新入队的任务
+        """
+        try:
+            self._ensure_redis()
+            
+            # 更新任务状态为等待
+            task.status = ForwardTaskStatus.PENDING
+            
+            # 保存更新后的任务
+            task_key = f"{self.TASK_STORE_PREFIX}{task.task_id}"
+            self.redis.setex(task_key, 3600, json.dumps(task.to_dict()))
+            
+            # 重新加入队列（加到队首，优先重试）
+            self.redis.rpush(self.TASK_QUEUE_KEY, task.task_id)
+            
+            logger.info(f"任务已重新入队进行重试: {task.task_id} (重试次数: {task.retry_count}/{task.max_retries})")
+            
+        except Exception as e:
+            logger.error(f"重新入队任务失败: {e}")
+    
     def complete_task(self, task: MessageForwardTask, success: bool, result: Any = None, error_message: str = None):
         """完成转发任务
         

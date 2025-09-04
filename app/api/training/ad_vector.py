@@ -22,35 +22,56 @@ class AddVectorRequest(BaseModel):
 
 @router.get(ROUTES.training.ad_vectors)
 async def get_ad_vectors(page: int = 1, page_size: int = 20, search: str = ""):
-    """获取广告向量列表（分页）"""
+    """获取广告训练样本列表（分页）"""
     try:
-        from app.services.vector_manager import vector_manager
+        import json
+        import os
+        from app.core.path_config import PathConfig
         
-        # 加载向量数据
-        data = vector_manager._load_vectors()
-        vectors = data.get('vectors', [])
+        # 读取广告训练数据文件
+        ad_training_file = PathConfig.AD_TRAINING_FILE
+        
+        if not os.path.exists(ad_training_file):
+            # 文件不存在，返回空数据
+            return {
+                "success": True,
+                "vectors": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0
+            }
+        
+        # 读取训练数据
+        with open(ad_training_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            samples = data.get('samples', [])
         
         # 搜索过滤
         if search:
             search_lower = search.lower()
-            vectors = [v for v in vectors if search_lower in v.get('content', '').lower()]
+            samples = [s for s in samples if search_lower in s.get('content', '').lower()]
         
         # 分页处理
-        total = len(vectors)
+        total = len(samples)
         start_idx = (page - 1) * page_size
         end_idx = start_idx + page_size
-        page_vectors = vectors[start_idx:end_idx]
+        page_samples = samples[start_idx:end_idx]
         
-        # 格式化向量数据供前端使用
+        # 格式化数据供前端使用（适配原有的向量格式）
         formatted_vectors = []
-        for vector in page_vectors:
+        for sample in page_samples:
             formatted_vectors.append({
-                'id': vector.get('id'),
-                'content': vector.get('content', ''),
-                'source': vector.get('source', ''),
-                'created_at': vector.get('created_at'),
-                'vector_length': len(vector.get('vector', [])),
-                'metadata': vector.get('metadata', {})
+                'id': sample.get('message_id', ''),  # 使用message_id作为ID
+                'content': sample.get('content', ''),
+                'source': sample.get('labeled_by', 'manual'),  # 标记者
+                'created_at': sample.get('created_at'),
+                'vector_length': len(sample.get('content', '')),  # 使用内容长度代替向量长度
+                'metadata': {
+                    'sample_id': sample.get('id'),
+                    'message_id': sample.get('message_id'),
+                    'labeled_by': sample.get('labeled_by')
+                }
             })
         
         return {
@@ -67,23 +88,59 @@ async def get_ad_vectors(page: int = 1, page_size: int = 20, search: str = ""):
 
 @router.get(ROUTES.training.ad_vector_statistics)
 async def get_ad_vector_statistics():
-    """获取广告向量统计信息"""
+    """获取广告训练样本统计信息"""
     try:
-        from app.services.vector_manager import vector_manager
+        import json
+        import os
+        from datetime import datetime
+        from app.core.path_config import PathConfig
         
-        # 获取向量统计
-        stats = vector_manager.get_stats()
+        # 读取广告训练数据文件
+        ad_training_file = PathConfig.AD_TRAINING_FILE
+        
+        if not os.path.exists(ad_training_file):
+            return {
+                "success": True,
+                "statistics": {
+                    "total_vectors": 0,
+                    "source_distribution": {},
+                    "similarity_threshold": 0.7,
+                    "duplicate_threshold": 0.95,
+                    "storage_path": str(ad_training_file),
+                    "last_updated": '',
+                    "created_at": ''
+                }
+            }
+        
+        # 读取训练数据
+        with open(ad_training_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            samples = data.get('samples', [])
+        
+        # 统计标记者分布
+        source_distribution = {}
+        for sample in samples:
+            labeled_by = sample.get('labeled_by', 'unknown')
+            source_distribution[labeled_by] = source_distribution.get(labeled_by, 0) + 1
+        
+        # 获取文件修改时间
+        last_modified = datetime.fromtimestamp(os.path.getmtime(ad_training_file)).isoformat()
+        
+        # 获取最早的样本创建时间
+        created_at = ''
+        if samples:
+            created_at = min(s.get('created_at', '') for s in samples if s.get('created_at'))
         
         return {
             "success": True,
             "statistics": {
-                "total_vectors": stats.get('total_vectors', 0),
-                "source_distribution": stats.get('source_distribution', {}),
-                "similarity_threshold": stats.get('similarity_threshold', 0.7),
-                "duplicate_threshold": stats.get('duplicate_threshold', 0.95),
-                "storage_path": stats.get('storage_path', ''),
-                "last_updated": stats.get('last_updated', ''),
-                "created_at": stats.get('created_at', '')
+                "total_vectors": len(samples),
+                "source_distribution": source_distribution,
+                "similarity_threshold": 0.7,  # 保留兼容性
+                "duplicate_threshold": 0.95,  # 保留兼容性
+                "storage_path": str(ad_training_file),
+                "last_updated": last_modified,
+                "created_at": created_at
             }
         }
     except Exception as e:
@@ -92,34 +149,42 @@ async def get_ad_vector_statistics():
 
 @router.delete(ROUTES.training.ad_vector_by_id)
 async def delete_ad_vector(vector_id: str):
-    """删除单个广告向量"""
+    """删除单个广告训练样本"""
     try:
-        from app.services.vector_manager import vector_manager
+        import json
+        import os
+        from app.core.path_config import PathConfig
         
-        # 加载向量数据
-        data = vector_manager._load_vectors()
-        vectors = data.get('vectors', [])
+        # 读取广告训练数据文件
+        ad_training_file = PathConfig.AD_TRAINING_FILE
         
-        # 查找要删除的向量
-        vector_to_delete = None
-        for vector in vectors:
-            if vector.get('id') == vector_id:
-                vector_to_delete = vector
+        if not os.path.exists(ad_training_file):
+            return {"success": False, "message": "训练数据文件不存在"}
+        
+        # 读取训练数据
+        with open(ad_training_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            samples = data.get('samples', [])
+        
+        # 查找要删除的样本（vector_id对应message_id）
+        sample_to_delete = None
+        for sample in samples:
+            if sample.get('message_id') == vector_id:
+                sample_to_delete = sample
                 break
         
-        if not vector_to_delete:
-            return {"success": False, "message": "向量不存在"}
+        if not sample_to_delete:
+            return {"success": False, "message": "训练样本不存在"}
         
-        # 删除向量
-        vectors = [v for v in vectors if v.get('id') != vector_id]
-        data['vectors'] = vectors
+        # 删除样本
+        samples = [s for s in samples if s.get('message_id') != vector_id]
         
         # 保存数据
-        if vector_manager._save_vectors(data):
-            logger.info(f"成功删除向量: {vector_id}")
-            return {"success": True, "message": "向量删除成功"}
-        else:
-            raise HTTPException(status_code=500, detail="保存数据失败")
+        with open(ad_training_file, 'w', encoding='utf-8') as f:
+            json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"成功删除广告训练样本: {vector_id}")
+        return {"success": True, "message": "训练样本删除成功"}
             
     except Exception as e:
         logger.error(f"删除向量失败: {e}")
@@ -127,32 +192,42 @@ async def delete_ad_vector(vector_id: str):
 
 @router.delete(ROUTES.training.ad_vectors_batch)
 async def batch_delete_ad_vectors(request: dict):
-    """批量删除广告向量"""
+    """批量删除广告训练样本"""
     try:
         vector_ids = request.get("vector_ids", [])
         
         if not vector_ids:
-            return {"success": False, "message": "没有指定要删除的向量"}
+            return {"success": False, "message": "没有指定要删除的训练样本"}
         
-        from app.services.vector_manager import vector_manager
+        import json
+        import os
+        from app.core.path_config import PathConfig
         
-        # 加载向量数据
-        data = vector_manager._load_vectors()
-        vectors = data.get('vectors', [])
+        # 读取广告训练数据文件
+        ad_training_file = PathConfig.AD_TRAINING_FILE
         
-        # 删除指定向量
-        original_count = len(vectors)
-        vectors = [v for v in vectors if v.get('id') not in vector_ids]
-        deleted_count = original_count - len(vectors)
+        if not os.path.exists(ad_training_file):
+            return {"success": False, "message": "训练数据文件不存在"}
+        
+        # 读取训练数据
+        with open(ad_training_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            samples = data.get('samples', [])
+        
+        # 删除指定样本（vector_ids对应message_ids）
+        original_count = len(samples)
+        samples = [s for s in samples if s.get('message_id') not in vector_ids]
+        deleted_count = original_count - len(samples)
         
         if deleted_count > 0:
-            data['vectors'] = vectors
-            if not vector_manager._save_vectors(data):
-                raise HTTPException(status_code=500, detail="保存数据失败")
+            # 保存数据
+            with open(ad_training_file, 'w', encoding='utf-8') as f:
+                json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
         
+        logger.info(f"成功删除 {deleted_count} 个训练样本")
         return {
             "success": True,
-            "message": f"批量删除完成，删除了 {deleted_count} 个向量",
+            "message": f"批量删除完成，删除了 {deleted_count} 个训练样本",
             "deleted_count": deleted_count
         }
     except Exception as e:
@@ -161,37 +236,24 @@ async def batch_delete_ad_vectors(request: dict):
 
 @router.post(ROUTES.training.ad_vector_test_detection)
 async def test_ad_detection(request: VectorTestRequest):
-    """测试广告检测"""
+    """测试广告检测（现在基于关键词检测）"""
     try:
         content = request.content.strip()
         
         if not content:
             return {"success": False, "message": "测试内容不能为空"}
         
-        from app.services.vector_manager import vector_manager
-        from app.services.semantic_extractor import get_semantic_extractor
+        from app.services.unified_ad_detector import unified_ad_detector
         
-        # 提取向量
-        semantic_extractor = get_semantic_extractor(768)
-        test_vector = semantic_extractor.extract_vector(content)
-        
-        if not test_vector:
-            return {
-                "success": False, 
-                "message": "无法提取文本向量",
-                "is_ad": False,
-                "confidence": 0.0
-            }
-        
-        # 进行广告检测
-        is_ad, confidence, details = vector_manager.is_advertisement(test_vector)
+        # 使用统一广告检测器进行检测
+        detection_result = unified_ad_detector.detect(content)
         
         return {
             "success": True,
-            "is_ad": is_ad,
-            "confidence": float(confidence),
-            "threshold": vector_manager.similarity_threshold,
-            "details": details,
+            "is_ad": detection_result.is_ad,
+            "confidence": detection_result.confidence,
+            "threshold": 0.7,  # 保留兼容性
+            "details": {"reason": detection_result.reason} if detection_result.reason else {},
             "test_content": content[:200]  # 返回前200字符
         }
     except Exception as e:
@@ -200,36 +262,48 @@ async def test_ad_detection(request: VectorTestRequest):
 
 @router.post(ROUTES.training.ad_vector_add_from_text)
 async def add_vector_from_text(request: AddVectorRequest):
-    """从文本添加广告向量"""
+    """添加广告训练样本"""
     try:
+        import json
+        import os
+        from datetime import datetime
+        from app.core.path_config import PathConfig
+        
         content = request.content.strip()
         source = request.source
         
         if not content:
             return {"success": False, "message": "内容不能为空"}
         
-        from app.services.vector_manager import vector_manager
-        from app.services.semantic_extractor import get_semantic_extractor
+        # 读取广告训练数据文件
+        ad_training_file = PathConfig.AD_TRAINING_FILE
         
-        # 提取向量
-        semantic_extractor = get_semantic_extractor(768)
-        vector = semantic_extractor.extract_vector(content)
-        
-        if not vector:
-            return {"success": False, "message": "无法从文本提取向量"}
-        
-        # 添加向量
-        success = vector_manager.add_vector(
-            vector=vector,
-            content=content,
-            source=source,
-            metadata={"added_manually": True}
-        )
-        
-        if success:
-            return {"success": True, "message": "向量添加成功"}
+        # 读取现有数据
+        if os.path.exists(ad_training_file):
+            with open(ad_training_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                samples = data.get('samples', [])
         else:
-            return {"success": False, "message": "向量已存在或添加失败"}
+            samples = []
+        
+        # 创建新样本
+        new_sample = {
+            "id": len(samples) + 1,
+            "message_id": f"manual_{datetime.now().timestamp():.0f}",
+            "content": content,
+            "labeled_by": source,
+            "created_at": datetime.now().isoformat()
+        }
+        
+        samples.append(new_sample)
+        
+        # 保存数据
+        os.makedirs(os.path.dirname(ad_training_file), exist_ok=True)
+        with open(ad_training_file, 'w', encoding='utf-8') as f:
+            json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"添加广告训练样本: {new_sample['message_id']}")
+        return {"success": True, "message": "广告训练样本添加成功"}
             
     except Exception as e:
         logger.error(f"从文本添加向量失败: {e}")
@@ -237,17 +311,38 @@ async def add_vector_from_text(request: AddVectorRequest):
 
 @router.get(ROUTES.training.ad_vector_stats)
 async def get_ad_vector_stats():
-    """获取广告向量简化统计"""
+    """获取广告训练样本简化统计"""
     try:
-        from app.services.vector_manager import vector_manager
+        import json
+        import os
+        from datetime import datetime
+        from app.core.path_config import PathConfig
         
-        stats = vector_manager.get_stats()
+        # 读取广告训练数据文件
+        ad_training_file = PathConfig.AD_TRAINING_FILE
+        
+        if not os.path.exists(ad_training_file):
+            return {
+                "success": True,
+                "stats": {
+                    "totalVectors": 0,
+                    "lastUpdate": datetime.now().isoformat()
+                }
+            }
+        
+        # 读取训练数据
+        with open(ad_training_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            samples = data.get('samples', [])
+        
+        # 获取最后更新时间
+        last_update = datetime.fromtimestamp(os.path.getmtime(ad_training_file)).isoformat()
         
         return {
             "success": True,
             "stats": {
-                "totalVectors": stats.get('total_vectors', 0),
-                "lastUpdate": stats.get('last_updated', datetime.now().isoformat())
+                "totalVectors": len(samples),
+                "lastUpdate": last_update
             }
         }
     except Exception as e:

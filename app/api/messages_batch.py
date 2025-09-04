@@ -207,24 +207,34 @@ async def batch_approve_messages(
         failed_count = len([r for r in forward_results if r.get('status') == 'failed'])
         pending_count = len([r for r in forward_results if r.get('status') == 'pending'])
         
-        # 构建响应消息
-        status_parts = [f"批准 {approved_count} 条"]
-        if forwarded_count > 0:
-            status_parts.append(f"转发成功 {forwarded_count} 条")
-        if failed_count > 0:
-            status_parts.append(f"转发失败 {failed_count} 条")
+        # 构建响应消息 - 明确表示消息已提交到队列
+        if approved_count > 0:
+            primary_message = f"已将 {approved_count} 条消息提交到发布队列"
+        else:
+            primary_message = "没有消息需要处理"
+        
+        # 构建状态详情
+        status_details = []
         if pending_count > 0:
-            status_parts.append(f"处理中 {pending_count} 条")
+            status_details.append(f"{pending_count} 条正在处理")
+        if forwarded_count > 0:
+            status_details.append(f"{forwarded_count} 条已转发")
+        if failed_count > 0:
+            status_details.append(f"{failed_count} 条失败")
+        
+        detail_message = f"（{', '.join(status_details)}）" if status_details else ""
         
         return {
             "success": True,
-            "message": f"批量操作完成，{', '.join(status_parts)}",
+            "message": f"{primary_message}{detail_message}",
             "data": {
                 "approved_count": approved_count,
                 "forwarded_count": forwarded_count,
                 "failed_count": failed_count,
                 "pending_count": pending_count,
                 "total_processed": len(valid_messages),
+                "status": "queued",  # 明确标识状态为排队中
+                "queue_tasks": [task_id for _, task_id in task_ids] if task_ids else [],  # 返回任务ID列表
                 "forward_results": forward_results  # 详细结果供前端显示
             },
             "timestamp": format_for_api(get_current_time())

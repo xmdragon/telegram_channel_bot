@@ -1500,6 +1500,15 @@ const MainApp = {
                     case 'media_refetched':
                         this.handleMediaRefetched(data.data);
                         break;
+                    case 'forward_success':
+                        this.handleForwardSuccess(data.data);
+                        break;
+                    case 'forward_retry':
+                        this.handleForwardRetry(data.data);
+                        break;
+                    case 'forward_final_failure':
+                        this.handleForwardFinalFailure(data.data);
+                        break;
                     case 'pong':
                         // 心跳响应，不需要处理
                         break;
@@ -1611,6 +1620,38 @@ const MainApp = {
                 } else {
                     this.messages[messageIndex].status = updateData.status;
                 }
+            }
+        },
+
+        // 处理转发成功
+        handleForwardSuccess(data) {
+            const messageIndex = this.messages.findIndex(msg => 
+                msg.id === data.message_id || msg.message_id === data.message_id
+            );
+            if (messageIndex !== -1) {
+                // 更新消息状态为已发布
+                this.messages[messageIndex].status = 'approved';
+                // 显示成功通知
+                window.SimpleUI.Message.success(`消息 ${data.message_id} 已成功发布到目标频道`);
+            }
+        },
+
+        // 处理转发重试
+        handleForwardRetry(data) {
+            // 显示重试通知
+            window.SimpleUI.Message.warning(`消息 ${data.message_id} 发布失败，正在重试 (${data.retry_count}/3)`);
+        },
+
+        // 处理转发最终失败
+        handleForwardFinalFailure(data) {
+            const messageIndex = this.messages.findIndex(msg => 
+                msg.id === data.message_id || msg.message_id === data.message_id
+            );
+            if (messageIndex !== -1) {
+                // 更新消息状态回到待审核
+                this.messages[messageIndex].status = 'pending';
+                // 显示失败通知
+                window.SimpleUI.Message.error(`消息 ${data.message_id} 发布失败，已退回待审核状态。错误：${data.error || '未知错误'}`);
             }
         },
 

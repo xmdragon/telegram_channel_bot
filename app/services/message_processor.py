@@ -464,8 +464,13 @@ class MessageProcessor:
             
             old_messages = []
             
-            # 获取已完成状态的消息（approved、rejected）
-            for status in ['approved', 'rejected']:
+            # 针对不同状态设置不同的清理时间
+            # pending消息保留更长时间（7天），避免误删待审核消息
+            from datetime import datetime, timedelta
+            pending_cutoff_time = datetime.utcnow() - timedelta(days=7)
+            
+            # 获取所有状态的消息
+            for status in ['approved', 'rejected', 'pending']:
                 try:
                     # 使用Redis存储获取指定状态的消息
                     message_keys = self.redis_store.redis.zrange(f"msg:idx:{status}", 0, -1)
@@ -499,8 +504,12 @@ class MessageProcessor:
                                 except:
                                     continue
                         
-                        # 如果任何时间早于cutoff_time，则加入清理列表
-                        if times_to_check and any(t < cutoff_time for t in times_to_check):
+                        # 根据状态使用不同的清理时间阈值
+                        # pending消息使用7天阈值，其他使用配置的阈值
+                        threshold = pending_cutoff_time if status == 'pending' else cutoff_time
+                        
+                        # 如果任何时间早于对应的阈值，则加入清理列表
+                        if times_to_check and any(t < threshold for t in times_to_check):
                             # 构造消息对象以兼容原有清理逻辑
                             message_obj = type('Message', (), {
                                 'channel_id': channel_id,
@@ -519,7 +528,12 @@ class MessageProcessor:
                     logger.error(f"处理状态 {status} 的消息时出错: {status_e}")
                     continue
             
-            logger.debug(f"找到 {len(old_messages)} 条需要清理的旧消息")
+            if old_messages:
+                pending_count = sum(1 for msg in old_messages if msg.status == 'pending')
+                other_count = len(old_messages) - pending_count
+                logger.info(f"找到 {len(old_messages)} 条需要清理的旧消息 (待审核7天以上: {pending_count}, 已处理24小时以上: {other_count})")
+            else:
+                logger.debug("没有找到需要清理的旧消息")
             return old_messages
             
         except Exception as e:

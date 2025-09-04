@@ -29,13 +29,8 @@ class MessageScheduler:
             id='cleanup_data'
         )
         
-        # 每6小时清理临时媒体文件
-        self.scheduler.add_job(
-            self.cleanup_temp_media,
-            'interval',
-            hours=6,
-            id='cleanup_temp_media'
-        )
+        # 删除独立的媒体清理任务，统一由cleanup_old_data处理
+        # 避免消息和媒体文件不同步的问题
         
         # 每小时清理日志文件（保留1天的日志，error.log除外）
         self.scheduler.add_job(
@@ -128,104 +123,8 @@ class MessageScheduler:
         except Exception as e:
             logger.error(f"数据清理失败: {e}")
     
-    async def cleanup_temp_media(self):
-        """清理临时媒体文件目录（只删除未被引用的文件）"""
-        try:
-            temp_media_dir = Path("temp_media")
-            
-            if not temp_media_dir.exists():
-                logger.debug("temp_media目录不存在，跳过清理")
-                return
-            
-            # 获取当前时间
-            current_time = time.time()
-            # 1天前的时间戳（86400秒 = 24小时）
-            one_day_ago = current_time - 86400
-            
-            # 获取Redis中所有引用的媒体文件
-            from app.storage.redis_manager import redis_manager
-            message_store = redis_manager
-            referenced_files = set()
-            
-            # 从所有频道获取消息信息
-            channel_patterns = message_store.redis.keys('msg:idx:*')
-            for pattern in channel_patterns:
-                if pattern.startswith(b'msg:idx:') and b':' in pattern[8:]:
-                    try:
-                        channel_id = pattern[8:].decode('utf-8')
-                        if channel_id in ['pending', 'approved', 'rejected']:
-                            continue
-                        
-                        messages = message_store.get_messages_by_channel(channel_id, limit=1000)
-                        for msg in messages:
-                            # 添加主媒体文件
-                            if msg.get('media_url'):
-                                referenced_files.add(os.path.basename(msg['media_url']))
-                            
-                            # 添加媒体组中的文件
-                            if msg.get('media_group'):
-                                try:
-                                    import json
-                                    media_group = json.loads(msg['media_group']) if isinstance(msg['media_group'], str) else msg['media_group']
-                                    if isinstance(media_group, list):
-                                        for item in media_group:
-                                            if isinstance(item, dict) and item.get('file_path'):
-                                                referenced_files.add(os.path.basename(item['file_path']))
-                                except:
-                                    pass
-                    except Exception as e:
-                        logger.debug(f'处理频道 {pattern} 失败: {e}')
-                        continue
-            
-            logger.debug(f"数据库中引用了 {len(referenced_files)} 个媒体文件")
-            
-            deleted_count = 0
-            deleted_size = 0
-            skipped_count = 0
-            
-            # 遍历temp_media目录下的所有文件
-            for file_path in temp_media_dir.iterdir():
-                if file_path.is_file():
-                    file_name = file_path.name
-                    
-                    # 检查文件是否被数据库引用
-                    if file_name in referenced_files:
-                        skipped_count += 1
-                        logger.debug(f"跳过被引用的文件: {file_name}")
-                        continue
-                    
-                    # 获取文件的修改时间
-                    file_mtime = file_path.stat().st_mtime
-                    
-                    # 如果文件超过1天没有修改且未被引用，删除它
-                    if file_mtime < one_day_ago:
-                        file_size = file_path.stat().st_size
-                        try:
-                            file_path.unlink()
-                            deleted_count += 1
-                            deleted_size += file_size
-                            logger.debug(f"删除过期且未被引用的文件: {file_name}")
-                        except Exception as e:
-                            logger.error(f"删除文件失败 {file_name}: {e}")
-            
-            if deleted_count > 0 or skipped_count > 0:
-                # 转换文件大小为可读格式
-                if deleted_size > 1024 * 1024:  # MB
-                    size_str = f"{deleted_size / (1024 * 1024):.2f} MB"
-                elif deleted_size > 1024:  # KB
-                    size_str = f"{deleted_size / 1024:.2f} KB"
-                else:
-                    size_str = f"{deleted_size} bytes"
-                
-                if deleted_count > 0:
-                    logger.info(f"清理临时媒体文件完成: 删除 {deleted_count} 个文件，释放 {size_str} 空间，跳过 {skipped_count} 个被引用的文件")
-                else:
-                    logger.info(f"清理临时媒体文件: 跳过 {skipped_count} 个被引用的文件，无文件被删除")
-            else:
-                logger.debug("没有需要清理的临时媒体文件")
-                
-        except Exception as e:
-            logger.error(f"清理临时媒体文件失败: {e}")
+    # cleanup_temp_media方法已删除
+    # 所有清理逻辑统一由cleanup_old_data处理，避免不一致
     
     async def cleanup_old_logs(self):
         """清理旧日志文件（保留1天的日志，error.log除外）"""
