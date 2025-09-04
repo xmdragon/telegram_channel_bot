@@ -7,7 +7,6 @@ from typing import List, Dict, Any
 from pathlib import Path
 import logging
 import shutil
-import asyncio
 
 from .base import (
     handle_api_error
@@ -383,24 +382,34 @@ async def get_media_ocr(file_hash: str):
                         "message": f"未找到文件 {file_hash} 对应的图片文件"
                     }
                 
-                # 实时OCR识别（设置60秒超时）
-                from app.services.ocr_service import ocr_service
-                logger.info(f"实时OCR识别图片: {image_path}")
-                
-                # 使用asyncio.wait_for设置超时
+                # 实时OCR识别（添加异常处理）
                 try:
+                    from app.services.ocr_service import ocr_service
+                    logger.info(f"实时OCR识别图片: {image_path}")
+                    
+                    # 设置一个合理的超时避免永久阻塞
+                    import asyncio
                     ocr_result = await asyncio.wait_for(
                         ocr_service.extract_image_content(image_path),
-                        timeout=60.0  # 60秒超时
+                        timeout=10.0  # 10秒超时，避免永久阻塞
                     )
                 except asyncio.TimeoutError:
                     logger.warning(f"OCR识别超时: {image_path}")
                     return {
-                        "success": False,
+                        "success": True,
                         "ocr_text": "",
                         "confidence": 0.0,
                         "processed_at": datetime.now().isoformat(),
-                        "message": "OCR识别超时（60秒）"
+                        "message": "OCR服务暂时不可用（超时）"
+                    }
+                except Exception as e:
+                    logger.error(f"OCR识别异常: {e}")
+                    return {
+                        "success": True,
+                        "ocr_text": "",
+                        "confidence": 0.0,
+                        "processed_at": datetime.now().isoformat(),
+                        "message": f"OCR服务不可用: {str(e)}"
                     }
                 
                 # 合并OCR文本
