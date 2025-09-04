@@ -120,22 +120,36 @@ const app = createApp({
             await this.loadVectors();
         },
         
-        // 选择向量
-        handleSelectionChange(selection) {
-            this.selectedVectors = selection;
-            this.selectedVectorIds = selection.map(v => v.id);
-            this.allSelected = selection.length === this.vectors.length && this.vectors.length > 0;
+        // 选择向量  
+        handleVectorSelect(vector) {
+            const index = this.selectedVectorIds.indexOf(vector.id);
+            if (index > -1) {
+                // 取消选中
+                this.selectedVectorIds.splice(index, 1);
+                const vectorIndex = this.selectedVectors.findIndex(v => v.id === vector.id);
+                if (vectorIndex > -1) {
+                    this.selectedVectors.splice(vectorIndex, 1);
+                }
+            } else {
+                // 选中
+                this.selectedVectorIds.push(vector.id);
+                this.selectedVectors.push(vector);
+            }
+            this.allSelected = this.selectedVectorIds.length === this.vectors.length && this.vectors.length > 0;
         },
         
         // 全选/取消全选
         toggleAllSelection() {
-            this.allSelected = !this.allSelected;
             if (this.allSelected) {
-                this.selectedVectors = [...this.vectors];
-                this.selectedVectorIds = this.vectors.map(v => v.id);
-            } else {
+                // 当前是全选状态，取消全选
                 this.selectedVectors = [];
                 this.selectedVectorIds = [];
+                this.allSelected = false;
+            } else {
+                // 当前不是全选，进行全选
+                this.selectedVectors = [...this.vectors];
+                this.selectedVectorIds = this.vectors.map(v => v.id);
+                this.allSelected = true;
             }
         },
         

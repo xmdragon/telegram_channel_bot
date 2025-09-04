@@ -110,7 +110,7 @@
                                 <tbody>
                                     <tr v-for="vector in vectors" :key="vector.id" class="table-row">
                                         <td class="checkbox-cell">
-                                            <input type="checkbox" :value="vector" @change="handleSelectionChange" v-model="selectedVectorIds" :true-value="vector.id">
+                                            <input type="checkbox" :value="vector.id" v-model="selectedVectorIds" @change="handleVectorSelect(vector)">
                                         </td>
                                         <td class="id-cell">{{ vector.id }}</td>
                                         <td class="content-cell">
@@ -194,7 +194,76 @@
             </div>
         </div>
 
-        
+        <!-- 添加样本对话框 -->
+        <div v-if="addDialog" class="modal-overlay" @click="closeAddDialog">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3>添加训练样本</h3>
+                    <button class="modal-close" @click="closeAddDialog">✖️</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>样本内容：</label>
+                        <textarea v-model="addContent" class="form-control" rows="6" placeholder="请输入广告内容..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>样本来源：</label>
+                        <select v-model="addSource" class="form-control">
+                            <option value="manual">手动添加</option>
+                            <option value="auto">自动检测</option>
+                            <option value="import">导入数据</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" @click="closeAddDialog">取消</button>
+                    <button class="btn btn-success" @click="addVector" :disabled="addLoading">
+                        {{ addLoading ? '添加中...' : '添加' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试检测对话框 -->
+        <div v-if="testDialog" class="modal-overlay" @click="closeTestDialog">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3>测试广告检测</h3>
+                    <button class="modal-close" @click="closeTestDialog">✖️</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>测试内容：</label>
+                        <textarea v-model="testContent" class="form-control" rows="6" placeholder="输入要测试的内容..."></textarea>
+                    </div>
+                    <div v-if="testResult" class="test-result">
+                        <h4>检测结果：</h4>
+                        <div class="result-info">
+                            <div class="result-item">
+                                <label>是否为广告：</label>
+                                <span :class="testResult.is_ad ? 'text-danger' : 'text-success'">
+                                    {{ testResult.is_ad ? '是' : '否' }}
+                                </span>
+                            </div>
+                            <div class="result-item">
+                                <label>置信度：</label>
+                                <span>{{ (testResult.confidence * 100).toFixed(2) }}%</span>
+                            </div>
+                            <div v-if="testResult.details && testResult.details.reason" class="result-item">
+                                <label>检测原因：</label>
+                                <span>{{ testResult.details.reason }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" @click="closeTestDialog">关闭</button>
+                    <button class="btn btn-info" @click="testDetection" :disabled="testLoading">
+                        {{ testLoading ? '检测中...' : '开始检测' }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 动态加载JavaScript文件 -->

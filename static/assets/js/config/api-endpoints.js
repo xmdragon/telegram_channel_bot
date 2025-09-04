@@ -234,7 +234,7 @@ const API_ENDPOINTS = {
     // 媒体和静态文件路径
     media: {
         tempMedia: '/temp_media',                                  // 临时媒体文件路径
-        adTrainingData: '/media/ad_training_data',                 // 广告训练数据媒体路径
+        adTrainingData: '/media',                                  // 广告训练数据媒体路径（Nginx直接映射）
         static: '/static'                                          // 静态文件路径
     },
 

@@ -180,7 +180,10 @@ const app = createApp({
                 this.currentFile.ocrLoading = true;
                 this.currentFile.ocrError = null;
                 
-                const response = await axios.get(API.training.mediaFileOcr(fileHash));
+                // OCR处理需要更长时间，设置60秒超时
+                const response = await axios.get(API.training.mediaFileOcr(fileHash), {
+                    timeout: 60000  // 60秒超时
+                });
                 
                 if (response.data.success) {
                     // 适配后端数据结构到前端期望的格式
@@ -268,7 +271,7 @@ const app = createApp({
             }
             
             if (file.type === 'image') {
-                const imageUrl = '/media/ad_training_data/' + file.path;
+                const imageUrl = '/media/' + file.path;
                 
                 // 创建一个临时的预览器实例
                 this.$nextTick(() => {
