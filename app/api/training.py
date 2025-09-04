@@ -185,7 +185,6 @@ async def add_ad_training_sample(msg_data: Dict[str, Any], user: Dict[str, Any])
             "id": len(samples) + 1,
             "message_id": message_id,
             "content": msg_data.get('content', ''),
-            "filtered_content": msg_data.get('filtered_content', ''),
             "labeled_by": user.get('username', 'unknown'),
             "created_at": datetime.now().isoformat()
         }
@@ -332,12 +331,13 @@ async def get_tail_filter_samples(
             with open(tail_samples_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 samples = data.get('samples', [])
-        except:
+        except Exception as e:
+            logger.warning(f"读取尾部过滤样本文件失败: {e}")
             samples = []
         
-        # 搜索过滤
+        # 搜索过滤 - 搜索tail_part字段
         if search:
-            samples = [s for s in samples if search.lower() in s.get('pattern', '').lower()]
+            samples = [s for s in samples if search.lower() in s.get('tail_part', '').lower()]
         
         # 分页处理
         total = len(samples)
@@ -345,15 +345,11 @@ async def get_tail_filter_samples(
         end = start + page_size
         page_samples = samples[start:end]
         
+        # 直接返回样本列表格式，与前端期望的格式匹配
         return {
             "success": True,
-            "data": {
-                "samples": page_samples,
-                "total": total,
-                "page": page,
-                "page_size": page_size,
-                "total_pages": (total + page_size - 1) // page_size
-            }
+            "samples": page_samples,
+            "total": total
         }
         
     except Exception as e:
@@ -377,10 +373,10 @@ async def add_tail_filter_sample(
         except:
             samples = []
         
-        # 添加新样本
+        # 添加新样本 - 使用tail_part字段以匹配现有数据格式
         new_sample = {
-            "id": len(samples) + 1,
-            "pattern": sample_data.get('pattern', ''),
+            "id": max([s.get('id', 0) for s in samples], default=0) + 1,
+            "tail_part": sample_data.get('tail_part', sample_data.get('pattern', '')),  # 兼容两种字段名
             "description": sample_data.get('description', ''),
             "is_enabled": sample_data.get('is_enabled', True),
             "labeled_by": user.get('username', 'unknown'),
@@ -393,7 +389,7 @@ async def add_tail_filter_sample(
         with open(tail_samples_file, 'w', encoding='utf-8') as f:
             json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
             
-        logger.info(f"尾部过滤样本已添加: {new_sample['pattern']}")
+        logger.info(f"尾部过滤样本已添加: {new_sample['tail_part']}")
         
         return {
             "success": True,
@@ -403,6 +399,53 @@ async def add_tail_filter_sample(
     except Exception as e:
         logger.error(f"添加尾部过滤样本失败: {e}")
         raise HTTPException(status_code=500, detail=f"添加尾部过滤样本失败: {str(e)}")
+
+@router.put(ROUTES.training.tail_filter_samples_by_id)
+async def update_tail_filter_sample(
+    sample_id: int,
+    sample_data: Dict[str, Any] = Body(...),
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """更新尾部过滤样本"""
+    try:
+        tail_samples_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
+        
+        # 读取现有样本
+        try:
+            with open(tail_samples_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                samples = data.get('samples', [])
+        except:
+            raise HTTPException(status_code=404, detail="样本文件不存在")
+        
+        # 查找并更新样本
+        sample_found = False
+        for sample in samples:
+            if sample.get('id') == sample_id:
+                # 更新样本数据
+                sample['tail_part'] = sample_data.get('tail_part', sample.get('tail_part', ''))
+                sample['description'] = sample_data.get('description', sample.get('description', ''))
+                sample['is_enabled'] = sample_data.get('is_enabled', sample.get('is_enabled', True))
+                sample['updated_at'] = datetime.now().isoformat()
+                sample_found = True
+                break
+        
+        if not sample_found:
+            raise HTTPException(status_code=404, detail="样本不存在")
+        
+        # 保存更新后的数据
+        with open(tail_samples_file, 'w', encoding='utf-8') as f:
+            json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
+            
+        logger.info(f"尾部过滤样本已更新: ID={sample_id}")
+        
+        return {"success": True, "message": "样本已更新"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新尾部过滤样本失败: {e}")
+        raise HTTPException(status_code=500, detail=f"更新尾部过滤样本失败: {str(e)}")
 
 @router.delete(ROUTES.training.tail_filter_samples_by_id)
 async def delete_tail_filter_sample(
@@ -473,13 +516,12 @@ async def get_tail_filter_statistics(
             except:
                 pass
         
+        # 直接返回数据，不嵌套在data字段中
         return {
             "success": True,
-            "data": {
-                "total_samples": total_samples,
-                "valid_samples": enabled_samples,
-                "today_added": today_added
-            }
+            "total_samples": total_samples,
+            "valid_samples": enabled_samples,
+            "today_added": today_added
         }
         
     except Exception as e:

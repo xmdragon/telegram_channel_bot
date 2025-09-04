@@ -579,15 +579,15 @@ class MessageProcessor:
                 logger.error(f"清理训练数据失败: {e}")
                 # 不因为清理失败而让整个操作失败
             
-            # 从向量数据库移除相关广告向量（仅使用filtered_content）
+            # 从向量数据库移除相关广告向量（使用content）
             try:
                 from app.services.vector_manager import vector_manager
-                content = msg_data.get('filtered_content', '')
+                content = msg_data.get('content', '')
                 if content:
                     removed_count = vector_manager.remove_vector_by_content(content)
                     logger.info(f"🚫 标记非广告：从向量库移除 {removed_count} 个向量")
                 else:
-                    logger.warning("消息缺少filtered_content，跳过向量移除")
+                    logger.warning("消息缺少content，跳过向量移除")
             except Exception as e:
                 logger.error(f"移除广告向量失败: {e}")
             
@@ -862,7 +862,7 @@ class MessageProcessor:
             
             # 如果没有提供filtered_content，重新执行过滤逻辑
             if filtered_content is None:
-                original_content = message.get('content') or message.get('filtered_content', '')
+                original_content = message.get('content', '')
                 if not original_content:
                     logger.warning(f"消息没有内容可以过滤: {channel_id}:{message_id}")
                     return True
