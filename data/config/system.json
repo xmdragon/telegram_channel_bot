@@ -20,13 +20,6 @@
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.309382"
   },
-  "filter.ocr_enabled": {
-    "value": "true",
-    "config_type": "boolean",
-    "description": "启用OCR图片文字识别",
-    "is_active": true,
-    "created_at": "2025-08-29T19:32:07.309617"
-  },
   "review.require_approval": {
     "value": "true",
     "config_type": "boolean",

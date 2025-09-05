@@ -108,7 +108,7 @@ const API_ENDPOINTS = {
         // 媒体文件管理
         mediaFiles: '/api/training/media-files',                 // GET - 获取媒体文件列表
         mediaFileById: (hash) => `/api/training/media-files/${hash}`, // DELETE - 删除媒体文件
-        mediaFileOcr: (hash) => `/api/training/media-files/ocr/${hash}`, // GET - 获取媒体文件OCR结果
+        // OCR功能已移除
         mediaFilesExport: '/api/training/media-files/export',    // GET - 导出媒体文件
         mediaFilesCleanOrphaned: '/api/training/media-files/clean-orphaned', // POST - 清理孤立文件
         mediaFilesRebuildHashes: '/api/training/media-files/rebuild-visual-hashes', // POST - 重建视觉哈希

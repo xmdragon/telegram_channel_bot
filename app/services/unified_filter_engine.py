@@ -71,7 +71,6 @@ class UnifiedFilterEngine:
             # 加载系统配置
             filter_enabled = True
             tail_filter_enabled = True
-            ocr_enabled = True
             footer_promo_enabled = True
             markdown_enabled = True
             promo_vector_enabled = True
@@ -87,7 +86,6 @@ class UnifiedFilterEngine:
                     if hasattr(config_mgr, '_cache') and config_mgr._cache:
                         filter_enabled = config_mgr._cache.get('filter.enabled', {}).get('value', True)
                         tail_filter_enabled = config_mgr._cache.get('filter.tail_filter_enabled', {}).get('value', True)
-                        ocr_enabled = config_mgr._cache.get('filter.ocr_enabled', {}).get('value', True)
                         footer_promo_enabled = config_mgr._cache.get('filter.footer_promo_enabled', {}).get('value', True)
                         markdown_enabled = config_mgr._cache.get('filter.markdown_enabled', {}).get('value', True)
                         promo_vector_enabled = config_mgr._cache.get('filter.promo_vector_enabled', {}).get('value', True)
@@ -98,7 +96,6 @@ class UnifiedFilterEngine:
                     # 如果不在事件循环中，运行异步调用
                     filter_enabled = loop.run_until_complete(config_manager.get_config('filter.enabled', True))
                     tail_filter_enabled = loop.run_until_complete(config_manager.get_config('filter.tail_filter_enabled', True))
-                    ocr_enabled = loop.run_until_complete(config_manager.get_config('filter.ocr_enabled', True))
                     footer_promo_enabled = loop.run_until_complete(config_manager.get_config('filter.footer_promo_enabled', True))
                     markdown_enabled = loop.run_until_complete(config_manager.get_config('filter.markdown_enabled', True))
                     promo_vector_enabled = loop.run_until_complete(config_manager.get_config('filter.promo_vector_enabled', True))
@@ -119,7 +116,6 @@ class UnifiedFilterEngine:
             
             filter_enabled = to_bool(filter_enabled)
             tail_filter_enabled = to_bool(tail_filter_enabled)
-            ocr_enabled = to_bool(ocr_enabled)
             footer_promo_enabled = to_bool(footer_promo_enabled)
             markdown_enabled = to_bool(markdown_enabled)
             promo_vector_enabled = to_bool(promo_vector_enabled)
@@ -143,7 +139,6 @@ class UnifiedFilterEngine:
                 'ad_detector': ad_detector_enabled,
                 
                 # 其他配置
-                'ocr_enabled': ocr_enabled,
                 'auto_reject_ads': auto_reject_ads,
                 'auto_reject_high_risk': auto_reject_high_risk
             }
@@ -162,7 +157,6 @@ class UnifiedFilterEngine:
                 'markdown_filter': True,
                 'promo_vector_filter': True,
                 'ad_detector': False,
-                'ocr_enabled': True,
                 'auto_reject_ads': True,
                 'auto_reject_high_risk': False
             }

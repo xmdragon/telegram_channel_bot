@@ -251,7 +251,7 @@ class RouteConfig:
         media_files_export = "/training/media-files/export"
         media_files_deduplicate = "/training/media-files/deduplicate"
         media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
-        media_files_ocr = "/training/media-files/ocr/{file_hash}"
+        # OCR功能已移除
         media_files_by_hash = "/training/media-files/{file_hash}"
         
         # 推广链接训练

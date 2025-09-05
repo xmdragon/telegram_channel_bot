@@ -1007,15 +1007,37 @@
       "rejection_reason": "",
       "message_id": null,
       "source_channel": null
+    },
+    {
+      "id": "611ea17ff3c5",
+      "image_hash": "f12b124d41e55da5",
+      "image_path": "data/training/ad/images/2025-08/5138_20250810_215635_7621eb0d.jpg",
+      "ocr_texts": [
+        "检测到密集文字区域",
+        "检测到多个圆形元素（疑似老虎机/筹码）",
+        "高风险广告图像特征组合"
+      ],
+      "qr_codes": [],
+      "ad_score": 60.0,
+      "is_ad": true,
+      "keywords_detected": [
+        "赌博视觉特征检测: 40.0分",
+        "简短文字包含广告信息"
+      ],
+      "created_at": "2025-09-04 22:23:04",
+      "auto_rejected": false,
+      "rejection_reason": "",
+      "message_id": null,
+      "source_channel": null
     }
   ],
   "statistics": {
-    "total_samples": 69,
-    "ad_samples": 1,
+    "total_samples": 70,
+    "ad_samples": 2,
     "non_ad_samples": 68,
     "auto_rejected_samples": 0,
-    "high_score_samples": 0,
-    "last_updated": "2025-08-21 01:41:52",
+    "high_score_samples": 1,
+    "last_updated": "2025-09-04 22:23:04",
     "created_at": "2025-08-19 14:19:41"
   },
   "learned_patterns": {

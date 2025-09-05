@@ -161,79 +161,9 @@ const app = createApp({
         // 查看文件详情
         viewDetails(file) {
             this.currentFile = {
-                ...file,
-                ocrResult: null,
-                ocrLoading: false,
-                ocrError: null
+                ...file
             };
             this.detailDialog = true;
-            
-            // 如果是图片文件，自动获取OCR识别结果
-            if (file.type === 'image') {
-                this.loadOCRResult(file.hash);
-            }
-        },
-        
-        // 加载OCR识别结果
-        async loadOCRResult(fileHash) {
-            try {
-                this.currentFile.ocrLoading = true;
-                this.currentFile.ocrError = null;
-                
-                // 调试：记录请求信息
-                const ocrUrl = API.training.mediaFileOcr(fileHash);
-                console.log('发送OCR请求:', {
-                    url: ocrUrl,
-                    fileHash: fileHash,
-                    timeout: '60秒'
-                });
-                
-                // OCR处理需要更长时间，设置60秒超时
-                const response = await axios.get(ocrUrl, {
-                    timeout: 60000  // 60秒超时
-                });
-                
-                if (response.data.success) {
-                    // 适配后端数据结构到前端期望的格式
-                    const ocrData = response.data;
-                    
-                    console.log('OCR响应成功:', {
-                        hasText: !!ocrData.ocr_text,
-                        message: ocrData.message,
-                        processedAt: ocrData.processed_at
-                    });
-                    
-                    this.currentFile.ocrResult = {
-                        texts: ocrData.ocr_text ? ocrData.ocr_text.split('\n').filter(t => t.trim()) : [],
-                        qr_codes: ocrData.qr_codes || [],
-                        confidence: ocrData.ad_score || 0,
-                        is_ad: ocrData.is_ad || false,
-                        ad_indicators: ocrData.keywords_detected || [],
-                        processed_at: ocrData.processed_at
-                    };
-                } else {
-                    console.warn('OCR响应失败:', response.data);
-                    this.currentFile.ocrError = response.data.message || '获取OCR结果失败';
-                }
-                
-            } catch (error) {
-                // 改进错误处理：优先使用message字段，然后是detail，最后是error.message
-                this.currentFile.ocrError = error.response?.data?.message || 
-                                           error.response?.data?.detail || 
-                                           error.message || 
-                                           '获取OCR结果失败';
-                
-                // 详细的错误日志，便于调试
-                console.error('OCR请求失败详情:', {
-                    url: API.training.mediaFileOcr(fileHash),
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    data: error.response?.data,
-                    message: error.message
-                });
-            } finally {
-                this.currentFile.ocrLoading = false;
-            }
         },
         
         // 获取广告分数类型（用于标签颜色）

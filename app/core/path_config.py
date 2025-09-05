@@ -47,7 +47,7 @@ class PathConfig:
     OTHER_TRAINING_DIR = TRAINING_DIR / "other"
     AI_FILTER_PATTERNS_FILE = OTHER_TRAINING_DIR / "ai_filter_patterns.json"
     LEARNED_PATTERNS_FILE = OTHER_TRAINING_DIR / "learned_patterns.json"
-    OCR_SAMPLES_FILE = OTHER_TRAINING_DIR / "ocr_samples.json"
+    # OCR功能已移除
     
     # 模型和缓存目录
     MODELS_DIR = DATA_DIR / "models"

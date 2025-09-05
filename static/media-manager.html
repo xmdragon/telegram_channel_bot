@@ -203,57 +203,6 @@
                                     </span>
                                 </td>
                             </tr>
-                            <tr v-if="currentFile.type === 'image'">
-                                <td><strong>OCR识别结果:</strong></td>
-                                <td>
-                                    <div v-if="currentFile.ocrLoading" class="ocr-loading">
-                                        <div class="spinner-small"></div>
-                                        <span>正在识别图片内容...</span>
-                                    </div>
-                                    <div v-else-if="currentFile.ocrResult" class="ocr-result">
-                                        <div v-if="currentFile.ocrResult.texts && currentFile.ocrResult.texts.length > 0" class="ocr-section">
-                                            <strong>识别文字 ({{ currentFile.ocrResult.texts.length }}条):</strong>
-                                            <div class="ocr-text-list">
-                                                <span v-for="(text, index) in currentFile.ocrResult.texts" :key="index" class="tag tag-info">
-                                                    {{ text }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div v-if="currentFile.ocrResult.qr_codes && currentFile.ocrResult.qr_codes.length > 0" class="ocr-section">
-                                            <strong>二维码内容 ({{ currentFile.ocrResult.qr_codes.length }}个):</strong>
-                                            <div class="ocr-text-list">
-                                                <span v-for="(qr, index) in currentFile.ocrResult.qr_codes" :key="index" class="tag tag-warning">
-                                                    📱 {{ qr.data || qr }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div v-if="currentFile.ocrResult.confidence !== undefined" class="ocr-section">
-                                            <strong>广告分数:</strong>
-                                            <span :class="getAdScoreClass(currentFile.ocrResult.confidence)" class="tag ad-score-tag">
-                                                {{ currentFile.ocrResult.confidence.toFixed(1) }}/100
-                                            </span>
-                                            <span v-if="currentFile.ocrResult.is_ad" class="ad-indicator">
-                                                ⚠️ 疑似广告
-                                            </span>
-                                        </div>
-                                        <div v-if="currentFile.ocrResult.ad_indicators && currentFile.ocrResult.ad_indicators.length > 0" class="ocr-section">
-                                            <strong>广告特征:</strong>
-                                            <div class="ocr-text-list">
-                                                <span v-for="(indicator, index) in currentFile.ocrResult.ad_indicators" :key="index" class="tag tag-danger">
-                                                    {{ indicator }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div v-if="(!currentFile.ocrResult.texts || currentFile.ocrResult.texts.length === 0) && 
-                                                 (!currentFile.ocrResult.qr_codes || currentFile.ocrResult.qr_codes.length === 0)" class="ocr-empty">
-                                            <span>ℹ️ 未识别到文字或二维码内容</span>
-                                        </div>
-                                    </div>
-                                    <div v-else-if="currentFile.ocrError" class="ocr-error">
-                                        <span>❌ OCR识别失败: {{ currentFile.ocrError }}</span>
-                                    </div>
-                                </td>
-                            </tr>
                         </table>
                         
                         <div class="dialog-footer">

@@ -350,34 +350,8 @@ class MessageFilterProcessor(MessageProcessor):
         if not context.media_info or not context.ocr_result:
             return
         
-        try:
-            from app.services.ocr_service import ocr_service
-            import hashlib
-            import asyncio
-            
-            file_path = context.media_info.get('file_path')
-            if not file_path:
-                return
-            
-            # 计算文件哈希
-            with open(file_path, 'rb') as f:
-                file_hash = hashlib.md5(f.read()).hexdigest()
-            
-            # 异步保存样本
-            asyncio.create_task(ocr_service._save_ocr_sample(
-                image_path=file_path,
-                image_hash=file_hash,
-                texts=context.ocr_result.get('texts', []),
-                qr_codes=[qr.get('data', '') for qr in context.ocr_result.get('qr_codes', []) if qr.get('data')],
-                ad_score=context.ocr_result.get('ad_score', 0),
-                is_ad=True,
-                keywords_detected=context.ocr_result.get('ad_indicators', []),
-                auto_rejected=True,
-                rejection_reason=reject_reason
-            ))
-            
-        except Exception as e:
-            self.logger.debug(f"保存拒绝样本失败: {e}")
+        # OCR功能已移除，不再保存OCR样本
+        pass
     
     async def _learn_from_ad_detection(self, context: MessageContext, ad_detection_result: dict):
         """从广告检测结果中学习新规则"""

@@ -8,7 +8,7 @@ from .basic import router as basic_router
 from .tail_filter import router as tail_filter_router
 from .media import router as media_router
 from .ad_vector import router as ad_vector_router
-from .ocr import router as ocr_router
+# OCR功能已移除
 from .admin import router as admin_router
 from .thresholds import router as thresholds_router
 from .promo_training import router as promo_training_router
@@ -32,8 +32,7 @@ def register_training_routes():
     # 广告向量管理
     router.include_router(ad_vector_router, tags=["training-ad-vector"])
     
-    # OCR样本管理
-    router.include_router(ocr_router, tags=["training-ocr"])
+    # OCR功能已移除
     
     # 系统管理
     router.include_router(admin_router, tags=["training-admin"])

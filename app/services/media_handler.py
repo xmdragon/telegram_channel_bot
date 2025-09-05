@@ -11,7 +11,7 @@ from typing import Optional, Dict, List, Any
 from pathlib import Path
 
 from telethon import TelegramClient
-from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
+from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, MessageMediaWebPage
 from app.core.config import db_settings
 
 logger = logging.getLogger(__name__)
@@ -134,6 +134,125 @@ class MediaHandler:
                 })
                 
                 logger.debug(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
+                
+            elif isinstance(message.media, MessageMediaWebPage):
+                # 处理链接预览（可能包含预览图或嵌入媒体）
+                from telethon.tl.types import MessageMediaWebPage
+                webpage = message.media.webpage
+                
+                # 检查是否有预览图片
+                if hasattr(webpage, 'photo') and webpage.photo:
+                    media_info["media_type"] = "webpage_photo"
+                    file_name = f"{file_prefix}_webpage_photo.jpg"
+                    file_path = self.temp_dir / file_name
+                    
+                    # 下载预览图片
+                    if timeout:
+                        download_timeout = timeout
+                    else:
+                        download_timeout = 1800.0
+                    
+                    try:
+                        await asyncio.wait_for(
+                            client.download_media(webpage.photo, file_path),
+                            timeout=download_timeout
+                        )
+                        
+                        # 计算文件哈希
+                        file_hash = None
+                        visual_hashes = None
+                        if file_path.exists():
+                            file_hash = await self._calculate_file_hash(str(file_path))
+                            # 计算视觉哈希
+                            if visual_detector:
+                                try:
+                                    with open(file_path, 'rb') as f:
+                                        image_data = f.read()
+                                    visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
+                                    logger.debug(f"📊 链接预览图片视觉哈希计算成功: {file_name}")
+                                except Exception as e:
+                                    logger.debug(f"计算链接预览图片视觉哈希失败: {e}")
+                        
+                        media_info.update({
+                            "file_path": str(file_path),
+                            "file_name": file_name,
+                            "file_size": file_path.stat().st_size if file_path.exists() else 0,
+                            "mime_type": "image/jpeg",
+                            "hash": file_hash,
+                            "visual_hashes": visual_hashes,
+                            "webpage_url": webpage.url if hasattr(webpage, 'url') else None,
+                            "webpage_title": webpage.title if hasattr(webpage, 'title') else None
+                        })
+                        
+                        logger.debug(f"链接预览图片下载完成: {file_name} ({media_info['file_size']} bytes)")
+                        
+                    except asyncio.TimeoutError:
+                        logger.debug(f"下载链接预览图片超时: {file_name}")
+                        return None
+                    except Exception as e:
+                        logger.debug(f"下载链接预览图片失败: {e}")
+                        return None
+                
+                # 检查是否有嵌入文档（如嵌入视频）
+                elif hasattr(webpage, 'document') and webpage.document:
+                    document = webpage.document
+                    
+                    # 确定文件类型
+                    mime_type = document.mime_type or "application/octet-stream"
+                    if mime_type.startswith("video/"):
+                        media_info["media_type"] = "webpage_video"
+                        extension = ".mp4"
+                    else:
+                        media_info["media_type"] = "webpage_document"
+                        extension = ".bin"
+                    
+                    file_name = f"{file_prefix}_webpage{extension}"
+                    file_path = self.temp_dir / file_name
+                    
+                    # 检查文件大小限制
+                    if document.size > 512 * 1024 * 1024:
+                        logger.debug(f"链接嵌入文件太大，跳过下载: {document.size} bytes")
+                        return None
+                    
+                    # 下载嵌入文档
+                    if timeout:
+                        download_timeout = timeout
+                    else:
+                        download_timeout = 1800.0
+                    
+                    try:
+                        await asyncio.wait_for(
+                            client.download_media(webpage.document, file_path),
+                            timeout=download_timeout
+                        )
+                        
+                        # 计算文件哈希
+                        file_hash = None
+                        if file_path.exists():
+                            file_hash = await self._calculate_file_hash(str(file_path))
+                        
+                        media_info.update({
+                            "file_path": str(file_path),
+                            "file_name": file_name,
+                            "file_size": file_path.stat().st_size if file_path.exists() else 0,
+                            "mime_type": mime_type,
+                            "hash": file_hash,
+                            "webpage_url": webpage.url if hasattr(webpage, 'url') else None,
+                            "webpage_title": webpage.title if hasattr(webpage, 'title') else None
+                        })
+                        
+                        logger.debug(f"链接嵌入媒体下载完成: {file_name} ({media_info['file_size']} bytes)")
+                        
+                    except asyncio.TimeoutError:
+                        logger.debug(f"下载链接嵌入媒体超时: {file_name}")
+                        return None
+                    except Exception as e:
+                        logger.debug(f"下载链接嵌入媒体失败: {e}")
+                        return None
+                else:
+                    # 纯链接，没有可下载的媒体
+                    logger.debug(f"链接预览没有可下载的媒体: {webpage.url if hasattr(webpage, 'url') else 'unknown'}")
+                    return None
                 
             elif isinstance(message.media, MessageMediaDocument):
                 # 处理文档/视频/动图等

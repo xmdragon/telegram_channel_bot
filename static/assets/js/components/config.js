@@ -101,10 +101,7 @@ const ConfigApp = {
                 
                 // 内容检测过滤器
                 duplicate: true,          // 去重检测
-                ad_detector: true,        // 广告检测
-                
-                // 额外功能
-                ocr_enabled: true         // OCR图片文字识别
+                ad_detector: true         // 广告检测
             }
         }
     },
@@ -544,10 +541,7 @@ const ConfigApp = {
                         
                         // 内容检测过滤器
                         duplicate: this.parseBooleanValue(configs['filter.duplicate_enabled'], true),
-                        ad_detector: this.parseBooleanValue(configs['filter.ad_detector_enabled'], true),
-                        
-                        // 额外功能
-                        ocr_enabled: this.parseBooleanValue(configs['filter.ocr_enabled'], true)
+                        ad_detector: this.parseBooleanValue(configs['filter.ad_detector_enabled'], true)
                     };
                 }
             } catch (error) {
@@ -574,10 +568,7 @@ const ConfigApp = {
                     'filter.enabled': Boolean(
                         this.filterSettings.duplicate || 
                         this.filterSettings.ad_detector
-                    ),
-                    
-                    // 额外功能
-                    'filter.ocr_enabled': this.filterSettings.ocr_enabled
+                    )
                 };
                 
                 console.log('保存过滤器配置:', configData);
@@ -613,10 +604,7 @@ const ConfigApp = {
                 
                 // 内容检测过滤器
                 duplicate: true,
-                ad_detector: true,
-                
-                // 额外功能
-                ocr_enabled: true
+                ad_detector: true
             };
             
             MessageManager.success('过滤器配置已重置为默认值');

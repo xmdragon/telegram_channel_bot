@@ -98,7 +98,7 @@ class MessageReceiver(MessageProcessor):
     def _get_media_type(self, media) -> str:
         """获取媒体类型"""
         try:
-            from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
+            from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, MessageMediaWebPage
             from telethon.tl.types import DocumentAttributeVideo, DocumentAttributeAudio
             from telethon.tl.types import DocumentAttributeAnimated, DocumentAttributeSticker
             
@@ -126,6 +126,9 @@ class MessageReceiver(MessageProcessor):
                         elif document.mime_type.startswith('image/'):
                             return 'photo'
                 return 'document'
+            elif isinstance(media, MessageMediaWebPage):
+                # 链接预览类型（可能包含缩略图或嵌入媒体）
+                return 'webpage'
             else:
                 return 'unknown'
         except Exception as e:
@@ -235,7 +238,11 @@ class MediaDownloader(MessageProcessor):
                 if has_client:
                     # collector环境：真正的下载失败
                     context.media_type_info['download_failed'] = True
-                    self.logger.warning(f"媒体下载失败，但已记录媒体类型: {media_type}")
+                    # webpage类型不下载是正常的，其他类型才是真正的失败
+                    if media_type == 'webpage':
+                        self.logger.debug(f"链接预览没有可下载的媒体，跳过: {media_type}")
+                    else:
+                        self.logger.warning(f"媒体下载失败，但已记录媒体类型: {media_type}")
                 else:
                     # processor环境：正常跳过，不记录为失败
                     context.media_type_info['download_skipped'] = True  

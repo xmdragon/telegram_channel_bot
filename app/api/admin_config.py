@@ -87,7 +87,6 @@ async def get_system_config():
         "telegram.api_hash": await config_manager.get_config('telegram.api_hash', ''),
         "filter.enabled": await config_manager.get_config('filter.enabled', True),
         "filter.tail_filter_enabled": await config_manager.get_config('filter.tail_filter_enabled', True),
-        "filter.ocr_enabled": await config_manager.get_config('filter.ocr_enabled', True),
         "review.require_approval": await config_manager.get_config('review.require_approval', True),
         "review.auto_forward_after_collect": await config_manager.get_config('review.auto_forward_after_collect', True),
         "scheduler.enabled": await config_manager.get_config('scheduler.enabled', True),
