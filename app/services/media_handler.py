@@ -137,7 +137,6 @@ class MediaHandler:
                 
             elif isinstance(message.media, MessageMediaWebPage):
                 # 处理链接预览（可能包含预览图或嵌入媒体）
-                from telethon.tl.types import MessageMediaWebPage
                 webpage = message.media.webpage
                 
                 # 检查是否有预览图片

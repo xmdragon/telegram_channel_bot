@@ -50,8 +50,9 @@ class MessageReceiver(MessageProcessor):
             # 步骤4: Linus式源头拦截 - 直接丢弃空消息
             if not self._is_valid_message(context):
                 self.logger.debug(f"消息 #{message.id} 无有效内容，直接丢弃（不进入处理流程）")
-                # 返回失败结果，表示此消息应被丢弃，不进入后续处理
-                return ProcessorResult(False, context, "无有效内容，直接丢弃")
+                # 返回成功但标记为空消息，让后续处理器跳过（不记录错误）
+                context.is_empty_message = True
+                return ProcessorResult(True, context)
             
             self.logger.info(f"消息接收完成: ID#{message.id}, 内容长度:{len(original_content)}, 媒体:{bool(message.media)}")
             return ProcessorResult(True, context)
