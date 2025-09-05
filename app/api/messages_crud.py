@@ -785,33 +785,31 @@ async def refetch_message_media(
     user: Dict[str, Any] = Depends(require_auth)
 ):
     """
-    重新获取消息的媒体文件
+    重新获取消息的媒体文件（通过队列异步处理）
     """
     try:
-        # 解析消息ID
-        if ':' in message_id:
-            channel_id, msg_id = message_id.split(':', 1)
-        else:
+        # 验证消息ID格式
+        if ':' not in message_id:
             raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        # 使用消息处理器重新获取媒体
-        message_processor = get_message_processor()
-        success = await message_processor.refetch_media(channel_id, int(msg_id))
+        # 使用媒体补抓服务提交任务到队列
+        from app.services.media_refetch_service import media_refetch_service
+        task_id = media_refetch_service.submit_task(message_id)
         
-        if not success:
-            raise HTTPException(status_code=500, detail="重新获取媒体失败")
+        logger.info(f"媒体补抓任务已提交: {task_id} for message {message_id}")
         
         return {
             "success": True,
-            "message": "媒体文件已重新获取",
+            "message": "媒体补抓任务已提交到队列",
+            "task_id": task_id,
             "timestamp": format_for_api(get_current_time())
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"重新获取媒体失败: {e}")
-        raise HTTPException(status_code=500, detail=f"重新获取媒体失败: {str(e)}")
+        logger.error(f"提交媒体补抓任务失败: {e}")
+        raise HTTPException(status_code=500, detail=f"提交媒体补抓任务失败: {str(e)}")
 
 @router.delete(ROUTES.messages.delete_review)
 @check_permission("message.delete_review")

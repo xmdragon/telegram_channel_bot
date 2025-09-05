@@ -111,6 +111,17 @@ class WebSocketManager:
         }
         logger.info(f"📡 广播进度: {operation} - {progress}% - {message}")
         await self.broadcast(json.dumps(payload, ensure_ascii=False))
+    
+    async def broadcast_media_refetched(self, data: Dict):
+        """广播媒体补抓完成通知"""
+        payload = {
+            "type": "media_refetched",
+            "data": data,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        message_id = data.get("message_id", "unknown")
+        logger.info(f"📡 广播媒体补抓完成: {message_id}")
+        await self.broadcast(json.dumps(payload, ensure_ascii=False))
 
 # 全局WebSocket管理器实例
 websocket_manager = WebSocketManager()

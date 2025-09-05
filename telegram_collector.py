@@ -582,6 +582,52 @@ class TelegramCollectorService:
                         except Exception as e:
                             logger.error(f"保存到训练目录失败: {e}")
                     
+                    # 通过WebSocket通知前端媒体补抓完成
+                    try:
+                        from app.api.websocket import websocket_manager
+                        import os
+                        
+                        # 生成显示URL
+                        file_name = os.path.basename(media_info["file_path"])
+                        media_display_url = f'/media/{file_name}' if file_name else None
+                        
+                        # 构造通知数据
+                        notification_data = {
+                            "message_id": message_id,
+                            "media_url": media_info["file_path"],
+                            "media_display_url": media_display_url,
+                            "media_type": media_info.get("media_type"),
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                        
+                        # 如果是组合消息，需要特殊处理
+                        if msg_data.get('is_combined') == 'True':
+                            # 获取完整的组合消息媒体信息
+                            combined_messages = json.loads(msg_data.get('combined_messages', '[]'))
+                            media_group_display = []
+                            
+                            for sub_msg in combined_messages:
+                                if sub_msg.get('media_path'):
+                                    sub_file_name = os.path.basename(sub_msg['media_path'])
+                                    media_group_display.append({
+                                        'message_id': sub_msg.get('message_id'),
+                                        'media_type': sub_msg.get('media_type'),
+                                        'file_path': sub_msg.get('media_path'),
+                                        'display_url': f'/media/{sub_file_name}' if sub_file_name else None
+                                    })
+                            
+                            if media_group_display:
+                                notification_data["media_group_display"] = media_group_display
+                        
+                        # 发送WebSocket通知
+                        await websocket_manager.broadcast_media_refetched(notification_data)
+                        logger.info(f"✅ WebSocket通知已发送: 媒体补抓完成 {message_id}")
+                        
+                    except ImportError:
+                        logger.warning("WebSocket管理器不可用，跳过媒体补抓通知")
+                    except Exception as e:
+                        logger.error(f"发送媒体补抓WebSocket通知失败: {e}")
+                    
                     # 完成任务
                     result = {
                         "media_url": media_info["file_path"],
