@@ -130,7 +130,14 @@ class SemanticExtractor:
             
             if self.using_onnx:
                 # ONNX推理路径 - 高速加载，精度一致
-                inputs = self.onnx_tokenizer(clean_text, return_tensors="pt", truncation=True, padding=True)
+                # 确保输入长度不超过512 tokens，避免维度不匹配
+                inputs = self.onnx_tokenizer(
+                    clean_text, 
+                    return_tensors="pt", 
+                    truncation=True,     # 确保截断超长文本
+                    padding=True,
+                    max_length=512       # 明确指定最大长度512，匹配ONNX模型
+                )
                 outputs = self.onnx_model(**inputs)
                 
                 # 平均池化得到句子向量（与text2vec一致）
