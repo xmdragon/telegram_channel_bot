@@ -357,8 +357,6 @@ class TelegramDualSessionManager:
                 
             if not api_id:
                 errors.append("api_id配置缺失或为空")
-            elif not isinstance(api_id, int):
-                errors.append("api_id必须是整数")
                 
             if not api_hash:
                 errors.append("api_hash配置缺失或为空")
@@ -398,8 +396,6 @@ class TelegramDualSessionManager:
                 
             if not api_id:
                 errors.append("api_id配置缺失或为空")
-            elif not isinstance(api_id, int):
-                errors.append("api_id必须是整数")
                 
             if not api_hash:
                 errors.append("api_hash配置缺失或为空")

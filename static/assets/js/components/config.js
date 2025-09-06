@@ -100,8 +100,7 @@ const ConfigApp = {
                 promo_vector: true,       // 推广内容向量过滤
                 
                 // 内容检测过滤器
-                duplicate: true,          // 去重检测
-                ad_detector: true         // 广告检测
+                duplicate: true          // 去重检测
             }
         }
     },
@@ -113,7 +112,13 @@ const ConfigApp = {
             return;
         }
         
-        this.loadConfigData();
+        // 加载配置数据
+        await this.loadConfigData();
+        
+        // 强制更新视图以确保数据显示
+        this.$nextTick(() => {
+            this.$forceUpdate();
+        });
     },
     
     computed: {
@@ -166,7 +171,7 @@ const ConfigApp = {
                 // 加载转发配置
                 await this.loadForwardingConfig();
                 
-                // 加载系统配置
+                // 加载系统配置 - 这里包含了 API 和 signature
                 await this.loadSystemConfig();
                 
                 // 加载过滤配置
@@ -260,6 +265,8 @@ const ConfigApp = {
                         // 调度和单消息删除默认启用
                     };
                     
+                    // 强制更新视图
+                    this.$forceUpdate();
                 }
             } catch (error) {
                 console.error('加载系统配置失败:', error);
@@ -475,8 +482,6 @@ const ConfigApp = {
                     // 调度和单消息删除默认启用
                 };
                 
-                // 调试日志
-                
                 // 批量保存配置
                 const response = await axios.post(API.admin.configBatch, configData);
                 
@@ -540,8 +545,7 @@ const ConfigApp = {
                         promo_vector: this.parseBooleanValue(configs['filter.promo_vector_enabled'], true),
                         
                         // 内容检测过滤器
-                        duplicate: this.parseBooleanValue(configs['filter.duplicate_enabled'], true),
-                        ad_detector: this.parseBooleanValue(configs['filter.ad_detector_enabled'], true)
+                        duplicate: this.parseBooleanValue(configs['filter.duplicate_enabled'], true)
                     };
                 }
             } catch (error) {
@@ -562,16 +566,12 @@ const ConfigApp = {
                     
                     // 内容检测过滤器
                     'filter.duplicate_enabled': this.filterSettings.duplicate,
-                    'filter.ad_detector_enabled': this.filterSettings.ad_detector,
                     
                     // 基础过滤开关（综合判断）
                     'filter.enabled': Boolean(
-                        this.filterSettings.duplicate || 
-                        this.filterSettings.ad_detector
+                        this.filterSettings.duplicate
                     )
                 };
-                
-                console.log('保存过滤器配置:', configData);
                 
                 // 批量保存配置
                 const response = await axios.post(API.admin.configBatch, configData);
@@ -603,8 +603,7 @@ const ConfigApp = {
                 promo_vector: true,
                 
                 // 内容检测过滤器
-                duplicate: true,
-                ad_detector: true
+                duplicate: true
             };
             
             MessageManager.success('过滤器配置已重置为默认值');

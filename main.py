@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.media_paths import media_paths
+from app.core.url_config import url_config
 from app.api import api_router
 from app.telegram.bot import TelegramBot
 from app.services.scheduler import MessageScheduler
@@ -91,7 +92,7 @@ async def lifespan(app: FastAPI):
     
     if not auth_status.get('authorized', False):
         logger.error("❌ Telegram未认证，系统无法启动完整功能")
-        logger.error("请访问 http://localhost:8000/auth.html 完成Telegram登录")
+        logger.error(f"请访问 {url_config.get_auth_url()} 完成Telegram登录")
         logger.error("获取API凭据请访问: https://my.telegram.org")
         # 不直接退出，允许用户通过Web界面进行认证
         logger.warning("系统将在有限功能模式下运行，等待用户完成认证...")

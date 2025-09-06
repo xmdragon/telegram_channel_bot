@@ -40,17 +40,9 @@ def fix_system_config():
             "config_type": "boolean",
             "description": "启用重复内容检测"
         },
-        "filter.ad_detector_enabled": {
-            "config_type": "boolean",
-            "description": "启用AI广告检测"
-        },
         "review.auto_reject_duplicates": {
             "config_type": "boolean",
             "description": "自动拒绝重复消息"
-        },
-        "review.auto_reject_high_risk": {
-            "config_type": "boolean",
-            "description": "自动拒绝高风险消息"
         }
     }
     

@@ -97,10 +97,8 @@ async def get_system_config():
         "filter.markdown_enabled": await config_manager.get_config('filter.markdown_enabled', True),
         "filter.promo_vector_enabled": await config_manager.get_config('filter.promo_vector_enabled', True),
         "filter.duplicate_enabled": await config_manager.get_config('filter.duplicate_enabled', True),
-        "filter.ad_detector_enabled": await config_manager.get_config('filter.ad_detector_enabled', True),
         "filter.chat_content_enabled": await config_manager.get_config('filter.chat_content_enabled', True),
         "review.auto_reject_duplicates": await config_manager.get_config('review.auto_reject_duplicates', False),
-        "review.auto_reject_high_risk": await config_manager.get_config('review.auto_reject_high_risk', False),
         
         # 源频道列表
         "source_channels": await db_settings.get_source_channels()

@@ -297,20 +297,10 @@ class DualSessionAuthManager:
     async def _save_session_config(self, session_type: str, session_string: str):
         """保存Session配置"""
         session_key = f"telegram.{session_type}_session"
-        api_id_key = f"telegram.{session_type}_api_id"
-        api_hash_key = f"telegram.{session_type}_api_hash"
         
         await self.config_manager.set_config(
             session_key, session_string,
             f"Telegram {session_type.title()} Session", "string"
-        )
-        await self.config_manager.set_config(
-            api_id_key, str(self.shared_api_id),
-            f"API ID for {session_type}", "string"
-        )
-        await self.config_manager.set_config(
-            api_hash_key, self.shared_api_hash,
-            f"API Hash for {session_type}", "string"
         )
         
         logger.info(f"✅ {session_type}Session配置已保存")
@@ -342,12 +332,8 @@ class DualSessionAuthManager:
         
         # 清除保存的配置
         session_key = f"telegram.{session_type}_session"
-        api_id_key = f"telegram.{session_type}_api_id"
-        api_hash_key = f"telegram.{session_type}_api_hash"
         
         await self.config_manager.delete_config(session_key)
-        await self.config_manager.delete_config(api_id_key)
-        await self.config_manager.delete_config(api_hash_key)
         
         logger.info(f"✅ {session_type}Session已清除")
     

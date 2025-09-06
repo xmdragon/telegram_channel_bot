@@ -1,8 +1,13 @@
 import requests
 import json
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from app.core.url_config import url_config
 
 # 先获取登录token
-login_url = "http://localhost:8000/api/admin/login"
+login_url = url_config.get_api_url("admin/login")
 login_data = {"username": "admin", "password": "admin888"}
 login_resp = requests.post(login_url, json=login_data)
 token = login_resp.json().get("access_token")
@@ -14,7 +19,7 @@ if not token:
 headers = {"Authorization": f"Bearer {token}"}
 
 # 测试提交尾部训练数据
-url = "http://localhost:8000/api/training/tail-filter-samples"
+url = url_config.get_api_url("training/tail-filter-samples")
 
 # 测试1：提交完整的3行尾部
 data1 = {

@@ -68,8 +68,15 @@ class MessageEventHandler:
         @client.on(events.NewMessage(chats=chats_to_monitor if chats_to_monitor else None))
         async def handle_new_message(event):
             """处理新消息事件"""
-            logger.info("[事件触发] 收到新消息！")
+            # 第一时间检查采集开关，避免不必要的处理
             try:
+                from app.services.config_manager import config_manager
+                collection_enabled = await config_manager.get_config('collection.enabled', False)
+                if not collection_enabled:
+                    logger.debug("[事件跳过] 采集已禁用，忽略新消息")
+                    return
+                
+                logger.info("[事件触发] 收到新消息！")
                 await self._handle_new_message(event)
             except Exception as e:
                 logger.error(f"处理消息失败: {e}")
@@ -90,12 +97,7 @@ class MessageEventHandler:
     async def _handle_new_message(self, event):
         """处理新消息事件"""
         try:
-            # 检查采集开关
-            from app.services.config_manager import config_manager
-            collection_enabled = await config_manager.get_config('collection.enabled', False)
-            if not collection_enabled:
-                logger.debug("采集已禁用，忽略新消息")
-                return
+            # 采集开关已在handle_new_message中检查过，这里无需重复检查
             
             message = event.message
             if not message:

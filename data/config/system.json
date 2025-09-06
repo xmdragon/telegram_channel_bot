@@ -42,7 +42,7 @@
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "系统重置时自动禁用采集",
     "is_active": true,
@@ -153,20 +153,6 @@
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.484163"
   },
-  "filter.ad_detector_enabled": {
-    "value": "false",
-    "config_type": "boolean",
-    "description": "启用AI广告检测",
-    "is_active": true,
-    "created_at": "2025-08-26T11:59:09.485861"
-  },
-  "review.auto_reject_high_risk": {
-    "value": "false",
-    "config_type": "boolean",
-    "description": "自动拒绝高风险消息",
-    "is_active": true,
-    "created_at": "2025-08-26T11:59:09.490779"
-  },
   "telegram.api_id": {
     "value": "24382238",
     "config_type": "integer",
@@ -188,39 +174,11 @@
     "is_active": true,
     "created_at": "2025-08-29T08:32:50.806683"
   },
-  "telegram.sender_api_id": {
-    "value": "24382238",
-    "config_type": "string",
-    "description": "API ID for sender",
-    "is_active": true,
-    "created_at": "2025-08-29T08:32:50.812926"
-  },
-  "telegram.sender_api_hash": {
-    "value": "a926790195b42a472477e7709a74fc24",
-    "config_type": "string",
-    "description": "API Hash for sender",
-    "is_active": true,
-    "created_at": "2025-08-29T08:32:50.814334"
-  },
   "telegram.listener_session": {
     "value": "1BVtsOHIBuyWw98qawmSotE4dTBMlLwzD1psgTxf_E-Wqx5MkorC594hHI54JmA8ykEWto1OtVa1gml1HimEAcmEM6nqzKWWWdy94i512ckw5eDS9XCsp2ZDLFT3Cy7y-tP7nZ59MfX6FZufwJwoDGPhVOfEg5rBX8FiHJy9vLNasvpo_bWA2p-MLJTo1z_uAnLCIe2JVOhaxpJkyNfx5PTB7XwB3-81tuQ3Qz9xd66fFbcVUzZ4_OcxojRF-NAqDb0c-MVvvovKMl-O8Uu3pWq6g0hLGCz5LQQFKUGtjf9v9Bob7Sw8ZZkveDbIXOhdakiaCKxHaKq5Mdu0xWGbW4o3TUhoG_As=",
     "config_type": "string",
     "description": "Telegram Listener Session",
     "is_active": true,
     "created_at": "2025-08-29T10:27:28.223796"
-  },
-  "telegram.listener_api_id": {
-    "value": "24382238",
-    "config_type": "string",
-    "description": "API ID for listener",
-    "is_active": true,
-    "created_at": "2025-08-29T10:27:28.227760"
-  },
-  "telegram.listener_api_hash": {
-    "value": "a926790195b42a472477e7709a74fc24",
-    "config_type": "string",
-    "description": "API Hash for listener",
-    "is_active": true,
-    "created_at": "2025-08-29T10:27:28.230133"
   }
 }

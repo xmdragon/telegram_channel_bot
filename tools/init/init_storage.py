@@ -10,6 +10,8 @@ from pathlib import Path
 import sys
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
+from app.core.url_config import url_config
+
 from app.storage.redis_manager import redis_manager
 from app.storage.json_store import init_json_stores
 from app.services.config_manager import config_manager
@@ -368,9 +370,9 @@ async def initialize_storage_system():
     logger.info("\n📋 下一步操作：")
     logger.info("1. 运行 python3 init_admin.py 创建超级管理员")
     logger.info("2. 启动系统: python3 main.py 或 ./start.sh")
-    logger.info("3. 访问 http://localhost:8000/static/auth.html 完成Telegram认证")
-    logger.info("4. 访问 http://localhost:8000/static/config.html 配置频道")
-    logger.info("5. 访问 http://localhost:8000 开始使用系统")
+    logger.info(f"3. 访问 {url_config.get_auth_url()} 完成Telegram认证")
+    logger.info(f"4. 访问 {url_config.get_config_url()} 配置频道")
+    logger.info(f"5. 访问 {url_config.base_url} 开始使用系统")
     
     return True
 

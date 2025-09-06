@@ -12,6 +12,8 @@ from pathlib import Path
 import sys
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
+from app.core.url_config import url_config
+
 from app.storage.json_store import init_json_stores, get_json_user_store
 from app.core.path_config import PathConfig
 
@@ -148,7 +150,7 @@ async def create_super_admin():
             print(f"📅 创建时间: {admin_data['created_at']}")
             print("\n现在可以使用此账号登录系统了")
             print("\n登录地址:")
-            print("  http://localhost:8000/static/login.html")
+            print(f"  {url_config.get_login_url()}")
             
             return True
         else:

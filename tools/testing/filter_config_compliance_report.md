@@ -48,10 +48,8 @@
   "filter.markdown_enabled": "true",           // Markdown格式过滤
   "filter.promo_vector_enabled": "true",       // 推广向量检测
   "filter.duplicate_enabled": "false",         // 重复内容检测（禁用）
-  "filter.ad_detector_enabled": "false",       // AI广告检测（禁用）
   "review.auto_reject_ads": "true",            // 自动拒绝广告
-  "review.auto_reject_duplicates": "false",    // 不自动拒绝重复
-  "review.auto_reject_high_risk": "false"      // 不自动拒绝高风险
+  "review.auto_reject_duplicates": "false"     // 不自动拒绝重复
 }
 ```
 

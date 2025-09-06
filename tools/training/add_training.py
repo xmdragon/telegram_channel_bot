@@ -1,8 +1,13 @@
 import requests
 import json
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from app.core.url_config import url_config
 
 # 模拟提交尾部训练数据
-url = "http://localhost:8000/api/training/tail-filter-samples"
+url = url_config.get_api_url("training/tail-filter-samples")
 
 # 为消息7911添加完整的尾部训练
 data = {

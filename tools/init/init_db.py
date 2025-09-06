@@ -6,6 +6,13 @@
 import asyncio
 import logging
 
+# Add path to import app modules
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from app.core.url_config import url_config
+
 print("⚠️  注意：系统已升级至Redis+JSON存储架构")
 print("🔧 系统会在首次启动时自动初始化所有存储组件")
 print("")
@@ -24,7 +31,7 @@ print("")
 print("🔑 默认管理员账户：")
 print("   用户名: admin")
 print("   密码: admin123")
-print("   登录地址: http://localhost:8000/static/login.html")
+print(f"   登录地址: {url_config.get_login_url()}")
 print("")
 
 async def legacy_init_support():

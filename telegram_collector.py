@@ -17,6 +17,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.path_config import PathConfig
+from app.core.url_config import url_config
 from app.telegram.bot import TelegramBot
 
 # 使用统一的日志配置
@@ -82,13 +83,20 @@ class TelegramCollectorService:
             # 加载数据库配置
             await settings.load_db_configs()
             
-            # 检查Telegram双Session认证状态
+            # 主动建立Telegram Listener连接（而不是被动检查状态）
             from app.telegram.dual_session_manager import dual_session_manager
+            
+            # 主动尝试连接Listener Session
+            logger.info("正在建立Telegram Listener连接...")
+            listener_connected = await dual_session_manager.ensure_listener_connected()
+            
+            # 获取连接状态用于诊断
             connection_status = await dual_session_manager.get_connection_status()
             
             # 至少需要Listener Session连接才能采集消息
             auth_status = {
-                'authorized': connection_status.get('listener_connected', False)
+                'authorized': listener_connected,
+                'connection_status': connection_status
             }
             
             # 初始化全局变量
@@ -122,40 +130,48 @@ class TelegramCollectorService:
                 print(f"\n💡 解决方案:")
                 print(f"   {auth_status.get('solution', '访问认证页面完成设置')}")
                 
-                print(f"\n🔗 认证页面: http://localhost:8080/static/telegram-auth.html")
+                print(f"\n🔗 认证页面: {url_config.get_auth_url()}")
                 print(f"🔗 API申请: https://my.telegram.org")
                 print("="*60)
                 
                 await self.health_monitor.set_unhealthy("Telegram Listener认证失败", {
                     "auth_status": "listener_unauthorized", 
                     "config_issues": auth_status.get('config_issues', []),
-                    "auth_url": "http://localhost:8080/static/telegram-auth.html",
+                    "auth_url": url_config.get_auth_url(),
                     "solution": auth_status.get('solution', '')
                 })
                 
-                logger.error("❌ Collector服务无法启动 - Listener认证失败")
+                logger.error("❌ Collector服务认证失败，进入等待认证模式")
                 logger.error("详细诊断信息已输出到控制台")
-                sys.exit(1)
+                return False  # 返回False表示初始化失败，但不退出程序
             else:
-                # Telegram已认证，正常启动
-                logger.info("✅ Telegram认证状态正常，启动消息监听...")
+                # Telegram已认证，检查采集开关
+                from app.services.config_manager import config_manager
+                collection_enabled = await config_manager.get_config('collection.enabled', False)
                 
-                # 启动Telegram客户端
-                bot = TelegramBot()
-                await bot.start()
-                
-                # 设置全局bot实例供其他模块使用
-                bot_module.telegram_bot = bot
-                self.telegram_bot = bot
+                if collection_enabled:
+                    logger.info("✅ Telegram认证状态正常且采集已启用，启动消息监听...")
+                    
+                    # 启动Telegram客户端
+                    bot = TelegramBot()
+                    await bot.start()
+                    
+                    # 设置全局bot实例供其他模块使用
+                    bot_module.telegram_bot = bot
+                    self.telegram_bot = bot
+                else:
+                    logger.info("✅ Telegram认证状态正常但采集已禁用，待机模式...")
+                    # 采集禁用时不启动bot，避免注册事件处理器
                 
                 # 启动系统监控
                 from app.services.system_monitor import system_monitor
                 await system_monitor.start()
                 
-                # 设置健康状态
+                # 设置健康状态 
                 await self.health_monitor.set_healthy({
                     "telegram_authenticated": True,
-                    "bot_running": True,
+                    "bot_running": self.telegram_bot is not None,
+                    "collection_enabled": collection_enabled,
                     "system_monitor": True
                 })
                 
@@ -178,10 +194,36 @@ class TelegramCollectorService:
                 # 启动任务处理器
                 task_processor_task = asyncio.create_task(self.run_task_processor())
                 
+                previous_collection_enabled = None
+                
                 while self.is_running:
                     # 检查采集开关
                     from app.services.config_manager import config_manager
                     collection_enabled = await config_manager.get_config('collection.enabled', False)
+                    
+                    # 检测采集开关状态变化
+                    if previous_collection_enabled is not None and previous_collection_enabled != collection_enabled:
+                        if collection_enabled:
+                            # 采集从禁用变为启用 - 启动bot
+                            logger.info("🟢 检测到采集已启用，启动Telegram Bot...")
+                            if not self.telegram_bot:
+                                bot = TelegramBot()
+                                await bot.start()
+                                bot_module.telegram_bot = bot
+                                self.telegram_bot = bot
+                        else:
+                            # 采集从启用变为禁用 - 停止bot并清理队列
+                            logger.info("🔴 检测到采集已禁用，停止Telegram Bot并清理队列...")
+                            if self.telegram_bot:
+                                await self.telegram_bot.stop()
+                                self.telegram_bot = None
+                                bot_module.telegram_bot = None
+                            
+                            # 清理Redis消息队列
+                            await self._clear_message_queues()
+                    
+                    previous_collection_enabled = collection_enabled
+                    
                     if not collection_enabled:
                         logger.debug("采集已禁用，等待启用...")
                         await asyncio.sleep(5)  # 暂停采集，等待启用
@@ -200,27 +242,24 @@ class TelegramCollectorService:
                 logger.info("收到停止信号，正在关闭...")
                 await self.stop()
         else:
-            logger.warning("⚠️ Telegram采集服务启动失败，等待认证...")
-            # 在等待认证模式下运行
+            logger.warning("⚠️ Telegram采集服务启动失败，进入待机模式...")
+            # 在等待认证模式下运行，但保持服务稳定
             try:
                 while True:
-                    # 检查采集开关
-                    from app.services.config_manager import config_manager
-                    collection_enabled = await config_manager.get_config('collection.enabled', False)
-                    if not collection_enabled:
-                        logger.debug("采集已禁用，等待启用...")
-                        await asyncio.sleep(10)
-                        continue
-                    
-                    await asyncio.sleep(10)
-                    # 定期检查双Session认证状态
+                    # 始终检查双Session认证状态，不受采集开关影响
+                    from app.telegram.dual_session_manager import dual_session_manager
                     connection_status = await dual_session_manager.get_connection_status()
                     auth_status = {'authorized': connection_status.get('listener_connected', False)}
+                    
                     if auth_status.get('authorized', False):
                         logger.info("检测到Telegram认证完成，重新启动采集服务...")
                         if await self.initialize():
                             self.is_running = True
                             break
+                    else:
+                        logger.debug("等待Telegram认证...")
+                    
+                    await asyncio.sleep(10)
             except KeyboardInterrupt:
                 logger.info("收到停止信号，正在关闭...")
     
@@ -261,6 +300,33 @@ class TelegramCollectorService:
             await self.health_monitor.stop()
         
         logger.info("Telegram采集服务已关闭")
+    
+    async def _clear_message_queues(self):
+        """清理Redis中的消息队列"""
+        try:
+            from app.storage.redis_manager import redis_manager
+            
+            # 清理消息队列
+            queue_keys = [
+                "telegram:message_queue",
+                "telegram:processing_messages",
+                "telegram:pending_messages"
+            ]
+            
+            cleared_count = 0
+            for key in queue_keys:
+                count = await redis_manager.delete_key(key)
+                if count > 0:
+                    cleared_count += count
+                    logger.info(f"清理队列 {key}: {count} 个消息")
+            
+            if cleared_count > 0:
+                logger.info(f"✅ 采集禁用时清理消息队列完成，共清理 {cleared_count} 个消息")
+            else:
+                logger.debug("消息队列已空，无需清理")
+                
+        except Exception as e:
+            logger.error(f"清理消息队列失败: {e}")
     
     async def run_task_processor(self):
         """运行任务处理器（媒体补抓 + 消息转发）"""

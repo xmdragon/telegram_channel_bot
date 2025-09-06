@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
+from app.core.url_config import url_config
 
 # 配置日志
 logging.basicConfig(
@@ -93,7 +94,7 @@ class ServiceProcess:
                 try:
                     # 使用asyncio.to_thread来包装同步的urllib.request
                     def check_health():
-                        req = urllib.request.Request('http://localhost:8000/api/health')
+                        req = urllib.request.Request(url_config.get_health_url())
                         response = urllib.request.urlopen(req, timeout=1)
                         return response.getcode() == 200
                     
