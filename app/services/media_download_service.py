@@ -9,7 +9,7 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from enum import Enum
 
-from app.storage.redis_store import redis_store
+from app.storage.redis_manager import redis_manager
 from app.services.media_handler import media_handler
 from app.api.websocket import websocket_manager
 
@@ -55,7 +55,7 @@ class MediaDownloadService:
     PROCESSING_KEY = "media:download:processing"
     
     def __init__(self):
-        self.redis = redis_store
+        self.redis = redis_manager.client  # 使用原始Redis客户端
         self.running = False
         self.worker_task = None
         self.client = None  # Telegram客户端，由外部注入
@@ -122,7 +122,8 @@ class MediaDownloadService:
         }
         
         # 保存任务数据
-        self.redis.hset(self.TASK_DATA_KEY, task_id, task_data)
+        import json
+        self.redis.hset(self.TASK_DATA_KEY, task_id, json.dumps(task_data))
         
         # 加入队列
         self.redis.rpush(self.TASK_QUEUE_KEY, task_id)
@@ -154,14 +155,16 @@ class MediaDownloadService:
         """处理单个下载任务"""
         try:
             # 获取任务数据
-            task_data = self.redis.hget(self.TASK_DATA_KEY, task_id)
-            if not task_data:
+            import json
+            task_data_str = self.redis.hget(self.TASK_DATA_KEY, task_id)
+            if not task_data_str:
                 logger.error(f"任务数据不存在: {task_id}")
                 return
+            task_data = json.loads(task_data_str)
                 
             # 标记为处理中
             task_data['status'] = MediaTaskStatus.PROCESSING.value
-            self.redis.hset(self.TASK_DATA_KEY, task_id, task_data)
+            self.redis.hset(self.TASK_DATA_KEY, task_id, json.dumps(task_data))
             
             # 检查客户端
             if not self.client:
@@ -186,7 +189,7 @@ class MediaDownloadService:
                 # 下载成功
                 task_data['status'] = MediaTaskStatus.COMPLETED.value
                 task_data['result'] = media_info
-                self.redis.hset(self.TASK_DATA_KEY, task_id, task_data)
+                self.redis.hset(self.TASK_DATA_KEY, task_id, json.dumps(task_data))
                 
                 # 通知前端
                 await self._notify_completion(task_data)
@@ -209,13 +212,15 @@ class MediaDownloadService:
             # 重试
             logger.warning(f"媒体下载失败，重试 {task_data['retry_count']}/3: {task_id}")
             task_data['status'] = MediaTaskStatus.PENDING.value
-            self.redis.hset(self.TASK_DATA_KEY, task_id, task_data)
+            import json
+            self.redis.hset(self.TASK_DATA_KEY, task_id, json.dumps(task_data))
             self.redis.rpush(self.TASK_QUEUE_KEY, task_id)
         else:
             # 最终失败
             task_data['status'] = MediaTaskStatus.FAILED.value
             task_data['error'] = error
-            self.redis.hset(self.TASK_DATA_KEY, task_id, task_data)
+            import json
+            self.redis.hset(self.TASK_DATA_KEY, task_id, json.dumps(task_data))
             logger.error(f"媒体下载最终失败: {task_id} - {error}")
             
             # 通知前端失败
@@ -262,8 +267,9 @@ class MediaDownloadService:
         
     def get_task_status(self, task_id: str) -> Optional[dict]:
         """获取任务状态"""
-        task_data = self.redis.hget(self.TASK_DATA_KEY, task_id)
-        return task_data if task_data else None
+        import json
+        task_data_str = self.redis.hget(self.TASK_DATA_KEY, task_id)
+        return json.loads(task_data_str) if task_data_str else None
 
 
 # 全局实例
