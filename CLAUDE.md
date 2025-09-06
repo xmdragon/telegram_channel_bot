@@ -43,6 +43,7 @@ Claude Code 工作指导文档。
 
 ## 重大变更历史
 
+- 2025-09-06: 🐍 **Python 3.13兼容性修复** - 解决telethon导入作用域问题，所有类型导入必须在模块顶部
 - 2025-09-04: 🗂️ **路由架构重构** - 统一所有路由到app/api/目录，消除app/routers特殊情况，符合Linus设计原则
 - 2025-08-23: 🎯 **Element Plus完全移除** - 全项目UI重构完成，彻底删除Element Plus依赖，使用轻量化SimpleUI系统
 - 2025-08-17: 🔧 **API路由安全优化** - 解决危险的通配符路由，引入路由配置统一管理
@@ -380,11 +381,31 @@ API_ENDPOINTS = {
 ## 🛠️ 开发规范
 
 ### 基础要求
-- **后端**：Python 3.11虚拟环境本地开发，基础设施用Docker容器
+- **后端**：Python 3.11+虚拟环境本地开发，基础设施用Docker容器
 - **命令规范**：使用`python3`而不是`python`，使用`docker compose`而不是`docker-compose`
 - **前端技术栈**：Vue.js 3 + SimpleUI系统 + Axios + 原生HTML/CSS/JS
 - **部署架构**：混合部署 - Docker容器(Nginx+Redis) + 本地服务(Python应用)
 - **开发语言**：中文简短回复，注释和文档使用中文
+
+### 🐍 Python 3.13兼容性要求
+**重要：Python 3.13对变量作用域有更严格的检查**
+- **Telethon类型导入必须在模块顶部**：避免在函数内部或try块中导入
+- **错误示例**：
+  ```python
+  # ❌ 错误：在函数内部导入会导致作用域错误
+  def process():
+      from telethon.tl.types import MessageMediaWebPage
+      if isinstance(media, MessageMediaWebPage):  # Error: cannot access local variable
+  ```
+- **正确示例**：
+  ```python
+  # ✅ 正确：在模块顶部导入
+  from telethon.tl.types import MessageMediaWebPage
+  
+  def process():
+      if isinstance(media, MessageMediaWebPage):  # 正常工作
+  ```
+- **影响范围**：所有使用telethon的模块必须遵守此规则
 
 ### 🧹 文件管理规范
 - **测试文件、临时文件用完立即删除**

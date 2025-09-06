@@ -11,7 +11,12 @@ from typing import Optional, Dict, List, Any
 from pathlib import Path
 
 from telethon import TelegramClient
-from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, MessageMediaWebPage
+# Python 3.13兼容性修复：必须在模块顶部导入所有类型
+from telethon.tl.types import (
+    MessageMediaPhoto, 
+    MessageMediaDocument, 
+    MessageMediaWebPage
+)
 from app.core.config import db_settings
 
 logger = logging.getLogger(__name__)

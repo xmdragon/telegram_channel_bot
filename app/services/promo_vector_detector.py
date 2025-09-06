@@ -33,31 +33,19 @@ class PromoVectorDetector(BaseFilter):
         self.enable_self_learning = self.config.get('enable_self_learning', True)
         self.auto_reject_ads = self.config.get('auto_reject_ads', True)
         
-        # 降级策略
-        self.enable_fallback = self.config.get('enable_fallback', True)
-        self.fallback_engine = None
+        # Linus式简化：删除降级策略
         
         # 统计信息
         self.detection_stats = {
             'total_processed': 0,
             'vector_detections': 0,
-            'fallback_detections': 0,
             'self_learning_count': 0,
             'avg_similarity': 0.0
         }
         
         logger.info(f"向量广告检测器初始化 - 阈值: {self.similarity_threshold}, 自学习: {self.enable_self_learning}")
     
-    def _init_fallback_engine(self):
-        """懒加载降级引擎"""
-        if self.fallback_engine is None and self.enable_fallback:
-            try:
-                # 懒加载，避免循环导入
-                from app.services.unified_filter_engine import UnifiedFilterEngine
-                self.fallback_engine = UnifiedFilterEngine()
-                logger.debug("降级引擎初始化完成")
-            except Exception as e:
-                logger.error(f"降级引擎初始化失败: {e}")
+    # Linus式简化：删除降级引擎初始化方法
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
         """向量化广告检测主方法"""
@@ -126,34 +114,11 @@ class PromoVectorDetector(BaseFilter):
                     result.details['skip_reason'] = error_message
                     
                 elif error_type == 'technical_error':
-                    # 技术错误 - 启用降级检测
-                    logger.warning(f"向量检测技术故障: {error_message}，启用降级模式")
-                    
-                    fallback_result = await self._fallback_detection(content, context)
-                    
-                    if fallback_result['success']:
-                        self.detection_stats['fallback_detections'] += 1
-                        
-                        result.confidence = 0.8 if fallback_result['is_ad'] else 0.2
-                        result.details.update(fallback_result['details'])
-                        
-                        if fallback_result['is_ad']:
-                            if self.auto_reject_ads:
-                                result.passed = False
-                                result.should_early_stop = True
-                                result.reason = f"降级检测到广告: {fallback_result['reason']}"
-                            else:
-                                result.passed = True
-                                result.should_early_stop = False
-                                result.reason = f"降级检测到疑似广告: {fallback_result['reason']}"
-                        else:
-                            result.reason = "降级检测正常"
-                    else:
-                        # 完全失败，保守通过
-                        logger.error("向量检测和降级检测都失败，默认通过")
-                        result.reason = "检测失败，默认通过"
-                        result.details['error'] = error_message
-                        
+                    # 技术错误 - fail-fast原则，直接通过并记录错误
+                    logger.error(f"向量检测技术故障: {error_message}")
+                    result.reason = "向量检测失败，默认通过"
+                    result.confidence = 0.0
+                    result.details['error'] = error_message
                 else:
                     # 未知错误类型 - 保守处理
                     logger.warning(f"向量检测未知错误: {error_message}")
@@ -227,46 +192,7 @@ class PromoVectorDetector(BaseFilter):
                 'details': {}
             }
     
-    async def _fallback_detection(self, content: str, context: FilterContext) -> Dict[str, Any]:
-        """降级检测逻辑"""
-        try:
-            if not self.enable_fallback:
-                return {
-                    'success': False,
-                    'error': '降级检测已禁用',
-                    'details': {}
-                }
-            
-            # 初始化降级引擎
-            self._init_fallback_engine()
-            
-            if self.fallback_engine:
-                # 使用高风险模式检测
-                is_high_risk, risk_patterns = self.fallback_engine.is_high_risk_ad(content)
-                
-                return {
-                    'success': True,
-                    'is_ad': is_high_risk,
-                    'reason': f"高风险广告({len(risk_patterns)}个特征)" if is_high_risk else "高风险检测正常",
-                    'details': {
-                        'fallback_detection': True,
-                        'risk_patterns': risk_patterns,
-                        'pattern_count': len(risk_patterns)
-                    }
-                }
-            else:
-                return {
-                    'success': False,
-                    'error': '降级引擎不可用',
-                    'details': {}
-                }
-                
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e),
-                'details': {}
-            }
+    # Linus式简化：删除_fallback_detection方法，消除降级逻辑
     
     async def _self_learn(self, content: str, context: FilterContext, learn_type: str):
         """自学习功能"""
@@ -341,8 +267,7 @@ class PromoVectorDetector(BaseFilter):
             'config': {
                 'similarity_threshold': self.similarity_threshold,
                 'enable_self_learning': self.enable_self_learning,
-                'auto_reject_ads': self.auto_reject_ads,
-                'enable_fallback': self.enable_fallback
+                'auto_reject_ads': self.auto_reject_ads
             }
         }
     
