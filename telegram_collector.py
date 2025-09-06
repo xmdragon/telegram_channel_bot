@@ -73,7 +73,7 @@ class TelegramCollectorService:
             # 初始化频道ID缓存
             from app.services.channel_cache import channel_cache
             await channel_cache.init_cache()
-            logger.info("频道ID缓存已初始化")
+            logger.debug("频道ID缓存检查完成")
             
             # 初始化训练数据目录和配置
             PathConfig.ensure_directories()

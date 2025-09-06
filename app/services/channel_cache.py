@@ -3,6 +3,7 @@
 用于在Redis中缓存解析后的频道ID，提供高性能访问
 """
 import logging
+import asyncio
 from typing import Dict, List, Optional
 import redis.asyncio as redis
 from app.storage.redis_manager import redis_manager
@@ -20,7 +21,7 @@ class ChannelCache:
     # 直接使用导入的redis_manager，保持代码简洁
     
     async def resolve_channel(self, channel_input: str) -> Optional[str]:
-        """解析频道用户名为数字ID"""
+        """解析频道用户名为数字ID - Linus式优化：缓存优先"""
         if not channel_input:
             return None
             
@@ -28,6 +29,16 @@ class ChannelCache:
             # 如果已经是数字ID格式，直接返回
             if channel_input.startswith('-100'):
                 return channel_input
+            
+            # 🔥 Linus式优化：先检查缓存，避免重复解析
+            try:
+                cached = redis_manager.client.hget('cache:source_channels', channel_input)
+                if cached:
+                    cached_id = cached.decode('utf-8') if isinstance(cached, bytes) else cached
+                    logger.debug(f"使用缓存的频道ID: {channel_input} -> {cached_id}")
+                    return cached_id
+            except Exception as cache_error:
+                logger.debug(f"缓存检查失败，继续解析: {cache_error}")
             
             # 尝试使用频道ID解析器
             from app.services.channel_id_resolver import channel_id_resolver
@@ -46,7 +57,15 @@ class ChannelCache:
                 # 确保ID格式正确
                 if not resolved_id.startswith('-100'):
                     resolved_id = f"-100{resolved_id}" if not resolved_id.startswith('-') else resolved_id
-                logger.info(f"频道解析成功: {channel_input} -> {resolved_id}")
+                logger.debug(f"频道解析成功: {channel_input} -> {resolved_id}")
+                
+                # 将解析结果立即缓存
+                try:
+                    redis_manager.client.hset('cache:source_channels', channel_input, resolved_id)
+                    logger.debug(f"频道ID已缓存: {channel_input} -> {resolved_id}")
+                except Exception as cache_error:
+                    logger.debug(f"缓存保存失败: {cache_error}")
+                
                 return resolved_id
             else:
                 logger.warning(f"频道解析失败: {channel_input}")
@@ -82,8 +101,25 @@ class ChannelCache:
             return None
     
     async def init_cache(self):
-        """应用启动时预加载所有频道ID到Redis缓存"""
+        """应用启动时预加载所有频道ID到Redis缓存 - Linus式幂等设计"""
         try:
+            # 检查是否已初始化（防止重复执行）
+            if redis_manager.client.exists('cache:initialized'):
+                logger.debug("频道缓存已初始化，跳过重复初始化")
+                return
+            
+            # 使用分布式锁防止并发初始化
+            lock_key = "lock:cache_init"
+            lock_acquired = redis_manager.client.set(
+                lock_key, "1", nx=True, ex=30  # 30秒超时
+            )
+            
+            if not lock_acquired:
+                # 其他服务正在初始化，等待完成
+                logger.debug("其他服务正在初始化频道缓存，等待...")
+                await asyncio.sleep(2)
+                return
+            
             logger.info("开始初始化频道ID缓存...")
             
             # 解析并缓存目标频道（优先使用已保存的ID）
@@ -132,7 +168,7 @@ class ChannelCache:
                         resolved_id = await self.resolve_channel(channel_name)
                         if resolved_id:
                             cache_data[channel_name] = resolved_id
-                            logger.info(f"监听频道ID已缓存: {channel_name} -> {resolved_id}")
+                            logger.debug(f"监听频道ID已缓存: {channel_name} -> {resolved_id}")
                 
                 if cache_data:
                     try:
@@ -141,10 +177,18 @@ class ChannelCache:
                     except Exception as cache_error:
                         logger.warning(f"监听频道缓存失败（Redis不可用）: {cache_error}")
             
+            # 设置初始化标记（24小时过期，避免永久占用）
+            redis_manager.client.set('cache:initialized', '1', ex=86400)
             logger.info("频道ID缓存初始化完成")
             
         except Exception as e:
             logger.error(f"初始化频道ID缓存失败: {e}", exc_info=True)
+        finally:
+            # 确保释放锁
+            try:
+                redis_manager.client.delete('lock:cache_init')
+            except:
+                pass
     
     async def get_target_channel_id(self) -> Optional[str]:
         """获取目标频道ID（从配置和缓存）"""
@@ -260,7 +304,7 @@ class ChannelCache:
                         resolved_id = await self.resolve_channel(channel_name)
                         if resolved_id:
                             cache_data[channel_name] = resolved_id
-                            logger.info(f"监听频道缓存已刷新: {channel_name} -> {resolved_id}")
+                            logger.debug(f"监听频道缓存已刷新: {channel_name} -> {resolved_id}")
                 
                 if cache_data:
                     redis_manager.client.hset('cache:source_channels', mapping=cache_data)
