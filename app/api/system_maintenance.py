@@ -251,6 +251,33 @@ async def reset_system() -> Dict[str, Any]:
                     else:
                         logger.warning(f"⚠️ 第 {retry + 1} 次清理checkpoint失败: {checkpoint_error}，将重试...")
                         await asyncio.sleep(1)  # 等待1秒后重试
+            
+            # 清理采集相关队列 (60%)
+            await websocket_manager.broadcast_progress(operation, 60, "清理采集队列...")
+            try:
+                collection_queue_patterns = [
+                    "collector:queue:*",
+                    "media:download:queue",
+                    "processor:queue:*",
+                    "media_refetch:*",
+                    "message_forward:*"
+                ]
+                
+                total_deleted = 0
+                for pattern in collection_queue_patterns:
+                    try:
+                        keys = redis_manager.client.keys(pattern)
+                        if keys:
+                            deleted = redis_manager.client.delete(*keys)
+                            total_deleted += deleted
+                            logger.info(f"清理队列 {pattern}: {deleted} 条")
+                    except Exception as pattern_error:
+                        logger.error(f"清理队列模式 {pattern} 失败: {pattern_error}")
+                
+                logger.info(f"✅ 采集队列清理完成，共清理 {total_deleted} 个队列项")
+                
+            except Exception as queue_error:
+                logger.error(f"❌ 清理采集队列失败: {queue_error}")
         
         # 步骤5：清空临时媒体目录 (65%)
         await websocket_manager.broadcast_progress(operation, 65, "清空临时媒体目录...")

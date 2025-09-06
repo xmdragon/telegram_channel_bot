@@ -242,14 +242,12 @@ class MessageHandler:
         """快速提取消息基础信息 - Linus式最小必要信息"""
         from app.utils.timezone import get_current_time
         
-        # 基础文本内容
+        # 基础文本内容 - Telethon的Message对象使用text属性，不是message属性
         content = ""
-        if hasattr(message, 'message') and message.message:
-            content = message.message.strip()
+        if hasattr(message, 'text') and message.text:
+            content = message.text.strip()
         elif hasattr(message, 'caption') and message.caption:
             content = message.caption.strip()
-        elif hasattr(message, 'text') and message.text:
-            content = message.text.strip()
         
         # 媒体信息（暂不下载，处理时再下载）
         media_type = None

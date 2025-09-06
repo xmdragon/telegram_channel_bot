@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram消息结构查看器 - 系统工具</title>
+    <link rel="stylesheet" href="/static/assets/css/common.css">
+    <link rel="stylesheet" href="/static/assets/css/components.css">
+    <link rel="stylesheet" href="/static/assets/css/tools.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav-bar page-title="🔍 Telegram消息结构查看器" page-subtitle="查看消息的完整结构体数据"></nav-bar>
+
+        <!-- 主容器 -->
+        <div class="container">
+            <!-- 页面标题 -->
+            <div class="page-header">
+                <h1>
+                    <i class="icon">🔍</i>
+                    Telegram消息结构查看器
+                </h1>
+                <p class="subtitle">输入Telegram消息链接，查看完整的消息结构体数据</p>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>输入消息链接</h2>
+                </div>
+                <div class="card-content">
+                    <div class="form-group">
+                        <label for="messageUrl">Telegram消息URL：</label>
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                id="messageUrl" 
+                                v-model="messageUrl" 
+                                placeholder="例如：https://t.me/cn_zhm0/2247"
+                                class="form-control"
+                                @keyup.enter="fetchMessageStructure"
+                            >
+                            <button 
+                                @click="fetchMessageStructure" 
+                                :disabled="loading || !messageUrl.trim()"
+                                class="btn btn-primary"
+                            >
+                                <span v-if="loading">查询中...</span>
+                                <span v-else>查询结构</span>
+                            </button>
+                        </div>
+                        <div class="help-text">
+                            支持格式：https://t.me/channel_name/message_id 或 t.me/channel_name/message_id
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果展示区域 -->
+            <div v-if="showResults" class="results-section">
+                <!-- 基本信息 -->
+                <div class="card" v-if="messageInfo">
+                    <div class="card-header">
+                        <h2>消息基本信息</h2>
+                        <div class="card-actions">
+                            <button @click="copyToClipboard(messageInfo)" class="btn btn-outline btn-sm">
+                                复制信息
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>消息ID：</label>
+                                <span class="value">{{ messageInfo.message_id }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>频道：</label>
+                                <span class="value">{{ messageInfo.channel_name }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>频道ID：</label>
+                                <span class="value">{{ messageInfo.channel_id }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>发布时间：</label>
+                                <span class="value">{{ formatDate(messageInfo.date) }}</span>
+                            </div>
+                            <div class="info-item" v-if="messageInfo.views">
+                                <label>观看次数：</label>
+                                <span class="value">{{ messageInfo.views.toLocaleString() }}</span>
+                            </div>
+                            <div class="info-item" v-if="messageInfo.forwards">
+                                <label>转发次数：</label>
+                                <span class="value">{{ messageInfo.forwards.toLocaleString() }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 组合消息指示器 -->
+                <div v-if="isGroupMessage" class="card info-card">
+                    <div class="card-content">
+                        <div class="group-message-indicator">
+                            <i class="icon">📋</i>
+                            <span>检测到组合消息，共 {{ messageStructures.length }} 条消息</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 消息结构展示 -->
+                <div v-for="(structure, index) in messageStructures" :key="index" class="card">
+                    <div class="card-header">
+                        <h2>
+                            <span v-if="isGroupMessage">消息 {{ index + 1 }} 结构体</span>
+                            <span v-else>消息结构体</span>
+                        </h2>
+                        <div class="card-actions">
+                            <button @click="toggleExpand(index)" class="btn btn-outline btn-sm">
+                                {{ expandedStates[index] ? '收起' : '展开' }}
+                            </button>
+                            <button @click="copyToClipboard(structure)" class="btn btn-outline btn-sm">
+                                复制JSON
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <!-- 结构体概览 -->
+                        <div v-if="!expandedStates[index]" class="structure-overview">
+                            <div class="structure-item" v-if="structure.message">
+                                <label>消息内容：</label>
+                                <span class="value">{{ truncateText(structure.message, 100) }}</span>
+                            </div>
+                            <div class="structure-item" v-if="structure.media">
+                                <label>媒体类型：</label>
+                                <span class="value media-type">{{ getMediaType(structure.media) }}</span>
+                            </div>
+                            <div class="structure-item">
+                                <label>数据字段：</label>
+                                <span class="value">{{ Object.keys(structure).length }} 个字段</span>
+                            </div>
+                        </div>
+
+                        <!-- 完整JSON结构 -->
+                        <div v-if="expandedStates[index]" class="json-container">
+                            <pre class="json-display">{{ formatJSON(structure) }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 错误信息 -->
+            <div v-if="errorMessage" class="card error-card">
+                <div class="card-content">
+                    <div class="error-message">
+                        <i class="icon">❌</i>
+                        <div class="error-text">
+                            <strong>查询失败</strong>
+                            <p>{{ errorMessage }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 使用说明 -->
+            <div class="card help-card">
+                <div class="card-header">
+                    <h2>使用说明</h2>
+                </div>
+                <div class="card-content">
+                    <ul class="help-list">
+                        <li><strong>支持格式：</strong>完整的Telegram消息链接或简化格式</li>
+                        <li><strong>组合消息：</strong>如果是组合消息（多媒体组），会显示所有相关消息</li>
+                        <li><strong>认证要求：</strong>使用系统的发布认证，确保有权限访问目标频道</li>
+                        <li><strong>数据来源：</strong>直接从Telegram API获取原始消息数据</li>
+                        <li><strong>结构展示：</strong>点击"展开"查看完整JSON结构，"收起"查看概览</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript依赖 -->
+    <script src="/static/assets/js/lib/vue.global.js"></script>
+    <script src="/static/assets/js/lib/axios.min.js"></script>
+    <script src="/static/assets/js/config/api-endpoints.js"></script>
+    <script src="/static/assets/js/utils/simple-ui.js"></script>
+    <script src="/static/assets/js/utils/auth-manager.js"></script>
+    <script src="/static/assets/js/components/navbar.js"></script>
+    <script src="/static/assets/js/components/message-structure.js"></script>
+</body>
+</html>

@@ -418,7 +418,7 @@
     },
     
     "promo_vector_keywords": {
-      "description": "PromoVectorFilter内容类型分析关键词",
+      "description": "TrailingPromoFilter内容类型分析关键词",
       "enabled": true,
       "keyword_categories": {
         "strong_promo_signals": {

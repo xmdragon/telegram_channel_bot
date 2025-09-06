@@ -41,11 +41,8 @@ class TelegramBot:
         message_event_handler.set_callback_processor(self._event_handler.handle_callback)
         
         # 设置历史采集器的消息处理器 - 延迟导入避免循环依赖
-        try:
-            from app.telegram.history_collector import history_collector
-            history_collector.set_message_processor(self._message_handler.process_source_message)
-        except ImportError:
-            logger.warning("历史采集器未找到，跳过设置")
+        from app.telegram.history_collector import history_collector
+        history_collector.set_message_processor(self._message_handler.process_source_message)
     
     async def start(self):
         """启动Telegram客户端和监控"""

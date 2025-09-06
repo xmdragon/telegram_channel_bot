@@ -22,6 +22,7 @@ from .ai_config import router as ai_config_router
 from .version import router as version_router
 from .training_base import router as training_base_router
 from .training import router as training_router
+from .telegram_tools import router as telegram_tools_router
 
 api_router = APIRouter()
 
@@ -50,3 +51,5 @@ api_router.include_router(version_router, tags=["version"])
 # 使用重构后的训练路由
 api_router.include_router(training_base_router, tags=["training-base"])
 api_router.include_router(training_router, tags=["training"])
+# Telegram工具路由
+api_router.include_router(telegram_tools_router, tags=["telegram-tools"])

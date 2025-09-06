@@ -5,7 +5,7 @@
 1. TailFilter - 尾部过滤
 2. MarkdownFilter - Markdown格式清理 (调整到TailFilter后)
 3. FooterPromoFilter - 尾部推广链接过滤
-4. PromoVectorFilter - 推广内容向量过滤
+4. TrailingPromoFilter - 尾部推广内容过滤
 
 Author: Claude
 Created: 2025-08-31
@@ -21,7 +21,7 @@ from .base import BaseFilter, FilterContext, FilterResult, PipelineResult
 from .tail_filter import TailFilter
 from .markdown_filter import MarkdownFilter
 from .footer_promo_filter import FooterPromoFilter
-from .promo_vector_filter import PromoVectorFilter
+from .trailing_promo_filter import TrailingPromoFilter
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class ContentFilterLayer:
     内容过滤层 - Linus式设计
     
     职责单一：只负责内容清理，不做内容检测
-    执行顺序固定：TailFilter → MarkdownFilter → FooterPromoFilter → PromoVectorFilter
+    执行顺序固定：TailFilter → MarkdownFilter → FooterPromoFilter → TrailingPromoFilter
     """
     
     def __init__(self, config: Optional[LayerConfig] = None):
@@ -60,7 +60,7 @@ class ContentFilterLayer:
             TailFilter(),                # 1. 尾部过滤 - 最重要，优先处理
             MarkdownFilter(),            # 2. Markdown清理 - 调整到TailFilter后
             FooterPromoFilter(),         # 3. 尾部推广链接过滤
-            PromoVectorFilter(),         # 4. 推广内容向量过滤
+            TrailingPromoFilter(),       # 4. 尾部推广内容过滤
         ]
         
         for filter_instance in filter_instances:
@@ -211,7 +211,7 @@ class ContentFilterLayer:
                 'TailFilter',
                 'MarkdownFilter', 
                 'FooterPromoFilter',
-                'PromoVectorFilter'
+                'TrailingPromoFilter'
             ],
             'supports_early_stopping': False,
             'config': {

@@ -465,3 +465,31 @@ def get_auth_service() -> AuthService:
     if auth_service is None:
         raise RuntimeError("认证服务未初始化")
     return auth_service
+
+
+# FastAPI依赖注入函数
+async def verify_sender_auth(authorization: Optional[str] = None) -> Dict[str, Any]:
+    """验证发送者认证的FastAPI依赖"""
+    from fastapi import HTTPException, Header
+    
+    if not authorization:
+        raise HTTPException(status_code=401, detail="缺少认证令牌")
+    
+    # 提取Bearer令牌
+    if authorization.startswith("Bearer "):
+        token = authorization[7:]
+    else:
+        token = authorization
+    
+    auth_service = get_auth_service()
+    user = await auth_service.get_current_user(token)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="无效的认证令牌")
+    
+    return {
+        "user_id": user.get("user_id"),
+        "username": user.get("username"),
+        "permissions": user.get("permissions", []),
+        "token": token
+    }

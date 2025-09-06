@@ -99,7 +99,7 @@ async def filter_message_content(
         from app.services.filters.tail_filter import TailFilter
         from app.services.filters.footer_promo_filter import FooterPromoFilter
         from app.services.filters.markdown_filter import MarkdownFilter
-        from app.services.filters.promo_vector_filter import PromoVectorFilter
+        from app.services.filters.trailing_promo_filter import TrailingPromoFilter
         
         # 创建内容过滤专用的轻量级管道（受系统配置控制）
         # 获取当前过滤器配置
@@ -116,7 +116,7 @@ async def filter_message_content(
             pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤器
             
         if filter_settings.get('promo_vector_filter', True):
-            pipeline.add_filter(PromoVectorFilter())    # 3. 推广内容向量过滤（与统一引擎顺序一致）
+            pipeline.add_filter(TrailingPromoFilter())    # 3. 尾部推广内容过滤（与统一引擎顺序一致）
             
         if filter_settings.get('markdown_filter', True):
             pipeline.add_filter(MarkdownFilter())       # 4. Markdown格式清理

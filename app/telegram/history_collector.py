@@ -273,7 +273,7 @@ class HistoryCollector:
                             stats['error'] += 1
                             continue
                     else:
-                        logger.warning("未设置消息处理器，跳过消息")
+                        logger.debug("未设置消息处理器，跳过消息")
                         stats['error'] += 1
                         
                     # 每处理10条消息报告进度

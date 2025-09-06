@@ -388,14 +388,14 @@ async def predict_content_filtering(filter_name: str, metric_name: str, content:
 
 
 async def test_promo_vector_filter(content: str, test_threshold: float) -> Dict[str, Any]:
-    """实际调用PromoVectorFilter进行测试"""
+    """实际调用TrailingPromoFilter进行测试"""
     
     try:
-        from app.services.filters.promo_vector_filter import PromoVectorFilter
+        from app.services.filters.trailing_promo_filter import TrailingPromoFilter
         from app.services.filters.base import FilterContext
         
         # 创建过滤器实例并临时设置测试阈值
-        filter_instance = PromoVectorFilter()
+        filter_instance = TrailingPromoFilter()
         original_threshold = filter_instance.similarity_threshold
         filter_instance.similarity_threshold = test_threshold
         

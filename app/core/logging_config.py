@@ -65,7 +65,7 @@ def setup_logging(
     file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
     
-    # 2. 错误日志文件处理器（WARNING及以上）
+    # 2. 错误日志文件处理器（ERROR及以上，避免WARNING写入）
     error_handler = TimedRotatingFileHandler(
         filename=str(ERROR_LOG_FILE),
         when='D',
@@ -74,7 +74,7 @@ def setup_logging(
         encoding='utf-8'
     )
     error_handler.suffix = "%Y%m%d"
-    error_handler.setLevel(logging.WARNING)
+    error_handler.setLevel(logging.ERROR)  # 只记录ERROR和CRITICAL级别
     error_handler.setFormatter(formatter)
     root_logger.addHandler(error_handler)
     

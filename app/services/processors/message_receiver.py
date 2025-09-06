@@ -77,22 +77,18 @@ class MessageReceiver(MessageProcessor):
         Returns:
             原始内容字符串
         """
-        # 按Telegram官方优先级提取，只取第一个有效字段
+        # 按Telethon实际属性优先级提取，只取第一个有效字段
         # 不拼接多个字段，避免重复 - 修复消息#2261重复显示问题
         
-        # 优先级：message → raw_text → text → caption
-        # message字段是Telegram标准纯文本，与官方客户端显示一致
-        if hasattr(message, 'message') and message.message:
-            content = message.message.strip()
-            self.logger.debug(f"使用message字段: {len(content)}字符")
+        # 优先级：text → raw_text → caption
+        # Telethon的Message对象使用text属性，没有message属性
+        if hasattr(message, 'text') and message.text:
+            content = message.text.strip()
+            self.logger.debug(f"使用text字段: {len(content)}字符")
             return content
         elif hasattr(message, 'raw_text') and message.raw_text:
             content = message.raw_text.strip()
             self.logger.debug(f"使用raw_text字段: {len(content)}字符")
-            return content
-        elif hasattr(message, 'text') and message.text:
-            content = message.text.strip()
-            self.logger.debug(f"使用text字段: {len(content)}字符")
             return content
         elif hasattr(message, 'caption') and message.caption:
             content = message.caption.strip()

@@ -310,7 +310,13 @@ class TelegramCollectorService:
             queue_keys = [
                 "telegram:message_queue",
                 "telegram:processing_messages",
-                "telegram:pending_messages"
+                "telegram:pending_messages",
+                "collector:queue:raw",           # 原始消息队列
+                "media:download:queue",          # 媒体下载队列
+                "processor:queue:pending",       # 处理器待处理队列
+                "processor:queue:processing",    # 处理器正在处理队列
+                "media_refetch:queue",           # 媒体补抓队列
+                "message_forward:queue"          # 消息转发队列
             ]
             
             cleared_count = 0
