@@ -11,6 +11,10 @@ export HF_HUB_OFFLINE=1
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
+# 🌐 URL配置: 环境变量支持，消除硬编码
+export BASE_URL=${BASE_URL:-"http://localhost:8080"}
+export API_URL=${API_URL:-"http://localhost:8000"}
+
 # 显示帮助信息
 show_help() {
     echo "🚀 Telegram消息采集审核系统 - 生产环境启动器"
@@ -34,7 +38,7 @@ show_help() {
     echo ""
     echo "🏗️ 启动的服务架构:"
     echo "  ├── 🌐 Web服务器        (端口8000)"
-    echo "  │   • Web界面: http://localhost:8000"
+    echo "  │   • Web界面: ${API_URL}"
     echo "  │   • 消息审核、配置管理、系统监控"
     echo "  │"
     echo "  ├── 📡 Telegram采集服务  (消息收集)"
@@ -64,7 +68,7 @@ show_help() {
     echo "  ./dev.sh              开发模式启动"
     echo "  ./dev.sh --status     查看服务状态"
     echo ""
-    echo "Web界面: http://localhost:8000"
+    echo "Web界面: ${API_URL}"
     echo ""
 }
 
@@ -193,12 +197,12 @@ echo "   - 采集服务: ./logs/telegram_collector.log"
 echo "   - 调度服务: ./logs/message_scheduler.log"
 echo "   - 管理器状态: ./logs/supervisor_status.json"
 echo "   - 错误日志: ./logs/error.log (仅WARNING和ERROR)"
-echo "   - Web查看错误: http://localhost:8000/static/admin.html"
+echo "   - Web查看错误: ${API_URL}/static/admin.html"
 echo
 echo "💡 提示："
 echo "   - 使用 './stop.sh' 停止所有服务"
 echo "   - 使用 './dev.sh --status' 查看服务状态"
-echo "   - Web界面: http://localhost:8000"
+echo "   - Web界面: ${API_URL}"
 echo
 # 存储服务状态检查（使用Redis分布式锁）
 echo "🔧 检查存储服务状态..."

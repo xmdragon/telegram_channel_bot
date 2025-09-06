@@ -11,6 +11,10 @@ export HF_HUB_OFFLINE=1
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
+# 🌐 URL配置: 环境变量支持，消除硬编码
+export BASE_URL=${BASE_URL:-"http://localhost:8080"}
+export API_URL=${API_URL:-"http://localhost:8000"}
+
 # 显示帮助信息
 show_help() {
     echo "🚀 Telegram消息采集审核系统 - 开发环境管理器"
@@ -25,7 +29,7 @@ show_help() {
     echo "              └── 消息调度和清理服务"
     echo ""
     echo "  web         仅启动Web服务器"
-    echo "              • Web界面: http://localhost:8000"
+    echo "              • Web界面: ${API_URL}"
     echo "              • 消息审核、配置管理、系统监控"
     echo ""
     echo "  collector   仅启动Telegram消息采集服务"
@@ -167,7 +171,7 @@ if [ "$USE_LEGACY" = true ]; then
     echo "📊 日志文件："
     echo "   - 完整日志: ./logs/app.log"
     echo "   - 错误日志: ./logs/error.log (仅WARNING和ERROR)"
-    echo "   - Web查看错误: http://localhost:8000/static/admin.html"
+    echo "   - Web查看错误: ${API_URL}/static/admin.html"
     echo
 
     # 检查是否安装了uvicorn
@@ -194,7 +198,7 @@ echo ""
 echo "💡 提示："
 echo "   - 使用 Ctrl+C 停止所有服务"
 echo "   - 使用 './dev.sh --status' 查看服务状态"
-echo "   - Web界面: http://localhost:8000"
+echo "   - Web界面: ${API_URL}"
 echo ""
 
 # 启动进程管理器

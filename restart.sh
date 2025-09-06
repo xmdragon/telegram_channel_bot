@@ -9,6 +9,10 @@ export HF_HUB_OFFLINE=1
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
+# 🌐 URL配置: 环境变量支持，消除硬编码
+export BASE_URL=${BASE_URL:-"http://localhost:8080"}
+export API_URL=${API_URL:-"http://localhost:8000"}
+
 # 显示帮助信息
 show_help() {
     echo "🔄 Telegram消息采集审核系统 - 服务重启器"
@@ -61,7 +65,7 @@ show_help() {
     echo "  ./stop.sh             停止所有服务"
     echo "  ./dev.sh --status     查看服务状态"
     echo ""
-    echo "Web界面: http://localhost:8000"
+    echo "Web界面: ${API_URL}"
     echo ""
 }
 
@@ -205,7 +209,7 @@ if [ "$SKIP_LOGS" = false ] && [ "$QUICK_MODE" = false ]; then
             
             if [ "$ERROR_COUNT" -gt 0 ] || [ "$WARNING_COUNT" -gt 0 ]; then
                 echo "📊 近期日志统计: $WARNING_COUNT 个警告, $ERROR_COUNT 个错误"
-                echo "   Web查看详情: http://localhost:8000/static/admin.html"
+                echo "   Web查看详情: ${API_URL}/static/admin.html"
             else
                 echo "✅ 近期无错误记录"
             fi

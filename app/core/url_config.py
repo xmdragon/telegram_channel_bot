@@ -5,6 +5,10 @@ URL配置管理模块
 """
 import os
 from typing import Optional
+from dotenv import load_dotenv
+
+# 加载环境变量配置文件
+load_dotenv()
 
 
 class URLConfig:
