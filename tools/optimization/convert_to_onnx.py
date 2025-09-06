@@ -73,8 +73,7 @@ class Text2VecONNXConverter:
             logger.info("正在使用Optimum转换模型...")
             onnx_model = ORTModelForFeatureExtraction.from_pretrained(
                 self.model_name,
-                export=True,  # 自动转换为ONNX
-                use_cache=False  # 不使用KV缓存，减小模型大小
+                export=True  # 自动转换为ONNX
             )
             
             # Step 2: 保存ONNX模型和tokenizer

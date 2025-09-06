@@ -361,7 +361,7 @@ class TelegramCollectorService:
                 
                 # 如果没有处理任何任务，短暂休眠
                 if not processed_any:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(0.1)  # 100ms检查间隔，快速响应任务
                     
             except Exception as e:
                 logger.error(f"任务处理器错误: {e}")
