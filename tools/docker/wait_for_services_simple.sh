@@ -5,6 +5,10 @@
 
 set -euo pipefail
 
+# URL配置: 环境变量支持，消除硬编码
+BASE_URL=${BASE_URL:-"http://localhost:8080"}
+API_URL=${API_URL:-"http://localhost:8000"}
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -118,13 +122,13 @@ test_nginx() {
     while [ $attempt -lt $max_attempts ]; do
         # 使用curl测试nginx（如果可用）
         if command -v curl &> /dev/null; then
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/static/favicon.svg 2>/dev/null | grep -q "200"; then
+            if curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/static/favicon.svg" 2>/dev/null | grep -q "200"; then
                 log_success "Nginx HTTP测试成功"
                 return 0
             fi
         # 否则使用wget测试
         elif command -v wget &> /dev/null; then
-            if wget --quiet --tries=1 --spider http://localhost:8080/static/favicon.svg 2>/dev/null; then
+            if wget --quiet --tries=1 --spider "${BASE_URL}/static/favicon.svg" 2>/dev/null; then
                 log_success "Nginx HTTP测试成功"
                 return 0
             fi

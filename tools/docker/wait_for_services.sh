@@ -7,6 +7,10 @@ Docker服务启动时序检查脚本
 
 set -euo pipefail
 
+# URL配置: 环境变量支持，消除硬编码
+BASE_URL=${BASE_URL:-"http://localhost:8080"}
+API_URL=${API_URL:-"http://localhost:8000"}
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -163,7 +167,7 @@ verify_nginx() {
     fi
     
     # 检查HTTP响应
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/static/favicon.svg | grep -q "200"; then
+    if curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/static/favicon.svg" | grep -q "200"; then
         log_success "Nginx HTTP响应验证成功"
         return 0
     else
