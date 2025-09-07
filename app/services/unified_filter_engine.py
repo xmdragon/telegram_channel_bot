@@ -74,6 +74,7 @@ class UnifiedFilterEngine:
             footer_promo_enabled = True
             markdown_enabled = True
             promo_vector_enabled = True
+            ad_detector_enabled = True
             auto_reject_ads = True
             
             try:
