@@ -281,7 +281,7 @@
                                     <input 
                                         class="form-input"
                                         type="text"
-                                        v-model="systemConfig['target.channel_link']" 
+                                        v-model="configs['target.channel_link']" 
                                         placeholder="输入用户名（如：@bigeventsinsea 或 bigeventsinsea）">
                                     <div class="form-hint">
                                         💡 输入频道用户名，系统会自动解析为数字ID用于消息发送
@@ -295,14 +295,14 @@
                                     <input 
                                         class="form-input"
                                         type="text"
-                                        v-model="systemConfig['target.channel_id']" 
+                                        v-model="configs['target.channel_id']" 
                                         placeholder="自动解析后显示ID"
                                         readonly>
                                     <button 
                                         type="button"
                                         class="btn btn-primary" 
                                         @click="manualResolveTargetChannel"
-                                        :disabled="!systemConfig['target.channel_link']">
+                                        :disabled="!configs['target.channel_link']">
                                         手动解析
                                     </button>
                                 </div>
@@ -314,7 +314,7 @@
                                     <input 
                                         class="form-input"
                                         type="text"
-                                        v-model="systemConfig['review.group_link']" 
+                                        v-model="configs['review.group_link']" 
                                         placeholder="输入群组链接（如：https://t.me/+HPbDzWj3ID01OTJl）">
                                     <div class="form-hint">
                                         💡 输入私有群组链接，系统会自动解析为数字ID用于消息发送
@@ -328,14 +328,14 @@
                                     <input 
                                         class="form-input"
                                         type="text"
-                                        v-model="systemConfig['review.group_id']" 
+                                        v-model="configs['review.group_id']" 
                                         placeholder="自动解析后显示ID"
                                         readonly>
                                     <button 
                                         type="button"
                                         class="btn btn-primary" 
                                         @click="manualResolveReviewGroup"
-                                        :disabled="!systemConfig['review.group_link']">
+                                        :disabled="!configs['review.group_link']">
                                         手动解析
                                     </button>
                                 </div>
@@ -346,10 +346,10 @@
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="systemConfig.auto_forward_enabled">
+                                            <input type="checkbox" v-model="configs['review.auto_forward_enabled']">
                                             <span class="slider"></span>
                                         </label>
-                                        <span class="switch-label">{{ systemConfig.auto_forward_enabled ? '启用' : '禁用' }}</span>
+                                        <span class="switch-label">{{ configs['review.auto_forward_enabled'] ? '启用' : '禁用' }}</span>
                                     </div>
                                     <div class="form-hint">
                                         启用后，消息会在指定延迟时间后自动转发到目标频道
@@ -363,11 +363,11 @@
                                     <input 
                                         class="form-input number-input"
                                         type="number"
-                                        v-model.number="systemConfig['review.auto_forward_delay']" 
+                                        v-model.number="configs['review.auto_forward_delay']" 
                                         min="0" 
                                         max="3600">
                                     <div class="form-hint">
-                                        消息在审核群中停留多长时间后自动转发（0表示不自动转发）
+                                        消息采集后等待多长时间自动转发到目标频道（0表示立即转发，需启用自动转发）
                                     </div>
                                 </div>
                             </div>
@@ -377,7 +377,7 @@
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="forwardingConfig.auto_forward_after_collect">
+                                            <input type="checkbox" v-model="configs['review.auto_forward_after_collect']">
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -392,7 +392,7 @@
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="forwardingConfig.auto_reject_ads">
+                                            <input type="checkbox" v-model="configs['review.auto_reject_ads']">
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -437,7 +437,7 @@
                                         </div>
                                         <div class="filter-control">
                                             <label class="switch">
-                                                <input type="checkbox" v-model="systemConfig.filter_enabled">
+                                                <input type="checkbox" v-model="configs['filter.enabled']">
                                                 <span class="slider"></span>
                                             </label>
                                         </div>
@@ -450,7 +450,7 @@
                                         </div>
                                         <div class="filter-control">
                                             <label class="switch">
-                                                <input type="checkbox" v-model="filterSettings.tail_filter">
+                                                <input type="checkbox" v-model="configs['filter.tail_filter']">
                                                 <span class="slider"></span>
                                             </label>
                                         </div>
@@ -463,7 +463,7 @@
                                         </div>
                                         <div class="filter-control">
                                             <label class="switch">
-                                                <input type="checkbox" v-model="filterSettings.markdown">
+                                                <input type="checkbox" v-model="configs['filter.markdown']">
                                                 <span class="slider"></span>
                                             </label>
                                         </div>
@@ -476,7 +476,7 @@
                                         </div>
                                         <div class="filter-control">
                                             <label class="switch">
-                                                <input type="checkbox" v-model="filterSettings.footer_promo">
+                                                <input type="checkbox" v-model="configs['filter.footer_promo']">
                                                 <span class="slider"></span>
                                             </label>
                                         </div>
@@ -489,7 +489,7 @@
                                         </div>
                                         <div class="filter-control">
                                             <label class="switch">
-                                                <input type="checkbox" v-model="filterSettings.promo_vector">
+                                                <input type="checkbox" v-model="configs['filter.promo_vector']">
                                                 <span class="slider"></span>
                                             </label>
                                         </div>
@@ -512,7 +512,7 @@
                                         </div>
                                         <div class="filter-control">
                                             <label class="switch">
-                                                <input type="checkbox" v-model="filterSettings.ad_detector">
+                                                <input type="checkbox" v-model="configs['filter.ad_detector']">
                                                 <span class="slider"></span>
                                             </label>
                                         </div>
@@ -548,7 +548,7 @@
                                     <input 
                                         class="form-input number-input"
                                         type="number"
-                                        v-model.number="systemConfig.history_message_limit" 
+                                        v-model.number="configs['source.history_limit']" 
                                         min="1" 
                                         max="1000" 
                                         placeholder="50">
@@ -562,7 +562,7 @@
                                 <label class="form-label">频道落款</label>
                                 <textarea 
                                     class="form-textarea"
-                                    v-model="systemConfig.signature" 
+                                    v-model="configs['target.signature']" 
                                     placeholder="输入频道落款内容，支持多行（用回车换行）"
                                     rows="4">
                                 </textarea>
@@ -582,7 +582,7 @@
                                         <input 
                                             class="form-input"
                                             type="text"
-                                            v-model="systemConfig['telegram.api_id']" 
+                                            v-model="configs['telegram.api_id']" 
                                             placeholder="请输入 Telegram API ID"
                                             @blur="validateApiId">
                                         <div class="form-hint">
@@ -598,7 +598,7 @@
                                         <input 
                                             class="form-input"
                                             type="password"
-                                            v-model="systemConfig['telegram.api_hash']" 
+                                            v-model="configs['telegram.api_hash']" 
                                             placeholder="请输入 Telegram API Hash"
                                             @blur="validateApiHash">
                                         <div class="form-hint">
@@ -608,10 +608,10 @@
                                 </div>
                                 
                                 <!-- 配置状态提示 -->
-                                <div class="config-warning" v-if="!systemConfig['telegram.api_id'] || !systemConfig['telegram.api_hash']">
+                                <div class="config-warning" v-if="!configs['telegram.api_id'] || !configs['telegram.api_hash']">
                                     ⚠️ 未配置 API 信息，Telegram 认证功能将不可用
                                 </div>
-                                <div class="config-success" v-if="systemConfig['telegram.api_id'] && systemConfig['telegram.api_hash']">
+                                <div class="config-success" v-if="configs['telegram.api_id'] && configs['telegram.api_hash']">")
                                     ✅ API 配置完成
                                 </div>
                             </div>
@@ -621,10 +621,10 @@
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="systemConfig.collection_enabled">
+                                            <input type="checkbox" v-model="configs['collection.enabled']">
                                             <span class="slider"></span>
                                         </label>
-                                        <span class="switch-label">{{ systemConfig.collection_enabled ? '启用采集' : '禁用采集' }}</span>
+                                        <span class="switch-label">{{ configs['collection.enabled'] ? '启用采集' : '禁用采集' }}</span>
                                     </div>
                                     <div class="form-hint">
                                         控制是否开启Telegram消息采集，关闭后系统将暂停从监听频道采集新消息
@@ -639,10 +639,10 @@
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="systemConfig.require_approval">
+                                            <input type="checkbox" v-model="configs['review.require_approval']">
                                             <span class="slider"></span>
                                         </label>
-                                        <span class="switch-label">{{ systemConfig.require_approval ? '启用' : '禁用' }}</span>
+                                        <span class="switch-label">{{ configs['review.require_approval'] ? '启用' : '禁用' }}</span>
                                     </div>
                                     <div class="form-hint">
                                         消息需要人工审核通过后才会转发到目标频道
@@ -657,10 +657,10 @@
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="systemConfig.scheduler_enabled">
+                                            <input type="checkbox" v-model="configs['scheduler.enabled']">
                                             <span class="slider"></span>
                                         </label>
-                                        <span class="switch-label">{{ systemConfig.scheduler_enabled ? '启用' : '禁用' }}</span>
+                                        <span class="switch-label">{{ configs['scheduler.enabled'] ? '启用' : '禁用' }}</span>
                                     </div>
                                     <div class="form-hint">
                                         后台调度服务，处理自动转发和数据清理任务
@@ -674,7 +674,7 @@
                                     <input 
                                         class="form-input number-input"
                                         type="number"
-                                        v-model.number="systemConfig.data_cleanup_interval_hours" 
+                                        v-model.number="configs['scheduler.data_cleanup_interval_hours']" 
                                         min="1" 
                                         max="168" 
                                         placeholder="24">

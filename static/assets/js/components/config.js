@@ -48,59 +48,66 @@ const ConfigApp = {
                 searched: false
             },
             
-            // 转发设置
-            forwardingConfig: {
-                enabled: false,
-                target_channel: '',
-                review_group: '',
-                target_channel_id: '',
-                review_group_id: '',
-                delay: 0,
-                auto_reject_ads: false,
-                auto_forward_after_collect: false
-            },
             
             // 帮助提示标记
             helpMessageShowing: false,
             
-            // 系统设置
-            systemConfig: {
-                history_message_limit: 50,
-                signature: '',
-                collection_enabled: true,
+            // 统一配置对象 - 使用点分隔键名与后端保持一致
+            configs: {
+                // 系统设置
+                'source.history_limit': '50',
+                'target.signature': '',
+                'collection.enabled': true,
                 // Telegram API 配置
                 'telegram.api_id': '',
                 'telegram.api_hash': '',
                 // 过滤设置
-                filter_enabled: true,
+                'filter.enabled': true,
+                'filter.tail_filter': true,
+                'filter.footer_promo': true,
+                'filter.markdown': true,
+                'filter.promo_vector': true,
+                'filter.ad_detector': true,
                 // 审核设置
-                require_approval: true,
+                'review.require_approval': true,
+                'review.auto_reject_ads': false,
+                'review.auto_forward_after_collect': false,
+                'review.auto_forward_enabled': false,
+                'review.auto_forward_delay': '1800',
                 // 转发设置
-                auto_forward_enabled: false,
                 'target.channel_link': '',
                 'target.channel_id': '',
                 'review.group_link': '',
                 'review.group_id': '',
-                'review.auto_forward_delay': 1800,
                 // 系统设置
-                scheduler_enabled: true,
-                data_cleanup_interval_hours: 24
-                // 调度和单消息删除默认启用
+                'scheduler.enabled': true,
+                'scheduler.data_cleanup_interval_hours': '24'
             },
             
-            // 过滤设置 - 系统自动管理
-            filterConfig: {},
-            
-            // 过滤器管理设置 - 统一命名格式
-            filterSettings: {
-                // 内容清理过滤器
-                tail_filter: true,        // 尾部过滤器
-                footer_promo: true,       // 尾部推广链接过滤器
-                markdown: true,           // Markdown格式清理
-                promo_vector: true,       // 推广内容向量过滤
-                
-                // 内容检测过滤器
-                ad_detector: true         // 广告检测器
+            // 配置类型映射 - 用于自动类型转换
+            configTypes: {
+                'source.history_limit': 'integer',
+                'target.signature': 'string',
+                'collection.enabled': 'boolean',
+                'telegram.api_id': 'string',
+                'telegram.api_hash': 'string',
+                'filter.enabled': 'boolean',
+                'filter.tail_filter': 'boolean',
+                'filter.footer_promo': 'boolean',
+                'filter.markdown': 'boolean',
+                'filter.promo_vector': 'boolean',
+                'filter.ad_detector': 'boolean',
+                'review.require_approval': 'boolean',
+                'review.auto_reject_ads': 'boolean',
+                'review.auto_forward_after_collect': 'boolean',
+                'review.auto_forward_enabled': 'boolean',
+                'review.auto_forward_delay': 'integer',
+                'target.channel_link': 'string',
+                'target.channel_id': 'string',
+                'review.group_link': 'string',
+                'review.group_id': 'string',
+                'scheduler.enabled': 'boolean',
+                'scheduler.data_cleanup_interval_hours': 'integer'
             }
         }
     },
@@ -140,7 +147,30 @@ const ConfigApp = {
     },
     
     methods: {
-        // 工具函数：解析boolean值
+        // 统一配置类型转换函数
+        convertConfigValue(key, value) {
+            const type = this.configTypes[key] || 'string';
+            
+            if (type === 'boolean') {
+                if (value === undefined || value === null) return false;
+                if (typeof value === 'boolean') return value;
+                if (typeof value === 'string') {
+                    return value.toLowerCase() === 'true';
+                }
+                return Boolean(value);
+            }
+            
+            if (type === 'integer') {
+                if (value === undefined || value === null) return 0;
+                const num = parseInt(value);
+                return isNaN(num) ? 0 : num;
+            }
+            
+            // string类型或默认
+            return value === undefined || value === null ? '' : String(value);
+        },
+        
+        // 工具函数：解析boolean值 (保持向后兼容)
         parseBooleanValue(value, defaultValue = false) {
             if (value === undefined || value === null) {
                 return defaultValue;
@@ -163,22 +193,83 @@ const ConfigApp = {
             return Boolean(value);
         },
         
+        // 统一配置加载方法
+        async loadConfigs() {
+            try {
+                const response = await axios.get(API.admin.config);
+                if (response.data) {
+                    const serverConfigs = response.data;
+                    
+                    // 使用类型转换加载所有配置
+                    for (const [key, value] of Object.entries(serverConfigs)) {
+                        if (this.configs.hasOwnProperty(key)) {
+                            this.configs[key] = this.convertConfigValue(key, value);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('加载配置失败:', error);
+                MessageManager.error('加载配置失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 统一配置保存方法 - 支持单个或批量保存
+        async saveConfigs(keys = null) {
+            try {
+                let configData = {};
+                
+                if (keys === null) {
+                    // 保存所有配置
+                    configData = { ...this.configs };
+                } else if (Array.isArray(keys)) {
+                    // 保存指定的多个配置
+                    keys.forEach(key => {
+                        if (this.configs.hasOwnProperty(key)) {
+                            configData[key] = this.configs[key];
+                        }
+                    });
+                } else if (typeof keys === 'string') {
+                    // 保存单个配置
+                    if (this.configs.hasOwnProperty(keys)) {
+                        configData[keys] = this.configs[keys];
+                    }
+                } else {
+                    throw new Error('keys参数类型错误');
+                }
+                
+                // 确保数值类型正确转换
+                for (const [key, value] of Object.entries(configData)) {
+                    const type = this.configTypes[key];
+                    if (type === 'integer' && typeof value === 'string') {
+                        configData[key] = String(parseInt(value) || 0);
+                    } else if (type === 'string' && typeof value !== 'string') {
+                        configData[key] = String(value);
+                    }
+                }
+                
+                const response = await axios.post(API.admin.configBatch, configData);
+                
+                if (response.data.success) {
+                    MessageManager.success('配置保存成功');
+                    // 重新加载配置以确保同步
+                    await this.loadConfigs();
+                } else {
+                    throw new Error(response.data.message || '配置保存失败');
+                }
+                
+            } catch (error) {
+                console.error('保存配置失败:', error);
+                MessageManager.error('配置保存失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
         async loadConfigData() {
             try {
                 // 加载频道列表
                 await this.loadChannels();
                 
-                // 加载转发配置
-                await this.loadForwardingConfig();
-                
-                // 加载系统配置 - 这里包含了 API 和 signature
-                await this.loadSystemConfig();
-                
-                // 加载过滤配置
-                await this.loadFilterConfig();
-                
-                // 加载过滤器管理配置
-                await this.loadFilterSettings();
+                // 加载所有配置
+                await this.loadConfigs();
                 
             } catch (error) {
                 MessageManager.error('加载配置数据失败: ' + (error.response?.data?.detail || error.message));
@@ -200,79 +291,7 @@ const ConfigApp = {
             }
         },
         
-        async loadForwardingConfig() {
-            try {
-                const response = await axios.get(API.admin.config);
-                if (response.data) {
-                    const configs = response.data;
-                    
-                    this.forwardingConfig = {
-                        enabled: this.parseBooleanValue(configs['target.auto_forward_enabled'], false),
-                        target_channel: configs['target.channel_link'] || '',
-                        review_group: configs['review.group_link'] || '',
-                        delay: parseInt(configs['review.auto_forward_delay']) || 1800,
-                        auto_reject_ads: this.parseBooleanValue(configs['review.auto_reject_ads'], false),
-                        auto_forward_after_collect: this.parseBooleanValue(configs['review.auto_forward_after_collect'], false),
-                        // 加载已解析的ID
-                        target_channel_id: configs['target.channel_id'] || '',
-                        review_group_id: configs['review.group_id'] || ''
-                    };
-                    
-                }
-            } catch (error) {
-                console.error('加载转发配置失败:', error);
-                // 使用默认配置
-                this.forwardingConfig = {
-                    enabled: false,
-                    target_channel: '',
-                    review_group: '',
-                    target_channel_id: '',
-                    review_group_id: '',
-                    delay: 1800,
-                    auto_reject_ads: false
-                };
-            }
-        },
         
-        async loadSystemConfig() {
-            try {
-                const response = await axios.get(API.admin.config);
-                if (response.data) {
-                    const configs = response.data;
-                    
-                    // 从系统配置中提取系统设置
-                    this.systemConfig = {
-                        history_message_limit: parseInt(configs['source.history_limit']) || 50,
-                        signature: configs['target.signature'] || '',
-                        collection_enabled: this.parseBooleanValue(configs['collection.enabled'], true),
-                        // Telegram API 配置
-                        'telegram.api_id': configs['telegram.api_id'] || '',
-                        'telegram.api_hash': configs['telegram.api_hash'] || '',
-                        // 过滤设置
-                        filter_enabled: this.parseBooleanValue(configs['filter.enabled'], true),
-                        // 审核设置
-                        require_approval: this.parseBooleanValue(configs['review.require_approval'], true),
-                        // 转发设置
-                        auto_forward_enabled: this.parseBooleanValue(configs['review.auto_forward_enabled'], false),
-                        'target.channel_link': configs['target.channel_link'] || '',
-                        'target.channel_id': configs['target.channel_id'] || '',
-                        'review.group_link': configs['review.group_link'] || '',
-                        'review.group_id': configs['review.group_id'] || '',
-                        'review.auto_forward_delay': parseInt(configs['review.auto_forward_delay']) || 1800,
-                        // 系统设置
-                        scheduler_enabled: this.parseBooleanValue(configs['scheduler.enabled'], true),
-                        data_cleanup_interval_hours: parseInt(configs['scheduler.data_cleanup_interval_hours']) || 24
-                        // 调度和单消息删除默认启用
-                    };
-                    
-                    // 强制更新视图
-                    this.$forceUpdate();
-                }
-            } catch (error) {
-                console.error('加载系统配置失败:', error);
-                // 使用默认配置
-            }
-        },
         
         async addChannel() {
             if (!this.newChannel.name) {
@@ -423,31 +442,22 @@ const ConfigApp = {
         },
         
         
+        // 保存转发配置 - 使用统一方法
         async saveForwardingConfig() {
             try {
-                // 使用批量配置保存API
-                const configData = {
-                    'target.auto_forward_enabled': this.forwardingConfig.enabled,
-                    'target.channel_link': this.forwardingConfig.target_channel.trim(),
-                    'review.group_link': this.forwardingConfig.review_group.trim(),
-                    'review.auto_forward_delay': String(parseInt(this.forwardingConfig.delay)),
-                    'review.auto_reject_ads': this.forwardingConfig.auto_reject_ads,
-                    'review.auto_forward_after_collect': this.forwardingConfig.auto_forward_after_collect,
-                    'target.channel_id': this.forwardingConfig.target_channel_id,
-                    'review.group_id': this.forwardingConfig.review_group_id
-                };
+                // 保存转发相关配置（直接从configs读取）
+                const forwardingKeys = [
+                    'review.auto_forward_enabled',
+                    'target.channel_link', 
+                    'review.group_link',
+                    'review.auto_forward_delay',
+                    'review.auto_reject_ads',
+                    'review.auto_forward_after_collect',
+                    'target.channel_id',
+                    'review.group_id'
+                ];
                 
-                // 调试日志
-                
-                const response = await axios.post(API.admin.configBatch, configData);
-                
-                if (response.data.success) {
-                    MessageManager.success('转发配置保存成功');
-                    // 保存成功后重新加载配置
-                    await this.loadForwardingConfig();
-                } else {
-                    throw new Error(response.data.message || '配置保存失败');
-                }
+                await this.saveConfigs(forwardingKeys);
                 
             } catch (error) {
                 console.error('保存配置错误:', error);
@@ -455,43 +465,30 @@ const ConfigApp = {
             }
         },
         
+        // 保存系统配置 - 使用统一方法
         async saveSystemConfig() {
             try {
-                // 准备保存的配置数据
-                const configData = {
-                    'source.history_limit': String(parseInt(this.systemConfig.history_message_limit)),
-                    'target.signature': this.systemConfig.signature,
-                    'collection.enabled': this.systemConfig.collection_enabled,
-                    // Telegram API 配置
-                    'telegram.api_id': this.systemConfig['telegram.api_id'] || '',
-                    'telegram.api_hash': this.systemConfig['telegram.api_hash'] || '',
-                    // 过滤设置
-                    'filter.enabled': this.systemConfig.filter_enabled,
-                    // 审核设置
-                    'review.require_approval': this.systemConfig.require_approval,
-                    // 转发设置
-                    'review.auto_forward_enabled': this.systemConfig.auto_forward_enabled,
-                    'target.channel_link': this.systemConfig['target.channel_link'],
-                    'target.channel_id': this.systemConfig['target.channel_id'],
-                    'review.group_link': this.systemConfig['review.group_link'],
-                    'review.group_id': this.systemConfig['review.group_id'],
-                    'review.auto_forward_delay': this.systemConfig['review.auto_forward_delay'],
-                    // 系统设置
-                    'scheduler.enabled': this.systemConfig.scheduler_enabled,
-                    'scheduler.data_cleanup_interval_hours': this.systemConfig.data_cleanup_interval_hours
-                    // 调度和单消息删除默认启用
-                };
+                // 保存所有系统相关配置
+                const systemKeys = [
+                    'source.history_limit',
+                    'target.signature', 
+                    'collection.enabled',
+                    'telegram.api_id',
+                    'telegram.api_hash',
+                    'filter.enabled',
+                    'review.require_approval',
+                    'review.auto_forward_enabled',
+                    'target.channel_link',
+                    'target.channel_id',
+                    'review.group_link',
+                    'review.group_id',
+                    'review.auto_forward_delay',
+                    'scheduler.enabled',
+                    'scheduler.data_cleanup_interval_hours'
+                ];
                 
-                // 批量保存配置
-                const response = await axios.post(API.admin.configBatch, configData);
+                await this.saveConfigs(systemKeys);
                 
-                if (response.data.success) {
-                    MessageManager.success('系统配置保存成功');
-                    // 保存成功后重新加载配置
-                    await this.loadSystemConfig();
-                } else {
-                    throw new Error(response.data.message || '保存配置失败');
-                }
             } catch (error) {
                 console.error('保存系统配置失败:', error);
                 MessageManager.error('系统配置保存失败: ' + (error.response?.data?.detail || error.message));
@@ -522,70 +519,26 @@ const ConfigApp = {
             MessageManager.success('系统配置已重置为默认值');
         },
         
-        async loadFilterConfig() {
-            // 过滤设置由系统自动管理，无需加载
-        },
         
-        async saveFilterConfig() {
-            MessageManager.info('过滤策略由系统自动管理，无需手动保存');
-        },
         
-        async loadFilterSettings() {
-            try {
-                const response = await axios.get(API.admin.config);
-                if (response.data) {
-                    const configs = response.data;
-                    
-                    // 从系统配置加载过滤器设置 - 统一命名格式
-                    this.filterSettings = {
-                        // 内容清理过滤器
-                        tail_filter: this.parseBooleanValue(configs['filter.tail_filter'], true),
-                        footer_promo: this.parseBooleanValue(configs['filter.footer_promo'], true),
-                        markdown: this.parseBooleanValue(configs['filter.markdown'], true),
-                        promo_vector: this.parseBooleanValue(configs['filter.promo_vector'], true),
-                        
-                        // 内容检测过滤器
-                        ad_detector: this.parseBooleanValue(configs['filter.ad_detector'], true)
-                    };
-                }
-            } catch (error) {
-                console.error('加载过滤器设置失败:', error);
-                // 使用默认设置
-            }
-        },
-        
+        // 保存过滤器配置 - 使用统一方法
         async saveFilterSettings() {
             try {
-                // 准备保存的配置数据 - 统一命名格式
-                const configData = {
-                    // 内容清理过滤器
-                    'filter.tail_filter': this.filterSettings.tail_filter,
-                    'filter.footer_promo': this.filterSettings.footer_promo,
-                    'filter.markdown': this.filterSettings.markdown,
-                    'filter.promo_vector': this.filterSettings.promo_vector,
-                    
-                    // 内容检测过滤器
-                    'filter.ad_detector': this.filterSettings.ad_detector,
-                    
-                    // 基础过滤开关（用户直接控制）
-                    'filter.enabled': this.systemConfig.filter_enabled
-                };
+                // 保存所有过滤器相关配置
+                const filterKeys = [
+                    'filter.enabled',
+                    'filter.tail_filter',
+                    'filter.footer_promo', 
+                    'filter.markdown',
+                    'filter.promo_vector',
+                    'filter.ad_detector'
+                ];
                 
-                // 批量保存配置
-                const response = await axios.post(API.admin.configBatch, configData);
+                await this.saveConfigs(filterKeys);
                 
-                if (response.data.success) {
-                    MessageManager.success('过滤器配置保存成功');
-                    
-                    // 保存成功后重新加载配置
-                    await this.loadFilterSettings();
-                    await this.loadSystemConfig();
-                    
-                    // 通知系统重新加载过滤器
-                    await this.reloadFilters();
-                } else {
-                    throw new Error(response.data.message || '保存过滤器配置失败');
-                }
+                // 通知系统重新加载过滤器
+                await this.reloadFilters();
+                
             } catch (error) {
                 console.error('保存过滤器配置失败:', error);
                 MessageManager.error('过滤器配置保存失败: ' + (error.response?.data?.detail || error.message));
@@ -593,17 +546,13 @@ const ConfigApp = {
         },
         
         async resetFilterSettings() {
-            // 重置为默认配置 - 统一命名格式
-            this.filterSettings = {
-                // 内容清理过滤器
-                tail_filter: true,
-                footer_promo: true,
-                markdown: true,
-                promo_vector: true,
-                
-                // 内容检测过滤器
-                ad_detector: true
-            };
+            // 重置过滤器配置到默认值
+            this.configs['filter.enabled'] = true;
+            this.configs['filter.tail_filter'] = true;
+            this.configs['filter.footer_promo'] = true;
+            this.configs['filter.markdown'] = true;
+            this.configs['filter.promo_vector'] = true;
+            this.configs['filter.ad_detector'] = true;
             
             MessageManager.success('过滤器配置已重置为默认值');
         },
@@ -664,22 +613,22 @@ const ConfigApp = {
         
         // 手动解析目标频道
         async manualResolveTargetChannel() {
-            if (!this.forwardingConfig.target_channel) {
+            if (!this.configs['target.channel_link']) {
                 MessageManager.warning('请先输入目标频道');
                 return;
             }
             
             try {
                 const response = await axios.post(API.admin.resolveChannelId, {
-                    channel_name: this.forwardingConfig.target_channel
+                    channel_name: this.configs['target.channel_link']
                 });
                 
                 if (response.data.success) {
-                    this.forwardingConfig.target_channel_id = response.data.resolved_id;
+                    this.configs['target.channel_id'] = response.data.resolved_id;
                     MessageManager.success(`目标频道已解析: ${response.data.resolved_id}`);
                     
                     // 保存解析结果到系统配置
-                    await this.saveForwardingConfig();
+                    await this.saveConfigs(['target.channel_id']);
                 } else {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
@@ -692,22 +641,22 @@ const ConfigApp = {
         
         // 手动解析审核群
         async manualResolveReviewGroup() {
-            if (!this.forwardingConfig.review_group) {
+            if (!this.configs['review.group_link']) {
                 MessageManager.warning('请先输入审核群');
                 return;
             }
             
             try {
                 const response = await axios.post(API.admin.resolveReviewGroup, {
-                    review_group_config: this.forwardingConfig.review_group
+                    review_group_config: this.configs['review.group_link']
                 });
                 
                 if (response.data.success) {
-                    this.forwardingConfig.review_group_id = response.data.resolved_id;
+                    this.configs['review.group_id'] = response.data.resolved_id;
                     MessageManager.success(`审核群已解析: ${response.data.resolved_id}`);
                     
                     // 保存解析结果到系统配置
-                    await this.saveForwardingConfig();
+                    await this.saveConfigs(['review.group_id']);
                 } else {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }

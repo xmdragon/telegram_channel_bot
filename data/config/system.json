@@ -1,7 +1,7 @@
 {
   "review.auto_forward_delay": {
-    "value": "1800",
-    "config_type": "integer",
+    "value": "1799",
+    "config_type": "string",
     "description": "自动转发延迟(秒)",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.310111"
@@ -28,7 +28,7 @@
     "created_at": "2025-08-15T19:03:51.231269"
   },
   "review.auto_reject_ads": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "自动拒绝广告消息",
     "is_active": true,
@@ -71,14 +71,14 @@
   },
   "scheduler.data_cleanup_interval_hours": {
     "value": "24",
-    "config_type": "integer",
+    "config_type": "string",
     "description": "数据清理时间间隔（小时）",
     "is_active": true,
     "created_at": "2025-09-03T11:50:00.000000"
   },
   "source.history_limit": {
-    "value": "100",
-    "config_type": "string",
+    "value": "99",
+    "config_type": "integer",
     "description": "首次采集频道时获取的历史消息条数",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.308901"
@@ -91,28 +91,28 @@
     "created_at": "2025-08-28T11:59:03.811456"
   },
   "target.channel_id": {
-    "value": "-1002696592354",
+    "value": "",
     "config_type": "string",
     "description": "目标频道ID（系统解析缓存）",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.307968"
   },
   "review.group_id": {
-    "value": "-1002871459104",
+    "value": "",
     "config_type": "string",
     "description": "审核群ID（系统解析缓存）",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.308680"
   },
   "target.channel_link": {
-    "value": "@bigeventsinsea",
+    "value": "",
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
     "created_at": "2025-08-28T11:59:03.810123"
   },
   "review.group_link": {
-    "value": "https://t.me/+TfGC_XoQ5gllZWY1",
+    "value": "",
     "config_type": "string",
     "description": "审核群链接（用户配置）",
     "is_active": true,
@@ -154,7 +154,7 @@
     "created_at": "2025-08-26T11:59:09.484163"
   },
   "filter.ad_detector": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "启用广告检测器",
     "is_active": true,
@@ -162,7 +162,7 @@
   },
   "telegram.api_id": {
     "value": "24382238",
-    "config_type": "integer",
+    "config_type": "string",
     "description": "Telegram API ID（双Session共用）",
     "is_active": true,
     "created_at": "2025-08-28T11:59:03.808646"
@@ -187,5 +187,5 @@
     "description": "Telegram Listener Session",
     "is_active": true,
     "created_at": "2025-08-29T10:27:28.223796"
-  },
+  }
 }
