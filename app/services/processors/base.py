@@ -20,6 +20,9 @@ class MessageContext:
     channel_id: str
     # is_history已移除：统一处理所有消息，不区分历史/实时
     
+    # 组消息ID - Linus式修复：显式保存，消除特殊情况
+    grouped_id: Optional[str] = None
+    
     # 处理结果数据
     original_content: str = ""
     processed_content: str = ""

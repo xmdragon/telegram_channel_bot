@@ -56,8 +56,8 @@ class MessageStorageProcessor(MessageProcessor):
                 context.save_data['reject_reason'] = context.reject_reason
                 
             
-            # 检查是否为组消息
-            grouped_id = str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None
+            # Linus式修复：直接从context获取，消除getattr特殊情况
+            grouped_id = context.grouped_id
             
             if grouped_id:
                 # 🔧 修复组消息处理：改进日志记录和错误处理
