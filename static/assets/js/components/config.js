@@ -477,12 +477,6 @@ const ConfigApp = {
                     'telegram.api_hash',
                     'filter.enabled',
                     'review.require_approval',
-                    'review.auto_forward_enabled',
-                    'target.channel_link',
-                    'target.channel_id',
-                    'review.group_link',
-                    'review.group_id',
-                    'review.auto_forward_delay',
                     'scheduler.enabled',
                     'scheduler.data_cleanup_interval_hours'
                 ];
@@ -678,7 +672,7 @@ const ConfigApp = {
                     
                     // 重新加载配置
                     await this.loadChannels();
-                    await this.loadForwardingConfig();
+                    await this.loadConfigs();
                 } else {
                     MessageManager.error('解析失败: ' + response.data.message);
                 }
