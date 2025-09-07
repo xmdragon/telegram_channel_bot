@@ -1,7 +1,7 @@
 {
   "review.auto_forward_delay": {
-    "value": "1799",
-    "config_type": "string",
+    "value": "1800",
+    "config_type": "integer",
     "description": "自动转发延迟(秒)",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.310111"
@@ -28,7 +28,7 @@
     "created_at": "2025-08-15T19:03:51.231269"
   },
   "review.auto_reject_ads": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "自动拒绝广告消息",
     "is_active": true,
@@ -91,28 +91,28 @@
     "created_at": "2025-08-28T11:59:03.811456"
   },
   "target.channel_id": {
-    "value": "",
+    "value": "-1002696592354",
     "config_type": "string",
     "description": "目标频道ID（系统解析缓存）",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.307968"
   },
   "review.group_id": {
-    "value": "",
+    "value": "-1002871459104",
     "config_type": "string",
     "description": "审核群ID（系统解析缓存）",
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.308680"
   },
   "target.channel_link": {
-    "value": "",
+    "value": "@bigeventsinsea",
     "config_type": "string",
     "description": "目标频道链接（用户配置）",
     "is_active": true,
     "created_at": "2025-08-28T11:59:03.810123"
   },
   "review.group_link": {
-    "value": "",
+    "value": "https://t.me/+TfGC_XoQ5gllZWY1",
     "config_type": "string",
     "description": "审核群链接（用户配置）",
     "is_active": true,
