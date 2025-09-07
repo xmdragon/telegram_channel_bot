@@ -153,14 +153,15 @@ async def filter_message_content(
         # 更新过滤后的内容
         content_changed = removed_length > 0
         if content_changed:
-            redis_store = redis_manager
-            msg_key = f"msg:{channel_id}:{msg_id}"
             update_data = {
                 'filtered_content': filtered_content,
                 'updated_at': get_current_time().isoformat()
             }
-            redis_manager.client.hset(msg_key, mapping=update_data)
-            logger.info(f"✂️ 内容过滤完成: 移除 {removed_length} 字符")
+            success = redis_manager.update_message(channel_id, int(msg_id), update_data)
+            if success:
+                logger.info(f"✂️ 内容过滤完成: 移除 {removed_length} 字符")
+            else:
+                logger.error(f"❌ Redis更新失败: {channel_id}:{msg_id}")
         
         return {
             "success": True,
