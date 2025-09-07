@@ -292,18 +292,16 @@ async def add_tail_filter_sample(request: dict):
             sample_id = new_id
             logger.info(f"新尾部过滤训练样本已保存: {sample_id}")
             
-            # 🔥 实时向量化新样本（延迟初始化模式）
+            # 🔥 使用ONNX语义模型添加新样本
             try:
-                from app.services.tail_vector_manager import tail_vector_manager
-                if tail_part:
-                    # 向量管理器会在首次使用时自动初始化
-                    tail_vector_manager.add_vector(tail_part, new_id)
-                    tail_vector_manager.save_vectors()
-                    logger.info(f"✅ 样本 {sample_id} 已完成向量化")
+                from app.services.filters.tail_vector_filter import get_tail_vector_filter
+                filter_instance = get_tail_vector_filter()
+                if tail_part and filter_instance.add_tail_sample(tail_part):
+                    logger.info(f"✅ 样本 {sample_id} 已完成ONNX语义向量化")
                 else:
-                    logger.warning(f"⚠️ 尾部内容为空，跳过向量化")
+                    logger.warning(f"⚠️ ONNX语义向量化失败或尾部内容为空")
             except Exception as e:
-                logger.error(f"❌ 向量化失败，但不影响样本保存: {e}")
+                logger.error(f"❌ ONNX语义向量化失败，但不影响样本保存: {e}")
                 # 不抛出异常，向量化失败不应阻止样本保存
         
         # 如果有message_id，直接使用用户编辑的内容更新filtered_content
@@ -456,20 +454,45 @@ async def delete_tail_filter_sample(sample_id: int):
 
 @router.post(ROUTES.training.tail_filter_rebuild_vectors)
 async def rebuild_tail_vectors():
-    """重建尾部过滤向量索引"""
+    """重建ONNX语义向量索引"""
     try:
-        from app.services.tail_vector_manager import tail_vector_manager
+        from app.services.filters.tail_vector_filter import get_tail_vector_filter
         
-        logger.info("开始重建尾部过滤向量索引...")
-        result = tail_vector_manager.rebuild_vectors_from_samples_file()
+        logger.info("开始重建ONNX语义向量索引...")
         
-        if result.get("success"):
-            logger.info(f"向量重建成功: {result}")
-        else:
-            logger.error(f"向量重建失败: {result}")
+        # 强制重新初始化过滤器以重建向量
+        filter_instance = get_tail_vector_filter()
         
+        # 删除现有向量缓存，强制重新生成
+        import os
+        from app.core.path_config import PathConfig
+        embeddings_file = os.path.join(PathConfig.TAIL_TRAINING_DIR, 'tail_embeddings.npz')
+        if os.path.exists(embeddings_file):
+            os.remove(embeddings_file)
+            logger.info("已删除旧的语义向量缓存")
+        
+        # 重新初始化过滤器
+        filter_instance._load_tail_embeddings()
+        
+        stats = filter_instance.get_statistics()
+        
+        result = {
+            "success": True,
+            "message": "ONNX语义向量重建成功",
+            "sample_count": stats.get('sample_count', 0),
+            "vector_dimension": stats.get('vector_dimension', 0),
+            "model_type": stats.get('model_type', 'ONNX_Semantic')
+        }
+        
+        logger.info(f"ONNX语义向量重建成功: {result}")
         return result
         
     except Exception as e:
-        logger.error(f"重建向量索引时发生错误: {e}")
-        return handle_api_error(e, "重建尾部过滤向量索引")
+        logger.error(f"重建ONNX语义向量索引时发生错误: {e}")
+        return {
+            "success": False,
+            "message": f"重建失败: {str(e)}",
+            "sample_count": 0,
+            "vector_dimension": 0,
+            "model_type": "Error"
+        }

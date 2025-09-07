@@ -67,9 +67,11 @@ const API_ENDPOINTS = {
         info: '/api/telegram-auth/info',                            // GET - 获取认证信息
         clear: '/api/telegram-auth/clear',                          // POST - 清理认证
         disconnect: '/api/telegram-auth/disconnect',                // POST - 断开连接
-        logout: '/api/telegram-auth/logout',                        // POST - 登出Telegram
-        
-        // 消息工具
+        logout: '/api/telegram-auth/logout'                         // POST - 登出Telegram
+    },
+
+    // Telegram工具模块 - /api/telegram
+    telegram: {
         messageStructure: '/api/telegram/message-structure'         // POST - 获取消息结构体
     },
 

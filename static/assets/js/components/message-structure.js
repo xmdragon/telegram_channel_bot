@@ -17,17 +17,17 @@ const MessageStructureApp = {
     },
     
     async mounted() {
-        // 初始化发布认证检查
+        // 初始化管理员认证检查
         try {
-            const isAuthorized = await authManager.initPageAuth('telegram.sender.auth');
+            const isAuthorized = await authManager.initPageAuth('admin');
             if (!isAuthorized) {
-                return; // 认证失败，页面已跳转
+                return; // 认证失败，页面已跳转到登录页
             }
         } catch (error) {
-            console.error('发布认证失败:', error);
-            window.SimpleUI.showMessage('请先完成Telegram发布认证', 'error');
+            console.error('管理员认证失败:', error);
+            window.SimpleUI.showMessage('请先登录管理员账号', 'error');
             setTimeout(() => {
-                window.location.href = '/static/telegram-auth.html#sender';
+                window.location.href = '/static/login.html';
             }, 2000);
             return;
         }

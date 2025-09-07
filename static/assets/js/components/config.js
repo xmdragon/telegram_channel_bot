@@ -91,7 +91,7 @@ const ConfigApp = {
             // 过滤设置 - 系统自动管理
             filterConfig: {},
             
-            // 过滤器管理设置 - 修复字段名一致性
+            // 过滤器管理设置 - 统一命名格式
             filterSettings: {
                 // 内容清理过滤器
                 tail_filter: true,        // 尾部过滤器
@@ -100,7 +100,7 @@ const ConfigApp = {
                 promo_vector: true,       // 推广内容向量过滤
                 
                 // 内容检测过滤器
-                duplicate: true          // 去重检测
+                ad_detector: true         // 广告检测器
             }
         }
     },
@@ -536,16 +536,16 @@ const ConfigApp = {
                 if (response.data) {
                     const configs = response.data;
                     
-                    // 从系统配置加载过滤器设置 - 修复配置键名映射
+                    // 从系统配置加载过滤器设置 - 统一命名格式
                     this.filterSettings = {
                         // 内容清理过滤器
-                        tail_filter: this.parseBooleanValue(configs['filter.tail_filter_enabled'], true),
-                        footer_promo: this.parseBooleanValue(configs['filter.footer_promo_enabled'], true),
-                        markdown: this.parseBooleanValue(configs['filter.markdown_enabled'], true),
-                        promo_vector: this.parseBooleanValue(configs['filter.promo_vector_enabled'], true),
+                        tail_filter: this.parseBooleanValue(configs['filter.tail_filter'], true),
+                        footer_promo: this.parseBooleanValue(configs['filter.footer_promo'], true),
+                        markdown: this.parseBooleanValue(configs['filter.markdown'], true),
+                        promo_vector: this.parseBooleanValue(configs['filter.promo_vector'], true),
                         
                         // 内容检测过滤器
-                        duplicate: this.parseBooleanValue(configs['filter.duplicate_enabled'], true)
+                        ad_detector: this.parseBooleanValue(configs['filter.ad_detector'], true)
                     };
                 }
             } catch (error) {
@@ -556,20 +556,24 @@ const ConfigApp = {
         
         async saveFilterSettings() {
             try {
-                // 准备保存的配置数据 - 修复配置键名映射
+                // 准备保存的配置数据 - 统一命名格式
                 const configData = {
                     // 内容清理过滤器
-                    'filter.tail_filter_enabled': this.filterSettings.tail_filter,
-                    'filter.footer_promo_enabled': this.filterSettings.footer_promo,
-                    'filter.markdown_enabled': this.filterSettings.markdown,
-                    'filter.promo_vector_enabled': this.filterSettings.promo_vector,
+                    'filter.tail_filter': this.filterSettings.tail_filter,
+                    'filter.footer_promo': this.filterSettings.footer_promo,
+                    'filter.markdown': this.filterSettings.markdown,
+                    'filter.promo_vector': this.filterSettings.promo_vector,
                     
                     // 内容检测过滤器
-                    'filter.duplicate_enabled': this.filterSettings.duplicate,
+                    'filter.ad_detector': this.filterSettings.ad_detector,
                     
                     // 基础过滤开关（综合判断）
                     'filter.enabled': Boolean(
-                        this.filterSettings.duplicate
+                        this.filterSettings.ad_detector ||
+                        this.filterSettings.tail_filter ||
+                        this.filterSettings.footer_promo ||
+                        this.filterSettings.markdown ||
+                        this.filterSettings.promo_vector
                     )
                 };
                 
@@ -594,7 +598,7 @@ const ConfigApp = {
         },
         
         async resetFilterSettings() {
-            // 重置为默认配置 - 修复字段名一致性
+            // 重置为默认配置 - 统一命名格式
             this.filterSettings = {
                 // 内容清理过滤器
                 tail_filter: true,
@@ -603,7 +607,7 @@ const ConfigApp = {
                 promo_vector: true,
                 
                 // 内容检测过滤器
-                duplicate: true
+                ad_detector: true
             };
             
             MessageManager.success('过滤器配置已重置为默认值');

@@ -83,18 +83,20 @@ class UnifiedFilterEngine:
                     config_mgr = ConfigManager()
                     if hasattr(config_mgr, '_cache') and config_mgr._cache:
                         filter_enabled = config_mgr._cache.get('filter.enabled', {}).get('value', True)
-                        tail_filter_enabled = config_mgr._cache.get('filter.tail_filter_enabled', {}).get('value', True)
-                        footer_promo_enabled = config_mgr._cache.get('filter.footer_promo_enabled', {}).get('value', True)
-                        markdown_enabled = config_mgr._cache.get('filter.markdown_enabled', {}).get('value', True)
-                        promo_vector_enabled = config_mgr._cache.get('filter.promo_vector_enabled', {}).get('value', True)
+                        tail_filter_enabled = config_mgr._cache.get('filter.tail_filter', {}).get('value', True)
+                        footer_promo_enabled = config_mgr._cache.get('filter.footer_promo', {}).get('value', True)
+                        markdown_enabled = config_mgr._cache.get('filter.markdown', {}).get('value', True)
+                        promo_vector_enabled = config_mgr._cache.get('filter.promo_vector', {}).get('value', True)
+                        ad_detector_enabled = config_mgr._cache.get('filter.ad_detector', {}).get('value', True)
                         auto_reject_ads = config_mgr._cache.get('review.auto_reject_ads', {}).get('value', True)
                 else:
                     # 如果不在事件循环中，运行异步调用
                     filter_enabled = loop.run_until_complete(config_manager.get_config('filter.enabled', True))
-                    tail_filter_enabled = loop.run_until_complete(config_manager.get_config('filter.tail_filter_enabled', True))
-                    footer_promo_enabled = loop.run_until_complete(config_manager.get_config('filter.footer_promo_enabled', True))
-                    markdown_enabled = loop.run_until_complete(config_manager.get_config('filter.markdown_enabled', True))
-                    promo_vector_enabled = loop.run_until_complete(config_manager.get_config('filter.promo_vector_enabled', True))
+                    tail_filter_enabled = loop.run_until_complete(config_manager.get_config('filter.tail_filter', True))
+                    footer_promo_enabled = loop.run_until_complete(config_manager.get_config('filter.footer_promo', True))
+                    markdown_enabled = loop.run_until_complete(config_manager.get_config('filter.markdown', True))
+                    promo_vector_enabled = loop.run_until_complete(config_manager.get_config('filter.promo_vector', True))
+                    ad_detector_enabled = loop.run_until_complete(config_manager.get_config('filter.ad_detector', True))
                     auto_reject_ads = loop.run_until_complete(config_manager.get_config('review.auto_reject_ads', True))
             except Exception as e:
                 logger.warning(f"从config_manager加载配置失败，使用默认值: {e}")
@@ -113,13 +115,14 @@ class UnifiedFilterEngine:
             footer_promo_enabled = to_bool(footer_promo_enabled)
             markdown_enabled = to_bool(markdown_enabled)
             promo_vector_enabled = to_bool(promo_vector_enabled)
+            ad_detector_enabled = to_bool(ad_detector_enabled)
             auto_reject_ads = to_bool(auto_reject_ads)
             
             # 分层架构配置
             settings = {
                 # 分层控制
                 'content_layer_enabled': True,  # 内容清理层默认启用
-                'detector_layer_enabled': True, # 检测器层默认启用
+                'detector_layer_enabled': ad_detector_enabled, # 检测器层由ad_detector控制
                 
                 # 内容清理过滤器 - 通过层级管理
                 'tail_filter': tail_filter_enabled,

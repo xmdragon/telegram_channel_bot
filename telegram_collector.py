@@ -207,20 +207,38 @@ class TelegramCollectorService:
                             # 采集从禁用变为启用 - 启动bot
                             logger.info("🟢 检测到采集已启用，启动Telegram Bot...")
                             if not self.telegram_bot:
-                                bot = TelegramBot()
-                                await bot.start()
-                                bot_module.telegram_bot = bot
-                                self.telegram_bot = bot
+                                try:
+                                    bot = TelegramBot()
+                                    await bot.start()
+                                    bot_module.telegram_bot = bot
+                                    self.telegram_bot = bot
+                                    logger.info("✅ Telegram Bot启动成功")
+                                except Exception as e:
+                                    logger.error(f"❌ Telegram Bot启动失败: {e}")
+                                    # 不退出服务，记录错误并等待下次重试
+                                    await asyncio.sleep(10)
+                                    continue
                         else:
                             # 采集从启用变为禁用 - 停止bot并清理队列
                             logger.info("🔴 检测到采集已禁用，停止Telegram Bot并清理队列...")
                             if self.telegram_bot:
-                                await self.telegram_bot.stop()
-                                self.telegram_bot = None
-                                bot_module.telegram_bot = None
+                                try:
+                                    await self.telegram_bot.stop()
+                                    self.telegram_bot = None
+                                    bot_module.telegram_bot = None
+                                    logger.info("✅ Telegram Bot已停止")
+                                except Exception as e:
+                                    logger.error(f"⚠️ 停止Telegram Bot失败: {e}")
+                                    # 强制清理状态，避免僵尸进程
+                                    self.telegram_bot = None
+                                    bot_module.telegram_bot = None
                             
                             # 清理Redis消息队列
-                            await self._clear_message_queues()
+                            try:
+                                await self._clear_message_queues()
+                                logger.info("✅ 消息队列清理完成")
+                            except Exception as e:
+                                logger.error(f"⚠️ 清理消息队列失败: {e}")
                     
                     previous_collection_enabled = collection_enabled
                     
@@ -312,7 +330,6 @@ class TelegramCollectorService:
                 "telegram:processing_messages",
                 "telegram:pending_messages",
                 "collector:queue:raw",           # 原始消息队列
-                "media:download:queue",          # 媒体下载队列
                 "processor:queue:pending",       # 处理器待处理队列
                 "processor:queue:processing",    # 处理器正在处理队列
                 "media_refetch:queue",           # 媒体补抓队列

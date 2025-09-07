@@ -156,18 +156,17 @@ class MessageReceiver(MessageProcessor):
         return False
 
 
-class MediaDownloader(MessageProcessor):
-    """媒体下载处理器 - Linus式简化，只记录媒体元数据"""
+class MediaMetadataProcessor(MessageProcessor):
+    """媒体元数据处理器 - 只记录媒体元数据，不进行下载"""
     
     def __init__(self):
-        super().__init__("MediaDownloader")
-        self.logger = logging.getLogger(f"{__name__}.MediaDownloader")
+        super().__init__("MediaMetadataProcessor")
+        self.logger = logging.getLogger(f"{__name__}.MediaMetadataProcessor")
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
-        处理媒体元数据记录
-        Linus原则：只做一件事 - 记录媒体信息，不下载
-        实际下载由MediaDownloadService异步处理
+        处理媒体元数据记录 - 不进行实际下载
+        媒体下载应该在collector服务中完成
         """
         try:
             # 如果没有媒体，直接通过
@@ -177,45 +176,23 @@ class MediaDownloader(MessageProcessor):
             message = context.telegram_message
             media_type = context.media_type_info.get('media_type', 'unknown')
             
-            # 只记录媒体元数据，不进行实际下载
+            # 只记录媒体元数据信息
             media_info = {
                 'media_type': media_type,
                 'message_id': message.id,
                 'channel_id': context.channel_id,
                 'has_media': True,
-                'pending_download': True  # 标记为待下载
+                'note': 'Media should be downloaded in collector service'
             }
             
+            self.logger.debug(f"记录媒体元数据: {message.id} ({media_type})")
+            
             context.media_info = media_info
-            
-            # 提交到下载队列（如果需要）
-            if self._should_download(media_type):
-                from app.services.media_download_service import media_download_service
-                task_id = media_download_service.submit_task(
-                    message_id=str(message.id),
-                    channel_id=context.channel_id,
-                    message_obj=message,
-                    media_type=media_type
-                )
-                media_info['download_task_id'] = task_id
-                self.logger.info(f"媒体下载任务已提交: {task_id} ({media_type})")
-            else:
-                self.logger.debug(f"媒体类型 {media_type} 不需要下载")
-            
             return ProcessorResult(True, context)
             
         except Exception as e:
             # fail-fast: 错误直接报告
-            self.logger.error(f"媒体处理失败: {e}", exc_info=True)
+            self.logger.error(f"媒体元数据处理失败: {e}", exc_info=True)
             return await self._handle_error(context, e)
     
-    def _should_download(self, media_type: str) -> bool:
-        """判断媒体类型是否需要下载"""
-        # webpage类型通常不需要下载
-        return media_type not in ['webpage', 'unknown']
-    
-    # Linus式简化：删除_download_media方法，不再需要环境判断
-    
-    # Linus式简化：删除_download_media_with_client方法，由MediaDownloadService统一处理
-    
-    # Linus式简化：删除_process_media_metadata_only方法，统一处理流程
+    # MediaMetadataProcessor不需要下载相关方法

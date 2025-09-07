@@ -54,6 +54,9 @@ class BotManager:
             from app.services.media_handler import media_handler
             await media_handler.start()
             
+            # 🔧 修复组消息处理：初始化message_grouper的telegram_client
+            await self._init_message_grouper_client()
+            
             # 执行完整的启动检查
             await self._perform_startup_checks()
             
@@ -96,6 +99,20 @@ class BotManager:
             logger.error(f"客户端运行出错: {e}")
         finally:
             self.is_running = False
+    
+    async def _init_message_grouper_client(self):
+        """初始化消息组合器的Telegram客户端"""
+        try:
+            from app.services.message_grouper import message_grouper
+            
+            # 设置message_grouper使用相同的客户端实例
+            message_grouper.telegram_client = self.client
+            
+            logger.info("✅ 组消息处理器客户端初始化成功")
+            
+        except Exception as e:
+            logger.error(f"❌ 组消息处理器客户端初始化失败: {e}")
+            # 不抛出异常，避免影响系统启动
     
     async def _perform_startup_checks(self):
         """执行启动时的完整配置检查"""

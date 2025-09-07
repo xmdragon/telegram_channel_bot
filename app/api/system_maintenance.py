@@ -116,29 +116,42 @@ async def reset_system() -> Dict[str, Any]:
         # 步骤4：清空Redis消息数据 (45%)
         await websocket_manager.broadcast_progress(operation, 45, "清空Redis消息数据...")
         if redis_store and redis_manager.client:
-            # 删除所有消息键
+            # 删除所有消息相关的键
             try:
-                message_keys = redis_manager.client.keys("msg:*")
-                if message_keys:
+                # 收集所有需要删除的键
+                patterns_to_delete = [
+                    "message:*",        # 消息数据
+                    "msg:*",           # 所有索引和msg开头的键
+                    "channel:*:count"  # 频道计数
+                ]
+                
+                all_keys = []
+                for pattern in patterns_to_delete:
+                    keys = redis_manager.client.keys(pattern)
+                    if keys:
+                        all_keys.extend(keys)
+                        logger.info(f"找到 {len(keys)} 个匹配 {pattern} 的键")
+                
+                if all_keys:
                     # 分批删除，避免阻塞
                     batch_size = 1000
                     deleted_total = 0
-                    for i in range(0, len(message_keys), batch_size):
-                        batch = message_keys[i:i + batch_size]
+                    for i in range(0, len(all_keys), batch_size):
+                        batch = all_keys[i:i + batch_size]
                         deleted_count = redis_manager.client.delete(*batch)
                         deleted_total += deleted_count
-                        progress = 45 + (10 * (i + len(batch)) / len(message_keys))
+                        progress = 45 + (10 * (i + len(batch)) / len(all_keys))
                         await websocket_manager.broadcast_progress(
                             operation, 
                             int(progress), 
-                            f"删除消息 {i + len(batch)}/{len(message_keys)}..."
+                            f"删除消息 {i + len(batch)}/{len(all_keys)}..."
                         )
                     cleanup_status["redis_messages"] = {
                         "success": True, 
                         "error": None, 
                         "count": deleted_total
                     }
-                    logger.info(f"✅ 成功清空了 {len(message_keys)} 条Redis消息 (实际删除: {deleted_total})")
+                    logger.info(f"✅ 成功清空了 {len(all_keys)} 条Redis消息相关键 (实际删除: {deleted_total})")
                 else:
                     cleanup_status["redis_messages"] = {
                         "success": True, 

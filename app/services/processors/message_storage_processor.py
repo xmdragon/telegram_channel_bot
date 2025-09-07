@@ -18,16 +18,16 @@ class MessageStorageProcessor(MessageProcessor):
     def __init__(self):
         super().__init__("MessageStorageProcessor")
         # 延迟初始化依赖
-        self._message_processor = None
+        self._redis_store = None
         self._message_grouper = None
     
     @property
-    def message_processor(self):
-        """延迟加载消息处理器"""
-        if self._message_processor is None:
-            from app.services.message_processor import MessageProcessor
-            self._message_processor = MessageProcessor()
-        return self._message_processor
+    def redis_store(self):
+        """直接使用Redis存储，避免循环依赖"""
+        if self._redis_store is None:
+            from app.storage.redis_manager import redis_manager
+            self._redis_store = redis_manager
+        return self._redis_store
     
     @property
     def message_grouper(self):
@@ -60,14 +60,30 @@ class MessageStorageProcessor(MessageProcessor):
             grouped_id = str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None
             
             if grouped_id:
-                # 组消息交给组合器处理，不立即保存
-                await self._handle_grouped_message(context, grouped_id)
-                # 设置save_data为None，表示等待组合
-                context.save_data = None
-                self.logger.info(f"组消息 #{message.id} 已交给组合器处理，等待组合完成")
+                # 🔧 修复组消息处理：改进日志记录和错误处理
+                self.logger.info(f"📦 检测到组消息: #{message.id} | grouped_id: {grouped_id} | channel: {context.channel_id}")
+                
+                try:
+                    # 组消息交给组合器处理，不立即保存
+                    await self._handle_grouped_message(context, grouped_id)
+                    # 设置save_data为None，表示等待组合
+                    context.save_data = None
+                    self.logger.info(f"✅ 组消息 #{message.id} 已交给组合器处理，等待组合完成 (grouped_id: {grouped_id})")
+                except Exception as group_error:
+                    self.logger.error(f"❌ 组消息处理失败 #{message.id} (grouped_id: {grouped_id}): {group_error}")
+                    # 组消息处理失败时，降级为单独消息处理
+                    self.logger.warning(f"⚠️ 组消息 #{message.id} 降级为单独消息处理")
+                    context.save_data['grouped_id'] = grouped_id  # 保留grouped_id信息
+                    saved_message = await self._save_to_redis_directly(context.save_data)
+                    if saved_message:
+                        context.save_data = saved_message
+                        msg_id = saved_message.get('message_id', 'N/A')
+                        self.logger.info(f"🔄 组消息降级保存成功: #{message.id} -> Redis {context.channel_id}:{msg_id}")
+                    else:
+                        return ProcessorResult(False, context, f"组消息处理和降级保存都失败: {group_error}")
             else:
-                # 步骤3: 非组消息立即保存到Redis
-                saved_message = await self.message_processor.process_new_message(context.save_data)
+                # 步骤3: 非组消息直接保存到Redis（避免循环依赖）
+                saved_message = await self._save_to_redis_directly(context.save_data)
                 
                 if not saved_message:
                     return ProcessorResult(False, context, "消息保存失败")
@@ -325,6 +341,35 @@ class MessageStorageProcessor(MessageProcessor):
             
         except Exception as e:
             self.logger.error(f"清理媒体文件失败: {e}")
+    
+    async def _save_to_redis_directly(self, save_data: dict) -> dict:
+        """直接保存到Redis，避免循环依赖"""
+        try:
+            # 生成消息ID
+            from app.utils.timezone import get_current_time
+            import time
+            
+            message_id = f"{save_data['source_channel']}:{save_data['message_id']}"
+            save_data['id'] = message_id
+            save_data['timestamp'] = get_current_time().isoformat()
+            
+            # 直接保存到Redis
+            success = self.redis_store.save_message(
+                save_data['source_channel'],
+                save_data['message_id'], 
+                save_data
+            )
+            
+            if success:
+                self.logger.debug(f"消息已保存到Redis: {message_id}")
+                return save_data
+            else:
+                self.logger.error(f"保存到Redis失败: {message_id}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"直接保存到Redis失败: {e}")
+            return None
     
     def _generate_channel_link_prefix(self, channel_id: str) -> str:
         """

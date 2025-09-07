@@ -100,13 +100,12 @@ async def get_system_config():
         "scheduler.enabled": await config_manager.get_config('scheduler.enabled', True),
         "storage.delete_single_messages": await config_manager.get_config('storage.delete_single_messages', True),
         
-        # 过滤器配置 - 使用点分格式字段名
-        "filter.footer_promo_enabled": await config_manager.get_config('filter.footer_promo_enabled', True),
-        "filter.markdown_enabled": await config_manager.get_config('filter.markdown_enabled', True),
-        "filter.promo_vector_enabled": await config_manager.get_config('filter.promo_vector_enabled', True),
-        "filter.duplicate_enabled": await config_manager.get_config('filter.duplicate_enabled', True),
-        "filter.chat_content_enabled": await config_manager.get_config('filter.chat_content_enabled', True),
-        "review.auto_reject_duplicates": await config_manager.get_config('review.auto_reject_duplicates', False),
+        # 过滤器配置 - 统一命名格式
+        "filter.ad_detector": await config_manager.get_config('filter.ad_detector', True),
+        "filter.tail_filter": await config_manager.get_config('filter.tail_filter', True),
+        "filter.footer_promo": await config_manager.get_config('filter.footer_promo', True),
+        "filter.markdown": await config_manager.get_config('filter.markdown', True),
+        "filter.promo_vector": await config_manager.get_config('filter.promo_vector', True),
         
         # 源频道列表
         "source_channels": await db_settings.get_source_channels()
@@ -184,17 +183,20 @@ async def update_config_batch(configs: Dict[str, Any]):
             except Exception as e:
                 errors.append(f"配置 {key} 更新失败: {str(e)}")
         
-        # 如果采集开关被开启，触发历史采集
+        # 如果采集开关被开启，记录日志（collector服务会自动检测并触发）
         if collection_changed and len(errors) == 0:
-            try:
-                await _trigger_history_collection()
-            except Exception as e:
-                logger.error(f"触发历史采集失败: {e}")
-                errors.append("采集开关已更新但触发历史采集失败")
+            # 不再直接调用历史采集，避免API超时
+            # collector服务会在10秒内自动检测配置变化并启动历史采集
+            logger.info("采集开关已启用，collector服务将自动检测并启动历史采集")
+        
+        # 构建返回消息
+        message = f"成功更新 {success_count} 个配置项"
+        if collection_changed and len(errors) == 0:
+            message += "，历史采集将在后台自动启动"
         
         return {
             "success": len(errors) == 0,
-            "message": f"成功更新 {success_count} 个配置项",
+            "message": message,
             "errors": errors if errors else None
         }
             
@@ -348,7 +350,7 @@ async def reload_filters():
         from app.services.unified_filter_engine import unified_filter_engine
         
         # 重新初始化过滤器管道
-        unified_filter_engine.filter_pipeline = unified_filter_engine._init_filter_pipeline()
+        unified_filter_engine.filter_pipeline = unified_filter_engine._init_layer_pipeline()
         
         # 获取更新后的统计信息
         stats = unified_filter_engine.get_pipeline_stats()

@@ -13,7 +13,7 @@
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.309145"
   },
-  "filter.tail_filter_enabled": {
+  "filter.tail_filter": {
     "value": "true",
     "config_type": "boolean",
     "description": "启用尾部过滤",
@@ -132,26 +132,33 @@
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.309842"
   },
-  "filter.footer_promo_enabled": {
+  "filter.footer_promo": {
     "value": "true",
     "config_type": "boolean",
     "description": "启用尾部推广过滤",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.482099"
   },
-  "filter.markdown_enabled": {
+  "filter.markdown": {
     "value": "true",
     "config_type": "boolean",
     "description": "启用Markdown格式过滤",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.483169"
   },
-  "filter.promo_vector_enabled": {
+  "filter.promo_vector": {
     "value": "true",
     "config_type": "boolean",
     "description": "启用推广向量检测",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.484163"
+  },
+  "filter.ad_detector": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用广告检测器",
+    "is_active": true,
+    "created_at": "2025-09-07T10:30:00.000000"
   },
   "telegram.api_id": {
     "value": "24382238",
@@ -180,5 +187,5 @@
     "description": "Telegram Listener Session",
     "is_active": true,
     "created_at": "2025-08-29T10:27:28.223796"
-  }
+  },
 }

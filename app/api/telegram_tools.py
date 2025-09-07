@@ -17,7 +17,7 @@ def success_response(data):
 def error_response(message):
     return {"success": False, "error": message}
 
-router = APIRouter(prefix="/api/telegram", tags=["telegram-tools"])
+router = APIRouter(prefix="/telegram", tags=["telegram-tools"])
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +49,7 @@ async def get_message_structure(
             raise HTTPException(status_code=400, detail="无效的消息URL格式")
         
         # 获取Telegram客户端
-        client = await client_manager.get_sender_client()
+        client = await client_manager.get_client()
         if not client or not client.is_connected():
             raise HTTPException(status_code=503, detail="Telegram发布客户端未连接")
         

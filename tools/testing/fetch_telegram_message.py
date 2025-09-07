@@ -24,9 +24,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.tl.types import Message, MessageMediaPhoto, MessageMediaDocument
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.utils.timezone import format_for_api
-from app.storage.json_store import JSONStore
 
 
 class TelegramMessageFetcher:

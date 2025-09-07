@@ -194,33 +194,57 @@ class MessageHandler:
             # 1. 快速提取基础信息
             collected_msg = await self._extract_message_quickly(message, channel_id, chat)
             
-            # 2. 如果有媒体，在collector环境中立即下载
+            # 2. 静默丢弃空消息（无内容无媒体）
+            if not collected_msg.content and not collected_msg.has_media:
+                return "empty_discarded"
+            
+            # 3. 如果有媒体，在collector环境中立即下载
             if collected_msg.has_media:
                 try:
-                    from app.services.processors.message_receiver import MediaDownloader
-                    downloader = MediaDownloader()
-                    # 创建临时上下文用于媒体下载
-                    from app.services.processors.base import MessageContext
-                    temp_context = MessageContext(
-                        telegram_message=message,
-                        channel_id=channel_id
-                    )
-                    temp_context.media_type_info = {'has_media': True, 'media_type': collected_msg.media_type}
-                    
-                    # 在collector中下载媒体
-                    result = await downloader.process(temp_context)
-                    if result.success and temp_context.media_info:
-                        # 保存完整媒体信息到消息对象
-                        collected_msg.media_info = temp_context.media_info
-                        logger.debug(f"媒体已在collector中下载完成: {collected_msg.message_key}")
+                    # 判断是否需要下载
+                    if self._should_download_media(collected_msg.media_type):
+                        logger.info(f"开始下载媒体: {message.id} ({collected_msg.media_type})")
+                        
+                        # 获取Telegram客户端
+                        client = await self._get_telegram_client()
+                        if not client:
+                            raise Exception("无法获取Telegram客户端")
+                        
+                        # 直接使用media_handler下载
+                        from app.services.media_handler import media_handler
+                        downloaded_media = await media_handler.download_media(
+                            client,
+                            message,
+                            str(message.id),
+                            timeout=1800.0
+                        )
+                        
+                        if downloaded_media and downloaded_media.get('file_path'):
+                            # 下载成功，保存媒体信息
+                            collected_msg.media_info = downloaded_media
+                            logger.info(f"媒体下载成功: {collected_msg.message_key}")
+                        else:
+                            logger.warning(f"媒体下载失败: {collected_msg.message_key}")
+                            collected_msg.media_info = {
+                                'media_type': collected_msg.media_type,
+                                'download_failed': True
+                            }
                     else:
-                        logger.warning(f"媒体下载失败，但继续处理: {collected_msg.message_key}")
+                        logger.debug(f"媒体类型 {collected_msg.media_type} 不需要下载")
+                        collected_msg.media_info = {
+                            'media_type': collected_msg.media_type,
+                            'skipped': True
+                        }
                         
                 except Exception as media_error:
                     logger.error(f"collector媒体下载异常: {media_error}, 继续处理")
-                    # 媒体下载失败不影响消息入队
+                    collected_msg.media_info = {
+                        'media_type': collected_msg.media_type,
+                        'download_failed': True,
+                        'error': str(media_error)
+                    }
             
-            # 3. 消息入队（现在包含完整信息）
+            # 4. 消息入队（现在包含完整信息）
             queue = get_message_queue()
             success = await queue.enqueue_message(collected_msg)
             
@@ -548,6 +572,26 @@ class MessageHandler:
     async def show_message_detail(self, message_id: int):
         """显示消息详情（预留功能）"""
         pass
+    
+    def _should_download_media(self, media_type: str) -> bool:
+        """判断媒体类型是否需要下载"""
+        # webpage类型通常不需要下载，unknown类型也跳过
+        return media_type not in ['webpage', 'unknown']
+    
+    async def _get_telegram_client(self):
+        """获取Telegram客户端"""
+        try:
+            # 直接从dual_session_manager获取客户端
+            from app.telegram.dual_session_manager import dual_session_manager
+            client = await dual_session_manager.get_listener_client()
+            if client:
+                return client
+            else:
+                logger.warning("无法从dual_session_manager获取客户端")
+                return None
+        except Exception as e:
+            logger.error(f"获取Telegram客户端失败: {e}")
+            return None
 
 # 全局实例
 message_handler = MessageHandler()

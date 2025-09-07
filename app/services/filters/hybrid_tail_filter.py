@@ -1,49 +1,43 @@
 """
-混合尾部过滤器 - 极简化版本
-只使用向量匹配，不降级，不硬编码
+ONNX语义尾部过滤器 - 极简版本
+纯语义判断，无复杂逻辑
 
-Linus哲学：消除所有特殊情况和不必要的复杂性
-Author: Claude
-Updated: 2025-09-06
+Linus原则：消除所有不必要的复杂性
+Author: Claude (ONNX简化重构)  
+Updated: 2025-09-07
 """
 
-import logging
 import re
-from typing import Tuple, Dict, Optional, List
-from app.services.filters.tail_vector_filter import get_tail_vector_filter
+import logging
+from typing import List, Tuple, Dict, Optional
+
+from .tail_vector_filter import get_tail_vector_filter
 
 logger = logging.getLogger(__name__)
 
 
 class HybridTailFilter:
-    """极简混合尾部过滤器
+    """极简ONNX语义尾部过滤器
     
-    只做一件事：使用向量匹配过滤尾部内容
-    没有硬编码，没有降级，没有特殊逻辑
+    只做一件事：使用ONNX语义模型进行尾部内容识别
+    无保护机制，无复杂逻辑，相信语义模型的判断
     """
     
-    def __init__(self, vector_threshold: float = 0.15):
-        """初始化混合过滤器
-        
-        Args:
-            vector_threshold: 向量相似度阈值
-        """
-        self.vector_threshold = vector_threshold
+    def __init__(self):
+        """初始化混合过滤器"""
         self.vector_filter = get_tail_vector_filter()
         
         # 统计信息
         self.stats = {
             'total_processed': 0,
-            'vector_filtered': 0,
+            'filtered': 0,
             'lines_removed': 0
         }
         
-        # 检查向量过滤器初始化状态
         if self.vector_filter.is_initialized:
-            logger.info(f"✅ 混合尾部过滤器初始化完成 - 向量阈值: {vector_threshold}")
-            logger.info(f"   向量过滤器状态: 正常 ({len(self.vector_filter.tail_samples)}个样本)")
+            logger.info("✅ ONNX语义尾部过滤器初始化成功")
         else:
-            logger.error(f"❌ 混合尾部过滤器初始化异常 - 向量过滤器未正确初始化")
+            logger.error("❌ ONNX语义尾部过滤器初始化失败")
     
     def filter_message(self, content: str, has_media: bool = False) -> Tuple[str, bool, Optional[str], Dict]:
         """
@@ -51,7 +45,7 @@ class HybridTailFilter:
         
         Args:
             content: 完整消息内容
-            has_media: 是否有媒体文件（未使用，保留接口兼容）
+            has_media: 是否有媒体文件（保留接口兼容，实际未使用）
             
         Returns:
             (过滤后内容, 是否过滤了尾部, 尾部内容, 分析详情)
@@ -61,10 +55,10 @@ class HybridTailFilter:
         if not content or not content.strip():
             return content, False, None, {'reason': '内容为空'}
         
-        # 检查向量过滤器是否初始化
+        # 检查ONNX语义过滤器是否初始化
         if not self.vector_filter.is_initialized:
-            logger.warning("⚠️ 向量过滤器未初始化，跳过过滤")
-            return content, False, None, {'reason': '过滤器未初始化'}
+            logger.warning("⚠️ ONNX语义过滤器未初始化，跳过过滤")
+            return content, False, None, {'reason': 'ONNX过滤器未初始化'}
         
         # 将连续5个或更多空格转换为换行符
         if re.search(r' {5,}', content):
@@ -75,31 +69,32 @@ class HybridTailFilter:
         if len(lines) < 2:
             return content, False, None, {'reason': '内容行数不足'}
         
-        # 极简向量过滤
-        filtered_lines, removed_lines = self._simple_vector_filter(lines)
+        # 纯ONNX语义过滤：从尾部往前扫描
+        filtered_lines, removed_lines = self._semantic_filter(lines)
         
         if removed_lines:
-            self.stats['vector_filtered'] += 1
+            self.stats['filtered'] += 1
             self.stats['lines_removed'] += len(removed_lines)
             
             filtered_content = '\n'.join(filtered_lines)
             removed_content = '\n'.join(removed_lines)
             
-            logger.info(f"✅ 混合过滤成功: {len(content)} -> {len(filtered_content)} 字符")
+            logger.info(f"✅ ONNX语义过滤成功: {len(content)} -> {len(filtered_content)} 字符")
             logger.info(f"   移除了 {len(removed_lines)} 行推广内容")
             
             analysis = {
-                'method': 'vector',
+                'method': 'ONNX_semantic',
                 'removed_lines_count': len(removed_lines),
-                'filter_ratio': len(removed_content) / len(content)
+                'filter_ratio': len(removed_content) / len(content),
+                'model_type': 'ONNX'
             }
             
             return filtered_content, True, removed_content, analysis
         else:
-            return content, False, None, {'no_promotion_detected': True}
+            return content, False, None, {'no_promotion_detected': True, 'model_type': 'ONNX'}
     
-    def _simple_vector_filter(self, lines: List[str]) -> Tuple[List[str], List[str]]:
-        """极简向量过滤 - 从尾部往前扫描
+    def _semantic_filter(self, lines: List[str]) -> Tuple[List[str], List[str]]:
+        """纯ONNX语义过滤 - 从尾部往前扫描
         
         Args:
             lines: 文本行列表
@@ -110,7 +105,7 @@ class HybridTailFilter:
         kept_lines = []
         removed_lines = []
         
-        # 从尾部往前找到第一个非推广内容
+        # 从尾部往前扫描，找到第一个非推广内容
         filter_start_index = len(lines)
         for i in range(len(lines) - 1, -1, -1):
             line = lines[i].strip()
@@ -118,13 +113,13 @@ class HybridTailFilter:
             if not line:  # 空行跳过
                 continue
             
-            # 使用向量判断
+            # 使用ONNX语义判断
             is_tail, similarity = self.vector_filter.is_tail_content(line)
             
             if not is_tail:
                 # 找到非推广内容，停止过滤
                 filter_start_index = i + 1
-                logger.debug(f"找到正文边界，第{i}行后开始过滤")
+                logger.debug(f"ONNX语义边界：第{i}行后开始过滤")
                 break
         
         # 构建结果
@@ -141,16 +136,25 @@ class HybridTailFilter:
                     is_tail, similarity = self.vector_filter.is_tail_content(line_stripped)
                     if is_tail:
                         removed_lines.append(line)
-                        logger.debug(f"移除推广内容 (相似度: {similarity:.3f}): {line_stripped[:50]}...")
+                        logger.debug(f"移除推广内容 (ONNX相似度: {similarity:.3f}): {line_stripped[:50]}...")
                     else:
-                        # 向量判断不是推广，保留
+                        # ONNX语义判断不是推广，保留
                         kept_lines.append(line)
         
         return kept_lines, removed_lines
     
     def get_statistics(self) -> Dict:
         """获取统计信息"""
-        return self.stats.copy()
+        stats = self.stats.copy()
+        if self.vector_filter:
+            vector_stats = self.vector_filter.get_statistics()
+            stats.update({
+                'vector_filter_initialized': vector_stats.get('initialized', False),
+                'sample_count': vector_stats.get('sample_count', 0),
+                'threshold': vector_stats.get('threshold', 0),
+                'model_type': vector_stats.get('model_type', 'Unknown')
+            })
+        return stats
 
 
 # 单例实例

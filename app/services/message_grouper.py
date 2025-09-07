@@ -232,11 +232,22 @@ class MessageGrouper:
     async def _fetch_complete_group(self, channel_id: str, grouped_id: str, sample_message_id: int) -> List[Dict]:
         """Linus式获取完整消息组 - 不要猜测，直接获取完整数据"""
         try:
+            # 检查客户端状态（可能由bot_manager设置，也可能需要自己初始化）
             if not self.telegram_client:
+                logger.info(f"📱 组合器客户端未设置，尝试自行初始化: grouped_id={grouped_id}")
                 await self._init_telegram_client()
                 
             if not self.telegram_client:
-                logger.error("Telegram客户端未初始化，无法获取完整消息组")
+                logger.error(f"❌ Telegram客户端初始化失败，组合消息将拆分处理: grouped_id={grouped_id}")
+                return None
+            
+            # 验证客户端连接状态
+            try:
+                if not self.telegram_client.is_connected():
+                    logger.warning("Telegram客户端未连接，尝试重新连接")
+                    await self.telegram_client.connect()
+            except Exception as conn_e:
+                logger.error(f"Telegram客户端连接检查失败: {conn_e}")
                 return None
             
             # 使用sample_message_id作为参考点，获取周围的消息
@@ -281,17 +292,25 @@ class MessageGrouper:
             )
             
             if not nearby_messages:
-                logger.warning(f"未获取到附近消息: {channel_username}:{start_id}-{end_id}")
+                logger.warning(f"⚠️ 未获取到附近消息: {channel_username}:{start_id}-{end_id} | grouped_id={grouped_id}")
                 return None
+            
+            logger.debug(f"🔍 搜索范围: {channel_username}:{start_id}-{end_id}, 获取到 {len(nearby_messages)} 条消息")
             
             # 过滤出同一组的消息
             group_messages = []
             for msg in nearby_messages:
                 if hasattr(msg, 'grouped_id') and str(msg.grouped_id) == grouped_id:
                     group_messages.append(msg)
+                    logger.debug(f"✓ 找到组消息: #{msg.id} (grouped_id: {msg.grouped_id})")
             
             if not group_messages:
-                logger.warning(f"未找到组合消息: grouped_id={grouped_id}")
+                logger.error(f"❌ 未找到任何组合消息: grouped_id={grouped_id} | 搜索范围: {start_id}-{end_id} | 频道: {channel_username}")
+                # 输出调试信息
+                logger.debug(f"调试信息: 附近消息ID列表: {[msg.id for msg in nearby_messages[:10]]}")
+                grouped_ids = [str(msg.grouped_id) for msg in nearby_messages if hasattr(msg, 'grouped_id') and msg.grouped_id]
+                if grouped_ids:
+                    logger.debug(f"调试信息: 发现的其他grouped_id: {list(set(grouped_ids))}")
                 return None
             
             # 按ID排序
@@ -313,8 +332,15 @@ class MessageGrouper:
             return None
     
     async def _init_telegram_client(self):
-        """初始化Telegram客户端"""
+        """初始化Telegram客户端（后备方案，优先使用由bot_manager设置的客户端）"""
         try:
+            # 检查是否已经由外部（bot_manager）设置了客户端
+            if self.telegram_client:
+                logger.debug("✅ 使用外部设置的Telegram客户端")
+                return
+            
+            logger.warning("⚠️ 使用后备方案初始化独立的Telegram客户端")
+            
             from telethon import TelegramClient
             from telethon.sessions import StringSession
             import json
@@ -322,6 +348,10 @@ class MessageGrouper:
             
             # 从配置文件读取Telegram设置
             config_file = os.path.join(os.path.dirname(__file__), '../../data/config/system.json')
+            if not os.path.exists(config_file):
+                logger.error("配置文件不存在，无法初始化客户端")
+                return
+                
             with open(config_file, 'r', encoding='utf-8') as f:
                 config_data = json.load(f)
             
@@ -330,29 +360,30 @@ class MessageGrouper:
             session_string = config_data.get('telegram.listener_session', {}).get('value', '')
             
             if not api_id or not api_hash or not session_string:
-                logger.error("Telegram配置不完整，无法初始化客户端")
+                logger.error("🔧 Telegram配置不完整，无法初始化独立客户端。请确保bot_manager正确设置了message_grouper的客户端")
                 return
             
+            logger.info(f"🔄 创建独立Telegram客户端连接...")
             self.telegram_client = TelegramClient(
                 StringSession(session_string),
                 api_id,
                 api_hash,
-                connection_retries=5,
-                retry_delay=3,
+                connection_retries=3,
+                retry_delay=2,
                 auto_reconnect=True
             )
             
             await self.telegram_client.connect()
             
             if not await self.telegram_client.is_user_authorized():
-                logger.error("Telegram会话未授权")
+                logger.error("❌ Telegram会话未授权，无法处理组合消息")
                 self.telegram_client = None
                 return
             
-            logger.info("✅ Telegram客户端初始化成功")
+            logger.info("✅ 独立Telegram客户端初始化成功（不推荐，建议使用共享客户端）")
             
         except Exception as e:
-            logger.error(f"初始化Telegram客户端失败: {e}")
+            logger.error(f"❌ 初始化独立Telegram客户端失败: {e}")
             self.telegram_client = None
     
     async def _convert_telegram_message(self, telegram_msg, channel_id: str) -> Optional[Dict]:

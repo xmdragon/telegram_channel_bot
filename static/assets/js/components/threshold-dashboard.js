@@ -400,8 +400,7 @@ const app = createApp({
 
         getMetricDisplayName(metricName) {
             const names = {
-                'intelligent': '智能过滤',
-                'semantic': '语义过滤',
+                'semantic': 'ONNX语义过滤',
                 'separator_confidence': '分隔符置信度',
                 'semantic_score': '语义分析',
                 'classifier': '分类器',
@@ -542,8 +541,7 @@ const app = createApp({
         loadThresholdRanges() {
             // 基于常见过滤器的默认范围配置
             const defaultRanges = {
-                'tail_filter_intelligent': { min: 0.3, max: 0.9 },
-                'tail_filter_semantic': { min: 0.2, max: 0.8 },
+                'tail_filter_semantic': { min: 0.3, max: 0.9 },
                 'ad_detector_classifier': { min: 0.4, max: 0.95 },
                 'ad_detector_keywords': { min: 0.5, max: 1.0 },
                 'footer_promo_filter_separator_confidence': { min: 0.3, max: 0.9 },

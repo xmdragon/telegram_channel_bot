@@ -83,7 +83,7 @@ async def init_default_configs():
             "description": "广告关键词列表",
             "category": "filter"
         },
-        "filter.tail_filter_enabled": {
+        "filter.tail_filter": {
             "value": "true",
             "config_type": "boolean",
             "description": "启用尾部过滤",
