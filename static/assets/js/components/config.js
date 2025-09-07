@@ -567,14 +567,8 @@ const ConfigApp = {
                     // 内容检测过滤器
                     'filter.ad_detector': this.filterSettings.ad_detector,
                     
-                    // 基础过滤开关（综合判断）
-                    'filter.enabled': Boolean(
-                        this.filterSettings.ad_detector ||
-                        this.filterSettings.tail_filter ||
-                        this.filterSettings.footer_promo ||
-                        this.filterSettings.markdown ||
-                        this.filterSettings.promo_vector
-                    )
+                    // 基础过滤开关（用户直接控制）
+                    'filter.enabled': this.systemConfig.filter_enabled
                 };
                 
                 // 批量保存配置
@@ -585,6 +579,7 @@ const ConfigApp = {
                     
                     // 保存成功后重新加载配置
                     await this.loadFilterSettings();
+                    await this.loadSystemConfig();
                     
                     // 通知系统重新加载过滤器
                     await this.reloadFilters();
