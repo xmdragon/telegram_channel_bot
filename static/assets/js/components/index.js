@@ -1621,38 +1621,60 @@ const MainApp = {
                 })));
             }
             
-            // 修复：同时查找msg.id和组合ID格式
-            const message = this.messages.find(msg => {
+            // 修复：查找消息索引以便响应式更新
+            let messageIndex = -1;
+            let matchType = '';
+            
+            messageIndex = this.messages.findIndex(msg => {
                 // 尝试直接匹配id字段
                 if (msg.id === messageId) {
+                    matchType = '直接ID匹配';
                     console.log('✅ 通过直接ID匹配找到消息:', msg.id);
                     return true;
                 }
                 // 尝试匹配组合格式
                 const combinedId = `${msg.source_channel}:${msg.message_id}`;
                 if (combinedId === messageId) {
+                    matchType = '组合ID匹配';
                     console.log('✅ 通过组合ID匹配找到消息:', combinedId);
                     return true;
                 }
                 return false;
             });
             
-            if (message) {
-                console.log('✅ 找到消息，更新媒体信息');
-                // 更新媒体信息
-                if (data.media_url) {
-                    message.media_url = data.media_url;
-                    message.media_display_url = data.media_display_url || data.media_url;
-                }
-                if (data.media_group_display) {
-                    message.media_group_display = data.media_group_display;
-                }
+            if (messageIndex >= 0) {
+                console.log('✅ 找到消息，索引:', messageIndex, '匹配方式:', matchType);
+                
+                // 获取当前消息
+                const currentMessage = this.messages[messageIndex];
+                console.log('🔍 更新前的媒体信息:', {
+                    media_url: currentMessage.media_url,
+                    media_display_url: currentMessage.media_display_url,
+                    media_type: currentMessage.media_type
+                });
+                
+                // 使用对象重新赋值确保Vue响应式更新
+                this.messages[messageIndex] = {
+                    ...currentMessage,
+                    media_url: data.media_url || currentMessage.media_url,
+                    media_display_url: data.media_display_url || data.media_url || currentMessage.media_display_url,
+                    media_group_display: data.media_group_display || currentMessage.media_group_display
+                };
+                
+                // 验证更新结果
+                console.log('✅ 更新后的媒体信息:', {
+                    media_url: this.messages[messageIndex].media_url,
+                    media_display_url: this.messages[messageIndex].media_display_url,
+                    media_type: this.messages[messageIndex].media_type
+                });
                 
                 // 清除加载状态
                 delete this.refetchingMedia[messageId];
                 
-                // 强制更新视图
-                this.messages = [...this.messages];
+                // 使用Vue的nextTick确保DOM更新
+                this.$nextTick(() => {
+                    console.log('✅ Vue nextTick: DOM应该已更新');
+                });
                 
                 // 显示成功通知
                 window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
