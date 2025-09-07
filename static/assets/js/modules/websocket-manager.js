@@ -33,36 +33,26 @@ const WebSocketManager = {
 
     // 处理连接打开
     handleOpen(event) {
-        console.log('🔗 WebSocketManager.handleOpen: 连接已建立');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         
         if (this.callbacks.onStatusChange) {
-            console.log('🔗 WebSocketManager.handleOpen: 调用状态回调 onStatusChange(true)');
             this.callbacks.onStatusChange(true);
-        } else {
-            console.log('🔗 WebSocketManager.handleOpen: 没有状态回调');
         }
     },
 
     // 处理消息接收
     handleMessage(event) {
         try {
-            console.log('🔍 WebSocketManager.handleMessage: 原始消息', event.data);
             const data = JSON.parse(event.data);
-            console.log('🔍 WebSocketManager.handleMessage: 解析后消息', data);
             
             // 检查是否为心跳响应
             if (data.type === 'pong') {
-                console.log('💚 WebSocketManager收到pong响应');
                 return;
             }
             
             if (this.callbacks.onMessage) {
-                console.log('📦 WebSocketManager.handleMessage: 调用消息回调 onMessage:', data);
                 this.callbacks.onMessage(data);
-            } else {
-                console.log('📦 WebSocketManager.handleMessage: 没有消息回调');
             }
             
         } catch (error) {
@@ -154,7 +144,6 @@ const WebSocketManager = {
         
         this.heartbeatInterval = setInterval(() => {
             if (this.instance && this.instance.readyState === WebSocket.OPEN) {
-                console.log('💓 WebSocketManager发送心跳');
                 this.send(JSON.stringify({type: 'ping'}));
             }
         }, interval);
@@ -217,11 +206,9 @@ const WebSocketManager = {
             this.setConnectionTimeout(timeout);
 
             this.instance.onopen = (event) => {
-                console.log('🔗 WebSocketManager连接已建立');
                 this.clearConnectionTimeout();
                 this.handleOpen(event);
                 if (enableHeartbeat) {
-                    console.log(`🔄 WebSocketManager启动心跳，间隔${heartbeatInterval}毫秒`);
                     this.startHeartbeat(heartbeatInterval);
                 }
             };

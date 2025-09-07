@@ -316,12 +316,10 @@ const MainApp = {
             // 建立WebSocket连接（非关键功能，失败不影响使用）
             try {
                 if (window.WebSocketManager) {
-                    console.log('使用模块化WebSocket管理器');
                     // 使用模块化的WebSocket管理器
                     window.WebSocketManager.init({
                         onMessage: this.handleWebSocketMessage.bind(this),
                         onStatusChange: (isConnected) => {
-                            console.log('WebSocket状态变化:', isConnected);
                             this.websocketConnected = isConnected;
                             this.systemStatus = isConnected ? '在线' : '离线';
                         },
@@ -332,7 +330,6 @@ const MainApp = {
                         }
                     });
                 } else {
-                    console.log('降级到直接WebSocket连接');
                     // 降级到原有方法
                     this.connectWebSocket();
                 }
@@ -1420,7 +1417,6 @@ const MainApp = {
                 }, 10000); // 10秒超时
                 
                 this.websocket.onopen = () => {
-                    console.log('🔗 WebSocket连接已建立');
                     clearTimeout(connectionTimeout);
                     this.websocketConnected = true;
                     this.systemStatus = '在线';
@@ -1494,17 +1490,14 @@ const MainApp = {
                 // Linus式：消除特殊情况，智能检测参数类型
                 if (eventOrData && typeof eventOrData.data === 'string') {
                     // WebSocket原生event格式：{data: "json字符串"}
-                    console.log('🔍 收到WebSocket原始消息:', eventOrData.data);
                     try {
                         data = JSON.parse(eventOrData.data);
-                        console.log('🔍 解析后的WebSocket消息:', data);
                     } catch (parseError) {
                         console.error('WebSocket消息JSON解析失败:', parseError, eventOrData.data);
                         return;
                     }
                 } else if (eventOrData && typeof eventOrData === 'object') {
                     // WebSocketManager传递的已解析对象格式
-                    console.log('🔍 收到WebSocketManager消息:', eventOrData);
                     data = eventOrData;
                 } else {
                     console.error('未知的WebSocket消息格式:', eventOrData);
@@ -1532,10 +1525,8 @@ const MainApp = {
                         break;
                     case 'pong':
                         // 心跳响应
-                        console.log('💚 收到心跳 pong 响应');
                         break;
                     default:
-                        console.log('收到未知WebSocket消息类型:', data.type);
                 }
             } catch (error) {
                 console.error('处理WebSocket消息时出错:', error, event.data);
@@ -1707,13 +1698,9 @@ const MainApp = {
 
         // 启动心跳
         startHeartbeat() {
-            console.log('🔄 启动心跳定时器，间隔20秒');
             this.heartbeatInterval = setInterval(() => {
                 if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-                    console.log('💓 发送心跳 ping');
                     this.websocket.send(JSON.stringify({type: 'ping'}));
-                } else {
-                    console.log('💔 WebSocket未连接，跳过心跳');
                 }
             }, 20000); // 20秒心跳，确保在服务器30秒超时前发送
         },
