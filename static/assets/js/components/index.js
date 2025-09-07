@@ -1608,51 +1608,23 @@ const MainApp = {
         handleMediaRefetched(data) {
             const messageId = data.message_id;
             
-            // 添加调试日志
-            console.log('🔍 收到媒体补抓通知:', messageId, data);
-            console.log('🔍 当前消息数量:', this.messages.length);
-            
-            // 调试：打印前几个消息的ID格式
-            if (this.messages.length > 0) {
-                console.log('🔍 消息ID示例:', this.messages.slice(0, 3).map(msg => ({
-                    id: msg.id,
-                    source_channel: msg.source_channel,
-                    message_id: msg.message_id,
-                    combined: `${msg.source_channel}:${msg.message_id}`
-                })));
-            }
-            
             // 修复：查找消息索引以便响应式更新
-            let messageIndex = -1;
-            let matchType = '';
-            
-            messageIndex = this.messages.findIndex(msg => {
+            const messageIndex = this.messages.findIndex(msg => {
                 // 尝试直接匹配id字段
                 if (msg.id === messageId) {
-                    matchType = '直接ID匹配';
-                    console.log('✅ 通过直接ID匹配找到消息:', msg.id);
                     return true;
                 }
                 // 尝试匹配组合格式
                 const combinedId = `${msg.source_channel}:${msg.message_id}`;
                 if (combinedId === messageId) {
-                    matchType = '组合ID匹配';
-                    console.log('✅ 通过组合ID匹配找到消息:', combinedId);
                     return true;
                 }
                 return false;
             });
             
             if (messageIndex >= 0) {
-                console.log('✅ 找到消息，索引:', messageIndex, '匹配方式:', matchType);
-                
                 // 获取当前消息
                 const currentMessage = this.messages[messageIndex];
-                console.log('🔍 更新前的媒体信息:', {
-                    media_url: currentMessage.media_url,
-                    media_display_url: currentMessage.media_display_url,
-                    media_type: currentMessage.media_type
-                });
                 
                 // 使用对象重新赋值确保Vue响应式更新
                 this.messages[messageIndex] = {
@@ -1662,40 +1634,16 @@ const MainApp = {
                     media_group_display: data.media_group_display || currentMessage.media_group_display
                 };
                 
-                // 验证更新结果
-                console.log('✅ 更新后的媒体信息:', {
-                    media_url: this.messages[messageIndex].media_url,
-                    media_display_url: this.messages[messageIndex].media_display_url,
-                    media_type: this.messages[messageIndex].media_type
-                });
-                
                 // 清除加载状态
                 delete this.refetchingMedia[messageId];
                 
                 // 递增刷新键强制组件重新渲染
                 this.componentRefreshKey++;
-                console.log('✅ 强制组件刷新，新key:', this.componentRefreshKey);
-                
-                // 使用Vue的nextTick确保DOM更新
-                this.$nextTick(() => {
-                    console.log('✅ Vue nextTick: DOM应该已更新');
-                });
                 
                 // 显示成功通知
                 window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
                 
             } else {
-                console.log('❌ 未找到匹配的消息:', messageId);
-                // 调试：打印所有消息的ID信息来诊断问题
-                if (this.messages.length > 0) {
-                    console.log('🔍 全部消息ID列表:', this.messages.map(msg => ({
-                        id: msg.id,
-                        combined: `${msg.source_channel}:${msg.message_id}`,
-                        source_channel: msg.source_channel,
-                        message_id: msg.message_id
-                    })));
-                }
-                console.log('消息不在当前页面，但仍显示成功通知');
                 // 消息不在当前页面，但仍然显示成功通知
                 window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
                 
