@@ -16,17 +16,34 @@ class WebSocketManager:
     def __init__(self):
         # 存储活跃连接
         self.active_connections: Set[WebSocket] = set()
+        # Redis订阅任务
+        self.redis_subscriber_task = None
+        self.redis_subscriber_running = False
         
     async def connect(self, websocket: WebSocket):
         """接受新的WebSocket连接"""
+        import os
         await websocket.accept()
         self.active_connections.add(websocket)
-        logger.info(f"新的WebSocket连接，当前连接数: {len(self.active_connections)}")
+        logger.info(f"[PID:{os.getpid()}] 新的WebSocket连接，当前连接数: {len(self.active_connections)}")
+        
+        # 在第一个连接时启动Redis监听器（确保与WebSocket在同一进程）
+        if len(self.active_connections) == 1 and not self.redis_subscriber_running:
+            import asyncio
+            self.redis_subscriber_task = asyncio.create_task(self.start_redis_listener())
+            logger.info(f"[PID:{os.getpid()}] 在WebSocket进程中启动Redis监听器")
         
     def disconnect(self, websocket: WebSocket):
         """断开WebSocket连接"""
+        import os
         self.active_connections.discard(websocket)
-        logger.info(f"WebSocket连接断开，当前连接数: {len(self.active_connections)}")
+        logger.info(f"[PID:{os.getpid()}] WebSocket连接断开，当前连接数: {len(self.active_connections)}")
+        
+        # 如果没有连接了，停止Redis监听器
+        if len(self.active_connections) == 0 and self.redis_subscriber_running:
+            import asyncio
+            asyncio.create_task(self.stop_redis_listener())
+            logger.info(f"[PID:{os.getpid()}] 已停止Redis监听器（无活跃连接）")
         
     async def send_personal_message(self, message: str, websocket: WebSocket):
         """发送个人消息"""
@@ -47,9 +64,12 @@ class WebSocketManager:
         
         for connection in connections_copy:
             try:
+                import os
                 await connection.send_text(message)
+                logger.info(f"[PID:{os.getpid()}] 📤 成功发送消息到WebSocket连接，消息长度: {len(message)}")
             except Exception as e:
-                logger.error(f"广播消息失败: {e}")
+                import os
+                logger.error(f"[PID:{os.getpid()}] 广播消息失败: {e}")
                 disconnected.append(connection)
                 
         # 清理断开的连接
@@ -121,7 +141,93 @@ class WebSocketManager:
         }
         message_id = data.get("message_id", "unknown")
         logger.info(f"📡 广播媒体补抓完成: {message_id}")
-        await self.broadcast(json.dumps(payload, ensure_ascii=False))
+        
+        # 添加详细日志
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        logger.info(f"🔍 WebSocket广播内容: {payload_json}")
+        logger.info(f"🔗 当前连接数: {len(self.active_connections)}")
+        
+        # 检查连接状态，支持短暂等待重连
+        if not self.active_connections:
+            logger.warning(f"⚠️ 没有活跃的WebSocket连接，等待1秒后重试发送: {message_id}")
+            await asyncio.sleep(1)
+            
+            # 重试一次
+            if not self.active_connections:
+                logger.error(f"❌ 重试后仍无WebSocket连接，媒体补抓通知发送失败: {message_id}")
+                return
+            else:
+                logger.info(f"✅ 重试成功，找到 {len(self.active_connections)} 个连接")
+        
+        await self.broadcast(payload_json)
+
+    async def start_redis_listener(self):
+        """启动Redis订阅监听器（跨进程通信）"""
+        if self.redis_subscriber_running:
+            logger.info("Redis订阅监听器已经在运行")
+            return
+            
+        try:
+            import redis.asyncio as redis
+            from app.core.config import settings
+            
+            # 创建Redis异步客户端
+            redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe("websocket:broadcast")
+            
+            self.redis_subscriber_running = True
+            logger.info("🔔 Redis WebSocket订阅监听器已启动")
+            
+            async for message in pubsub.listen():
+                if not self.redis_subscriber_running:
+                    break
+                    
+                if message['type'] == 'message':
+                    try:
+                        import os
+                        logger.info(f"[PID:{os.getpid()}] 📥 从Redis接收到WebSocket广播消息: {message['data'][:100]}...")
+                        
+                        # 验证JSON格式
+                        json.loads(message['data'])
+                        
+                        # 广播到所有WebSocket连接
+                        logger.info(f"[PID:{os.getpid()}] 🔄 准备广播到 {len(self.active_connections)} 个WebSocket连接")
+                        await self.broadcast(message['data'])
+                        logger.info(f"[PID:{os.getpid()}] ✅ WebSocket消息广播完成")
+                        
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Redis消息JSON格式错误: {e}")
+                    except Exception as e:
+                        logger.error(f"处理Redis WebSocket消息失败: {e}")
+                        
+        except Exception as e:
+            logger.error(f"Redis订阅监听器启动失败: {e}")
+            import traceback
+            logger.error(f"详细错误信息: {traceback.format_exc()}")
+        finally:
+            self.redis_subscriber_running = False
+            try:
+                await pubsub.unsubscribe("websocket:broadcast")
+                await redis_client.close()
+                logger.info("Redis订阅监听器已关闭")
+            except:
+                pass
+
+    async def stop_redis_listener(self):
+        """停止Redis订阅监听器"""
+        if self.redis_subscriber_running:
+            self.redis_subscriber_running = False
+            logger.info("正在停止Redis订阅监听器...")
+            
+            if self.redis_subscriber_task:
+                try:
+                    self.redis_subscriber_task.cancel()
+                    await self.redis_subscriber_task
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.error(f"停止Redis订阅任务失败: {e}")
 
 # 全局WebSocket管理器实例
 websocket_manager = WebSocketManager()
@@ -142,6 +248,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
         
         if msg_type == "ping":
             # 心跳响应
+            logger.debug(f"💓 收到心跳 ping，返回 pong")
             response = {
                 "type": "pong",
                 "request_id": request_id,
@@ -246,7 +353,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # 接收客户端消息进行双向通信
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=45.0)  # 增加到45秒，给20秒心跳更多缓冲时间
                 await handle_websocket_message(websocket, data)
             except asyncio.TimeoutError:
                 # 超时继续循环，保持连接

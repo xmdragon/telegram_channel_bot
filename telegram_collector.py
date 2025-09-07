@@ -565,19 +565,13 @@ class TelegramCollectorService:
             
             # 获取消息数据
             from app.storage.redis_manager import redis_manager
-            msg_key = f"msg:{channel_id}:{msg_id}"
-            msg_data = redis_manager.client.hgetall(msg_key)
+            msg_data = redis_manager.get_message(channel_id, int(msg_id))
             
             if not msg_data:
                 media_refetch_service.complete_task(
                     task.task_id, False, error_message="消息不存在"
                 )
                 return
-            
-            # 转换字节数据
-            msg_data = {k.decode() if isinstance(k, bytes) else k: 
-                       v.decode() if isinstance(v, bytes) else v 
-                       for k, v in msg_data.items()}
             
             # 检查是否有媒体
             if not msg_data.get('media_type'):
@@ -586,24 +580,30 @@ class TelegramCollectorService:
                 )
                 return
             
-            # 检查Telegram客户端，如果还没准备好则等待
-            max_retries = 10
-            retry_count = 0
-            while (not self.telegram_bot or not self.telegram_bot.client) and retry_count < max_retries:
-                logger.info(f"等待Telegram客户端连接... (尝试 {retry_count + 1}/{max_retries})")
-                await asyncio.sleep(2)
-                retry_count += 1
-            
-            if not self.telegram_bot or not self.telegram_bot.client:
+            # 获取Sender客户端（按需连接）
+            try:
+                from app.telegram.dual_session_manager import dual_session_manager
+                sender_client = await dual_session_manager.get_sender_client()
+                
+                if not sender_client:
+                    media_refetch_service.complete_task(
+                        task.task_id, False, error_message="Sender Session未连接"
+                    )
+                    return
+                    
+                logger.info(f"使用Sender Session补抓消息 #{message_id} 的媒体文件")
+                
+            except Exception as client_e:
+                logger.error(f"获取Sender客户端失败: {client_e}")
                 media_refetch_service.complete_task(
-                    task.task_id, False, error_message="Telegram客户端未连接：超时等待"
+                    task.task_id, False, error_message=f"获取Sender客户端失败: {client_e}"
                 )
                 return
             
             # 获取原始消息
             try:
-                source_entity = await self.telegram_bot.client.get_entity(int(msg_data['source_channel']))
-                original_msg = await self.telegram_bot.client.get_messages(
+                source_entity = await sender_client.get_entity(int(msg_data['source_channel']))
+                original_msg = await sender_client.get_messages(
                     entity=source_entity,
                     ids=int(msg_data['message_id'])
                 )
@@ -615,11 +615,11 @@ class TelegramCollectorService:
                     return
                 
                 # 下载媒体文件
-                logger.info(f"开始补抓消息 #{message_id} 的媒体文件")
+                logger.info(f"开始使用Sender Session下载媒体文件")
                 
                 from app.services.media_handler import media_handler
                 media_info = await media_handler.download_media(
-                    client=self.telegram_bot.client,
+                    client=sender_client,
                     message=original_msg,
                     message_id=original_msg.id,
                     timeout=120.0
@@ -631,6 +631,7 @@ class TelegramCollectorService:
                     import json
                     import os
                     
+                    # 更新消息的媒体信息
                     update_data = {
                         'media_url': media_info["file_path"],
                         'media_type': media_info.get("media_type", msg_data.get('media_type')),
@@ -638,7 +639,10 @@ class TelegramCollectorService:
                         'visual_hash': json.dumps(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else '',
                         'updated_at': datetime.now().isoformat()
                     }
-                    redis_manager.client.hset(msg_key, mapping=update_data)
+                    
+                    # 更新原消息数据
+                    updated_msg_data = {**msg_data, **update_data}
+                    redis_manager.save_message(channel_id, int(msg_id), updated_msg_data)
                     
                     logger.info(f"成功补抓媒体: {media_info['file_path']} ({media_info['file_size']} bytes)")
                     
@@ -671,22 +675,25 @@ class TelegramCollectorService:
                         except Exception as e:
                             logger.error(f"保存到训练目录失败: {e}")
                     
-                    # 通过WebSocket通知前端媒体补抓完成
+                    # 通过Redis Pub/Sub发送WebSocket通知（跨进程通信）
                     try:
-                        from app.api.websocket import websocket_manager
+                        from app.storage.redis_manager import redis_manager
                         import os
                         
                         # 生成显示URL
                         file_name = os.path.basename(media_info["file_path"])
-                        media_display_url = f'/media/{file_name}' if file_name else None
+                        media_display_url = f'/temp_media/{file_name}' if file_name else None
                         
                         # 构造通知数据
                         notification_data = {
                             "message_id": message_id,
+                            "success": True,
                             "media_url": media_info["file_path"],
                             "media_display_url": media_display_url,
                             "media_type": media_info.get("media_type"),
-                            "timestamp": datetime.utcnow().isoformat()
+                            "file_size": media_info.get("file_size"),
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "refetched": True
                         }
                         
                         # 如果是组合消息，需要特殊处理
@@ -702,20 +709,33 @@ class TelegramCollectorService:
                                         'message_id': sub_msg.get('message_id'),
                                         'media_type': sub_msg.get('media_type'),
                                         'file_path': sub_msg.get('media_path'),
-                                        'display_url': f'/media/{sub_file_name}' if sub_file_name else None
+                                        'display_url': f'/temp_media/{sub_file_name}' if sub_file_name else None
                                     })
                             
                             if media_group_display:
                                 notification_data["media_group_display"] = media_group_display
                         
-                        # 发送WebSocket通知
-                        await websocket_manager.broadcast_media_refetched(notification_data)
-                        logger.info(f"✅ WebSocket通知已发送: 媒体补抓完成 {message_id}")
+                        # 构造完整的WebSocket消息格式
+                        websocket_message = {
+                            "type": "media_refetched",
+                            "data": notification_data,
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
                         
-                    except ImportError:
-                        logger.warning("WebSocket管理器不可用，跳过媒体补抓通知")
+                        # 发布到Redis频道（跨进程通信）
+                        redis_client = redis_manager.client
+                        if redis_client:
+                            message_json = json.dumps(websocket_message, ensure_ascii=False)
+                            redis_client.publish("websocket:broadcast", message_json)
+                            logger.info(f"📡 已发布媒体补抓通知到Redis频道: {message_id}")
+                            logger.debug(f"🔍 发布的消息内容: {message_json}")
+                        else:
+                            logger.error("Redis客户端不可用，无法发送WebSocket通知")
+                        
                     except Exception as e:
-                        logger.error(f"发送媒体补抓WebSocket通知失败: {e}")
+                        logger.error(f"发送媒体补抓Redis通知失败: {e}")
+                        import traceback
+                        logger.error(f"详细错误信息: {traceback.format_exc()}")
                     
                     # 完成任务
                     result = {

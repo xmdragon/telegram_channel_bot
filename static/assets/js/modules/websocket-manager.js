@@ -11,57 +11,62 @@ const WebSocketManager = {
         onStatusChange: null,
         onError: null
     },
+    // 保存连接参数用于重连
+    connectionUrl: null,
+    connectionOptions: null,
 
     // 初始化WebSocket连接
     init(callbacks = {}) {
-        this.callbacks = { ...this.callbacks, ...callbacks };
-        this.connect();
+        // 获取WebSocket URL
+        const wsUrl = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const url = `${wsUrl}//${window.location.host}/ws`;
+        
+        // 使用带日志和心跳的连接方法
+        this.connectWithOptions(url, {
+            enableHeartbeat: true,
+            heartbeatInterval: 20000,
+            ...callbacks
+        });
+        
         return this;
-    },
-
-    // 建立WebSocket连接
-    connect() {
-        if (this.instance && this.instance.readyState === WebSocket.OPEN) {
-            return;
-        }
-
-        try {
-            // Linus风格：使用统一的WebSocket工厂，消除重复代码
-            this.instance = WebSocketFactory.create('main');
-            
-            this.instance.onopen = this.handleOpen.bind(this);
-            this.instance.onmessage = this.handleMessage.bind(this);
-            this.instance.onclose = this.handleClose.bind(this);
-            this.instance.onerror = this.handleError.bind(this);
-            
-        } catch (error) {
-            console.error('WebSocket连接失败:', error);
-            this.handleError(error);
-        }
     },
 
     // 处理连接打开
     handleOpen(event) {
-        // WebSocket连接已建立（生产环境已移除日志）
+        console.log('🔗 WebSocketManager.handleOpen: 连接已建立');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         
         if (this.callbacks.onStatusChange) {
+            console.log('🔗 WebSocketManager.handleOpen: 调用状态回调 onStatusChange(true)');
             this.callbacks.onStatusChange(true);
+        } else {
+            console.log('🔗 WebSocketManager.handleOpen: 没有状态回调');
         }
     },
 
     // 处理消息接收
     handleMessage(event) {
         try {
+            console.log('🔍 WebSocketManager.handleMessage: 原始消息', event.data);
             const data = JSON.parse(event.data);
+            console.log('🔍 WebSocketManager.handleMessage: 解析后消息', data);
+            
+            // 检查是否为心跳响应
+            if (data.type === 'pong') {
+                console.log('💚 WebSocketManager收到pong响应');
+                return;
+            }
             
             if (this.callbacks.onMessage) {
+                console.log('📦 WebSocketManager.handleMessage: 调用消息回调 onMessage:', data);
                 this.callbacks.onMessage(data);
+            } else {
+                console.log('📦 WebSocketManager.handleMessage: 没有消息回调');
             }
             
         } catch (error) {
-            console.error('WebSocket消息解析失败:', error);
+            console.error('WebSocket消息解析失败:', error, ' 原始数据:', event.data);
         }
     },
 
@@ -97,8 +102,8 @@ const WebSocketManager = {
         
         
         setTimeout(() => {
-            if (!this.isConnected) {
-                this.connect();
+            if (!this.isConnected && this.connectionUrl && this.connectionOptions) {
+                this.connectWithOptions(this.connectionUrl, this.connectionOptions);
             }
         }, delay);
     },
@@ -107,7 +112,9 @@ const WebSocketManager = {
     send(data) {
         if (this.instance && this.instance.readyState === WebSocket.OPEN) {
             try {
-                this.instance.send(JSON.stringify(data));
+                // 如果data已经是字符串，直接发送；否则JSON编码
+                const message = typeof data === 'string' ? data : JSON.stringify(data);
+                this.instance.send(message);
                 return true;
             } catch (error) {
                 console.error('WebSocket发送消息失败:', error);
@@ -147,7 +154,8 @@ const WebSocketManager = {
         
         this.heartbeatInterval = setInterval(() => {
             if (this.instance && this.instance.readyState === WebSocket.OPEN) {
-                this.send('ping');
+                console.log('💓 WebSocketManager发送心跳');
+                this.send(JSON.stringify({type: 'ping'}));
             }
         }, interval);
     },
@@ -184,9 +192,13 @@ const WebSocketManager = {
         const {
             timeout = 10000,
             enableHeartbeat = true,
-            heartbeatInterval = 30000,
+            heartbeatInterval = 20000,  // 20秒心跳，避免服务器30秒超时
             ...callbacks
         } = options;
+
+        // 保存连接参数用于重连
+        this.connectionUrl = url;
+        this.connectionOptions = options;
 
         // 设置回调
         this.callbacks = { ...this.callbacks, ...callbacks };
@@ -205,9 +217,11 @@ const WebSocketManager = {
             this.setConnectionTimeout(timeout);
 
             this.instance.onopen = (event) => {
+                console.log('🔗 WebSocketManager连接已建立');
                 this.clearConnectionTimeout();
                 this.handleOpen(event);
                 if (enableHeartbeat) {
+                    console.log(`🔄 WebSocketManager启动心跳，间隔${heartbeatInterval}毫秒`);
                     this.startHeartbeat(heartbeatInterval);
                 }
             };

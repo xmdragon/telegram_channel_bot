@@ -297,12 +297,12 @@ const MainApp = {
                 this.loadMessages().catch(err => {
                     console.error('❌ 加载消息失败:', err);
                     window.SimpleUI.Message.error('加载消息失败，请刷新页面重试');
-                    throw err;
+                    return { error: err }; // 返回错误对象，不抛出异常，让WebSocket能正常初始化
                 }),
                 // 统计数据由linus-stats组件自动加载
                 this.loadChannelInfo().catch(err => {
                     console.error('❌ 加载频道信息失败:', err);
-                    throw err;
+                    return { error: err }; // 返回错误对象，不抛出异常，让WebSocket能正常初始化
                 })
             ]);
             
@@ -315,19 +315,23 @@ const MainApp = {
             // 建立WebSocket连接（非关键功能，失败不影响使用）
             try {
                 if (window.WebSocketManager) {
+                    console.log('使用模块化WebSocket管理器');
                     // 使用模块化的WebSocket管理器
                     window.WebSocketManager.init({
                         onMessage: this.handleWebSocketMessage.bind(this),
                         onStatusChange: (isConnected) => {
+                            console.log('WebSocket状态变化:', isConnected);
                             this.websocketConnected = isConnected;
                             this.systemStatus = isConnected ? '在线' : '离线';
                         },
                         onError: (error) => {
+                            console.error('WebSocket连接错误:', error);
                             this.websocketConnected = false;
                             this.systemStatus = '连接错误';
                         }
                     });
                 } else {
+                    console.log('降级到直接WebSocket连接');
                     // 降级到原有方法
                     this.connectWebSocket();
                 }
@@ -1415,6 +1419,7 @@ const MainApp = {
                 }, 10000); // 10秒超时
                 
                 this.websocket.onopen = () => {
+                    console.log('🔗 WebSocket连接已建立');
                     clearTimeout(connectionTimeout);
                     this.websocketConnected = true;
                     this.systemStatus = '在线';
@@ -1480,13 +1485,28 @@ const MainApp = {
             }
         },
 
-        // 处理WebSocket消息
-        handleWebSocketMessage(event) {
+        // 处理WebSocket消息 - 兼容两种格式
+        handleWebSocketMessage(eventOrData) {
             try {
                 let data;
-                try {
-                    data = JSON.parse(event.data);
-                } catch (parseError) {
+                
+                // Linus式：消除特殊情况，智能检测参数类型
+                if (eventOrData && typeof eventOrData.data === 'string') {
+                    // WebSocket原生event格式：{data: "json字符串"}
+                    console.log('🔍 收到WebSocket原始消息:', eventOrData.data);
+                    try {
+                        data = JSON.parse(eventOrData.data);
+                        console.log('🔍 解析后的WebSocket消息:', data);
+                    } catch (parseError) {
+                        console.error('WebSocket消息JSON解析失败:', parseError, eventOrData.data);
+                        return;
+                    }
+                } else if (eventOrData && typeof eventOrData === 'object') {
+                    // WebSocketManager传递的已解析对象格式
+                    console.log('🔍 收到WebSocketManager消息:', eventOrData);
+                    data = eventOrData;
+                } else {
+                    console.error('未知的WebSocket消息格式:', eventOrData);
                     return;
                 }
                 
@@ -1510,11 +1530,14 @@ const MainApp = {
                         this.handleForwardFinalFailure(data.data);
                         break;
                     case 'pong':
-                        // 心跳响应，不需要处理
+                        // 心跳响应
+                        console.log('💚 收到心跳 pong 响应');
                         break;
                     default:
+                        console.log('收到未知WebSocket消息类型:', data.type);
                 }
             } catch (error) {
+                console.error('处理WebSocket消息时出错:', error, event.data);
             }
         },
 
@@ -1584,9 +1607,38 @@ const MainApp = {
         handleMediaRefetched(data) {
             const messageId = data.message_id;
             
-            // 找到并更新消息
-            const message = this.messages.find(msg => msg.id === messageId);
+            // 添加调试日志
+            console.log('🔍 收到媒体补抓通知:', messageId, data);
+            console.log('🔍 当前消息数量:', this.messages.length);
+            
+            // 调试：打印前几个消息的ID格式
+            if (this.messages.length > 0) {
+                console.log('🔍 消息ID示例:', this.messages.slice(0, 3).map(msg => ({
+                    id: msg.id,
+                    source_channel: msg.source_channel,
+                    message_id: msg.message_id,
+                    combined: `${msg.source_channel}:${msg.message_id}`
+                })));
+            }
+            
+            // 修复：同时查找msg.id和组合ID格式
+            const message = this.messages.find(msg => {
+                // 尝试直接匹配id字段
+                if (msg.id === messageId) {
+                    console.log('✅ 通过直接ID匹配找到消息:', msg.id);
+                    return true;
+                }
+                // 尝试匹配组合格式
+                const combinedId = `${msg.source_channel}:${msg.message_id}`;
+                if (combinedId === messageId) {
+                    console.log('✅ 通过组合ID匹配找到消息:', combinedId);
+                    return true;
+                }
+                return false;
+            });
+            
             if (message) {
+                console.log('✅ 找到消息，更新媒体信息');
                 // 更新媒体信息
                 if (data.media_url) {
                     message.media_url = data.media_url;
@@ -1606,6 +1658,22 @@ const MainApp = {
                 window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
                 
             } else {
+                console.log('❌ 未找到匹配的消息:', messageId);
+                // 调试：打印所有消息的ID信息来诊断问题
+                if (this.messages.length > 0) {
+                    console.log('🔍 全部消息ID列表:', this.messages.map(msg => ({
+                        id: msg.id,
+                        combined: `${msg.source_channel}:${msg.message_id}`,
+                        source_channel: msg.source_channel,
+                        message_id: msg.message_id
+                    })));
+                }
+                console.log('消息不在当前页面，但仍显示成功通知');
+                // 消息不在当前页面，但仍然显示成功通知
+                window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
+                
+                // 清除加载状态（即使消息不在当前页面）
+                delete this.refetchingMedia[messageId];
             }
         },
 
@@ -1664,11 +1732,15 @@ const MainApp = {
 
         // 启动心跳
         startHeartbeat() {
+            console.log('🔄 启动心跳定时器，间隔20秒');
             this.heartbeatInterval = setInterval(() => {
                 if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                    console.log('💓 发送心跳 ping');
                     this.websocket.send(JSON.stringify({type: 'ping'}));
+                } else {
+                    console.log('💔 WebSocket未连接，跳过心跳');
                 }
-            }, 30000); // 30秒心跳
+            }, 20000); // 20秒心跳，确保在服务器30秒超时前发送
         },
         
         
@@ -2286,10 +2358,14 @@ const MainApp = {
                 this.refetchingMedia[message.id] = true;
                 
                 // 直接执行（Linus风格：减少用户交互）
-                const response = await axios.post(window.API.messages.refetchMedia(message.id));
+                // 媒体补抓需要更长超时时间（下载+处理）
+                const response = await axios.post(window.API.messages.refetchMedia(message.id), {}, {
+                    timeout: 60000 // 60秒超时
+                });
                 
                 if (response.data.success) {
-                    window.SimpleUI.Message.success('正在补抓媒体文件...');
+                    console.log('媒体补抓任务已提交:', response.data);
+                    window.SimpleUI.Message.success('媒体补抓任务已提交到队列');
                     // 不再轮询，等待WebSocket通知
                 } else {
                     window.SimpleUI.Message.error(response.data.message || '补抓失败');
@@ -2325,7 +2401,7 @@ const MainApp = {
                             
                             // 重新生成显示URL
                             const fileName = taskData.result.media_url.split('/').pop();
-                            message.display_url = `/media/${fileName}`;
+                            message.display_url = `/temp_media/${fileName}`;
                             
                             // 触发视图更新
                             this.messages = [...this.messages];

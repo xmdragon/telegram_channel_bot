@@ -177,9 +177,9 @@ async def lifespan(app: FastAPI):
                 # 双Session管理器无需额外初始化，按需创建连接
                 logger.info("✅ Telegram双Session管理器就绪（按需连接）")
                 
-                # StatsBroadcaster已移至scheduler服务，避免多进程重复广播
-                # Web服务仅负责WebSocket连接管理，不启动广播器
-                logger.info("✅ WebSocket管理器就绪（广播由scheduler服务负责）")
+                # WebSocket Redis订阅监听器将在第一个WebSocket连接时启动
+                # 这样确保监听器和WebSocket连接在同一个进程中
+                logger.info("✅ WebSocket Redis订阅监听器将按需启动（与连接同进程）")
                 
                 # 🎯 Linus式优化: 移除AI模型预加载，实现按需加载
                 # 向量数据库初始化移到实际使用时进行，减少75%内存占用
@@ -208,6 +208,10 @@ async def lifespan(app: FastAPI):
     finally:
         # 关闭时清理
         logger.info("🛑 正在关闭Web服务器...")
+        
+        # WebSocket Redis订阅监听器会在连接关闭时自动停止
+        logger.info("✅ WebSocket Redis订阅监听器将自动清理")
+        
         await health_monitor.stop()
         logger.info("✅ Web服务器已关闭")
 

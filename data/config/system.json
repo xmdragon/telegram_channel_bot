@@ -154,7 +154,7 @@
     "created_at": "2025-08-26T11:59:09.484163"
   },
   "filter.ad_detector": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "启用广告检测器",
     "is_active": true,
