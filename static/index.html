@@ -104,6 +104,7 @@
                              }">
                             <!-- 消息内容渲染 -->
                             <message-content-renderer 
+                                :key="'msg-' + message.id + '-' + componentRefreshKey"
                                 :message="message" 
                                 :channel-info="channelInfo"
                                 @toggle-select="toggleMessage"
@@ -146,6 +147,7 @@
                          class="message-item"
                          :class="{ 'selected': isSelected(message.id) }">
                         <message-content-renderer 
+                            :key="'msg-' + message.id + '-' + componentRefreshKey"
                             :message="message"
                             :channel-info="channelInfo"
                             @toggle-select="toggleMessage"

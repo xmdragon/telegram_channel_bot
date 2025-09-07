@@ -69,6 +69,7 @@ const MainApp = {
             filteringMessages: new Set(), // 正在过滤的消息ID集合 - Linus风格状态管理
             isBatchPublishing: false, // 批量发布状态
             refetchingMedia: {},
+            componentRefreshKey: 0, // 用于强制组件重新渲染
             
             // 对话框状态
             mediaPreview: {
@@ -1670,6 +1671,10 @@ const MainApp = {
                 
                 // 清除加载状态
                 delete this.refetchingMedia[messageId];
+                
+                // 递增刷新键强制组件重新渲染
+                this.componentRefreshKey++;
+                console.log('✅ 强制组件刷新，新key:', this.componentRefreshKey);
                 
                 // 使用Vue的nextTick确保DOM更新
                 this.$nextTick(() => {
