@@ -271,61 +271,19 @@ class MessageFilterProcessor(MessageProcessor):
     
     async def _should_reject_pure_ad(self, context: MessageContext) -> Tuple[bool, str]:
         """
-        判断是否应该完全拒绝纯广告消息
+        基于语义向量判断是否应该拒绝广告消息
         
         Returns:
             (是否拒绝, 拒绝原因)
         """
-        # 确保规则管理器已初始化
-        await self._ensure_rule_manager_initialized()
+        # 纯语义检测：只基于向量相似度判断
+        # 如果在filter阶段已经被标记为广告（is_ad=True），就直接拒绝
+        if context.is_ad and context.filter_reason:
+            # 从 filter_reason 中提取相似度信息
+            if "向量检测" in context.filter_reason or "语义" in context.filter_reason:
+                return True, f"语义向量检测到广告: {context.filter_reason}"
         
-        content = context.processed_content
-        filtered_content = context.filtered_content
-        media_info = context.media_info
-        ocr_result = context.ocr_result or {}
-        filter_reason = context.filter_reason
-        
-        # 从规则管理器获取高危关键词
-        high_risk_patterns = rule_manager.get_high_risk_keywords()
-        
-        # 提取所有文本内容（包括OCR）
-        all_text = content
-        if ocr_result.get('texts'):
-            all_text += " " + " ".join(ocr_result['texts'])
-        if ocr_result.get('qr_codes'):
-            for qr in ocr_result['qr_codes']:
-                if qr.get('data'):
-                    all_text += " " + qr['data']
-        
-        # 优先级1：OCR检测到高分广告内容
-        if ocr_result.get('ad_score', 0) >= 50:
-            return True, f"图片广告内容自动拒绝（OCR分数:{ocr_result.get('ad_score', 0)}）"
-        
-        # 优先级2：检查高危关键词（从规则管理器获取）
-        # 🚀 简化逻辑：检测到高危关键词直接拒绝
-        for pattern, weight in high_risk_patterns:
-            if pattern.search(all_text):
-                return True, f"高风险广告自动拒绝（检测到赌博/色情/诈骗关键词）"
-        
-        # 优先级3：纯媒体广告
-        if not content.strip() and media_info and ocr_result.get('ad_score', 0) >= 30:
-            return True, "纯媒体广告自动拒绝（无文字内容，OCR检测为广告）"
-        
-        # 优先级4：文本被完全过滤且有媒体
-        if not filtered_content.strip() and media_info:
-            if ocr_result.get('ad_score', 0) >= 30:
-                return True, "纯广告媒体自动拒绝（文字+媒体都是广告）"
-            
-            if len(content) > 10 and len(filtered_content) < len(content) * 0.05:
-                return True, "疑似纯广告自动拒绝（文本过滤超95%）"
-        
-        # 优先级5：整条消息都是广告
-        if "整条消息都是广告" in filter_reason or "高风险广告" in filter_reason:
-            if not media_info:
-                return True, "纯文字广告自动拒绝"
-            elif ocr_result.get('ad_score', 0) >= 30:
-                return True, "纯广告消息自动拒绝（文字+媒体都是广告）"
-        
+        # 如果没有被语义检测标记为广告，就不拒绝
         return False, ""
     
     async def _save_rejected_sample(self, context: MessageContext, reject_reason: str):

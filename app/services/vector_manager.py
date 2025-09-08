@@ -34,11 +34,11 @@ class VectorManager:
         self._vector_cache = None
         self._last_modified = 0
         
-        # 配置参数 - 调整为更合理的阈值
-        self.similarity_threshold = 0.6  # 广告检测阈值
+        # 配置参数 - 从配置文件读取阈值
+        self.similarity_threshold = self._load_threshold()  # 广告检测阈值
         self.duplicate_threshold = 0.95  # 向量去重阈值
         
-        logger.info(f"向量管理器初始化完成 - 存储路径: {vector_dir}")
+        logger.info(f"向量管理器初始化完成 - 存储路径: {vector_dir}, 阈值: {self.similarity_threshold}")
     
     def _get_file_lock(self, file_path: str, mode: str = 'r'):
         """获取文件锁（防止并发访问冲突）"""
@@ -96,6 +96,24 @@ class VectorManager:
         except Exception as e:
             logger.error(f"加载向量数据失败: {e}")
             return {'vectors': [], 'metadata': {}}
+    
+    def _load_threshold(self) -> float:
+        """从配置文件加载阈值"""
+        try:
+            from app.core.path_config import PathConfig
+            config_path = os.path.join(PathConfig.CONFIG_DIR, "thresholds.json")
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    thresholds = json.load(f)
+                    # 读取ad_detector.classifier.current
+                    threshold = thresholds.get('ad_detector', {}).get('classifier', {}).get('current', 0.84)
+                    logger.info(f"从配置文件加载广告检测阈值: {threshold}")
+                    return threshold
+            logger.warning("阈值配置文件不存在，使用默认值0.84")
+            return 0.84  # 默认使用较高阈值，避免误判
+        except Exception as e:
+            logger.error(f"加载阈值配置失败: {e}，使用默认值0.84")
+            return 0.84  # 默认使用较高阈值，避免误判
     
     def _save_vectors(self, data: Dict[str, Any]) -> bool:
         """保存向量数据"""

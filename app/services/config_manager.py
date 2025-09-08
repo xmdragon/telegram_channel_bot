@@ -19,11 +19,6 @@ class ConfigManager:
         self._change_listeners = []  # 配置变更监听器
         self._json_store: Optional[JSONConfigStore] = None
         self._redis_manager = None  # Redis管理器（延迟初始化）
-        
-        # 临时兼容性属性（避免编译错误）
-        self._cache = {}
-        self._cache_loaded = True  # 设为True避免加载逻辑
-        self._cache_lock = threading.RLock()
     
     def _get_store(self, max_retries: int = 3) -> Optional[JSONConfigStore]:
         """获取JSON存储实例 - 修复状态同步问题"""
@@ -254,88 +249,85 @@ class ConfigManager:
     
     async def delete_config(self, key: str) -> bool:
         """删除配置"""
-        with self._cache_lock:
-            try:
-                store = self._get_store()
+        try:
+            store = self._get_store()
+            redis_manager = self._get_redis_manager()
+            
+            # 从JSON存储中删除
+            success = store.delete_config(key)
+            
+            if success:
+                # 从Redis中移除
+                redis_manager.cache_delete(f"config:{key}")
                 
-                # 从JSON存储中删除
-                success = store.delete_config(key)
+                # 通知监听器
+                self._notify_config_change(key, None, 'deleted')
                 
-                if success:
-                    # 从缓存中移除
-                    if key in self._cache:
-                        del self._cache[key]
-                    
-                    # 通知监听器
-                    self._notify_config_change(key, None, 'deleted')
-                    
-                    logger.debug(f"配置已删除: {key}")
-                    return True
-                
-                return False
-                
-            except Exception as e:
-                logger.error(f"删除配置失败: {key}, 错误: {e}")
-                return False
+                logger.debug(f"配置已删除: {key}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"删除配置失败: {key}, 错误: {e}")
+            return False
     
     async def set_multiple_configs(self, configs: Dict[str, Dict[str, Any]]) -> bool:
         """批量设置配置"""
-        with self._cache_lock:
-            # 确保缓存已加载
-            if not self._cache_loaded:
-                await self._load_cache()
-                
-            try:
-                store = self._get_store()
-                
-                # 构建所有配置数据
-                config_data_map = {}
-                for key, config_info in configs.items():
-                    value = config_info.get('value')
-                    description = config_info.get('description', '')
-                    config_type = config_info.get('config_type', 'string')
-                    
-                    # 序列化值
-                    serialized_value = self._serialize_value(value, config_type)
-                    
-                    # 获取现有配置信息
-                    existing_config = self._cache.get(key)
-                    
-                    config_data_map[key] = {
-                        'value': serialized_value,
-                        'config_type': config_type,
-                        'description': description or (existing_config.get('description', '') if existing_config else ''),
-                        'is_active': True,
-                        'created_at': existing_config.get('created_at', datetime.now().isoformat()) if existing_config else datetime.now().isoformat()
-                    }
-                
-                # 批量保存到JSON存储
-                success = store.set_multiple_config(config_data_map)
-                
-                if success:
-                    # 批量更新缓存和通知监听器
-                    for key, config_data in config_data_map.items():
-                        self._cache[key] = config_data
-                        # 通知监听器
-                        original_value = configs[key]['value']
-                        config_type = configs[key].get('config_type', 'string')
-                        self._notify_config_change(key, original_value, config_type)
-                    
-                    logger.debug(f"批量配置已更新：{len(configs)} 个配置项")
-                    return True
-                else:
-                    logger.error(f"批量保存配置到存储失败")
-                    return False
-                    
-            except Exception as e:
-                logger.error(f"批量设置配置失败: {e}")
-                return False
-    
-    async def reload_cache(self, force_reinit_storage: bool = False):
-        """重新加载缓存 - 增强版本"""
-        with self._cache_lock:
-            logger.info("开始重新加载配置缓存...")
+        try:
+            store = self._get_store()
+            redis_manager = self._get_redis_manager()
             
+            # 构建所有配置数据
+            config_data_map = {}
+            for key, config_info in configs.items():
+                value = config_info.get('value')
+                description = config_info.get('description', '')
+                config_type = config_info.get('config_type', 'string')
+                
+                # 序列化值
+                serialized_value = self._serialize_value(value, config_type)
+                
+                # 获取现有配置信息（从Redis或JSON）
+                existing_config = await self.get_config_raw(key) if hasattr(self, 'get_config_raw') else None
+                
+                config_data_map[key] = {
+                    'value': serialized_value,
+                    'config_type': config_type,
+                    'description': description or (existing_config.get('description', '') if existing_config else ''),
+                    'is_active': True,
+                    'created_at': existing_config.get('created_at', datetime.now().isoformat()) if existing_config else datetime.now().isoformat()
+                }
+            
+            # 批量保存到JSON存储
+            success = store.set_multiple_config(config_data_map)
+            
+            if success:
+                # 批量更新到Redis和通知监听器
+                for key, config_data in config_data_map.items():
+                    # 更新到Redis
+                    redis_manager.cache_set(f"config:{key}", config_data, expire=0)
+                    
+                    # 通知监听器
+                    original_value = configs[key]['value']
+                    config_type = configs[key].get('config_type', 'string')
+                    self._notify_config_change(key, original_value, config_type)
+                
+                logger.debug(f"批量配置已更新：{len(configs)} 个配置项")
+                return True
+            else:
+                logger.error(f"批量保存配置到存储失败")
+                return False
+                
+        except Exception as e:
+            logger.error(f"批量设置配置失败: {e}")
+            return False
+    
+    async def reload_redis(self, force_reinit_storage: bool = False):
+        """重新从JSON加载配置到Redis"""
+        logger.info("开始重新加载配置到Redis...")
+        
+        try:
             if force_reinit_storage:
                 logger.info("强制重新初始化存储层...")
                 # 重置存储实例
@@ -346,40 +338,42 @@ class ConfigManager:
                     logger.error("强制重新初始化存储层失败")
                     return False
             
-            # 清空缓存并重新加载
-            self._cache = {}
-            self._cache_loaded = False
-            await self._load_cache(force_reload=True)
+            # 从JSON重新加载所有配置到Redis
+            success = await self.load_all_to_redis()
             
-            if self._cache_loaded:
-                logger.info("配置缓存重新加载成功")
+            if success:
+                logger.info("配置已重新加载到Redis")
                 return True
             else:
-                logger.error("配置缓存重新加载失败")
+                logger.error("配置重新加载到Redis失败")
                 return False
+                
+        except Exception as e:
+            logger.error(f"重新加载配置到Redis时发生异常: {e}")
+            return False
 
     async def force_reload_with_retry(self, max_retries: int = 3):
-        """强制重载配置，带存储层重新初始化和多次重试"""
-        logger.info("开始强制重载配置...")
+        """强制重载配置到Redis，带存储层重新初始化和多次重试"""
+        logger.info("开始强制重载配置到Redis...")
         
         for attempt in range(max_retries):
             try:
                 # 第一次尝试普通重载，后续尝试强制重新初始化存储层
                 force_storage = attempt > 0
-                success = await self.reload_cache(force_reinit_storage=force_storage)
+                success = await self.reload_redis(force_reinit_storage=force_storage)
                 
                 if success:
-                    logger.info(f"强制重载配置成功 (尝试 {attempt + 1}/{max_retries})")
+                    logger.info(f"强制重载配置到Redis成功 (尝试 {attempt + 1}/{max_retries})")
                     return True
                     
             except Exception as e:
-                logger.error(f"强制重载配置失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                logger.error(f"强制重载配置到Redis失败 (尝试 {attempt + 1}/{max_retries}): {e}")
             
             if attempt < max_retries - 1:
                 import asyncio
                 await asyncio.sleep(2.0 * (attempt + 1))  # 递增等待时间
         
-        logger.error("强制重载配置多次重试后仍然失败")
+        logger.error("强制重载配置到Redis多次重试后仍然失败")
         return False
 
     def is_storage_healthy(self) -> bool:
@@ -408,13 +402,17 @@ class ConfigManager:
             except Exception as e:
                 store_access_test = f"获取失败: {e}"
         
+        # 获取Redis连接状态
+        redis_manager = self._get_redis_manager()
+        redis_healthy = redis_manager.is_healthy()
+        
         diagnostics = {
-            "cache_loaded": self._cache_loaded,
-            "cache_size": len(self._cache),
+            "redis_healthy": redis_healthy,
+            "redis_connected": redis_healthy,
             "storage_healthy": global_storage_healthy,
             "json_store_available": instance_store_available,
             "store_access_test": store_access_test,
-            "state_sync_ok": global_storage_healthy and instance_store_available,
+            "state_sync_ok": global_storage_healthy and instance_store_available and redis_healthy,
             "critical_configs_status": {}
         }
         
@@ -472,14 +470,11 @@ class ConfigManager:
                 logger.error("ConfigManager状态同步失败")
                 return False
             
-            # 2. 确保缓存已加载
-            if not self._cache_loaded:
-                logger.debug("缓存未加载，尝试加载...")
-                await self._load_cache()
-                
-                if not self._cache_loaded:
-                    logger.error("缓存加载失败")
-                    return False
+            # 2. 检查Redis连接状态
+            redis_manager = self._get_redis_manager()
+            if not redis_manager.is_healthy():
+                logger.error("Redis连接不健康")
+                return False
             
             # 3. 验证关键配置
             await self._validate_critical_configs()
@@ -491,12 +486,24 @@ class ConfigManager:
             logger.error(f"确保ConfigManager就绪时发生异常: {e}")
             return False
     
-    async def clear_cache(self):
-        """清理缓存"""
-        with self._cache_lock:
-            self._cache = {}
-            self._cache_loaded = False
-            logger.info("配置缓存已清理")
+    async def clear_redis_configs(self):
+        """清理Redis中的配置键"""
+        try:
+            redis_manager = self._get_redis_manager()
+            
+            # 获取所有config:*键并删除
+            import redis
+            r = redis_manager._redis
+            config_keys = r.keys("config:*")
+            
+            if config_keys:
+                r.delete(*config_keys)
+                logger.info(f"已清理 {len(config_keys)} 个Redis配置键")
+            else:
+                logger.info("Redis中无配置键需要清理")
+                
+        except Exception as e:
+            logger.error(f"清理Redis配置键失败: {e}")
     
     def add_change_listener(self, listener: Callable[[str, Any, str], None]):
         """添加配置变更监听器"""
@@ -515,82 +522,6 @@ class ConfigManager:
             except Exception as e:
                 logger.error(f"配置变更监听器错误: {e}")
     
-    async def _load_cache(self, force_reload: bool = False):
-        """加载配置到缓存 - 增强错误恢复机制"""
-        max_retries = 3
-        
-        for attempt in range(max_retries):
-            try:
-                store = self._get_store()
-                # 检查存储层是否已初始化
-                if store is None:
-                    if attempt < max_retries - 1:
-                        logger.debug(f"JSON存储层未初始化，稍后重试 ({attempt + 1}/{max_retries})")
-                        # 短暂等待后重试
-                        import asyncio
-                        await asyncio.sleep(0.5 * (attempt + 1))
-                        continue
-                    else:
-                        logger.warning("JSON存储层多次重试后仍未初始化")
-                        return  # 不标记为已加载，允许后续重试
-                    
-                all_configs = store.get_all_config()
-                
-                if not all_configs:
-                    logger.warning("JSON存储返回空配置，可能存在问题")
-                    if attempt < max_retries - 1:
-                        # 尝试强制重新初始化存储层
-                        from app.storage.json_store import force_reinit_json_stores
-                        if force_reinit_json_stores():
-                            logger.info("强制重新初始化存储层后重试")
-                            # 重新初始化后，重置存储实例，让下一次循环重新获取
-                            self._json_store = None
-                            # 短暂等待后重试
-                            import asyncio
-                            await asyncio.sleep(0.2)
-                            continue
-                        else:
-                            logger.warning("强制重新初始化存储层失败")
-                    else:
-                        logger.error("多次重试后仍无法加载配置")
-                        return
-                
-                # 清空缓存（如果是强制重载）
-                if force_reload:
-                    self._cache.clear()
-                
-                # 只加载活跃的配置
-                loaded_count = 0
-                for key, config_data in all_configs.items():
-                    if isinstance(config_data, dict) and config_data.get('is_active', True):
-                        self._cache[key] = config_data
-                        loaded_count += 1
-                
-                self._cache_loaded = True
-                
-                # 更新文件时间戳（在缓存加载完成后）
-                try:
-                    config_file_path = "data/config/system.json"
-                    if os.path.exists(config_file_path):
-                        self._last_file_mtime = os.path.getmtime(config_file_path)
-                except Exception as e:
-                    logger.debug(f"更新文件时间戳失败: {e}")
-                
-                logger.info(f"已从JSON存储加载 {loaded_count} 个配置项到缓存")
-                
-                # 验证关键配置是否存在
-                await self._validate_critical_configs()
-                return  # 成功加载，退出重试循环
-                
-            except Exception as e:
-                logger.error(f"加载配置缓存失败 (尝试 {attempt + 1}/{max_retries}): {e}")
-                if attempt == max_retries - 1:
-                    logger.error("配置加载多次重试失败，将影响系统功能")
-                    # 不标记为已加载，允许后续重试
-                else:
-                    # 短暂等待后重试
-                    import asyncio
-                    await asyncio.sleep(1.0 * (attempt + 1))
 
     async def _validate_critical_configs(self):
         """验证关键配置是否存在"""
@@ -601,9 +532,13 @@ class ConfigManager:
             'telegram.listener_session'
         ]
         
+        redis_manager = self._get_redis_manager()
         missing_configs = []
+        
         for config_key in critical_configs:
-            if config_key not in self._cache or not self._cache[config_key].get('value'):
+            # 从Redis获取配置
+            config_data = redis_manager.cache_get(f"config:{config_key}")
+            if not config_data or not config_data.get('value'):
                 missing_configs.append(config_key)
         
         if missing_configs:
