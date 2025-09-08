@@ -87,12 +87,20 @@ class ThresholdManager:
                     "last_updated": None
                 }
             },
-            "promo_filter": {
-                "score": {
-                    "current": 0.65,
-                    "min": 0.3,
+            "trailing_promo_filter": {
+                "similarity": {
+                    "current": 0.7,
+                    "min": 0.5,
                     "max": 0.9,
-                    "history": [0.65],
+                    "history": [0.7],
+                    "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
+                    "last_updated": None
+                },
+                "min_length": {
+                    "current": 15,
+                    "min": 10,
+                    "max": 50,
+                    "history": [15],
                     "feedback_stats": {"tp": 0, "fp": 0, "tn": 0, "fn": 0},
                     "last_updated": None
                 }

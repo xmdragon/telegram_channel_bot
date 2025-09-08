@@ -154,11 +154,6 @@ async def get_messages(
         
         # 单次遍历：应用基础过滤条件
         for msg in all_messages:
-            # Linus式防护：确保msg是字典类型，避免字符串.get()错误
-            if not isinstance(msg, dict):
-                logger.warning(f"跳过非字典类型消息数据: {type(msg)} - {str(msg)[:100]}...")
-                continue
-                
             # 状态过滤
             if status and msg.get('status') != status:
                 continue

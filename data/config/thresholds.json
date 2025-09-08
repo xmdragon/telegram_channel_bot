@@ -68,23 +68,6 @@
       "last_updated": null
     }
   },
-  "promo_filter": {
-    "score": {
-      "current": 0.65,
-      "min": 0.3,
-      "max": 0.9,
-      "history": [
-        0.65
-      ],
-      "feedback_stats": {
-        "tp": 0,
-        "fp": 0,
-        "tn": 0,
-        "fn": 0
-      },
-      "last_updated": null
-    }
-  },
   "footer_promo_filter": {
     "separator_confidence": {
       "current": 0.6,
@@ -156,6 +139,38 @@
         "fn": 0
       },
       "last_updated": "2025-08-30T08:20:00.000000"
+    }
+  },
+  "trailing_promo_filter": {
+    "similarity": {
+      "current": 0.7,
+      "min": 0.5,
+      "max": 0.9,
+      "history": [
+        0.7
+      ],
+      "feedback_stats": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 0,
+        "fn": 0
+      },
+      "last_updated": null
+    },
+    "min_length": {
+      "current": 15,
+      "min": 10,
+      "max": 50,
+      "history": [
+        15
+      ],
+      "feedback_stats": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 0,
+        "fn": 0
+      },
+      "last_updated": null
     }
   }
 }

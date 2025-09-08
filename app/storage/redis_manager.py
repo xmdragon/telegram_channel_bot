@@ -230,6 +230,28 @@ class RedisManager:
             logger.error(f"更新消息失败: {e}")
             return False
     
+    def update_message_field(self, channel_id: str, message_id: int, field_name: str, field_value: Any) -> bool:
+        """
+        更新消息的单个字段 - Linus式简洁实现
+        
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID
+            field_name: 字段名
+            field_value: 字段值
+            
+        Returns:
+            bool: 是否更新成功
+        """
+        try:
+            # 🚀 Linus式优化：直接使用现有的update_message方法，避免重复代码
+            update_data = {field_name: field_value}
+            return self.update_message(channel_id, message_id, update_data)
+            
+        except Exception as e:
+            logger.error(f"更新消息字段失败 {channel_id}:{message_id}.{field_name}: {e}")
+            return False
+    
     def update_message_status(self, message_id: str, new_status: str, user_id: str = None) -> bool:
         """
         更新消息状态 - 支持完整消息ID格式
