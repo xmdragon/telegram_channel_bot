@@ -9,6 +9,7 @@ from datetime import datetime
 from app.utils.timezone import get_current_time, format_for_api
 import logging
 import os
+import json
 
 from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
@@ -202,9 +203,18 @@ async def get_messages(
             
             # 处理组合消息媒体 - 转换数据格式
             if message.get('media_group'):
+                # 🔍 修复双重序列化问题：如果media_group是字符串，先解析它
+                media_group_data = message['media_group']
+                if isinstance(media_group_data, str):
+                    try:
+                        media_group_data = json.loads(media_group_data)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(f"媒体组JSON解析失败: {e}")
+                        media_group_data = []
+                
                 # 转换media_group为media_group_display格式
                 media_group_display = []
-                for media in message['media_group']:
+                for media in media_group_data:
                     media_item = {
                         'media_type': media.get('media_type'),
                         'media_path': media.get('file_path'),  # Redis中是file_path，前端需要media_path
@@ -252,8 +262,17 @@ async def get_messages(
                         
                         # 处理原始消息的组合媒体
                         if original_message.get('media_group'):
+                            # 🔍 修复双重序列化问题：如果media_group是字符串，先解析它
+                            original_media_group_data = original_message['media_group']
+                            if isinstance(original_media_group_data, str):
+                                try:
+                                    original_media_group_data = json.loads(original_media_group_data)
+                                except (json.JSONDecodeError, TypeError) as e:
+                                    logger.warning(f"原始消息媒体组JSON解析失败: {e}")
+                                    original_media_group_data = []
+                            
                             media_group_display = []
-                            for media in original_message['media_group']:
+                            for media in original_media_group_data:
                                 media_item = {
                                     'media_type': media.get('media_type'),
                                     'media_path': media.get('file_path'),

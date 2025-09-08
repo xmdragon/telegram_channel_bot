@@ -901,7 +901,7 @@ class RedisManager:
         return str(data)
     
     def _deserialize_json(self, data: str) -> Any:
-        """反序列化JSON数据 - Linus式异常处理：失败时返回None而不是原数据"""
+        """反序列化JSON数据 - 恢复正常处理：失败时返回None"""
         if not data:
             return None
         try:
