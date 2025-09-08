@@ -221,22 +221,3 @@ class MessageFilterProcessor(MessageProcessor):
     
 
 
-class ContentValidator(MessageProcessor):
-    """内容验证处理器 - Linus式简化版本"""
-    
-    def __init__(self):
-        super().__init__("ContentValidator")
-    
-    async def process(self, context: MessageContext) -> ProcessorResult:
-        """
-        Linus式验证：由于MessageReceiver已在源头丢弃空消息，
-        此处只需处理已通过基础验证的消息，简化逻辑消除特殊情况
-        """
-        try:
-            # 能到达此处的消息已通过源头验证，直接通过
-            # 消除原有的重复检查逻辑，遵循"好品味"原则
-            self.logger.debug("消息已通过源头验证，继续处理")
-            return ProcessorResult(True, context)
-            
-        except Exception as e:
-            return await self._handle_error(context, e)
