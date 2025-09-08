@@ -26,6 +26,7 @@ class MessageAdDetectorProcessor(MessageProcessor):
         # 延迟初始化，避免循环依赖
         self._semantic_extractor = None
         self._vector_manager = None
+        self._threshold_manager = None
     
     @property
     def semantic_extractor(self):
@@ -40,6 +41,14 @@ class MessageAdDetectorProcessor(MessageProcessor):
         if self._vector_manager is None:
             self._vector_manager = VectorManager()
         return self._vector_manager
+    
+    @property
+    def threshold_manager(self):
+        """延迟加载阈值管理器"""
+        if self._threshold_manager is None:
+            from app.core.threshold_manager import threshold_manager
+            self._threshold_manager = threshold_manager
+        return self._threshold_manager
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
@@ -58,17 +67,23 @@ class MessageAdDetectorProcessor(MessageProcessor):
             # 进行语义广告检测
             is_ad, similarity, reason = await self._detect_advertisement(context)
             
+            # 记录检测分数到上下文，供后续反馈使用
+            context.ad_detection_score = similarity
+            context.ad_detection_threshold = self.vector_manager.similarity_threshold
+            
             if is_ad:
                 # 检测到广告，标记拒绝
                 context.should_reject = True
                 context.auto_rejected = True
                 context.reject_reason = reason
+                context.ad_detected = True
                 
                 self.logger.info(f"🚫 语义检测到广告，自动拒绝: {reason}")
                 
                 # 通知统计更新
                 await self._notify_ad_detected(context)
             else:
+                context.ad_detected = False
                 self.logger.debug(f"✅ 语义检测：非广告内容（相似度: {similarity:.3f}）")
             
             return ProcessorResult(True, context)
@@ -130,3 +145,34 @@ class MessageAdDetectorProcessor(MessageProcessor):
             pass
         except Exception as e:
             self.logger.error(f"广告检测通知失败: {e}")
+    
+    def record_user_feedback(self, message_id: str, user_decision: str, 
+                           detection_score: float, detection_threshold: float):
+        """
+        记录用户反馈到阈值管理器
+        
+        Args:
+            message_id: 消息ID
+            user_decision: 用户决定 ('approve', 'reject')
+            detection_score: 检测分数
+            detection_threshold: 使用的阈值
+        """
+        try:
+            # 将用户决定转换为actual_result
+            # 如果用户批准了被检测为广告的消息，说明是误判(negative)
+            # 如果用户拒绝了消息，说明确实是广告(positive)
+            actual_result = 'positive' if user_decision == 'reject' else 'negative'
+            
+            # 记录反馈
+            self.threshold_manager.record_feedback(
+                filter_name='ad_detector',
+                metric_name='classifier',
+                predicted_score=detection_score,
+                actual_result=actual_result,
+                threshold_used=detection_threshold
+            )
+            
+            self.logger.info(f"📝 记录广告检测反馈: {message_id} - 用户{user_decision}, 分数{detection_score:.3f}")
+            
+        except Exception as e:
+            self.logger.error(f"记录用户反馈失败: {e}")

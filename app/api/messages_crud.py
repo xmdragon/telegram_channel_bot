@@ -484,6 +484,10 @@ async def _publish_message_to_target(message_id: str, user_id: str = None) -> di
             if task_result.get("success"):
                 # 任务成功，更新状态为已发布
                 redis_manager.update_message_status(message_id, "approved", user_id)
+                
+                # 记录广告检测反馈
+                await _record_ad_detection_feedback(message, "approve")
+                
                 logger.info(f"消息发布成功: {message_id}")
             else:
                 # 任务失败
@@ -546,6 +550,9 @@ async def reject_message(
         message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 记录广告检测反馈
+        await _record_ad_detection_feedback(message, "reject")
         
         # 更新消息状态为已拒绝
         success = redis_manager.update_message_status(message_id, "rejected", user.get('user_id'))
@@ -871,6 +878,71 @@ async def delete_review_message(
         logger.error(f"删除审核消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"删除审核消息失败: {str(e)}")
 
+
+async def _add_to_whitelist(message: Dict[str, Any], source: str = "user_approval"):
+    """将用户批准的内容添加到白名单向量库"""
+    try:
+        content = message.get('filtered_content') or message.get('content', '')
+        if not content or not content.strip():
+            logger.debug("消息内容为空，跳过白名单添加")
+            return
+            
+        # 提取语义向量
+        from app.services.semantic_extractor import get_semantic_extractor
+        semantic_extractor = get_semantic_extractor(768)
+        
+        extract_result = semantic_extractor.extract_vector_with_info(content)
+        if not extract_result['success']:
+            logger.warning(f"无法提取白名单向量: {extract_result.get('error_message')}")
+            return
+            
+        # 添加到白名单向量库
+        from app.services.vector_manager import vector_manager
+        success = vector_manager.add_whitelist_vector(
+            vector=extract_result['vector'],
+            content=content,
+            message_id=message.get('message_id', ''),
+            source=source
+        )
+        
+        if success:
+            logger.info(f"✅ 已将用户批准的内容添加到白名单: {message.get('message_id')}")
+        else:
+            logger.warning(f"白名单添加失败: {message.get('message_id')}")
+            
+    except Exception as e:
+        logger.error(f"添加白名单向量失败: {e}")
+
+async def _record_ad_detection_feedback(message: Dict[str, Any], user_decision: str):
+    """记录广告检测反馈"""
+    try:
+        # 检查消息是否有广告检测信息
+        ad_detection_score = message.get('ad_detection_score')
+        ad_detection_threshold = message.get('ad_detection_threshold')
+        
+        if ad_detection_score is not None and ad_detection_threshold is not None:
+            # 获取广告检测处理器实例
+            from app.services.processors.message_ad_detector_processor import MessageAdDetectorProcessor
+            ad_detector = MessageAdDetectorProcessor()
+            
+            # 记录用户反馈
+            ad_detector.record_user_feedback(
+                message_id=message.get('message_id', ''),
+                user_decision=user_decision,
+                detection_score=float(ad_detection_score),
+                detection_threshold=float(ad_detection_threshold)
+            )
+            
+            # 如果用户批准了被检测为广告的消息，添加到白名单
+            if user_decision == "approve" and message.get('ad_detected', False):
+                await _add_to_whitelist(message, "user_approval")
+            
+            logger.info(f"📝 已记录广告检测反馈: {message.get('message_id')} - {user_decision}")
+        else:
+            logger.debug(f"消息 {message.get('message_id')} 没有广告检测信息，跳过反馈记录")
+            
+    except Exception as e:
+        logger.error(f"记录广告检测反馈失败: {e}")
 
 async def _handle_single_reject_media_training(message: Dict[str, Any], reason: str):
     """

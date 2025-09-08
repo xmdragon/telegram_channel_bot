@@ -118,7 +118,9 @@ async def lifespan(app: FastAPI):
         # 获取最终状态信息
         try:
             final_diagnostics = await config_manager.get_storage_diagnostics()
-            logger.info(f"✅ 配置管理器验证成功 (缓存: {final_diagnostics['cache_size']}项, 状态同步: {final_diagnostics.get('state_sync_ok', 'unknown')})")
+            cache_size = final_diagnostics.get('cache_size', 0)
+            state_sync = final_diagnostics.get('state_sync_ok', 'unknown')
+            logger.info(f"✅ 配置管理器验证成功 (Redis配置: {cache_size}项, 状态同步: {state_sync})")
         except Exception as e:
             logger.warning(f"获取最终诊断信息失败: {e}")
             logger.info("✅ 配置管理器验证成功")

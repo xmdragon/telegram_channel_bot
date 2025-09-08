@@ -406,6 +406,15 @@ class ConfigManager:
         redis_manager = self._get_redis_manager()
         redis_healthy = redis_manager.is_healthy()
         
+        # 获取Redis中配置项数量（替代原缓存大小）
+        cache_size = 0
+        try:
+            if redis_healthy:
+                config_keys = redis_manager.redis_client.keys("config:*")
+                cache_size = len(config_keys)
+        except Exception as e:
+            logger.debug(f"获取Redis配置项数量失败: {e}")
+        
         diagnostics = {
             "redis_healthy": redis_healthy,
             "redis_connected": redis_healthy,
@@ -413,6 +422,7 @@ class ConfigManager:
             "json_store_available": instance_store_available,
             "store_access_test": store_access_test,
             "state_sync_ok": global_storage_healthy and instance_store_available and redis_healthy,
+            "cache_size": cache_size,  # 兼容性：Redis中的配置项数量
             "critical_configs_status": {}
         }
         

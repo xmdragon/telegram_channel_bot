@@ -38,12 +38,13 @@
   },
   "ad_detector": {
     "classifier": {
-      "current": 0.84,
+      "current": 0.92,
       "min": 0.4,
       "max": 0.95,
       "history": [
         0.7,
-        0.84
+        0.84,
+        0.92
       ],
       "feedback_stats": {
         "tp": 0,
@@ -51,7 +52,7 @@
         "tn": 3,
         "fn": 8
       },
-      "last_updated": "2025-09-08T17:38:06.822497"
+      "last_updated": "2025-09-08T18:20:00.000000"
     },
     "keywords": {
       "current": 0.8,
