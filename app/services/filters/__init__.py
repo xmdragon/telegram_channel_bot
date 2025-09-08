@@ -28,7 +28,6 @@ from .filter_pipeline import (
 )
 
 # 导入具体的过滤器实现
-from .ad_detector import AdDetectorFilter, ad_detector_filter
 from .tail_filter import TailFilter
 from .markdown_filter import MarkdownFilter
 
@@ -44,12 +43,8 @@ __all__ = [
     'PipelineConfig',
     
     # 具体过滤器类
-    'AdDetectorFilter',
     'TailFilter',
     'MarkdownFilter',
-    
-    # 预配置的过滤器实例
-    'ad_detector_filter',
     
     # 异常类
     'FilterException',
@@ -73,7 +68,7 @@ __description__ = '过滤器基础架构 - 统一的过滤器接口和管道系�
 # 默认配置
 DEFAULT_PIPELINE_CONFIG = {
     'enable_early_stopping': True,
-    'early_stop_filters': {'ad_detector'},
+    'early_stop_filters': set(),  # 过滤器不再支持early stopping
     'max_concurrent_filters': 1,
     'filter_timeout': 30.0,
     'pipeline_timeout': 60.0,
@@ -83,17 +78,15 @@ DEFAULT_PIPELINE_CONFIG = {
 
 # 支持的过滤器类型
 SUPPORTED_FILTER_TYPES = {
-    'ad_detector': '广告检测器', 
     'content_filter': '内容过滤器',
-    'semantic_filter': '语义过滤器',
     'tail_filter': '尾部过滤器',
     'markdown_filter': 'Markdown链接过滤器',
+    'footer_promo_filter': '尾部推广过滤器',
+    'trailing_promo_filter': '尾随推广过滤器',
 }
 
-# 早停支持的过滤器
-EARLY_STOP_CAPABLE_FILTERS = {
-    'ad_detector'
-}
+# 早停支持的过滤器（过滤器层不再支持早停）
+EARLY_STOP_CAPABLE_FILTERS = set()
 
 
 def create_default_filters() -> dict:
@@ -103,8 +96,8 @@ def create_default_filters() -> dict:
         dict: 过滤器名称到实例的映射
     """
     return {
-        'ad_detector': ad_detector_filter,
-        'tail_filter': TailFilter()
+        'tail_filter': TailFilter(),
+        'markdown_filter': MarkdownFilter()
     }
 
 
@@ -112,12 +105,13 @@ def create_early_stop_pipeline() -> FilterPipeline:
     """创建支持早停的标准管道
     
     Returns:
-        FilterPipeline: 配置好的管道，包含广告检测器
+        FilterPipeline: 配置好的管道，包含基础过滤器
     """
     pipeline = create_pipeline()
     
-    # 添加早停过滤器
-    pipeline.add_filter(ad_detector_filter)
+    # 基础过滤器
+    pipeline.add_filter(TailFilter())
+    pipeline.add_filter(MarkdownFilter())
     
     return pipeline
 
@@ -141,7 +135,7 @@ def create_pipeline(config: dict = None) -> FilterPipeline:
     
     pipeline_config = PipelineConfig(
         enable_early_stopping=config.get('enable_early_stopping', True),
-        early_stop_filters=set(config.get('early_stop_filters', ['ad_detector'])),
+        early_stop_filters=set(config.get('early_stop_filters', [])),
         max_concurrent_filters=config.get('max_concurrent_filters', 1),
         filter_timeout=config.get('filter_timeout', 30.0),
         pipeline_timeout=config.get('pipeline_timeout', 60.0),

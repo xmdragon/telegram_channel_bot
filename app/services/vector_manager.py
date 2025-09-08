@@ -34,8 +34,8 @@ class VectorManager:
         self._vector_cache = None
         self._last_modified = 0
         
-        # 配置参数
-        self.similarity_threshold = 0.7  # 广告检测阈值
+        # 配置参数 - 调整为更合理的阈值
+        self.similarity_threshold = 0.6  # 广告检测阈值
         self.duplicate_threshold = 0.95  # 向量去重阈值
         
         logger.info(f"向量管理器初始化完成 - 存储路径: {vector_dir}")

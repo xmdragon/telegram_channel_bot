@@ -10,14 +10,8 @@ from typing import Tuple, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# 尝试导入混合向量过滤器
-try:
-    from .filters.hybrid_tail_filter import get_hybrid_tail_filter
-    HYBRID_FILTER_AVAILABLE = True
-    logger.info("✅ 混合向量过滤器可用")
-except ImportError as e:
-    HYBRID_FILTER_AVAILABLE = False
-    logger.error(f"❌ 混合向量过滤器不可用: {e}")
+# 延迟导入混合向量过滤器，避免循环导入
+HYBRID_FILTER_AVAILABLE = None  # None表示未检查
 
 
 class TailFilterEngine:
@@ -28,16 +22,33 @@ class TailFilterEngine:
     """
     
     def __init__(self):
+        self.hybrid_filter = None
+        self._check_and_init_hybrid_filter()
+    
+    def _check_and_init_hybrid_filter(self):
+        """延迟检查和初始化混合过滤器"""
+        global HYBRID_FILTER_AVAILABLE
+        
+        if HYBRID_FILTER_AVAILABLE is None:
+            # 第一次检查，尝试导入
+            try:
+                from .filters.hybrid_tail_filter import get_hybrid_tail_filter
+                HYBRID_FILTER_AVAILABLE = True
+                logger.info("✅ 混合向量过滤器可用")
+            except ImportError as e:
+                HYBRID_FILTER_AVAILABLE = False
+                logger.error(f"❌ 混合向量过滤器不可用: {e}")
+        
         if HYBRID_FILTER_AVAILABLE:
             try:
+                from .filters.hybrid_tail_filter import get_hybrid_tail_filter
                 self.hybrid_filter = get_hybrid_tail_filter()
                 logger.info("✅ 尾部过滤引擎初始化成功")
             except Exception as e:
                 logger.error(f"❌ 混合向量过滤器初始化失败: {e}")
                 self.hybrid_filter = None
         else:
-            self.hybrid_filter = None
-            logger.error("❌ 混合向量过滤器不可用，尾部过滤将被禁用")
+            logger.warning("❌ 混合向量过滤器不可用，尾部过滤将被禁用")
     
     def filter_message(self, content: str, has_media: bool = False) -> Tuple[str, bool, Optional[str], Dict]:
         """

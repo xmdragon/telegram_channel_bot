@@ -19,8 +19,8 @@ from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass
 from datetime import datetime
 
-from .base import BaseFilter, FilterContext, FilterResult, PipelineResult
-from app.services.semantic_ad_detector import SemanticAdDetector
+from app.services.filters.base import BaseFilter, FilterContext, FilterResult, PipelineResult
+from .semantic_ad_detector import SemanticAdDetector
 
 logger = logging.getLogger(__name__)
 

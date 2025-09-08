@@ -29,8 +29,8 @@ class SemanticAdDetector(BaseFilter):
         self.vector_manager = vector_manager
         self.semantic_extractor = get_semantic_extractor(768)
         
-        # 配置参数
-        self.similarity_threshold = self.config.get('similarity_threshold', 0.7)
+        # 配置参数 - 调整为更合理的阈值
+        self.similarity_threshold = self.config.get('similarity_threshold', 0.6)
         self.enable_self_learning = self.config.get('enable_self_learning', True)
         self.auto_reject_ads = self.config.get('auto_reject_ads', True)
         
@@ -49,7 +49,7 @@ class SemanticAdDetector(BaseFilter):
     # Linus式简化：删除降级引擎初始化方法
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
-        """向量化广告检测主方法"""
+        """ONNX语义广告检测主方法 - 支持双轨检测"""
         start_time = time.time()
         
         # 初始化结果
@@ -64,8 +64,15 @@ class SemanticAdDetector(BaseFilter):
             # 更新统计
             self.detection_stats['total_processed'] += 1
             
-            # === 第一步：向量检测 ===
-            vector_result = await self._vector_detection(content, context)
+            # 🚀 双轨检测：获取原始内容和过滤内容
+            original_content = context.get_metadata('original_content', content)
+            filtered_content = context.get_metadata('filtered_content', content)
+            content_changed = context.get_metadata('content_changed', False)
+            
+            logger.debug(f"🔄 双轨检测 - 内容变化: {content_changed}")
+            
+            # === 第一步：双轨向量检测 ===
+            vector_result = await self._dual_track_detection(original_content, filtered_content, content_changed, context)
             
             if vector_result['success']:
                 # 向量检测成功
@@ -193,7 +200,101 @@ class SemanticAdDetector(BaseFilter):
                 'details': {}
             }
     
-    # Linus式简化：删除_fallback_detection方法，消除降级逻辑
+    async def _dual_track_detection(self, original_content: str, filtered_content: str, content_changed: bool, context: FilterContext) -> Dict[str, Any]:
+        """双轨检测：同时检测原始内容和过滤内容"""
+        try:
+            if not content_changed:
+                # 内容没有变化，直接单轨检测
+                return await self._vector_detection(original_content, context)
+            
+            # 内容有变化，进行双轨检测
+            logger.debug(f"🔄 执行双轨检测 - 原始: {len(original_content)}, 过滤: {len(filtered_content)}")
+            
+            # 检测原始内容
+            original_result = await self._vector_detection(original_content, context)
+            # 检测过滤内容  
+            filtered_result = await self._vector_detection(filtered_content, context)
+            
+            # 智能组合判断
+            if original_result['success'] and filtered_result['success']:
+                original_is_ad = original_result['is_ad']
+                original_similarity = original_result['similarity']
+                filtered_is_ad = filtered_result['is_ad'] 
+                filtered_similarity = filtered_result['similarity']
+                
+                # Linus式判断逻辑
+                if original_is_ad and not filtered_is_ad:
+                    # 原始内容是广告，过滤后变干净 → 典型推广内容型广告
+                    return {
+                        'success': True,
+                        'is_ad': True,
+                        'similarity': original_similarity,
+                        'detection_type': 'dual_track_promotion',
+                        'details': {
+                            'original_similarity': original_similarity,
+                            'filtered_similarity': filtered_similarity,
+                            'reason': '原始内容包含推广信息，过滤后变正常（推广型广告）'
+                        }
+                    }
+                elif original_is_ad and filtered_is_ad:
+                    # 原始和过滤都是广告 → 纯广告内容
+                    max_similarity = max(original_similarity, filtered_similarity)
+                    return {
+                        'success': True,
+                        'is_ad': True,
+                        'similarity': max_similarity,
+                        'detection_type': 'dual_track_pure_ad',
+                        'details': {
+                            'original_similarity': original_similarity,
+                            'filtered_similarity': filtered_similarity,
+                            'reason': '原始和过滤内容都是广告（纯广告）'
+                        }
+                    }
+                elif not original_is_ad and filtered_is_ad:
+                    # 原始正常，过滤后变广告 → 异常情况，以原始为准
+                    return {
+                        'success': True,
+                        'is_ad': False,
+                        'similarity': original_similarity,
+                        'detection_type': 'dual_track_anomaly',
+                        'details': {
+                            'original_similarity': original_similarity,
+                            'filtered_similarity': filtered_similarity,
+                            'reason': '原始内容正常，过滤异常导致误判'
+                        }
+                    }
+                else:
+                    # 原始和过滤都正常 → 正常内容
+                    return {
+                        'success': True,
+                        'is_ad': False,
+                        'similarity': max(original_similarity, filtered_similarity),
+                        'detection_type': 'dual_track_normal',
+                        'details': {
+                            'original_similarity': original_similarity,
+                            'filtered_similarity': filtered_similarity,
+                            'reason': '双轨检测均为正常内容'
+                        }
+                    }
+            elif original_result['success']:
+                # 只有原始内容检测成功，使用原始结果
+                original_result['detection_type'] = 'original_only'
+                return original_result
+            elif filtered_result['success']:
+                # 只有过滤内容检测成功，使用过滤结果
+                filtered_result['detection_type'] = 'filtered_only'
+                return filtered_result
+            else:
+                # 都失败了，返回原始错误
+                return original_result
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'error_type': 'dual_track_error',
+                'details': {'error': 'dual_track_detection_failed'}
+            }
     
     async def _self_learn(self, content: str, context: FilterContext, learn_type: str):
         """自学习功能"""

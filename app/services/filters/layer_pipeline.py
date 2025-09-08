@@ -22,7 +22,7 @@ from datetime import datetime
 
 from .base import FilterContext, PipelineResult
 from .content_filter_layer import ContentFilterLayer, LayerConfig
-from .detector_layer import DetectorLayer, DetectorLayerConfig
+from app.services.detectors import DetectorLayer, DetectorLayerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +133,11 @@ class LayerPipeline:
                 # 更新内容
                 current_content = content_result.final_content
                 
+                # 🚀 双轨检测：在上下文中保存原始内容
+                context.add_metadata('original_content', content)
+                context.add_metadata('filtered_content', current_content)
+                context.add_metadata('content_changed', current_content != content)
+                
                 # 合并结果
                 all_filter_results.update(content_result.filter_results)
                 if content_result.overall_reason:
@@ -147,8 +152,15 @@ class LayerPipeline:
                 logger.error(f"❌ 内容清理层处理失败: {e}")
                 # 清理失败不影响后续检测，使用原内容
                 current_content = content
+                context.add_metadata('original_content', content)
+                context.add_metadata('filtered_content', content)
+                context.add_metadata('content_changed', False)
         else:
             logger.debug("⏭️ 内容清理层已禁用")
+            # 即使内容清理层禁用，也要为检测器层提供双轨数据
+            context.add_metadata('original_content', content)
+            context.add_metadata('filtered_content', current_content)
+            context.add_metadata('content_changed', False)
         
         # === 阶段2: 检测器层 ===
         if self.detector_layer:
