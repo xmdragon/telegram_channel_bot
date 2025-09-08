@@ -100,7 +100,7 @@ class TailVectorFilter:
         self._build_embeddings(samples_file, embeddings_file)
     
     def _build_embeddings(self, samples_file: str, embeddings_file: str):
-        """构建尾部样本的语义向量"""
+        """构建尾部样本的语义向量 - 改进：拆分为单行向量并去重"""
         if not os.path.exists(samples_file):
             raise FileNotFoundError(f"训练样本文件不存在: {samples_file}")
         
@@ -111,23 +111,41 @@ class TailVectorFilter:
         if not samples:
             raise ValueError("没有找到训练样本")
         
+        # 🚀 改进：拆分多行样本为单行并去重
+        unique_lines = set()  # 用于去重
         self.tail_samples = []
-        texts = []
+        
+        logger.info(f"📝 拆分 {len(samples)} 个多行样本为单行并去重...")
         
         for sample in samples:
             if 'tail_part' in sample:
                 tail_text = sample['tail_part'].strip()
-                if tail_text:
-                    self.tail_samples.append(tail_text)
-                    texts.append(tail_text)
+                if not tail_text:
+                    continue
+                
+                # 按行拆分
+                lines = tail_text.split('\n')
+                
+                for line in lines:
+                    line = line.strip()
+                    # 过滤条件：非空、长度>=10、未重复
+                    if line and len(line) >= 10 and line not in unique_lines:
+                        unique_lines.add(line)
+                        self.tail_samples.append(line)
         
-        if not texts:
-            raise ValueError("没有有效的尾部文本样本")
+        if not self.tail_samples:
+            raise ValueError("没有有效的尾部文本行")
         
-        logger.info(f"📝 处理 {len(texts)} 个尾部样本...")
+        logger.info(f"✅ 去重后得到 {len(self.tail_samples)} 个独立行样本")
         
+        # 生成向量
         embeddings = []
-        for text in texts:
+        failed_count = 0
+        
+        for i, text in enumerate(self.tail_samples):
+            if (i + 1) % 50 == 0:
+                logger.info(f"   处理进度: {i + 1}/{len(self.tail_samples)}")
+            
             vector = self.semantic_extractor.extract_vector(text)
             if vector:
                 embeddings.append(vector)
@@ -135,6 +153,8 @@ class TailVectorFilter:
                 logger.warning(f"无法提取向量: {text[:50]}...")
                 # 使用零向量作为占位符
                 embeddings.append([0.0] * 768)
+                failed_count += 1
+        
         self.tail_embeddings = np.array(embeddings)
         
         os.makedirs(os.path.dirname(embeddings_file), exist_ok=True)
@@ -142,7 +162,8 @@ class TailVectorFilter:
                           embeddings=self.tail_embeddings,
                           samples=np.array(self.tail_samples))
         
-        logger.info(f"💾 语义向量已保存到: {embeddings_file}")
+        logger.info(f"💾 单行向量已保存到: {embeddings_file}")
+        logger.info(f"📊 成功生成: {len(embeddings) - failed_count} 个向量, 失败: {failed_count} 个")
     
     def is_tail_content(self, text: str) -> Tuple[bool, float]:
         """
