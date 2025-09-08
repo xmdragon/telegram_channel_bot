@@ -192,7 +192,7 @@ class MessageProcessor:
             telegram_message = await self._rebuild_telegram_message(collected_msg)
             
             # 使用现有的处理管道
-            from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageStorageProcessor
+            from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageAdDetectorProcessor, MessageStorageProcessor
             from app.services.processors.base import MessageContext
             
             perf_ctx.start_stage("pipeline_setup")
@@ -221,6 +221,7 @@ class MessageProcessor:
                 MessageReceiver(),
                 # MediaDownloader已移除：collector负责媒体下载，processor专注业务逻辑
                 MessageFilterProcessor(), 
+                MessageAdDetectorProcessor(),  # 广告检测：在过滤后，存储前进行语义检测
                 MessageStorageProcessor()
             ])
             perf_ctx.end_stage("pipeline_setup")

@@ -1,6 +1,6 @@
 """
 消息过滤处理器
-负责内容过滤、广告检测、OCR处理和自动拒绝判断
+负责内容过滤处理
 """
 import logging
 import re
@@ -51,7 +51,6 @@ class MessageFilterProcessor(MessageProcessor):
         - 提取消息实体
         - 执行内容过滤
         - 进行广告检测
-        - 处理OCR识别
         - 判断是否自动拒绝
         """
         # 导入性能监控
@@ -84,7 +83,6 @@ class MessageFilterProcessor(MessageProcessor):
             if filter_timer:
                 entity_timer.stop()
             
-            # 步骤2: 准备媒体文件列表用于OCR
             media_files = []
             if context.media_info and context.media_info.get('file_path'):
                 media_files.append(context.media_info['file_path'])
@@ -101,7 +99,6 @@ class MessageFilterProcessor(MessageProcessor):
             # 步骤4: 检查自动拒绝条件
             if filter_timer:
                 rejection_timer = filter_timer.add_child("auto_rejection_check").start()
-            await self._check_auto_rejection(context)
             if filter_timer:
                 rejection_timer.stop()
                 rejection_timer.set_metric("should_reject", context.should_reject)
@@ -202,10 +199,6 @@ class MessageFilterProcessor(MessageProcessor):
                 else:
                     context.filter_reason += f" + AI检测: {ai_reason}"
             
-            # 提取OCR结果
-            if 'ad_detector' in pipeline_result.filter_results:
-                ad_result = pipeline_result.filter_results['ad_detector']
-                context.ocr_result = ad_result.details.get('ocr_result', {}) if ad_result.details else {}
             
             # 记录过滤效果
             if content != context.filtered_content:
@@ -216,8 +209,6 @@ class MessageFilterProcessor(MessageProcessor):
             if context.is_ad:
                 self.logger.info(f"检测到广告: {context.filter_reason}")
                 
-                # 调用自动学习机制（异步，不阻塞主流程）
-                asyncio.create_task(self._learn_from_ad_detection(context, ad_detection_result))
             
         except Exception as e:
             self.logger.error(f"内容过滤失败: {e}")
@@ -225,108 +216,9 @@ class MessageFilterProcessor(MessageProcessor):
             context.filtered_content = context.processed_content
             context.filter_reason = f"过滤失败: {e}"
     
-    async def _check_auto_rejection(self, context: MessageContext):
-        """检查是否应该自动拒绝消息"""
-        self.logger.info(f"🔍 自动拒绝检查: is_ad={context.is_ad}")
-        
-        if not context.is_ad:
-            self.logger.debug("消息未被标记为广告，跳过自动拒绝检查")
-            return
-        
-        # 检查自动拒绝配置
-        try:
-            from app.services.config_manager import config_manager
-            auto_reject_ads = await config_manager.get_config('review.auto_reject_ads', False)
-            self.logger.info(f"🔧 自动拒绝广告配置: {auto_reject_ads}")
-            
-            if not auto_reject_ads:
-                self.logger.info("自动拒绝广告未启用，保持待审核状态")
-                return
-                
-        except Exception as e:
-            self.logger.error(f"获取自动拒绝配置失败: {e}")
-            return
-        
-        try:
-            should_reject, reject_reason = await self._should_reject_pure_ad(context)
-            self.logger.info(f"📋 精准拒绝判断结果: should_reject={should_reject}, reason={reject_reason}")
-            
-            if should_reject:
-                context.should_reject = True
-                context.auto_rejected = True
-                context.reject_reason = reject_reason
-                self.logger.info(f"⚡ 自动拒绝消息: {reject_reason}")
-                
-                # 保存被拒绝的OCR样本
-                await self._save_rejected_sample(context, reject_reason)
-            else:
-                # 🚀 如果精准逻辑没有拒绝但配置了自动拒绝，根据配置直接拒绝
-                context.should_reject = True
-                context.auto_rejected = True
-                context.reject_reason = "自动拒绝广告消息"
-                self.logger.info(f"⚡ 根据配置自动拒绝广告消息: {context.filter_reason}")
-            
-        except Exception as e:
-            self.logger.error(f"自动拒绝检查失败: {e}")
     
-    async def _should_reject_pure_ad(self, context: MessageContext) -> Tuple[bool, str]:
-        """
-        基于语义向量判断是否应该拒绝广告消息
-        
-        Returns:
-            (是否拒绝, 拒绝原因)
-        """
-        # 纯语义检测：只基于向量相似度判断
-        # 如果在filter阶段已经被标记为广告（is_ad=True），就直接拒绝
-        if context.is_ad and context.filter_reason:
-            # 从 filter_reason 中提取相似度信息
-            if "向量检测" in context.filter_reason or "语义" in context.filter_reason:
-                return True, f"语义向量检测到广告: {context.filter_reason}"
-        
-        # 如果没有被语义检测标记为广告，就不拒绝
-        return False, ""
     
-    async def _save_rejected_sample(self, context: MessageContext, reject_reason: str):
-        """保存被拒绝的OCR样本"""
-        if not context.media_info or not context.ocr_result:
-            return
-        
-        # OCR功能已移除，不再保存OCR样本
-        pass
     
-    async def _learn_from_ad_detection(self, context: MessageContext, ad_detection_result: dict):
-        """从广告检测结果中学习新规则"""
-        try:
-            if not ad_detection_result or not ad_detection_result.get('is_ad', False):
-                return
-            
-            content = context.processed_content
-            confidence = ad_detection_result.get('confidence', 0.0)
-            detection_method = ad_detection_result.get('method', 'unknown')
-            
-            # 根据检测方法确定类别
-            category = 'unknown'
-            if 'AI' in detection_method or 'ai' in detection_method:
-                category = 'ai_detected'
-            elif 'pattern' in detection_method or '模式' in detection_method:
-                category = 'pattern_detected'
-            elif 'ocr' in detection_method or 'OCR' in detection_method:
-                category = 'ocr_detected'
-            
-            # 分析消息并学习模式
-            learning_result = await rule_learner.analyze_ad_message(
-                content=content,
-                confidence=confidence,
-                detection_method=detection_method,
-                category=category
-            )
-            
-            if learning_result.get('learned', False):
-                learned_count = learning_result.get('patterns_learned', 0)
-                self.logger.info(f"从广告检测中学习了 {learned_count} 个新模式")
-            
-        except Exception as e:
-            self.logger.error(f"从广告检测学习失败: {e}")
 
 
 class ContentValidator(MessageProcessor):

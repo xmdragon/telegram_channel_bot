@@ -305,10 +305,11 @@ class RedisManager:
                     current_time = time.time()
                     pipeline = self.client.pipeline()
                     
-                    # 从旧状态索引中移除
-                    if old_status in ['pending', 'approved', 'rejected']:
-                        pipeline.zrem(f"index:msg:{old_status}", message_id)
-                        logger.debug(f"从索引移除: index:msg:{old_status} -> {message_id}")
+                    # 🔥 Linus式修复：从所有状态索引中移除，确保彻底清理
+                    # 解决消息可能存在于多个索引的历史问题
+                    for status in ['pending', 'approved', 'rejected']:
+                        pipeline.zrem(f"index:msg:{status}", message_id)
+                    logger.debug(f"从所有状态索引中移除: {message_id}")
                     
                     # 添加到新状态索引
                     if new_status in ['pending', 'approved', 'rejected']:
@@ -451,7 +452,14 @@ class RedisManager:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
                     if message_data:
-                        messages.append(message_data)
+                        # 🔥 Linus式状态验证：确保消息状态与索引匹配
+                        actual_status = message_data.get('status', 'pending')
+                        if actual_status == 'pending':
+                            messages.append(message_data)
+                        else:
+                            # 状态不匹配，添加到清理列表
+                            invalid_keys.append(key)
+                            logger.debug(f"状态不匹配的消息从pending索引清理: {key} (实际状态: {actual_status})")
                     else:
                         invalid_keys.append(key)
             
@@ -461,6 +469,7 @@ class RedisManager:
                 for invalid_key in invalid_keys:
                     pipeline.zrem("index:msg:pending", invalid_key)
                 pipeline.execute()
+                logger.info(f"清理了 {len(invalid_keys)} 个无效的pending索引项")
             
             return messages
             
@@ -474,12 +483,30 @@ class RedisManager:
             approved_keys = self.client.zrevrange("index:msg:approved", offset, offset + limit - 1)
             
             messages = []
+            invalid_keys = []
+            
             for key in approved_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
                     if message_data:
-                        messages.append(message_data)
+                        # 验证状态匹配
+                        actual_status = message_data.get('status', 'pending')
+                        if actual_status == 'approved':
+                            messages.append(message_data)
+                        else:
+                            invalid_keys.append(key)
+                            logger.debug(f"状态不匹配的消息从approved索引清理: {key} (实际状态: {actual_status})")
+                    else:
+                        invalid_keys.append(key)
+            
+            # 清理无效索引
+            if invalid_keys:
+                pipeline = self.client.pipeline()
+                for invalid_key in invalid_keys:
+                    pipeline.zrem("index:msg:approved", invalid_key)
+                pipeline.execute()
+                logger.info(f"清理了 {len(invalid_keys)} 个无效的approved索引项")
             
             return messages
             
@@ -493,12 +520,30 @@ class RedisManager:
             rejected_keys = self.client.zrevrange("index:msg:rejected", offset, offset + limit - 1)
             
             messages = []
+            invalid_keys = []
+            
             for key in rejected_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
                     if message_data:
-                        messages.append(message_data)
+                        # 验证状态匹配
+                        actual_status = message_data.get('status', 'pending')
+                        if actual_status == 'rejected':
+                            messages.append(message_data)
+                        else:
+                            invalid_keys.append(key)
+                            logger.debug(f"状态不匹配的消息从rejected索引清理: {key} (实际状态: {actual_status})")
+                    else:
+                        invalid_keys.append(key)
+            
+            # 清理无效索引
+            if invalid_keys:
+                pipeline = self.client.pipeline()
+                for invalid_key in invalid_keys:
+                    pipeline.zrem("index:msg:rejected", invalid_key)
+                pipeline.execute()
+                logger.info(f"清理了 {len(invalid_keys)} 个无效的rejected索引项")
             
             return messages
             
