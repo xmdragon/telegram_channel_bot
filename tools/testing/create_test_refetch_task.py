@@ -15,7 +15,7 @@ async def create_test_task():
     
     try:
         # 初始化Redis连接
-        from app.storage.redis_store import init_redis_stores
+        from app.storage.redis_manager import redis_manager
         from app.services.media_refetch_service import media_refetch_service
         
         # 初始化Redis存储
@@ -30,8 +30,6 @@ async def create_test_task():
         logger.info(f"✅ 测试任务已创建: {task_id} for message {test_message_id}")
         
         # 检查队列状态
-        from app.storage.redis_store import get_redis_message_store
-        redis_store = redis_manager
         queue_length = redis_manager.client.llen(media_refetch_service.TASK_QUEUE_KEY)
         logger.info(f"📊 当前队列长度: {queue_length}")
         

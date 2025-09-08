@@ -77,7 +77,7 @@
     "created_at": "2025-09-03T11:50:00.000000"
   },
   "source.history_limit": {
-    "value": "99",
+    "value": "50",
     "config_type": "integer",
     "description": "首次采集频道时获取的历史消息条数",
     "is_active": true,

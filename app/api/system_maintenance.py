@@ -121,7 +121,7 @@ async def reset_system() -> Dict[str, Any]:
                 # 收集所有需要删除的键
                 patterns_to_delete = [
                     "message:*",        # 消息数据
-                    "msg:*",           # 所有索引和msg开头的键
+                    "index:*",         # 所有索引键
                     "channel:*:count"  # 频道计数
                 ]
                 
@@ -270,6 +270,11 @@ async def reset_system() -> Dict[str, Any]:
             try:
                 collection_queue_patterns = [
                     "collector:queue:*",
+                    "collector:group:*",     # 组消息缓冲
+                    "queue:stats",          # 队列统计
+                    "processor:working:*",  # 处理中状态
+                    "processor:failed",     # 失败队列
+                    "processor:completed",  # 完成队列
                     "media:download:queue",
                     "processor:queue:*",
                     "media_refetch:*",

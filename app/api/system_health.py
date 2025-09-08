@@ -128,7 +128,7 @@ async def get_detailed_status() -> Dict[str, Any]:
         channel_store = get_json_channel_store()
         
         # 消息统计
-        all_message_keys = redis_manager.client.keys("msg:*")
+        all_message_keys = redis_manager.client.keys("message:*")
         total_messages = len(all_message_keys)
         
         # 今日消息数（简化版，从最新消息中算出）

@@ -25,7 +25,7 @@ async def fix_missing_media_placeholders():
             return False
         
         # 获取所有消息键
-        pattern = "msg:*"
+        pattern = "message:*"
         keys = redis_manager.client.keys(pattern)
         
         fixed_count = 0

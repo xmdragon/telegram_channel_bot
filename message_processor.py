@@ -136,15 +136,24 @@ class MessageProcessor:
         logger.info(f"🔧 工作进程停止: {worker_id}")
     
     async def _process_message(self, worker_id: str, message_data: Dict[str, Any]):
-        """处理单条消息"""
+        """处理单条消息 - Linus式方案1：所有消息都是SINGLE类型（组消息已在collector合并）"""
         message_type = message_data.get('type')
         
         try:
             if message_type == MessageType.SINGLE.value:
                 await self._process_single_message(worker_id, message_data['data'])
-                self.stats['single_messages'] += 1
+                
+                # 区分统计：检查是否为已合并的组消息
+                if message_data['data'].get('raw_data', {}).get('is_combined'):
+                    self.stats['group_messages'] += 1
+                    logger.debug(f"处理已合并组消息: {message_data['data'].get('message_id')}")
+                else:
+                    self.stats['single_messages'] += 1
                 
             elif message_type == MessageType.GROUP.value:
+                # 方案1实现后，不应该再有GROUP类型的消息
+                logger.warning(f"收到意外的GROUP消息类型 - 可能是旧数据或配置错误")
+                # 仍然处理以确保向后兼容
                 await self._process_group_message(worker_id, message_data['data'])
                 self.stats['group_messages'] += 1
                 
@@ -161,9 +170,12 @@ class MessageProcessor:
             self.stats['failed'] += 1
     
     async def _process_single_message(self, worker_id: str, message_data: Dict[str, Any]):
-        """处理单条消息"""
+        """处理单条消息（包括已合并的组消息）"""
         # 重建CollectedMessage对象
         collected_msg = CollectedMessage.from_dict(message_data)
+        
+        is_combined = collected_msg.raw_data.get('is_combined', False)
+        message_type_desc = "已合并组消息" if is_combined else "单消息"
         
         # 使用性能监控
         operation_name = "process_from_queue"
@@ -198,6 +210,13 @@ class MessageProcessor:
                 }
                 logger.debug(f"预填充媒体信息: {collected_msg.message_key}")
             
+            # 【关键】对于已合并的组消息，预填充合并信息避免processor重新处理
+            if is_combined:
+                context.is_combined_message = True
+                context.combined_messages = collected_msg.raw_data.get('combined_messages', [])
+                context.media_group = collected_msg.raw_data.get('media_group', [])
+                logger.debug(f"预填充组消息合并信息: {collected_msg.message_key}")
+            
             pipeline = MessagePipeline([
                 MessageReceiver(),
                 # MediaDownloader已移除：collector负责媒体下载，processor专注业务逻辑
@@ -214,7 +233,7 @@ class MessageProcessor:
                              processors_count=len(pipeline.processors))
             
             if result.success:
-                logger.debug(f"✅ 单消息处理完成: {collected_msg.message_key} ({worker_id})")
+                logger.debug(f"✅ {message_type_desc}处理完成: {collected_msg.message_key} ({worker_id})")
             else:
                 raise Exception(f"处理管道失败: {result.error}")
     
@@ -259,7 +278,7 @@ class MessageProcessor:
         logger.info(f"✅ 组消息处理完成: {grouped_messages.grouped_id} ({worker_id})")
     
     async def _rebuild_telegram_message(self, collected_msg: CollectedMessage):
-        """重建Telegram消息对象 - 最小化兼容现有处理器"""
+        """重建Telegram消息对象 - 最小化兼容现有处理器，支持已合并组消息"""
         # 创建一个简单的消息对象，满足现有处理器的需求
         class MockTelegramMessage:
             def __init__(self, collected_msg: CollectedMessage):
@@ -269,7 +288,17 @@ class MessageProcessor:
                 self.caption = collected_msg.content if collected_msg.media_type else None
                 self.date = collected_msg.timestamp
                 self.media = self._create_mock_media(collected_msg.media_type) if collected_msg.media_type else None
-                self.grouped_id = int(collected_msg.grouped_id) if collected_msg.grouped_id else None
+                
+                # 对于已合并的组消息，不设置grouped_id（避免processor重新处理组逻辑）
+                is_combined = collected_msg.raw_data.get('is_combined', False)
+                if is_combined:
+                    self.grouped_id = None  # 已合并，不需要grouped_id
+                    # 添加标记供processor识别
+                    self._is_combined_group = True
+                    self._original_grouped_id = collected_msg.grouped_id
+                else:
+                    self.grouped_id = int(collected_msg.grouped_id) if collected_msg.grouped_id else None
+                    self._is_combined_group = False
                 
                 # 扩展信息
                 self.sender = type('MockSender', (), {

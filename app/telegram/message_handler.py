@@ -189,7 +189,7 @@ class MessageHandler:
         return await self.process_source_message_async_queue(message, channel_id, chat)
     
     async def process_source_message_async_queue(self, message: TLMessage, channel_id: str, chat):
-        """Linus式异步队列处理 - collector负责完整采集（含媒体下载）"""
+        """Linus式异步队列处理 - collector负责完整采集（含媒体下载和组消息合并）"""
         try:
             # 1. 快速提取基础信息
             collected_msg = await self._extract_message_quickly(message, channel_id, chat)
@@ -244,13 +244,34 @@ class MessageHandler:
                         'error': str(media_error)
                     }
             
-            # 4. 消息入队（现在包含完整信息）
+            # 4. 【新增】如果是组消息，在collector中完成组合并
+            if collected_msg.is_group_member:
+                logger.info(f"检测到组消息: {collected_msg.message_key} (grouped_id: {collected_msg.grouped_id})")
+                merged_message = await self._handle_group_message_in_collector(collected_msg, message, channel_id)
+                
+                if merged_message is None:
+                    # 消息已缓冲，等待其他组成员
+                    logger.debug(f"⏳ 组消息已缓冲，等待完整组: {collected_msg.grouped_id}")
+                    return "group_buffered"
+                
+                # 使用合并后的消息
+                collected_msg = merged_message
+                logger.info(f"✅ 组消息合并完成: {collected_msg.message_key}")
+            
+            # 5. 消息入队（现在包含完整信息，组消息已预合并）
             queue = get_message_queue()
-            success = await queue.enqueue_message(collected_msg)
+            
+            # 如果是已合并的组消息，强制作为单消息入队
+            if collected_msg.raw_data.get('is_combined'):
+                success = await queue._enqueue_single_message(collected_msg)
+                logger.debug(f"已合并组消息作为单消息入队: {collected_msg.message_key}")
+            else:
+                success = await queue.enqueue_message(collected_msg)
             
             if success:
                 media_status = "含媒体" if collected_msg.has_media else "纯文本"
-                logger.debug(f"⚡ 完整消息入队: {collected_msg.message_key} ({media_status})")
+                group_status = "组合并" if collected_msg.is_group_member else "单消息"
+                logger.debug(f"⚡ 完整消息入队: {collected_msg.message_key} ({media_status}, {group_status})")
                 return "queued"
             else:
                 logger.error(f"消息入队失败: {collected_msg.message_key}")
@@ -572,6 +593,79 @@ class MessageHandler:
     async def show_message_detail(self, message_id: int):
         """显示消息详情（预留功能）"""
         pass
+    
+    async def _handle_group_message_in_collector(self, collected_msg: CollectedMessage, telegram_message: TLMessage, channel_id: str) -> Optional[CollectedMessage]:
+        """在collector中处理组消息合并 - Linus式方案1实现"""
+        try:
+            from app.services.message_grouper import message_grouper
+            
+            # 获取Telegram客户端
+            client = await self._get_telegram_client()
+            if not client:
+                logger.error("无法获取Telegram客户端，组消息处理失败")
+                return collected_msg  # 回退到单消息处理
+            
+            # 确保MessageGrouper有Telegram客户端（关键修复）
+            message_grouper.telegram_client = client
+            
+            # 使用MessageGrouper的process_message方法处理组消息
+            # 注意：传入已过滤的内容和媒体信息
+            combined_result = await message_grouper.process_message(
+                telegram_message,
+                channel_id,
+                media_info=collected_msg.media_info,
+                filtered_content=collected_msg.content,
+                is_ad=False,  # 广告检测在后续步骤进行
+                is_batch=False  # 实时消息处理模式
+            )
+            
+            if combined_result is None:
+                # 组消息还在等待其他成员，返回None
+                logger.debug(f"组消息等待中: {collected_msg.grouped_id}")
+                return None
+            
+            if not combined_result.get('is_combined'):
+                # 不是组合消息，返回原消息
+                logger.debug(f"消息未组合: {collected_msg.grouped_id}")
+                return collected_msg
+            
+            # 转换为CollectedMessage格式，标记为已合并的组消息
+            from app.utils.timezone import get_current_time
+            
+            merged_collected_msg = CollectedMessage(
+                channel_id=channel_id,
+                message_id=combined_result['message_id'],
+                grouped_id=collected_msg.grouped_id,
+                content=combined_result.get('content', ''),
+                media_type=combined_result.get('media_type'),
+                media_url=combined_result.get('media_url'),
+                timestamp=combined_result.get('date') or get_current_time(),
+                raw_data={
+                    'is_combined': True,
+                    'combined_messages': combined_result.get('combined_messages', []),
+                    'media_group': combined_result.get('media_group', []),
+                    'chat_title': collected_msg.raw_data.get('chat_title', 'Unknown'),
+                    'sender_id': collected_msg.raw_data.get('sender_id'),
+                    'has_media': bool(combined_result.get('media_type'))
+                }
+            )
+            
+            # 设置媒体信息（如果有）
+            if combined_result.get('media_group'):
+                merged_collected_msg.media_info = {
+                    'media_type': 'media_group',
+                    'media_group': combined_result['media_group'],
+                    'is_combined': True
+                }
+            
+            logger.info(f"✅ collector中组消息合并完成: {collected_msg.grouped_id} -> {merged_collected_msg.message_key}")
+            return merged_collected_msg
+            
+        except Exception as e:
+            logger.error(f"collector中组消息处理失败: {e}")
+            logger.debug(f"错误详情: {e}", exc_info=True)
+            # 出错时回退到单消息处理
+            return collected_msg
     
     def _should_download_media(self, media_type: str) -> bool:
         """判断媒体类型是否需要下载"""

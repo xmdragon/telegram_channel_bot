@@ -473,7 +473,7 @@ class MessageProcessor:
             for status in ['approved', 'rejected', 'pending']:
                 try:
                     # 使用Redis存储获取指定状态的消息
-                    message_keys = self.redis_store.redis.zrange(f"msg:idx:{status}", 0, -1)
+                    message_keys = self.redis_store.redis.zrange(f"index:msg:{status}", 0, -1)
                     
                     for key in message_keys:
                         if ':' not in key:
@@ -485,7 +485,7 @@ class MessageProcessor:
                         if not msg_data:
                             # 清理孤儿索引条目
                             logger.debug(f"清理孤儿索引: {status} -> {key}")
-                            self.redis_store.redis.zrem(f"msg:idx:{status}", key)
+                            self.redis_store.redis.zrem(f"index:msg:{status}", key)
                             continue
                         
                         # 检查消息是否足够旧

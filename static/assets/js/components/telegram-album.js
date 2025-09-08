@@ -184,16 +184,16 @@ const TelegramAlbum = {
             });
         },
 
-        // 处理媒体加载
+        // 处理媒体加载 - Vue 3兼容：直接赋值替代$set
         handleMediaLoad(mediaItem, index) {
-            this.$set(this.loadingStates, index, false);
+            this.loadingStates[index] = false;
             this.$emit('media-load', { mediaItem, index });
         },
 
-        // 处理媒体错误
+        // 处理媒体错误 - Vue 3兼容：直接赋值替代$set
         handleMediaError(mediaItem, index) {
-            this.$set(this.errorStates, index, true);
-            this.$set(this.loadingStates, index, false);
+            this.errorStates[index] = true;
+            this.loadingStates[index] = false;
             this.$emit('media-error', { mediaItem, index });
         },
 

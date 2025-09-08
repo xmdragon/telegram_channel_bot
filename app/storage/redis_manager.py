@@ -131,16 +131,16 @@ class RedisManager:
             })
             
             # 添加到各种索引
-            pipeline.zadd(f"msg:idx:{channel_id}", {message_id: current_time})
+            pipeline.zadd(f"index:msg:{channel_id}", {message_id: current_time})
             
             # 根据消息状态添加到对应索引
             status = message_data.get('status', 'pending')
             if status == 'pending':
-                pipeline.zadd("msg:idx:pending", {f"{channel_id}:{message_id}": current_time})
+                pipeline.zadd("index:msg:pending", {f"{channel_id}:{message_id}": current_time})
             elif status == 'approved':
-                pipeline.zadd("msg:idx:approved", {f"{channel_id}:{message_id}": current_time})
+                pipeline.zadd("index:msg:approved", {f"{channel_id}:{message_id}": current_time})
             elif status == 'rejected':
-                pipeline.zadd("msg:idx:rejected", {f"{channel_id}:{message_id}": current_time})
+                pipeline.zadd("index:msg:rejected", {f"{channel_id}:{message_id}": current_time})
             
             # 更新消息计数
             pipeline.incr(f"channel:{channel_id}:count")
@@ -285,13 +285,13 @@ class RedisManager:
                     
                     # 从旧状态索引中移除
                     if old_status in ['pending', 'approved', 'rejected']:
-                        pipeline.zrem(f"msg:idx:{old_status}", message_id)
-                        logger.debug(f"从索引移除: msg:idx:{old_status} -> {message_id}")
+                        pipeline.zrem(f"index:msg:{old_status}", message_id)
+                        logger.debug(f"从索引移除: index:msg:{old_status} -> {message_id}")
                     
                     # 添加到新状态索引
                     if new_status in ['pending', 'approved', 'rejected']:
-                        pipeline.zadd(f"msg:idx:{new_status}", {message_id: current_time})
-                        logger.debug(f"添加到索引: msg:idx:{new_status} -> {message_id}")
+                        pipeline.zadd(f"index:msg:{new_status}", {message_id: current_time})
+                        logger.debug(f"添加到索引: index:msg:{new_status} -> {message_id}")
                     
                     pipeline.execute()
                     logger.info(f"✅ 状态索引已更新: {old_status} -> {new_status} ({message_id})")
@@ -351,14 +351,14 @@ class RedisManager:
             pipeline.delete(message_key)
             
             # 2. 清理频道索引
-            pipeline.zrem(f"msg:idx:{channel_id}", msg_id)
+            pipeline.zrem(f"index:msg:{channel_id}", msg_id)
             pipeline.zrem(f"channel:{channel_id}:messages", msg_id)
             pipeline.decr(f"channel:{channel_id}:count")
             
             # 3. 清理状态索引（如果消息存在）
             if message_data:
                 status = message_data.get('status', 'pending')
-                pipeline.zrem(f"msg:idx:{status}", full_message_id)
+                pipeline.zrem(f"index:msg:{status}", full_message_id)
                 
                 # 4. 清理媒体哈希索引（如果有媒体）
                 if message_data.get('media_hash'):
@@ -366,10 +366,10 @@ class RedisManager:
             else:
                 # 如果消息不存在，尝试清理所有可能的状态索引（防止孤儿索引）
                 for status in ['pending', 'approved', 'rejected']:
-                    pipeline.zrem(f"msg:idx:{status}", full_message_id)
+                    pipeline.zrem(f"index:msg:{status}", full_message_id)
             
             # 5. 清理全局索引
-            pipeline.zrem("msg:idx:all", full_message_id)
+            pipeline.zrem("index:msg:all", full_message_id)
             
             # 执行所有清理操作
             pipeline.execute()
@@ -385,7 +385,7 @@ class RedisManager:
         """获取频道消息列表"""
         try:
             # 使用与原系统兼容的索引键
-            message_ids = self.client.zrevrange(f"msg:idx:{channel_id}", offset, offset + limit - 1)
+            message_ids = self.client.zrevrange(f"index:msg:{channel_id}", offset, offset + limit - 1)
             
             if not message_ids:
                 return []
@@ -406,7 +406,7 @@ class RedisManager:
                 logger.info(f"清理频道 {channel_id} 中 {len(invalid_ids)} 个无效索引条目")
                 pipeline = self.client.pipeline()
                 for invalid_id in invalid_ids:
-                    pipeline.zrem(f"msg:idx:{channel_id}", invalid_id)
+                    pipeline.zrem(f"index:msg:{channel_id}", invalid_id)
                 pipeline.execute()
             
             return messages
@@ -418,7 +418,7 @@ class RedisManager:
     def get_pending_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取待审核消息"""
         try:
-            pending_keys = self.client.zrevrange("msg:idx:pending", offset, offset + limit - 1)
+            pending_keys = self.client.zrevrange("index:msg:pending", offset, offset + limit - 1)
             
             messages = []
             invalid_keys = []
@@ -437,7 +437,7 @@ class RedisManager:
             if invalid_keys:
                 pipeline = self.client.pipeline()
                 for invalid_key in invalid_keys:
-                    pipeline.zrem("msg:idx:pending", invalid_key)
+                    pipeline.zrem("index:msg:pending", invalid_key)
                 pipeline.execute()
             
             return messages
@@ -449,7 +449,7 @@ class RedisManager:
     def get_approved_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取已审核消息"""
         try:
-            approved_keys = self.client.zrevrange("msg:idx:approved", offset, offset + limit - 1)
+            approved_keys = self.client.zrevrange("index:msg:approved", offset, offset + limit - 1)
             
             messages = []
             for key in approved_keys:
@@ -468,7 +468,7 @@ class RedisManager:
     def get_rejected_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取已拒绝消息"""
         try:
-            rejected_keys = self.client.zrevrange("msg:idx:rejected", offset, offset + limit - 1)
+            rejected_keys = self.client.zrevrange("index:msg:rejected", offset, offset + limit - 1)
             
             messages = []
             for key in rejected_keys:
@@ -733,11 +733,11 @@ class RedisManager:
                     
                     # 从旧状态索引中移除
                     if old_status in ['pending', 'approved', 'rejected']:
-                        pipeline.zrem(f"msg:idx:{old_status}", f"{channel_id}:{message_id}")
+                        pipeline.zrem(f"index:msg:{old_status}", f"{channel_id}:{message_id}")
                     
                     # 添加到新状态索引
                     if new_status in ['pending', 'approved', 'rejected']:
-                        pipeline.zadd(f"msg:idx:{new_status}", {f"{channel_id}:{message_id}": current_time})
+                        pipeline.zadd(f"index:msg:{new_status}", {f"{channel_id}:{message_id}": current_time})
                     
                     updated_count += 1
             
@@ -762,10 +762,10 @@ class RedisManager:
                 pipeline.delete(message_key)
                 
                 # 从各种索引中移除
-                pipeline.zrem(f"msg:idx:{channel_id}", message_id)
-                pipeline.zrem("msg:idx:pending", f"{channel_id}:{message_id}")
-                pipeline.zrem("msg:idx:approved", f"{channel_id}:{message_id}")
-                pipeline.zrem("msg:idx:rejected", f"{channel_id}:{message_id}")
+                pipeline.zrem(f"index:msg:{channel_id}", message_id)
+                pipeline.zrem("index:msg:pending", f"{channel_id}:{message_id}")
+                pipeline.zrem("index:msg:approved", f"{channel_id}:{message_id}")
+                pipeline.zrem("index:msg:rejected", f"{channel_id}:{message_id}")
                 
                 # 更新计数
                 pipeline.decr(f"channel:{channel_id}:count")
@@ -786,9 +786,9 @@ class RedisManager:
             pipeline = self.client.pipeline()
             
             # 获取各种计数
-            pipeline.zcard("msg:idx:pending")    # 待审核消息数
-            pipeline.zcard("msg:idx:approved")   # 已通过消息数
-            pipeline.zcard("msg:idx:rejected")   # 已拒绝消息数
+            pipeline.zcard("index:msg:pending")    # 待审核消息数
+            pipeline.zcard("index:msg:approved")   # 已通过消息数
+            pipeline.zcard("index:msg:rejected")   # 已拒绝消息数
             
             # 获取所有频道
             pipeline.keys("channel:*:count")
@@ -835,30 +835,30 @@ class RedisManager:
             }
             
             # 清理待审核索引
-            pending_keys = self.client.zrange("msg:idx:pending", 0, -1)
+            pending_keys = self.client.zrange("index:msg:pending", 0, -1)
             for key in pending_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     if not self.get_message(channel_id, int(message_id)):
-                        self.client.zrem("msg:idx:pending", key)
+                        self.client.zrem("index:msg:pending", key)
                         cleanup_stats["cleaned_pending"] += 1
             
             # 清理已通过索引
-            approved_keys = self.client.zrange("msg:idx:approved", 0, -1)
+            approved_keys = self.client.zrange("index:msg:approved", 0, -1)
             for key in approved_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     if not self.get_message(channel_id, int(message_id)):
-                        self.client.zrem("msg:idx:approved", key)
+                        self.client.zrem("index:msg:approved", key)
                         cleanup_stats["cleaned_approved"] += 1
             
             # 清理已拒绝索引
-            rejected_keys = self.client.zrange("msg:idx:rejected", 0, -1)
+            rejected_keys = self.client.zrange("index:msg:rejected", 0, -1)
             for key in rejected_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     if not self.get_message(channel_id, int(message_id)):
-                        self.client.zrem("msg:idx:rejected", key)
+                        self.client.zrem("index:msg:rejected", key)
                         cleanup_stats["cleaned_rejected"] += 1
             
             logger.info(f"清理完成: {cleanup_stats}")
@@ -879,13 +879,14 @@ class RedisManager:
         return str(data)
     
     def _deserialize_json(self, data: str) -> Any:
-        """反序列化JSON数据"""
+        """反序列化JSON数据 - Linus式异常处理：失败时返回None而不是原数据"""
         if not data:
             return None
         try:
             return json.loads(data)
-        except (json.JSONDecodeError, TypeError):
-            return data
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"JSON反序列化失败，数据可能损坏: {e}, 数据预览: {str(data)[:100]}...")
+            return None  # 返回None而不是原数据，避免类型混淆
     
     def clear_all(self, confirm_pattern: str = None):
         """清除所有数据 - 危险操作，需要确认"""

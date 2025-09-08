@@ -69,7 +69,7 @@ class LinusStatsMigrator:
         
         try:
             # 获取所有消息键
-            pattern = "msg:*"
+            pattern = "message:*"
             keys = self.redis_manager.client.keys(pattern)
             
             # 过滤出消息数据键（排除计数器和索引）
@@ -215,7 +215,7 @@ class LinusStatsMigrator:
         
         try:
             # 获取所有消息键
-            pattern = "msg:*"
+            pattern = "message:*"
             keys = self.redis_manager.client.keys(pattern)
             message_keys = [k for k in keys if not any(x in (k.decode() if isinstance(k, bytes) else k) for x in ['count:', 'idx:', 'hash:', 'group:'])]
             

@@ -259,17 +259,17 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
         elif msg_type == "request_stats":
             # 请求统计数据 - 使用真正的统计功能
             try:
-                from app.storage.redis_manager import redis_manager
+                from app.storage.linus_stats_store import linus_stats_store
                 
-                if redis_message_store is None:
-                    raise RuntimeError("Redis消息存储未初始化")
+                if linus_stats_store is None:
+                    raise RuntimeError("统计存储未初始化")
                 
                 # 按Linus原则：直接获取所需的统计数据
                 stats_data = {
-                    "total_messages": redis_message_store.get_message_count(),
-                    "pending_count": redis_message_store.get_message_count(status='pending'),
-                    "approved_count": redis_message_store.get_message_count(status='approved'),
-                    "rejected_count": redis_message_store.get_message_count(status='rejected'),
+                    "total_messages": linus_stats_store.get_total_messages(),
+                    "pending_count": linus_stats_store.get_pending_count(),
+                    "approved_count": linus_stats_store.get_approved_count(),
+                    "rejected_count": linus_stats_store.get_rejected_count(),
                     "timestamp": datetime.utcnow().isoformat()
                 }
                 

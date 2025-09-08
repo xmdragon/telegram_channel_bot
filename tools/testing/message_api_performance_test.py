@@ -88,21 +88,17 @@ class MessageAPIPerformanceTest:
             for status in statuses:
                 count = await asyncio.get_event_loop().run_in_executor(
                     None, 
-                    lambda s=status: self.redis_manager.client.zcard(f"msg:idx:{s}")
+                    lambda s=status: self.redis_manager.client.zcard(f"index:msg:{s}")
                 )
                 self.test_data_stats["statuses"][status] = count
                 print(f"  📋 {status}: {count} 条消息")
             
-            # 统计重复消息数量
-            duplicate_count = await asyncio.get_event_loop().run_in_executor(
-                None, 
-                lambda: self.redis_manager.client.zcard("msg:idx:duplicates")
-            )
-            self.test_data_stats["duplicate_messages"] = duplicate_count
-            print(f"  🔄 重复消息: {duplicate_count} 条")
+            # 重复消息检测已禁用
+            self.test_data_stats["duplicate_messages"] = 0
+            print(f"  🔄 重复消息检测: 已禁用")
             
             # 获取频道列表
-            channel_pattern = "msg:idx:*"
+            channel_pattern = "index:msg:*"
             keys = await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: self.redis_manager.client.keys(channel_pattern)
@@ -111,8 +107,8 @@ class MessageAPIPerformanceTest:
             channels = set()
             for key in keys:
                 key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-                if key_str.startswith("msg:idx:") and not key_str.split(":")[-1] in ["pending", "approved", "rejected", "auto_forwarded", "duplicates"]:
-                    channel_id = key_str.replace("msg:idx:", "")
+                if key_str.startswith("index:msg:") and not key_str.split(":")[-1] in ["pending", "approved", "rejected", "auto_forwarded"]:
+                    channel_id = key_str.replace("index:msg:", "")
                     if channel_id:
                         channels.add(channel_id)
             
@@ -180,16 +176,14 @@ class MessageAPIPerformanceTest:
                     message_data["duplicate_original_id"] = f"{channel}:{msg_id-1000}"
                 
                 # 存储消息
-                msg_key = f"msg:{channel}:{msg_id}"
+                msg_key = f"message:{channel}:{msg_id}"
                 pipe.hset(msg_key, mapping=message_data)
                 
                 # 更新索引
                 timestamp = datetime.now().timestamp()
-                pipe.zadd(f"msg:idx:{channel}", {f"{channel}:{msg_id}": timestamp})
-                pipe.zadd(f"msg:idx:{status}", {f"{channel}:{msg_id}": timestamp})
+                pipe.zadd(f"index:msg:{channel}", {f"{channel}:{msg_id}": timestamp})
+                pipe.zadd(f"index:msg:{status}", {f"{channel}:{msg_id}": timestamp})
                 
-                if message_data.get("duplicate_original_id"):
-                    pipe.zadd("msg:idx:duplicates", {f"{channel}:{msg_id}": timestamp})
             
             # 批量执行
             await asyncio.get_event_loop().run_in_executor(None, pipe.execute)

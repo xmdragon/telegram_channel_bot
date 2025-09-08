@@ -88,13 +88,13 @@ class OptimizationValidationTest:
             # 1. keys() 扫描所有消息键
             await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_manager.client.keys("msg:*:*")
+                lambda: self.redis_manager.client.keys("message:*:*")
             )
             
             # 2. 模拟对每个key的单独查询（只计时前10个避免过慢）
             keys = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.redis_manager.client.keys("msg:*:*")
+                lambda: self.redis_manager.client.keys("message:*:*")
             )
             
             sample_keys = keys[:min(10, len(keys))]  # 只测试前10个key

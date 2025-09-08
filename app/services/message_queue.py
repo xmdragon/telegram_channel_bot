@@ -134,6 +134,25 @@ class GroupedMessages:
             'message_count': self.message_count,
             'total_content_length': self.total_content_length
         }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GroupedMessages':
+        """从字典创建"""
+        messages = [CollectedMessage.from_dict(msg_data) for msg_data in data.get('messages', [])]
+        
+        completed_at = None
+        if data.get('completed_at'):
+            if isinstance(data['completed_at'], str):
+                completed_at = datetime.fromisoformat(data['completed_at'])
+            else:
+                completed_at = data['completed_at']
+        
+        return cls(
+            grouped_id=data['grouped_id'],
+            channel_id=data['channel_id'], 
+            messages=messages,
+            completed_at=completed_at
+        )
 
 class MessageQueue:
     """
@@ -447,6 +466,69 @@ class MessageQueue:
         except Exception as e:
             logger.error(f"重试失败消息出错: {e}")
             return 0
+    
+    async def clear_all_queues(self) -> Dict[str, int]:
+        """
+        清空所有队列 - Linus式彻底清理
+        用于系统重置时完全清空消息队列系统
+        """
+        try:
+            cleared = {}
+            
+            # 清空原始队列
+            if self.redis.exists(self.QUEUE_KEYS['raw']):
+                cleared['raw'] = self.redis.delete(self.QUEUE_KEYS['raw'])
+                logger.info(f"清空原始队列: {cleared['raw']} 项")
+            else:
+                cleared['raw'] = 0
+            
+            # 清空统计
+            if self.redis.exists(self.QUEUE_KEYS['stats']):
+                cleared['stats'] = self.redis.delete(self.QUEUE_KEYS['stats'])
+                logger.info(f"清空队列统计: {cleared['stats']} 项")
+            else:
+                cleared['stats'] = 0
+            
+            # 清空所有组缓冲
+            group_pattern = self.QUEUE_KEYS['group_buffer'].format('*')
+            group_keys = self.redis.keys(group_pattern)
+            if group_keys:
+                cleared['groups'] = self.redis.delete(*group_keys)
+                logger.info(f"清空组缓冲: {cleared['groups']} 项")
+            else:
+                cleared['groups'] = 0
+            
+            # 清空失败队列
+            if self.redis.exists(self.QUEUE_KEYS['failed']):
+                cleared['failed'] = self.redis.delete(self.QUEUE_KEYS['failed'])
+                logger.info(f"清空失败队列: {cleared['failed']} 项")
+            else:
+                cleared['failed'] = 0
+                
+            # 清空完成队列
+            if self.redis.exists(self.QUEUE_KEYS['completed']):
+                cleared['completed'] = self.redis.delete(self.QUEUE_KEYS['completed'])
+                logger.info(f"清空完成队列: {cleared['completed']} 项")
+            else:
+                cleared['completed'] = 0
+            
+            # 清空所有处理中状态
+            working_pattern = self.QUEUE_KEYS['processing'].format('*')
+            working_keys = self.redis.keys(working_pattern)
+            if working_keys:
+                cleared['working'] = self.redis.delete(*working_keys)
+                logger.info(f"清空处理中状态: {cleared['working']} 项")
+            else:
+                cleared['working'] = 0
+            
+            total_cleared = sum(cleared.values())
+            logger.warning(f"🚨 队列系统完全清空 - 总共清理 {total_cleared} 项")
+            
+            return cleared
+            
+        except Exception as e:
+            logger.error(f"清空队列失败: {e}")
+            return {'error': str(e)}
 
 # 全局队列实例
 _message_queue = None

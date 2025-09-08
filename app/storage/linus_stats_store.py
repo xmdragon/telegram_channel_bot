@@ -148,9 +148,9 @@ class LinusStatsStore:
         """
         try:
             # 🔥 Linus方式：索引就是唯一真相源
-            pending = self.redis.zcard("msg:idx:pending")      # O(1)
-            approved = self.redis.zcard("msg:idx:approved")    # O(1)
-            rejected = self.redis.zcard("msg:idx:rejected")    # O(1)
+            pending = self.redis.zcard("index:msg:pending")      # O(1)
+            approved = self.redis.zcard("index:msg:approved")    # O(1)
+            rejected = self.redis.zcard("index:msg:rejected")    # O(1)
             
             logger.debug(f"📊 从索引计算统计: pending={pending}, approved={approved}, rejected={rejected}")
             

@@ -21,7 +21,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Set
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 from app.utils.timezone import get_current_time
 
 # 设置日志

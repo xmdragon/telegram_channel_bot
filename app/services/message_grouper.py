@@ -270,12 +270,27 @@ class MessageGrouper:
                     channel_username = username
             
             if not channel_username:
-                # 尝试从已知的频道映射中获取
-                # 对于频道 -1002557968812，我们知道对应的是 cn_zhm0
-                known_channels = {
-                    '-1002557968812': 'cn_zhm0'
-                }
-                channel_username = known_channels.get(channel_id)
+                # Linus式统一配置读取：从配置文件动态获取所有频道映射
+                try:
+                    all_channels = channel_store.get_all_channels()
+                    for ch in all_channels:
+                        if str(ch.get('channel_id')) == str(channel_id):
+                            ch_name = ch.get('channel_name', '')
+                            if ch_name:
+                                # 处理各种格式：@username, username, https://t.me/username
+                                if ch_name.startswith('@'):
+                                    channel_username = ch_name[1:]
+                                elif ch_name.startswith('https://t.me/'):
+                                    channel_username = ch_name.replace('https://t.me/', '')
+                                else:
+                                    channel_username = ch_name
+                                break
+                    
+                    if channel_username:
+                        logger.info(f"✅ 从配置文件获取频道映射: {channel_id} -> {channel_username}")
+                except Exception as e:
+                    logger.warning(f"从配置读取频道映射失败: {e}")
+                    channel_username = None
                 
                 if not channel_username:
                     logger.error(f"无法找到频道 {channel_id} 的用户名")
@@ -494,12 +509,12 @@ class MessageGrouper:
                     # 只在前5次失败时记录详细错误，避免日志泛滥
                     if failure_count < 5:
                         from app.storage.redis_manager import redis_manager
-                        if redis_message_store is None:
+                        if redis_manager is None:
                             failure_reason = "Redis存储未初始化"
                         else:
                             # 检查具体可能的原因
                             try:
-                                redis_message_store.ping()
+                                redis_manager.ping()
                                 # 检查数据有效性
                                 if not save_data.get('content'):
                                     failure_reason = "消息内容为空"
@@ -536,9 +551,9 @@ class MessageGrouper:
             message_id = processed_data['message_id']
             existing_message = None
             
-            if redis_message_store:
+            if hasattr(self, 'redis_store') and self.redis_store:
                 try:
-                    existing_message = redis_message_store.get_message(channel_id, int(message_id), silent=True)
+                    existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
                 except Exception:
                     pass
             

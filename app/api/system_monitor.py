@@ -57,7 +57,7 @@ async def get_realtime_logs(since: str = None) -> Dict[str, Any]:
                 })
             
             # 检查最近的消息处理活动
-            recent_keys = redis_manager.client.keys("msg:*")
+            recent_keys = redis_manager.client.keys("message:*")
             if recent_keys:
                 recent_count = len(recent_keys)
                 logs.append({

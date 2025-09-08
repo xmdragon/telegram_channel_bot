@@ -20,8 +20,7 @@ def fix_visual_hash_storage():
         
         # 扫描所有消息key
         message_keys = []
-        for key in r.scan_iter(match="msg:-*:*"):
-            if not key.startswith('msg:idx:') and not key.startswith('msg:count:') and not key.startswith('msg:hash:') and not key.startswith('msg:group:'):
+        for key in r.scan_iter(match="message:-*:*"):
                 message_keys.append(key)
         
         logger.info(f"找到 {len(message_keys)} 个消息")
@@ -81,8 +80,7 @@ def test_visual_hash_parsing():
         r = redis.from_url("redis://localhost:6379", decode_responses=True)
         
         # 找一个有visual_hash的消息测试
-        for key in r.scan_iter(match="msg:-*:*"):
-            if not key.startswith('msg:idx:') and not key.startswith('msg:count:') and not key.startswith('msg:hash:') and not key.startswith('msg:group:'):
+        for key in r.scan_iter(match="message:-*:*"):
                 visual_hash = r.hget(key, 'visual_hash')
                 if visual_hash:
                     logger.info(f"测试消息: {key}")

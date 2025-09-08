@@ -33,7 +33,7 @@ for key in keys:
 **优化后方案：**
 ```python
 # 使用ZUNIONSTORE合并多个索引
-status_indexes = ["msg:idx:pending", "msg:idx:approved", "msg:idx:rejected"]
+status_indexes = ["index:msg:pending", "index:msg:approved", "index:msg:rejected"]
 redis.zunionstore(temp_key, status_indexes)  # 🚀 O(N+M)复杂度，利用索引
 messages = redis.zrevrange(temp_key, offset, offset + limit - 1)
 ```
@@ -51,10 +51,10 @@ messages = redis.zrevrange(temp_key, offset, offset + limit - 1)
 - 📈 重复率：0.0%
 
 **索引结构验证：**
-- ✅ `msg:idx:pending`: 216条消息
-- ✅ `msg:idx:approved`: 12条消息  
-- ✅ `msg:idx:rejected`: 7条消息
-- ⚠️ `msg:idx:duplicates`: 未发现（符合当前0重复消息状态）
+- ✅ `index:msg:pending`: 216条消息
+- ✅ `index:msg:approved`: 12条消息  
+- ✅ `index:msg:rejected`: 7条消息
+- ⚪ 重复消息检测: 已禁用
 
 **优化效果分析：**
 - 当有重复消息时，`get_duplicate_messages()`将直接查询专用索引

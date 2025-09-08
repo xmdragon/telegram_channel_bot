@@ -313,7 +313,7 @@ class VisualIndexManager:
             # 扫描现有消息（使用SCAN避免阻塞）
             cursor = 0
             while True:
-                cursor, keys = self.redis.scan(cursor, match="msg:*", count=batch_size)
+                cursor, keys = self.redis.scan(cursor, match="message:*", count=batch_size)
                 
                 for key in keys:
                     try:
@@ -324,10 +324,10 @@ class VisualIndexManager:
                         
                         # 解析消息键
                         key_str = key.decode() if isinstance(key, bytes) else str(key)
-                        if not key_str.startswith('msg:'):
+                        if not key_str.startswith('message:'):
                             continue
                         
-                        parts = key_str[4:].split(':', 1)  # 移除'msg:'前缀
+                        parts = key_str[8:].split(':', 1)  # 移除'message:'前缀
                         if len(parts) != 2:
                             continue
                         

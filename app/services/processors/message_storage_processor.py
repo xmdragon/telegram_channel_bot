@@ -56,33 +56,43 @@ class MessageStorageProcessor(MessageProcessor):
                 context.save_data['reject_reason'] = context.reject_reason
                 
             
-            # Linus式修复：直接从context获取，消除getattr特殊情况
-            grouped_id = context.grouped_id
+            # 【方案1修改】检查是否为已合并的组消息
+            is_combined = getattr(context, 'is_combined_message', False)
             
-            if grouped_id:
-                # 🔧 修复组消息处理：改进日志记录和错误处理
-                self.logger.info(f"📦 检测到组消息: #{message.id} | grouped_id: {grouped_id} | channel: {context.channel_id}")
+            if is_combined:
+                # 已合并的组消息，直接保存，添加组合消息标记
+                self.logger.info(f"📦 检测到已合并组消息: #{message.id} | channel: {context.channel_id}")
+                context.save_data['is_combined'] = True
                 
-                try:
-                    # 组消息交给组合器处理，不立即保存
-                    await self._handle_grouped_message(context, grouped_id)
-                    # 设置save_data为None，表示等待组合
-                    context.save_data = None
-                    self.logger.info(f"✅ 组消息 #{message.id} 已交给组合器处理，等待组合完成 (grouped_id: {grouped_id})")
-                except Exception as group_error:
-                    self.logger.error(f"❌ 组消息处理失败 #{message.id} (grouped_id: {grouped_id}): {group_error}")
-                    # 组消息处理失败时，降级为单独消息处理
-                    self.logger.warning(f"⚠️ 组消息 #{message.id} 降级为单独消息处理")
-                    context.save_data['grouped_id'] = grouped_id  # 保留grouped_id信息
-                    saved_message = await self._save_to_redis_directly(context.save_data)
-                    if saved_message:
-                        context.save_data = saved_message
-                        msg_id = saved_message.get('message_id', 'N/A')
-                        self.logger.info(f"🔄 组消息降级保存成功: #{message.id} -> Redis {context.channel_id}:{msg_id}")
-                    else:
-                        return ProcessorResult(False, context, f"组消息处理和降级保存都失败: {group_error}")
+                # 保存合并信息
+                if hasattr(context, 'combined_messages') and context.combined_messages:
+                    context.save_data['combined_messages'] = json.dumps(context.combined_messages)
+                if hasattr(context, 'media_group') and context.media_group:
+                    context.save_data['media_group'] = json.dumps(context.media_group)
+                
+                # 直接保存已合并的组消息
+                saved_message = await self._save_to_redis_directly(context.save_data)
+                
+                if not saved_message:
+                    return ProcessorResult(False, context, "已合并组消息保存失败")
+                
+                context.save_data = saved_message
+                msg_id = saved_message.get('message_id', 'N/A')
+                status = saved_message.get('status', 'unknown')
+                self.logger.info(f"✅ 已合并组消息保存成功: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
+                
             else:
-                # 步骤3: 非组消息直接保存到Redis（避免循环依赖）
+                # Linus式修复：直接从context获取，消除getattr特殊情况
+                grouped_id = getattr(message, 'grouped_id', None)
+                
+                if grouped_id:
+                    # 【方案1】不应该再有未处理的组消息，记录警告
+                    self.logger.warning(f"⚠️ 收到未处理的组消息 #{message.id} (grouped_id: {grouped_id}) - 可能是配置错误或旧数据")
+                    # 降级为单消息处理，保留grouped_id信息
+                    context.save_data['grouped_id'] = str(grouped_id)
+                    context.save_data['is_combined'] = False
+                
+                # 步骤3: 保存到Redis
                 saved_message = await self._save_to_redis_directly(context.save_data)
                 
                 if not saved_message:
@@ -94,17 +104,18 @@ class MessageStorageProcessor(MessageProcessor):
                 # 记录保存结果
                 msg_id = saved_message.get('message_id', 'N/A')
                 status = saved_message.get('status', 'unknown')
-                self.logger.info(f"消息已保存: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
-                
-                # 如果消息已自动批准（人工审核关闭），自动提交发布任务
-                if status == 'approved':
-                    try:
-                        from app.services.message_forward_queue import forward_queue
-                        message_id_str = f"{context.channel_id}:{msg_id}"
-                        await forward_queue.submit_forward_task(message_id_str, "forward_to_target")
-                        self.logger.info(f"人工审核已关闭，消息 {message_id_str} 已自动提交发布任务")
-                    except Exception as e:
-                        self.logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
+                message_type_desc = "已合并组消息" if is_combined else ("组消息(降级)" if grouped_id else "单消息")
+                self.logger.info(f"{message_type_desc}已保存: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
+            
+            # 如果消息已自动批准（人工审核关闭），自动提交发布任务
+            if context.save_data and context.save_data.get('status') == 'approved':
+                try:
+                    from app.services.message_forward_queue import forward_queue
+                    message_id_str = f"{context.channel_id}:{context.save_data.get('message_id')}"
+                    await forward_queue.submit_forward_task(message_id_str, "forward_to_target")
+                    self.logger.info(f"人工审核已关闭，消息 {message_id_str} 已自动提交发布任务")
+                except Exception as e:
+                    self.logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
             
             return ProcessorResult(True, context)
             

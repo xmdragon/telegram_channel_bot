@@ -163,8 +163,8 @@ const MessageContentRenderer = {
             return displayItems;
         },
         
-        // 准备媒体项数据用于新的TelegramAlbum组件
-        prepareMediaItemsForAlbum() {
+        // 准备媒体项数据用于新的TelegramAlbum组件 - 改为计算属性
+        preparedAlbumMediaItems() {
             if (!this.isCombinedMessage) return [];
             
             return this.message.media_group_display.map((media, index) => ({
@@ -401,26 +401,17 @@ const MessageContentRenderer = {
                         <div class="comparison-column-body">
                             <!-- 重复消息的媒体内容 -->
                             <div v-if="message.media_type || isCombinedMessage" class="comparison-media-section">
-                                <!-- 组合消息的媒体组 -->
-                                <div v-if="isCombinedMessage" 
-                                     class="telegram-media-container comparison-media">
-                                    <div class="telegram-media-grid" :class="telegramMediaGridClass">
-                                        <div v-for="(media, index) in message.media_group_display" :key="index" class="media-item">
-                                            <img v-if="media.media_type === 'photo' && (media.url || media.display_url)" 
-                                                 :src="media.url || media.display_url"
-                                                 class="media-content"
-                                                 @click.stop="openMediaPreview(media.url || media.display_url)">
-                                            <video v-else-if="media.media_type === 'video' && (media.url || media.display_url)"
-                                                   :src="media.url || media.display_url"
-                                                   class="media-content media-video"
-                                                   controls>
-                                            </video>
-                                            <div v-else class="media-placeholder">
-                                                {{ media.media_type }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- 组合消息的媒体组 - 使用Telegram官方布局 -->
+                                <TelegramAlbum
+                                    v-if="isCombinedMessage"
+                                    :media-items="preparedAlbumMediaItems"
+                                    :is-own="false"
+                                    :max-width="380"
+                                    :is-mobile="false"
+                                    :spacing="2"
+                                    @media-click="handleAlbumMediaClick"
+                                    class="comparison-media"
+                                />
                                 
                                 <!-- 单个媒体 -->
                                 <template v-else>
@@ -485,26 +476,23 @@ const MessageContentRenderer = {
                         <div class="comparison-column-body">
                             <!-- 原始消息的媒体内容 -->
                             <div v-if="message.duplicate_info && message.duplicate_info.media_type" class="comparison-media-section">
-                                <!-- 组合消息的媒体组 -->
-                                <div v-if="message.duplicate_info.is_combined && message.duplicate_info.media_group_display && message.duplicate_info.media_group_display.length > 0" 
-                                     class="telegram-media-container comparison-media">
-                                    <div class="telegram-media-grid" :class="'count-' + message.duplicate_info.media_group_display.length">
-                                        <div v-for="(media, index) in message.duplicate_info.media_group_display" :key="index" class="media-item">
-                                            <img v-if="media.media_type === 'photo' && (media.url || media.display_url)" 
-                                                 :src="media.url || media.display_url"
-                                                 class="media-content"
-                                                 @click.stop="openMediaPreview(media.url || media.display_url)">
-                                            <video v-else-if="media.media_type === 'video' && (media.url || media.display_url)"
-                                                   :src="media.url || media.display_url"
-                                                   class="media-content media-video"
-                                                   controls>
-                                            </video>
-                                            <div v-else class="media-placeholder">
-                                                {{ media.media_type }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- 组合消息的媒体组 - 使用Telegram官方布局 -->
+                                <TelegramAlbum
+                                    v-if="message.duplicate_info.is_combined && message.duplicate_info.media_group_display && message.duplicate_info.media_group_display.length > 0"
+                                    :media-items="message.duplicate_info.media_group_display.map(media => ({
+                                        ...media,
+                                        width: media.width || 640,
+                                        height: media.height || 640,
+                                        url: media.url || media.display_url,
+                                        display_url: media.url || media.display_url
+                                    }))"
+                                    :is-own="false"
+                                    :max-width="380"
+                                    :is-mobile="false"
+                                    :spacing="2"
+                                    @media-click="handleAlbumMediaClick"
+                                    class="comparison-media"
+                                />
                                 
                                 <!-- 单个媒体 -->
                                 <template v-else>
@@ -582,31 +570,17 @@ const MessageContentRenderer = {
                         <div class="content-column-body">
                             <!-- 过滤后的媒体内容 -->
                             <div v-if="message.media_type || isCombinedMessage" class="column-media-section">
-                                <!-- 组合消息的媒体组 -->
-                                <div v-if="isCombinedMessage" 
-                                     class="telegram-media-container comparison-media">
-                                    <div class="telegram-media-grid" :class="telegramMediaGridClass">
-                                        <div v-for="(media, index) in message.media_group_display" :key="index" class="media-item">
-                                            <!-- 组合消息中的图片 -->
-                                            <img v-if="media.media_type === 'photo' && (media.url || media.display_url)" 
-                                                 :src="media.url || media.display_url"
-                                                 class="media-content"
-                                                 @click.stop="openMediaPreview(media.url || media.display_url)">
-                                            
-                                            <!-- 组合消息中的视频 -->
-                                            <video v-else-if="media.media_type === 'video' && (media.url || media.display_url)"
-                                                   :src="media.url || media.display_url"
-                                                   class="media-content media-video"
-                                                   controls>
-                                            </video>
-                                            
-                                            <!-- 其他媒体类型 -->
-                                            <div v-else class="media-placeholder">
-                                                {{ media.media_type }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- 组合消息的媒体组 - 使用Telegram官方布局 -->
+                                <TelegramAlbum
+                                    v-if="isCombinedMessage"
+                                    :media-items="preparedAlbumMediaItems"
+                                    :is-own="false"
+                                    :max-width="380"
+                                    :is-mobile="false"
+                                    :spacing="2"
+                                    @media-click="handleAlbumMediaClick"
+                                    class="comparison-media"
+                                />
                                 
                                 <!-- 单个媒体（非组合消息） -->
                                 <template v-else>
@@ -670,31 +644,17 @@ const MessageContentRenderer = {
                         <div class="content-column-body">
                             <!-- 原始的媒体内容（与左栏相同） -->
                             <div v-if="message.media_type || isCombinedMessage" class="column-media-section">
-                                <!-- 组合消息的媒体组 -->
-                                <div v-if="isCombinedMessage" 
-                                     class="telegram-media-container comparison-media">
-                                    <div class="telegram-media-grid" :class="telegramMediaGridClass">
-                                        <div v-for="(media, index) in message.media_group_display" :key="index" class="media-item">
-                                            <!-- 组合消息中的图片 -->
-                                            <img v-if="media.media_type === 'photo' && (media.url || media.display_url)" 
-                                                 :src="media.url || media.display_url"
-                                                 class="media-content"
-                                                 @click.stop="openMediaPreview(media.url || media.display_url)">
-                                            
-                                            <!-- 组合消息中的视频 -->
-                                            <video v-else-if="media.media_type === 'video' && (media.url || media.display_url)"
-                                                   :src="media.url || media.display_url"
-                                                   class="media-content media-video"
-                                                   controls>
-                                            </video>
-                                            
-                                            <!-- 其他媒体类型 -->
-                                            <div v-else class="media-placeholder">
-                                                {{ media.media_type }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- 组合消息的媒体组 - 使用Telegram官方布局 -->
+                                <TelegramAlbum
+                                    v-if="isCombinedMessage"
+                                    :media-items="preparedAlbumMediaItems"
+                                    :is-own="false"
+                                    :max-width="380"
+                                    :is-mobile="false"
+                                    :spacing="2"
+                                    @media-click="handleAlbumMediaClick"
+                                    class="comparison-media"
+                                />
                                 
                                 <!-- 单个媒体（非组合消息） -->
                                 <template v-else>
@@ -748,7 +708,7 @@ const MessageContentRenderer = {
                         <!-- 🚀 Telegram官方风格相册 - 使用官方布局算法 -->
                         <TelegramAlbum
                             v-if="isCombinedMessage"
-                            :media-items="prepareMediaItemsForAlbum()"
+                            :media-items="preparedAlbumMediaItems"
                             :is-own="false"
                             :max-width="380"
                             :is-mobile="false"

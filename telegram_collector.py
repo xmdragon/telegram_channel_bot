@@ -206,6 +206,31 @@ class TelegramCollectorService:
                         if collection_enabled:
                             # 采集从禁用变为启用 - 启动bot
                             logger.info("🟢 检测到采集已启用，启动Telegram Bot...")
+                            
+                            # 检查是否需要重新采集历史（checkpoint是否为空）
+                            from app.storage.redis_manager import redis_manager
+                            has_checkpoints = redis_manager.client.hlen("channel:checkpoint") > 0
+                            
+                            if not has_checkpoints:
+                                logger.info("📊 检测到checkpoint为空（可能刚完成系统重置），需要重新采集历史消息")
+                                
+                                # 如果Bot已经在运行，直接触发历史采集
+                                if self.telegram_bot and hasattr(self.telegram_bot, 'client') and self.telegram_bot.client:
+                                    logger.info("Bot已运行，直接触发历史消息采集...")
+                                    from app.telegram.history_collector import history_collector
+                                    try:
+                                        await history_collector.collect_channel_history(self.telegram_bot.client)
+                                        logger.info("✅ 历史消息采集已触发")
+                                    except Exception as e:
+                                        logger.error(f"❌ 触发历史采集失败: {e}")
+                                else:
+                                    # Bot未运行，需要启动新的Bot（会自动触发历史采集）
+                                    logger.info("Bot未运行，启动新Bot...")
+                            else:
+                                checkpoint_count = redis_manager.client.hlen("channel:checkpoint")
+                                logger.info(f"📊 检测到已有 {checkpoint_count} 个频道的checkpoint，将从上次位置继续采集")
+                            
+                            # 原有的Bot启动逻辑
                             if not self.telegram_bot:
                                 try:
                                     bot = TelegramBot()

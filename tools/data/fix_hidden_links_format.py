@@ -15,7 +15,7 @@ from typing import Dict, List, Any
 # 添加项目根目录到路径
 sys.path.append('/Users/eric/workspace/telegram_channel_bot')
 
-from app.storage.redis_store import get_redis_message_store
+from app.storage.redis_manager import redis_manager
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
