@@ -267,6 +267,14 @@ class TelegramCollectorService:
                     
                     previous_collection_enabled = collection_enabled
                     
+                    # Linus式修复：实时更新健康监控状态，消除缓存不同步的特殊情况
+                    await self.health_monitor.update_metadata({
+                        "telegram_authenticated": True,
+                        "bot_running": self.telegram_bot is not None,
+                        "collection_enabled": collection_enabled,
+                        "system_monitor": True
+                    })
+                    
                     if not collection_enabled:
                         logger.debug("采集已禁用，等待启用...")
                         await asyncio.sleep(5)  # 暂停采集，等待启用

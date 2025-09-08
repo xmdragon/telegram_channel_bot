@@ -123,6 +123,12 @@ async def lifespan(app: FastAPI):
             logger.warning(f"获取最终诊断信息失败: {e}")
             logger.info("✅ 配置管理器验证成功")
         
+        # 加载配置到Redis缓存（Redis单一真相源架构）
+        logger.info("📦 加载配置到Redis缓存...")
+        config_load_success = await config_manager.load_all_to_redis()
+        if not config_load_success:
+            logger.warning("⚠️ 配置加载到Redis失败，但系统仍可正常运行（将回退到JSON文件）")
+        
         storage_time = time.time() - storage_start
         logger.info(f"✅ 存储层初始化和验证完成 ({storage_time:.2f}s)")
         

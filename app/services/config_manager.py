@@ -13,15 +13,17 @@ from app.storage.json_store import get_json_config_store, JSONConfigStore
 logger = logging.getLogger(__name__)
 
 class ConfigManager:
-    """配置管理器"""
+    """配置管理器 - Redis单一真相源版本"""
     
     def __init__(self):
-        self._cache = {}
-        self._cache_loaded = False
-        self._cache_lock = threading.RLock()
         self._change_listeners = []  # 配置变更监听器
         self._json_store: Optional[JSONConfigStore] = None
-        self._last_file_mtime = 0.0  # 上次文件修改时间
+        self._redis_manager = None  # Redis管理器（延迟初始化）
+        
+        # 临时兼容性属性（避免编译错误）
+        self._cache = {}
+        self._cache_loaded = True  # 设为True避免加载逻辑
+        self._cache_lock = threading.RLock()
     
     def _get_store(self, max_retries: int = 3) -> Optional[JSONConfigStore]:
         """获取JSON存储实例 - 修复状态同步问题"""
@@ -77,117 +79,98 @@ class ConfigManager:
                     
         return self._json_store
     
-    def _check_file_updated(self) -> bool:
-        """检查配置文件是否已更新"""
-        try:
-            config_file_path = "data/config/system.json"
-            if os.path.exists(config_file_path):
-                current_mtime = os.path.getmtime(config_file_path)
-                if current_mtime > self._last_file_mtime:
-                    self._last_file_mtime = current_mtime
-                    return True
-            return False
-        except Exception as e:
-            logger.debug(f"检查配置文件更新时间失败: {e}")
-            return False
+    def _get_redis_manager(self):
+        """获取Redis管理器实例"""
+        if self._redis_manager is None:
+            from app.storage.redis_manager import get_redis_manager
+            self._redis_manager = get_redis_manager()
+        return self._redis_manager
     
     async def get_config(self, key: str, default: Any = None) -> Any:
-        """获取配置值"""
-        with self._cache_lock:
-            # 始终检查文件更新，确保配置变化能被实时检测到
-            if self._check_file_updated():
-                logger.debug("检测到配置文件更新，重新加载缓存")
-                self._cache = {}
-                self._cache_loaded = False
+        """获取配置值 - Redis单一真相源版本"""
+        try:
+            # 首先尝试从Redis读取
+            redis_manager = self._get_redis_manager()
+            config_data = redis_manager.cache_get(f"config:{key}")
             
-            # 尝试从缓存加载（考虑存储层时序）
-            if not self._cache_loaded:
-                await self._load_cache()
+            if config_data and isinstance(config_data, dict):
+                if config_data.get('is_active', True):
+                    return self._parse_value(config_data['value'], config_data['config_type'])
             
-            # 缓存命中
-            if key in self._cache:
-                return self._parse_value(self._cache[key]['value'], self._cache[key]['config_type'])
+            # Redis未命中，从JSON文件读取（兜底机制）
+            store = self._get_store()
+            if store is not None:
+                config_data = store.get_config(key)
+                if config_data and isinstance(config_data, dict) and config_data.get('is_active', True):
+                    # 更新Redis缓存
+                    redis_manager.cache_set(f"config:{key}", config_data, expire=0)  # 无过期时间
+                    return self._parse_value(config_data['value'], config_data['config_type'])
             
-            # 缓存未命中，直接从文件读取（按需加载）
-            try:
-                store = self._get_store()
-                if store is not None:  # 存储层已可用
-                    config_data = store.get_config(key) 
-                    if config_data and isinstance(config_data, dict) and config_data.get('is_active', True):
-                        # 保存到缓存
-                        self._cache[key] = config_data
-                        return self._parse_value(config_data['value'], config_data['config_type'])
-            except Exception as e:
-                logger.debug(f"按需读取配置 {key} 失败: {e}")
+            return default
             
+        except Exception as e:
+            logger.error(f"获取配置 {key} 失败: {e}")
             return default
     
     async def set_config(self, key: str, value: Any, description: str = "", config_type: str = None) -> bool:
         """
-        设置配置值 - Linus风格重构版本
-        
-        核心原则：消除特殊情况，类型自动推断
-        - 如果key在DEFAULT_CONFIGS中，自动使用其定义的类型
-        - 如果未定义，根据Python类型自动推断
-        - 类型验证，防止错误数据
+        设置配置值 - Redis单一真相源版本
+        同时更新JSON文件（持久化）和Redis缓存（实时生效）
         """
-        with self._cache_lock:
-            # 确保缓存已加载
-            if not self._cache_loaded:
-                await self._load_cache()
-                
-            try:
-                store = self._get_store()
-                
-                # Linus风格改进：智能类型推断（消除特殊情况）
-                actual_config_type = self._determine_config_type(key, value, config_type)
-                
-                # 类型验证
-                if not self._validate_value_type(value, actual_config_type):
-                    logger.error(f"配置{key}类型验证失败：期望{actual_config_type}，得到{type(value).__name__}，值：{value}")
-                    return False
-                
-                # 序列化值
-                serialized_value = self._serialize_value(value, actual_config_type)
-                
-                # 获取现有配置信息（保留描述）
-                existing_config = None
-                if key in self._cache:
-                    existing_config = self._cache[key]
-                
-                # 构建配置数据
-                config_data = {
-                    'value': serialized_value,
-                    'config_type': actual_config_type,
-                    'description': description or (existing_config.get('description', '') if existing_config else ''),
-                    'is_active': True
-                }
-                
-                # 如果是新配置，添加创建时间
-                if existing_config is None:
-                    config_data['created_at'] = datetime.now().isoformat()
-                else:
-                    config_data['created_at'] = existing_config.get('created_at', datetime.now().isoformat())
-                
-                # 保存到JSON存储
-                success = store.set_config(key, config_data)
-                
-                if success:
-                    # 更新缓存
-                    self._cache[key] = config_data
-                    
-                    # 通知监听器
-                    self._notify_config_change(key, value, config_type)
-                    
-                    logger.debug(f"配置已更新: {key} = {value}")
-                    return True
-                else:
-                    logger.error(f"保存配置到存储失败: {key}")
-                    return False
-                    
-            except Exception as e:
-                logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
+        try:
+            store = self._get_store()
+            redis_manager = self._get_redis_manager()
+            
+            # 智能类型推断
+            actual_config_type = self._determine_config_type(key, value, config_type)
+            
+            # 类型验证
+            if not self._validate_value_type(value, actual_config_type):
+                logger.error(f"配置{key}类型验证失败：期望{actual_config_type}，得到{type(value).__name__}，值：{value}")
                 return False
+            
+            # 序列化值
+            serialized_value = self._serialize_value(value, actual_config_type)
+            
+            # 获取现有配置信息（从Redis或JSON）
+            existing_config = redis_manager.cache_get(f"config:{key}")
+            if not existing_config:
+                existing_config = store.get_config(key) if store else None
+            
+            # 构建配置数据
+            config_data = {
+                'value': serialized_value,
+                'config_type': actual_config_type,
+                'description': description or (existing_config.get('description', '') if existing_config else ''),
+                'is_active': True
+            }
+            
+            # 设置创建时间
+            if existing_config is None:
+                config_data['created_at'] = datetime.now().isoformat()
+            else:
+                config_data['created_at'] = existing_config.get('created_at', datetime.now().isoformat())
+            
+            # 1. 首先保存到JSON文件（持久化）
+            json_success = store.set_config(key, config_data) if store else False
+            if not json_success:
+                logger.error(f"保存配置到JSON文件失败: {key}")
+                return False
+            
+            # 2. 然后更新Redis缓存（实时生效）
+            redis_success = redis_manager.cache_set(f"config:{key}", config_data, expire=0)
+            if not redis_success:
+                logger.warning(f"更新Redis缓存失败: {key}，但JSON文件已保存")
+            
+            # 3. 通知监听器
+            self._notify_config_change(key, value, actual_config_type)
+            
+            logger.debug(f"配置已更新: {key} = {value} (JSON: {json_success}, Redis: {redis_success})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
+            return False
     
     # === Linus风格的类型安全便捷方法 ===
     async def set_boolean(self, key: str, value: bool, description: str = "") -> bool:
@@ -205,16 +188,55 @@ class ConfigManager:
     async def set_json(self, key: str, value: dict, description: str = "") -> bool:
         """设置JSON配置 - 类型安全，无需指定config_type"""
         return await self.set_config(key, value, description, config_type="json")
+    
+    async def load_all_to_redis(self) -> bool:
+        """从JSON文件加载所有配置到Redis - 系统启动时调用"""
+        try:
+            store = self._get_store()
+            redis_manager = self._get_redis_manager()
+            
+            if not store:
+                logger.error("JSON存储不可用，无法加载配置到Redis")
+                return False
+            
+            # 获取所有配置
+            all_configs = store.get_all_config()
+            if not all_configs:
+                logger.warning("未找到任何配置，Redis缓存为空")
+                return True  # 空配置也算成功
+            
+            # 批量加载到Redis
+            loaded_count = 0
+            failed_count = 0
+            
+            for key, config_data in all_configs.items():
+                if isinstance(config_data, dict) and config_data.get('is_active', True):
+                    success = redis_manager.cache_set(f"config:{key}", config_data, expire=0)
+                    if success:
+                        loaded_count += 1
+                    else:
+                        failed_count += 1
+                        logger.warning(f"加载配置到Redis失败: {key}")
+            
+            logger.info(f"✅ 配置已加载到Redis: 成功 {loaded_count} 个，失败 {failed_count} 个")
+            return failed_count == 0
+            
+        except Exception as e:
+            logger.error(f"加载配置到Redis失败: {e}")
+            return False
 
     async def get_all_configs(self) -> Dict[str, Dict]:
-        """获取所有配置"""
-        with self._cache_lock:
-            if not self._cache_loaded:
-                await self._load_cache()
-            
+        """获取所有配置 - Redis单一真相源版本"""
+        try:
+            store = self._get_store()
+            if not store:
+                return {}
+                
+            all_configs = store.get_all_config()
             result = {}
-            for key, config_data in self._cache.items():
-                if config_data.get('is_active', True):  # 默认为激活状态
+            
+            for key, config_data in all_configs.items():
+                if config_data.get('is_active', True):
                     result[key] = {
                         'value': self._parse_value(config_data['value'], config_data['config_type']),
                         'raw_value': config_data['value'],
@@ -225,6 +247,10 @@ class ConfigManager:
                     }
             
             return result
+            
+        except Exception as e:
+            logger.error(f"获取所有配置失败: {e}")
+            return {}
     
     async def delete_config(self, key: str) -> bool:
         """删除配置"""
@@ -541,6 +567,15 @@ class ConfigManager:
                         loaded_count += 1
                 
                 self._cache_loaded = True
+                
+                # 更新文件时间戳（在缓存加载完成后）
+                try:
+                    config_file_path = "data/config/system.json"
+                    if os.path.exists(config_file_path):
+                        self._last_file_mtime = os.path.getmtime(config_file_path)
+                except Exception as e:
+                    logger.debug(f"更新文件时间戳失败: {e}")
+                
                 logger.info(f"已从JSON存储加载 {loaded_count} 个配置项到缓存")
                 
                 # 验证关键配置是否存在
