@@ -117,6 +117,9 @@ class MessageStorageProcessor(MessageProcessor):
                 except Exception as e:
                     self.logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
             
+            # 发送WebSocket通知更新统计数据
+            await self._notify_stats_update()
+            
             return ProcessorResult(True, context)
             
         except Exception as e:
@@ -413,4 +416,33 @@ class MessageStorageProcessor(MessageProcessor):
             self.logger.error(f"生成频道链接前缀失败: {e}")
             # 降级到内部ID格式
             return f"https://t.me/c/{channel_id.lstrip('-')}"
+    
+    async def _notify_stats_update(self):
+        """发送WebSocket通知更新统计数据"""
+        try:
+            from app.api.websocket import websocket_manager
+            from datetime import datetime
+            import json
+            
+            # 获取最新统计数据
+            stats = self.redis_store.get_statistics()
+            
+            # 构造通知数据
+            notification_data = {
+                "type": "stats_update",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "total_messages": stats.get("total_messages", 0),
+                    "pending_count": stats.get("pending_messages", 0),
+                    "approved_count": stats.get("approved_messages", 0),
+                    "rejected_count": stats.get("rejected_messages", 0)
+                }
+            }
+            
+            # 通过WebSocket广播统计更新
+            await websocket_manager.broadcast(json.dumps(notification_data, ensure_ascii=False))
+            
+        except Exception as e:
+            # 通知失败不应该影响消息处理流程，只记录错误
+            self.logger.debug(f"发送统计更新通知失败: {e}")
 

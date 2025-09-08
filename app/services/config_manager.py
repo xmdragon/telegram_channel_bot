@@ -94,8 +94,8 @@ class ConfigManager:
     async def get_config(self, key: str, default: Any = None) -> Any:
         """获取配置值"""
         with self._cache_lock:
-            # 检查配置文件是否已更新，如果是则重新加载缓存
-            if self._cache_loaded and self._check_file_updated():
+            # 始终检查文件更新，确保配置变化能被实时检测到
+            if self._check_file_updated():
                 logger.debug("检测到配置文件更新，重新加载缓存")
                 self._cache = {}
                 self._cache_loaded = False

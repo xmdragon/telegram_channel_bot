@@ -224,6 +224,9 @@ async def batch_approve_messages(
         
         detail_message = f"（{', '.join(status_details)}）" if status_details else ""
         
+        # 发送统计更新通知
+        await _notify_stats_update()
+        
         return {
             "success": True,
             "message": f"{primary_message}{detail_message}",
@@ -303,6 +306,9 @@ async def batch_reject_messages(
         
         # 处理被拒绝消息的媒体移除（新增逻辑）
         await _handle_rejected_media_removal(valid_messages)
+        
+        # 发送统计更新通知
+        await _notify_stats_update()
         
         return {
             "success": True,
@@ -598,3 +604,34 @@ async def _remove_media_from_training(file_hash: str, msg_data: Dict[str, Any]):
         
     except Exception as e:
         logger.error(f"移除训练媒体失败: {e}")
+
+
+async def _notify_stats_update():
+    """发送WebSocket通知更新统计数据"""
+    try:
+        from app.api.websocket import websocket_manager
+        from app.storage.redis_manager import redis_manager
+        from datetime import datetime
+        import json
+        
+        # 获取最新统计数据
+        stats = redis_manager.get_statistics()
+        
+        # 构造通知数据
+        notification_data = {
+            "type": "stats_update",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "total_messages": stats.get("total_messages", 0),
+                "pending_count": stats.get("pending_messages", 0),
+                "approved_count": stats.get("approved_messages", 0),
+                "rejected_count": stats.get("rejected_messages", 0)
+            }
+        }
+        
+        # 通过WebSocket广播统计更新
+        await websocket_manager.broadcast(json.dumps(notification_data, ensure_ascii=False))
+        
+    except Exception as e:
+        # 通知失败不应该影响处理流程，只记录错误
+        logger.debug(f"发送统计更新通知失败: {e}")

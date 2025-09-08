@@ -141,27 +141,10 @@ class MessageFilterProcessor(MessageProcessor):
             return await self._handle_error(context, e)
     
     async def _extract_entities(self, context: MessageContext):
-        """提取消息实体和隐藏链接"""
-        try:
-            from app.services.structural_ad_detector import structural_detector
-            
-            message = context.telegram_message
-            
-            # 提取实体数据
-            entities = structural_detector.extract_entity_data(message)
-            context.entities = entities
-            
-            # 移除隐藏链接（系统默认策略）
-            clean_entities, removed_links = await structural_detector.remove_hidden_links(message)
-            context.removed_hidden_links = removed_links
-            
-            if removed_links:
-                self.logger.info(f"移除了 {len(removed_links)} 个隐藏链接")
-            
-        except Exception as e:
-            self.logger.error(f"提取实体失败: {e}")
-            context.entities = []
-            context.removed_hidden_links = []
+        """提取消息实体 - 简化版本"""
+        # 直接设置为空，不再尝试任何导入
+        context.entities = {}
+        context.removed_hidden_links = []
     
     async def _apply_content_filter(self, context: MessageContext, media_files: list):
         """应用内容过滤管道"""

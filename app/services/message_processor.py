@@ -52,7 +52,8 @@ class MessageProcessor:
             from app.services.config_manager import config_manager
             auto_forward_delay = await config_manager.get_config('review.auto_forward_delay', 1800)  # 默认30分钟
             
-            cutoff_time = datetime.utcnow() - timedelta(seconds=int(auto_forward_delay))
+            from datetime import timezone
+            cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=int(auto_forward_delay))
             
             # 获取所有待审核消息
             pending_messages = self.redis_store.get_pending_messages(limit=500)
@@ -65,7 +66,7 @@ class MessageProcessor:
                     created_at_str = msg.get('created_at')
                     if created_at_str:
                         created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                        if created_at.replace(tzinfo=None) <= cutoff_time:
+                        if created_at <= cutoff_time:
                             # 检查是否为非广告消息（双重安全检查）
                             is_ad = msg.get('is_ad', False)
                             if isinstance(is_ad, str):
@@ -467,7 +468,7 @@ class MessageProcessor:
             # 针对不同状态设置不同的清理时间
             # pending消息保留更长时间（7天），避免误删待审核消息
             from datetime import datetime, timedelta
-            pending_cutoff_time = datetime.utcnow() - timedelta(days=7)
+            pending_cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
             
             # 获取所有状态的消息
             for status in ['approved', 'rejected', 'pending']:
