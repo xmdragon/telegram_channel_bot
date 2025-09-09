@@ -165,12 +165,9 @@ class ChannelIdResolver:
             
             channel_store = get_json_channel_store()
             # 获取所有活跃的源频道
-            channels = channel_store.get_channels_by_type('source')
+            channels = channel_store.get_all_channels()
             
             for channel in channels:
-                # 检查是否为活跃状态
-                if not channel.get('is_active', True):
-                    continue
                 
                 channel_name = channel.get('channel_name', '')
                 channel_id = channel.get('channel_id', '')

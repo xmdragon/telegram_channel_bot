@@ -165,70 +165,36 @@ class JSONChannelStore(JSONStore):
             return False
     
     def get_all_channels(self) -> List[Dict[str, Any]]:
-        """获取所有频道配置"""
-        channels_dict = self._load_json(self.CHANNEL_FILE)
-        # 转换为列表格式，兼容旧的API
-        return list(channels_dict.values()) if channels_dict else []
+        """获取所有频道配置（简化版）"""
+        channels_data = self._load_json(self.CHANNEL_FILE)
+        # 新格式：直接返回数组
+        if isinstance(channels_data, list):
+            return channels_data
+        # 兼容旧格式：转换对象为数组
+        elif isinstance(channels_data, dict):
+            return list(channels_data.values()) if channels_data else []
+        else:
+            return []
     
     def add_channel(self, channel_data: Dict[str, Any]) -> bool:
-        """添加频道配置"""
+        """添加频道配置（数组版）"""
         try:
-            channels = self._load_json(self.CHANNEL_FILE)
+            channels = self.get_all_channels()
             
             # 验证频道数据
             channel_id = channel_data.get('channel_id')
             channel_name = channel_data.get('channel_name')
-            channel_type = channel_data.get('channel_type', 'source')
             
-            # 防止目标频道被添加为源频道
-            if channel_type == 'source' and channel_id:
-                try:
-                    # 获取目标频道配置进行比较
-                    from app.services.config_manager import config_manager
-                    import asyncio
+            # 检查频道是否已存在（去重）
+            for existing_channel in channels:
+                if (existing_channel.get('channel_id') == channel_id and channel_id) or \
+                   (existing_channel.get('channel_name') == channel_name and channel_name):
+                    logger.warning(f"频道已存在: {channel_name} / {channel_id}")
+                    return False
                     
-                    # 在同步方法中运行异步代码
-                    loop = None
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                    
-                    target_channel_id = loop.run_until_complete(config_manager.get_config('target.channel_id'))
-                    target_channel = loop.run_until_complete(config_manager.get_config('target.channel_link'))
-                    
-                    if channel_id == target_channel_id or channel_name == target_channel:
-                        logger.error(f"拒绝添加目标频道为源频道: {channel_name} ({channel_id})")
-                        return False
-                except Exception as e:
-                    logger.warning(f"验证目标频道时出错，跳过验证: {e}")
-            
-            if channel_id:
-                # 检查是否已存在
-                for existing_key, existing_data in channels.items():
-                    if existing_data.get('channel_id') == channel_id:
-                        logger.warning(f"频道已存在，跳过添加: {channel_id}")
-                        return True  # 返回True避免错误，但不重复添加
-            
-            # 生成一致的键格式 channel_{id}
-            channel_key = None
-            if 'id' in channel_data:
-                # 如果有数字ID，使用channel_前缀格式
-                channel_key = f"channel_{channel_data['id']}"
-            else:
-                # 如果没有数字ID，生成一个新的ID
-                existing_ids = []
-                for key, data in channels.items():
-                    if key.startswith('channel_') and data.get('id'):
-                        existing_ids.append(data['id'])
-                new_id = max(existing_ids, default=0) + 1
-                channel_data['id'] = new_id
-                channel_key = f"channel_{new_id}"
-            
-            if not channel_key:
-                logger.error("无法生成频道键")
-                return False
+            # 生成新ID
+            new_id = max(ch.get('id', 0) for ch in channels) + 1 if channels else 1
+            channel_data['id'] = new_id
             
             # 添加时间戳
             channel_data = channel_data.copy()
@@ -236,106 +202,53 @@ class JSONChannelStore(JSONStore):
             if 'created_at' not in channel_data:
                 channel_data['created_at'] = get_current_time().isoformat()
             
-            channels[channel_key] = channel_data
+            # 添加到数组
+            channels.append(channel_data)
             return self._save_json(self.CHANNEL_FILE, channels)
             
         except Exception as e:
             logger.error(f"添加频道配置失败: {e}")
             return False
     
-    def get_channels_by_type(self, channel_type: str) -> List[Dict[str, Any]]:
-        """根据类型获取频道"""
-        try:
-            channels = self._load_json(self.CHANNEL_FILE)
-            result = []
-            
-            for channel_key, channel_data in channels.items():
-                if channel_data.get('channel_type') == channel_type:
-                    # 复制频道数据，但不要覆盖原有的channel_id字段
-                    channel_data = channel_data.copy()
-                    # 保持原有的channel_id字段不变（它包含正确的Telegram ID）
-                    result.append(channel_data)
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"获取频道类型失败 {channel_type}: {e}")
-            return []
     
     def update_channel(self, channel_data: Dict[str, Any]) -> bool:
-        """更新频道配置"""
+        """更新频道配置（数组版）"""
         try:
-            channels = self._load_json(self.CHANNEL_FILE)
+            channels = self.get_all_channels()
+            target_id = channel_data.get('id')
             
-            # 查找频道键
-            channel_key = None
+            # 通过ID查找并更新
+            for i, channel in enumerate(channels):
+                if channel.get('id') == target_id:
+                    # 合并数据并更新时间戳
+                    updated_channel = {**channel, **channel_data}
+                    updated_channel['updated_at'] = get_current_time().isoformat()
+                    channels[i] = updated_channel
+                    return self._save_json(self.CHANNEL_FILE, channels)
             
-            # 优先通过数字ID查找（最可靠的方式）
-            if 'id' in channel_data:
-                target_id = channel_data['id']
-                for key, data in channels.items():
-                    if data.get('id') == target_id:
-                        channel_key = key
-                        break
-            
-            # 如果没找到，尝试通过channel_id查找
-            if not channel_key and 'channel_id' in channel_data:
-                target_channel_id = channel_data['channel_id']
-                for key, data in channels.items():
-                    if data.get('channel_id') == target_channel_id:
-                        channel_key = key
-                        break
-            
-            # 如果还没找到，尝试通过channel_name查找
-            if not channel_key and 'channel_name' in channel_data:
-                target_name = channel_data['channel_name']
-                for key, data in channels.items():
-                    if data.get('channel_name') == target_name:
-                        channel_key = key
-                        break
-            
-            if not channel_key:
-                logger.error(f"未找到频道键，搜索条件: {channel_data}")
-                return False
-            
-            if channel_key not in channels:
-                logger.error(f"频道不存在: {channel_key}")
-                return False
-            
-            # 更新频道数据
-            updated_data = channels[channel_key].copy()
-            updated_data.update(channel_data)
-            updated_data['updated_at'] = get_current_time().isoformat()
-            
-            channels[channel_key] = updated_data
-            return self._save_json(self.CHANNEL_FILE, channels)
+            logger.error(f"未找到ID为 {target_id} 的频道")
+            return False
             
         except Exception as e:
             logger.error(f"更新频道配置失败: {e}")
             return False
     
     def delete_channel(self, channel_identifier) -> bool:
-        """删除频道配置（支持名称或ID）"""
+        """删除频道配置（数组版）"""
         try:
-            channels = self._load_json(self.CHANNEL_FILE)
+            channels = self.get_all_channels()
+            initial_count = len(channels)
             
-            # 如果是数字ID，查找对应的channel_name
+            # 根据ID或名称过滤
             if isinstance(channel_identifier, (int, str)) and str(channel_identifier).isdigit():
                 target_id = int(channel_identifier)
-                channel_key = None
-                for name, data in channels.items():
-                    if data.get('id') == target_id:
-                        channel_key = name
-                        break
-                
-                if channel_key and channel_key in channels:
-                    del channels[channel_key]
-                    return self._save_json(self.CHANNEL_FILE, channels)
+                channels = [ch for ch in channels if ch.get('id') != target_id]
             else:
-                # 直接使用名称删除
-                if channel_identifier in channels:
-                    del channels[channel_identifier]
-                    return self._save_json(self.CHANNEL_FILE, channels)
+                channels = [ch for ch in channels if ch.get('channel_name') != channel_identifier]
+            
+            # 检查是否删除了频道
+            if len(channels) < initial_count:
+                return self._save_json(self.CHANNEL_FILE, channels)
             
             return False
             

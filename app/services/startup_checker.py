@@ -146,16 +146,13 @@ class StartupChecker:
             
             # 从 JSON 存储获取所有活跃源频道
             channel_store = get_json_channel_store()
-            channels = channel_store.get_channels_by_type('source')
+            channels = channel_store.get_all_channels()
                 
             if not channels:
                 result['errors'].append("未配置任何源频道")
                 return result
             
             for channel in channels:
-                # 检查是否为活跃状态
-                if not channel.get('is_active', True):
-                    continue
                     
                 channel_name = channel.get('channel_name', '')
                 channel_id = channel.get('channel_id', '')

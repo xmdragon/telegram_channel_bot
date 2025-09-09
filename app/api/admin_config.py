@@ -26,7 +26,7 @@ async def _trigger_history_collection():
         
         # 获取所有监听频道的消息计数
         from app.services.unified_channel_service import unified_channel_service
-        channels = await unified_channel_service.get_all_channels(channel_type="source", active_only=True)
+        channels = await unified_channel_service.get_all_channels()
         
         should_collect = False
         for channel in channels:

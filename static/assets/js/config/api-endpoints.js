@@ -94,14 +94,14 @@ const API_ENDPOINTS = {
         // 分隔符模式管理
         separatorPatterns: '/api/training/separator-patterns',   // GET/POST - 获取/保存分隔符模式
 
-        // 广告向量管理
-        adVectors: '/api/training/ad-vectors',                   // GET - 获取广告向量列表（分页）
-        adVectorById: (id) => `/api/training/ad-vectors/${id}`,  // DELETE - 删除单个广告向量
-        adVectorsBatch: '/api/training/ad-vectors/batch',        // DELETE - 批量删除广告向量
-        adVectorStatistics: '/api/training/ad-vector-statistics', // GET - 获取广告向量统计
-        adVectorTestDetection: '/api/training/ad-vectors/test-detection', // POST - 测试广告检测
-        adVectorAddFromText: '/api/training/ad-vectors/add-from-text', // POST - 从文本添加向量
-        adVectorStats: '/api/training/ad-vector-stats',          // GET - 获取向量简化统计
+        // 关键词管理 (原广告向量管理)
+        adVectors: '/api/training/ad-vectors',                   // GET - 获取关键词规则列表（分页）
+        adVectorById: (id) => `/api/training/ad-vectors/${id}`,  // DELETE - 删除单个关键词规则
+        adVectorsBatch: '/api/training/ad-vectors/batch',        // DELETE - 批量删除关键词规则
+        adVectorStatistics: '/api/training/ad-vector-statistics', // GET - 获取关键词规则统计
+        adVectorTestDetection: '/api/training/ad-vectors/test-detection', // POST - 测试关键词检测
+        adVectorAddFromText: '/api/training/ad-vectors/add-from-text', // POST - 从文本添加关键词
+        adVectorStats: '/api/training/ad-vector-stats',          // GET - 获取关键词统计
 
         // 尾部过滤样本管理
         tailFilterSamples: '/api/training/tail-filter-samples',  // GET/POST - 获取/添加尾部过滤样本
@@ -256,7 +256,7 @@ const API_ENDPOINTS = {
         // 训练模块页面
         tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
         tailFilterTraining: '/static/tail-filter-training.html',   // 尾部过滤训练独立页面
-        adVectorManager: '/static/ad-training-samples.html',       // 广告训练样本管理页面
+        adVectorManager: '/static/ad-training-samples.html',       // 关键词管理页面
         promoManager: '/static/promo-manager.html',                // 推广链接数据管理页面
         promoTraining: '/static/promo-training.html',              // 推广链接训练页面
         separatorConfig: '/static/separator-config.html',          // 分隔符配置页面

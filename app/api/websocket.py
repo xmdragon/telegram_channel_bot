@@ -54,7 +54,7 @@ class WebSocketManager:
             self.disconnect(websocket)
             
     async def broadcast(self, message: str):
-        """广播消息给所有连接 - Linus式：使用副本消除并发问题"""
+        """广播消息给所有连接 - Linus式：发送即忘，不阻塞"""
         if not self.active_connections:
             return
             
@@ -65,11 +65,17 @@ class WebSocketManager:
         for connection in connections_copy:
             try:
                 import os
-                await connection.send_text(message)
-                logger.info(f"[PID:{os.getpid()}] 📤 成功发送消息到WebSocket连接，消息长度: {len(message)}")
+                import asyncio
+                # 添加1秒超时，防止无限等待
+                await asyncio.wait_for(connection.send_text(message), timeout=1.0)
+                logger.debug(f"[PID:{os.getpid()}] 📤 成功发送消息到WebSocket连接，消息长度: {len(message)}")
+            except asyncio.TimeoutError:
+                import os
+                logger.warning(f"[PID:{os.getpid()}] WebSocket发送超时，标记断开连接")
+                disconnected.append(connection)
             except Exception as e:
                 import os
-                logger.error(f"[PID:{os.getpid()}] 广播消息失败: {e}")
+                logger.debug(f"[PID:{os.getpid()}] 广播消息失败: {e}")
                 disconnected.append(connection)
                 
         # 清理断开的连接

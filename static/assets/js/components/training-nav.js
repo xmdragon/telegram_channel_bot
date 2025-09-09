@@ -13,7 +13,7 @@ const TrainingNav = {
                 { key: 'tail', label: '尾部过滤训练', url: API.pages.tailFilterManager },
                 { key: 'promo', label: '推广链接训练', url: API.pages.promoManager },
                 { key: 'separator', label: '分隔符配置', url: API.pages.separatorConfig },
-                { key: 'ad', label: '广告样本管理', url: API.pages.adVectorManager },
+                { key: 'ad', label: '关键词管理', url: API.pages.adVectorManager },
                 { key: 'media', label: '媒体文件管理', url: API.pages.mediaManager },
                 { key: 'threshold', label: '阈值监控', url: API.pages.thresholdDashboard }
             ]

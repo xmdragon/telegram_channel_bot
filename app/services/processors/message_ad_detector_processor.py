@@ -1,9 +1,12 @@
 """
-消息广告检测处理器 - 基于语义向量的纯广告检测
+消息广告检测处理器 - 基于关键词的纯广告检测
 专门负责广告检测逻辑，与过滤处理分离
 
-Author: Claude
+"复杂性是万恶之源" - 移除ONNX，使用简单的关键词匹配
+
+Author: Claude  
 Created: 2025-09-08
+Updated: 2025-09-09 (移除ONNX，改为关键词检测)
 """
 
 import logging
@@ -11,50 +14,32 @@ import asyncio
 from typing import Tuple
 
 from app.services.processors.base import MessageProcessor, ProcessorResult, MessageContext
-from app.services.semantic_extractor import get_semantic_extractor
-from app.services.vector_manager import VectorManager
+from app.services.detectors.keyword_ad_detector import get_keyword_ad_detector
 
 logger = logging.getLogger(__name__)
 
 
 class MessageAdDetectorProcessor(MessageProcessor):
-    """消息广告检测处理器 - 基于语义向量的纯广告检测"""
+    """消息广告检测处理器 - 基于关键词的纯广告检测"""
     
     def __init__(self):
         super().__init__("MessageAdDetectorProcessor")
         
         # 延迟初始化，避免循环依赖
-        self._semantic_extractor = None
-        self._vector_manager = None
-        self._threshold_manager = None
+        self._keyword_detector = None
     
     @property
-    def semantic_extractor(self):
-        """延迟加载语义提取器"""
-        if self._semantic_extractor is None:
-            self._semantic_extractor = get_semantic_extractor(768)
-        return self._semantic_extractor
-    
-    @property
-    def vector_manager(self):
-        """延迟加载向量管理器"""
-        if self._vector_manager is None:
-            self._vector_manager = VectorManager()
-        return self._vector_manager
-    
-    @property
-    def threshold_manager(self):
-        """延迟加载阈值管理器"""
-        if self._threshold_manager is None:
-            from app.core.threshold_manager import threshold_manager
-            self._threshold_manager = threshold_manager
-        return self._threshold_manager
+    def keyword_detector(self):
+        """延迟加载关键词检测器"""
+        if self._keyword_detector is None:
+            self._keyword_detector = get_keyword_ad_detector()
+        return self._keyword_detector
     
     async def process(self, context: MessageContext) -> ProcessorResult:
         """
         广告检测主流程：
         1. 检查自动拒绝配置
-        2. 进行语义向量检测
+        2. 进行关键词检测
         3. 根据检测结果决定是否拒绝
         """
         try:
@@ -64,12 +49,12 @@ class MessageAdDetectorProcessor(MessageProcessor):
                 self.logger.debug("自动拒绝广告未启用，跳过广告检测")
                 return ProcessorResult(True, context)
             
-            # 进行语义广告检测
-            is_ad, similarity, reason = await self._detect_advertisement(context)
+            # 进行关键词广告检测
+            is_ad, confidence, reason = await self._detect_advertisement(context)
             
-            # 记录检测分数到上下文，供后续反馈使用
-            context.ad_detection_score = similarity
-            context.ad_detection_threshold = self.vector_manager.similarity_threshold
+            # 记录检测信息到上下文
+            context.ad_detection_score = confidence
+            context.ad_detection_threshold = 10  # 关键词检测的权重阈值
             
             if is_ad:
                 # 检测到广告，标记拒绝
@@ -78,13 +63,13 @@ class MessageAdDetectorProcessor(MessageProcessor):
                 context.reject_reason = reason
                 context.ad_detected = True
                 
-                self.logger.info(f"🚫 语义检测到广告，自动拒绝: {reason}")
+                self.logger.info(f"🚫 关键词检测到广告，自动拒绝: {reason}")
                 
                 # 通知统计更新
                 await self._notify_ad_detected(context)
             else:
                 context.ad_detected = False
-                self.logger.debug(f"✅ 语义检测：非广告内容（相似度: {similarity:.3f}）")
+                self.logger.debug(f"✅ 关键词检测：非广告内容（置信度: {confidence:.3f}）")
             
             return ProcessorResult(True, context)
             
@@ -105,10 +90,10 @@ class MessageAdDetectorProcessor(MessageProcessor):
     
     async def _detect_advertisement(self, context: MessageContext) -> Tuple[bool, float, str]:
         """
-        语义广告检测
+        关键词广告检测
         
         Returns:
-            (是否广告, 相似度, 原因描述)
+            (是否广告, 置信度, 原因描述)
         """
         try:
             # 获取过滤后的干净文本用于检测
@@ -117,24 +102,28 @@ class MessageAdDetectorProcessor(MessageProcessor):
             if not content or not content.strip():
                 return False, 0.0, "空内容"
             
-            # 提取语义向量
-            extract_result = self.semantic_extractor.extract_vector_with_info(content)
+            # 使用关键词检测器
+            from app.services.filters.base import FilterContext
+            filter_context = FilterContext(
+                message_id=context.message_id,
+                channel_id=context.channel_id
+            )
             
-            if not extract_result['success']:
-                return False, 0.0, f"向量提取失败: {extract_result.get('error_message', 'unknown')}"
+            # 添加原始内容到上下文
+            filter_context.add_metadata('original_content', context.original_content)
             
-            # 与广告向量库比较
-            content_vector = extract_result['vector']
-            is_ad, similarity, match_info = self.vector_manager.is_advertisement(content_vector)
+            # 执行关键词检测
+            result = await self.keyword_detector.filter(content, filter_context)
             
-            if is_ad:
-                reason = f"语义向量检测到广告（相似度: {similarity:.3f}）"
-                return True, similarity, reason
+            # 从结果中提取检测信息
+            is_ad = not result.passed
+            confidence = result.confidence
+            reason = result.reason or "关键词检测完成"
             
-            return False, similarity, "语义检测：非广告内容"
+            return is_ad, confidence, reason
             
         except Exception as e:
-            self.logger.error(f"语义广告检测失败: {e}")
+            self.logger.error(f"关键词广告检测失败: {e}")
             return False, 0.0, f"检测异常: {str(e)}"
     
     async def _notify_ad_detected(self, context: MessageContext):
@@ -149,7 +138,7 @@ class MessageAdDetectorProcessor(MessageProcessor):
     def record_user_feedback(self, message_id: str, user_decision: str, 
                            detection_score: float, detection_threshold: float):
         """
-        记录用户反馈到阈值管理器
+        记录用户反馈（关键词检测暂不支持自动学习）
         
         Args:
             message_id: 消息ID
@@ -158,21 +147,10 @@ class MessageAdDetectorProcessor(MessageProcessor):
             detection_threshold: 使用的阈值
         """
         try:
-            # 将用户决定转换为actual_result
-            # 如果用户批准了被检测为广告的消息，说明是误判(negative)
-            # 如果用户拒绝了消息，说明确实是广告(positive)
-            actual_result = 'positive' if user_decision == 'reject' else 'negative'
-            
-            # 记录反馈
-            self.threshold_manager.record_feedback(
-                filter_name='ad_detector',
-                metric_name='classifier',
-                predicted_score=detection_score,
-                actual_result=actual_result,
-                threshold_used=detection_threshold
-            )
-            
+            # 关键词检测暂时不支持自动学习，仅记录日志
             self.logger.info(f"📝 记录广告检测反馈: {message_id} - 用户{user_decision}, 分数{detection_score:.3f}")
+            
+            # 可以在这里实现将误判的内容添加到白名单或训练数据的逻辑
             
         except Exception as e:
             self.logger.error(f"记录用户反馈失败: {e}")

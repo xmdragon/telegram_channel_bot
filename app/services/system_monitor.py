@@ -311,7 +311,7 @@ class SystemMonitor:
                 # 获取频道统计
                 try:
                     channel_store = get_json_channel_store()
-                    source_channels = channel_store.get_channels_by_type('source')
+                    source_channels = channel_store.get_all_channels()
                     stats['source_channels_count'] = len(source_channels)
                 except Exception as e:
                     logger.warning(f"获取频道统计失败: {e}")

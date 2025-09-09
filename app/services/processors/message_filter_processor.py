@@ -9,8 +9,9 @@ from typing import Tuple, Optional
 
 from app.services.processors.base import MessageProcessor, ProcessorResult, MessageContext
 from app.services.filters.base import FilterContext
-from app.services.rule_manager import rule_manager
-from app.services.rule_learner import rule_learner
+# 延迟导入rule_manager和rule_learner，避免模块导入时阻塞
+# from app.services.rule_manager import rule_manager
+# from app.services.rule_learner import rule_learner
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +38,17 @@ class MessageFilterProcessor(MessageProcessor):
         """确保规则管理器已初始化"""
         if not self._rule_manager_initialized:
             try:
-                await rule_manager.initialize()
+                import asyncio
+                # 延迟导入rule_manager
+                from app.services.rule_manager import rule_manager
+                # 添加5秒超时，防止无限阻塞
+                await asyncio.wait_for(rule_manager.initialize(), timeout=5.0)
                 self._rule_manager_initialized = True
                 self.logger.debug("规则管理器初始化完成")
+            except asyncio.TimeoutError:
+                self.logger.error("规则管理器初始化超时（5秒），跳过初始化")
+                # 标记为已尝试，避免重复初始化
+                self._rule_manager_initialized = True
             except Exception as e:
                 self.logger.error(f"规则管理器初始化失败: {e}")
                 # 即使失败也标记为已尝试，避免重复初始化
@@ -53,6 +62,9 @@ class MessageFilterProcessor(MessageProcessor):
         - 进行广告检测
         - 判断是否自动拒绝
         """
+        # 立即输出debug日志确认进入方法
+        self.logger.debug(f"🔍 MessageFilterProcessor.process() 开始处理消息 #{context.telegram_message.id}")
+        
         # 导入性能监控
         try:
             from app.services.performance_monitor import PerformanceTimer, perf_logger
@@ -79,7 +91,9 @@ class MessageFilterProcessor(MessageProcessor):
             # 步骤1: 提取消息实体（包括隐藏链接）
             if filter_timer:
                 entity_timer = filter_timer.add_child("extract_entities").start()
+            self.logger.debug(f"开始提取实体 #{message.id}")
             await self._extract_entities(context)
+            self.logger.debug(f"完成提取实体 #{message.id}")
             if filter_timer:
                 entity_timer.stop()
             
@@ -90,7 +104,20 @@ class MessageFilterProcessor(MessageProcessor):
             # 步骤3: 使用过滤管道进行内容过滤（核心性能瓶颈）
             if filter_timer:
                 pipeline_timer = filter_timer.add_child("content_filtering").start()
-            await self._apply_content_filter(context, media_files)
+            self.logger.debug(f"开始内容过滤 #{message.id}")
+            
+            # 添加超时保护，防止过滤管道阻塞
+            import asyncio
+            try:
+                await asyncio.wait_for(self._apply_content_filter(context, media_files), timeout=30.0)
+                self.logger.debug(f"完成内容过滤 #{message.id}")
+            except asyncio.TimeoutError:
+                self.logger.error(f"内容过滤超时（30秒），跳过过滤 #{message.id}")
+                # 设置默认值，继续处理
+                context.filtered_content = context.processed_content
+                context.is_ad = False
+                context.filter_reason = "过滤超时"
+            
             if filter_timer:
                 pipeline_timer.stop()
                 pipeline_timer.set_metric("media_files_count", len(media_files))

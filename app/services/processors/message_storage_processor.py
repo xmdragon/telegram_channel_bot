@@ -5,6 +5,7 @@
 import logging
 import hashlib
 import json
+import asyncio
 from typing import Optional, Dict
 
 from app.services.processors.base import MessageProcessor, ProcessorResult, MessageContext
@@ -59,13 +60,37 @@ class MessageStorageProcessor(MessageProcessor):
             # 【方案1修改】检查是否为已合并的组消息
             is_combined = getattr(context, 'is_combined_message', False)
             
-            if is_combined:
+            # 🚀 新增：检查历史采集器传递的完整组消息
+            is_complete_group = getattr(message, '_is_complete_group', False)
+            
+            if is_combined or is_complete_group:
                 # 已合并的组消息，直接保存，添加组合消息标记
-                self.logger.info(f"📦 检测到已合并组消息: #{message.id} | channel: {context.channel_id}")
+                group_type = "历史采集组消息" if is_complete_group else "已合并组消息"
+                group_size = getattr(message, '_group_size', 'unknown')
+                self.logger.info(f"📦 检测到{group_type}: #{message.id} | channel: {context.channel_id} | 大小: {group_size}")
                 context.save_data['is_combined'] = True
                 
                 # 保存合并信息
-                if hasattr(context, 'combined_messages') and context.combined_messages:
+                if is_complete_group and hasattr(message, '_group_messages'):
+                    # 历史采集器传递的完整组消息
+                    group_messages = message._group_messages
+                    context.save_data['combined_messages'] = json.dumps([msg.id for msg in group_messages])
+                    context.save_data['group_size'] = len(group_messages)
+                    
+                    # 合并所有消息的内容
+                    combined_content = []
+                    for msg in group_messages:
+                        if hasattr(msg, 'message') and msg.message:
+                            combined_content.append(msg.message)
+                        elif hasattr(msg, 'text') and msg.text:
+                            combined_content.append(msg.text)
+                    
+                    if combined_content:
+                        context.save_data['content'] = '\n\n'.join(combined_content)
+                        self.logger.debug(f"合并组消息内容: {len(combined_content)} 段")
+                    
+                elif hasattr(context, 'combined_messages') and context.combined_messages:
+                    # 原有的已合并消息处理
                     context.save_data['combined_messages'] = json.dumps(context.combined_messages)
                 if hasattr(context, 'media_group') and context.media_group:
                     context.save_data['media_group'] = json.dumps(context.media_group)
@@ -120,8 +145,8 @@ class MessageStorageProcessor(MessageProcessor):
                 except Exception as e:
                     self.logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
             
-            # 发送WebSocket通知更新统计数据
-            await self._notify_stats_update()
+            # 发送WebSocket通知更新统计数据（异步，不等待）
+            asyncio.create_task(self._notify_stats_update())
             
             return ProcessorResult(True, context)
             

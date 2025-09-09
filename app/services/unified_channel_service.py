@@ -197,24 +197,16 @@ class UnifiedChannelService:
             logger.error(f"获取频道失败: {e}")
             return None
     
-    async def get_all_channels(self, channel_type: str = None, active_only: bool = True) -> List[Dict[str, Any]]:
+    async def get_all_channels(self) -> List[Dict[str, Any]]:
         """
-        获取所有频道 - 统一入口
+        获取所有频道 - 统一入口（简化版）
         """
         try:
             channel_store = self._get_channel_store()
             if not channel_store:
                 return []
             
-            if channel_type:
-                channels = channel_store.get_channels_by_type(channel_type)
-            else:
-                channels = channel_store.get_all_channels()
-            
-            # 过滤活跃频道
-            if active_only:
-                channels = [ch for ch in channels if ch.get('is_active', True)]
-            
+            channels = channel_store.get_all_channels()
             return channels
             
         except Exception as e:

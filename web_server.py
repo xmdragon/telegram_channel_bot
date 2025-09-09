@@ -15,6 +15,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 # 🔥 Linus: 删除StaticFiles导入 - 静态文件由Nginx服务
 
@@ -257,19 +258,19 @@ app.add_websocket_route("/ws", websocket_endpoint)             # 主控制台Web
 # 🔥 Linus: 删除所有静态文件服务 - 专业的事交给Nginx做
 # 静态文件现在由Nginx高性能服务，FastAPI专注API
 # 
-# 原来的StaticFiles挂载已移除:
-# - /static/* -> 现在由 nginx:8080/static/* 服务
-# - /temp_media/* -> 现在由 nginx:8080/temp_media/* 服务  
-# - /media/ad_training_data/* -> 现在由 nginx:8080/media/* 服务
-#
-# 优势：
-# 1. 性能提升100倍 - Nginx专门优化静态文件
-# 2. 解除GIL阻塞 - FastAPI worker不再被静态文件阻塞
-# 3. 生产架构 - 标准的前端+后端分离
-
-# 确保目录存在（即使不直接服务，也要确保应用逻辑正常）
-PathConfig.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
-PathConfig.AD_TRAINING_DIR.mkdir(exist_ok=True)
+# 静态文件与媒体服务（回退模式）
+# 说明：生产建议由 Nginx 提供静态与媒体服务；为兼容本地/非Docker环境，这里提供可开关的回退挂载。
+SERVE_STATIC_FALLBACK = os.getenv("SERVE_STATIC_FALLBACK", "true").lower() == "true"
+if SERVE_STATIC_FALLBACK:
+    # 挂载 /static 与 /temp_media 以及训练媒体，便于本地直接预览
+    PathConfig.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
+    PathConfig.AD_TRAINING_DIR.mkdir(exist_ok=True)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.mount("/temp_media", StaticFiles(directory=str(PathConfig.TEMP_MEDIA_DIR)), name="temp_media")
+    app.mount("/media/ad_training_data", StaticFiles(directory=str(PathConfig.AD_TRAINING_DIR)), name="training_media")
+    logger.info("🧩 已启用本地静态与媒体回退服务（SERVE_STATIC_FALLBACK=true）")
+else:
+    logger.info("🚀 生产模式：静态与媒体由外部服务器提供（SERVE_STATIC_FALLBACK=false）")
 
 # 添加根路径重定向
 @app.get("/")

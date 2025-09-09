@@ -1,4 +1,4 @@
-// 广告训练样本管理组件
+// 关键词管理组件
 
 // 确保API配置可用
 const API = window.API;
@@ -91,8 +91,8 @@ const app = createApp({
                 // 加载统计信息
                 await this.loadStatistics();
             } catch (error) {
-                console.error('加载训练样本失败:', error);
-                window.SimpleUI.Message.error('加载训练样本失败');
+                console.error('加载关键词规则失败:', error);
+                window.SimpleUI.Message.error('加载关键词规则失败');
             } finally {
                 this.loading = false;
             }
@@ -202,12 +202,12 @@ const app = createApp({
             try {
                 const vectorId = vector.id;
                 if (!vectorId) {
-                    window.SimpleUI.Message.info('样本ID缺失，无法删除');
+                    window.SimpleUI.Message.info('规则ID缺失，无法删除');
                     return;
                 }
                 
                 await window.SimpleUI.MessageBox.confirm(
-                    '确定要删除这个训练样本吗？',
+                    '确定要删除这个关键词规则吗？',
                     '确认删除',
                     {
                         confirmButtonText: '确定',
@@ -238,7 +238,7 @@ const app = createApp({
             
             try {
                 await window.SimpleUI.MessageBox.confirm(
-                    `确定要删除选中的 ${this.selectedVectors.length} 个训练样本吗？`,
+                    `确定要删除选中的 ${this.selectedVectors.length} 个关键词规则吗？`,
                     '批量删除确认',
                     {
                         confirmButtonText: '确定删除',
@@ -249,7 +249,7 @@ const app = createApp({
                 
                 const ids = this.selectedVectors.map(v => v.id).filter(id => id);
                 if (ids.length === 0) {
-                    window.SimpleUI.Message.info('所选样本ID缺失，无法删除');
+                    window.SimpleUI.Message.info('所选规则ID缺失，无法删除');
                     return;
                 }
                 await axios.delete(API.training.adVectorsBatch, { data: { vector_ids: ids } });
@@ -288,8 +288,8 @@ const app = createApp({
                     this.testResult = null;
                 }
             } catch (error) {
-                console.error('测试检测失败:', error);
-                window.SimpleUI.Message.error('测试检测失败');
+                console.error('测试关键词检测失败:', error);
+                window.SimpleUI.Message.error('测试关键词检测失败');
                 this.testResult = null;
             } finally {
                 this.testLoading = false;
@@ -299,7 +299,7 @@ const app = createApp({
         // 添加向量
         async addVector() {
             if (!this.addContent.trim()) {
-                window.SimpleUI.Message.warning('请输入训练样本内容');
+                window.SimpleUI.Message.warning('请输入关键词内容');
                 return;
             }
             
@@ -311,7 +311,7 @@ const app = createApp({
                 });
                 
                 if (response.data.success) {
-                    window.SimpleUI.Message.success('训练样本添加成功');
+                    window.SimpleUI.Message.success('关键词规则添加成功');
                     this.addDialog = false;
                     this.addContent = '';
                     await this.loadVectors();
@@ -319,8 +319,8 @@ const app = createApp({
                     window.SimpleUI.Message.info(response.data.message);
                 }
             } catch (error) {
-                console.error('添加训练样本失败:', error);
-                window.SimpleUI.Message.error('添加训练样本失败');
+                console.error('添加关键词规则失败:', error);
+                window.SimpleUI.Message.error('添加关键词规则失败');
             } finally {
                 this.addLoading = false;
             }

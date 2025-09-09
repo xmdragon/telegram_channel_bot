@@ -194,22 +194,25 @@ class TelegramCollectorService:
                 # 启动任务处理器
                 task_processor_task = asyncio.create_task(self.run_task_processor())
                 
-                previous_collection_enabled = None
+                # 修复：初始化为False而不是None，确保第一次能检测到状态变化
+                previous_collection_enabled = False
                 
                 while self.is_running:
                     # 检查采集开关
                     from app.services.config_manager import config_manager
                     collection_enabled = await config_manager.get_config('collection.enabled', False)
                     
-                    # 检测采集开关状态变化
-                    if previous_collection_enabled is not None and previous_collection_enabled != collection_enabled:
+                    # 检测采集开关状态变化（修复：包含初始状态检查）
+                    if previous_collection_enabled != collection_enabled:
                         if collection_enabled:
                             # 采集从禁用变为启用 - 启动bot
                             logger.info("🟢 检测到采集已启用，启动Telegram Bot...")
                             
                             # 检查是否需要重新采集历史（checkpoint是否为空）
                             from app.storage.redis_manager import redis_manager
-                            has_checkpoints = redis_manager.client.hlen("channel:checkpoint") > 0
+                            # 修复：检查正确的checkpoint键模式
+                            checkpoint_keys = redis_manager.client.keys("telegram:channel:*:checkpoint")
+                            has_checkpoints = len(checkpoint_keys) > 0
                             
                             if not has_checkpoints:
                                 logger.info("📊 检测到checkpoint为空（可能刚完成系统重置），需要重新采集历史消息")
@@ -227,7 +230,8 @@ class TelegramCollectorService:
                                     # Bot未运行，需要启动新的Bot（会自动触发历史采集）
                                     logger.info("Bot未运行，启动新Bot...")
                             else:
-                                checkpoint_count = redis_manager.client.hlen("channel:checkpoint")
+                                # 修复：使用正确的checkpoint键模式统计数量
+                                checkpoint_count = len(checkpoint_keys)
                                 logger.info(f"📊 检测到已有 {checkpoint_count} 个频道的checkpoint，将从上次位置继续采集")
                             
                             # 原有的Bot启动逻辑
@@ -664,9 +668,11 @@ class TelegramCollectorService:
                     import json
                     import os
                     
-                    # 更新消息的媒体信息
+                    # 更新消息的媒体信息 - 转换为web可访问URL
+                    from app.services.media_handler import media_handler
+                    media_url = await media_handler.get_media_url(media_info["file_path"])
                     update_data = {
-                        'media_url': media_info["file_path"],
+                        'media_url': media_url,
                         'media_type': media_info.get("media_type", msg_data.get('media_type')),
                         'media_hash': media_info.get("hash", ''),
                         'visual_hash': json.dumps(media_info.get("visual_hashes", {})) if media_info.get("visual_hashes") else '',
@@ -718,10 +724,13 @@ class TelegramCollectorService:
                         media_display_url = f'/temp_media/{file_name}' if file_name else None
                         
                         # 构造通知数据
+                        # 转换为web可访问URL
+                        from app.services.media_handler import media_handler
+                        media_url = await media_handler.get_media_url(media_info["file_path"])
                         notification_data = {
                             "message_id": message_id,
                             "success": True,
-                            "media_url": media_info["file_path"],
+                            "media_url": media_url,
                             "media_display_url": media_display_url,
                             "media_type": media_info.get("media_type"),
                             "file_size": media_info.get("file_size"),
@@ -770,9 +779,11 @@ class TelegramCollectorService:
                         import traceback
                         logger.error(f"详细错误信息: {traceback.format_exc()}")
                     
-                    # 完成任务
+                    # 完成任务 - 转换为web可访问URL
+                    from app.services.media_handler import media_handler
+                    media_url = await media_handler.get_media_url(media_info["file_path"])
                     result = {
-                        "media_url": media_info["file_path"],
+                        "media_url": media_url,
                         "media_type": media_info["media_type"],
                         "file_size": media_info["file_size"],
                         "refetched": True

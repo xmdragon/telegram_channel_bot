@@ -1,7 +1,8 @@
 {
   "version": "1.0",
-  "last_updated": "2025-09-09T14:30:26.360742",
+  "last_updated": "2025-08-21T00:00:00.000000",
   "description": "统一过滤规则配置 - 支持动态学习和规则管理",
+  
   "rule_categories": {
     "high_risk_keywords": {
       "description": "高危广告关键词（正则表达式模式）",
@@ -20,7 +21,7 @@
           "pattern": "(?:USDT|泰达币|虚拟币|加密货币).*(?:娱乐城|娛樂城|平台|充值|提款)",
           "weight": 10,
           "description": "虚拟币赌博平台",
-          "category": "gambling",
+          "category": "gambling", 
           "auto_learned": false,
           "created_at": "2025-08-21T00:00:00.000000"
         },
@@ -223,266 +224,10 @@
           "category": "fraud",
           "auto_learned": false,
           "created_at": "2025-08-21T00:00:00.000000"
-        },
-        {
-          "pattern": "(?:娱乐城)",
-          "weight": 10,
-          "description": "广告样本提取: 娱乐城",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217435",
-          "source_count": 63
-        },
-        {
-          "pattern": "(?:博彩)",
-          "weight": 10,
-          "description": "广告样本提取: 博彩",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217502",
-          "source_count": 26
-        },
-        {
-          "pattern": "(?:赌场)",
-          "weight": 10,
-          "description": "广告样本提取: 赌场",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217547",
-          "source_count": 13
-        },
-        {
-          "pattern": "(?:USDT)",
-          "weight": 10,
-          "description": "广告样本提取: USDT",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217702",
-          "source_count": 97
-        },
-        {
-          "pattern": "(?:U存U提)",
-          "weight": 10,
-          "description": "广告样本提取: U存U提",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217782",
-          "source_count": 8
-        },
-        {
-          "pattern": "(?:出款)",
-          "weight": 10,
-          "description": "广告样本提取: 出款",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217819",
-          "source_count": 68
-        },
-        {
-          "pattern": "(?:提款)",
-          "weight": 10,
-          "description": "广告样本提取: 提款",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217857",
-          "source_count": 33
-        },
-        {
-          "pattern": "(?:充值)",
-          "weight": 10,
-          "description": "广告样本提取: 充值",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217895",
-          "source_count": 20
-        },
-        {
-          "pattern": "(?:首存)",
-          "weight": 10,
-          "description": "广告样本提取: 首存",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217931",
-          "source_count": 66
-        },
-        {
-          "pattern": "(?:二存)",
-          "weight": 10,
-          "description": "广告样本提取: 二存",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.217968",
-          "source_count": 11
-        },
-        {
-          "pattern": "(?:三存)",
-          "weight": 10,
-          "description": "广告样本提取: 三存",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218003",
-          "source_count": 17
-        },
-        {
-          "pattern": "(?:返水)",
-          "weight": 10,
-          "description": "广告样本提取: 返水",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218038",
-          "source_count": 30
-        },
-        {
-          "pattern": "(?:优惠)",
-          "weight": 10,
-          "description": "广告样本提取: 优惠",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218077",
-          "source_count": 16
-        },
-        {
-          "pattern": "(?:赠送)",
-          "weight": 10,
-          "description": "广告样本提取: 赠送",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218156",
-          "source_count": 82
-        },
-        {
-          "pattern": "(?:盘总)",
-          "weight": 10,
-          "description": "广告样本提取: 盘总",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218227",
-          "source_count": 36
-        },
-        {
-          "pattern": "(?:狗庄)",
-          "weight": 10,
-          "description": "广告样本提取: 狗庄",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218295",
-          "source_count": 6
-        },
-        {
-          "pattern": "(?:爆奖)",
-          "weight": 10,
-          "description": "广告样本提取: 爆奖",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218432",
-          "source_count": 18
-        },
-        {
-          "pattern": "(?:奔驰)",
-          "weight": 10,
-          "description": "广告样本提取: 奔驰诈骗模式",
-          "category": "fraud",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218596"
-        },
-        {
-          "pattern": "(?:豪车)",
-          "weight": 10,
-          "description": "广告样本提取: 豪车诈骗模式",
-          "category": "fraud",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218642"
-        },
-        {
-          "pattern": "(?:百亿)",
-          "weight": 10,
-          "description": "广告样本提取: 百亿诈骗模式",
-          "category": "fraud",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218661"
-        },
-        {
-          "pattern": "(?:巨额)",
-          "weight": 10,
-          "description": "广告样本提取: 巨额诈骗模式",
-          "category": "fraud",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218679"
-        },
-        {
-          "pattern": "(?:千万)",
-          "weight": 10,
-          "description": "广告样本提取: 千万诈骗模式",
-          "category": "fraud",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218700"
-        },
-        {
-          "pattern": "[0-9]+万[UuＵｕ美金]",
-          "weight": 10,
-          "description": "广告样本提取: 大额资金宣传",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.218800"
-        },
-        {
-          "pattern": "[a-zA-Z0-9]+\\d+\\.(?:com|vip|top|net)",
-          "weight": 9,
-          "description": "广告样本提取: 赌博网站域名模式",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219508"
-        },
-        {
-          "pattern": "(?:UU).*(?:娱乐|娛樂|国际|國際|平台|体育)",
-          "weight": 10,
-          "description": "广告样本提取: UU赌博平台",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219578"
-        },
-        {
-          "pattern": "(?:9Y).*(?:娱乐|娛樂|国际|國際|平台|体育)",
-          "weight": 10,
-          "description": "广告样本提取: 9Y赌博平台",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219610"
-        },
-        {
-          "pattern": "(?:2028).*(?:娱乐|娛樂|国际|國際|平台|体育)",
-          "weight": 10,
-          "description": "广告样本提取: 2028赌博平台",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219633"
-        },
-        {
-          "pattern": "(?:N9).*(?:娱乐|娛樂|国际|國際|平台|体育)",
-          "weight": 10,
-          "description": "广告样本提取: N9赌博平台",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219667"
-        },
-        {
-          "pattern": "(?:西港).*(?:娱乐|娛樂|国际|國際|平台|体育)",
-          "weight": 10,
-          "description": "广告样本提取: 西港赌博平台",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219698"
-        },
-        {
-          "pattern": "(?:永旺).*(?:娱乐|娛樂|国际|國際|平台|体育)",
-          "weight": 10,
-          "description": "广告样本提取: 永旺赌博平台",
-          "category": "gambling",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219731"
         }
       ]
     },
+    
     "promo_patterns": {
       "description": "推广内容特征模式（来自pattern_detector.py）",
       "enabled": true,
@@ -662,39 +407,16 @@
           "category": "promotion",
           "auto_learned": false,
           "created_at": "2025-08-21T00:00:00.000000"
-        },
-        {
-          "pattern": "(?:客服|代理|官方|频道|招商).*@[a-zA-Z][a-zA-Z0-9_]{3,30}",
-          "weight": 8,
-          "description": "广告样本提取: 官方联系方式模式",
-          "category": "contact",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219192"
-        },
-        {
-          "pattern": "[😀-🙏🌀-🗿🚀-🛿🇦-🇿]{8,}",
-          "weight": 6,
-          "description": "广告样本提取: 表情符号密集使用",
-          "category": "promotion",
-          "auto_learned": true,
-          "created_at": "2025-09-09T12:19:57.219543"
-        },
-        {
-          "pattern": "测试关键词",
-          "weight": 8,
-          "description": "手动添加的广告规则 - manual",
-          "category": "manual_addition",
-          "auto_learned": false,
-          "created_at": "2025-09-09T14:30:26.360523",
-          "added_by": "manual"
         }
       ]
     },
+    
     "learned_patterns": {
       "description": "自动学习的广告模式",
       "enabled": true,
       "patterns": []
     },
+    
     "promo_vector_keywords": {
       "description": "TrailingPromoFilter内容类型分析关键词",
       "enabled": true,
@@ -703,109 +425,47 @@
           "description": "强推广信号关键词",
           "weight": 3,
           "keywords": [
-            "订阅",
-            "关注",
-            "加群",
-            "联系",
-            "@",
-            "商务合作",
-            "投稿",
-            "频道",
-            "群组",
-            "客服",
-            "咨询",
-            "报名",
-            "购买",
-            "下单",
-            "优惠",
-            "折扣",
-            "促销",
-            "限时",
-            "活动",
-            "奖励"
+            "订阅", "关注", "加群", "联系", "@", "商务合作", "投稿",
+            "频道", "群组", "客服", "咨询", "报名", "购买", "下单",
+            "优惠", "折扣", "促销", "限时", "活动", "奖励"
           ]
         },
         "weak_promo_signals": {
           "description": "弱推广信号关键词",
           "weight": 1,
           "keywords": [
-            "更多",
-            "详情",
-            "了解",
-            "点击",
-            "进入",
-            "查看"
+            "更多", "详情", "了解", "点击", "进入", "查看"
           ]
         },
         "educational_signals": {
           "description": "教育内容信号关键词",
           "weight": 2,
           "keywords": [
-            "学习",
-            "教育",
-            "知识",
-            "技能",
-            "课程",
-            "培训",
-            "指导",
-            "方法",
-            "技巧",
-            "经验",
-            "分享",
-            "总结",
-            "分析",
-            "研究",
-            "理论",
-            "实践",
-            "案例",
-            "建议",
-            "提醒",
-            "注意",
-            "避免"
+            "学习", "教育", "知识", "技能", "课程", "培训", "指导",
+            "方法", "技巧", "经验", "分享", "总结", "分析", "研究",
+            "理论", "实践", "案例", "建议", "提醒", "注意", "避免"
           ]
         },
         "entertainment_signals": {
           "description": "娱乐内容信号关键词",
           "weight": 1,
           "keywords": [
-            "搞笑",
-            "有趣",
-            "娱乐",
-            "故事",
-            "段子",
-            "笑话",
-            "趣闻",
-            "八卦",
-            "明星",
-            "影视",
-            "游戏",
-            "音乐",
-            "视频"
+            "搞笑", "有趣", "娱乐", "故事", "段子", "笑话", "趣闻",
+            "八卦", "明星", "影视", "游戏", "音乐", "视频"
           ]
         },
         "news_signals": {
           "description": "新闻内容信号关键词",
           "weight": 1,
           "keywords": [
-            "新闻",
-            "报道",
-            "发布",
-            "宣布",
-            "公告",
-            "通知",
-            "政策",
-            "法规",
-            "规定",
-            "决定",
-            "会议",
-            "讨论",
-            "发言",
-            "表示"
+            "新闻", "报道", "发布", "宣布", "公告", "通知", "政策",
+            "法规", "规定", "决定", "会议", "讨论", "发言", "表示"
           ]
         }
       }
     }
   },
+  
   "learning_config": {
     "enabled": true,
     "confidence_threshold": 0.8,
@@ -814,20 +474,20 @@
     "learning_weight_increment": 1,
     "auto_cleanup_threshold": 30
   },
+  
   "learning_stats": {
-    "total_learned": 33,
-    "last_learning": "2025-09-09T14:30:26.360656",
+    "total_learned": 0,
+    "last_learning": null,
     "patterns_by_category": {
-      "gambling": 25,
-      "fraud": 5,
+      "gambling": 0,
+      "fraud": 0,
       "pornography": 0,
-      "promotion": 1,
+      "promotion": 0,
       "advertisement": 0,
       "business": 0,
-      "contact": 1,
+      "contact": 0,
       "external_link": 0,
-      "other": 0,
-      "manual_addition": 1
+      "other": 0
     },
     "patterns_removed": 0,
     "last_cleanup": null

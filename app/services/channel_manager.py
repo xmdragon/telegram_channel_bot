@@ -19,7 +19,7 @@ class ChannelManager:
     async def get_all_channels(self) -> List[Dict]:
         """获取所有频道"""
         try:
-            return await unified_channel_service.get_all_channels(active_only=True)
+            return await unified_channel_service.get_all_channels()
         except Exception as e:
             logger.error(f"获取频道列表失败: {e}")
             return []
@@ -27,7 +27,7 @@ class ChannelManager:
     async def get_source_channels(self) -> List[Dict]:
         """获取源频道列表"""
         try:
-            return await unified_channel_service.get_all_channels(channel_type="source", active_only=True)
+            return await unified_channel_service.get_all_channels()
         except Exception as e:
             logger.error(f"获取源频道列表失败: {e}")
             return []
@@ -77,7 +77,7 @@ class ChannelManager:
         """解析缺失的频道ID"""
         try:
             # 获取所有频道
-            channels = await unified_channel_service.get_all_channels(active_only=False)
+            channels = await unified_channel_service.get_all_channels()
             resolved_count = 0
             
             from app.services.channel_id_resolver import channel_id_resolver
@@ -111,7 +111,7 @@ class ChannelManager:
     async def get_channel_info_for_display(self) -> Dict[str, Dict]:
         """获取用于前端显示的频道信息映射"""
         try:
-            channels = await unified_channel_service.get_all_channels(active_only=False)
+            channels = await unified_channel_service.get_all_channels()
             channel_info = {}
             
             for channel in channels:

@@ -148,10 +148,11 @@ class MessageGrouper:
     
     async def _create_single_message(self, message_data: Dict, channel_id: str) -> Dict:
         """创建单独消息"""
-        # 如果有媒体信息，保存本地文件路径
+        # 如果有媒体信息，转换为web可访问URL
         media_url = None
-        if message_data.get('media_info'):
-            media_url = message_data['media_info']['file_path']
+        if message_data.get('media_info') and message_data['media_info'].get('file_path'):
+            from app.services.media_handler import media_handler
+            media_url = await media_handler.get_media_url(message_data['media_info']['file_path'])
         
         return {
             'message_id': message_data['message_id'],
@@ -732,7 +733,9 @@ class MessageGrouper:
         # 为组合消息保存主媒体文件路径
         main_media_url = None
         if media_group:
-            main_media_url = media_group[0]['file_path']
+            # 转换为web可访问URL
+            from app.services.media_handler import media_handler
+            main_media_url = await media_handler.get_media_url(media_group[0]['file_path']) if media_group[0].get('file_path') else None
         
         return {
             'message_id': main_message['message_id'],

@@ -45,7 +45,7 @@ class HistoryCollector:
                 return
             
             # 获取所有源频道 (使用新的统一服务)
-            channels = await unified_channel_service.get_all_channels(channel_type="source", active_only=True)
+            channels = await unified_channel_service.get_all_channels()
             
             if not channels:
                 logger.warning("未找到活跃的源频道")
@@ -117,6 +117,61 @@ class HistoryCollector:
         
         logger.info(f"获取主消息ID完成: 扫描{message_count}条消息，获得{len(main_messages)}个主消息")
         return main_messages[:limit]
+
+    async def _get_main_message_ids_v2(self, client: TelegramClient, entity, min_id: int, limit: int) -> List[Dict]:
+        """
+        获取主消息ID列表 V2版本 - 优化版本，确保获取足够的主消息
+        返回: [{'id': 2838, 'type': 'single'}, 
+               {'id': 2830, 'type': 'group', 'group_id': '14058570976263685'}, ...]
+        """
+        main_messages = []
+        seen_groups = set()
+        
+        logger.info(f"开始获取主消息ID列表，min_id={min_id}, 需要{limit}个主消息")
+        
+        # 获取更多消息确保有足够主消息（每10条消息大约1个主消息）
+        scan_limit = max(limit * 10, 10)  # 至少扫描10条
+        message_count = 0
+        
+        try:
+            logger.info(f"[DEBUG] 开始iter_messages循环，scan_limit={scan_limit}, min_id={min_id}")
+            async for msg in client.iter_messages(entity, limit=scan_limit, min_id=min_id):
+                if not msg or not msg.id:
+                    continue
+                    
+                message_count += 1
+                if message_count % 5 == 0:
+                    logger.info(f"[DEBUG] 已处理 {message_count} 条消息，主消息数: {len(main_messages)}")
+                
+                # 组消息处理
+                if hasattr(msg, 'grouped_id') and msg.grouped_id:
+                    group_id = str(msg.grouped_id)
+                    if group_id not in seen_groups:
+                        seen_groups.add(group_id)
+                        main_messages.append({
+                            'id': msg.id,
+                            'type': 'group',
+                            'group_id': group_id
+                        })
+                        logger.debug(f"发现组消息: ID={msg.id}, 组={group_id}")
+                else:
+                    # 单独消息
+                    main_messages.append({
+                        'id': msg.id,
+                        'type': 'single'
+                    })
+                    logger.debug(f"发现单独消息: ID={msg.id}")
+                
+                # 达到需要的主消息数量就停止
+                if len(main_messages) >= limit:
+                    break
+                    
+        except Exception as e:
+            logger.error(f"获取主消息ID时异常: {e}")
+            # 如果出错，返回已获取的部分
+        
+        logger.info(f"获取主消息ID完成: 扫描{message_count}条消息，获得{len(main_messages)}个主消息")
+        return main_messages[:limit]
     
     async def _fetch_complete_group(self, client: TelegramClient, entity, group_id: str, sample_id: int) -> List:
         """获取完整的组消息"""
@@ -148,7 +203,9 @@ class HistoryCollector:
         
         logger.info(f"开始获取{len(main_messages)}个主消息的完整数据")
         
+        logger.info(f"[DEBUG] 开始处理 {len(main_messages)} 个主消息")
         for i, main_msg in enumerate(main_messages, 1):
+            logger.info(f"[DEBUG] 处理第 {i}/{len(main_messages)} 个主消息: ID={main_msg['id']}, type={main_msg['type']}")
             try:
                 if main_msg['type'] == 'group':
                     # 获取整个组的消息
@@ -178,8 +235,104 @@ class HistoryCollector:
         logger.info(f"完整数据获取完成: {len(main_messages)}个主消息 → {len(all_messages)}条实际消息")
         return all_messages
 
+    async def _fetch_complete_message(self, client: TelegramClient, entity, main_msg_info: Dict) -> List:
+        """根据主消息信息获取完整消息数据"""
+        try:
+            if main_msg_info['type'] == 'group':
+                # 获取整组消息
+                logger.debug(f"获取组消息: ID={main_msg_info['id']}, 组={main_msg_info['group_id']}")
+                return await self._fetch_complete_group(
+                    client, entity,
+                    main_msg_info['group_id'],
+                    main_msg_info['id']
+                )
+            else:
+                # 获取单条消息
+                logger.debug(f"获取单消息: ID={main_msg_info['id']}")
+                msg = await client.get_messages(entity, ids=main_msg_info['id'])
+                return [msg] if msg else []
+                
+        except Exception as e:
+            logger.error(f"获取完整消息失败 {main_msg_info}: {e}")
+            return []
+
+    async def _download_all_media(self, client: TelegramClient, messages: List) -> None:
+        """下载所有消息的媒体文件"""
+        if not messages:
+            return
+            
+        media_tasks = []
+        for msg in messages:
+            if hasattr(msg, 'media') and msg.media:
+                # 为每个有媒体的消息创建下载任务
+                task = self._download_single_media(client, msg)
+                media_tasks.append(task)
+        
+        if media_tasks:
+            logger.info(f"开始并发下载 {len(media_tasks)} 个媒体文件...")
+            # 并发下载所有媒体
+            results = await asyncio.gather(*media_tasks, return_exceptions=True)
+            
+            # 统计下载结果
+            success_count = sum(1 for r in results if r is True)
+            failed_count = len(results) - success_count
+            logger.info(f"媒体下载完成: 成功 {success_count}, 失败 {failed_count}")
+        else:
+            logger.debug("没有媒体文件需要下载")
+
+    async def _download_single_media(self, client: TelegramClient, message) -> bool:
+        """下载单条消息的媒体文件"""
+        try:
+            if not hasattr(message, 'media') or not message.media:
+                return True  # 没有媒体也算成功
+                
+            logger.debug(f"下载消息 #{message.id} 的媒体文件...")
+            
+            # 调用现有的媒体处理逻辑
+            from app.services.media_handler import MediaHandler
+            media_handler = MediaHandler()
+            
+            # 下载媒体文件 - 传递正确的参数
+            result = await media_handler.download_media(client, message, message.id)
+            return bool(result)  # 转换为布尔值
+            
+        except Exception as e:
+            logger.error(f"下载消息 #{message.id} 媒体失败: {e}")
+            return False
+
+    async def _process_main_message(self, messages: List, entity) -> None:
+        """处理主消息（单消息或组消息）"""
+        try:
+            if len(messages) > 1:
+                # 组消息：合并处理
+                representative = messages[0]
+                representative._group_messages = messages
+                representative._is_complete_group = True
+                representative._group_size = len(messages)
+                
+                logger.info(f"处理组消息: #{representative.id} ({len(messages)}条)")
+                if self._message_processor:
+                    logger.info(f"[DEBUG] 开始调用消息处理器处理组消息 #{representative.id}")
+                    await self._message_processor(representative, entity)
+                    logger.info(f"[DEBUG] 消息处理器完成处理组消息 #{representative.id}")
+                else:
+                    logger.warning("消息处理器未设置")
+            else:
+                # 单消息：直接处理
+                message = messages[0]
+                logger.debug(f"处理单消息: #{message.id}")
+                if self._message_processor:
+                    await self._message_processor(message, entity)
+                else:
+                    logger.warning("消息处理器未设置")
+                    
+        except Exception as e:
+            msg_ids = [msg.id for msg in messages]
+            logger.error(f"处理消息失败 {msg_ids}: {e}")
+            raise
+
     async def _collect_single_channel_history(self, client: TelegramClient, channel: dict, limit: int):
-        """采集单个频道的历史消息（支持增量采集）- 使用Redis存储"""
+        """采集单个频道的历史消息（主消息驱动模式）- 使用Redis存储"""
         try:
             channel_id = channel.get('channel_id')
             channel_name = channel.get('channel_name', 'unknown')
@@ -207,182 +360,83 @@ class HistoryCollector:
             
             # 🔥 Linus式解决方案：在源头确保类型安全
             min_id = int(checkpoint_id) if checkpoint_id else 0
-            batch_limit = int(limit)  # 确保limit也是int类型
             
             if checkpoint_id:
                 # 继续增量采集
                 logger.info(f"从checkpoint {checkpoint_id} 继续增量采集")
             else:
                 # 首次采集历史消息 - 使用传入的limit参数
-                logger.info(f"首次采集，获取最近 {limit} 条历史消息")
+                logger.info(f"首次采集，获取最近 {limit} 条主消息")
             
-            # 采集历史消息 - 先收集到列表，然后按时间顺序处理
-            collected_messages = []
-            latest_message_id = int(checkpoint_id or 0)
+            # 🚀 主消息驱动模式：按主消息顺序处理
+            logger.info(f"开始主消息驱动采集，min_id={min_id}, 需要{limit}个主消息")
             
-            logger.info(f"开始采集，min_id={min_id}, limit={batch_limit}")
+            # 步骤1: 获取主消息ID列表
+            main_message_ids = await self._get_main_message_ids_v2(
+                client, entity, min_id, limit
+            )
             
-            message_count = 0
-            max_retries = 3
-            retry_count = 0
-            
-            while retry_count < max_retries:
-                try:
-                    # 🎆 Linus式两阶段采集：先获取主消息ID，再获取完整数据
-                    
-                    # 第一阶段：获取主消息ID列表
-                    main_message_ids = await self._get_main_message_ids(
-                        client, entity, min_id, batch_limit
-                    )
-                    
-                    if not main_message_ids:
-                        logger.info(f"频道 {channel_name} 没有新消息")
-                        break
-                    
-                    # 第二阶段：获取完整消息数据
-                    collected_messages = await self._fetch_messages_by_ids(
-                        client, entity, main_message_ids
-                    )
-                    
-                    # 计算最新消息ID用于checkpoint
-                    if collected_messages:
-                        latest_message_id = max(msg.id for msg in collected_messages)
-                        message_count = len(collected_messages)
-                        logger.info(f"获取 {len(main_message_ids)} 个主消息，共 {message_count} 条实际消息（最新ID: {latest_message_id}）")
-                    else:
-                        logger.warning(f"虽然发现 {len(main_message_ids)} 个主消息，但获取完整数据失败")
-                        message_count = 0
-                    
-                    # 成功获取消息，跳出重试循环
-                    break
-                    
-                except Exception as e:
-                    retry_count += 1
-                    import traceback
-                    error_msg = str(e).lower()
-                    
-                    # 检查是否是网络连接错误
-                    is_network_error = any(keyword in error_msg for keyword in [
-                        'connection', 'network', 'timeout', 'server closed', 
-                        'bytes read', 'connection lost', 'socket'
-                    ])
-                    
-                    if is_network_error and retry_count < max_retries:
-                        wait_time = 2 ** retry_count  # 指数退避
-                        logger.warning(f"网络连接错误，{wait_time}秒后重试 ({retry_count}/{max_retries}): {e}")
-                        await asyncio.sleep(wait_time)
-                        
-                        # 尝试重新连接客户端
-                        try:
-                            if not client.is_connected():
-                                logger.info("重新连接Telegram客户端...")
-                                await client.connect()
-                        except Exception as reconnect_e:
-                            logger.error(f"重新连接失败: {reconnect_e}")
-                        
-                        continue
-                    else:
-                        # 非网络错误或重试次数用完
-                        logger.error(f"iter_messages异常 (重试{retry_count}次后失败): {e}")
-                        logger.error(f"详细错误: {traceback.format_exc()}")
-                        
-                        # 如果有部分消息已收集，保存中间进度
-                        if collected_messages and latest_message_id > int(checkpoint_id or 0):
-                            logger.info(f"保存中间进度: {len(collected_messages)} 条消息")
-                            redis_channel_store.set_checkpoint(channel_id, latest_message_id)
-                        
-                        return
-                        
-            logger.info(f"消息获取完成: 共获取 {message_count} 条消息，范围 min_id={min_id}, limit={batch_limit}")
-            if retry_count > 0:
-                logger.info(f"网络重试 {retry_count} 次后成功")
-            
-            # 如果没有新消息
-            if not collected_messages:
-                collection_type = "新频道" if not checkpoint_id else "频道"
-                logger.info(f"{collection_type} {channel_name} 没有新消息，已是最新")
-                    
-                # 💡 保留：无新消息时仍需更新checkpoint到最新位置
-                if latest_message_id > int(checkpoint_id or 0):
-                    redis_channel_store.set_checkpoint(channel_id, latest_message_id)
-                    logger.info(f"📍 无新消息，checkpoint更新到最新位置: {channel_id} -> {latest_message_id}")
+            if not main_message_ids:
+                logger.info(f"频道 {channel_name} 没有新的主消息")
                 return
             
-            # 按时间顺序（旧的在前）处理消息，这样媒体组能正确组合
-            collected_messages.reverse()
+            logger.info(f"获取到 {len(main_message_ids)} 个主消息，开始逐个处理...")
             
-            # 🔥 Linus式简化：不需要区分新频道还是增量，统一日志
-            collection_type = "历史消息" if not checkpoint_id else "增量消息"
-            logger.info(f"收集到 {len(collected_messages)} 条{collection_type}，开始处理...")
+            # 统计信息
+            processed_count = 0
+            failed_count = 0
+            latest_message_id = int(checkpoint_id or 0)
             
-            # 处理收集到的消息
-            logger.info(f"开始处理 {len(collected_messages)} 条消息...")
-            
-            # 详细统计各种处理结果
-            stats = {
-                'saved': 0,         # 成功保存
-                'queued': 0,        # 异步入队（视为成功）
-                'filtered': 0,      # 被过滤
-                'duplicate': 0,     # 重复消息
-                'pending_group': 0, # 等待媒体组合并
-                'failed': 0,        # 处理失败
-                'error': 0,         # 异常错误
-                'unknown': 0        # 未知原因
-            }
-            
-            for idx, message in enumerate(collected_messages, 1):
+            # 步骤2: 逐个处理每个主消息
+            for idx, main_msg_info in enumerate(main_message_ids, 1):
                 try:
-                    # 调用消息处理器处理消息（添加动态超时保护）
-                    if self._message_processor:
-                        # Linus式修复：直接调用，不使用外层超时（媒体下载已有内部超时）
-                        result = await self._message_processor(message, entity)
-                        if result and result in stats:
-                            stats[result] += 1
-                        else:
-                            stats['unknown'] += 1
-                    else:
-                        logger.debug("未设置消息处理器，跳过消息")
-                        stats['error'] += 1
-                        
-                    # 每处理10条消息报告进度
-                    if idx % 10 == 0:
-                        processed = sum(stats.values())
-                        logger.info(f"已处理 {processed}/{len(collected_messages)} 条历史消息...")
-                        
+                    main_id = main_msg_info['id']
+                    msg_type = main_msg_info['type']
+                    
+                    logger.info(f"[{idx}/{len(main_message_ids)}] 处理主消息: #{main_id} ({msg_type})")
+                    
+                    # 获取完整消息数据
+                    messages = await self._fetch_complete_message(client, entity, main_msg_info)
+                    if not messages:
+                        logger.warning(f"主消息 #{main_id} 获取失败，跳过")
+                        failed_count += 1
+                        continue
+                    
+                    # 下载所有媒体
+                    await self._download_all_media(client, messages)
+                    
+                    # 处理消息
+                    await self._process_main_message(messages, entity)
+                    
+                    # 更新checkpoint和计数
+                    latest_message_id = max(latest_message_id, main_id)
+                    redis_channel_store.set_checkpoint(channel_id, latest_message_id)
+                    processed_count += 1
+                    
+                    logger.debug(f"主消息 #{main_id} 处理完成, checkpoint更新到 {latest_message_id}")
+                    
+                    # 每处理5个主消息报告进度
+                    if idx % 5 == 0:
+                        logger.info(f"进度: {idx}/{len(main_message_ids)} 主消息 (成功:{processed_count}, 失败:{failed_count})")
+                    
                 except Exception as e:
-                    import traceback
-                    stats['error'] += 1
-                    logger.error(f"处理历史消息 #{message.id if message else 'None'} 失败: {e}")
-                    logger.error(f"详细错误: {traceback.format_exc()}")
+                    failed_count += 1
+                    logger.error(f"处理主消息 #{main_msg_info.get('id', 'unknown')} 失败: {e}")
                     continue
             
-            # 详细的统计报告
-            total_processed = sum(stats.values())
-            logger.info(f"📊 消息处理完成统计:")
-            logger.info(f"   总共采集: {len(collected_messages)} 条")
-            logger.info(f"   成功保存: {stats['saved']} 条")
-            logger.info(f"   异步入队: {stats['queued']} 条")
-            logger.info(f"   被过滤掉: {stats['filtered']} 条")
-            logger.info(f"   重复消息: {stats['duplicate']} 条")
-            logger.info(f"   等待合并: {stats['pending_group']} 条")
-            logger.info(f"   处理失败: {stats['failed']} 条")
-            logger.info(f"   异常错误: {stats['error']} 条")
-            logger.info(f"   未知原因: {stats['unknown']} 条")
-            logger.info(f"   处理率: {total_processed}/{len(collected_messages)} ({(total_processed/len(collected_messages)*100):.1f}%)")
+            # 处理完成统计
+            total_processed = len(main_message_ids)
+            logger.info(f"主消息处理完成: 总共 {total_processed} 个主消息，成功 {processed_count} 个，失败 {failed_count} 个")
             
-            # 计算成功处理的消息数（保存 + 入队）
-            success_count = stats['saved'] + stats['queued']
+            # 如果没有处理任何消息
+            if processed_count == 0:
+                collection_type = "新频道" if not checkpoint_id else "频道"
+                logger.info(f"{collection_type} {channel_name} 没有新主消息需要处理")
+                return
             
-            # 如果成功数量太少，发出警告
-            if success_count < len(collected_messages) * 0.1:  # 少于10%
-                logger.warning(f"⚠️ 保存率较低: {success_count}/{len(collected_messages)} ({(success_count/len(collected_messages)*100):.1f}%)，请检查过滤规则")
-            
-            # ✅ 修复：移除末尾checkpoint更新 - 现在每条消息保存成功后立即更新
-            # checkpoint更新已移至MessageStorageProcessor，确保只有成功保存的消息才更新checkpoint
-            
+            # 最终checkpoint已在处理过程中更新
             collection_type = "历史消息" if not checkpoint_id else "增量"
-            logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 保存 {stats['saved']} 条，入队 {stats['queued']} 条，过滤 {stats['filtered']} 条，重复 {stats['duplicate']} 条，总计 {len(collected_messages)} 条")
-            logger.info(f"📍 Checkpoint将由每条保存成功的消息自动更新，无需手动设置")
+            logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 成功处理 {processed_count}/{total_processed} 个主消息")
             
         except Exception as e:
             import traceback

@@ -81,7 +81,7 @@ class MessageHandler:
                 perf_ctx.start_stage("pipeline_setup")
                 
                 # 使用统一的处理器管道
-                from app.services.processors import MessagePipeline, MessageReceiver, MediaDownloader, MessageFilterProcessor, MessageStorageProcessor
+                from app.services.processors import MessagePipeline, MessageReceiver, MessageFilterProcessor, MessageStorageProcessor
                 from app.services.processors.base import MessageContext
                 
                 # 创建处理上下文
@@ -93,7 +93,6 @@ class MessageHandler:
                 # 创建处理管道
                 pipeline = MessagePipeline([
                     MessageReceiver(),
-                    MediaDownloader(),
                     MessageFilterProcessor(), 
                     MessageStorageProcessor()
                 ])
@@ -178,7 +177,7 @@ class MessageHandler:
             return "unknown"
 
     async def process_source_message(self, message: TLMessage, chat):
-        """处理源频道消息 - 改为快速入队模式"""
+        """处理源频道消息 - 使用统一处理流程"""
         # 获取格式化的频道ID
         raw_chat_id = chat.id
         if raw_chat_id > 0:
@@ -186,102 +185,13 @@ class MessageHandler:
         else:
             channel_id = str(raw_chat_id)
         
-        return await self.process_source_message_async_queue(message, channel_id, chat)
+        # 直接使用统一的处理方法
+        return await self.process_message_unified(
+            message=message,
+            channel_id=channel_id,
+            chat=chat
+        )
     
-    async def process_source_message_async_queue(self, message: TLMessage, channel_id: str, chat):
-        """Linus式异步队列处理 - collector负责完整采集（含媒体下载和组消息合并）"""
-        try:
-            # 1. 快速提取基础信息
-            collected_msg = await self._extract_message_quickly(message, channel_id, chat)
-            
-            # 2. 静默丢弃空消息（无内容无媒体）
-            if not collected_msg.content and not collected_msg.has_media:
-                return "empty_discarded"
-            
-            # 3. 如果有媒体，在collector环境中立即下载
-            if collected_msg.has_media:
-                try:
-                    # 判断是否需要下载
-                    if self._should_download_media(collected_msg.media_type):
-                        logger.info(f"开始下载媒体: {message.id} ({collected_msg.media_type})")
-                        
-                        # 获取Telegram客户端
-                        client = await self._get_telegram_client()
-                        if not client:
-                            raise Exception("无法获取Telegram客户端")
-                        
-                        # 直接使用media_handler下载
-                        from app.services.media_handler import media_handler
-                        downloaded_media = await media_handler.download_media(
-                            client,
-                            message,
-                            str(message.id),
-                            timeout=1800.0
-                        )
-                        
-                        if downloaded_media and downloaded_media.get('file_path'):
-                            # 下载成功，保存媒体信息
-                            collected_msg.media_info = downloaded_media
-                            logger.info(f"媒体下载成功: {collected_msg.message_key}")
-                        else:
-                            logger.warning(f"媒体下载失败: {collected_msg.message_key}")
-                            collected_msg.media_info = {
-                                'media_type': collected_msg.media_type,
-                                'download_failed': True
-                            }
-                    else:
-                        logger.debug(f"媒体类型 {collected_msg.media_type} 不需要下载")
-                        collected_msg.media_info = {
-                            'media_type': collected_msg.media_type,
-                            'skipped': True
-                        }
-                        
-                except Exception as media_error:
-                    logger.error(f"collector媒体下载异常: {media_error}, 继续处理")
-                    collected_msg.media_info = {
-                        'media_type': collected_msg.media_type,
-                        'download_failed': True,
-                        'error': str(media_error)
-                    }
-            
-            # 4. 【新增】如果是组消息，在collector中完成组合并
-            if collected_msg.is_group_member:
-                logger.info(f"检测到组消息: {collected_msg.message_key} (grouped_id: {collected_msg.grouped_id})")
-                merged_message = await self._handle_group_message_in_collector(collected_msg, message, channel_id)
-                
-                if merged_message is None:
-                    # 消息已缓冲，等待其他组成员
-                    logger.debug(f"⏳ 组消息已缓冲，等待完整组: {collected_msg.grouped_id}")
-                    return "group_buffered"
-                
-                # 使用合并后的消息
-                collected_msg = merged_message
-                logger.info(f"✅ 组消息合并完成: {collected_msg.message_key}")
-            
-            # 5. 消息入队（现在包含完整信息，组消息已预合并）
-            queue = get_message_queue()
-            
-            # 如果是已合并的组消息，强制作为单消息入队
-            if collected_msg.raw_data.get('is_combined'):
-                success = await queue._enqueue_single_message(collected_msg)
-                logger.debug(f"已合并组消息作为单消息入队: {collected_msg.message_key}")
-            else:
-                success = await queue.enqueue_message(collected_msg)
-            
-            if success:
-                media_status = "含媒体" if collected_msg.has_media else "纯文本"
-                group_status = "组合并" if collected_msg.is_group_member else "单消息"
-                logger.debug(f"⚡ 完整消息入队: {collected_msg.message_key} ({media_status}, {group_status})")
-                return "queued"
-            else:
-                logger.error(f"消息入队失败: {collected_msg.message_key}")
-                # 失败时回退到同步处理
-                return await self.process_message_unified(message, channel_id, chat)
-                
-        except Exception as e:
-            logger.error(f"异步队列处理失败: {e}, 回退到同步模式")
-            # 任何错误都回退到原有的同步处理
-            return await self.process_message_unified(message, channel_id, chat)
     
     async def _extract_message_quickly(self, message: TLMessage, channel_id: str, chat) -> CollectedMessage:
         """快速提取消息基础信息 - Linus式最小必要信息"""
@@ -322,21 +232,6 @@ class MessageHandler:
             }
         )
     
-    async def process_source_message_sync(self, message: TLMessage, chat):
-        """同步处理模式 - 保留原有功能作为回退方案"""
-        # 获取格式化的频道ID
-        raw_chat_id = chat.id
-        if raw_chat_id > 0:
-            channel_id = f"-100{raw_chat_id}"
-        else:
-            channel_id = str(raw_chat_id)
-        
-        # 调用统一的处理方法
-        return await self.process_message_unified(
-            message=message,
-            channel_id=channel_id,
-            chat=chat
-        )
     
     async def process_review_message(self, message: TLMessage, chat):
         """处理审核群中的消息"""

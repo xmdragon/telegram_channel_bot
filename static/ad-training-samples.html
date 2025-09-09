@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>广告训练样本管理</title>
+    <title>关键词管理</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <!-- 动态版本号 - 防缓存 -->
@@ -29,7 +29,7 @@
             <div class="stats-section compact">
                 <div class="stats-inline">
                     <div class="stat-item-inline">
-                        <span class="stat-label">总样本数:</span>
+                        <span class="stat-label">关键词规则数:</span>
                         <span class="stat-value">{{ stats.totalVectors }}</span>
                     </div>
                     <div class="stat-item-inline">
@@ -63,10 +63,10 @@
                         <!-- 按钮栏 -->
                         <div class="button-bar">
                             <button @click="addDialog = true" class="btn btn-success">
-                                ➕ 添加样本
+                                ➕ 添加关键词
                             </button>
                             <button @click="testDialog = true" class="btn btn-info">
-                                🧪 测试检测
+                                🧪 测试关键词
                             </button>
                             <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedVectors.length">
                                 🗑️ 批量删除 ({{ selectedVectors.length }})
@@ -80,7 +80,7 @@
             <div class="table-section">
                 <div class="table-card">
                     <div class="table-header">
-                        <h3 class="table-title">🎯 广告训练样本</h3>
+                        <h3 class="table-title">🔤 关键词管理</h3>
                     </div>
                     <div class="table-content">
                         <div v-if="loading" class="loading-container">
@@ -134,7 +134,7 @@
                             </table>
                             <div v-if="!vectors.length" class="empty-state">
                                 <div class="empty-icon">📄</div>
-                                <div class="empty-text">暂无训练样本</div>
+                                <div class="empty-text">暂无关键词规则</div>
                             </div>
                         </div>
                     </div>
@@ -155,7 +155,7 @@
         <div v-if="detailDialog" class="modal-overlay" @click="closeDetailDialog">
             <div class="modal-content" @click.stop>
                 <div class="modal-header">
-                    <h3>样本详情</h3>
+                    <h3>关键词详情</h3>
                     <button class="modal-close" @click="closeDetailDialog">✖️</button>
                 </div>
                 <div class="modal-body" v-if="currentVector">
@@ -198,16 +198,16 @@
         <div v-if="addDialog" class="modal-overlay" @click="closeAddDialog">
             <div class="modal-content" @click.stop>
                 <div class="modal-header">
-                    <h3>添加训练样本</h3>
+                    <h3>添加关键词规则</h3>
                     <button class="modal-close" @click="closeAddDialog">✖️</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>样本内容：</label>
-                        <textarea v-model="addContent" class="form-control" rows="6" placeholder="请输入广告内容..."></textarea>
+                        <label>关键词内容：</label>
+                        <textarea v-model="addContent" class="form-control" rows="6" placeholder="请输入关键词或短语..."></textarea>
                     </div>
                     <div class="form-group">
-                        <label>样本来源：</label>
+                        <label>规则来源：</label>
                         <select v-model="addSource" class="form-control">
                             <option value="manual">手动添加</option>
                             <option value="auto">自动检测</option>
@@ -228,7 +228,7 @@
         <div v-if="testDialog" class="modal-overlay" @click="closeTestDialog">
             <div class="modal-content" @click.stop>
                 <div class="modal-header">
-                    <h3>测试广告检测</h3>
+                    <h3>测试关键词检测</h3>
                     <button class="modal-close" @click="closeTestDialog">✖️</button>
                 </div>
                 <div class="modal-body">
