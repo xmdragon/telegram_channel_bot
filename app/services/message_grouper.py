@@ -810,7 +810,7 @@ class MessageGrouper:
     async def _update_group_checkpoint(self, combined_message: Dict, channel_id: str):
         """更新组消息checkpoint到组内最大消息ID"""
         try:
-            from app.storage.redis_store import RedisChannelStore
+            from app.storage.channel_store import RedisChannelStore
             from app.storage.redis_manager import redis_manager
             
             # 获取组内所有消息ID
