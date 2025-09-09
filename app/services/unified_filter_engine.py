@@ -119,19 +119,19 @@ class UnifiedFilterEngine:
             ad_detector_enabled = to_bool(ad_detector_enabled)
             auto_reject_ads = to_bool(auto_reject_ads)
             
-            # 分层架构配置
+            # 分层架构配置 - Linus式修复：主开关控制一切
             settings = {
-                # 分层控制
-                'content_layer_enabled': True,  # 内容清理层默认启用
-                'detector_layer_enabled': ad_detector_enabled, # 检测器层由ad_detector控制
+                # 主开关false时，所有过滤都禁用
+                'content_layer_enabled': filter_enabled,  # 主开关控制内容层
+                'detector_layer_enabled': filter_enabled and ad_detector_enabled, # 主开关 AND 检测器开关
                 
-                # 内容清理过滤器 - 通过层级管理
-                'tail_filter': tail_filter_enabled,
-                'footer_promo_filter': footer_promo_enabled,
-                'markdown_filter': markdown_enabled,
-                'promo_vector_filter': promo_vector_enabled,
+                # 子过滤器只在主开关true时生效
+                'tail_filter': filter_enabled and tail_filter_enabled,
+                'footer_promo_filter': filter_enabled and footer_promo_enabled,
+                'markdown_filter': filter_enabled and markdown_enabled,
+                'promo_vector_filter': filter_enabled and promo_vector_enabled,
                 
-                # 其他配置
+                # 广告拒绝独立控制（不受主开关影响）
                 'auto_reject_ads': auto_reject_ads
             }
             
@@ -140,15 +140,16 @@ class UnifiedFilterEngine:
             
         except Exception as e:
             logger.error(f"加载过滤器设置失败，使用默认配置: {e}")
-            # 返回默认分层设置
+            # 返回默认分层设置 - Linus式一致性：主开关默认启用
+            filter_enabled_default = True  # 默认启用过滤
             return {
-                'content_layer_enabled': True,
-                'detector_layer_enabled': True,
-                'tail_filter': True,
-                'footer_promo_filter': True,
-                'markdown_filter': True,
-                'promo_vector_filter': True,
-                'auto_reject_ads': True
+                'content_layer_enabled': filter_enabled_default,
+                'detector_layer_enabled': filter_enabled_default,
+                'tail_filter': filter_enabled_default,
+                'footer_promo_filter': filter_enabled_default,
+                'markdown_filter': filter_enabled_default,
+                'promo_vector_filter': filter_enabled_default,
+                'auto_reject_ads': True  # 广告拒绝独立控制
             }
         
     def _initialize_components(self):
