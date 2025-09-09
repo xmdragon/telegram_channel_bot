@@ -795,11 +795,43 @@ class MessageGrouper:
         """准备组合消息数据（不再直接保存）"""
         try:
             # 返回处理后的组合消息数据
-            return await self._trigger_combined_message_event(combined_message, channel_id)
+            processed_data = await self._trigger_combined_message_event(combined_message, channel_id)
+            
+            # 🔥 Linus式修复：组消息保存后立即更新checkpoint
+            if processed_data:
+                await self._update_group_checkpoint(combined_message, channel_id)
+            
+            return processed_data
             
         except Exception as e:
             logger.error(f"准备组合消息数据时出错: {e}")
             return None
+    
+    async def _update_group_checkpoint(self, combined_message: Dict, channel_id: str):
+        """更新组消息checkpoint到组内最大消息ID"""
+        try:
+            from app.storage.redis_store import RedisChannelStore
+            from app.storage.redis_manager import redis_manager
+            
+            # 获取组内所有消息ID
+            message_ids = []
+            for msg in combined_message.get('messages', []):
+                msg_id = msg.get('message_id')
+                if msg_id:
+                    message_ids.append(int(msg_id))
+            
+            if message_ids:
+                max_msg_id = max(message_ids)
+                channel_store = RedisChannelStore(redis_manager.client)
+                success = channel_store.set_checkpoint(channel_id, max_msg_id)
+                
+                if success:
+                    logger.info(f"✅ 组消息checkpoint更新: {channel_id} -> {max_msg_id}")
+                else:
+                    logger.warning(f"⚠️ 组消息checkpoint更新失败: {channel_id} -> {max_msg_id}")
+                    
+        except Exception as e:
+            logger.error(f"更新组消息checkpoint失败: {e}")
     
     async def _trigger_combined_message_event(self, combined_message: Dict, channel_id: str):
         """返回组合消息数据（不再直接保存）"""
