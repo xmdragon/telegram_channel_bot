@@ -283,11 +283,8 @@ const ConfigApp = {
                     this.channels = response.data.channels;
                 }
             } catch (error) {
-                // 使用模拟数据
-                this.channels = [
-                    { id: 1, name: '测试频道1', title: '测试频道标题1', status: 'active' },
-                    { id: 2, name: '测试频道2', title: '测试频道标题2', status: 'inactive' }
-                ];
+                console.error('加载频道列表失败:', error);
+                this.channels = [];
             }
         },
         
