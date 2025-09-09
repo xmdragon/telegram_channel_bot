@@ -172,25 +172,36 @@ fi
 echo "✅ 所有服务已停止"
 echo
 
-# 步骤2：智能重启Docker服务（修复启动时序问题）
+# 步骤2：Linus式修复 - 重启原生服务，彻底消除Docker
 if [ "$KEEP_REDIS" = false ]; then
-    echo "2️⃣ 重启Docker基础设施服务..."
-    if [ -f "tools/docker/wait_for_services_simple.sh" ]; then
-        echo "📋 重启并等待服务就绪"
-        docker compose restart redis nginx > /dev/null 2>&1 || true
-        sleep 2  # 短暂等待容器重启
-        if ! bash tools/docker/wait_for_services_simple.sh; then
-            echo "❌ Docker服务重启失败，但继续尝试启动"
-        fi
+    echo "2️⃣ 重启本地Redis和Nginx服务..."
+    
+    # 重启Redis服务
+    echo "📦 重启Redis服务..."
+    brew services restart redis > /dev/null 2>&1 || true
+    
+    # 重启Nginx服务  
+    echo "🌐 重启Nginx服务..."
+    brew services restart nginx > /dev/null 2>&1 || true
+    
+    # 等待服务完全重启
+    echo "⏳ 等待服务重启完成（3秒）..."
+    sleep 3
+    
+    # 验证服务状态
+    if ! redis-cli ping >/dev/null 2>&1; then
+        echo "❌ Redis重启后连接失败，但继续尝试启动"
     else
-        # 后备方案：传统重启
-        echo "⚠️  等待脚本未找到，使用传统重启方式"
-        docker compose restart redis nginx > /dev/null 2>&1 || true
-        echo "⏳ 等待服务重启（3秒）..."
-        sleep 3
+        [ "$VERBOSE" = true ] && echo "✅ Redis重启成功"
+    fi
+    
+    if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
+        echo "❌ Nginx重启后服务异常，但继续尝试启动"
+    else
+        [ "$VERBOSE" = true ] && echo "✅ Nginx重启成功"
     fi
 else
-    [ "$VERBOSE" = true ] && echo "2️⃣ 保持Docker服务不变..."
+    [ "$VERBOSE" = true ] && echo "2️⃣ 保持本地服务不变..."
 fi
 
 echo

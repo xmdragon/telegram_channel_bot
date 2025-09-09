@@ -207,11 +207,18 @@ fi
 echo "✅ 所有服务进程已停止"
 
 # 停止Redis服务
+# Linus式修复：停止原生服务，彻底消除Docker依赖
 if [ "$KEEP_REDIS" = false ]; then
-    [ "$QUIET" = false ] && echo "🐳 停止Redis服务..."
-    docker compose stop redis 2>/dev/null || true
+    [ "$QUIET" = false ] && echo "🍺 本地服务管理："
+    [ "$QUIET" = false ] && echo "   - Redis: brew services stop redis (可选)"
+    [ "$QUIET" = false ] && echo "   - Nginx: brew services stop nginx (可选)"
+    [ "$QUIET" = false ] && echo ""
+    [ "$QUIET" = false ] && echo "💡 提示："
+    [ "$QUIET" = false ] && echo "   本地服务可以继续运行，供其他应用使用"
+    [ "$QUIET" = false ] && echo "   如需完全停止，请手动运行："
+    [ "$QUIET" = false ] && echo "   brew services stop redis nginx"
 else
-    [ "$VERBOSE" = true ] && echo "⏭️ 保持Redis服务运行"
+    [ "$VERBOSE" = true ] && echo "⏭️ 保持本地服务运行（推荐）"
 fi
 
 # 清理PID文件

@@ -43,8 +43,8 @@
   },
   "collection.enabled": {
     "value": "true",
-    "config_type": "string",
-    "description": "测试采集器实时检测",
+    "config_type": "boolean",
+    "description": "系统重置时自动禁用采集",
     "is_active": true,
     "created_at": "2025-09-08T16:42:33.415787"
   },

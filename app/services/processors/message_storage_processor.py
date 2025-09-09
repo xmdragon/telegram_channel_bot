@@ -106,6 +106,9 @@ class MessageStorageProcessor(MessageProcessor):
                 status = saved_message.get('status', 'unknown')
                 message_type_desc = "已合并组消息" if is_combined else ("组消息(降级)" if grouped_id else "单消息")
                 self.logger.info(f"{message_type_desc}已保存: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
+                
+                # ✅ 关键修复：消息保存成功后立即更新checkpoint
+                await self._update_checkpoint_after_save(context, saved_message)
             
             # 如果消息已自动批准（人工审核关闭），自动提交发布任务
             if context.save_data and context.save_data.get('status') == 'approved':
@@ -448,4 +451,40 @@ class MessageStorageProcessor(MessageProcessor):
         except Exception as e:
             # 通知失败不应该影响消息处理流程，只记录错误
             self.logger.debug(f"发送统计更新通知失败: {e}")
+    
+    async def _update_checkpoint_after_save(self, context, saved_message):
+        """消息保存成功后立即更新checkpoint"""
+        try:
+            if not saved_message:
+                return
+            
+            channel_id = context.channel_id
+            message_id = saved_message.get('message_id')
+            
+            if not channel_id or not message_id:
+                self.logger.warning(f"无法更新checkpoint：channel_id={channel_id}, message_id={message_id}")
+                return
+            
+            # 导入必要的模块
+            from app.storage.channel_store import RedisChannelStore
+            from app.storage.redis_manager import redis_manager
+            
+            # 创建channel store
+            try:
+                channel_store = RedisChannelStore(redis_manager.client)
+                
+                # 设置checkpoint
+                success = channel_store.set_checkpoint(channel_id, int(message_id))
+                
+                if success:
+                    self.logger.info(f"✅ Checkpoint已更新: {channel_id} -> {message_id}")
+                else:
+                    self.logger.error(f"❌ Checkpoint更新失败: {channel_id} -> {message_id}")
+                    
+            except Exception as store_error:
+                self.logger.error(f"创建channel store失败: {store_error}")
+                
+        except Exception as e:
+            # checkpoint更新失败不应该影响消息保存流程
+            self.logger.error(f"更新checkpoint失败: {e}")
 

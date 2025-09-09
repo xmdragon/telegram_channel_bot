@@ -144,24 +144,38 @@ fi
 # 创建必要的目录
 mkdir -p logs data temp_media
 
-# 启动并等待Docker服务就绪（修复启动时序问题）
-echo "🐳 启动Docker基础设施服务..."
-if [ -f "tools/docker/wait_for_services_simple.sh" ]; then
-    echo "📋 使用智能等待机制确保服务就绪"
-    if ! bash tools/docker/wait_for_services_simple.sh; then
-        echo "❌ Docker服务启动失败"
-        exit 1
-    fi
+# Linus式修复：启动原生服务，消除Docker特殊情况
+echo "🍺 启动本地Redis和Nginx服务..."
+
+# 检查并启动Redis
+if ! brew services list | grep -q "redis.*started"; then
+    echo "📦 启动Redis..."
+    brew services start redis
 else
-    # 后备方案：传统启动方式
-    echo "⚠️  等待脚本未找到，使用传统启动方式"
-    if ! docker compose ps redis 2>/dev/null | grep -q "running"; then
-        echo "📦 启动Redis和Nginx..."
-        docker compose up -d
-    else
-        echo "✅ Docker服务已在运行中"
-    fi
+    echo "✅ Redis已在运行"
 fi
+
+# 检查并启动Nginx
+if ! brew services list | grep -q "nginx.*started"; then
+    echo "🌐 启动Nginx..."
+    brew services start nginx
+else
+    echo "✅ Nginx已在运行"
+fi
+
+# 验证服务状态
+echo "🔧 验证服务状态..."
+if ! redis-cli ping >/dev/null 2>&1; then
+    echo "❌ Redis连接失败"
+    exit 1
+fi
+echo "✅ Redis连接正常"
+
+if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
+    echo "❌ Nginx静态文件服务异常"
+    exit 1
+fi
+echo "✅ Nginx服务正常"
 
 
 # 如果使用传统模式

@@ -161,7 +161,32 @@ class RedisManager:
             message_data = self.client.hget(message_key, "data")
             
             if message_data:
-                return self._deserialize_json(message_data)
+                message = self._deserialize_json(message_data)
+                
+                # Linus式修复：对特殊的JSON字段进行二次解析
+                if message:
+                    # media_group字段需要二次解析
+                    if 'media_group' in message and isinstance(message['media_group'], str):
+                        try:
+                            message['media_group'] = json.loads(message['media_group'])
+                        except (json.JSONDecodeError, TypeError):
+                            pass  # 保持原值
+                    
+                    # combined_messages字段需要二次解析
+                    if 'combined_messages' in message and isinstance(message['combined_messages'], str):
+                        try:
+                            message['combined_messages'] = json.loads(message['combined_messages'])
+                        except (json.JSONDecodeError, TypeError):
+                            pass  # 保持原值
+                            
+                    # visual_hash字段需要二次解析
+                    if 'visual_hash' in message and isinstance(message['visual_hash'], str):
+                        try:
+                            message['visual_hash'] = json.loads(message['visual_hash'])
+                        except (json.JSONDecodeError, TypeError):
+                            pass  # 保持原值
+                
+                return message
             return None
             
         except Exception as e:
@@ -203,70 +228,25 @@ class RedisManager:
                 logger.error(f"获取消息失败: {e}")
             return None
     
-    def update_message(self, channel_id: str, message_id: int, update_data: Dict[str, Any]) -> bool:
-        """更新消息"""
-        try:
-            message_key = f"message:{channel_id}:{message_id}"
-            
-            # 获取现有数据
-            existing_data = self.get_message(channel_id, message_id)
-            if existing_data is None:
-                return False
-            
-            # 合并更新
-            existing_data.update(update_data)
-            message_json = self._serialize_json(existing_data)
-            
-            # 更新消息
-            result = self.client.hset(message_key, mapping={
-                "data": message_json,
-                "updated_at": get_current_time().isoformat()
-            })
-            
-            logger.debug(f"消息已更新: {channel_id}:{message_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"更新消息失败: {e}")
-            return False
-    
-    def update_message_field(self, channel_id: str, message_id: int, field_name: str, field_value: Any) -> bool:
+    def update_message_atomic(self, message_id: str, update_data: Dict[str, Any], user_id: str = None) -> bool:
         """
-        更新消息的单个字段 - Linus式简洁实现
+        Linus式原子更新消息 - 唯一的消息更新方法
+        
+        消除特殊情况：
+        1. 所有更新都通过这个方法
+        2. 自动处理索引更新
+        3. 强制数据一致性
         
         Args:
-            channel_id: 频道ID
-            message_id: 消息ID
-            field_name: 字段名
-            field_value: 字段值
-            
-        Returns:
-            bool: 是否更新成功
-        """
-        try:
-            # 🚀 Linus式优化：直接使用现有的update_message方法，避免重复代码
-            update_data = {field_name: field_value}
-            return self.update_message(channel_id, message_id, update_data)
-            
-        except Exception as e:
-            logger.error(f"更新消息字段失败 {channel_id}:{message_id}.{field_name}: {e}")
-            return False
-    
-    def update_message_status(self, message_id: str, new_status: str, user_id: str = None) -> bool:
-        """
-        更新消息状态 - 支持完整消息ID格式
-        用于恢复功能和状态变更
-        
-        Args:
-            message_id: 完整消息ID格式 "channel_id:message_id" 
-            new_status: 新状态 (pending/approved/rejected)
+            message_id: 完整消息ID格式 "channel_id:message_id"
+            update_data: 更新数据
             user_id: 操作用户ID (可选)
             
         Returns:
             bool: 是否更新成功
         """
         try:
-            # 解析消息ID：channel_id:message_id
+            # 解析消息ID
             if ':' not in message_id:
                 logger.error(f"消息ID格式错误: {message_id}, 应为 channel_id:message_id 格式")
                 return False
@@ -278,62 +258,145 @@ class RedisManager:
                 logger.error(f"消息ID格式错误: {message_id}, message_id部分必须为数字")
                 return False
             
-            # 🔥 修复核心问题：获取旧状态用于索引更新
+            # 获取现有数据
             existing_data = self.get_message(channel_id, msg_id)
-            if not existing_data:
+            if existing_data is None:
                 logger.error(f"消息不存在: {message_id}")
                 return False
-                
+            
+            # 获取旧状态用于索引更新
             old_status = existing_data.get('status', 'pending')
             
-            # 构建更新数据
-            update_data = {
-                'status': new_status,
-                'updated_at': get_current_time().isoformat()
-            }
+            # 合并更新数据
+            existing_data.update(update_data)
+            existing_data['updated_at'] = get_current_time().isoformat()
             
             if user_id:
-                update_data['updated_by'] = user_id
+                existing_data['updated_by'] = user_id
+            
+            # Linus原则：确保所有消息都有有效status
+            new_status = existing_data.get('status', 'pending')
+            if new_status not in ['pending', 'approved', 'rejected']:
+                logger.warning(f"强制修正无效状态 '{new_status}' -> 'pending': {message_id}")
+                existing_data['status'] = 'pending'
+                new_status = 'pending'
+            
+            # 原子操作：更新消息数据和索引
+            import time
+            current_time = time.time()
+            pipeline = self.client.pipeline()
+            
+            # 更新消息数据
+            message_key = f"message:{channel_id}:{msg_id}"
+            message_json = self._serialize_json(existing_data)
+            pipeline.hset(message_key, mapping={
+                "data": message_json,
+                "updated_at": get_current_time().isoformat()
+            })
+            
+            # 更新索引（仅当状态变更时）
+            if old_status != new_status:
+                # 从所有状态索引中移除（Linus式：消除特殊情况，彻底清理）
+                for status in ['pending', 'approved', 'rejected']:
+                    pipeline.zrem(f"index:msg:{status}", message_id)
                 
-            # 使用现有的update_message方法
-            success = self.update_message(channel_id, msg_id, update_data)
+                # 添加到新状态索引
+                if new_status in ['pending', 'approved', 'rejected']:
+                    pipeline.zadd(f"index:msg:{new_status}", {message_id: current_time})
             
-            # 🔥 修复核心问题：更新状态索引
-            if success and old_status != new_status:
-                try:
-                    import time
-                    current_time = time.time()
-                    pipeline = self.client.pipeline()
-                    
-                    # 🔥 Linus式修复：从所有状态索引中移除，确保彻底清理
-                    # 解决消息可能存在于多个索引的历史问题
-                    for status in ['pending', 'approved', 'rejected']:
-                        pipeline.zrem(f"index:msg:{status}", message_id)
-                    logger.debug(f"从所有状态索引中移除: {message_id}")
-                    
-                    # 添加到新状态索引
-                    if new_status in ['pending', 'approved', 'rejected']:
-                        pipeline.zadd(f"index:msg:{new_status}", {message_id: current_time})
-                        logger.debug(f"添加到索引: index:msg:{new_status} -> {message_id}")
-                    
-                    pipeline.execute()
-                    logger.info(f"✅ 状态索引已更新: {old_status} -> {new_status} ({message_id})")
-                    
-                except Exception as e:
-                    logger.error(f"❌ 更新状态索引失败: {e}")
-                    # 即使索引更新失败，也不回滚消息状态更新，但需要记录警告
-                    logger.warning(f"消息状态已更新但索引可能不一致: {message_id}")
+            # 执行原子操作
+            pipeline.execute()
             
-            if success:
-                logger.info(f"消息状态已更新: {message_id} -> {new_status}" + 
-                           (f" (by {user_id})" if user_id else ""))
+            if old_status != new_status:
+                logger.info(f"✅ 消息和索引已原子更新: {message_id} ({old_status} -> {new_status})")
             else:
-                logger.error(f"消息状态更新失败: {message_id}")
-                
-            return success
+                logger.debug(f"消息已更新: {message_id}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"原子更新消息失败: {e}")
+            return False
+    
+    def update_message_field(self, channel_id: str, message_id: int, field_name: str, field_value: Any, user_id: str = None) -> bool:
+        """
+        更新消息的单个字段 - Linus式简洁实现
+        
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID
+            field_name: 字段名
+            field_value: 字段值
+            user_id: 操作用户ID (可选)
+            
+        Returns:
+            bool: 是否更新成功
+        """
+        try:
+            # Linus式优化：统一使用原子更新方法
+            message_full_id = f"{channel_id}:{message_id}"
+            update_data = {field_name: field_value}
+            return self.update_message_atomic(message_full_id, update_data, user_id)
+            
+        except Exception as e:
+            logger.error(f"更新消息字段失败 {channel_id}:{message_id}.{field_name}: {e}")
+            return False
+    
+    def update_message(self, channel_id: str, message_id: int, update_data: Dict[str, Any]) -> bool:
+        """
+        兼容方法 - 支持旧代码，但调用新的原子更新方法
+        
+        该方法将逐步被废弃，请使用 update_message_atomic()
+        
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID
+            update_data: 更新数据
+            
+        Returns:
+            bool: 是否更新成功
+        """
+        # 转换为新的原子更新方法
+        message_full_id = f"{channel_id}:{message_id}"
+        return self.update_message_atomic(message_full_id, update_data)
+    
+    def update_message_status(self, message_id: str, new_status: str, user_id: str = None) -> bool:
+        """
+        更新消息状态 - Linus式简化实现
+        
+        Args:
+            message_id: 完整消息ID格式 "channel_id:message_id" 
+            new_status: 新状态 (pending/approved/rejected)
+            user_id: 操作用户ID (可选)
+            
+        Returns:
+            bool: 是否更新成功
+        """
+        try:
+            # Linus原则：消除重复代码，直接使用原子更新方法
+            update_data = {'status': new_status}
+            return self.update_message_atomic(message_id, update_data, user_id)
             
         except Exception as e:
             logger.error(f"更新消息状态失败: {e}")
+            return False
+    
+    def update_message_fields(self, message_id: str, fields: Dict[str, Any]) -> bool:
+        """
+        更新消息的多个字段
+        
+        Args:
+            message_id: 完整消息ID格式 "channel_id:message_id"
+            fields: 要更新的字段字典
+            
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            return self.update_message_atomic(message_id, fields)
+            
+        except Exception as e:
+            logger.error(f"更新消息字段失败: {e}")
             return False
     
     def delete_message(self, channel_id_or_full_id: str, message_id: int = None) -> bool:

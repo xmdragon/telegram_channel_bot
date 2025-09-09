@@ -38,13 +38,14 @@
   },
   "ad_detector": {
     "classifier": {
-      "current": 0.92,
+      "current": 0.99,
       "min": 0.4,
-      "max": 0.95,
+      "max": 0.999,
       "history": [
         0.7,
         0.84,
-        0.92
+        0.92,
+        0.99
       ],
       "feedback_stats": {
         "tp": 0,

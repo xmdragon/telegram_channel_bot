@@ -43,6 +43,7 @@ Claude Code 工作指导文档。
 
 ## 重大变更历史
 
+- 2025-09-09: 🚀 **Docker架构完全移除** - 彻底放弃Colima Docker，使用本地Redis+Nginx服务，架构简化，性能提升，稳定性增强
 - 2025-09-06: 🐍 **Python 3.13兼容性修复** - 解决telethon导入作用域问题，所有类型导入必须在模块顶部
 - 2025-09-04: 🗂️ **路由架构重构** - 统一所有路由到app/api/目录，消除app/routers特殊情况，符合Linus设计原则
 - 2025-08-23: 🎯 **Element Plus完全移除** - 全项目UI重构完成，彻底删除Element Plus依赖，使用轻量化SimpleUI系统
@@ -275,9 +276,9 @@ API_ENDPOINTS = {
 
 ## 🏗️ 系统架构概览
 
-### 🏛️ v4.0混合架构设计
+### 🏛️ v5.0本地服务架构设计 (2025-09-09)
 
-系统采用**Docker容器 + 本地服务**的混合部署架构，实现专业化分工：
+系统采用**完全本地化**的部署架构，消除Docker复杂性，实现Linus式简化：
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -287,20 +288,21 @@ API_ENDPOINTS = {
                            │
                            ▼
 ┌─────────────────────────────────────────────────────┐
-│         🐳 Docker容器层 (Infrastructure)             │
+│         🍺 Homebrew本地服务层 (Infrastructure)        │
 │  ┌─────────────────┐    ┌─────────────────────────┐  │
-│  │  Nginx容器      │    │      Redis容器          │  │
+│  │  本地Nginx      │    │      本地Redis          │  │
 │  │  端口: 8080     │    │      端口: 6379         │  │
 │  │  • 静态文件服务  │    │      • 消息数据缓存     │  │
 │  │  • 反向代理      │    │      • 会话管理         │  │
 │  │  • 负载均衡      │    │      • 分布式锁         │  │
+│  │  • 配置简单     │    │      • 启动快速         │  │
 │  └─────────────────┘    └─────────────────────────┘  │
 └─────────────────────────────────────────────────────┘
                            │
                     (反向代理到8000端口)
                            ▼
 ┌─────────────────────────────────────────────────────┐
-│          💻 本地应用服务层 (Application)              │
+│          💻 Python应用服务层 (Application)           │
 │                由dev_supervisor.py统一管理           │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────┐ │
 │  │ Web服务         │ │ Telegram采集    │ │ 调度服务│ │
@@ -323,17 +325,19 @@ API_ENDPOINTS = {
 
 ### 🔧 服务分层架构
 
-#### Docker容器层 (Infrastructure)
-- **Nginx容器** (`nginx:alpine`)
-  - 端口映射：`8080:80`
+#### Homebrew本地服务层 (Infrastructure)
+- **本地Nginx** (`brew install nginx`)
+  - 端口：`8080`
   - 职责：高性能静态文件服务、API反向代理
-  - 配置文件：`nginx/nginx.conf`
-  - 文件挂载：`static/`、`temp_media/`、`data/training/ad/`
+  - 配置文件：`/opt/homebrew/etc/nginx/servers/telegram_bot.conf`
+  - 文件路径：直接访问本地绝对路径，无需挂载
+  - 优势：启动快速，配置简单，性能更优
 
-- **Redis容器** (`redis:7-alpine`)  
-  - 端口映射：`6379:6379`
+- **本地Redis** (`brew install redis`)  
+  - 端口：`6379`
   - 职责：消息数据缓存、会话管理、分布式锁
-  - 持久化：AOF模式，每秒同步
+  - 配置文件：`/opt/homebrew/etc/redis.conf`
+  - 优势：内存直接访问，无虚拟化开销
 
 #### 本地应用服务层 (Application)  
 - **Web服务** (`web_server.py`)
@@ -664,10 +668,15 @@ python3 tools/data/recover_training_data.py --check
 ./dev.sh --status          # 查看服务状态
 ./dev.sh web               # 仅启动Web服务
 
-# 系统管理
-./start.sh                 # 启动生产环境
-./stop.sh                  # 停止所有服务
-./restart.sh               # 重启系统
+# 系统管理 (推荐使用本地服务版)
+./start_native.sh          # 启动本地服务版 (推荐)
+./stop_native.sh           # 停止本地服务版
+./restart_native.sh        # 重启本地服务版
+
+# 系统管理 (传统Docker版，已废弃)
+./start.sh                 # 启动生产环境 (Docker版)
+./stop.sh                  # 停止所有服务 (Docker版)  
+./restart.sh               # 重启系统 (Docker版)
 
 # Git操作
 python3 tools/git/auto_commit.py  # 自动提交

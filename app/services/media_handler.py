@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 from pathlib import Path
+import time
 
 from telethon import TelegramClient
 # Python 3.13兼容性修复：必须在模块顶部导入所有类型
@@ -40,6 +41,16 @@ class MediaHandler:
         self.file_ttl = 86400  # 文件保留24小时
         self._cleanup_task = None
         
+        # 下载进度监控
+        self._download_progress = {}  # {message_id: {"last_progress": current, "last_time": time}}
+        self._progress_stall_timeout = 300  # 5分钟无进度则认为卡住
+        
+        # 进度输出控制
+        self._download_started = set()  # 已开始下载的消息ID
+        self._last_mb_logged = {}  # {message_id: last_mb_logged}
+        self._last_percent_logged = {}  # {message_id: last_percent_logged}
+        self._download_start_time = {}  # {message_id: start_time}
+        
     async def start(self):
         """启动媒体处理器"""
         # 启动定期清理任务
@@ -54,6 +65,79 @@ class MediaHandler:
             self._cleanup_task = None
             logger.info("媒体处理器已停止")
             
+    async def _download_progress_callback(self, current: int, total: int, message_id: str, media_type: str):
+        """下载进度回调函数 - 显示详细的MB进度"""
+        now = time.time()
+        
+        # MB转换
+        mb_current = current / (1024 * 1024)
+        mb_total = total / (1024 * 1024) if total > 0 else 0
+        
+        # 检测卡住
+        if message_id in self._download_progress:
+            last_progress = self._download_progress[message_id]["last_progress"]
+            last_time = self._download_progress[message_id]["last_time"]
+            
+            # 检测是否卡住（进度无变化超过5分钟）
+            if current == last_progress and now - last_time > self._progress_stall_timeout:
+                logger.error(f"🚨 下载卡住: 消息 {message_id} 在{self._progress_stall_timeout/60:.1f}分钟内无进度")
+                # 抛出异常中断下载
+                raise asyncio.TimeoutError(f"下载卡住超过{self._progress_stall_timeout}秒")
+        
+        # 更新进度记录
+        self._download_progress[message_id] = {
+            "last_progress": current,
+            "last_time": now
+        }
+        
+        # 首次下载日志
+        if message_id not in self._download_started:
+            self._download_started.add(message_id)
+            self._download_start_time[message_id] = now
+            if total > 0:
+                logger.info(f"🚀 开始下载 [{media_type}] 消息 {message_id}: 总大小 {mb_total:.2f}MB")
+            else:
+                logger.info(f"🚀 开始下载 [{media_type}] 消息 {message_id}: 大小未知")
+        
+        # 进度日志
+        if total > 0:
+            percent = current * 100 / total
+            
+            # 根据文件大小决定进度报告频率
+            should_log = False
+            if mb_total > 10:  # 大于10MB的文件
+                # 每1MB报告一次
+                last_mb = self._last_mb_logged.get(message_id, -1)
+                if int(mb_current) != int(last_mb):
+                    should_log = True
+                    self._last_mb_logged[message_id] = int(mb_current)
+            else:
+                # 小文件每10%报告一次
+                last_percent = self._last_percent_logged.get(message_id, -1)
+                if int(percent / 10) != int(last_percent / 10):
+                    should_log = True
+                    self._last_percent_logged[message_id] = percent
+            
+            # 输出进度（包括最后1%确保显示100%）
+            if should_log or percent >= 99:
+                logger.info(f"📥 [{media_type}] {message_id}: {mb_current:.1f}MB/{mb_total:.1f}MB ({percent:.0f}%)")
+            
+            # 完成日志
+            if percent >= 100 and message_id in self._download_start_time:
+                elapsed = now - self._download_start_time[message_id]
+                speed = mb_total / elapsed if elapsed > 0 else 0
+                logger.info(f"✅ 下载完成 [{media_type}] {message_id}: {mb_total:.2f}MB, 耗时{elapsed:.1f}秒, 速度{speed:.1f}MB/s")
+                
+                # 清理记录
+                self._download_started.discard(message_id)
+                self._last_mb_logged.pop(message_id, None)
+                self._last_percent_logged.pop(message_id, None)
+                self._download_start_time.pop(message_id, None)
+                self._download_progress.pop(message_id, None)
+        else:
+            # 大小未知的情况
+            logger.info(f"📥 [{media_type}] {message_id}: 已下载 {mb_current:.1f}MB (大小未知)")
+    
     async def download_media(self, client: TelegramClient, message, message_id: int, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """
         下载消息中的媒体文件
@@ -99,8 +183,17 @@ class MediaHandler:
                     # 统一使用1800秒，图片和大文件一视同仁
                     download_timeout = 1800.0
                 try:
+                    # 创建进度回调函数
+                    progress_callback = lambda current, total: asyncio.create_task(
+                        self._download_progress_callback(current, total, str(message_id), "photo")
+                    )
+                    
                     await asyncio.wait_for(
-                        client.download_media(message.media, file_path),
+                        client.download_media(
+                            message.media, 
+                            file_path,
+                            progress_callback=progress_callback
+                        ),
                         timeout=download_timeout
                     )
                 except asyncio.TimeoutError:
@@ -157,8 +250,17 @@ class MediaHandler:
                         download_timeout = 1800.0
                     
                     try:
+                        # 创建进度回调函数
+                        progress_callback = lambda current, total: asyncio.create_task(
+                            self._download_progress_callback(current, total, str(message_id), "webpage_photo")
+                        )
+                        
                         await asyncio.wait_for(
-                            client.download_media(webpage.photo, file_path),
+                            client.download_media(
+                                webpage.photo, 
+                                file_path,
+                                progress_callback=progress_callback
+                            ),
                             timeout=download_timeout
                         )
                         
@@ -225,8 +327,17 @@ class MediaHandler:
                         download_timeout = 1800.0
                     
                     try:
+                        # 创建进度回调函数
+                        progress_callback = lambda current, total: asyncio.create_task(
+                            self._download_progress_callback(current, total, str(message_id), "webpage_document")
+                        )
+                        
                         await asyncio.wait_for(
-                            client.download_media(webpage.document, file_path),
+                            client.download_media(
+                                webpage.document, 
+                                file_path,
+                                progress_callback=progress_callback
+                            ),
                             timeout=download_timeout
                         )
                         
@@ -310,8 +421,17 @@ class MediaHandler:
                     # 🔥 Linus式修复：统一使用1800秒超时，删除复杂计算
                     download_timeout = 1800.0  # 30分钟，统一处理所有媒体类型
                 try:
+                    # 创建进度回调函数
+                    progress_callback = lambda current, total: asyncio.create_task(
+                        self._download_progress_callback(current, total, str(message_id), media_info["media_type"])
+                    )
+                    
                     await asyncio.wait_for(
-                        client.download_media(message.media, file_path),
+                        client.download_media(
+                            message.media, 
+                            file_path,
+                            progress_callback=progress_callback
+                        ),
                         timeout=download_timeout
                     )
                 except asyncio.TimeoutError:
@@ -358,6 +478,11 @@ class MediaHandler:
         except Exception as e:
             logger.error(f"下载媒体文件失败: {e}")
             return None
+        finally:
+            # 清理进度监控记录
+            message_id_str = str(message_id)
+            if message_id_str in self._download_progress:
+                del self._download_progress[message_id_str]
             
     async def get_media_url(self, file_path: str) -> Optional[str]:
         """

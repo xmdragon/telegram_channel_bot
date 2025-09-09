@@ -26,29 +26,7 @@ class HistoryCollector:
         """设置消息处理器回调"""
         self._message_processor = processor
     
-    def calculate_dynamic_timeout(self, message) -> float:
-        """统一超时设置 - Linus式简化：直接返回1800秒"""
-        # 🔥 Linus式修复：删除复杂的动态计算，统一使用1800秒
-        # - 快速下载仍然快速完成（不会等到超时）
-        # - 大文件有充足时间下载
-        # - 避免复杂算法导致的超时过短问题
-        return 1800.0  # 30分钟，足够处理任何大小的媒体文件
-    
-    def get_media_file_size(self, message) -> int:
-        """从消息中提取媒体文件大小（字节）"""
-        if not message or not message.media:
-            return 0
-            
-        # 文档类型（视频、音频等）
-        if hasattr(message.media, 'document') and message.media.document:
-            return message.media.document.size or 0
-        
-        # 图片类型（通常较小，估算）
-        elif message.photo:
-            # 图片大小通常在几百KB，预估500KB
-            return 500 * 1024
-        
-        return 0
+    # Linus式简化：删除不再需要的超时计算方法
     
     async def collect_channel_history(self, client: TelegramClient):
         """采集所有监听频道的历史消息"""
@@ -214,10 +192,10 @@ class HistoryCollector:
                 collection_type = "新频道" if not checkpoint_id else "频道"
                 logger.info(f"{collection_type} {channel_name} 没有新消息，已是最新")
                     
-                # 更新Redis采集点为最新值（如果有更新的消息ID）
+                # 💡 保留：无新消息时仍需更新checkpoint到最新位置
                 if latest_message_id > int(checkpoint_id or 0):
                     redis_channel_store.set_checkpoint(channel_id, latest_message_id)
-                    logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
+                    logger.info(f"📍 无新消息，checkpoint更新到最新位置: {channel_id} -> {latest_message_id}")
                 return
             
             # 按时间顺序（旧的在前）处理消息，这样媒体组能正确组合
@@ -246,32 +224,12 @@ class HistoryCollector:
                 try:
                     # 调用消息处理器处理消息（添加动态超时保护）
                     if self._message_processor:
-                        try:
-                            # 根据媒体文件大小动态计算超时时间
-                            dynamic_timeout = self.calculate_dynamic_timeout(message)
-                            file_size = self.get_media_file_size(message)
-                            file_size_mb = file_size / (1024 * 1024) if file_size > 0 else 0
-                            
-                            logger.debug(f"消息#{message.id} 动态超时: {dynamic_timeout:.1f}秒 "
-                                       f"(文件大小: {file_size_mb:.1f}MB)")
-                            
-                            result = await asyncio.wait_for(
-                                self._message_processor(message, entity),  # entity 就是 chat
-                                timeout=dynamic_timeout  # 动态超时保护
-                            )
-                            if result and result in stats:
-                                stats[result] += 1
-                            else:
-                                stats['unknown'] += 1
-                        except asyncio.TimeoutError:
-                            file_size = self.get_media_file_size(message)
-                            file_size_mb = file_size / (1024 * 1024) if file_size > 0 else 0
-                            timeout_used = self.calculate_dynamic_timeout(message)
-                            
-                            logger.error(f"处理消息#{message.id if message else 'None'}超时"
-                                       f"（{timeout_used:.1f}秒，文件大小: {file_size_mb:.1f}MB），跳过该消息")
-                            stats['error'] += 1
-                            continue
+                        # Linus式修复：直接调用，不使用外层超时（媒体下载已有内部超时）
+                        result = await self._message_processor(message, entity)
+                        if result and result in stats:
+                            stats[result] += 1
+                        else:
+                            stats['unknown'] += 1
                     else:
                         logger.debug("未设置消息处理器，跳过消息")
                         stats['error'] += 1
@@ -309,13 +267,12 @@ class HistoryCollector:
             if success_count < len(collected_messages) * 0.1:  # 少于10%
                 logger.warning(f"⚠️ 保存率较低: {success_count}/{len(collected_messages)} ({(success_count/len(collected_messages)*100):.1f}%)，请检查过滤规则")
             
-            # 更新Redis采集点
-            if latest_message_id > int(checkpoint_id or 0):
-                redis_channel_store.set_checkpoint(channel_id, latest_message_id)
-                logger.info(f"更新Redis采集点: {channel_id} -> {latest_message_id}")
+            # ✅ 修复：移除末尾checkpoint更新 - 现在每条消息保存成功后立即更新
+            # checkpoint更新已移至MessageStorageProcessor，确保只有成功保存的消息才更新checkpoint
             
             collection_type = "历史消息" if not checkpoint_id else "增量"
             logger.info(f"✅ 频道 {channel_name} {collection_type}采集完成: 保存 {stats['saved']} 条，入队 {stats['queued']} 条，过滤 {stats['filtered']} 条，重复 {stats['duplicate']} 条，总计 {len(collected_messages)} 条")
+            logger.info(f"📍 Checkpoint将由每条保存成功的消息自动更新，无需手动设置")
             
         except Exception as e:
             import traceback

@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.path_config import PathConfig
 from app.core.url_config import url_config
 from app.telegram.bot import TelegramBot
+from app.telegram import bot as bot_module
 
 # 使用统一的日志配置
 from app.core.logging_config import setup_logging, get_logger
@@ -100,7 +101,6 @@ class TelegramCollectorService:
             }
             
             # 初始化全局变量
-            from app.telegram import bot as bot_module
             bot_module.telegram_bot = None
             
             if not auth_status.get('authorized', False):

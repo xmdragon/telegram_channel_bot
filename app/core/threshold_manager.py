@@ -192,7 +192,7 @@ class ThresholdManager:
                 finally:
                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             
-            logger.debug("💾 保存阈值配置成功")
+            logger.info("💾 保存阈值配置成功")
             
         except Exception as e:
             logger.error(f"❌ 保存阈值配置失败: {e}")
@@ -288,7 +288,7 @@ class ThresholdManager:
                 # 保存配置
                 self._save_config()
                 
-                logger.debug(f"📝 记录反馈: {filter_name}.{metric_name} - 得分: {predicted_score:.3f}, 结果: {actual_result}")
+                logger.info(f"📝 记录反馈: {filter_name}.{metric_name} - 得分: {predicted_score:.3f}, 结果: {actual_result}, 统计: TP={stats['tp']}, FP={stats['fp']}, TN={stats['tn']}, FN={stats['fn']}")
                 
                 # 检查是否需要触发优化
                 total_feedback = sum(stats.values())
