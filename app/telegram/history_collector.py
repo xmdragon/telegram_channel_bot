@@ -84,9 +84,9 @@ class HistoryCollector:
         
         logger.info(f"开始获取主消息ID列表，min_id={min_id}, 需要{limit}个主消息")
         
-        # 获取3倍数量确保有足够主消息
+        # 获取5倍数量确保有足够主消息
         message_count = 0
-        async for msg in client.iter_messages(entity, limit=limit*3, min_id=min_id):
+        async for msg in client.iter_messages(entity, limit=limit*5, min_id=min_id):
             if not msg or not msg.id:
                 continue
                 
@@ -135,7 +135,18 @@ class HistoryCollector:
         
         try:
             logger.info(f"[DEBUG] 开始iter_messages循环，scan_limit={scan_limit}, min_id={min_id}")
+            
+            # 添加超时控制 - 防止长时间卡住
+            import time
+            start_time = time.time()
+            timeout_seconds = 300  # 5分钟超时
+            
             async for msg in client.iter_messages(entity, limit=scan_limit, min_id=min_id):
+                # 超时检查 - Linus式简洁
+                if time.time() - start_time > timeout_seconds:
+                    logger.warning(f"消息获取超时（{timeout_seconds}秒），已获取{len(main_messages)}个主消息")
+                    break
+                    
                 if not msg or not msg.id:
                     continue
                     
@@ -166,6 +177,8 @@ class HistoryCollector:
                 if len(main_messages) >= limit:
                     break
                     
+        except asyncio.TimeoutError:
+            logger.warning(f"消息迭代超时，返回已获取的{len(main_messages)}个主消息")
         except Exception as e:
             logger.error(f"获取主消息ID时异常: {e}")
             # 如果出错，返回已获取的部分
@@ -174,14 +187,20 @@ class HistoryCollector:
         return main_messages[:limit]
     
     async def _fetch_complete_group(self, client: TelegramClient, entity, group_id: str, sample_id: int) -> List:
-        """获取完整的组消息"""
+        """获取完整的组消息 - 带超时和回退机制"""
         try:
-            # 获取附近消息
-            nearby_messages = await client.get_messages(
-                entity,
-                min_id=sample_id - 20,
-                max_id=sample_id + 20,
-                limit=40
+            # 添加超时控制到组消息获取
+            import asyncio
+            
+            # 获取附近消息 - 添加超时
+            nearby_messages = await asyncio.wait_for(
+                client.get_messages(
+                    entity,
+                    min_id=sample_id - 20,
+                    max_id=sample_id + 20,
+                    limit=40
+                ), 
+                timeout=30.0  # 30秒超时
             )
             
             # 过滤出同组消息
@@ -190,9 +209,26 @@ class HistoryCollector:
                 if hasattr(msg, 'grouped_id') and str(msg.grouped_id) == group_id
             ]
             
-            logger.debug(f"组 {group_id}: 在附近{len(nearby_messages)}条消息中找到{len(group_messages)}条同组消息")
-            return sorted(group_messages, key=lambda x: x.id)
+            if group_messages:
+                logger.debug(f"组 {group_id}: 在附近{len(nearby_messages)}条消息中找到{len(group_messages)}条同组消息")
+                return sorted(group_messages, key=lambda x: x.id)
+            else:
+                # Linus式简化：如果没找到组消息，尝试直接获取单条消息作为回退
+                logger.warning(f"组 {group_id}: 未找到组消息，尝试单消息回退")
+                fallback_msg = await asyncio.wait_for(
+                    client.get_messages(entity, ids=sample_id),
+                    timeout=10.0
+                )
+                return [fallback_msg] if fallback_msg else []
             
+        except asyncio.TimeoutError:
+            logger.error(f"获取组消息超时 {group_id}，使用单消息回退")
+            try:
+                # 超时时的回退机制
+                fallback_msg = await client.get_messages(entity, ids=sample_id)
+                return [fallback_msg] if fallback_msg else []
+            except:
+                return []
         except Exception as e:
             logger.error(f"获取组消息失败 {group_id}: {e}")
             return []
@@ -288,12 +324,15 @@ class HistoryCollector:
                 
             logger.debug(f"下载消息 #{message.id} 的媒体文件...")
             
-            # 调用现有的媒体处理逻辑
-            from app.services.media_handler import MediaHandler
-            media_handler = MediaHandler()
+            # 调用现有的媒体处理逻辑 - 使用全局实例修复
+            from app.services.media_handler import media_handler
             
             # 下载媒体文件 - 传递正确的参数
-            result = await media_handler.download_media(client, message, message.id)
+            result = await media_handler.download_media(
+                client=client, 
+                message=message, 
+                message_id=message.id
+            )
             return bool(result)  # 转换为布尔值
             
         except Exception as e:
