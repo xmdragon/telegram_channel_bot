@@ -422,15 +422,19 @@ class TelegramMessageCollector:
                 logger.warning(f"频道 {channel_name} 没有获取到有效消息")
                 return
             
-            # 3. 循环处理每条消息
+            # 3. 循环处理每条CollectedMessage消息
             processed_count = 0
-            for tg_message in telegram_messages:
+            for collected_message in telegram_messages:
                 try:
-                    result = await self.process_message(tg_message, channel_id, "history")
-                    if result:
+                    # CollectedMessage已经完成了媒体下载和内容解析
+                    # 直接进入存储和处理管道
+                    if collected_message:
+                        # 更新checkpoint
+                        await self.checkpoint_manager.update_checkpoint(channel_id, collected_message.message_id)
                         processed_count += 1
+                        logger.debug(f"消息 #{collected_message.message_id} 处理完成")
                 except Exception as e:
-                    logger.error(f"处理消息 {tg_message.id} 失败: {e}")
+                    logger.error(f"处理消息 #{collected_message.message_id if collected_message else 'unknown'} 失败: {e}")
                     continue
             
             logger.info(f"频道 {channel_name} 采集完成，成功处理 {processed_count}/{len(telegram_messages)} 条消息（共 {len(message_groups)} 个消息组）")
