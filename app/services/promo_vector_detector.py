@@ -13,7 +13,7 @@ import asyncio
 
 from app.services.filters.base import BaseFilter, FilterContext, FilterResult
 from app.services.vector_manager import vector_manager
-from app.services.semantic_extractor import get_semantic_extractor
+# from app.services.semantic_extractor import get_semantic_extractor  # 已移除ONNX依赖
 
 logger = logging.getLogger(__name__)
 

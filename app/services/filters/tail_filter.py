@@ -12,7 +12,7 @@ import logging
 from typing import Dict, Any, Optional
 
 from app.services.filters.base import BaseFilter, FilterResult, FilterContext
-from app.services.tail_filter_engine import TailFilterEngine
+from app.services.simple_tail_filter import filter_tail_content
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +28,8 @@ class TailFilter(BaseFilter):
         """初始化尾部过滤器"""
         super().__init__("tail_filter", config)
         
-        try:
-            self.engine = TailFilterEngine()
-            logger.info("✅ 尾部过滤器初始化完成")
-        except Exception as e:
-            logger.error(f"❌ 尾部过滤器初始化失败: {e}")
-            self.engine = None
+        # 简化：不需要复杂的引擎初始化
+        logger.info("✅ 尾部过滤器初始化完成（直接正则模式）")
     
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
         """执行尾部过滤
@@ -47,24 +43,9 @@ class TailFilter(BaseFilter):
         """
         start_time = time.time()
         
-        # 如果引擎未初始化，直接返回
-        if not self.engine:
-            return FilterResult(
-                filtered_content=content,
-                passed=True,
-                processing_time_ms=0,
-                reason="过滤器未初始化",
-                confidence=0.0,
-                should_early_stop=False
-            )
-        
         try:
-            # 提取媒体信息
-            has_media = context.message_type in ['photo', 'video', 'document']
-            
-            # 调用向量过滤引擎
-            filtered_content, was_filtered, removed_tail, analysis = \
-                self.engine.filter_message(content, has_media)
+            # 直接调用简单正则过滤器
+            filtered_content, was_filtered, removed_tail, analysis = filter_tail_content(content)
             
             # 计算处理时间
             processing_time = (time.time() - start_time) * 1000

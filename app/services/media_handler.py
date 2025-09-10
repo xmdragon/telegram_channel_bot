@@ -48,6 +48,11 @@ class MediaHandler:
         # 进度输出控制
         self._download_started = set()  # 已开始下载的消息ID
         self._last_mb_logged = {}  # {message_id: last_mb_logged}
+        
+        # 下载优化配置
+        self.max_download_size = 1024 * 1024 * 1024  # 1GB（从512MB提升）
+        self.default_timeout = 1800.0  # 30分钟统一超时
+        self.max_retry_attempts = 2  # 最大重试次数
         self._last_percent_logged = {}  # {message_id: last_percent_logged}
         self._download_start_time = {}  # {message_id: start_time}
         
@@ -138,6 +143,32 @@ class MediaHandler:
             # 大小未知的情况
             logger.info(f"📥 [{media_type}] {message_id}: 已下载 {mb_current:.1f}MB (大小未知)")
     
+    async def download_media_with_retry(self, client: TelegramClient, message, message_id: int, max_retries: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """带重试机制的媒体下载"""
+        if max_retries is None:
+            max_retries = self.max_retry_attempts
+        
+        last_error = None
+        for attempt in range(max_retries + 1):
+            try:
+                result = await self.download_media(client, message, message_id)
+                if result:  # 成功
+                    if attempt > 0:
+                        logger.info(f"媒体下载重试成功 (第{attempt+1}次尝试): {message_id}")
+                    return result
+                elif attempt < max_retries:  # 失败但还能重试
+                    logger.warning(f"媒体下载失败，准备重试 {attempt+1}/{max_retries}: {message_id}")
+                    await asyncio.sleep(2 ** attempt)  # 指数退避
+                    
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    logger.warning(f"媒体下载异常，重试 {attempt+1}/{max_retries}: {e}")
+                    await asyncio.sleep(2 ** attempt)  # 指数退避
+        
+        logger.error(f"媒体下载最终失败 (已重试{max_retries}次): {message_id}, 最后错误: {last_error}")
+        return None
+
     async def download_media(self, client: TelegramClient, message, message_id: int, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """
         下载消息中的媒体文件
@@ -234,247 +265,27 @@ class MediaHandler:
                 logger.debug(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
                 
             elif isinstance(message.media, MessageMediaWebPage):
-                # 处理链接预览（可能包含预览图或嵌入媒体）
+                # 处理链接预览（智能提取真实媒体内容）
                 webpage = message.media.webpage
                 
-                # 检查是否有预览图片
-                if hasattr(webpage, 'photo') and webpage.photo:
-                    media_info["media_type"] = "webpage_photo"
-                    file_name = f"{file_prefix}_webpage_photo.jpg"
-                    file_path = self.temp_dir / file_name
-                    
-                    # 下载预览图片
-                    if timeout:
-                        download_timeout = timeout
-                    else:
-                        download_timeout = 1800.0
-                    
-                    try:
-                        # 创建进度回调函数
-                        progress_callback = lambda current, total: asyncio.create_task(
-                            self._download_progress_callback(current, total, str(message_id), "webpage_photo")
-                        )
-                        
-                        await asyncio.wait_for(
-                            client.download_media(
-                                webpage.photo, 
-                                file_path,
-                                progress_callback=progress_callback
-                            ),
-                            timeout=download_timeout
-                        )
-                        
-                        # 计算文件哈希
-                        file_hash = None
-                        visual_hashes = None
-                        if file_path.exists():
-                            pass
-                            # 计算视觉哈希
-                            if visual_detector:
-                                try:
-                                    with open(file_path, 'rb') as f:
-                                        image_data = f.read()
-                                    visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
-                                    logger.debug(f"📊 链接预览图片视觉哈希计算成功: {file_name}")
-                                except Exception as e:
-                                    logger.debug(f"计算链接预览图片视觉哈希失败: {e}")
-                        
-                        media_info.update({
-                            "file_path": str(file_path),
-                            "file_name": file_name,
-                            "file_size": file_path.stat().st_size if file_path.exists() else 0,
-                            "mime_type": "image/jpeg",
-                            "hash": file_hash,
-                            "visual_hashes": visual_hashes,
-                            "webpage_url": webpage.url if hasattr(webpage, 'url') else None,
-                            "webpage_title": webpage.title if hasattr(webpage, 'title') else None
-                        })
-                        
-                        logger.debug(f"链接预览图片下载完成: {file_name} ({media_info['file_size']} bytes)")
-                        
-                    except asyncio.TimeoutError:
-                        logger.debug(f"下载链接预览图片超时: {file_name}")
-                        return None
-                    except Exception as e:
-                        logger.debug(f"下载链接预览图片失败: {e}")
-                        return None
+                # 检查预览图片或嵌入媒体（如视频）
+                if (hasattr(webpage, 'photo') and webpage.photo) or (hasattr(webpage, 'document') and webpage.document):
+                    return await self._download_preview_image(client, webpage, file_prefix, timeout, message_id)
                 
-                # 检查是否有嵌入文档（如嵌入视频）
-                elif hasattr(webpage, 'document') and webpage.document:
-                    document = webpage.document
-                    
-                    # 确定文件类型
-                    mime_type = document.mime_type or "application/octet-stream"
-                    if mime_type.startswith("video/"):
-                        media_info["media_type"] = "webpage_video"
-                        extension = ".mp4"
-                    else:
-                        media_info["media_type"] = "webpage_document"
-                        extension = ".bin"
-                    
-                    file_name = f"{file_prefix}_webpage{extension}"
-                    file_path = self.temp_dir / file_name
-                    
-                    # 检查文件大小限制
-                    if document.size > 512 * 1024 * 1024:
-                        logger.debug(f"链接嵌入文件太大，跳过下载: {document.size} bytes")
-                        return None
-                    
-                    # 下载嵌入文档
-                    if timeout:
-                        download_timeout = timeout
-                    else:
-                        download_timeout = 1800.0
-                    
-                    try:
-                        # 创建进度回调函数
-                        progress_callback = lambda current, total: asyncio.create_task(
-                            self._download_progress_callback(current, total, str(message_id), "webpage_document")
-                        )
-                        
-                        await asyncio.wait_for(
-                            client.download_media(
-                                webpage.document, 
-                                file_path,
-                                progress_callback=progress_callback
-                            ),
-                            timeout=download_timeout
-                        )
-                        
-                        # 计算文件哈希
-                        file_hash = None
-                        if file_path.exists():
-                            pass
-                        
-                        media_info.update({
-                            "file_path": str(file_path),
-                            "file_name": file_name,
-                            "file_size": file_path.stat().st_size if file_path.exists() else 0,
-                            "mime_type": mime_type,
-                            "hash": file_hash,
-                            "webpage_url": webpage.url if hasattr(webpage, 'url') else None,
-                            "webpage_title": webpage.title if hasattr(webpage, 'title') else None
-                        })
-                        
-                        logger.debug(f"链接嵌入媒体下载完成: {file_name} ({media_info['file_size']} bytes)")
-                        
-                    except asyncio.TimeoutError:
-                        logger.debug(f"下载链接嵌入媒体超时: {file_name}")
-                        return None
-                    except Exception as e:
-                        logger.debug(f"下载链接嵌入媒体失败: {e}")
-                        return None
+                # 最后尝试从URL解析媒体
+                elif hasattr(webpage, 'url') and webpage.url:
+                    return await self._extract_media_from_url(webpage.url, file_prefix)
+                
                 else:
                     # 纯链接，没有可下载的媒体
                     logger.debug(f"链接预览没有可下载的媒体: {webpage.url if hasattr(webpage, 'url') else 'unknown'}")
                     return None
-                
-            elif isinstance(message.media, MessageMediaDocument):
-                # 处理文档/视频/动图等
-                document = message.media.document
-                
-                # 确定文件类型
-                mime_type = document.mime_type or "application/octet-stream"
-                if mime_type.startswith("video/"):
-                    media_info["media_type"] = "video"
-                    extension = ".mp4"
-                elif mime_type.startswith("image/"):
-                    if "gif" in mime_type:
-                        media_info["media_type"] = "animation"
-                        extension = ".gif"
-                    else:
-                        media_info["media_type"] = "photo"
-                        extension = ".jpg"
-                elif mime_type.startswith("audio/"):
-                    media_info["media_type"] = "audio"
-                    extension = ".mp3"
-                else:
-                    media_info["media_type"] = "document"
-                    extension = ".bin"
                     
-                # 尝试从文档属性获取文件名
-                original_name = None
-                for attr in document.attributes:
-                    if hasattr(attr, 'file_name') and attr.file_name:
-                        original_name = attr.file_name
-                        extension = os.path.splitext(original_name)[1] or extension
-                        break
+            else:
+                # 不支持的媒体类型
+                logger.debug(f"不支持的媒体类型: {type(message.media)}")
+                return None
                 
-                # 检查是否为危险文件类型
-                dangerous_extensions = ['.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar', '.msi', '.dll', '.bin']
-                if extension.lower() in dangerous_extensions or (original_name and any(original_name.lower().endswith(ext) for ext in dangerous_extensions)):
-                    logger.warning(f"🚫 检测到危险文件类型: {original_name or extension}，跳过下载")
-                    return None
-                        
-                file_name = f"{file_prefix}_{media_info['media_type']}{extension}"
-                file_path = self.temp_dir / file_name
-                
-                # 检查文件大小限制（512MB）
-                if document.size > 512 * 1024 * 1024:
-                    logger.warning(f"文件太大，跳过下载: {document.size} bytes")
-                    return None
-                    
-                # 根据文件大小动态计算超时时间
-                if timeout:
-                    download_timeout = timeout
-                else:
-                    # 🔥 Linus式修复：统一使用1800秒超时，删除复杂计算
-                    download_timeout = 1800.0  # 30分钟，统一处理所有媒体类型
-                try:
-                    # 创建进度回调函数
-                    progress_callback = lambda current, total: asyncio.create_task(
-                        self._download_progress_callback(current, total, str(message_id), media_info["media_type"])
-                    )
-                    
-                    await asyncio.wait_for(
-                        client.download_media(
-                            message.media, 
-                            file_path,
-                            progress_callback=progress_callback
-                        ),
-                        timeout=download_timeout
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning(f"下载{media_info['media_type']}超时（{download_timeout}秒）: {file_name}")
-                    # 检查文件是否实际已经下载完成
-                    if file_path.exists() and file_path.stat().st_size > 0:
-                        logger.debug(f"✅ 虽然超时，但文件下载完成: {file_name} ({file_path.stat().st_size} bytes)")
-                    else:
-                        logger.error(f"❌ 下载真正失败，文件不存在: {file_name}")
-                        return None
-                
-                # 计算文件哈希
-                file_hash = None
-                visual_hashes = None
-                if file_path.exists():
-                    pass
-                    # 计算视觉哈希（仅对图片类型）
-                    if visual_detector and media_info["media_type"] in ["photo", "animation"]:
-                        try:
-                            with open(file_path, 'rb') as f:
-                                image_data = f.read()
-                            visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
-                            logger.info(f"📊 {media_info['media_type']}视觉哈希计算成功: {file_name}")
-                        except Exception as e:
-                            logger.error(f"❌ 计算视觉哈希失败: {e}")
-                    else:
-                        if not visual_detector:
-                            logger.warning(f"⚠️ 视觉检测器未初始化，跳过{media_info['media_type']}视觉哈希计算")
-                
-                media_info.update({
-                    "file_path": str(file_path),
-                    "file_name": file_name,
-                    "file_size": file_path.stat().st_size if file_path.exists() else 0,
-                    "mime_type": mime_type,
-                    "original_name": original_name,
-                    "hash": file_hash,
-                    "visual_hashes": visual_hashes
-                })
-                
-                logger.debug(f"{media_info['media_type']}下载完成: {file_name} ({media_info['file_size']} bytes)")
-                
-            return media_info
-            
         except Exception as e:
             logger.error(f"下载媒体文件失败: {e}")
             return None
@@ -483,7 +294,153 @@ class MediaHandler:
             message_id_str = str(message_id)
             if message_id_str in self._download_progress:
                 del self._download_progress[message_id_str]
+    
+    async def _download_preview_image(self, client: TelegramClient, webpage, file_prefix: str, timeout: Optional[float], message_id: int) -> Optional[Dict[str, Any]]:
+        """下载网页预览图片或嵌入媒体"""
+        try:
+            media_info = {}
             
+            # 检查是否有预览图片
+            if hasattr(webpage, 'photo') and webpage.photo:
+                media_info["media_type"] = "webpage_photo"
+                file_name = f"{file_prefix}_webpage_photo.jpg"
+                file_path = self.temp_dir / file_name
+                
+                # 下载预览图片
+                download_timeout = timeout if timeout else 1800.0
+                
+                try:
+                    # 创建进度回调函数
+                    progress_callback = lambda current, total: asyncio.create_task(
+                        self._download_progress_callback(current, total, str(message_id), "webpage_photo")
+                    )
+                    
+                    await asyncio.wait_for(
+                        client.download_media(
+                            webpage.photo, 
+                            file_path,
+                            progress_callback=progress_callback
+                        ),
+                        timeout=download_timeout
+                    )
+                    
+                    # 计算文件哈希和视觉哈希
+                    file_hash = None
+                    visual_hashes = None
+                    
+                    if file_path.exists():
+                        # 导入视觉检测器
+                        try:
+                            from app.services.detectors.visual_detector import visual_detector
+                            if visual_detector:
+                                with open(file_path, 'rb') as f:
+                                    image_data = f.read()
+                                visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
+                                logger.debug(f"📊 链接预览图片视觉哈希计算成功: {file_name}")
+                        except Exception as e:
+                            logger.debug(f"计算链接预览图片视觉哈希失败: {e}")
+                    
+                    media_info.update({
+                        "file_path": str(file_path),
+                        "file_name": file_name,
+                        "file_size": file_path.stat().st_size if file_path.exists() else 0,
+                        "mime_type": "image/jpeg",
+                        "hash": file_hash,
+                        "visual_hashes": visual_hashes,
+                        "webpage_url": webpage.url if hasattr(webpage, 'url') else None,
+                        "webpage_title": webpage.title if hasattr(webpage, 'title') else None
+                    })
+                    
+                    logger.debug(f"链接预览图片下载完成: {file_name} ({media_info['file_size']} bytes)")
+                    return media_info
+                        
+                except asyncio.TimeoutError:
+                    logger.debug(f"下载链接预览图片超时: {file_name}")
+                    return None
+                except Exception as e:
+                    logger.debug(f"下载链接预览图片失败: {e}")
+                    return None
+            
+            # 检查是否有嵌入文档（如嵌入视频）
+            elif hasattr(webpage, 'document') and webpage.document:
+                document = webpage.document
+                
+                # 确定文件类型
+                mime_type = document.mime_type or "application/octet-stream"
+                if mime_type.startswith("video/"):
+                    media_info["media_type"] = "webpage_video"
+                    extension = ".mp4"
+                else:
+                    media_info["media_type"] = "webpage_document"
+                    extension = ".bin"
+                
+                file_name = f"{file_prefix}_webpage{extension}"
+                file_path = self.temp_dir / file_name
+                
+                # 检查文件大小限制
+                if document.size > self.max_download_size:
+                    logger.warning(f"链接嵌入文件太大，跳过下载: {document.size/1024/1024:.1f}MB > {self.max_download_size/1024/1024:.1f}MB")
+                    return None
+                
+                # 下载嵌入文档
+                download_timeout = timeout if timeout else 1800.0
+                
+                try:
+                    # 创建进度回调函数
+                    progress_callback = lambda current, total: asyncio.create_task(
+                        self._download_progress_callback(current, total, str(message_id), "webpage_document")
+                    )
+                    
+                    await asyncio.wait_for(
+                        client.download_media(
+                            webpage.document, 
+                            file_path,
+                            progress_callback=progress_callback
+                        ),
+                        timeout=download_timeout
+                    )
+                    
+                    # 计算文件哈希
+                    file_hash = None
+                    if file_path.exists():
+                        # 可以在这里添加哈希计算逻辑
+                        pass
+                    
+                    media_info.update({
+                        "file_path": str(file_path),
+                        "file_name": file_name,
+                        "file_size": file_path.stat().st_size if file_path.exists() else 0,
+                        "mime_type": mime_type,
+                        "hash": file_hash,
+                        "webpage_url": webpage.url if hasattr(webpage, 'url') else None,
+                        "webpage_title": webpage.title if hasattr(webpage, 'title') else None
+                    })
+                    
+                    logger.debug(f"链接嵌入媒体下载完成: {file_name} ({media_info['file_size']} bytes)")
+                    return media_info
+                    
+                except asyncio.TimeoutError:
+                    logger.debug(f"下载链接嵌入媒体超时: {file_name}")
+                    return None
+                except Exception as e:
+                    logger.debug(f"下载链接嵌入媒体失败: {e}")
+                    return None
+            
+            else:
+                # 纯链接，没有可下载的媒体
+                logger.debug(f"链接预览没有可下载的媒体: {webpage.url if hasattr(webpage, 'url') else 'unknown'}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"下载网页预览媒体失败: {e}")
+            return None
+            
+    async def _extract_media_from_url(self, url: str, file_prefix: str) -> Optional[Dict[str, Any]]:
+        """从URL中提取媒体内容（简化版本）"""
+        logger.debug(f"尝试从URL提取媒体: {url}")
+        # 这里可以添加更复杂的URL媒体提取逻辑
+        # 目前只是占位符
+        return None
     async def get_media_url(self, file_path: str) -> Optional[str]:
         """
         获取媒体文件的访问URL

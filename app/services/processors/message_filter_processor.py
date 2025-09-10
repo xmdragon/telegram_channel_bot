@@ -188,35 +188,21 @@ class MessageFilterProcessor(MessageProcessor):
             filter_context.add_metadata('media_files', media_files)
             filter_context.add_metadata('message_obj', context.telegram_message)
             
-            # 🛡️ 第二层超时保护：过滤管道执行超时（5秒）
-            import asyncio
-            pipeline_result = await asyncio.wait_for(
-                self.filter_pipeline.process(content, filter_context), 
-                timeout=5.0
-            )
+            # 🎯 Linus式简化：直接调用简单尾部过滤器，绕过复杂管道
+            from app.services.simple_tail_filter import filter_tail_content
+            
+            # 直接过滤尾部推广内容
+            filtered_content, was_filtered, removed_tail, filter_analysis = filter_tail_content(content)
             
             # 提取过滤结果
-            context.filtered_content = pipeline_result.final_content
-            context.filter_reason = pipeline_result.overall_reason or ""
+            context.filtered_content = filtered_content
+            context.filter_reason = ""
             
-            # 广告检测结果 - 综合判断
-            ad_detection_result = filter_context.get_metadata('ad_detection_result')
+            # 广告检测逻辑简化：主要基于尾部过滤结果
+            context.is_ad = was_filtered  # 如果过滤了推广内容，就认为有广告性质
             
-            # 🎯 Linus式修复：综合判断广告状态
-            # 1. AI检测结果
-            ai_detected_ad = bool(ad_detection_result and ad_detection_result.get('is_ad', False))
-            
-            # 2. 过滤器检测结果（如果有推广内容被过滤，说明检测到广告）
-            filter_detected_ad = bool(
-                any(
-                    not result.passed and result.reason  # 有过滤器检测到问题
-                    for result in pipeline_result.filter_results.values()
-                    if hasattr(result, 'passed') and hasattr(result, 'reason')
-                )
-            )
-            
-            # 综合判断：AI检测或过滤器检测到广告
-            context.is_ad = ai_detected_ad or filter_detected_ad
+            if was_filtered:
+                context.filter_reason = f"移除了推广尾部内容({filter_analysis.get('removed_lines_count', 0)}行)"
             
             # 调试日志：记录广告检测结果
             if context.is_ad:
