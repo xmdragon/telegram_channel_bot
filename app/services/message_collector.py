@@ -14,6 +14,7 @@ from telethon.tl.types import Message as TLMessage
 from app.core.path_config import PathConfig
 from app.storage.redis_manager import redis_manager
 from app.services.message_queue import CollectedMessage
+from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -230,46 +231,6 @@ class TelegramMessageCollector:
             logger.error(f"TelegramMessageCollector初始化失败: {e}")
             raise
     
-    async def process_message(self, telegram_message: TLMessage, channel_id: str, source: str = "realtime"):
-        """
-        统一消息处理入口
-        
-        Args:
-            telegram_message: Telegram原始消息对象
-            channel_id: 频道ID
-            source: 消息来源 ("realtime" 或 "history")
-        """
-        
-        logger.debug(f"开始处理消息 #{telegram_message.id} from {channel_id} ({source})")
-        
-        try:
-            # 1. 消息解析
-            raw_message = await self.message_parser.parse(telegram_message, channel_id)
-            
-            # 2. Checkpoint检查（仅历史采集）
-            if source == "history":
-                current_checkpoint = self.checkpoint_manager.get_checkpoint(channel_id)
-                if raw_message.message_id <= current_checkpoint:
-                    logger.debug(f"消息 #{raw_message.message_id} 已处理过，跳过")
-                    return "already_processed"
-            
-            # 3. 三步处理管道
-            processed = await self.content_pipeline.process(raw_message)
-            
-            # 4. 存储并决定状态
-            stored = await self.storage.save(processed)
-            
-            # 5. 更新Checkpoint（仅历史采集）
-            if source == "history":
-                await self.checkpoint_manager.update_checkpoint(channel_id, raw_message.message_id)
-            
-            logger.info(f"消息 #{telegram_message.id} 处理完成")
-            return stored
-            
-        except Exception as e:
-            logger.error(f"处理消息 #{telegram_message.id} 失败: {e}")
-            raise
-    
     async def start_collecting(self):
         """开始消息采集循环"""
         logger.info("开始消息采集循环")
@@ -350,47 +311,41 @@ class TelegramMessageCollector:
             logger.error(f"获取消息ID失败: {e}")
             return []
     
-    async def _fetch_telegram_messages(self, entity, message_groups: List[List[int]]) -> List[CollectedMessage]:
-        """根据ID组列表从Telegram获取消息并处理媒体下载和组消息合并"""
+    async def _fetch_telegram_messages(self, entity, message_groups: List[int]) -> Optional[CollectedMessage]:
+        """从Telegram获取消息并处理媒体下载和组消息合并"""
         try:
             if not message_groups:
-                return []
+                return None
             
-            # 1. 批量获取原始消息
-            raw_messages = await self._batch_get_raw_messages(entity, message_groups)
-            if not raw_messages:
-                return []
+            # 1. 直接获取消息
+            messages = await self.telethon_client.get_messages(entity, ids=message_groups)
+            if not messages:
+                return None
             
-            # 2. 按组处理消息
-            processed_messages = []
+            # 2. 处理消息
             channel_id = str(entity.id) if hasattr(entity, 'id') else "unknown"
             
-            for group_ids in message_groups:
-                if len(group_ids) == 1:
-                    # 单独消息
-                    message_id = group_ids[0]
-                    if message_id in raw_messages:
-                        msg = await self._process_single_message(
-                            raw_messages[message_id], channel_id
-                        )
-                        if msg:
-                            processed_messages.append(msg)
-                else:
-                    # 组消息 - 合并处理
-                    group_raw_messages = [raw_messages[id] for id in group_ids if id in raw_messages]
-                    if group_raw_messages:
-                        merged_msg = await self._process_group_messages(
-                            group_raw_messages, channel_id
-                        )
-                        if merged_msg:
-                            processed_messages.append(merged_msg)
+            if len(message_groups) == 1:
+                # 单条消息
+                if messages[0]:
+                    msg = await self._process_single_message(messages[0], channel_id)
+                    if msg:
+                        logger.info(f"成功处理1个消息")
+                        return msg
+            else:
+                # 组消息 - 过滤掉None并合并处理
+                valid_messages = [msg for msg in messages if msg is not None]
+                if valid_messages:
+                    merged_msg = await self._process_group_messages(valid_messages, channel_id)
+                    if merged_msg:
+                        logger.info(f"成功处理消息组(共{len(message_groups)}个子消息)")
+                        return merged_msg
             
-            logger.info(f"成功处理 {len(processed_messages)}/{len(message_groups)} 个消息组")
-            return processed_messages
+            return None
             
         except Exception as e:
             logger.error(f"获取和处理Telegram消息失败: {e}")
-            return []
+            return None
     
     async def _process_channel_messages(self, channel: dict, checkpoint: int):
         """处理单个频道的消息"""
@@ -399,48 +354,80 @@ class TelegramMessageCollector:
         
         logger.info(f"处理频道 {channel_name}, checkpoint: {checkpoint}")
         
-        try:
-            # 获取频道实体
-            entity = await self.channel_manager.get_channel_entity(channel_id, self.telethon_client)
-            if not entity:
-                logger.error(f"无法获取频道 {channel_name} 的实体，跳过")
-                return
+        # 获取频道实体
+        entity = await self.channel_manager.get_channel_entity(channel_id, self.telethon_client)
+        if not entity:
+            logger.error(f"无法获取频道 {channel_name} 的实体，跳过")
+            return
+        
+        # 1. 获取要采集的ID组列表
+        message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint)
+        if not message_groups:
+            logger.info(f"频道 {channel_name} 没有新消息需要采集")
+            return
+        
+        # 统计总消息数
+        total_message_count = sum(len(group) for group in message_groups)
+        logger.info(f"频道 {channel_name} 将采集 {total_message_count} 条消息（{len(message_groups)} 个消息组）")
+        
+        # 2. 循环处理每个消息组
+        processed_count = 0
+        last_processed_message_id = checkpoint  # 记录最后成功处理的消息ID
+        
+        for message_group in message_groups:
+            collected_message = await self._fetch_telegram_messages(entity, message_group)
             
-            # 1. 获取要采集的ID组列表
-            message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint)
-            if not message_groups:
-                logger.info(f"频道 {channel_name} 没有新消息需要采集")
-                return
+            # 检查是否获取到消息
+            if not collected_message:
+                logger.warning(f"消息组 {message_group} 获取失败，跳过")
+                continue
             
-            # 统计总消息数
-            total_message_count = sum(len(group) for group in message_groups)
-            logger.info(f"频道 {channel_name} 将采集 {total_message_count} 条消息（{len(message_groups)} 个消息组）")
-            
-            # 2. 从Telegram获取消息
-            telegram_messages = await self._fetch_telegram_messages(entity, message_groups)
-            if not telegram_messages:
-                logger.warning(f"频道 {channel_name} 没有获取到有效消息")
-                return
-            
-            # 3. 循环处理每条CollectedMessage消息
-            processed_count = 0
-            for collected_message in telegram_messages:
-                try:
-                    # CollectedMessage已经完成了媒体下载和内容解析
-                    # 直接进入存储和处理管道
-                    if collected_message:
-                        # 更新checkpoint
-                        await self.checkpoint_manager.update_checkpoint(channel_id, collected_message.message_id)
-                        processed_count += 1
-                        logger.debug(f"消息 #{collected_message.message_id} 处理完成")
-                except Exception as e:
-                    logger.error(f"处理消息 #{collected_message.message_id if collected_message else 'unknown'} 失败: {e}")
-                    continue
-            
-            logger.info(f"频道 {channel_name} 采集完成，成功处理 {processed_count}/{len(telegram_messages)} 条消息（共 {len(message_groups)} 个消息组）")
-            
-        except Exception as e:
-            logger.error(f"处理频道 {channel_name} 时出错: {e}")
+            # 3. 处理这个组的消息
+            # 过滤和检测 - TODO: 暂时跳过，直接存储
+
+            # 4. 保存消息到Redis,更新状态索引和频道索引
+            try:
+                # 将CollectedMessage转换为存储格式
+                message_data = {
+                    'channel_id': collected_message.channel_id,
+                    'message_id': collected_message.message_id,
+                    'grouped_id': collected_message.grouped_id,
+                    'content': collected_message.content,
+                    'media_info': collected_message.media_info,
+                    'timestamp': collected_message.timestamp.isoformat() if collected_message.timestamp else None,
+                    'raw_data': collected_message.raw_data,
+                    'status': 'pending',  # 默认状态
+                    'created_at': get_current_time().isoformat()
+                }
+                
+                # 保存到Redis
+                success = self.redis_manager.save_message(
+                    channel_id, 
+                    collected_message.message_id, 
+                    message_data
+                )
+                
+                if success:
+                    processed_count += 1
+                    # 5. 更新checkpoint - 仅在存储成功时更新
+                    last_processed_message_id = max(last_processed_message_id, collected_message.message_id)
+                    logger.debug(f"消息 {collected_message.message_id} 存储成功")
+                else:
+                    logger.error(f"消息 {collected_message.message_id} 存储失败")
+                    
+            except Exception as e:
+                logger.error(f"处理消息组 {message_group} 时发生错误: {e}")
+                continue
+        
+        # 最终更新checkpoint到最后成功处理的消息ID
+        if last_processed_message_id > checkpoint:
+            try:
+                await self.channel_manager.update_channel_checkpoint(channel_id, last_processed_message_id)
+                logger.info(f"频道 {channel_name} checkpoint 更新为: {last_processed_message_id}")
+            except Exception as e:
+                logger.error(f"更新频道 {channel_name} checkpoint 失败: {e}")
+        
+        logger.info(f"频道 {channel_name} 采集完成，成功处理 {processed_count} 条消息（共 {len(message_groups)} 个消息组）")
     
     async def shutdown(self):
         """关闭采集器，清理资源"""
@@ -451,33 +438,6 @@ class TelegramMessageCollector:
         
         self._initialized = False
         logger.info("TelegramMessageCollector已关闭")
-    
-    async def _batch_get_raw_messages(self, entity, message_groups: List[List[int]]) -> Dict[int, TLMessage]:
-        """批量获取原始Telegram消息"""
-        try:
-            # 将嵌套列表展平为单一ID列表
-            all_message_ids = []
-            for group in message_groups:
-                all_message_ids.extend(group)
-            
-            if not all_message_ids:
-                return {}
-            
-            # 批量获取所有消息
-            messages = await self.telethon_client.get_messages(entity, ids=all_message_ids)
-            
-            # 构建ID到消息的映射
-            message_map = {}
-            for msg in messages:
-                if msg is not None:
-                    message_map[msg.id] = msg
-            
-            logger.debug(f"批量获取消息成功: {len(message_map)}/{len(all_message_ids)} 条")
-            return message_map
-            
-        except Exception as e:
-            logger.error(f"批量获取原始消息失败: {e}")
-            return {}
     
     async def _process_single_message(self, message: TLMessage, channel_id: str) -> Optional[CollectedMessage]:
         """处理单个消息，包括媒体下载"""
