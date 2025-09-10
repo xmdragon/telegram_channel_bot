@@ -22,13 +22,8 @@ from app.core.config import db_settings
 
 logger = logging.getLogger(__name__)
 
-# 导入视觉相似度检测器
-try:
-    from app.services.visual_similarity import visual_detector
-    logger.info("✅ 视觉相似度检测器导入成功")
-except ImportError as e:
-    visual_detector = None
-    logger.error(f"❌ 视觉相似度检测器导入失败: {e}")
+# 视觉哈希计算功能已移除，保持下载功能的单一职责
+# 视觉相似度检测应在后续处理阶段进行，而不是在下载阶段
 
 class MediaHandler:
     """媒体文件处理器"""
@@ -197,8 +192,7 @@ class MediaHandler:
                 "file_size": 0,
                 "file_name": None,
                 "mime_type": None,
-                "download_time": datetime.utcnow().isoformat(),
-                "hash": None  # 添加哈希字段
+                "download_time": datetime.utcnow().isoformat()
             }
             
             if isinstance(message.media, MessageMediaPhoto):
@@ -236,33 +230,99 @@ class MediaHandler:
                         logger.error(f"❌ 图片下载真正失败，文件不存在: {file_name}")
                         return None
                 
-                # 计算文件哈希
-                file_hash = None
-                visual_hashes = None
-                if file_path.exists():
-                    pass
-                    # 计算视觉哈希（仅对图片）
-                    if visual_detector:
-                        try:
-                            with open(file_path, 'rb') as f:
-                                image_data = f.read()
-                            visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
-                            logger.debug(f"📊 图片视觉哈希计算成功: {file_name}")
-                        except Exception as e:
-                            logger.error(f"❌ 计算视觉哈希失败: {e}")
-                    else:
-                        logger.warning("⚠️ 视觉检测器未初始化，跳过视觉哈希计算")
-                
+                # 🔥 Linus式修复：下载功能保持简单，不做额外处理
                 media_info.update({
                     "file_path": str(file_path),
                     "file_name": file_name,
                     "file_size": file_path.stat().st_size if file_path.exists() else 0,
-                    "mime_type": "image/jpeg",
-                    "hash": file_hash,
-                    "visual_hashes": visual_hashes
+                    "mime_type": "image/jpeg"
                 })
                 
                 logger.debug(f"图片下载完成: {file_name} ({media_info['file_size']} bytes)")
+                return media_info  # 🔥 关键修复：添加缺少的return语句
+                
+            elif isinstance(message.media, MessageMediaDocument):
+                # 处理文档/视频/动图/音频等
+                document = message.media.document
+                
+                # 确定文件类型和扩展名
+                mime_type = document.mime_type or "application/octet-stream"
+                if mime_type.startswith("video/"):
+                    media_info["media_type"] = "video"
+                    extension = ".mp4"
+                elif mime_type.startswith("image/"):
+                    if "gif" in mime_type:
+                        media_info["media_type"] = "animation"
+                        extension = ".gif"
+                    else:
+                        media_info["media_type"] = "photo"
+                        extension = ".jpg"
+                elif mime_type.startswith("audio/"):
+                    media_info["media_type"] = "audio"
+                    extension = ".mp3"
+                else:
+                    media_info["media_type"] = "document"
+                    extension = ".bin"
+                
+                # 尝试从文档属性获取原始文件名
+                original_name = None
+                for attr in document.attributes:
+                    if hasattr(attr, 'file_name') and attr.file_name:
+                        original_name = attr.file_name
+                        extension = os.path.splitext(original_name)[1] or extension
+                        break
+                
+                # 检查危险文件类型
+                dangerous_extensions = ['.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar', '.msi', '.dll']
+                if extension.lower() in dangerous_extensions:
+                    logger.warning(f"🚫 检测到危险文件类型: {original_name or extension}，跳过下载")
+                    return None
+                
+                file_name = f"{file_prefix}_{media_info['media_type']}{extension}"
+                file_path = self.temp_dir / file_name
+                
+                # 检查文件大小限制
+                if document.size > self.max_download_size:
+                    logger.warning(f"文件太大，跳过下载: {document.size/1024/1024:.1f}MB > {self.max_download_size/1024/1024:.1f}MB")
+                    return None
+                
+                # 下载文档
+                download_timeout = timeout if timeout else self.default_timeout
+                
+                try:
+                    # 创建进度回调函数
+                    progress_callback = lambda current, total: asyncio.create_task(
+                        self._download_progress_callback(current, total, str(message_id), media_info["media_type"])
+                    )
+                    
+                    await asyncio.wait_for(
+                        client.download_media(
+                            message.media, 
+                            file_path,
+                            progress_callback=progress_callback
+                        ),
+                        timeout=download_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(f"下载{media_info['media_type']}超时（{download_timeout}秒）: {file_name}")
+                    # 检查文件是否实际已经下载完成
+                    if file_path.exists() and file_path.stat().st_size > 0:
+                        logger.debug(f"✅ 虽然超时，但文件下载完成: {file_name} ({file_path.stat().st_size} bytes)")
+                    else:
+                        logger.error(f"❌ 文件下载真正失败: {file_name}")
+                        return None
+                
+                # 更新媒体信息
+                media_info.update({
+                    "file_path": str(file_path),
+                    "file_name": file_name,
+                    "file_size": file_path.stat().st_size if file_path.exists() else 0,
+                    "mime_type": mime_type,
+                    "original_name": original_name
+                })
+                
+                logger.debug(f"{media_info['media_type']}下载完成: {file_name} ({media_info['file_size']} bytes)")
+                return media_info
                 
             elif isinstance(message.media, MessageMediaWebPage):
                 # 处理链接预览（智能提取真实媒体内容）
@@ -324,29 +384,12 @@ class MediaHandler:
                         timeout=download_timeout
                     )
                     
-                    # 计算文件哈希和视觉哈希
-                    file_hash = None
-                    visual_hashes = None
-                    
-                    if file_path.exists():
-                        # 导入视觉检测器
-                        try:
-                            from app.services.detectors.visual_detector import visual_detector
-                            if visual_detector:
-                                with open(file_path, 'rb') as f:
-                                    image_data = f.read()
-                                visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
-                                logger.debug(f"📊 链接预览图片视觉哈希计算成功: {file_name}")
-                        except Exception as e:
-                            logger.debug(f"计算链接预览图片视觉哈希失败: {e}")
-                    
+                    # 🔥 简化：专注于下载，不做额外处理
                     media_info.update({
                         "file_path": str(file_path),
                         "file_name": file_name,
                         "file_size": file_path.stat().st_size if file_path.exists() else 0,
                         "mime_type": "image/jpeg",
-                        "hash": file_hash,
-                        "visual_hashes": visual_hashes,
                         "webpage_url": webpage.url if hasattr(webpage, 'url') else None,
                         "webpage_title": webpage.title if hasattr(webpage, 'title') else None
                     })
