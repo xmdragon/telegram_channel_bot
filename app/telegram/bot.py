@@ -40,9 +40,8 @@ class TelegramBot:
         message_event_handler.set_message_processor(self._message_handler.handle_message_from_event)
         message_event_handler.set_callback_processor(self._event_handler.handle_callback)
         
-        # 设置历史采集器的消息处理器 - 延迟导入避免循环依赖
-        from app.telegram.history_collector import history_collector
-        history_collector.set_message_processor(self._message_handler.process_source_message)
+        # 简化版历史采集器不需要复杂的消息处理器设置
+        # 直接使用内置的简单保存逻辑
     
     async def start(self):
         """启动Telegram客户端和监控"""

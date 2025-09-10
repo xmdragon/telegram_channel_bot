@@ -32,7 +32,7 @@ class AppSettings:
     async def get_source_channels(self) -> List[str]:
         """获取活跃的源频道ID列表"""
         from app.services.channel_manager import channel_manager
-        return await channel_manager.get_active_source_channels()
+        return await channel_manager.get_source_channels()
     
     async def get_review_group_id(self) -> str:
         """获取审核群ID配置（URL或用户名格式）"""

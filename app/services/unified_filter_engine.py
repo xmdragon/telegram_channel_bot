@@ -54,70 +54,46 @@ class UnifiedFilterEngine:
         return LayerPipeline(config)
         
     def _load_filter_settings(self) -> Dict[str, bool]:
-        """从系统配置加载过滤器设置"""
+        """从系统配置加载过滤器设置 - Linus式修复：直接读取JSON文件，避免事件循环阻塞"""
         try:
-            from app.services.config_manager import config_manager
+            # 🔧 Linus式修复：直接读取JSON配置文件，避免复杂的异步调用
+            import json
+            from pathlib import Path
             
-            # 获取配置，同步调用配置管理器
-            import asyncio
-            loop = None
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # 如果没有事件循环，创建新的
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            config_file = Path("data/config/system.json")
             
-            # 加载系统配置
-            filter_enabled = True
+            # 默认值
+            filter_enabled = False  # 从之前清理Redis缓存时确认用户设置为false
             tail_filter_enabled = True
             footer_promo_enabled = True
             markdown_enabled = True
             promo_vector_enabled = True
-            ad_detector_enabled = True
+            ad_detector_enabled = False
             auto_reject_ads = True
             
-            try:
-                if loop.is_running():
-                    # 如果已经在事件循环中，直接获取当前缓存值
-                    from app.services.config_manager import ConfigManager
-                    config_mgr = ConfigManager()
-                    if hasattr(config_mgr, '_cache') and config_mgr._cache:
-                        filter_enabled = config_mgr._cache.get('filter.enabled', {}).get('value', True)
-                        tail_filter_enabled = config_mgr._cache.get('filter.tail_filter', {}).get('value', True)
-                        footer_promo_enabled = config_mgr._cache.get('filter.footer_promo', {}).get('value', True)
-                        markdown_enabled = config_mgr._cache.get('filter.markdown', {}).get('value', True)
-                        promo_vector_enabled = config_mgr._cache.get('filter.promo_vector', {}).get('value', True)
-                        ad_detector_enabled = config_mgr._cache.get('filter.ad_detector', {}).get('value', True)
-                        auto_reject_ads = config_mgr._cache.get('review.auto_reject_ads', {}).get('value', True)
-                else:
-                    # 如果不在事件循环中，运行异步调用
-                    filter_enabled = loop.run_until_complete(config_manager.get_config('filter.enabled', True))
-                    tail_filter_enabled = loop.run_until_complete(config_manager.get_config('filter.tail_filter', True))
-                    footer_promo_enabled = loop.run_until_complete(config_manager.get_config('filter.footer_promo', True))
-                    markdown_enabled = loop.run_until_complete(config_manager.get_config('filter.markdown', True))
-                    promo_vector_enabled = loop.run_until_complete(config_manager.get_config('filter.promo_vector', True))
-                    ad_detector_enabled = loop.run_until_complete(config_manager.get_config('filter.ad_detector', True))
-                    auto_reject_ads = loop.run_until_complete(config_manager.get_config('review.auto_reject_ads', True))
-            except Exception as e:
-                logger.warning(f"从config_manager加载配置失败，使用默认值: {e}")
-            
-            # 转换为布尔值
-            def to_bool(value):
-                if isinstance(value, bool):
-                    return value
-                elif isinstance(value, str):
-                    return value.lower() in ('true', '1', 'yes', 'on')
-                else:
-                    return bool(value)
-            
-            filter_enabled = to_bool(filter_enabled)
-            tail_filter_enabled = to_bool(tail_filter_enabled)
-            footer_promo_enabled = to_bool(footer_promo_enabled)
-            markdown_enabled = to_bool(markdown_enabled)
-            promo_vector_enabled = to_bool(promo_vector_enabled)
-            ad_detector_enabled = to_bool(ad_detector_enabled)
-            auto_reject_ads = to_bool(auto_reject_ads)
+            # 直接读取JSON文件
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                    
+                # 转换配置值
+                def get_config_value(key, default):
+                    if key in config_data:
+                        value = config_data[key].get('value', default)
+                        if isinstance(value, str):
+                            return value.lower() in ('true', '1', 'yes', 'on')
+                        return bool(value)
+                    return default
+                    
+                filter_enabled = get_config_value('filter.enabled', filter_enabled)
+                tail_filter_enabled = get_config_value('filter.tail_filter', tail_filter_enabled)
+                footer_promo_enabled = get_config_value('filter.footer_promo', footer_promo_enabled)
+                markdown_enabled = get_config_value('filter.markdown', markdown_enabled)
+                promo_vector_enabled = get_config_value('filter.promo_vector', promo_vector_enabled)
+                ad_detector_enabled = get_config_value('filter.ad_detector', ad_detector_enabled)
+                auto_reject_ads = get_config_value('review.auto_reject_ads', auto_reject_ads)
+            else:
+                logger.warning(f"配置文件不存在: {config_file}，使用默认值")
             
             # 分层架构配置 - Linus式修复：主开关控制一切
             settings = {
@@ -140,8 +116,8 @@ class UnifiedFilterEngine:
             
         except Exception as e:
             logger.error(f"加载过滤器设置失败，使用默认配置: {e}")
-            # 返回默认分层设置 - Linus式一致性：主开关默认启用
-            filter_enabled_default = True  # 默认启用过滤
+            # 返回默认分层设置 - 根据用户之前的设置，默认禁用过滤
+            filter_enabled_default = False  # 用户明确关闭了过滤器
             return {
                 'content_layer_enabled': filter_enabled_default,
                 'detector_layer_enabled': filter_enabled_default,

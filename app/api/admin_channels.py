@@ -21,14 +21,11 @@ class ChannelCreateRequest(BaseModel):
     channel_id: str = ""
     channel_name: str
     channel_title: str = ""
-    channel_type: str = "source"
     config: Optional[dict] = None
 
 class ChannelUpdateRequest(BaseModel):
     channel_id: Optional[str] = None
     channel_title: Optional[str] = None
-    channel_type: Optional[str] = None
-    is_active: Optional[bool] = None
     config: Optional[dict] = None
 
 @router.get(ROUTES.admin.channels)
@@ -36,11 +33,16 @@ async def get_channels(
     search: Optional[str] = Query(None, description="搜索关键词，支持名称精准匹配或标题模糊匹配")
 ):
     """获取频道配置 - 只返回源频道，支持搜索"""
-    channel_store = get_json_channel_store()
-    all_channels = channel_store.get_all_channels()
-    
-    # 过滤只返回源频道
-    channels = [ch for ch in all_channels if ch.get('channel_type') == 'source']
+    try:
+        channel_store = get_json_channel_store()
+        all_channels = channel_store.get_all_channels()
+        logger.info(f"API获取到 {len(all_channels)} 个频道")
+        
+        # 所有频道都是源频道，无需过滤
+        channels = all_channels
+    except Exception as e:
+        logger.error(f"获取频道列表失败: {e}")
+        channels = []
     
     # 如果有搜索关键词，添加搜索过滤
     if search:
@@ -65,9 +67,8 @@ async def get_channels(
                 "id": ch.get('id', ''),
                 "name": ch.get('channel_name', ''),
                 "title": ch.get('channel_title', ''),
-                "status": "active" if ch.get('is_active', True) else "inactive",
+                "status": "active",  # 存在即活跃
                 "channel_id": ch.get('channel_id', ''),
-                "channel_type": ch.get('channel_type', ''),
                 "config": ch.get('config', {}),
                 "created_at": ch.get('created_at', '')
             }
@@ -127,9 +128,7 @@ async def add_channel(
             "channel_id": resolved_id,
             "channel_name": request.channel_name,
             "channel_title": resolved_title or request.channel_name,
-            "channel_type": request.channel_type,
             "config": request.config or {},
-            "is_active": True,
             "created_at": datetime.now().isoformat()
         }
         
@@ -177,10 +176,6 @@ async def update_channel(
             channel['channel_id'] = request.channel_id
         if request.channel_title is not None:
             channel['channel_title'] = request.channel_title
-        if request.channel_type is not None:
-            channel['channel_type'] = request.channel_type
-        if request.is_active is not None:
-            channel['is_active'] = request.is_active
         if request.config is not None:
             channel['config'] = request.config
         

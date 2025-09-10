@@ -32,15 +32,13 @@ class ChannelManager:
             logger.error(f"获取源频道列表失败: {e}")
             return []
     
-    async def add_channel(self, channel_id: str, channel_name: str = "", 
-                         channel_type: str = "source", description: str = "",
-                         channel_title: str = "", config: Dict = None) -> bool:
+    async def add_channel(self, channel_id: str, channel_name: str = "",
+                         description: str = "", channel_title: str = "", config: Dict = None) -> bool:
         """添加频道"""
         try:
             result = await unified_channel_service.add_channel(
                 channel_name=channel_name or channel_id,
                 channel_id=channel_id,
-                channel_type=channel_type,
                 description=description,
                 resolve_title=True  # 自动解析真实标题
             )
@@ -49,17 +47,15 @@ class ChannelManager:
             logger.error(f"添加频道失败: {e}")
             return False
     
-    async def update_channel_status(self, channel_id: str, is_active: bool) -> bool:
-        """更新频道状态"""
+    async def delete_channel(self, channel_identifier: str) -> bool:
+        """删除频道"""
         try:
-            result = await unified_channel_service.update_channel(
-                channel_id, 
-                {"is_active": is_active}
-            )
+            result = await unified_channel_service.delete_channel(channel_identifier)
             return result["success"]
         except Exception as e:
-            logger.error(f"更新频道状态失败: {e}")
+            logger.error(f"删除频道失败: {e}")
             return False
+    
     
     async def get_channel_by_id(self, channel_id: str) -> Optional[Dict]:
         """根据ID获取频道"""
@@ -69,9 +65,6 @@ class ChannelManager:
             logger.error(f"获取频道失败: {e}")
             return None
     
-    async def get_active_source_channels(self) -> List[Dict]:
-        """获取活跃的源频道列表 - config.py需要的方法"""
-        return await self.get_source_channels()
     
     async def resolve_missing_channel_ids(self) -> int:
         """解析缺失的频道ID"""
@@ -135,10 +128,8 @@ class ChannelManager:
                 display_info = {
                     'id': channel_id,
                     'username': username,
-                    'title': channel.get('channel_title', username),  # 使用正确的字段名
-                    'type': channel.get('channel_type', 'source'),  # 修正字段名
+                    'title': channel.get('channel_title', username),
                     'description': channel.get('description', ''),
-                    'active': channel.get('is_active', True),
                     'link_prefix': link_prefix,
                     'last_collected_id': channel.get('last_collected_id'),
                     'created_at': channel.get('created_at', ''),

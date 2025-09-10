@@ -209,7 +209,7 @@ class MediaHandler:
                 file_hash = None
                 visual_hashes = None
                 if file_path.exists():
-                    file_hash = await self._calculate_file_hash(str(file_path))
+                    pass
                     # 计算视觉哈希（仅对图片）
                     if visual_detector:
                         try:
@@ -268,7 +268,7 @@ class MediaHandler:
                         file_hash = None
                         visual_hashes = None
                         if file_path.exists():
-                            file_hash = await self._calculate_file_hash(str(file_path))
+                            pass
                             # 计算视觉哈希
                             if visual_detector:
                                 try:
@@ -344,7 +344,7 @@ class MediaHandler:
                         # 计算文件哈希
                         file_hash = None
                         if file_path.exists():
-                            file_hash = await self._calculate_file_hash(str(file_path))
+                            pass
                         
                         media_info.update({
                             "file_path": str(file_path),
@@ -447,7 +447,7 @@ class MediaHandler:
                 file_hash = None
                 visual_hashes = None
                 if file_path.exists():
-                    file_hash = await self._calculate_file_hash(str(file_path))
+                    pass
                     # 计算视觉哈希（仅对图片类型）
                     if visual_detector and media_info["media_type"] in ["photo", "animation"]:
                         try:
@@ -590,32 +590,13 @@ class MediaHandler:
                 "created_time": datetime.fromtimestamp(stat.st_ctime),
                 "modified_time": datetime.fromtimestamp(stat.st_mtime),
                 "exists": True,
-                "hash": await self._calculate_file_hash(file_path)
+                "hash": None
             }
             
         except Exception as e:
             logger.error(f"获取文件信息失败: {file_path}, 错误: {e}")
             return None
             
-    async def _calculate_file_hash(self, file_path: str) -> Optional[str]:
-        """
-        计算文件的SHA256哈希值
-        
-        Args:
-            file_path: 文件路径
-            
-        Returns:
-            文件哈希值
-        """
-        try:
-            hash_sha256 = hashlib.sha256()
-            with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_sha256.update(chunk)
-            return hash_sha256.hexdigest()
-        except Exception as e:
-            logger.error(f"计算文件哈希失败: {file_path}, 错误: {e}")
-            return None
     
     async def process_media_group(self, media_list: List[Dict[str, Any]]) -> Optional[str]:
         """

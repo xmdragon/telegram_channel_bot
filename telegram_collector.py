@@ -220,9 +220,9 @@ class TelegramCollectorService:
                                 # 如果Bot已经在运行，直接触发历史采集
                                 if self.telegram_bot and hasattr(self.telegram_bot, 'client') and self.telegram_bot.client:
                                     logger.info("Bot已运行，直接触发历史消息采集...")
-                                    from app.telegram.history_collector import history_collector
+                                    from app.telegram.history_collector_simple import simple_history_collector
                                     try:
-                                        await history_collector.collect_channel_history(self.telegram_bot.client)
+                                        await simple_history_collector.collect_channel_history(self.telegram_bot.client)
                                         logger.info("✅ 历史消息采集已触发")
                                     except Exception as e:
                                         logger.error(f"❌ 触发历史采集失败: {e}")

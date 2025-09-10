@@ -110,7 +110,7 @@ class SemanticExtractor:
     
     def extract_vector(self, text: str) -> Optional[List[float]]:
         """
-        从文本提取768维语义向量 - 支持ONNX和PyTorch双引擎
+        从文本提取768维语义向量 - 🚫 临时禁用所有AI模型避免内存泄漏
         
         Args:
             text: 原始文本
@@ -118,12 +118,8 @@ class SemanticExtractor:
         Returns:
             768维语义向量，失败返回None
         """
-        if not text or not text.strip():
-            return None
-            
-        # 确保模型已初始化
-        if not self._initialize_model():
-            return None
+        # 🚫 临时禁用：直接返回None，避免ONNX模型导致的内存泄漏和重入调用问题
+        return None
         
         try:
             clean_text = text.strip()

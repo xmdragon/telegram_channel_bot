@@ -2,6 +2,7 @@
 消息处理管道基础架构
 定义处理器接口和上下文对象
 """
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
@@ -135,7 +136,21 @@ class MessagePipeline:
             for i, processor in enumerate(self.processors):
                 self.logger.debug(f"执行处理器 {i+1}/{len(self.processors)}: {processor.name}")
                 
-                result = await processor.process(context)
+                # 添加超时保护，防止处理器阻塞
+                try:
+                    start_time = asyncio.get_event_loop().time()
+                    result = await asyncio.wait_for(processor.process(context), timeout=30.0)
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    self.logger.debug(f"处理器 {processor.name} 执行完成，耗时: {elapsed:.2f}秒")
+                except asyncio.TimeoutError:
+                    error_msg = (
+                        f"🚨 处理器 {processor.name} 执行超时 (30秒)\n"
+                        f"  消息ID: {context.telegram_message.id}\n"
+                        f"  频道ID: {context.channel_id}\n"
+                        f"  这可能表明处理器中存在阻塞操作"
+                    )
+                    self.logger.error(error_msg)
+                    return ProcessorResult(False, context, error_msg)
                 
                 if result.failed:
                     self.logger.error(f"处理器 {processor.name} 失败: {result.error}")

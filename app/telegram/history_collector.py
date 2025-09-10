@@ -55,12 +55,44 @@ class HistoryCollector:
             
             # 为每个频道采集历史消息
             for idx, channel in enumerate(channels, 1):
+                channel_name = channel.get('channel_name', 'unknown')
+                logger.info(f"[{idx}/{len(channels)}] 开始采集频道: {channel_name}")
+                
+                # 🎯 Linus式解决方案：使用asyncio.create_task + asyncio.wait实现真正的超时控制
                 try:
-                    channel_name = channel.get('channel_name', 'unknown')
-                    logger.info(f"[{idx}/{len(channels)}] 开始采集频道: {channel_name}")
-                    await self._collect_single_channel_history(client, channel, history_limit)
-                    logger.info(f"[{idx}/{len(channels)}] 频道 {channel_name} 采集完成")
+                    # 创建采集任务
+                    collect_task = asyncio.create_task(
+                        self._collect_single_channel_history(client, channel, history_limit)
+                    )
+                    
+                    # 等待任务完成，设置超时
+                    timeout_seconds = 60  # 60秒超时
+                    done, pending = await asyncio.wait(
+                        [collect_task],
+                        timeout=timeout_seconds,
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    
+                    if pending:
+                        # 任务超时，取消它
+                        logger.warning(f"🚨 频道 {channel_name} 采集超时({timeout_seconds}秒)，强制跳过")
+                        collect_task.cancel()
+                        try:
+                            await collect_task
+                        except asyncio.CancelledError:
+                            pass  # 正常的取消
+                        continue
+                    
+                    # 任务正常完成，检查结果
+                    if done:
+                        task = done.pop()
+                        if task.exception():
+                            logger.error(f"❌ 频道 {channel_name} 采集失败: {task.exception()}")
+                        else:
+                            logger.info(f"[{idx}/{len(channels)}] 频道 {channel_name} 采集完成")
+                    
                     await asyncio.sleep(0.5)  # 避免频率限制（优化：2秒->0.5秒）
+                    
                 except Exception as e:
                     import traceback
                     channel_name = channel.get('channel_name', 'unknown')
@@ -129,22 +161,19 @@ class HistoryCollector:
         
         logger.info(f"开始获取主消息ID列表，min_id={min_id}, 需要{limit}个主消息")
         
-        # 获取更多消息确保有足够主消息（每10条消息大约1个主消息）
-        scan_limit = max(limit * 10, 10)  # 至少扫描10条
+        # 🎯 Linus式修复：使用更小的批次和超时控制
+        # 不再尝试一次获取10倍数量，而是分批获取
         message_count = 0
+        batch_size = min(50, limit * 2)  # 每批最多50条，减少阻塞风险
         
         try:
-            logger.info(f"[DEBUG] 开始iter_messages循环，scan_limit={scan_limit}, min_id={min_id}")
+            logger.info(f"[DEBUG] 开始iter_messages循环，batch_size={batch_size}, min_id={min_id}")
             
-            # 添加超时控制 - 防止长时间卡住
-            import time
-            start_time = time.time()
-            timeout_seconds = 300  # 5分钟超时
-            
-            async for msg in client.iter_messages(entity, limit=scan_limit, min_id=min_id):
-                # 超时检查 - Linus式简洁
-                if time.time() - start_time > timeout_seconds:
-                    logger.warning(f"消息获取超时（{timeout_seconds}秒），已获取{len(main_messages)}个主消息")
+            # 使用更小的批次避免长时间阻塞
+            async for msg in client.iter_messages(entity, limit=batch_size, min_id=min_id):
+                # 频繁检查任务是否被取消
+                if asyncio.current_task() and asyncio.current_task().cancelled():
+                    logger.warning("消息ID获取被取消")
                     break
                     
                 if not msg or not msg.id:
@@ -177,8 +206,13 @@ class HistoryCollector:
                 if len(main_messages) >= limit:
                     break
                     
-        except asyncio.TimeoutError:
-            logger.warning(f"消息迭代超时，返回已获取的{len(main_messages)}个主消息")
+                # 每10条消息yield一次控制权，让asyncio有机会检查取消
+                if message_count % 10 == 0:
+                    await asyncio.sleep(0)  # 让出控制权
+                    
+        except asyncio.CancelledError:
+            logger.warning("消息ID获取被取消（在iter_messages中）")
+            raise  # 重新抛出以便上层处理
         except Exception as e:
             logger.error(f"获取主消息ID时异常: {e}")
             # 如果出错，返回已获取的部分

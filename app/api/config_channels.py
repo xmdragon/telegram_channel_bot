@@ -60,6 +60,9 @@ class ChannelAddRequest(BaseModel):
     channel_title: str = ""
     description: str = ""
 
+class ChannelBatchAddRequest(BaseModel):
+    channels: str  # 多行文本，每行一个频道信息
+
 @router.post(ROUTES.config.channels_add)
 async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
     """添加监听频道"""
@@ -69,8 +72,7 @@ async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends
         success = await channel_manager.add_channel(
             channel_id=request.channel_id,
             channel_name=request.channel_name,
-            description=request.description,
-            channel_type="source"
+            description=request.description
         )
         
         if success:
@@ -161,3 +163,117 @@ async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(check_conf
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
+
+@router.post(ROUTES.config.channels_batch_add)
+async def batch_add_channels(request: ChannelBatchAddRequest, user: Dict[str, Any] = Depends(check_config_permission)):
+    """批量添加频道"""
+    try:
+        if not request.channels.strip():
+            raise HTTPException(status_code=400, detail="频道列表不能为空")
+        
+        from app.services.channel_manager import channel_manager
+        import re
+        
+        lines = request.channels.strip().split('\n')
+        results = {
+            "added": [],
+            "failed": [],
+            "skipped": []
+        }
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            try:
+                # 解析频道信息，支持多种格式：
+                # 1. @channel_name
+                # 2. https://t.me/channel_name  
+                # 3. -1001234567890 (频道ID)
+                # 4. channel_name (不带@)
+                
+                channel_name = None
+                channel_id = None
+                
+                # 格式1: @channel_name
+                if line.startswith('@'):
+                    channel_name = line
+                # 格式2: Telegram链接
+                elif line.startswith('https://t.me/'):
+                    match = re.search(r'https://t\.me/([a-zA-Z0-9_]+)', line)
+                    if match:
+                        channel_name = f"@{match.group(1)}"
+                # 格式3: 数字ID
+                elif line.startswith('-100') or line.isdigit():
+                    channel_id = line if line.startswith('-100') else f"-100{line}"
+                # 格式4: 纯频道名
+                else:
+                    # 只包含字母、数字、下划线的被视为频道名
+                    if re.match(r'^[a-zA-Z0-9_]+$', line):
+                        channel_name = f"@{line}"
+                    else:
+                        results["failed"].append({
+                            "input": line,
+                            "error": "无法识别的频道格式"
+                        })
+                        continue
+                
+                # 尝试添加频道
+                if channel_name or channel_id:
+                    success = await channel_manager.add_channel(
+                        channel_id=channel_id or "",
+                        channel_name=channel_name or "",
+                        description=f"批量添加的频道"
+                    )
+                    
+                    if success:
+                        results["added"].append({
+                            "input": line,
+                            "channel_name": channel_name,
+                            "channel_id": channel_id,
+                            "message": "添加成功"
+                        })
+                    else:
+                        results["skipped"].append({
+                            "input": line,
+                            "channel_name": channel_name,
+                            "channel_id": channel_id,
+                            "message": "频道已存在或添加失败"
+                        })
+                        
+            except Exception as e:
+                results["failed"].append({
+                    "input": line,
+                    "error": str(e)
+                })
+        
+        # 统计结果
+        added_count = len(results["added"])
+        failed_count = len(results["failed"])
+        skipped_count = len(results["skipped"])
+        total_count = added_count + failed_count + skipped_count
+        
+        success = added_count > 0
+        if success:
+            message = f"批量添加完成：成功 {added_count}，跳过 {skipped_count}，失败 {failed_count}"
+        else:
+            message = f"批量添加失败：没有成功添加任何频道，跳过 {skipped_count}，失败 {failed_count}"
+        
+        return {
+            "success": success,
+            "message": message,
+            "results": results,
+            "stats": {
+                "total": total_count,
+                "added": added_count,
+                "skipped": skipped_count,
+                "failed": failed_count
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量添加频道失败: {e}")
+        raise HTTPException(status_code=500, detail=f"批量添加频道失败: {str(e)}")

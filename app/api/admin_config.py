@@ -49,20 +49,14 @@ async def _trigger_history_collection():
             logger.info("已重置auto_collection_done标志")
         
         # 确保TelegramBot已初始化以设置消息处理器
-        from app.telegram.history_collector import history_collector
+        from app.telegram.history_collector_simple import simple_history_collector
         from app.telegram.client_manager import client_manager
         
-        # 检查消息处理器是否已设置
-        if not history_collector._message_processor:
-            logger.info("消息处理器未设置，正在初始化TelegramBot...")
-            # 创建并初始化TelegramBot以设置消息处理器
-            from app.telegram.bot import TelegramBot
-            temp_bot = TelegramBot()  # 初始化时会调用_setup_component_callbacks设置消息处理器
-            logger.info("TelegramBot已初始化，消息处理器已设置")
+        # 简化版本不需要复杂的消息处理器设置
         
         client = await client_manager.get_client()
         if client and client.is_connected():
-            await history_collector.collect_channel_history(client)
+            await simple_history_collector.collect_channel_history(client)
             logger.info("已触发历史消息采集")
         else:
             logger.warning("Telegram客户端未连接，无法触发历史采集")

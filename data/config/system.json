@@ -7,7 +7,7 @@
     "created_at": "2025-08-29T19:32:07.310111"
   },
   "filter.enabled": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "启用内容过滤",
     "is_active": true,
@@ -42,7 +42,7 @@
     "created_at": "2025-08-20T16:00:00.000000"
   },
   "collection.enabled": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "系统重置时自动禁用采集",
     "is_active": true,

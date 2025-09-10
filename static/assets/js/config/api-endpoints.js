@@ -159,7 +159,8 @@ const API_ENDPOINTS = {
         thresholds: '/api/config/thresholds',                     // GET/POST - 阈值配置
         export: '/api/config/export',                             // GET - 导出配置
         import: '/api/config/import',                             // POST - 导入配置
-        channelsBatchAdd: '/api/config/channels/batch-add'        // POST - 批量添加频道
+        channelsBatchAdd: '/api/config/channels/batch-add',       // POST - 批量添加频道
+        channelsById: (channel_id) => `/api/config/channels/${channel_id}` // GET/DELETE - 获取/删除频道
     },
 
     // 系统状态模块 - /api/system

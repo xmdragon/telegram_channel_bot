@@ -27,43 +27,39 @@ class UnifiedChannelService:
                 return None
         return self._channel_store
     
-    async def add_channel(self, channel_name: str, channel_id: str = "", 
-                         channel_type: str = "source", description: str = "",
-                         resolve_title: bool = True) -> Dict[str, Any]:
+    async def add_channel(self, channel_name: str, channel_id: str = "",
+                         description: str = "", resolve_title: bool = True) -> Dict[str, Any]:
         """
         添加频道 - 统一入口
         Args:
             channel_name: 频道用户名 (如 @username)
             channel_id: 频道ID (如果为空会自动解析)
-            channel_type: 频道类型
             description: 描述
             resolve_title: 是否解析真实标题
         Returns:
             操作结果 {"success": bool, "message": str, "data": dict}
         """
         try:
-            # 🔒 CRITICAL: 防止目标频道被添加到源频道列表的核心保护
-            # 这是bug的根本原因修复点
-            if channel_type == "source":
-                from app.services.config_manager import config_manager
-                # 获取目标频道配置
-                target_channel_id = await config_manager.get_config('target.channel_id')
-                target_channel = await config_manager.get_config('target.channel_link')
-                
-                # 解析要添加的频道ID（如果需要）
-                resolved_id = channel_id
-                if not channel_id and channel_name:
-                    resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
-                
-                # 检查是否为目标频道
-                if (resolved_id and resolved_id == target_channel_id) or \
-                   (channel_name and channel_name == target_channel):
-                    logger.error(f"拒绝将目标频道添加到源频道列表: {channel_name} ({resolved_id})")
-                    return {
-                        "success": False, 
-                        "message": f"错误：不能将目标频道 {channel_name} 添加到源频道列表中", 
-                        "data": None
-                    }
+            # 防止目标频道被添加到源频道列表
+            from app.services.config_manager import config_manager
+            # 获取目标频道配置
+            target_channel_id = await config_manager.get_config('target.channel_id')
+            target_channel = await config_manager.get_config('target.channel_link')
+            
+            # 解析要添加的频道ID（如果需要）
+            resolved_id = channel_id
+            if not channel_id and channel_name:
+                resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
+            
+            # 检查是否为目标频道
+            if (resolved_id and resolved_id == target_channel_id) or \
+               (channel_name and channel_name == target_channel):
+                logger.error(f"拒绝将目标频道添加到源频道列表: {channel_name} ({resolved_id})")
+                return {
+                    "success": False, 
+                    "message": f"错误：不能将目标频道 {channel_name} 添加到源频道列表中", 
+                    "data": None
+                }
             
             channel_store = self._get_channel_store()
             if not channel_store:
@@ -107,9 +103,7 @@ class UnifiedChannelService:
                 'channel_name': channel_name,
                 'channel_id': resolved_id,
                 'channel_title': channel_title,  # 存储真实标题
-                'channel_type': channel_type,
                 'description': description,
-                'is_active': True,
                 'config': {},
                 'created_at': get_current_time().isoformat()
             }

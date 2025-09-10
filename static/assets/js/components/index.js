@@ -552,8 +552,7 @@ const MainApp = {
                             id: channel.channel_id,
                             title: channel.channel_title || channel.title || `频道 ${channel.channel_id}`,
                             username: username, // 不包含@前缀
-                            type: channel.channel_type || 'source',
-                            enabled: channel.is_active !== false && channel.enabled !== false
+                            enabled: true
                         };
                         
                         channelInfo[channel.channel_id] = channelInfo_item;

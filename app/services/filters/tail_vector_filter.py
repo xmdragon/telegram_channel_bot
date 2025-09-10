@@ -41,29 +41,15 @@ class TailVectorFilter:
         self._initialize()
     
     def _initialize(self):
-        """初始化过滤器"""
-        logger.info("🚀 初始化ONNX语义尾部过滤器...")
+        """初始化过滤器 - 🚫 临时禁用避免内存泄漏"""
+        logger.info("🚫 临时禁用ONNX语义尾部过滤器（避免内存泄漏）")
         
-        try:
-            # 1. 初始化语义提取器
-            self.semantic_extractor = SemanticExtractor()
-            
-            # 2. 加载阈值配置
-            self.threshold = self._load_threshold()
-            logger.info(f"   语义相似度阈值: {self.threshold}")
-            
-            # 3. 加载尾部样本语义向量
-            self._load_tail_embeddings()
-            
-            self.is_initialized = True
-            logger.info("✅ ONNX语义尾部过滤器初始化成功")
-            logger.info(f"   样本数量: {len(self.tail_samples)}")
-            logger.info(f"   向量维度: {self.tail_embeddings.shape if self.tail_embeddings is not None else 'N/A'}")
-            
-        except Exception as e:
-            logger.error(f"❌ ONNX语义尾部过滤器初始化失败: {e}")
-            self.is_initialized = False
-            self.init_error = str(e)
+        # 🚫 临时禁用所有初始化，避免ONNX模型加载导致内存泄漏
+        self.is_initialized = False
+        self.semantic_extractor = None
+        self.tail_embeddings = None
+        self.tail_samples = []
+        self.threshold = 0.7
     
     def _load_threshold(self) -> float:
         """从统一配置文件加载阈值"""

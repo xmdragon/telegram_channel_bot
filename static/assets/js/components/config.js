@@ -306,8 +306,7 @@ const ConfigApp = {
                 const response = await axios.post(API.admin.channels, {
                     channel_id: "",  // 自动解析
                     channel_name: channelName,
-                    channel_title: "",  // 自动解析
-                    channel_type: "source"
+                    channel_title: ""  // 自动解析
                 });
                 
                 if (response.data.success) {
@@ -326,7 +325,7 @@ const ConfigApp = {
         async removeChannel(channelId) {
             try {
                 
-                const response = await axios.delete(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channelId)));
+                const response = await axios.delete(API.config.channelsById(channelId));
                 
                 
                 if (response.data.success) {
@@ -416,27 +415,6 @@ const ConfigApp = {
             }
         },
         
-        async toggleChannelStatus(channel) {
-            try {
-                const newStatus = channel.status === 'active' ? 'inactive' : 'active';
-                const isActive = newStatus === 'active';
-                
-                
-                const response = await axios.put(API.admin.channels_by_name.replace('{channel_name}', encodeURIComponent(channel.name)), {
-                    is_active: isActive
-                });
-                
-                
-                if (response.data.success) {
-                    MessageManager.success(`频道状态已切换为${newStatus === 'active' ? '活跃' : '停用'}`);
-                    await this.loadChannels();
-                } else {
-                    MessageManager.error('状态切换失败: ' + (response.data.message || '未知错误'));
-                }
-            } catch (error) {
-                MessageManager.error('状态切换失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
         
         
         // 保存转发配置 - 使用统一方法

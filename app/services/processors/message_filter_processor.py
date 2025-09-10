@@ -106,17 +106,19 @@ class MessageFilterProcessor(MessageProcessor):
                 pipeline_timer = filter_timer.add_child("content_filtering").start()
             self.logger.debug(f"开始内容过滤 #{message.id}")
             
-            # 添加超时保护，防止过滤管道阻塞
+            # 🛡️ Linus式修复：多层超时保护，确保永不阻塞
             import asyncio
             try:
-                await asyncio.wait_for(self._apply_content_filter(context, media_files), timeout=30.0)
+                # 第一层：内容过滤超时保护（10秒）
+                await asyncio.wait_for(self._apply_content_filter(context, media_files), timeout=10.0)
                 self.logger.debug(f"完成内容过滤 #{message.id}")
             except asyncio.TimeoutError:
-                self.logger.error(f"内容过滤超时（30秒），跳过过滤 #{message.id}")
-                # 设置默认值，继续处理
-                context.filtered_content = context.processed_content
-                context.is_ad = False
-                context.filter_reason = "过滤超时"
+                self.logger.warning(f"🕐 内容过滤超时（10秒），使用快速模式处理 #{message.id}")
+                # 使用快速安全模式：跳过复杂过滤，保持基本功能
+                await self._apply_safe_mode_filter(context)
+            except Exception as e:
+                self.logger.error(f"🚨 内容过滤异常，使用安全模式: {e}")
+                await self._apply_safe_mode_filter(context)
             
             if filter_timer:
                 pipeline_timer.stop()
@@ -171,7 +173,7 @@ class MessageFilterProcessor(MessageProcessor):
         context.removed_hidden_links = []
     
     async def _apply_content_filter(self, context: MessageContext, media_files: list):
-        """应用内容过滤管道"""
+        """应用内容过滤管道 - 带超时控制"""
         try:
             content = context.processed_content
             
@@ -186,8 +188,12 @@ class MessageFilterProcessor(MessageProcessor):
             filter_context.add_metadata('media_files', media_files)
             filter_context.add_metadata('message_obj', context.telegram_message)
             
-            # 执行过滤管道
-            pipeline_result = await self.filter_pipeline.process(content, filter_context)
+            # 🛡️ 第二层超时保护：过滤管道执行超时（5秒）
+            import asyncio
+            pipeline_result = await asyncio.wait_for(
+                self.filter_pipeline.process(content, filter_context), 
+                timeout=5.0
+            )
             
             # 提取过滤结果
             context.filtered_content = pipeline_result.final_content
@@ -237,12 +243,46 @@ class MessageFilterProcessor(MessageProcessor):
                 self.logger.info(f"检测到广告: {context.filter_reason}")
                 
             
+        except asyncio.TimeoutError:
+            self.logger.warning(f"⚡ 过滤管道超时，切换到安全模式")
+            await self._apply_safe_mode_filter(context)
         except Exception as e:
             self.logger.error(f"内容过滤失败: {e}")
             # 失败时保持原内容
             context.filtered_content = context.processed_content
             context.filter_reason = f"过滤失败: {e}"
     
+    async def _apply_safe_mode_filter(self, context: MessageContext):
+        """安全模式过滤 - 基础过滤，无复杂AI检测，确保不阻塞"""
+        try:
+            content = context.processed_content
+            
+            # 🔇 安全模式：跳过所有复杂过滤，只做基础处理
+            context.filtered_content = content
+            context.is_ad = False
+            context.filter_reason = "安全模式：跳过复杂过滤"
+            
+            # 基础安全检测：只检测明显的垃圾内容
+            content_lower = content.lower()
+            
+            # 检测明显的广告关键词（简单字符串匹配，无AI）
+            spam_keywords = ['首存', '充值送', '无需实名', '免费注册', '点击链接', '私聊联系']
+            for keyword in spam_keywords:
+                if keyword in content:
+                    context.is_ad = True
+                    context.filter_reason = f"安全模式检测到广告关键词: {keyword}"
+                    self.logger.info(f"🚫 安全模式检测到广告: {keyword}")
+                    break
+            
+            if not context.is_ad:
+                self.logger.debug(f"✅ 安全模式：消息未检测为广告")
+                
+        except Exception as e:
+            # 即使安全模式也失败，使用最基础的默认值
+            self.logger.error(f"安全模式过滤也失败: {e}")
+            context.filtered_content = context.processed_content  
+            context.is_ad = False
+            context.filter_reason = f"安全模式失败: {e}"
     
     
     

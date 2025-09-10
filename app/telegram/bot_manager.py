@@ -147,8 +147,8 @@ class BotManager:
         """自动采集频道历史消息"""
         try:
             logger.info("开始采集频道历史消息...")
-            from app.telegram.history_collector import history_collector
-            await history_collector.collect_channel_history(self.client)
+            from app.telegram.history_collector_simple import simple_history_collector
+            await simple_history_collector.collect_channel_history(self.client)
         except Exception as e:
             logger.error(f"自动采集历史消息失败: {e}")
     
@@ -236,8 +236,8 @@ class BotManager:
         await system_monitor.stop()
         
         # 停止历史采集
-        from app.telegram.history_collector import history_collector
-        await history_collector.stop_all_collections()
+        # 简化版本不需要stop_all_collections
+        # 简化采集器没有复杂的collection_tasks管理
         
         # 停止媒体处理器
         from app.services.media_handler import media_handler
