@@ -27,6 +27,7 @@ class RouteConfig:
         # 高级操作
         edit_publish = "/messages/edit-publish/{message_id}"
         publish = "/messages/publish/{message_id}"
+        publish_direct = "/messages/publish-direct/{message_id}"
         resend = "/messages/resend/{message_id}"
         
         # 过滤器操作

@@ -36,7 +36,8 @@ const API_ENDPOINTS = {
         // 消息操作端点
         notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
         filterContent: (id) => `/api/messages/filter-content/${id}`, // POST - 执行内容过滤
-        publish: (id) => `/api/messages/publish/${id}`,            // POST - 发布消息
+        publish: (id) => `/api/messages/publish/${id}`,            // POST - 发布消息（队列版本）
+        publishDirect: (id) => `/api/messages/publish-direct/${id}`, // POST - 直接发布消息（新版本，不依赖采集开关）
         editPublish: (id) => `/api/messages/edit-publish/${id}`,   // POST - 编辑并发布
         refetchMedia: (id) => `/api/messages/refetch-media/${id}`, // POST - 重新获取媒体
         trainTail: (id) => `/api/messages/train-tail/${id}`,       // POST - 训练尾部过滤

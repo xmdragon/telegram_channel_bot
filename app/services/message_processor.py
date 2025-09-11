@@ -4,7 +4,7 @@
 import json
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from app.storage.redis_manager import redis_manager
 
@@ -52,7 +52,6 @@ class MessageProcessor:
             from app.services.config_manager import config_manager
             auto_forward_delay = await config_manager.get_config('review.auto_forward_delay', 1800)  # 默认30分钟
             
-            from datetime import timezone
             cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=int(auto_forward_delay))
             
             # 获取所有待审核消息
@@ -467,7 +466,7 @@ class MessageProcessor:
             
             # 针对不同状态设置不同的清理时间
             # pending消息保留更长时间（7天），避免误删待审核消息
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
             pending_cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
             
             # 获取所有状态的消息

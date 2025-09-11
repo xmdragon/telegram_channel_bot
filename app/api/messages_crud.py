@@ -1065,3 +1065,181 @@ async def _handle_single_reject_media_training(message: Dict[str, Any], reason: 
                 
     except Exception as e:
         logger.error(f"处理单个拒绝媒体训练失败: {e}")
+
+# ========== 新增：直接发布API（解决采集开关依赖问题） ==========
+
+async def _direct_forward_message(message_id: str, user_id: str = None) -> dict:
+    """
+    直接转发消息到目标频道（不经过队列）
+    用于文本消息的同步处理
+    """
+    try:
+        # 获取消息数据
+        message = redis_manager.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 直接调用转发器
+        from app.telegram.message_forwarder import message_forwarder
+        await message_forwarder.forward_to_target_with_sender_session(message)
+        
+        # 更新消息状态为已发布
+        redis_manager.update_message_status(message_id, "approved", user_id)
+        
+        # 记录广告检测反馈
+        await _record_ad_detection_feedback(message, "approve")
+        
+        logger.info(f"直接转发成功: {message_id}")
+        return {
+            "success": True,
+            "message": "消息已成功发布到目标频道",
+            "timestamp": format_for_api(get_current_time())
+        }
+        
+    except Exception as e:
+        logger.error(f"直接转发失败: {message_id}, 错误: {e}")
+        raise
+
+async def _async_forward_with_redis_notify(message_id: str, user_id: str = None):
+    """
+    异步转发媒体消息并通过Redis发送WebSocket通知
+    """
+    try:
+        # 通知开始处理
+        await _redis_websocket_notify("publish_started", message_id, 
+                                    "开始处理媒体消息发布...")
+        
+        # 获取消息数据
+        message = redis_manager.get_message_by_id(message_id)
+        if not message:
+            await _redis_websocket_notify("publish_failed", message_id, 
+                                        "消息不存在", is_final=True)
+            return
+        
+        # 执行转发
+        from app.telegram.message_forwarder import message_forwarder
+        await message_forwarder.forward_to_target_with_sender_session(message)
+        
+        # 更新消息状态
+        redis_manager.update_message_status(message_id, "approved", user_id)
+        
+        # 记录广告检测反馈
+        await _record_ad_detection_feedback(message, "approve")
+        
+        # 通知成功
+        await _redis_websocket_notify("publish_success", message_id, 
+                                    "媒体消息发布成功")
+        
+        logger.info(f"异步转发成功: {message_id}")
+        
+    except Exception as e:
+        logger.error(f"异步转发失败: {message_id}, 错误: {e}")
+        # 通知失败
+        await _redis_websocket_notify("publish_failed", message_id, 
+                                    str(e), is_final=True)
+        
+        # 将消息状态回退到待审核
+        try:
+            redis_manager.update_message_status(message_id, "pending", user_id)
+            redis_manager.update_message_field(
+                message_id.split(':')[0], int(message_id.split(':')[1]),
+                'forward_failure_reason', f'直接转发失败: {str(e)}'
+            )
+        except Exception as status_error:
+            logger.error(f"回退消息状态失败: {status_error}")
+
+async def _redis_websocket_notify(event_type: str, message_id: str, message: str, is_final: bool = False):
+    """
+    通过Redis Pub/Sub发送WebSocket通知（跨进程通信）
+    复用现有的媒体补抓通知机制
+    """
+    try:
+        import json
+        from datetime import datetime
+        
+        # 构造通知数据（格式与现有通知保持一致）
+        notification_data = {
+            "type": event_type,
+            "message_id": message_id,
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+            "is_final": is_final
+        }
+        
+        # 构造完整的WebSocket消息格式
+        websocket_message = {
+            "type": event_type,
+            "data": notification_data,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # 发布到Redis频道（跨进程通信）
+        redis_client = redis_manager.client
+        if redis_client:
+            message_json = json.dumps(websocket_message, ensure_ascii=False)
+            redis_client.publish("websocket:broadcast", message_json)
+            logger.info(f"📡 已发布直接转发通知到Redis频道: {message_id} - {event_type}")
+        else:
+            logger.error("Redis客户端不可用，无法发送WebSocket通知")
+            
+    except Exception as e:
+        logger.error(f"发送Redis WebSocket通知失败: {e}")
+
+@router.post(ROUTES.messages.publish_direct)
+@check_permission("message.publish")
+async def publish_message_direct(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    直接发布消息到目标频道（新版API）
+    
+    特性：
+    - 不依赖采集服务状态
+    - 文本消息同步处理，立即返回结果
+    - 媒体消息异步处理，WebSocket通知进度
+    - 复用现有转发逻辑和双Session架构
+    """
+    try:
+        # 验证消息存在
+        message = redis_manager.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 判断消息类型
+        has_media = message.get('media_type') or message.get('is_combined') == 'True'
+        
+        if not has_media:
+            # 文本消息：同步处理，立即返回结果
+            try:
+                result = await _direct_forward_message(message_id, user.get('user_id'))
+                result["mode"] = "sync"
+                result["processing_time"] = "即时处理"
+                return result
+            except Exception as e:
+                logger.error(f"同步转发失败: {e}")
+                return {
+                    "success": False, 
+                    "mode": "sync", 
+                    "error": str(e),
+                    "timestamp": format_for_api(get_current_time())
+                }
+        else:
+            # 媒体消息：异步处理，避免超时
+            import asyncio
+            asyncio.create_task(_async_forward_with_redis_notify(message_id, user.get('user_id')))
+            
+            return {
+                "success": True,
+                "mode": "async", 
+                "message": "媒体消息正在后台处理，请关注通知",
+                "estimated_time": "10-30秒",
+                "websocket_events": ["publish_started", "publish_success", "publish_failed"],
+                "timestamp": format_for_api(get_current_time())
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"直接发布API失败: {e}")
+        raise HTTPException(status_code=500, detail=f"发布失败: {str(e)}")

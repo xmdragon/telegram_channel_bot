@@ -920,7 +920,7 @@ const MainApp = {
                 const wasLoadingMore = this.isLoadingMore;
                 this.isLoadingMore = true;
                 
-                const response = await axios.post(window.API.messages.approveById(messageId));
+                const response = await axios.post(window.API.messages.publishDirect(messageId));
                 if (response.data.success) {
                     window.SimpleUI.Message.success('消息已发布');
                     // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
