@@ -155,6 +155,13 @@ const TelegramAlbum = {
             return style;
         },
 
+        // 获取底部右侧的边缘标识（安全访问）
+        getBottomRightSides() {
+            const AlbumRectPart = window.AlbumRectPart;
+            if (!AlbumRectPart) return 0;
+            return AlbumRectPart.Bottom | AlbumRectPart.Right;
+        },
+
         // 根据边缘位置计算圆角
         getBorderRadius(sides) {
             const AlbumRectPart = window.AlbumRectPart;
@@ -378,7 +385,7 @@ const TelegramAlbum = {
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     zIndex: 4,
-                    borderRadius: getBorderRadius(window.AlbumRectPart ? (window.AlbumRectPart.Bottom | window.AlbumRectPart.Right) : 0)
+                    borderRadius: this.getBorderRadius(this.getBottomRightSides())
                 }"
                 @click="handleMediaClick(mediaItems[8], 8)"
             >

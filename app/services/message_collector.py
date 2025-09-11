@@ -5,6 +5,7 @@ TelegramMessageCollector - 全新的消息采集处理架构
 import logging
 import asyncio
 import json
+import time
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +17,7 @@ from app.storage.redis_manager import redis_manager
 from app.utils.timezone import get_current_time
 from app.services.simple_tail_filter import filter_tail_content
 from app.services.filters.markdown_filter import MarkdownFilter
+from app.services.filters.separator_filter import SeparatorFilter
 from app.services.filters.base import FilterContext
 
 logger = logging.getLogger(__name__)
@@ -175,14 +177,15 @@ class CheckpointManager:
             logger.error(f"更新checkpoint失败 {channel_id}: {e}")
 
 class ContentProcessingPipeline:
-    """内容处理管道 - markdown过滤 + 尾部过滤处理"""
+    """内容处理管道 - 尾部过滤 + markdown过滤 + 分隔符过滤处理"""
     
     def __init__(self):
         """初始化处理管道"""
         self.markdown_filter = MarkdownFilter()
+        self.separator_filter = SeparatorFilter()
     
     async def process(self, message: LocalMessage) -> LocalMessage:
-        """执行内容过滤处理 - 尾部过滤 → markdown过滤"""
+        """执行内容过滤处理 - 尾部过滤 → markdown过滤 → 分隔符过滤"""
         try:
             if not message.content:
                 return message
@@ -217,6 +220,15 @@ class ContentProcessingPipeline:
                 else:
                     logger.debug(f"消息 {message.message_id} 无markdown链接需要处理")
             
+            # 3. 分隔符过滤处理（在markdown过滤后执行）
+            separator_result, separator_stats = self.separator_filter.filter_content(current_content)
+            if separator_stats.get('removed_lines_count', 0) > 0:
+                current_content = separator_result
+                filter_reasons.append(f"分隔符过滤: 移除{separator_stats['removed_lines_count']}行分隔符")
+                logger.info(f"消息 {message.message_id} 分隔符过滤: 移除了{separator_stats['removed_lines_count']}行")
+            else:
+                logger.debug(f"消息 {message.message_id} 无分隔符需要过滤")
+            
             # 更新消息内容
             message.filtered_content = current_content
             if filter_reasons:
@@ -249,6 +261,9 @@ class TelegramMessageCollector:
         
         # 初始化标志
         self._initialized = False
+        
+        # 信号控制标志
+        self.running = True
     
     async def initialize(self):
         """初始化采集器"""
@@ -282,14 +297,42 @@ class TelegramMessageCollector:
             raise
     
     async def start_collecting(self):
-        """开始消息采集循环"""
-        logger.info("开始消息采集循环")
+        """开始连续消息采集循环"""
+        logger.info("开始连续消息采集循环")
         
-        # 1. 初始加载频道列表
+        while True:
+            loop_start_time = time.time()
+            
+            try:
+                # 检查是否应该继续采集
+                if not await self._should_continue():
+                    logger.info("采集已停止")
+                    break
+                
+                # 执行单轮采集
+                await self._do_single_collection_round()
+                
+                # 再次检查，确保及时退出
+                if not await self._should_continue():
+                    logger.info("单轮采集完成后检测到停止信号")
+                    break
+                
+            except Exception as e:
+                logger.error(f"采集轮次失败: {e}")
+                # 继续下一轮，不中断整个循环
+            
+            # 智能间隔等待
+            await self._smart_wait(loop_start_time)
+        
+        logger.info("连续采集循环已结束")
+    
+    async def _do_single_collection_round(self):
+        """执行单轮完整采集"""
+        # 1. 加载频道列表
         channels = await self.channel_manager.get_all_source_channels()
         
         if not channels:
-            logger.warning("没有配置源频道，跳过采集")
+            logger.debug("没有配置源频道，跳过本轮采集")
             return
         
         logger.info(f"开始处理 {len(channels)} 个源频道")
@@ -305,10 +348,19 @@ class TelegramMessageCollector:
             checkpoint = self.checkpoint_manager.get_checkpoint(channel_id)
             await self._process_channel_messages(channel, checkpoint)
         
-        # 3. 处理完成后检查配置更新（为下次调用准备）
-        await self.channel_manager.get_all_source_channels()
+        logger.info("单轮采集完成")
+    
+    async def _smart_wait(self, start_time: float):
+        """智能间隔等待，确保不会过频采集"""
+        runtime = time.time() - start_time
+        min_interval = 30  # 最小间隔30秒
         
-        logger.info("采集循环完成")
+        if runtime < min_interval:
+            wait_time = min_interval - runtime
+            logger.info(f"本轮采集耗时 {runtime:.1f}s，等待 {wait_time:.1f}s 后继续下轮")
+            await asyncio.sleep(wait_time)
+        else:
+            logger.info(f"本轮采集耗时 {runtime:.1f}s，立即开始下轮")
     
     async def _get_message_ids_to_collect(self, entity, channel_id: str, checkpoint: int) -> List[List[int]]:
         """根据channel和checkpoint返回要采集的消息ID组列表"""
@@ -422,7 +474,6 @@ class TelegramMessageCollector:
         
         # 2. 循环处理每个消息组
         processed_count = 0
-        last_processed_message_id = checkpoint  # 记录最后成功处理的消息ID
         
         for message_group in message_groups:
             collected_message = await self._fetch_telegram_messages(entity, message_group, channel)
@@ -474,9 +525,27 @@ class TelegramMessageCollector:
                 
                 if success:
                     processed_count += 1
-                    # 5. 更新checkpoint - 仅在存储成功时更新
-                    last_processed_message_id = max(last_processed_message_id, collected_message.message_id)
-                    logger.debug(f"消息 {collected_message.message_id} 存储成功")
+                    
+                    # 5. 立即更新checkpoint
+                    checkpoint_id = collected_message.message_id
+                    
+                    # 如果是组消息，使用组内最大的message_id
+                    if hasattr(collected_message, 'grouped_id') and collected_message.grouped_id:
+                        if isinstance(message_group, list):
+                            # 获取组内所有消息的最大ID
+                            checkpoint_id = max([msg for msg in message_group])
+                        
+                    try:
+                        await self.checkpoint_manager.update_checkpoint(channel_id, checkpoint_id)
+                        logger.debug(f"消息 {collected_message.message_id} 存储成功，checkpoint更新为: {checkpoint_id}")
+                        
+                        # 🎯 数据安全检查点 - checkpoint更新完成后检查退出条件
+                        if not await self._should_continue():
+                            logger.info(f"频道 {channel_name} 检测到停止信号，已安全保存进度至消息 {checkpoint_id}")
+                            return  # 优雅退出，数据已安全保存
+                            
+                    except Exception as checkpoint_e:
+                        logger.error(f"更新checkpoint {checkpoint_id} 失败: {checkpoint_e}")
                 else:
                     logger.error(f"消息 {collected_message.message_id} 存储失败")
                     
@@ -484,29 +553,16 @@ class TelegramMessageCollector:
                 logger.error(f"处理消息组 {message_group} 时发生错误: {e}")
                 continue
         
-        # 最终更新checkpoint到最后成功处理的消息ID
-        if last_processed_message_id > checkpoint:
-            try:
-                await self.checkpoint_manager.update_checkpoint(channel_id, last_processed_message_id)
-                logger.info(f"频道 {channel_name} checkpoint 更新为: {last_processed_message_id}")
-            except Exception as e:
-                logger.error(f"更新频道 {channel_name} checkpoint 失败: {e}")
-        
         logger.info(f"频道 {channel_name} 采集完成，成功处理 {processed_count} 条消息（共 {len(message_groups)} 个消息组）")
-    
-    async def shutdown(self):
-        """关闭采集器，清理资源"""
-        logger.info("关闭TelegramMessageCollector")
-        
-        if self.telethon_client and self.telethon_client.is_connected():
-            await self.telethon_client.disconnect()
-        
-        self._initialized = False
-        logger.info("TelegramMessageCollector已关闭")
     
     async def _process_single_message(self, message: TLMessage, channel_id: str, channel: dict) -> Optional[LocalMessage]:
         """处理单个消息，包括媒体下载"""
         try:
+            # 早期过滤：丢弃空消息（无文本且无媒体）
+            if not message.message and not hasattr(message, 'media'):
+                logger.debug(f"丢弃空消息 {message.id}：无文本内容且无媒体")
+                return None
+                
             # 下载媒体（如果有）
             media_info = None
             if message.media:
@@ -521,8 +577,8 @@ class TelegramMessageCollector:
                 channel_id=channel_id,
                 message_id=message.id,
                 grouped_id=getattr(message, 'grouped_id', None),
-                content=message.text or "",
-                filtered_content=message.text or "",  # 暂时与content相同
+                content=message.message or "",
+                filtered_content=message.message or "",  # 暂时与content相同
                 media_info=media_info,
                 media_type=media_info.get('media_type') if media_info else None,
                 media_path=media_info.get('file_path') if media_info else None,
@@ -547,10 +603,10 @@ class TelegramMessageCollector:
                 return None
             
             # 确定主消息（第一条有文本的，或第一条）
-            primary_msg = next((msg for msg in group_messages if msg.text), group_messages[0])
+            primary_msg = next((msg for msg in group_messages if msg.message), group_messages[0])
             
             # 收集所有文本内容
-            all_texts = [msg.text for msg in group_messages if msg.text]
+            all_texts = [msg.message for msg in group_messages if msg.message]
             merged_content = '\n'.join(all_texts) if all_texts else ''
             
             # 批量下载所有媒体
@@ -594,6 +650,35 @@ class TelegramMessageCollector:
         except Exception as e:
             logger.error(f"处理组消息失败: {e}")
             return None
+    
+    async def _should_continue(self) -> bool:
+        """检查是否应该继续采集 - 基于信号控制 + collection.enabled配置"""
+        # 首先检查信号控制
+        if not self.running:
+            logger.info("检测到停止信号，准备停止采集")
+            return False
+        
+        try:
+            # 然后检查配置文件（保持现有逻辑）
+            await self.channel_manager.load_config()
+            
+            # 读取系统配置文件检查collection.enabled
+            with open(PathConfig.SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                system_config = json.load(f)
+            
+            # 检查collection.enabled配置项
+            collection_enabled = system_config.get("collection.enabled", {}).get("value", False)
+            
+            if not collection_enabled:
+                logger.info("检测到collection.enabled=False，准备停止采集")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"检查采集继续条件失败: {e}")
+            # 出错时停止采集，确保安全
+            return False
 
 
 # 全局实例

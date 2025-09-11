@@ -113,18 +113,15 @@ async def add_separator_pattern(pattern_data: SeparatorPattern):
     try:
         patterns = load_separator_patterns()
         
-        # 检查是否已存在
+        # 检查是否已存在（检查regex字段）
         for pattern in patterns:
-            if pattern.get('pattern') == pattern_data.pattern:
+            if pattern.get('regex') == pattern_data.pattern:
                 return {"success": False, "message": "模式已存在"}
         
-        # 添加新模式
+        # 添加新模式（使用正确的字段名）
         new_pattern = {
-            "id": generate_sample_id(pattern_data.pattern),
-            "pattern": pattern_data.pattern,
-            "description": pattern_data.description,
-            "enabled": pattern_data.enabled,
-            "created_at": datetime.now().isoformat()
+            "regex": pattern_data.pattern,  # 使用regex字段存储正则表达式
+            "description": pattern_data.description
         }
         
         patterns.append(new_pattern)
@@ -132,9 +129,40 @@ async def add_separator_pattern(pattern_data: SeparatorPattern):
         if not save_separator_patterns(patterns):
             raise HTTPException(status_code=500, detail="保存模式失败")
         
-        return {"success": True, "message": "模式添加成功", "id": new_pattern["id"]}
+        return {"success": True, "message": "模式添加成功"}
     except Exception as e:
         raise handle_api_error(e, "添加分隔符模式")
+
+@router.put(ROUTES.training.separator_patterns)
+async def update_all_separator_patterns(patterns_data: dict):
+    """批量更新所有分隔符模式（完全替换）"""
+    try:
+        patterns_list = patterns_data.get('patterns', [])
+        
+        # 转换格式并验证
+        updated_patterns = []
+        for pattern_item in patterns_list:
+            # 支持两种格式：{regex: "", description: ""} 和 {pattern: "", description: ""}
+            regex = pattern_item.get('regex') or pattern_item.get('pattern', '')
+            description = pattern_item.get('description', '')
+            
+            if regex and description:  # 只保存有效的模式
+                updated_patterns.append({
+                    "regex": regex,
+                    "description": description
+                })
+        
+        # 完全替换现有数据
+        if not save_separator_patterns(updated_patterns):
+            raise HTTPException(status_code=500, detail="保存分隔符模式失败")
+        
+        return {
+            "success": True, 
+            "message": f"成功更新 {len(updated_patterns)} 个分隔符模式",
+            "total": len(updated_patterns)
+        }
+    except Exception as e:
+        raise handle_api_error(e, "批量更新分隔符模式")
 
 @router.post(ROUTES.training.reload_model)
 async def reload_model():

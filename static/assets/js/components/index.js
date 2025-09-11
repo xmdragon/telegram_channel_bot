@@ -402,6 +402,22 @@ const MainApp = {
     },
     
     methods: {
+        // Linus式工具函数：确保消息ID包含-100前缀 - 消除特殊情况
+        ensureChannelIdPrefix(messageId) {
+            if (!messageId || !messageId.includes(':')) {
+                return messageId;
+            }
+            
+            // 如果ID已经包含-100前缀，直接返回
+            if (messageId.startsWith('-100')) {
+                return messageId;
+            }
+            
+            // 分解ID并添加-100前缀
+            const [channelPart, messagePart] = messageId.split(':');
+            return `-100${channelPart}:${messagePart}`;
+        },
+        
         // 发布状态检查方法
         isPublishing(messageId) {
             return this.publishingMessages.has(messageId);
@@ -1741,7 +1757,7 @@ const MainApp = {
             
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
-                const response = await axios.post(window.API.messages.editPublish(this.editDialog.messageId), {
+                const response = await axios.post(window.API.messages.editPublish(this.ensureChannelIdPrefix(this.editDialog.messageId)), {
                     filtered_content: this.editDialog.filteredContent
                 });
                 
@@ -1947,7 +1963,7 @@ const MainApp = {
             try {
                 window.SimpleUI.Message.info('正在重新发布消息到目标频道...');
                 
-                const response = await axios.post(window.API.messages.resendById(message.id));
+                const response = await axios.post(window.API.messages.resendById(this.ensureChannelIdPrefix(message.id)));
                 
                 if (response.data.success) {
                     window.SimpleUI.Message.success('消息已重新发布到目标频道');
@@ -2127,7 +2143,7 @@ const MainApp = {
                 }
                 
                 const response = await axios.post(window.API.training.markAdMessage, {
-                    message_id: message.id,
+                    message_id: this.ensureChannelIdPrefix(message.id),
                     is_marking_as_ad: !isCurrentlyAd  // 双向操作标识
                 });
                 
@@ -2182,7 +2198,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(window.API.messages.notAd(message.id));
+                const response = await axios.post(window.API.messages.notAd(this.ensureChannelIdPrefix(message.id)));
                 
                 if (response.data.success) {
                     window.SimpleUI.Message.success('已标记为"不是广告"，消息状态已改为待审核');
@@ -2207,7 +2223,7 @@ const MainApp = {
             }
             // 只传递message_id，让训练页面自己获取消息详情
             const params = new URLSearchParams({
-                message_id: message.id
+                message_id: this.ensureChannelIdPrefix(message.id)
             });
             // 使用新的独立尾部过滤训练页面
             window.location.href = API.pages.tailFilterTraining + '?' + params.toString();
@@ -2232,7 +2248,7 @@ const MainApp = {
             try {
                 // 🚀 Linus风格：依赖axios拦截器自动处理认证（消除特殊情况）
                 const response = await axios.post(
-                    window.API.messages.filterContent(message.id),
+                    window.API.messages.filterContent(this.ensureChannelIdPrefix(message.id)),
                     {} // 让拦截器自动添加认证头，避免手动覆盖
                 );
                 
@@ -2319,7 +2335,7 @@ const MainApp = {
                 
                 // 直接执行（Linus风格：减少用户交互）
                 // 媒体补抓需要更长超时时间（下载+处理）
-                const response = await axios.post(window.API.messages.refetchMedia(message.id), {}, {
+                const response = await axios.post(window.API.messages.refetchMedia(this.ensureChannelIdPrefix(message.id)), {}, {
                     timeout: 60000 // 60秒超时
                 });
                 

@@ -43,11 +43,12 @@ class MarkdownFilter(BaseFilter):
             # 收集所有链接类型的实体
             link_entities = []
             for entity in entities:
-                entity_type = entity.get('type')
-                if entity_type in ['url', 'text_link']:
+                # 正确处理 Telethon 实体对象
+                entity_class_name = entity.__class__.__name__
+                if entity_class_name in ['MessageEntityUrl', 'MessageEntityTextUrl'] or hasattr(entity, 'url'):
                     link_entities.append({
-                        'offset': entity.get('offset', 0),
-                        'length': entity.get('length', 0)
+                        'offset': entity.offset,
+                        'length': entity.length
                     })
             
             if not link_entities:
@@ -66,6 +67,7 @@ class MarkdownFilter(BaseFilter):
             
         except Exception as e:
             logger.error(f"entities过滤失败: {e}")
+            logger.debug(f"实体类型: {[entity.__class__.__name__ for entity in entities] if entities else 'None'}")
             return content, 0
     
     def _filter_by_markdown(self, content: str) -> tuple[str, int]:

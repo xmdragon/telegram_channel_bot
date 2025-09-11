@@ -55,14 +55,27 @@ const app = createApp({
         // 保存分隔符配置
         async saveSeparatorPatterns() {
             try {
-                const response = await axios.post(API.training.separatorPatterns, {
-                    patterns: this.separatorPatterns.filter(p => p.regex && p.description)
+                // 过滤出有效的分隔符模式
+                const validPatterns = this.separatorPatterns.filter(p => p.regex && p.description);
+                
+                // 使用PUT方法进行批量更新（完全替换）
+                const response = await axios.put(API.training.separatorPatterns, {
+                    patterns: validPatterns
                 });
                 
-                window.SimpleUI.Message.success('分隔符配置保存成功！');
+                if (response.data.success) {
+                    // 重新加载数据以确保同步
+                    await this.loadSeparatorPatterns();
+                    
+                    window.SimpleUI.Message.success(
+                        response.data.message || `成功保存 ${validPatterns.length} 个分隔符模式！`
+                    );
+                } else {
+                    window.SimpleUI.Message.error(response.data.message || '保存失败');
+                }
             } catch (error) {
                 console.error('保存分隔符配置失败:', error);
-                window.SimpleUI.Message.error(error.response?.data?.detail || '保存失败');
+                window.SimpleUI.Message.error('保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         

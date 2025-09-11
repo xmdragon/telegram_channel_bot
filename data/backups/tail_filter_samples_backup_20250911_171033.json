@@ -480,23 +480,8 @@
       "is_applied": true,
       "created_by": "manual",
       "message_id": null
-    },
-    {
-      "id": 77,
-      "tail_part": "📣订阅频道",
-      "rules": [
-        "订阅频道"
-      ],
-      "created_at": "2025-09-11T17:10:33.290747",
-      "content": "测试消息内容\n\n📣订阅频道",
-      "separator": "",
-      "normal_part": "",
-      "content_hash": "25861d863115b5caafcfe8ea69706899",
-      "is_applied": true,
-      "created_by": "manual",
-      "message_id": null
     }
   ],
-  "updated_at": "2025-09-11T17:10:33.290848",
-  "total_count": 44
+  "updated_at": "2025-09-11T17:10:08.574478",
+  "total_count": 43
 }

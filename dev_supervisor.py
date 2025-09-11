@@ -236,7 +236,7 @@ class DevSupervisor:
             ),
             "collector": ServiceConfig(
                 name="collector", 
-                command=["python3", "telegram_collector.py"],
+                command=["python3", "message_collector.py"],
                 description="Telegram消息采集服务"
             ),
             "scheduler": ServiceConfig(

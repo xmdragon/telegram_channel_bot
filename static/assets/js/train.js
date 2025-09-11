@@ -118,8 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.submitting = true;
                 try {
                     const response = await axios.post(API.training.tailFilterSamples, {
-                        original_message: this.trainingForm.original_message,
-                        tail_content: this.trainingForm.tail_content
+                        content: this.trainingForm.original_message,
+                        tailPart: this.trainingForm.tail_content
                     });
                     
                     this.showMessage('训练样本提交成功！', 'success');

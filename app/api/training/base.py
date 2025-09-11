@@ -47,9 +47,8 @@ class TailFilterSample(BaseModel):
 
 class SeparatorPattern(BaseModel):
     """分隔符模式模型"""
-    pattern: str
+    pattern: str  # 前端传入的字段名，内部映射到regex
     description: str = ""
-    enabled: bool = True
 
 class PromoSample(BaseModel):
     """推广链接样本模型"""
