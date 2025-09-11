@@ -190,7 +190,12 @@ async def get_messages(
             if not message.get('source_channel_link_prefix') and message.get('source_channel'):
                 from app.services.processors.message_storage_processor import MessageStorageProcessor
                 processor = MessageStorageProcessor()
-                message['source_channel_link_prefix'] = processor._generate_channel_link_prefix(message['source_channel'])
+                # 优先使用已有的频道用户名
+                channel_username = message.get('source_channel_username')
+                message['source_channel_link_prefix'] = processor._generate_channel_link_prefix(
+                    message['source_channel'], 
+                    channel_username
+                )
             
             # 处理单个媒体显示URL（支持多种字段名）
             media_path = message.get('media_path') or message.get('media_url')
@@ -376,6 +381,25 @@ async def get_channel_info(
         logger.error(f"获取频道信息失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
 
+def _normalize_message_id(message_id: str) -> str:
+    """
+    Linus式消息ID标准化 - 统一处理所有格式变体
+    自动检测并补全缺少的-100前缀
+    """
+    if ':' not in message_id:
+        return message_id
+        
+    channel_part, msg_part = message_id.split(':', 1)
+    
+    # 如果频道ID不以-100开头，自动补全
+    if channel_part.isdigit():
+        channel_part = f"-100{channel_part}"
+    elif channel_part.startswith('-') and not channel_part.startswith('-100'):
+        channel_part = f"-100{channel_part[1:]}"
+    
+    return f"{channel_part}:{msg_part}"
+
+
 @router.get(ROUTES.messages.detail)
 async def get_message(
     message_id: str,
@@ -386,7 +410,11 @@ async def get_message(
     """
     try:
         redis_store = redis_manager
-        message = redis_manager.get_message_by_id(message_id)
+        
+        # 🚀 Linus式智能ID处理 - 消除格式特殊情况
+        normalized_id = _normalize_message_id(message_id)
+        
+        message = redis_manager.get_message_by_id(normalized_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
@@ -398,7 +426,12 @@ async def get_message(
         if not message.get('source_channel_link_prefix') and message.get('source_channel'):
             from app.services.processors.message_storage_processor import MessageStorageProcessor
             processor = MessageStorageProcessor()
-            message['source_channel_link_prefix'] = processor._generate_channel_link_prefix(message['source_channel'])
+            # 优先使用已有的频道用户名
+            channel_username = message.get('source_channel_username')
+            message['source_channel_link_prefix'] = processor._generate_channel_link_prefix(
+                message['source_channel'], 
+                channel_username
+            )
         
         # 处理单个媒体显示URL（支持多种字段名）
         media_path = message.get('media_path') or message.get('media_url')

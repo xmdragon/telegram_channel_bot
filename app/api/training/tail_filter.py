@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 import logging
 import hashlib
+import re
 
 from .base import (
     TailFilterSample, load_tail_filter_samples, save_tail_filter_samples,
@@ -49,6 +50,162 @@ def extract_promotional_content(text: str) -> str:
             promo_lines.append(line)
     
     return '\n'.join(promo_lines)
+
+def is_separator_line(text: str) -> bool:
+    """
+    检查是否为分隔符行
+    """
+    if not text:
+        return False
+    
+    # 移除空格后检查
+    clean_text = text.replace(' ', '')
+    
+    # 检查是否全部是分隔符字符
+    separator_chars = set('—━═─▬-=*~_|+#')
+    text_chars = set(clean_text)
+    
+    # 如果全部是分隔符字符，或者长度小于等于20且主要是分隔符
+    if text_chars.issubset(separator_chars):
+        return True
+    
+    # 检查是否是重复的分隔符模式
+    if len(clean_text) >= 3:
+        # 检查是否是重复字符（如"———"、"==="等）
+        if len(set(clean_text)) <= 2 and any(char in separator_chars for char in clean_text):
+            return True
+    
+    return False
+
+def remove_emojis(text: str) -> str:
+    """
+    移除文本中的emoji，保留文字内容
+    """
+    if not text:
+        return ""
+    
+    # 简化但有效的emoji移除正则表达式
+    emoji_pattern = re.compile(
+        r'[\U0001F600-\U0001F64F]|'  # 表情符号
+        r'[\U0001F300-\U0001F5FF]|'  # 杂项符号和象形文字  
+        r'[\U0001F680-\U0001F6FF]|'  # 交通和地图符号
+        r'[\U0001F1E0-\U0001F1FF]|'  # 国旗
+        r'[\U0001F900-\U0001F9FF]|'  # 补充符号和象形文字
+        r'[\U00002600-\U000027BF]|'  # 杂项符号和装饰符号
+        r'[\U0000FE00-\U0000FE0F]'   # 变化选择器
+    )
+    
+    # 移除emoji
+    text_only = emoji_pattern.sub(' ', text)
+    
+    # 清理多余空格
+    text_only = re.sub(r'\s+', ' ', text_only).strip()
+    
+    return text_only
+
+def extract_regex_rules_from_tail(tail_part: str) -> List[str]:
+    """
+    从尾部内容中提取正则表达式规则
+    按行分析，专注文字内容，忽略emoji变化和分隔符
+    
+    Args:
+        tail_part: 尾部推广内容
+        
+    Returns:
+        正则表达式规则列表
+    """
+    if not tail_part or not tail_part.strip():
+        return []
+    
+    lines = tail_part.split('\n')
+    rules = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        # 检查是否为纯分隔符行
+        if is_separator_line(line):
+            continue
+        
+        # 移除emoji，专注文字内容  
+        text_only = remove_emojis(line)
+        
+        if not text_only:
+            continue
+        
+        # 再次检查清理后是否变成分隔符
+        if is_separator_line(text_only):
+            continue
+        
+        # 生成正则表达式规则
+        rule = generate_line_regex(text_only)
+        if rule and len(rule.strip()) > 3:  # 避免过短的规则
+            rules.append(rule)
+    
+    return rules
+
+def generate_line_regex(text: str) -> str:
+    """
+    为单行文本生成正则表达式
+    
+    Args:
+        text: 单行文本（已移除emoji）
+        
+    Returns:
+        正则表达式字符串
+    """
+    if not text:
+        return ""
+    
+    # 检查是否包含Telegram链接
+    if 't.me/' in text:
+        # t.me/+abc123 → t\.me/\+[a-zA-Z0-9]+
+        # t.me/channel → t\.me/[a-zA-Z0-9_]+
+        if '+' in text:
+            pattern = re.sub(r't\.me/\+[a-zA-Z0-9_]+', r't\.me/\+[a-zA-Z0-9_]+', text)
+        else:
+            pattern = re.sub(r't\.me/[a-zA-Z0-9_]+', r't\.me/[a-zA-Z0-9_]+', text)
+        return escape_regex_special_chars(pattern)
+    
+    # 检查是否包含@用户名
+    elif '@' in text:
+        # 投稿澄清爆料： @tx188 → 投稿澄清爆料：\s*@\w+
+        pattern = re.sub(r'@[a-zA-Z0-9_]+', r'@\w+', text)
+        return escape_regex_special_chars(pattern)
+    
+    # 检查是否包含https链接
+    elif 'https://' in text or 'http://' in text:
+        # https://example.com → https?://\S+
+        pattern = re.sub(r'https?://[^\s]+', r'https?://\S+', text)
+        return escape_regex_special_chars(pattern)
+    
+    # 纯文字内容，直接转义特殊字符
+    else:
+        return escape_regex_special_chars(text)
+
+def escape_regex_special_chars(text: str) -> str:
+    """
+    转义正则表达式特殊字符
+    
+    Args:
+        text: 原始文本
+        
+    Returns:
+        转义后的文本
+    """
+    # 需要转义的特殊字符
+    special_chars = r'\.^$*+?{}[]|()'
+    escaped = text
+    
+    for char in special_chars:
+        escaped = escaped.replace(char, '\\' + char)
+    
+    # 处理空格变化（可能有多个空格或制表符）
+    escaped = re.sub(r'\s+', r'\\s*', escaped)
+    
+    return escaped
 
 def calculate_text_similarity(text1: str, text2: str) -> float:
     """
@@ -252,20 +409,22 @@ async def add_tail_filter_sample(request: dict):
         # 生成新的ID
         new_id = max([s.get('id', 0) for s in samples], default=0) + 1
         
-        # 创建新样本
+        # 生成正则规则
+        regex_rules = extract_regex_rules_from_tail(tail_part)
+        
+        # 创建新样本（简化数据结构）
         new_sample = {
             "id": new_id,
-            "channel_id": "general",  # 通用样本，不限制频道
-            "channel_name": "通用训练样本",
-            "content": content,  # 使用content字段（兼容原格式）
-            "tail_content": tail_part,
-            "tail_part": tail_part,  # 同时保存为tail_part
+            "tail_part": tail_part,
+            "rules": regex_rules,
+            "created_at": datetime.now().isoformat(),
+            # 兼容字段（向后兼容，可以逐步移除）
+            "content": content,
             "separator": separator,
             "normal_part": normal_part,
             "content_hash": hashlib.md5(content.encode()).hexdigest(),
-            "is_applied": True,  # 立即标记为已应用
+            "is_applied": True,
             "created_by": 'manual',
-            "created_at": datetime.now().isoformat(),
             "message_id": message_id
         }
         
@@ -290,19 +449,7 @@ async def add_tail_filter_sample(request: dict):
             if not save_tail_filter_samples(samples):
                 raise HTTPException(status_code=500, detail="保存样本失败")
             sample_id = new_id
-            logger.info(f"新尾部过滤训练样本已保存: {sample_id}")
-            
-            # 🔥 使用ONNX语义模型添加新样本
-            try:
-                from app.services.filters.tail_vector_filter import get_tail_vector_filter
-                filter_instance = get_tail_vector_filter()
-                if tail_part and filter_instance.add_tail_sample(tail_part):
-                    logger.info(f"✅ 样本 {sample_id} 已完成ONNX语义向量化")
-                else:
-                    logger.warning(f"⚠️ ONNX语义向量化失败或尾部内容为空")
-            except Exception as e:
-                logger.error(f"❌ ONNX语义向量化失败，但不影响样本保存: {e}")
-                # 不抛出异常，向量化失败不应阻止样本保存
+            logger.info(f"新尾部过滤训练样本已保存: {sample_id}，生成了 {len(regex_rules)} 个正则规则")
         
         # 如果有message_id，直接使用用户编辑的内容更新filtered_content
         if message_id and normal_part:
@@ -454,45 +601,42 @@ async def delete_tail_filter_sample(sample_id: int):
 
 @router.post(ROUTES.training.tail_filter_rebuild_vectors)
 async def rebuild_tail_vectors():
-    """重建ONNX语义向量索引"""
+    """重建正则规则索引（替代ONNX向量）"""
     try:
-        from app.services.filters.tail_vector_filter import get_tail_vector_filter
+        logger.info("开始重建正则规则索引...")
         
-        logger.info("开始重建ONNX语义向量索引...")
+        samples = load_tail_filter_samples()
+        updated_count = 0
         
-        # 强制重新初始化过滤器以重建向量
-        filter_instance = get_tail_vector_filter()
+        # 为缺少rules字段的样本生成正则规则
+        for sample in samples:
+            if 'rules' not in sample or not sample.get('rules'):
+                tail_part = sample.get('tail_part', '')
+                if tail_part:
+                    sample['rules'] = extract_regex_rules_from_tail(tail_part)
+                    updated_count += 1
         
-        # 删除现有向量缓存，强制重新生成
-        import os
-        from app.core.path_config import PathConfig
-        embeddings_file = os.path.join(PathConfig.TAIL_TRAINING_DIR, 'tail_embeddings.npz')
-        if os.path.exists(embeddings_file):
-            os.remove(embeddings_file)
-            logger.info("已删除旧的语义向量缓存")
-        
-        # 重新初始化过滤器
-        filter_instance._load_tail_embeddings()
-        
-        stats = filter_instance.get_statistics()
+        # 保存更新后的数据
+        if updated_count > 0:
+            save_tail_filter_samples(samples)
         
         result = {
             "success": True,
-            "message": "ONNX语义向量重建成功",
-            "sample_count": stats.get('sample_count', 0),
-            "vector_dimension": stats.get('vector_dimension', 0),
-            "model_type": stats.get('model_type', 'ONNX_Semantic')
+            "message": "正则规则重建成功",
+            "sample_count": len(samples),
+            "updated_count": updated_count,
+            "model_type": "Regex_Rules"
         }
         
-        logger.info(f"ONNX语义向量重建成功: {result}")
+        logger.info(f"正则规则重建成功: {result}")
         return result
         
     except Exception as e:
-        logger.error(f"重建ONNX语义向量索引时发生错误: {e}")
+        logger.error(f"重建正则规则索引时发生错误: {e}")
         return {
             "success": False,
             "message": f"重建失败: {str(e)}",
             "sample_count": 0,
-            "vector_dimension": 0,
+            "updated_count": 0,
             "model_type": "Error"
         }

@@ -82,30 +82,33 @@ def parse_message_url(url: str) -> Optional[Dict[str, Any]]:
     if not url.startswith('http'):
         url = 'https://' + url
     
-    # 正则匹配不同格式
-    patterns = [
-        # 公开频道: https://t.me/channel_name/123
-        r'https?://t\.me/([^/]+)/(\d+)',
-        # 私有频道: https://t.me/c/1234567890/123
-        r'https?://t\.me/c/(-?\d+)/(\d+)'
-    ]
+    # 私有频道格式: https://t.me/c/1234567890/123
+    private_match = re.match(r'https?://t\.me/c/(-?\d+)/(\d+)', url)
+    if private_match:
+        channel_id = private_match.group(1)
+        message_id = int(private_match.group(2))
+        
+        # 私有频道ID需要加上-100前缀（如果还没有的话）
+        if not channel_id.startswith('-100'):
+            channel_id = f"-100{channel_id}"
+        
+        return {
+            'channel': channel_id,
+            'message_id': message_id,
+            'original_url': url
+        }
     
-    for pattern in patterns:
-        match = re.match(pattern, url)
-        if match:
-            channel = match.group(1)
-            message_id = int(match.group(2))
-            
-            # 如果是私有频道格式，需要转换channel ID
-            if pattern.endswith(r'/(\d+)') and channel.isdigit():
-                # 私有频道ID需要加上-100前缀
-                channel = f"-100{channel}"
-            
-            return {
-                'channel': channel,
-                'message_id': message_id,
-                'original_url': url
-            }
+    # 公开频道格式: https://t.me/channel_name/123
+    public_match = re.match(r'https?://t\.me/([^/]+)/(\d+)', url)
+    if public_match:
+        channel = public_match.group(1)
+        message_id = int(public_match.group(2))
+        
+        return {
+            'channel': channel,
+            'message_id': message_id,
+            'original_url': url
+        }
     
     return None
 

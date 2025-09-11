@@ -1,15 +1,15 @@
 """
-简单尾部过滤器 - 基于样本的正则表达式过滤
-直接替换复杂的ONNX向量过滤系统
+简单尾部过滤器 - 基于正则规则的直接匹配
+从复杂特征分析简化为直接正则匹配
 
 Linus原则：消除所有不必要的复杂性
 - 无AI模型依赖
-- 无内存泄漏风险  
-- 透明可调的规则
-- 性能比向量匹配快1000+倍
+- 无复杂特征计算
+- 直接正则匹配
+- 性能比特征分析快1000+倍
 
 Author: Claude (Linus式重构)
-Created: 2025-09-09
+Updated: 2025-09-11
 """
 
 import re
@@ -23,113 +23,76 @@ logger = logging.getLogger(__name__)
 
 
 class SimpleTailFilter:
-    """基于正则表达式的简单尾部过滤器
+    """基于正则规则的简单尾部过滤器
     
     核心思路：
-    1. 从真实样本中提取推广特征模式
-    2. 使用正则表达式进行快速匹配
+    1. 从样本中加载预生成的正则规则
+    2. 直接进行正则匹配
     3. 从消息尾部向前扫描，找到推广内容边界
     """
     
     def __init__(self):
         """初始化简单过滤器"""
-        self.patterns = []
-        self.action_words = set()
-        self.business_words = set()
+        self.regex_rules = []
         self.initialized = False
         
-        self._load_patterns()
+        self._load_regex_rules()
     
-    def _load_patterns(self):
-        """从样本文件加载并生成正则模式"""
+    def _load_regex_rules(self):
+        """从样本文件加载正则规则"""
         try:
             samples_file = Path(PathConfig.TAIL_TRAINING_DIR) / "tail_filter_samples.json"
             
             if not samples_file.exists():
                 logger.warning(f"样本文件不存在: {samples_file}")
-                self._use_default_patterns()
+                logger.warning("过滤器将保持未初始化状态，不进行尾部过滤")
                 return
             
             with open(samples_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            samples = data.get('samples', [])
+            # 支持简化后的数据结构
+            if 'samples' in data:
+                samples = data['samples']
+
             if not samples:
                 logger.warning("样本文件中没有样本数据")
-                self._use_default_patterns()
+                logger.warning("过滤器将保持未初始化状态，不进行尾部过滤")
                 return
             
-            # 从样本中提取特征词汇
+            # 从样本中收集所有正则规则
+            all_rules = set()
             for sample in samples:
-                if 'auto_features' in sample:
-                    self.action_words.update(sample['auto_features'].get('action_words', []))
-                    self.business_words.update(sample['auto_features'].get('business_words', []))
+                rules = sample.get('rules', [])
+                if rules:
+                    all_rules.update(rules)
             
-            # 生成正则模式
-            self._generate_patterns()
+            # 编译正则表达式
+            self._compile_regex_rules(list(all_rules))
             self.initialized = True
             
             logger.info(f"✅ 简单尾部过滤器初始化成功")
-            logger.info(f"   动作词汇: {len(self.action_words)} 个")
-            logger.info(f"   商业词汇: {len(self.business_words)} 个") 
-            logger.info(f"   正则模式: {len(self.patterns)} 个")
+            logger.info(f"   正则规则: {len(self.regex_rules)} 个")
             
         except Exception as e:
             logger.error(f"加载样本文件失败: {e}")
-            self._use_default_patterns()
+            logger.warning("过滤器将保持未初始化状态，不进行尾部过滤")
     
-    def _generate_patterns(self):
-        """基于样本特征生成正则表达式模式"""
-        self.patterns = []
+    def _compile_regex_rules(self, rules: List[str]):
+        """编译正则表达式规则"""
+        self.regex_rules = []
         
-        # 1. Telegram链接模式 (高权重)
-        self.patterns.extend([
-            (r'https?://t\.me/[a-zA-Z0-9_+/-]+', 0.8),  # 标准t.me链接
-            (r't\.me/[a-zA-Z0-9_+/-]+', 0.8),           # 简化t.me链接
-            (r'@[a-zA-Z0-9_]{3,}', 0.6),                # 用户名/联系方式
-        ])
-        
-        # 2. 动作词汇模式 (中权重)
-        if self.action_words:
-            action_pattern = '|'.join(re.escape(word) for word in self.action_words)
-            self.patterns.append((f'({action_pattern})', 0.5))
-        
-        # 3. 商业词汇模式 (中高权重)
-        if self.business_words:
-            business_pattern = '|'.join(re.escape(word) for word in self.business_words)
-            self.patterns.append((f'({business_pattern})', 0.7))
-        
-        # 4. 常见推广结构模式
-        self.patterns.extend([
-            (r'订阅.*频道', 0.7),                      # 订阅频道
-            (r'加入.*群', 0.6),                        # 加入群组
-            (r'联系.*@\w+', 0.6),                      # 联系方式
-            (r'商务.*对接', 0.7),                      # 商务对接
-            (r'投稿.*爆料', 0.6),                      # 投稿爆料
-            (r'关注.*频道', 0.6),                      # 关注频道
-            (r'【.*】', 0.4),                          # 标签格式 
-            (r'[📱💬🔗📣⚡😍🙋‍♂️👑🍉💌]', 0.3),        # 推广常用emoji
-        ])
-        
-        # 编译正则表达式
-        self.compiled_patterns = []
-        for pattern, weight in self.patterns:
+        for rule in rules:
+            if not rule:
+                continue
             try:
-                compiled = re.compile(pattern, re.IGNORECASE)
-                self.compiled_patterns.append((compiled, weight))
+                # 修复JSON中的双重转义问题
+                fixed_rule = rule.replace('\\\\w\\+', r'\w+').replace('\\\\s', r'\s').replace('\\\\.', r'\.')
+                compiled = re.compile(fixed_rule, re.IGNORECASE)
+                self.regex_rules.append(compiled)
             except re.error as e:
-                logger.warning(f"正则表达式编译失败: {pattern} - {e}")
+                logger.warning(f"正则表达式编译失败: {rule} - {e}")
     
-    def _use_default_patterns(self):
-        """使用基于已知样本的默认模式"""
-        logger.info("使用默认推广检测模式")
-        
-        # 基于42个样本的统计结果
-        self.action_words = {'投稿', '爆料', '订阅', '澄清', '免费', '对接', '合作', '关注', '联系'}
-        self.business_words = {'商务', '合作'}
-        
-        self._generate_patterns()
-        self.initialized = True
     
     def filter_tail_content(self, content: str) -> Tuple[str, bool, str, Dict]:
         """
@@ -152,18 +115,16 @@ class SimpleTailFilter:
             content = re.sub(r' {5,}', '\n', content)
         
         lines = content.split('\n')
-        if len(lines) < 2:
-            return content, False, "", {"reason": "内容行数不足"}
         
-        # 从尾部向前扫描
+        # 从尾部向前扫描，最多检查10行
         filter_start_index = len(lines)
-        for i in range(len(lines) - 1, -1, -1):
+        scan_start = max(0, len(lines) - 10)
+        for i in range(len(lines) - 1, scan_start - 1, -1):
             line = lines[i].strip()
             if not line:  # 跳过空行
                 continue
             
-            score = self._calculate_tail_score(line)
-            if score < 0.4:  # 阈值：低于0.4认为不是推广内容
+            if not self._line_matches_rules(line):  # 如果不匹配任何规则，认为是正文
                 filter_start_index = i + 1
                 break
         
@@ -186,11 +147,11 @@ class SimpleTailFilter:
         removed_content = '\n'.join(removed_lines)
         
         analysis = {
-            'method': 'regex_pattern',
+            'method': 'regex_rules',
             'removed_lines_count': len(removed_lines),
             'filter_ratio': len(removed_content) / len(content),
-            'model_type': 'Regex',
-            'patterns_matched': self._get_matched_patterns(removed_content)
+            'model_type': 'Regex_Rules',
+            'rules_matched': self._get_matched_rules(removed_content)
         }
         
         logger.info(f"✅ 正则过滤成功: {len(content)} -> {len(filtered_content)} 字符")
@@ -198,46 +159,32 @@ class SimpleTailFilter:
         
         return filtered_content, True, removed_content, analysis
     
-    def _calculate_tail_score(self, text: str) -> float:
-        """计算文本的推广内容得分"""
+    def _line_matches_rules(self, text: str) -> bool:
+        """检查文本是否匹配任何正则规则"""
         if not text:
-            return 0.0
+            return False
         
-        total_score = 0.0
-        matched_patterns = 0
+        for rule in self.regex_rules:
+            if rule.search(text):
+                return True
         
-        for pattern, weight in self.compiled_patterns:
-            if pattern.search(text):
-                total_score += weight
-                matched_patterns += 1
-        
-        # 归一化得分：考虑匹配的模式数量
-        if matched_patterns == 0:
-            return 0.0
-        
-        # 基础得分 + 模式多样性加成
-        base_score = total_score / len(self.compiled_patterns)
-        diversity_bonus = min(matched_patterns * 0.1, 0.3)
-        
-        return min(base_score + diversity_bonus, 1.0)
+        return False
     
-    def _get_matched_patterns(self, text: str) -> List[str]:
-        """获取匹配的模式列表"""
+    def _get_matched_rules(self, text: str) -> List[str]:
+        """获取匹配的规则列表"""
         matched = []
-        for pattern, weight in self.compiled_patterns:
-            if pattern.search(text):
-                matched.append(pattern.pattern)
+        for rule in self.regex_rules:
+            if rule.search(text):
+                matched.append(rule.pattern)
         return matched
     
     def get_statistics(self) -> Dict:
         """获取过滤器统计信息"""
         return {
             'initialized': self.initialized,
-            'pattern_count': len(self.patterns),
-            'action_words_count': len(self.action_words),
-            'business_words_count': len(self.business_words),
-            'model_type': 'Regex',
-            'filter_method': 'pattern_matching'
+            'rule_count': len(self.regex_rules),
+            'model_type': 'Regex_Rules',
+            'filter_method': 'regex_matching'
         }
 
 

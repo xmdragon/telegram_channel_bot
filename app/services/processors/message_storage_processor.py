@@ -416,30 +416,33 @@ class MessageStorageProcessor(MessageProcessor):
             self.logger.error(f"直接保存到Redis失败: {e}")
             return None
     
-    def _generate_channel_link_prefix(self, channel_id: str) -> str:
+    def _generate_channel_link_prefix(self, channel_id: str, channel_username: str = None) -> str:
         """
-        生成频道链接前缀
-        优先使用公开频道用户名，否则使用内部频道ID格式
+        生成频道链接前缀 - Linus式简化逻辑
+        优先使用已知的频道用户名，否则查找配置，最后使用内部ID格式
         """
         try:
-            from app.storage.json_store import get_json_channel_store
+            # 第一优先级：直接使用传入的频道用户名
+            if channel_username:
+                clean_username = channel_username.lstrip('@')
+                if clean_username:
+                    return f"https://t.me/{clean_username}"
             
-            # 尝试从频道配置获取用户名
+            # 第二优先级：从频道配置查找用户名
+            from app.storage.json_store import get_json_channel_store
             channel_store = get_json_channel_store()
             channels_list = channel_store.get_all_channels() or []
-            # 转换为字典格式便于查找
-            channels_data = {ch.get('channel_id', ch.get('name', '')): ch for ch in channels_list}
             
             # 查找匹配的频道
-            for channel_key, channel_info in channels_data.items():
+            for channel_info in channels_list:
                 if channel_info.get('channel_id') == channel_id:
                     channel_name = channel_info.get('channel_name')
-                    if channel_name and channel_name.startswith('@'):
-                        # 使用公开频道用户名格式
-                        # 格式：https://t.me/用户名/消息ID
-                        return f"https://t.me/{channel_name[1:]}"  # 移除@符号
+                    if channel_name:
+                        clean_username = channel_name.lstrip('@')
+                        if clean_username:
+                            return f"https://t.me/{clean_username}"
             
-            # 如果没找到用户名，使用内部频道ID格式
+            # 第三优先级：使用内部频道ID格式
             clean_id = channel_id.lstrip('-')
             return f"https://t.me/c/{clean_id}"
             

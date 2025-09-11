@@ -13,22 +13,65 @@ from telethon.tl.types import Message as TLMessage
 
 from app.core.path_config import PathConfig
 from app.storage.redis_manager import redis_manager
-from app.services.message_queue import CollectedMessage
 from app.utils.timezone import get_current_time
+from app.services.simple_tail_filter import filter_tail_content
+from app.services.filters.markdown_filter import MarkdownFilter
+from app.services.filters.base import FilterContext
 
 logger = logging.getLogger(__name__)
 
 
+
 @dataclass
-class RawMessage:
-    """解析后的原始消息数据"""
+class LocalMessage:
+    """完整的消息结构 - 包含前端所需的全部字段"""
+    # 基础标识
     channel_id: str
     message_id: int
-    content: str
-    media_info: Optional[Dict] = None
     grouped_id: Optional[str] = None
-    timestamp: datetime = None
-    raw_telegram_message: TLMessage = None
+    
+    # 内容字段
+    content: str = ""
+    filtered_content: str = ""
+    
+    # 媒体字段
+    media_info: Optional[Dict] = None
+    media_type: Optional[str] = None
+    media_display_url: Optional[str] = None
+    media_path: Optional[str] = None
+    media_url: Optional[str] = None
+    
+    # 组合消息字段
+    is_combined: bool = False
+    media_group_display: Optional[List] = None
+    media_group_info: Optional[Dict] = None
+    
+    # 时间字段
+    timestamp: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    
+    # 状态和过滤字段
+    status: str = "pending"
+    filter_reason: Optional[str] = None
+    removed_hidden_links: Optional[List] = None
+    
+    # 频道字段
+    source_channel: Optional[str] = None
+    source_channel_link_prefix: Optional[str] = None
+    source_channel_title: Optional[str] = None
+    source_channel_username: Optional[str] = None
+    
+    # 扩展字段
+    details: Optional[Dict] = None
+    entities: Optional[List] = None
+    
+    def __post_init__(self):
+        if self.created_at is None:
+            self.created_at = get_current_time()
+        if self.filtered_content == "":
+            self.filtered_content = self.content
+        if self.source_channel is None:
+            self.source_channel = self.channel_id
 
 class ChannelManager:
     """频道管理器"""
@@ -104,8 +147,6 @@ class ChannelManager:
             logger.error(f"获取频道实体失败 {channel_id}: {e}")
             return None
 
-
-# 占位符组件 - 为后续实现预留接口
 class CheckpointManager:
     """Checkpoint管理器"""
     
@@ -133,45 +174,60 @@ class CheckpointManager:
         except Exception as e:
             logger.error(f"更新checkpoint失败 {channel_id}: {e}")
 
-
-class MessageParser:
-    """消息解析器 - 占位符"""
+class ContentProcessingPipeline:
+    """内容处理管道 - markdown过滤 + 尾部过滤处理"""
     
     def __init__(self):
-        self.client: Optional[TelegramClient] = None
+        """初始化处理管道"""
+        self.markdown_filter = MarkdownFilter()
     
-    def set_client(self, client: TelegramClient):
-        """设置Telethon客户端"""
-        self.client = client
-    
-    async def parse(self, telegram_message: TLMessage, channel_id: str) -> RawMessage:
-        """解析消息，提取基础信息"""
-        # TODO: 实现消息解析逻辑
-        return RawMessage(
-            channel_id=channel_id,
-            message_id=telegram_message.id,
-            content=getattr(telegram_message, 'text', '') or '',
-            timestamp=telegram_message.date or datetime.now(),
-            raw_telegram_message=telegram_message
-        )
-
-
-class ContentProcessingPipeline:
-    """内容处理管道 - 占位符"""
-    
-    async def process(self, raw_message: RawMessage):
-        """执行三步处理管道"""
-        # TODO: 实现三步处理逻辑
-        pass
-
-
-class MessageStorage:
-    """消息存储管理器 - 占位符"""
-    
-    async def save(self, processed_message):
-        """保存处理后的消息"""
-        # TODO: 实现存储逻辑
-        pass
+    async def process(self, message: LocalMessage) -> LocalMessage:
+        """执行内容过滤处理 - 尾部过滤 → markdown过滤"""
+        try:
+            if not message.content:
+                return message
+            
+            current_content = message.content
+            filter_reasons = []
+            
+            # 1. 尾部过滤处理（先处理，删除尾部推广内容）
+            filtered_content, is_filtered, removed_content, analysis = filter_tail_content(current_content)
+            if is_filtered:
+                current_content = filtered_content
+                filter_reasons.append(f"尾部过滤: {analysis.get('reason', '检测到推广内容')}")
+                logger.info(f"消息 {message.message_id} 尾部过滤: {len(message.content)} -> {len(current_content)} 字符")
+            else:
+                logger.debug(f"消息 {message.message_id} 无尾部内容需要过滤")
+            
+            # 2. markdown过滤处理（后处理，使用原始entities，位置仍准确）
+            if message.entities:
+                # 创建FilterContext
+                context = FilterContext(
+                    message_id=message.message_id,
+                    channel_id=message.channel_id
+                )
+                context.add_metadata('entities', message.entities)
+                
+                # 执行markdown过滤
+                markdown_result = await self.markdown_filter.filter(current_content, context)
+                if markdown_result.passed and markdown_result.filtered_content != current_content:
+                    current_content = markdown_result.filtered_content
+                    filter_reasons.append(f"markdown过滤: {markdown_result.reason}")
+                    logger.info(f"消息 {message.message_id} markdown过滤完成，最终: {len(current_content)} 字符")
+                else:
+                    logger.debug(f"消息 {message.message_id} 无markdown链接需要处理")
+            
+            # 更新消息内容
+            message.filtered_content = current_content
+            if filter_reasons:
+                message.filter_reason = "; ".join(filter_reasons)
+            
+            return message
+            
+        except Exception as e:
+            logger.error(f"内容处理失败 {message.message_id}: {e}")
+            # 处理失败时返回原消息
+            return message
 
 
 class TelegramMessageCollector:
@@ -189,9 +245,7 @@ class TelegramMessageCollector:
         
         # 业务组件
         self.checkpoint_manager = CheckpointManager()
-        self.message_parser = MessageParser()
         self.content_pipeline = ContentProcessingPipeline()
-        self.storage = MessageStorage()
         
         # 初始化标志
         self._initialized = False
@@ -212,11 +266,7 @@ class TelegramMessageCollector:
             if self.telethon_client and not self.telethon_client.is_connected():
                 await self.telethon_client.connect()
             
-            # 4. 设置客户端到需要的组件
-            if self.telethon_client:
-                self.message_parser.set_client(self.telethon_client)
-            
-            # 5. 初始化频道配置
+            # 4. 初始化频道配置
             await self.channel_manager.load_config()
             source_channels = await self.channel_manager.get_all_source_channels()
             target_channel = await self.channel_manager.get_target_channel_id()
@@ -311,7 +361,7 @@ class TelegramMessageCollector:
             logger.error(f"获取消息ID失败: {e}")
             return []
     
-    async def _fetch_telegram_messages(self, entity, message_groups: List[int]) -> Optional[CollectedMessage]:
+    async def _fetch_telegram_messages(self, entity, message_groups: List[int], channel: dict) -> Optional[LocalMessage]:
         """从Telegram获取消息并处理媒体下载和组消息合并"""
         try:
             if not message_groups:
@@ -328,7 +378,7 @@ class TelegramMessageCollector:
             if len(message_groups) == 1:
                 # 单条消息
                 if messages[0]:
-                    msg = await self._process_single_message(messages[0], channel_id)
+                    msg = await self._process_single_message(messages[0], channel_id, channel)
                     if msg:
                         logger.info(f"成功处理1个消息")
                         return msg
@@ -336,7 +386,7 @@ class TelegramMessageCollector:
                 # 组消息 - 过滤掉None并合并处理
                 valid_messages = [msg for msg in messages if msg is not None]
                 if valid_messages:
-                    merged_msg = await self._process_group_messages(valid_messages, channel_id)
+                    merged_msg = await self._process_group_messages(valid_messages, channel_id, channel)
                     if merged_msg:
                         logger.info(f"成功处理消息组(共{len(message_groups)}个子消息)")
                         return merged_msg
@@ -375,33 +425,48 @@ class TelegramMessageCollector:
         last_processed_message_id = checkpoint  # 记录最后成功处理的消息ID
         
         for message_group in message_groups:
-            collected_message = await self._fetch_telegram_messages(entity, message_group)
+            collected_message = await self._fetch_telegram_messages(entity, message_group, channel)
             
             # 检查是否获取到消息
             if not collected_message:
                 logger.warning(f"消息组 {message_group} 获取失败，跳过")
                 continue
             
-            # 3. 处理这个组的消息
-            # 过滤和检测 - TODO: 暂时跳过，直接存储
+            # 3. 处理这个组的消息 - 内容过滤
+            collected_message = await self.content_pipeline.process(collected_message)
 
             # 4. 保存消息到Redis,更新状态索引和频道索引
             try:
-                # 将CollectedMessage转换为存储格式
+                # 直接使用LocalMessage对象属性构建存储数据
                 message_data = {
                     'channel_id': collected_message.channel_id,
                     'message_id': collected_message.message_id,
                     'grouped_id': collected_message.grouped_id,
                     'content': collected_message.content,
+                    'filtered_content': collected_message.filtered_content,
                     'media_info': collected_message.media_info,
+                    'media_type': collected_message.media_type,
+                    'media_display_url': collected_message.media_display_url,
+                    'media_path': collected_message.media_path,
+                    'media_url': collected_message.media_url,
+                    'is_combined': collected_message.is_combined,
+                    'media_group_display': collected_message.media_group_display,
+                    'media_group_info': collected_message.media_group_info,
                     'timestamp': collected_message.timestamp.isoformat() if collected_message.timestamp else None,
-                    'raw_data': collected_message.raw_data,
-                    'status': 'pending',  # 默认状态
-                    'created_at': get_current_time().isoformat()
+                    'created_at': collected_message.created_at.isoformat() if collected_message.created_at else None,
+                    'status': collected_message.status,
+                    'filter_reason': collected_message.filter_reason,
+                    'removed_hidden_links': collected_message.removed_hidden_links,
+                    'source_channel': collected_message.source_channel,
+                    'source_channel_link_prefix': f"https://t.me/{channel.get('channel_name', '').lstrip('@')}",
+                    'source_channel_title': channel.get('channel_title'),
+                    'source_channel_username': channel.get('channel_name'),
+                    'details': collected_message.details,
+                    'entities': collected_message.entities
                 }
                 
                 # 保存到Redis
-                success = self.redis_manager.save_message(
+                success = redis_manager.save_message(
                     channel_id, 
                     collected_message.message_id, 
                     message_data
@@ -422,7 +487,7 @@ class TelegramMessageCollector:
         # 最终更新checkpoint到最后成功处理的消息ID
         if last_processed_message_id > checkpoint:
             try:
-                await self.channel_manager.update_channel_checkpoint(channel_id, last_processed_message_id)
+                await self.checkpoint_manager.update_checkpoint(channel_id, last_processed_message_id)
                 logger.info(f"频道 {channel_name} checkpoint 更新为: {last_processed_message_id}")
             except Exception as e:
                 logger.error(f"更新频道 {channel_name} checkpoint 失败: {e}")
@@ -439,7 +504,7 @@ class TelegramMessageCollector:
         self._initialized = False
         logger.info("TelegramMessageCollector已关闭")
     
-    async def _process_single_message(self, message: TLMessage, channel_id: str) -> Optional[CollectedMessage]:
+    async def _process_single_message(self, message: TLMessage, channel_id: str, channel: dict) -> Optional[LocalMessage]:
         """处理单个消息，包括媒体下载"""
         try:
             # 下载媒体（如果有）
@@ -451,26 +516,31 @@ class TelegramMessageCollector:
                     self.telethon_client, message, message.id
                 )
             
-            # 创建CollectedMessage
-            return CollectedMessage(
+            # 创建LocalMessage
+            return LocalMessage(
                 channel_id=channel_id,
                 message_id=message.id,
                 grouped_id=getattr(message, 'grouped_id', None),
                 content=message.text or "",
+                filtered_content=message.text or "",  # 暂时与content相同
                 media_info=media_info,
+                media_type=media_info.get('media_type') if media_info else None,
+                media_path=media_info.get('file_path') if media_info else None,
+                media_url=media_info.get('file_path') if media_info else None,
+                is_combined=False,  # 单条消息不是组合消息
                 timestamp=message.date,
-                raw_data={
-                    'views': getattr(message, 'views', None),
-                    'forwards': getattr(message, 'forwards', None),
-                    'edit_date': getattr(message, 'edit_date', None)
-                }
+                status="pending",
+                source_channel=channel_id,
+                source_channel_title=channel.get('channel_name', channel.get('channel_title')),
+                source_channel_username=channel.get('channel_username'),
+                entities=message.entities
             )
             
         except Exception as e:
             logger.error(f"处理单个消息失败 {message.id}: {e}")
             return None
     
-    async def _process_group_messages(self, group_messages: List[TLMessage], channel_id: str) -> Optional[CollectedMessage]:
+    async def _process_group_messages(self, group_messages: List[TLMessage], channel_id: str, channel: dict) -> Optional[LocalMessage]:
         """处理组消息，合并内容和媒体"""
         try:
             if not group_messages:
@@ -496,30 +566,29 @@ class TelegramMessageCollector:
                     if media_info:
                         media_files.append(media_info)
             
-            # 构建组合媒体信息
-            combined_media_info = None
-            if media_files:
-                combined_media_info = {
-                    'is_group': True,
-                    'media_files': media_files,
-                    'total_count': len(media_files),
-                    'media_types': list(set(m.get('media_type', 'unknown') for m in media_files))
-                }
+            # 组合媒体信息 - 使用简化逻辑
             
-            # 创建CollectedMessage
-            return CollectedMessage(
+            # 创建LocalMessage
+            return LocalMessage(
                 channel_id=channel_id,
                 message_id=primary_msg.id,
                 grouped_id=getattr(primary_msg, 'grouped_id', None),
                 content=merged_content,
-                media_info=combined_media_info,
+                filtered_content=merged_content,  # 暂时与content相同
+                media_info=None,  # 组消息不需要单独的 media_info
+                media_type="group",  # 组合消息统一使用 "group" 类型
+                is_combined=True,  # 组合消息
+                media_group_display=media_files,  # 媒体组显示数据
+                media_group_info={
+                    'total_count': len(media_files),
+                    'display_text': f"{len(media_files)}个媒体文件"
+                } if media_files else None,
                 timestamp=primary_msg.date,
-                raw_data={
-                    'group_size': len(group_messages),
-                    'message_ids': [msg.id for msg in group_messages],
-                    'views': getattr(primary_msg, 'views', None),
-                    'forwards': getattr(primary_msg, 'forwards', None)
-                }
+                status="pending",
+                source_channel=channel_id,
+                source_channel_title=channel.get('channel_name', channel.get('channel_title')),
+                source_channel_username=channel.get('channel_username'),
+                entities=primary_msg.entities
             )
             
         except Exception as e:

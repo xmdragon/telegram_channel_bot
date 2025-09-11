@@ -769,7 +769,6 @@ const MessageContentRenderer = {
                     
                     <!-- 原消息链接 -->
                     <div v-if="message.source_channel_link_prefix && message.id" class="original-message-link-container">
-                        🔗 原消息链接: 
                         <a :href="getOriginalMessageLink()" 
                            target="_blank" 
                            class="original-message-link"

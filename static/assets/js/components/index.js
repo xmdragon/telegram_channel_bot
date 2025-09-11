@@ -1215,9 +1215,8 @@ const MainApp = {
 
         // 媒体预览（支持组合消息）
         openMediaPreview(url) {
-            // 如果是视频文件，显示文件详情而不是直接预览
-            if (url && (url.includes('.mp4') || url.includes('.MP4') || url.includes('.avi') || url.includes('.mov'))) {
-                this.showFileDetails(url);
+            if (window.UIHandlers?.openMediaPreview) {
+                window.UIHandlers.openMediaPreview(url);
             } else {
                 this.mediaPreview.url = url;
                 this.mediaPreview.show = true;

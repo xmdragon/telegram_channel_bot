@@ -25,6 +25,20 @@ logger = logging.getLogger(__name__)
 # 视觉哈希计算功能已移除，保持下载功能的单一职责
 # 视觉相似度检测应在后续处理阶段进行，而不是在下载阶段
 
+def format_file_size(size_mb: float) -> str:
+    """智能格式化文件大小显示"""
+    if size_mb < 1.0:
+        return f"{size_mb * 1024:.0f}KB"
+    else:
+        return f"{size_mb:.2f}MB"
+
+def format_speed(speed_mb_per_sec: float) -> str:
+    """智能格式化传输速度显示"""
+    if speed_mb_per_sec < 0.1:
+        return f"{speed_mb_per_sec:.3f}MB/s"
+    else:
+        return f"{speed_mb_per_sec:.1f}MB/s"
+
 class MediaHandler:
     """媒体文件处理器"""
     
@@ -95,7 +109,7 @@ class MediaHandler:
             self._download_started.add(message_id)
             self._download_start_time[message_id] = now
             if total > 0:
-                logger.info(f"🚀 开始下载 [{media_type}] 消息 {message_id}: 总大小 {mb_total:.2f}MB")
+                logger.info(f"🚀 开始下载 [{media_type}] 消息 {message_id}: 总大小 {format_file_size(mb_total)}")
             else:
                 logger.info(f"🚀 开始下载 [{media_type}] 消息 {message_id}: 大小未知")
         
@@ -120,13 +134,20 @@ class MediaHandler:
             
             # 输出进度（包括最后1%确保显示100%）
             if should_log or percent >= 99:
-                logger.info(f"📥 [{media_type}] {message_id}: {mb_current:.1f}MB/{mb_total:.1f}MB ({percent:.0f}%)")
+                current_str = format_file_size(mb_current) if mb_current < 1.0 else f"{mb_current:.1f}MB"
+                total_str = format_file_size(mb_total) if mb_total < 1.0 else f"{mb_total:.1f}MB"
+                logger.info(f"📥 [{media_type}] {message_id}: {current_str}/{total_str} ({percent:.0f}%)")
             
             # 完成日志
             if percent >= 100 and message_id in self._download_start_time:
                 elapsed = now - self._download_start_time[message_id]
-                speed = mb_total / elapsed if elapsed > 0 else 0
-                logger.info(f"✅ 下载完成 [{media_type}] {message_id}: {mb_total:.2f}MB, 耗时{elapsed:.1f}秒, 速度{speed:.1f}MB/s")
+                
+                # 对于快速下载的情况，使用简化显示
+                if elapsed < 1.0 or mb_total < 1.0:
+                    logger.info(f"✅ 下载完成 [{media_type}] {message_id}: {format_file_size(mb_total)}")
+                else:
+                    speed = mb_total / elapsed if elapsed > 0 else 0
+                    logger.info(f"✅ 下载完成 [{media_type}] {message_id}: {format_file_size(mb_total)}, 耗时{elapsed:.1f}秒, 速度{format_speed(speed)}")
                 
                 # 清理记录
                 self._download_started.discard(message_id)

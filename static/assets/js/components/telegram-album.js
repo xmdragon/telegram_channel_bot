@@ -85,6 +85,12 @@ const TelegramAlbum = {
                 return null;
             }
 
+            // 检查依赖是否加载
+            if (!window.calculateTelegramAlbumLayout) {
+                console.warn('Telegram album layout function not loaded yet');
+                return null;
+            }
+
             try {
                 return window.calculateTelegramAlbumLayout({
                     mediaItems: this.mediaItems.map(item => ({
@@ -152,6 +158,10 @@ const TelegramAlbum = {
         // 根据边缘位置计算圆角
         getBorderRadius(sides) {
             const AlbumRectPart = window.AlbumRectPart;
+            if (!AlbumRectPart) {
+                return '18px'; // 如果依赖未加载，使用默认圆角
+            }
+            
             const radius = '18px';
             const none = '0';
             
@@ -180,7 +190,7 @@ const TelegramAlbum = {
             this.$emit('media-click', {
                 mediaItem,
                 index,
-                url: mediaItem.url || mediaItem.display_url
+                url: this.getMediaUrl(mediaItem)
             });
         },
 
@@ -199,7 +209,7 @@ const TelegramAlbum = {
 
         // 获取媒体URL
         getMediaUrl(mediaItem) {
-            return mediaItem.url || mediaItem.display_url || '';
+            return mediaItem.file_path ? `/${mediaItem.file_path}` : '';
         },
 
         // 检查是否为视频
@@ -368,7 +378,7 @@ const TelegramAlbum = {
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     zIndex: 4,
-                    borderRadius: getBorderRadius(window.AlbumRectPart.Bottom | window.AlbumRectPart.Right)
+                    borderRadius: getBorderRadius(window.AlbumRectPart ? (window.AlbumRectPart.Bottom | window.AlbumRectPart.Right) : 0)
                 }"
                 @click="handleMediaClick(mediaItems[8], 8)"
             >
