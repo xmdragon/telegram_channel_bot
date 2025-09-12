@@ -200,6 +200,10 @@ async def train_message_tail(
     手动标注消息尾部用于训练
     """
     try:
+        # 标准化消息ID格式 - 与其他API保持一致
+        from app.api.messages_crud import _normalize_message_id
+        message_id = _normalize_message_id(message_id)
+        
         # 解析消息ID
         if ':' in message_id:
             channel_id, msg_id = message_id.split(':', 1)

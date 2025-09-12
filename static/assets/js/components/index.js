@@ -2216,15 +2216,21 @@ const MainApp = {
         
         // 训练尾部
         trainTail(messageId) {
+            console.log('🐛 [DEBUG] trainTail 原始messageId:', messageId);
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
                 window.SimpleUI.Message.error('未找到消息');
                 return;
             }
+            console.log('🐛 [DEBUG] message.id:', message.id);
+            const processedId = this.ensureChannelIdPrefix(message.id);
+            console.log('🐛 [DEBUG] ensureChannelIdPrefix处理后:', processedId);
+            
             // 只传递message_id，让训练页面自己获取消息详情
             const params = new URLSearchParams({
-                message_id: this.ensureChannelIdPrefix(message.id)
+                message_id: processedId
             });
+            console.log('🐛 [DEBUG] 最终URL参数:', params.toString());
             // 使用新的独立尾部过滤训练页面
             window.location.href = API.pages.tailFilterTraining + '?' + params.toString();
         },
