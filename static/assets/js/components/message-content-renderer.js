@@ -161,19 +161,36 @@ const MessageContentRenderer = {
             return displayItems;
         },
         
-        // 准备媒体项数据用于新的TelegramAlbum组件 - 改为计算属性
+        // 准备媒体项数据用于新的TelegramAlbum组件 - 支持单个媒体和组合媒体
         preparedAlbumMediaItems() {
-            if (!this.isCombinedMessage) return [];
+            if (this.isCombinedMessage) {
+                // 组合媒体消息
+                return this.message.media_group_display.map((media, index) => ({
+                    ...media,
+                    // 确保有默认尺寸
+                    width: media.width || 640,
+                    height: media.height || 640,
+                    // 统一URL字段
+                    url: media.url || media.display_url,
+                    display_url: media.url || media.display_url
+                }));
+            } else if (this.message.media_type && this.message.media_display_url) {
+                // 单个媒体消息 - 包装成数组格式供TelegramAlbum使用
+                return [{
+                    media_type: this.message.media_type,
+                    width: this.message.media_width || 640,
+                    height: this.message.media_height || 640,
+                    url: this.message.media_display_url,
+                    display_url: this.message.media_display_url
+                }];
+            }
             
-            return this.message.media_group_display.map((media, index) => ({
-                ...media,
-                // 确保有默认尺寸
-                width: media.width || 640,
-                height: media.height || 640,
-                // 统一URL字段
-                url: media.url || media.display_url,
-                display_url: media.url || media.display_url
-            }));
+            return [];
+        },
+        
+        // 检查是否有媒体可以显示（包括单个媒体和组合媒体）
+        hasMediaToShow() {
+            return this.preparedAlbumMediaItems.length > 0;
         }
     },
     
@@ -388,11 +405,9 @@ const MessageContentRenderer = {
                             <span class="content-label">🔍 过滤后内容</span>
                         </div>
                         <div class="content-column-body">
-                            <!-- 过滤后的媒体内容 -->
-                            <div v-if="message.media_type || isCombinedMessage" class="column-media-section">
-                                <!-- 组合消息的媒体组 - 使用Telegram官方布局 -->
+                            <!-- 媒体内容 - 统一使用TelegramAlbum组件 -->
+                            <div v-if="hasMediaToShow" class="column-media-section">
                                 <TelegramAlbum
-                                    v-if="isCombinedMessage"
                                     :media-items="preparedAlbumMediaItems"
                                     :is-own="false"
                                     :max-width="380"
@@ -401,34 +416,17 @@ const MessageContentRenderer = {
                                     @media-click="handleAlbumMediaClick"
                                     class="comparison-media"
                                 />
-                                
-                                <!-- 单个媒体（非组合消息） -->
-                                <template v-else>
-                                    <!-- 图片 -->
-                                    <img v-if="message.media_type === 'photo' && message.media_display_url && !mediaLoadError" 
-                                         :src="message.media_display_url"
-                                         class="media-image media-content"
-                                         @click.stop="openMediaPreview(message.media_display_url)"
-                                         @error="handleMediaError">
-                                    
-                                    <!-- 视频 -->
-                                    <video v-else-if="message.media_type === 'video' && message.media_display_url"
-                                           :src="message.media_display_url"
-                                           class="media-video media-content"
-                                           controls>
-                                    </video>
-                                    
-                                    <!-- 媒体加载失败或其他媒体类型 -->
-                                    <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
-                                         class="media-placeholder media-content">
-                                        <div>
-                                            📷 {{ message.media_type === 'photo' ? '图片' : 
-                                                 message.media_type === 'video' ? '视频' : 
-                                                 message.media_type }}
-                                            <div class="media-missing-text">媒体文件缺失</div>
-                                        </div>
-                                    </div>
-                                </template>
+                            </div>
+                            
+                            <!-- 媒体缺失时的占位符 -->
+                            <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
+                                 class="media-placeholder media-content">
+                                <div>
+                                    📷 {{ message.media_type === 'photo' ? '图片' : 
+                                         message.media_type === 'video' ? '视频' : 
+                                         message.media_type }}
+                                    <div class="media-missing-text">媒体文件缺失</div>
+                                </div>
                             </div>
                             
                             <!-- 过滤后的文本内容 -->
@@ -458,11 +456,9 @@ const MessageContentRenderer = {
                             <span class="content-label">📄 原始内容</span>
                         </div>
                         <div class="content-column-body">
-                            <!-- 原始的媒体内容（与左栏相同） -->
-                            <div v-if="message.media_type || isCombinedMessage" class="column-media-section">
-                                <!-- 组合消息的媒体组 - 使用Telegram官方布局 -->
+                            <!-- 原始媒体内容 - 统一使用TelegramAlbum组件 -->
+                            <div v-if="hasMediaToShow" class="column-media-section">
                                 <TelegramAlbum
-                                    v-if="isCombinedMessage"
                                     :media-items="preparedAlbumMediaItems"
                                     :is-own="false"
                                     :max-width="380"
@@ -471,34 +467,17 @@ const MessageContentRenderer = {
                                     @media-click="handleAlbumMediaClick"
                                     class="comparison-media"
                                 />
-                                
-                                <!-- 单个媒体（非组合消息） -->
-                                <template v-else>
-                                    <!-- 图片 -->
-                                    <img v-if="message.media_type === 'photo' && message.media_display_url && !mediaLoadError" 
-                                         :src="message.media_display_url"
-                                         class="media-image media-content"
-                                         @click.stop="openMediaPreview(message.media_display_url)"
-                                         @error="handleMediaError">
-                                    
-                                    <!-- 视频 -->
-                                    <video v-else-if="message.media_type === 'video' && message.media_display_url"
-                                           :src="message.media_display_url"
-                                           class="media-video media-content"
-                                           controls>
-                                    </video>
-                                    
-                                    <!-- 媒体加载失败或其他媒体类型 -->
-                                    <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
-                                         class="media-placeholder media-content">
-                                        <div>
-                                            📷 {{ message.media_type === 'photo' ? '图片' : 
-                                                 message.media_type === 'video' ? '视频' : 
-                                                 message.media_type }}
-                                            <div class="media-missing-text">媒体文件缺失</div>
-                                        </div>
-                                    </div>
-                                </template>
+                            </div>
+                            
+                            <!-- 媒体缺失时的占位符 -->
+                            <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
+                                 class="media-placeholder media-content">
+                                <div>
+                                    📷 {{ message.media_type === 'photo' ? '图片' : 
+                                         message.media_type === 'video' ? '视频' : 
+                                         message.media_type }}
+                                    <div class="media-missing-text">媒体文件缺失</div>
+                                </div>
                             </div>
                             
                             <!-- 原始的文本内容 -->

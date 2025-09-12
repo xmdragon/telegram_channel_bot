@@ -367,9 +367,10 @@
 
 .media-video {
     max-width: 100%;
-    max-height: 200px;
-    height: 200px;
+    min-height: 200px;
+    max-height: 400px;
     border-radius: 8px;
+    aspect-ratio: auto;
 }
 
 .media-placeholder {
@@ -968,6 +969,23 @@
 /* 双栏内媒体区域样式 */
 .column-media-section {
     margin-bottom: 12px;
+}
+
+/* 单个媒体内容样式 - 与TelegramAlbum保持一致 */
+.column-media-section .media-content {
+    width: 100%;
+    max-width: 380px;
+    height: auto;
+    display: block;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #000;
+}
+
+/* 确保视频元素获得合适的尺寸 */
+.column-media-section .media-video.media-content {
+    min-height: 240px;
+    max-height: 320px;
 }
 
 /* 双栏内的紧凑媒体样式 */
