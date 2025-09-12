@@ -210,7 +210,6 @@ def init_default_permissions():
         {"name": "channels.add", "module": "channels", "action": "add", "description": "添加频道"},
         {"name": "channels.edit", "module": "channels", "action": "edit", "description": "编辑频道"},
         {"name": "channels.delete", "module": "channels", "action": "delete", "description": "删除频道"},
-        {"name": "channels.refetch", "module": "channels", "action": "refetch", "description": "补抓消息"},
         
         # 训练管理
         {"name": "training.view", "module": "training", "action": "view", "description": "查看训练数据"},

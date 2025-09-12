@@ -325,60 +325,6 @@ async def batch_reject_messages(
         logger.error(f"批量拒绝消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量拒绝消息失败: {str(e)}")
 
-@router.post(ROUTES.messages.batch_refetch_media)
-@check_permission("messages.refetch")
-async def batch_refetch_media(
-    request: dict = Body({}),
-    user: Dict[str, Any] = Depends(require_auth),
-    message_processor: MessageProcessor = Depends(get_message_processor)
-):
-    """
-    批量重新获取媒体文件
-    """
-    message_ids = request.get("message_ids", [])
-    if not message_ids:
-        return {"success": False, "message": "未提供消息ID列表"}
-    
-    try:
-        # 解析消息ID（可以处理任何状态的消息）
-        message_tuples, valid_messages = await parse_and_collect_messages(message_ids, None)
-        
-        if not valid_messages:
-            return {"success": False, "message": "没有找到可处理的消息"}
-        
-        # 批量提交重新获取媒体任务
-        success_count = 0
-        failed_count = 0
-        
-        for msg_data in valid_messages:
-            try:
-                success = await message_processor.refetch_media(
-                    msg_data.get('source_channel'),
-                    msg_data.get('message_id')
-                )
-                if success:
-                    success_count += 1
-                else:
-                    failed_count += 1
-            except Exception as e:
-                logger.error(f"重新获取媒体失败: {e}")
-                failed_count += 1
-        
-        return {
-            "success": True,
-            "message": f"批量重新获取媒体完成，成功 {success_count} 条，失败 {failed_count} 条",
-            "data": {
-                "success_count": success_count,
-                "failed_count": failed_count,
-                "total_processed": len(valid_messages)
-            },
-            "timestamp": format_for_api(get_current_time())
-        }
-        
-    except Exception as e:
-        logger.error(f"批量重新获取媒体失败: {e}")
-        raise HTTPException(status_code=500, detail=f"批量重新获取媒体失败: {str(e)}")
-
 @router.post(ROUTES.messages.batch_delete)
 @check_permission("messages.delete")
 async def batch_delete_messages(

@@ -95,7 +95,7 @@ class ServiceProcess:
             import urllib.request
             import asyncio
             
-            for attempt in range(30):  # 最多等待30秒
+            for attempt in range(10):  # 最多等待10秒
                 try:
                     # 使用asyncio.to_thread来包装同步的urllib.request
                     def check_health():
@@ -108,14 +108,14 @@ class ServiceProcess:
                         return True
                 except:
                     pass
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5)  # 减少检查间隔
             
             logger.error("❌ Web服务健康检查超时")
             return False
         else:
             # 其他服务只需要检查进程存在
             import asyncio
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)  # 减少非Web服务等待时间
             return self.process.poll() is None
     
     async def start(self) -> bool:
@@ -157,13 +157,22 @@ class ServiceProcess:
                 return True
             else:
                 # 服务未就绪
-                self.status = ServiceStatus.FAILED
                 if self.process.poll() is not None:
                     returncode = self.process.returncode
-                    logger.error(f"❌ 服务 {self.config.name} 进程已退出 (退出码: {returncode})")
+                    
+                    # 特殊处理：collector服务退出码0可能是配置禁用导致的正常退出
+                    if self.config.name == "collector" and returncode == 0:
+                        logger.info(f"📋 Collector服务正常退出 (可能因配置禁用)")
+                        self.status = ServiceStatus.STOPPED
+                        return True
+                    else:
+                        self.status = ServiceStatus.FAILED
+                        logger.error(f"❌ 服务 {self.config.name} 进程已退出 (退出码: {returncode})")
+                        return False
                 else:
+                    self.status = ServiceStatus.FAILED
                     logger.error(f"❌ 服务 {self.config.name} 健康检查失败")
-                return False
+                    return False
                 
         except Exception as e:
             self.status = ServiceStatus.FAILED
@@ -236,17 +245,17 @@ class DevSupervisor:
         self.service_configs = {
             "web": ServiceConfig(
                 name="web",
-                command=["python3", "web_server.py"],  # 直接启动web_server.py
+                command=["venv/bin/python3", "web_server.py"],  # 使用虚拟环境Python
                 description="Web服务器 (FastAPI + Uvicorn)"
             ),
             "collector": ServiceConfig(
                 name="collector", 
-                command=["python3", "message_collector.py"],
+                command=["venv/bin/python3", "message_collector.py"],
                 description="Telegram消息采集服务"
             ),
             "scheduler": ServiceConfig(
                 name="scheduler",
-                command=["python3", "message_scheduler.py"], 
+                command=["venv/bin/python3", "message_scheduler.py"], 
                 description="消息调度服务 (自动转发、数据清理)"
             ),
         }
@@ -255,11 +264,38 @@ class DevSupervisor:
         for config in self.service_configs.values():
             self.services[config.name] = ServiceProcess(config)
     
+    async def _check_collector_config(self) -> bool:
+        """检查collector服务配置是否启用"""
+        try:
+            import json
+            from app.core.path_config import PathConfig
+            
+            with open(PathConfig.SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                system_config = json.load(f)
+            
+            collection_value = system_config.get("collection.enabled", {}).get("value", "false")
+            collection_enabled = collection_value.lower() == "true" if isinstance(collection_value, str) else bool(collection_value)
+            
+            return collection_enabled
+        except Exception as e:
+            logger.warning(f"检查collector配置失败: {e}，默认启用")
+            return True
+
     async def start_service(self, service_name: str) -> bool:
         """启动单个服务"""
         if service_name not in self.services:
             logger.error(f"未知服务: {service_name}")
             return False
+        
+        # 对collector服务进行配置检查
+        if service_name == "collector":
+            if not await self._check_collector_config():
+                logger.info("📋 Collector服务已被配置禁用 (collection.enabled=false)")
+                logger.info("   如需启用采集功能，请修改系统配置")
+                # 将服务标记为已停止状态，但不视为错误
+                service = self.services[service_name]
+                service.status = ServiceStatus.STOPPED
+                return True  # 返回True表示"成功"处理了禁用状态
             
         service = self.services[service_name]
         return await service.start()
@@ -295,7 +331,7 @@ class DevSupervisor:
                 config = self.services[service_name].config
                 if config.enabled:
                     await self.start_service(service_name)
-                    await asyncio.sleep(1)  # 错开启动时间
+                    await asyncio.sleep(0.2)  # 减少错开启动时间
     
     async def stop_all_services(self) -> None:
         """停止所有服务"""

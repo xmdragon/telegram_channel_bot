@@ -27,8 +27,7 @@ const MessageContentRenderer = {
         'edit-message',
         'mark-as-ad',
         'train-tail',
-        'filter-content',
-        'refetch-media'
+        'filter-content'
     ],
     
     data() {
@@ -264,27 +263,6 @@ const MessageContentRenderer = {
                    !this.mediaLoadError;
         },
         
-        // Linus式"好品味"：检测是否有媒体缺失（消除边界情况）
-        hasMediaMissing() {
-            // 组合消息和单个媒体互斥检查，避免重叠判断
-            if (this.isCombinedMessage) {
-                // 组合消息：检查媒体组是否有缺失（兼容旧字段名）
-                const mediaGroup = this.message.media_group_display;
-                if (!mediaGroup || !Array.isArray(mediaGroup) || mediaGroup.length === 0) {
-                    return false; // 没有媒体组就不需要补抓
-                }
-                return mediaGroup.some(media => 
-                    (!media.url || media.url.trim() === '') && 
-                    (!media.display_url || media.display_url.trim() === '')
-                );
-            } else if (this.message.media_type) {
-                // 单个媒体：检查是否缺失
-                return !this.mediaExists();
-            }
-            
-            // 没有任何媒体，不需要补抓
-            return false;
-        },
         
         // 🔥 Linus风格：操作方法被事件委托取代，不再需要Vue事件
         
@@ -541,14 +519,6 @@ const MessageContentRenderer = {
                     :class="['btn', 'btn-sm', 'btn-primary', 
                              $parent.isFiltering && $parent.isFiltering(message.id) ? 'disabled' : '']">
                     {{ $parent.isFiltering && $parent.isFiltering(message.id) ? '🔄 过滤中...' : '🎯 过滤' }}
-                </button>
-                <button v-if="hasMediaMissing" 
-                        data-action="refetchMedia" 
-                        :data-message-id="computedMessageId"
-                        :disabled="$parent.isRefetching && $parent.isRefetching(message.id)"
-                        :class="['btn', 'btn-sm', 'btn-primary', 
-                                 $parent.isRefetching && $parent.isRefetching(message.id) ? 'disabled' : '']">
-                    {{ $parent.isRefetching && $parent.isRefetching(message.id) ? '🔄 补抓中...' : '🔄 补抓' }}
                 </button>
             </div>
             

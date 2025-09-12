@@ -874,39 +874,6 @@ async def resend_message(
         logger.error(f"重新发布消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"重新发布消息失败: {str(e)}")
 
-@router.post(ROUTES.messages.refetch_media)
-@check_permission("message.refetch_media")
-async def refetch_message_media(
-    message_id: str,
-    user: Dict[str, Any] = Depends(require_auth)
-):
-    """
-    重新获取消息的媒体文件（通过队列异步处理）
-    """
-    try:
-        # 验证消息ID格式
-        if ':' not in message_id:
-            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
-        
-        # 使用媒体补抓服务提交任务到队列
-        from app.services.media_refetch_service import media_refetch_service
-        task_id = media_refetch_service.submit_task(message_id)
-        
-        logger.info(f"媒体补抓任务已提交: {task_id} for message {message_id}")
-        
-        return {
-            "success": True,
-            "message": "媒体补抓任务已提交到队列",
-            "task_id": task_id,
-            "timestamp": format_for_api(get_current_time())
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"提交媒体补抓任务失败: {e}")
-        raise HTTPException(status_code=500, detail=f"提交媒体补抓任务失败: {str(e)}")
-
 @router.delete(ROUTES.messages.delete_review)
 @check_permission("message.delete_review")
 async def delete_review_message(
@@ -1173,7 +1140,6 @@ async def _async_forward_with_redis_notify(message_id: str, user_id: str = None)
 async def _redis_websocket_notify(event_type: str, message_id: str, message: str, is_final: bool = False):
     """
     通过Redis Pub/Sub发送WebSocket通知（跨进程通信）
-    复用现有的媒体补抓通知机制
     """
     try:
         import json

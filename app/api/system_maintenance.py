@@ -246,7 +246,6 @@ async def reset_system() -> Dict[str, Any]:
                     "processor:completed",  # 完成队列
                     "media:download:queue",
                     "processor:queue:*",
-                    "media_refetch:*",
                     "message_forward:*"
                 ]
                 

@@ -39,11 +39,11 @@ const API_ENDPOINTS = {
         publish: (id) => `/api/messages/publish/${id}`,            // POST - 发布消息（队列版本）
         publishDirect: (id) => `/api/messages/publish-direct/${id}`, // POST - 直接发布消息（新版本，不依赖采集开关）
         editPublish: (id) => `/api/messages/edit-publish/${id}`,   // POST - 编辑并发布
-        refetchMedia: (id) => `/api/messages/refetch-media/${id}`, // POST - 重新获取媒体
         trainTail: (id) => `/api/messages/train-tail/${id}`,       // POST - 训练尾部过滤
         refilter: (id) => `/api/messages/refilter/${id}`,          // POST - 重新过滤消息
         feedback: (id) => `/api/messages/feedback/${id}`,          // POST - 提交过滤反馈
-        refetchTask: (taskId) => `/api/refetch-task/${taskId}`     // GET - 查询媒体补抓任务状态
+        extractAdKeywords: (id) => `/api/messages/extract-ad-keywords/${id}`, // POST - 提取广告关键词
+        markAsAd: (id) => `/api/messages/mark-as-ad/${id}`         // POST - 标记为广告并保存关键词
     },
 
     // 管理员认证模块 - /api/admin/auth

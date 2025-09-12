@@ -52,7 +52,6 @@ const StateManager = {
             // 操作状态
             processingMessages: new Set(),
             _isProcessingAction: false,
-            refetchingMedia: {},
             
             // 对话框状态
             mediaPreview: {
@@ -83,8 +82,7 @@ const StateManager = {
                 reject: true,
                 markAsAd: true,
                 markAsTail: true,
-                executeFilter: true,
-                refetchMedia: true
+                executeFilter: true
             }
         };
     },

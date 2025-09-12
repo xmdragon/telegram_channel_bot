@@ -226,12 +226,11 @@ async def train_message_tail(
         except:
             samples = []
         
-        # 添加新的训练样本
+        # 添加新的训练样本 - 只保留核心字段
         new_sample = {
             "id": len(samples) + 1,
             "tail_part": tail_content.strip(),
-            "message_id": message_id,
-            "labeled_by": user.get('username', 'unknown'),
+            "rules": [],  # 规则可以后续生成
             "created_at": datetime.now().isoformat()
         }
         samples.append(new_sample)
@@ -343,3 +342,121 @@ async def submit_filter_feedback(
     except Exception as e:
         logger.error(f"提交反馈失败: {e}")
         raise HTTPException(status_code=500, detail=f"提交反馈失败: {str(e)}")
+
+@router.post(ROUTES.messages.extract_ad_keywords)
+async def extract_ad_keywords(
+    id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    从消息中提取广告关键词
+    """
+    try:
+        # 解析消息ID
+        if ':' in id:
+            channel_id, msg_id = id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        # 获取消息内容
+        message = redis_manager.get_message(channel_id, int(msg_id))
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        content = message.get('content', '')
+        if not content:
+            return {
+                "success": True,
+                "data": {
+                    "keywords": [],
+                    "message": "消息内容为空"
+                }
+            }
+        
+        # 使用关键词提取器
+        from app.services.keyword_extractor import get_keyword_extractor
+        extractor = get_keyword_extractor()
+        
+        # 提取建议的关键词及权重
+        suggested_keywords = extractor.suggest_keywords_with_weight(content)
+        
+        # 格式化返回数据
+        keywords = [
+            {
+                "keyword": keyword,
+                "weight": weight,
+                "is_new": True  # 标记为新关键词
+            }
+            for keyword, weight in suggested_keywords
+        ]
+        
+        return {
+            "success": True,
+            "data": {
+                "keywords": keywords,
+                "total": len(keywords)
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"提取关键词失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"提取关键词失败: {str(e)}")
+
+@router.post(ROUTES.messages.mark_as_ad)
+async def mark_as_ad(
+    id: str,
+    keywords: Dict[str, int],
+    user: Dict[str, Any] = Depends(require_auth),
+    message_processor: MessageProcessor = Depends(get_message_processor)
+):
+    """
+    标记消息为广告并保存关键词
+    """
+    try:
+        # 解析消息ID
+        if ':' in id:
+            channel_id, msg_id = id.split(':', 1)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
+        
+        # 保存新关键词到配置
+        if keywords:
+            from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
+            detector = get_weighted_keyword_detector()
+            
+            for keyword, weight in keywords.items():
+                if keyword and weight > 0:
+                    detector.add_keyword(keyword, weight)
+            
+            logger.info(f"添加了 {len(keywords)} 个新关键词")
+        
+        # 更新消息状态为拒绝
+        success = await message_processor.update_message_status(
+            channel_id, int(msg_id), 'rejected', user.get('username')
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="更新消息状态失败")
+        
+        # 记录广告样本
+        logger.info(f"消息 {id} 被标记为广告，添加了 {len(keywords)} 个关键词")
+        
+        return {
+            "success": True,
+            "message": "已标记为广告并保存关键词",
+            "data": {
+                "message_id": id,
+                "keywords_added": len(keywords),
+                "status": "rejected"
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"标记广告失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"标记广告失败: {str(e)}")

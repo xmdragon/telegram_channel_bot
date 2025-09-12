@@ -34,16 +34,16 @@ class RouteConfig:
         filter_content = "/messages/filter-content/{message_id}"
         train_tail = "/messages/train-tail/{message_id}"
         not_ad = "/messages/not-ad/{message_id}"
-        refetch_media = "/messages/refetch-media/{message_id}"
         refilter = "/messages/refilter/{message_id}"
         feedback = "/messages/feedback/{message_id}"
         delete_review = "/messages/delete-review/{message_id}"
+        extract_ad_keywords = "/messages/extract-ad-keywords/{id}"
+        mark_as_ad = "/messages/mark-as-ad/{id}"
         
         # 批量操作
         batch_approve = "/messages/batch/approve"
         batch_reject = "/messages/batch/reject"
         batch_delete = "/messages/batch/delete"
-        batch_refetch_media = "/messages/batch/refetch-media"
         
         
         # 统计相关

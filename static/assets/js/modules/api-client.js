@@ -195,14 +195,6 @@ const ApiClient = {
             return await ApiClient.request('put', window.API.messages.updateById(messageId), {
                 filtered_content: content
             });
-        },
-        
-        // 重新抓取媒体
-        async refetchMedia(messageId) {
-            if (!messageId) throw new Error('消息ID不能为空');
-            if (!window.API?.messages?.refetchMedia) throw new Error('API配置未加载');
-            
-            return await ApiClient.request('post', window.API.messages.refetchMedia(messageId));
         }
     },
     

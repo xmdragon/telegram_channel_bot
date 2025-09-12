@@ -30,20 +30,23 @@ class SeparatorFilter:
         self.regex_patterns: List[re.Pattern] = []
         self.pattern_descriptions: List[str] = []
         self.initialized = False
+        self._patterns_mtime = 0  # 记录文件修改时间
+        self._patterns_file = PathConfig.DATA_DIR / "training/tail/separator_patterns.json"
         
         self._load_separator_patterns()
     
     def _load_separator_patterns(self):
         """从separator_patterns.json加载正则表达式"""
         try:
-            separator_file = PathConfig.DATA_DIR / "training/tail/separator_patterns.json"
-            
-            if not separator_file.exists():
-                logger.warning(f"分隔符配置文件不存在: {separator_file}")
+            if not self._patterns_file.exists():
+                logger.warning(f"分隔符配置文件不存在: {self._patterns_file}")
                 logger.warning("过滤器将保持未初始化状态，不进行分隔符过滤")
                 return
             
-            with open(separator_file, 'r', encoding='utf-8') as f:
+            # 更新文件修改时间
+            self._patterns_mtime = self._patterns_file.stat().st_mtime
+            
+            with open(self._patterns_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             patterns = data.get('patterns', [])
@@ -83,7 +86,7 @@ class SeparatorFilter:
     
     def filter_content(self, content: str) -> Tuple[str, Dict[str, Any]]:
         """
-        过滤内容中的分隔符行
+        过滤内容中的分隔符包裹的内容块
         
         Args:
             content: 要过滤的内容
@@ -91,77 +94,88 @@ class SeparatorFilter:
         Returns:
             (过滤后内容, 过滤统计信息)
         """
+        # 检查是否需要重新加载
+        self.reload_if_needed()
+        
         if not content or not content.strip():
             return content, {
                 "reason": "内容为空",
-                "total_lines": 0,
-                "removed_lines_count": 0,
-                "filtered_lines_count": 0,
+                "original_length": 0,
+                "filtered_length": 0,
+                "removed_blocks_count": 0,
                 "patterns_matched_count": 0,
-                "removed_lines": [],
+                "removed_blocks": [],
                 "matched_patterns": []
             }
         
         if not self.initialized:
             return content, {
                 "reason": "过滤器未初始化",
-                "total_lines": len(content.split('\n')),
-                "removed_lines_count": 0,
-                "filtered_lines_count": len(content.split('\n')),
+                "original_length": len(content),
+                "filtered_length": len(content),
+                "removed_blocks_count": 0,
                 "patterns_matched_count": 0,
-                "removed_lines": [],
+                "removed_blocks": [],
                 "matched_patterns": []
             }
         
-        # 按行分割内容
-        lines = content.split('\n')
-        filtered_lines = []
-        removed_lines = []
+        # 记录原始内容长度
+        original_length = len(content)
+        filtered_content = content
+        removed_blocks = []
         matched_patterns = []
         
-        # 逐行检查和过滤
-        for line_num, line in enumerate(lines):
-            line_matched = False
+        # 对每个正则模式进行整体匹配和替换
+        for pattern_idx, pattern in enumerate(self.regex_patterns):
+            # 查找所有匹配的内容块
+            matches = pattern.findall(filtered_content)
             
-            # 对每行应用所有正则模式
-            for pattern_idx, pattern in enumerate(self.regex_patterns):
-                if pattern.search(line):
-                    # 匹配到分隔符，移除这一行
-                    removed_lines.append({
-                        'line_number': line_num + 1,
-                        'content': line,
+            if matches:
+                # 记录匹配信息
+                for match in matches:
+                    # 限制记录的内容长度，避免日志过大
+                    preview = match[:100] + '...' if len(match) > 100 else match
+                    removed_blocks.append({
+                        'content_preview': preview,
+                        'content_length': len(match),
                         'matched_pattern': self.pattern_descriptions[pattern_idx],
                         'regex': pattern.pattern
                     })
                     matched_patterns.append(self.pattern_descriptions[pattern_idx])
-                    line_matched = True
-                    break
-            
-            # 未匹配的行保留
-            if not line_matched:
-                filtered_lines.append(line)
+                
+                # 使用 re.sub 移除所有匹配的内容块
+                filtered_content = pattern.sub('', filtered_content)
+                
+                logger.debug(f"模式 '{self.pattern_descriptions[pattern_idx]}' 移除了 {len(matches)} 个内容块")
         
-        # 重新组合过滤后的内容
-        filtered_content = '\n'.join(filtered_lines)
-        
-        # 清理多余的空行
+        # 清理多余的空行（连续3个或更多换行符替换为2个）
         filtered_content = re.sub(r'\n{3,}', '\n\n', filtered_content).strip()
         
         # 构建统计信息
         stats = {
-            'total_lines': len(lines),
-            'removed_lines_count': len(removed_lines),
-            'filtered_lines_count': len(filtered_lines),
+            'original_length': original_length,
+            'filtered_length': len(filtered_content),
+            'removed_blocks_count': len(removed_blocks),
             'patterns_matched_count': len(set(matched_patterns)),
-            'removed_lines': removed_lines,
+            'removed_blocks': removed_blocks,
             'matched_patterns': list(set(matched_patterns))
         }
         
-        if removed_lines:
-            logger.info(f"✅ 分隔符过滤完成: 移除了 {len(removed_lines)} 行分隔符")
-            logger.info(f"   原始行数: {len(lines)}, 过滤后行数: {len(filtered_lines)}")
+        if removed_blocks:
+            removed_chars = original_length - len(filtered_content)
+            logger.info(f"✅ 分隔符过滤完成: 移除了 {len(removed_blocks)} 个内容块")
+            logger.info(f"   原始长度: {original_length} 字符, 过滤后: {len(filtered_content)} 字符")
+            logger.info(f"   共移除: {removed_chars} 字符")
         
         return filtered_content, stats
+    
+    def reload_if_needed(self):
+        """检查文件是否修改，需要时重新加载"""
+        if self._patterns_file.exists():
+            current_mtime = self._patterns_file.stat().st_mtime
+            if current_mtime != self._patterns_mtime:
+                logger.info("检测到分隔符配置文件更新，重新加载...")
+                self._load_separator_patterns()
     
     def get_statistics(self) -> Dict[str, Any]:
         """获取过滤器统计信息"""

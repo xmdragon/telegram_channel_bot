@@ -15,11 +15,12 @@ Created: 2025-09-08
 Updated: 2025-09-09 (移除ONNX，改为关键词检测)
 """
 
-from .keyword_ad_detector import KeywordAdDetector
+from .weighted_keyword_detector import WeightedKeywordDetector, get_weighted_keyword_detector
 from .detector_layer import DetectorLayer, DetectorLayerConfig
 
 __all__ = [
-    'KeywordAdDetector',
+    'WeightedKeywordDetector',
+    'get_weighted_keyword_detector',
     'DetectorLayer', 
     'DetectorLayerConfig'
 ]

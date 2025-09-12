@@ -62,6 +62,12 @@
                     @click="activeTab = 'examples'">
                     📝 常用分隔符示例
                 </button>
+                <button 
+                    class="tab-btn" 
+                    :class="{ active: activeTab === 'test' }"
+                    @click="activeTab = 'test'">
+                    🧪 正则测试
+                </button>
             </div>
             
             <!-- 分隔符配置表单 -->
@@ -132,6 +138,130 @@
                                 <li>建议从最常见的分隔符开始配置</li>
                                 <li>可以点击示例直接添加到配置中</li>
                             </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 正则测试页面 -->
+            <div class="config-section" v-show="activeTab === 'test'">
+                <div class="form-card">
+                    <div class="card-header">
+                        <h3>🧪 正则表达式测试</h3>
+                    </div>
+                    
+                    <div class="regex-test-section">
+                        <!-- 使用说明 -->
+                        <div class="help-tips" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                            <h4 style="margin-top: 0;">💡 系统实际使用的正则表达式</h4>
+                            <ul style="margin: 10px 0;">
+                                <li><code>[➖\s]{5,}[\s\S]*?[➖\s]{5,}</code> - 特殊包裹推广内容</li>
+                                <li><code>[\U0001F300-\U0001F9FF\u2600-\u27BF]{5,}[\s\S]*?[\U0001F300-\U0001F9FF\u2600-\u27BF]{5,}</code> - emoji包裹推广内容</li>
+                                <li><code>[━═─▬\-—=*+~_|&lt;&gt;#{}[\]().,:;'"!?@#$%^&amp;]{5,}[\s\S]*?[━═─▬\-—=*+~_|&lt;&gt;#{}[\]().,:;'"!?@#$%^&amp;]{5,}</code> - 符号包裹推广内容</li>
+                            </ul>
+                            <p style="margin-bottom: 0; color: #6c757d;">
+                                注意：后端默认使用忽略大小写匹配，使用 <code>[\s\S]*?</code> 实现跨行匹配
+                            </p>
+                        </div>
+                        
+                        <!-- 测试内容输入 -->
+                        <div class="form-group">
+                            <label class="form-label">测试内容</label>
+                            <textarea 
+                                class="form-textarea"
+                                v-model="regexTest.content"
+                                @input="testRegex"
+                                placeholder="输入要测试的内容..."
+                                rows="8"
+                                style="font-family: monospace;">
+                            </textarea>
+                        </div>
+                        
+                        <!-- 正则表达式输入 -->
+                        <div class="form-group">
+                            <label class="form-label">正则表达式</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input 
+                                    class="form-input"
+                                    v-model="regexTest.pattern"
+                                    @input="testRegex"
+                                    placeholder="输入正则表达式，如：━{10,}"
+                                    style="font-family: monospace; flex: 1;">
+                                
+                                <!-- 快速选择已配置的正则 -->
+                                <select 
+                                    class="form-input" 
+                                    style="width: 200px;"
+                                    @change="selectPresetPattern($event)">
+                                    <option value="">选择已配置的正则</option>
+                                    <option v-for="(pattern, index) in separatorPatterns" 
+                                            :key="index" 
+                                            :value="pattern.regex">
+                                        {{ pattern.description }}
+                                    </option>
+                                </select>
+                            </div>
+                            
+                            <!-- 匹配说明 -->
+                            <div style="margin-top: 10px; padding: 8px; background: #e7f3ff; border-radius: 4px; font-size: 12px; color: #0066cc;">
+                                💡 测试使用与后端相同的匹配规则：全局匹配(g) + 忽略大小写(i)
+                            </div>
+                            
+                            <!-- 错误提示 -->
+                            <div v-if="regexTest.error" class="error-message" style="color: #dc3545; margin-top: 5px;">
+                                ❌ {{ regexTest.error }}
+                            </div>
+                        </div>
+                        
+                        <!-- 测试结果 -->
+                        <div class="form-group">
+                            <label class="form-label">测试结果</label>
+                            
+                            <!-- 匹配统计 -->
+                            <div v-if="!regexTest.error && regexTest.pattern" class="match-stats" style="margin-bottom: 10px;">
+                                <span v-if="regexTest.matches.length > 0" style="color: #28a745;">
+                                    ✅ 找到 {{ regexTest.matches.length }} 个匹配
+                                </span>
+                                <span v-else style="color: #6c757d;">
+                                    ❌ 没有找到匹配
+                                </span>
+                            </div>
+                            
+                            <!-- 匹配详情 -->
+                            <div v-if="regexTest.matches.length > 0" class="matches-detail">
+                                <div style="border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; background: #f8f9fa;">
+                                    <div v-for="(match, index) in regexTest.matches" :key="index" style="margin-bottom: 10px;">
+                                        <div style="font-size: 12px; color: #6c757d; margin-bottom: 3px;">
+                                            匹配 #{{ index + 1 }} (位置: {{ match.index }})
+                                        </div>
+                                        <div style="padding: 5px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 3px; font-family: monospace; word-break: break-all;">
+                                            {{ match.text }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 高亮显示 -->
+                            <div v-if="regexTest.highlightedContent" class="highlighted-content" style="margin-top: 10px;">
+                                <label class="form-label">高亮显示</label>
+                                <div 
+                                    style="border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; background: white; font-family: monospace; white-space: pre-wrap; word-break: break-all;"
+                                    v-html="regexTest.highlightedContent">
+                                </div>
+                            </div>
+                            
+                            <!-- 过滤后的内容 -->
+                            <div v-if="regexTest.filteredContent" class="filtered-content" style="margin-top: 10px;">
+                                <label class="form-label">过滤后的内容（模拟后端效果）</label>
+                                <div style="border: 1px solid #28a745; border-radius: 4px; padding: 10px; background: #d4edda; font-family: monospace; white-space: pre-wrap; word-break: break-all;">
+                                    {{ regexTest.filteredContent }}
+                                </div>
+                                <div style="margin-top: 5px; font-size: 12px; color: #6c757d;">
+                                    原始长度: {{ regexTest.content.length }} 字符 | 
+                                    过滤后: {{ regexTest.filteredContent.length }} 字符 | 
+                                    移除: {{ regexTest.content.length - regexTest.filteredContent.length }} 字符
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

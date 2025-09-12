@@ -192,3 +192,127 @@ body {
         padding: 1rem;
     }
 }
+
+/* 广告标记弹窗样式 */
+.ad-marking-dialog {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.ad-marking-dialog .message-preview {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.ad-marking-dialog .message-preview h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.ad-marking-dialog .message-content {
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.ad-marking-dialog .keywords-section h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.ad-marking-dialog .keywords-list {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.ad-marking-dialog .keyword-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    margin: 5px 0;
+    background: #f5f5f5;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.ad-marking-dialog .keyword-item:hover {
+    background: #ececec;
+}
+
+.ad-marking-dialog .keyword-text {
+    font-weight: 500;
+    color: #333;
+    flex: 1;
+}
+
+.ad-marking-dialog .keyword-weight {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.ad-marking-dialog .no-keywords {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    margin: 0;
+}
+
+.ad-marking-dialog .add-keyword-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.ad-marking-dialog #new-keyword-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.ad-marking-dialog #new-keyword-weight {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+}
+
+.ad-marking-dialog .btn-add {
+    padding: 8px 20px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.ad-marking-dialog .btn-add:hover {
+    background: #45a049;
+}

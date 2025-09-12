@@ -54,11 +54,16 @@ show_help() {
     echo "  --status    显示服务状态"
     echo ""
     echo "示例:"
-    echo "  $0                    # 启动所有服务"
-    echo "  $0 web               # 仅启动Web服务"
-    echo "  $0 web collector     # 启动Web和采集服务"
-    echo "  $0 collector scheduler  # 启动采集和调度服务"
+    echo "  $0                    # 启动所有服务（后台运行）"
+    echo "  $0 web               # 仅启动Web服务（后台运行）"
+    echo "  $0 web collector     # 启动Web和采集服务（后台运行）"
+    echo "  $0 collector scheduler  # 启动采集和调度服务（后台运行）"
     echo "  $0 --status          # 查看服务状态"
+    echo ""
+    echo "服务管理:"
+    echo "  启动后服务在后台运行，终端可继续使用"
+    echo "  使用 ./stop.sh 停止所有服务"
+    echo "  使用 ./dev.sh --status 实时查看服务状态"
     echo ""
 }
 
@@ -228,8 +233,31 @@ if [[ $(type -t create_pid_file) == function ]]; then
     # 设置退出陷阱，确保清理PID文件
     trap 'cleanup_pid_file "dev_supervisor"; kill -TERM $SUPERVISOR_PID 2>/dev/null || true' EXIT INT TERM
     
-    # 等待进程管理器
-    wait $SUPERVISOR_PID
+    # 等待服务启动完成（最多等待10秒）
+    echo "⏳ 等待服务启动..."
+    sleep 3
+    
+    # 检查服务状态
+    if kill -0 $SUPERVISOR_PID 2>/dev/null; then
+        echo "✅ 开发环境已启动！"
+        echo ""
+        echo "🎯 服务管理："
+        echo "   停止服务: ./stop.sh"
+        echo "   查看状态: ./dev.sh --status"
+        echo "   查看日志: tail -f logs/app.log"
+        echo "   Web界面: ${API_URL}"
+        echo ""
+        echo "💡 服务已在后台运行，终端可继续使用"
+        
+        # 清理陷阱（服务已在后台运行，不需要前台等待）
+        trap - EXIT INT TERM
+        
+        # 正常退出，让服务在后台继续运行
+        exit 0
+    else
+        echo "❌ 服务启动失败"
+        exit 1
+    fi
 else
     # 降级为直接启动
     exec venv/bin/python3 dev_supervisor.py "${SERVICES[@]}"

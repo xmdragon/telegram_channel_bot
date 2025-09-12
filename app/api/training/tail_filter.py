@@ -422,30 +422,27 @@ async def add_tail_filter_sample(request: dict):
         # 生成正则规则
         regex_rules = extract_regex_rules_from_tail(tail_part)
         
-        # 创建新样本（简化数据结构）
+        # 创建新样本（只保留核心字段）
         new_sample = {
             "id": new_id,
             "tail_part": tail_part,
             "rules": regex_rules,
-            "created_at": datetime.now().isoformat(),
-            # 兼容字段（向后兼容，可以逐步移除）
-            "content": content,
-            "separator": separator,
-            "normal_part": normal_part,
-            "content_hash": hashlib.md5(content.encode()).hexdigest(),
-            "is_applied": True,
-            "created_by": 'manual',
-            "message_id": message_id
+            "created_at": datetime.now().isoformat()
         }
+        
+        # 计算哈希用于重复检查（但不保存到样本）
+        content_hash = hashlib.md5(content.encode()).hexdigest()
         
         # 检查重复
         existing_sample = None
         for sample in samples:
+            # 兼容旧格式的哈希检查
             existing_hash = sample.get('content_hash')
             if not existing_hash and sample.get('content'):
                 # 为历史数据生成哈希
                 existing_hash = hashlib.md5(sample.get('content', '').encode()).hexdigest()
-            if existing_hash == new_sample['content_hash']:
+            # 或者直接比较tail_part
+            if existing_hash == content_hash or sample.get('tail_part') == tail_part:
                 existing_sample = sample
                 break
         

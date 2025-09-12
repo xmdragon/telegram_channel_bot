@@ -14,7 +14,7 @@ import asyncio
 from typing import Tuple
 
 from app.services.processors.base import MessageProcessor, ProcessorResult, MessageContext
-from app.services.detectors.keyword_ad_detector import get_keyword_ad_detector
+from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,9 @@ class MessageAdDetectorProcessor(MessageProcessor):
     
     @property
     def keyword_detector(self):
-        """延迟加载关键词检测器"""
+        """延迟加载权重关键词检测器"""
         if self._keyword_detector is None:
-            self._keyword_detector = get_keyword_ad_detector()
+            self._keyword_detector = get_weighted_keyword_detector()
         return self._keyword_detector
     
     async def process(self, context: MessageContext) -> ProcessorResult:
@@ -54,7 +54,7 @@ class MessageAdDetectorProcessor(MessageProcessor):
             
             # 记录检测信息到上下文
             context.ad_detection_score = confidence
-            context.ad_detection_threshold = 10  # 关键词检测的权重阈值
+            context.ad_detection_threshold = self.keyword_detector.threshold  # 使用实际的阈值
             
             if is_ad:
                 # 检测到广告，标记拒绝
@@ -102,23 +102,17 @@ class MessageAdDetectorProcessor(MessageProcessor):
             if not content or not content.strip():
                 return False, 0.0, "空内容"
             
-            # 使用关键词检测器
-            from app.services.filters.base import FilterContext
-            filter_context = FilterContext(
-                message_id=context.message_id,
-                channel_id=context.channel_id
-            )
+            # 使用权重关键词检测器
+            is_ad, total_weight, matched_keywords = self.keyword_detector.detect(content)
             
-            # 添加原始内容到上下文
-            filter_context.add_metadata('original_content', context.original_content)
+            # 转换为置信度（0-1范围）
+            confidence = min(total_weight / 10.0, 1.0) if total_weight > 0 else 0.0
             
-            # 执行关键词检测
-            result = await self.keyword_detector.filter(content, filter_context)
-            
-            # 从结果中提取检测信息
-            is_ad = not result.passed
-            confidence = result.confidence
-            reason = result.reason or "关键词检测完成"
+            # 构建原因描述
+            if is_ad and matched_keywords:
+                reason = f"匹配广告关键词: {', '.join(matched_keywords[:5])}, 总权重: {total_weight}"
+            else:
+                reason = "未检测到广告关键词"
             
             return is_ad, confidence, reason
             

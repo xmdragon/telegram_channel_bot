@@ -67,7 +67,6 @@ const MainApp = {
             publishingMessages: new Set(), // 正在发布的消息ID集合
             filteringMessages: new Set(), // 正在过滤的消息ID集合 - Linus风格状态管理
             isBatchPublishing: false, // 批量发布状态
-            refetchingMedia: {},
             componentRefreshKey: 0, // 用于强制组件重新渲染
             
             // 对话框状态
@@ -116,7 +115,6 @@ const MainApp = {
                 markAsAd: true,
                 markAsTail: true,
                 executeFilter: true,
-                refetchMedia: true,
                 delete: false
             }
         };
@@ -231,9 +229,6 @@ const MainApp = {
         }
         if (!this.editDialog) {
             this.editDialog = { visible: false, messageId: null, filteredContent: '', originalMessage: null };
-        }
-        if (!this.refetchingMedia) {
-            this.refetchingMedia = {};
         }
         
         // 确保loadMessages方法存在
@@ -485,7 +480,6 @@ const MainApp = {
                         markAsAd: true,
                         markAsTail: true,
                         executeFilter: true,
-                        refetchMedia: true,
                         delete: true
                     };
                     break;
@@ -498,7 +492,6 @@ const MainApp = {
                         markAsAd: true,
                         markAsTail: false,
                         executeFilter: true,
-                        refetchMedia: true,
                         delete: false
                     };
                     break;
@@ -511,7 +504,6 @@ const MainApp = {
                         markAsAd: false,
                         markAsTail: false,
                         executeFilter: false,
-                        refetchMedia: false,
                         delete: false
                     };
                     break;
@@ -524,7 +516,6 @@ const MainApp = {
                         markAsAd: false,
                         markAsTail: false,
                         executeFilter: false,
-                        refetchMedia: true,
                         delete: false
                     };
                     break;
@@ -538,7 +529,6 @@ const MainApp = {
                         markAsAd: false,
                         markAsTail: false,
                         executeFilter: false,
-                        refetchMedia: false,
                         delete: false
                     };
                     break;
@@ -916,16 +906,33 @@ const MainApp = {
                 const response = await axios.post(window.API.messages.publishDirect(messageId));
                 if (response.data.success) {
                     window.SimpleUI.Message.success('消息已发布');
+                    
                     // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
                     if (this.filters.status === 'pending') {
-                        this.messages = this.messages.filter(msg => msg.id !== messageId);
+                        // 修复ID格式不匹配问题：移除-100前缀进行比较
+                        const normalizedMessageId = messageId.startsWith('-100') ? messageId.substring(4) : messageId;
+                        
+                        this.messages = this.messages.filter(msg => {
+                            const msgId = String(msg.id);
+                            const normalizedMsgId = msgId.startsWith('-100') ? msgId.substring(4) : msgId;
+                            return normalizedMsgId !== normalizedMessageId;
+                        });
+                        
+                        // 强制Vue更新
+                        this.$forceUpdate();
                     } else {
                         // 本地更新消息状态
-                        const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
+                        const normalizedMessageId = messageId.startsWith('-100') ? messageId.substring(4) : messageId;
+                        const messageIndex = this.messages.findIndex(msg => {
+                            const msgId = String(msg.id);
+                            const normalizedMsgId = msgId.startsWith('-100') ? msgId.substring(4) : msgId;
+                            return normalizedMsgId === normalizedMessageId;
+                        });
                         if (messageIndex !== -1) {
                             this.messages[messageIndex].status = 'approved';
                         }
                     }
+                    
                     this.refreshStats();
                     
                     // 下一帧恢复滚动位置和加载状态
@@ -965,8 +972,15 @@ const MainApp = {
                 const wasLoadingMore = this.isLoadingMore;
                 this.isLoadingMore = true;
                 
-                // 先找到消息对象（在移除之前）
-                const message = this.messages.find(msg => msg.id === messageId);
+                // 标准化消息ID格式（移除-100前缀）
+                const normalizedMessageId = messageId.startsWith('-100') ? messageId.substring(4) : messageId;
+                
+                // 先找到消息对象（在移除之前）- 使用标准化的ID查找
+                const message = this.messages.find(msg => {
+                    const msgId = String(msg.id);
+                    const normalizedMsgId = msgId.startsWith('-100') ? msgId.substring(4) : msgId;
+                    return normalizedMsgId === normalizedMessageId;
+                });
                 
                 const response = await axios.post(`${window.API.messages.rejectById(messageId)}?reason=手动拒绝&reviewer=Web用户`);
                 if (response.data.success) {
@@ -975,14 +989,22 @@ const MainApp = {
                     // 如果当前筛选状态不是"已拒绝"，才从列表中移除消息
                     // 如果筛选状态是"已拒绝"，则更新消息状态而不是移除
                     if (this.filters.status === 'rejected') {
-                        // 更新消息状态
-                        const msgIndex = this.messages.findIndex(msg => msg.id === messageId);
+                        // 更新消息状态 - 使用标准化的ID查找
+                        const msgIndex = this.messages.findIndex(msg => {
+                            const msgId = String(msg.id);
+                            const normalizedMsgId = msgId.startsWith('-100') ? msgId.substring(4) : msgId;
+                            return normalizedMsgId === normalizedMessageId;
+                        });
                         if (msgIndex !== -1) {
                             this.messages[msgIndex].status = 'rejected';
                         }
                     } else {
-                        // 从列表中移除消息
-                        this.messages = this.messages.filter(msg => msg.id !== messageId);
+                        // 从列表中移除消息 - 使用标准化的ID比较
+                        this.messages = this.messages.filter(msg => {
+                            const msgId = String(msg.id);
+                            const normalizedMsgId = msgId.startsWith('-100') ? msgId.substring(4) : msgId;
+                            return normalizedMsgId !== normalizedMessageId;
+                        });
                     }
                     
                     this.refreshStats();
@@ -1518,9 +1540,6 @@ const MainApp = {
                     case 'message_status_update':
                         this.handleMessageStatusUpdate(data.data);
                         break;
-                    case 'media_refetched':
-                        this.handleMediaRefetched(data.data);
-                        break;
                     case 'forward_success':
                         this.handleForwardSuccess(data.data);
                         break;
@@ -1602,54 +1621,6 @@ const MainApp = {
         },
 
         
-        // 处理媒体补抓完成通知
-        handleMediaRefetched(data) {
-            const messageId = data.message_id;
-            
-            // 修复：查找消息索引以便响应式更新
-            const messageIndex = this.messages.findIndex(msg => {
-                // 尝试直接匹配id字段
-                if (msg.id === messageId) {
-                    return true;
-                }
-                // 尝试匹配组合格式
-                const combinedId = `${msg.source_channel}:${msg.message_id}`;
-                if (combinedId === messageId) {
-                    return true;
-                }
-                return false;
-            });
-            
-            if (messageIndex >= 0) {
-                // 获取当前消息
-                const currentMessage = this.messages[messageIndex];
-                
-                // 使用对象重新赋值确保Vue响应式更新
-                this.messages[messageIndex] = {
-                    ...currentMessage,
-                    media_url: data.media_url || currentMessage.media_url,
-                    media_display_url: data.media_display_url || data.media_url || currentMessage.media_display_url,
-                    media_group_display: data.media_group_display || currentMessage.media_group_display
-                };
-                
-                // 清除加载状态
-                delete this.refetchingMedia[messageId];
-                
-                // 递增刷新键强制组件重新渲染
-                this.componentRefreshKey++;
-                
-                // 显示成功通知
-                window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
-                
-            } else {
-                // 消息不在当前页面，但仍然显示成功通知
-                window.SimpleUI.Message.success(`消息 #${messageId} 的媒体补抓成功！`);
-                
-                // 清除加载状态（即使消息不在当前页面）
-                delete this.refetchingMedia[messageId];
-            }
-        },
-
         // 处理消息状态更新
         handleMessageStatusUpdate(updateData) {
             const messageIndex = this.messages.findIndex(msg => msg.id === updateData.message_id);
@@ -2115,60 +2086,181 @@ const MainApp = {
             return statusMap[status] || { text: status, type: 'default' };
         },
 
-        // 标记/取消标记广告并加入训练样本
+        // 标记为广告 - 新流程：提取关键词 -> 选择权重 -> 保存
         async markAsAd(messageId) {
-            const message = this.messages.find(msg => msg.id === messageId);
+            // 去掉-100前缀来查找消息
+            let searchId = messageId;
+            if (messageId && messageId.startsWith('-100')) {
+                searchId = messageId.replace('-100', '');
+            }
+            
+            const message = this.messages.find(msg => msg.id === searchId);
             if (!message) {
                 window.SimpleUI.Message.error('未找到消息');
                 return;
             }
             
             try {
-                // 根据当前状态确定操作类型
-                const isCurrentlyAd = message.is_ad;
-                const action = isCurrentlyAd ? '取消广告标记' : '标记为广告';
-                const confirmMsg = isCurrentlyAd ? 
-                    '确定取消此消息的广告标记吗？这将帮助AI减少误判。' : 
-                    '确定将此消息标记为广告吗？这将帮助AI更好地识别广告内容。';
+                // 第一步：提取关键词
+                window.SimpleUI.Loading.show('正在提取广告关键词...');
+                const extractResponse = await axios.post(
+                    window.API.messages.extractAdKeywords(this.ensureChannelIdPrefix(searchId))
+                );
+                window.SimpleUI.Loading.hide();
                 
-                if (!confirm(confirmMsg)) {
+                if (!extractResponse.data.success) {
+                    window.SimpleUI.Message.error('提取关键词失败');
                     return;
                 }
                 
-                const response = await axios.post(window.API.training.markAdMessage, {
-                    message_id: this.ensureChannelIdPrefix(message.id),
-                    is_marking_as_ad: !isCurrentlyAd  // 双向操作标识
+                const extractedKeywords = extractResponse.data.data.keywords || [];
+                
+                // 第二步：显示广告标记弹窗
+                this.showAdMarkingDialog(message, extractedKeywords);
+                
+            } catch (error) {
+                window.SimpleUI.Loading.hide();
+                window.SimpleUI.Message.error('操作失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+        
+        // 显示广告标记弹窗
+        showAdMarkingDialog(message, extractedKeywords) {
+            // 创建弹窗HTML
+            const dialogHtml = `
+                <div class="ad-marking-dialog">
+                    <div class="message-preview">
+                        <h4>消息内容</h4>
+                        <div class="message-content">${this.escapeHtml(message.content || message.filtered_content || '')}</div>
+                    </div>
+                    
+                    <div class="keywords-section">
+                        <h4>识别的广告关键词</h4>
+                        <div class="keywords-list" id="keywords-list">
+                            ${extractedKeywords.length > 0 ? 
+                                extractedKeywords.map((item, index) => `
+                                    <div class="keyword-item">
+                                        <span class="keyword-text">${this.escapeHtml(item.keyword)}</span>
+                                        <select class="keyword-weight" data-keyword="${this.escapeHtml(item.keyword)}">
+                                            <option value="1" ${item.weight === 1 ? 'selected' : ''}>权重: 1</option>
+                                            <option value="2" ${item.weight === 2 ? 'selected' : ''}>权重: 2</option>
+                                            <option value="3" ${item.weight === 3 ? 'selected' : ''}>权重: 3</option>
+                                        </select>
+                                    </div>
+                                `).join('') : 
+                                '<p class="no-keywords">未识别到新的广告关键词</p>'
+                            }
+                        </div>
+                        
+                        <div class="add-keyword-section">
+                            <input type="text" id="new-keyword-input" placeholder="手动添加关键词">
+                            <select id="new-keyword-weight">
+                                <option value="1">权重: 1</option>
+                                <option value="2">权重: 2</option>
+                                <option value="3">权重: 3</option>
+                            </select>
+                            <button onclick="app.addKeywordToList()" class="btn-add">添加</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 显示弹窗
+            window.SimpleUI.Dialog.show({
+                title: '标记为广告',
+                content: dialogHtml,
+                confirmText: '确认标记',
+                cancelText: '取消',
+                onConfirm: () => {
+                    this.submitAdMarking(message.id);
+                }
+            });
+        },
+        
+        // 添加关键词到列表
+        addKeywordToList() {
+            const input = document.getElementById('new-keyword-input');
+            const weight = document.getElementById('new-keyword-weight').value;
+            const keyword = input.value.trim();
+            
+            if (!keyword) {
+                window.SimpleUI.Message.warning('请输入关键词');
+                return;
+            }
+            
+            // 检查是否已存在
+            const existingItems = document.querySelectorAll('.keyword-item .keyword-text');
+            for (let item of existingItems) {
+                if (item.textContent === keyword) {
+                    window.SimpleUI.Message.warning('关键词已存在');
+                    return;
+                }
+            }
+            
+            // 添加到列表
+            const keywordsList = document.getElementById('keywords-list');
+            const noKeywordsMsg = keywordsList.querySelector('.no-keywords');
+            if (noKeywordsMsg) {
+                noKeywordsMsg.remove();
+            }
+            
+            const newItem = document.createElement('div');
+            newItem.className = 'keyword-item';
+            newItem.innerHTML = `
+                <span class="keyword-text">${this.escapeHtml(keyword)}</span>
+                <select class="keyword-weight" data-keyword="${this.escapeHtml(keyword)}">
+                    <option value="1" ${weight === '1' ? 'selected' : ''}>权重: 1</option>
+                    <option value="2" ${weight === '2' ? 'selected' : ''}>权重: 2</option>
+                    <option value="3" ${weight === '3' ? 'selected' : ''}>权重: 3</option>
+                </select>
+            `;
+            keywordsList.appendChild(newItem);
+            
+            // 清空输入
+            input.value = '';
+            window.SimpleUI.Message.success('已添加关键词');
+        },
+        
+        // 提交广告标记
+        async submitAdMarking(messageId) {
+            try {
+                // 收集所有关键词和权重
+                const keywords = {};
+                const keywordItems = document.querySelectorAll('.keyword-item');
+                
+                keywordItems.forEach(item => {
+                    const keywordText = item.querySelector('.keyword-text').textContent;
+                    const weight = parseInt(item.querySelector('.keyword-weight').value);
+                    keywords[keywordText] = weight;
                 });
                 
+                // 发送请求
+                window.SimpleUI.Loading.show('正在保存...');
+                const response = await axios.post(
+                    window.API.messages.markAsAd(this.ensureChannelIdPrefix(messageId)),
+                    { keywords }
+                );
+                window.SimpleUI.Loading.hide();
+                
                 if (response.data.success) {
-                    const hasAutoRejected = response.data.auto_rejected;
-                    let successMsg;
-                    
-                    if (isCurrentlyAd) {
-                        // 取消广告标记
-                        successMsg = '已取消广告标记，消息状态恢复为未审核';
-                    } else {
-                        // 标记为广告
-                        successMsg = hasAutoRejected ? 
-                            '已标记为广告、自动拒绝并加入训练样本' : 
-                            '已标记为广告并加入训练样本';
-                    }
-                    
-                    // 显示阈值调整信息（如果有）
-                    if (response.data.threshold_adjustment) {
-                        successMsg += `\n阈值已自动调整：${response.data.threshold_adjustment}`;
-                    }
-                    
-                    window.SimpleUI.Message.success(successMsg);
-                    // 重新加载消息列表以反映状态变化
+                    window.SimpleUI.Message.success('已标记为广告并保存关键词');
+                    // 重新加载消息列表
                     this.loadMessages();
                     this.refreshStats();
                 } else {
-                    window.SimpleUI.Message.error(response.data.message || `${action}失败`);
+                    window.SimpleUI.Message.error(response.data.message || '标记失败');
                 }
             } catch (error) {
-                window.SimpleUI.Message.error('标记失败: ' + (error.response?.data?.detail || error.message));
+                window.SimpleUI.Loading.hide();
+                window.SimpleUI.Message.error('操作失败: ' + (error.response?.data?.detail || error.message));
             }
+        },
+        
+        // HTML转义辅助函数
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         },
         
         // 标记为"不是广告" - 纠正AI误判
@@ -2209,21 +2301,24 @@ const MainApp = {
         
         // 训练尾部
         trainTail(messageId) {
-            console.log('🐛 [DEBUG] trainTail 原始messageId:', messageId);
-            const message = this.messages.find(msg => msg.id === messageId);
+            // 去掉-100前缀来查找消息
+            let searchId = messageId;
+            if (messageId && messageId.startsWith('-100')) {
+                searchId = messageId.replace('-100', '');
+            }
+            
+            const message = this.messages.find(msg => msg.id === searchId);
+            
             if (!message) {
                 window.SimpleUI.Message.error('未找到消息');
                 return;
             }
-            console.log('🐛 [DEBUG] message.id:', message.id);
             const processedId = this.ensureChannelIdPrefix(message.id);
-            console.log('🐛 [DEBUG] ensureChannelIdPrefix处理后:', processedId);
             
             // 只传递message_id，让训练页面自己获取消息详情
             const params = new URLSearchParams({
                 message_id: processedId
             });
-            console.log('🐛 [DEBUG] 最终URL参数:', params.toString());
             // 使用新的独立尾部过滤训练页面
             window.location.href = API.pages.tailFilterTraining + '?' + params.toString();
         },
@@ -2312,113 +2407,6 @@ const MainApp = {
                 }
                 if (event) event.preventDefault();
             }
-        },
-        
-        // Linus式媒体补抓 - 防重复点击，WebSocket通知
-        async refetchMedia(messageId) {
-            // Linus式防重复点击
-            if (this.refetchingMedia[messageId]) {
-                window.SimpleUI.Message.warning('正在补抓中，请稍候...');
-                return;
-            }
-            
-            const message = this.messages.find(msg => msg.id === messageId);
-            if (!message) {
-                window.SimpleUI.Message.error('未找到消息');
-                return;
-            }
-            
-            try {
-                // 立即设置状态，防止重复点击
-                this.refetchingMedia[message.id] = true;
-                
-                // 直接执行（Linus风格：减少用户交互）
-                // 媒体补抓需要更长超时时间（下载+处理）
-                const response = await axios.post(window.API.messages.refetchMedia(this.ensureChannelIdPrefix(message.id)), {}, {
-                    timeout: 60000 // 60秒超时
-                });
-                
-                if (response.data.success) {
-                    console.log('媒体补抓任务已提交:', response.data);
-                    window.SimpleUI.Message.success('媒体补抓任务已提交到队列');
-                    // 不再轮询，等待WebSocket通知
-                } else {
-                    window.SimpleUI.Message.error(response.data.message || '补抓失败');
-                    delete this.refetchingMedia[message.id];
-                }
-            } catch (error) {
-                console.error('补抓媒体失败:', error);
-                window.SimpleUI.Message.error('补抓失败: ' + (error.response?.data?.detail || error.message));
-                delete this.refetchingMedia[message.id];
-            }
-        },
-        
-        // 检查消息是否正在补抓中（供子组件使用）
-        isRefetching(messageId) {
-            return !!this.refetchingMedia[messageId];
-        },
-
-        // 轮询补抓任务状态
-        async pollRefetchTaskStatus(taskId, message, maxAttempts = 30) {
-            let attempts = 0;
-            
-            const poll = async () => {
-                try {
-                    attempts++;
-                    
-                    const response = await axios.get(window.API.messages.refetchTask(taskId));
-                    const taskData = response.data.data;
-                    
-                    if (taskData.status === 'completed') {
-                        // 任务完成，更新媒体URL
-                        if (taskData.result && taskData.result.media_url) {
-                            message.media_url = taskData.result.media_url;
-                            
-                            // 重新生成显示URL
-                            const fileName = taskData.result.media_url.split('/').pop();
-                            message.display_url = `/temp_media/${fileName}`;
-                            
-                            // 触发视图更新
-                            this.messages = [...this.messages];
-                            
-                            window.SimpleUI.Message.success('媒体补抓成功');
-                        } else {
-                            window.SimpleUI.Message.warning('任务完成但未获取到媒体文件');
-                        }
-                        
-                        delete this.refetchingMedia[message.id];
-                        return;
-                        
-                    } else if (taskData.status === 'failed') {
-                        // 任务失败
-                        const errorMsg = taskData.error_message || '未知错误';
-                        window.SimpleUI.Message.error(`媒体补抓失败: ${errorMsg}`);
-                        delete this.refetchingMedia[message.id];
-                        return;
-                        
-                    } else if (taskData.status === 'processing' || taskData.status === 'pending') {
-                        // 任务仍在处理中，继续轮询
-                        if (attempts < maxAttempts) {
-                            setTimeout(poll, 2000); // 2秒后再次检查
-                        } else {
-                            window.SimpleUI.Message.warning('任务处理超时，请稍后手动检查结果');
-                            delete this.refetchingMedia[message.id];
-                        }
-                    }
-                    
-                } catch (error) {
-                    console.error('检查任务状态失败:', error);
-                    if (attempts < maxAttempts) {
-                        setTimeout(poll, 2000);
-                    } else {
-                        window.SimpleUI.Message.error('无法获取任务状态');
-                        delete this.refetchingMedia[message.id];
-                    }
-                }
-            };
-            
-            // 开始轮询
-            setTimeout(poll, 1000); // 1秒后开始第一次检查
         },
         
         // 处理状态更新

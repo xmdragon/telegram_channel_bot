@@ -2,7 +2,7 @@
 检测器层 - 管理所有内容检测器
 
 负责管理1个内容检测器的执行和Early Stopping机制：
-1. KeywordAdDetector - 基于关键词的广告检测
+1. WeightedKeywordDetector - 基于权重关键词的广告检测
 
 检测器层的特点：
 - 支持Early Stopping机制
@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.services.filters.base import BaseFilter, FilterContext, FilterResult, PipelineResult
-from .keyword_ad_detector import KeywordAdDetector
+from .weighted_keyword_detector import WeightedKeywordDetector, get_weighted_keyword_detector
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class DetectorLayer:
     
     职责单一：只负责内容检测，不做内容清理
     支持Early Stopping：检测到问题时立即停止
-    执行顺序：KeywordAdDetector
+    执行顺序：WeightedKeywordDetector
     """
     
     def __init__(self, config: Optional[DetectorLayerConfig] = None):
@@ -63,7 +63,7 @@ class DetectorLayer:
         """按固定顺序初始化检测器"""
         # 固定顺序，符合Linus"消除特殊情况"原则
         detector_instances = [
-            KeywordAdDetector(),          # 1. 关键词广告检测 - 基于规则匹配，简洁高效
+            get_weighted_keyword_detector(),  # 1. 权重关键词广告检测 - 基于权重匹配，简洁高效
         ]
         
         for detector in detector_instances:
@@ -238,7 +238,7 @@ class DetectorLayer:
             'total_detectors': len(self.detectors),
             'detector_names': [d.name for d in self.detectors],
             'execution_order': [
-                'KeywordAdDetector'
+                'WeightedKeywordDetector'
             ],
             'supports_early_stopping': True,
             'early_stop_detectors': list(self.config.early_stop_detectors),

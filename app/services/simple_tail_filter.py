@@ -35,20 +35,23 @@ class SimpleTailFilter:
         """初始化简单过滤器"""
         self.regex_rules = []
         self.initialized = False
+        self._samples_mtime = 0  # 记录文件修改时间
+        self._samples_file = Path(PathConfig.TAIL_TRAINING_DIR) / "tail_filter_samples.json"
         
         self._load_regex_rules()
     
     def _load_regex_rules(self):
         """从样本文件加载正则规则"""
         try:
-            samples_file = Path(PathConfig.TAIL_TRAINING_DIR) / "tail_filter_samples.json"
-            
-            if not samples_file.exists():
-                logger.warning(f"样本文件不存在: {samples_file}")
+            if not self._samples_file.exists():
+                logger.warning(f"样本文件不存在: {self._samples_file}")
                 logger.warning("过滤器将保持未初始化状态，不进行尾部过滤")
                 return
             
-            with open(samples_file, 'r', encoding='utf-8') as f:
+            # 更新文件修改时间
+            self._samples_mtime = self._samples_file.stat().st_mtime
+            
+            with open(self._samples_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             # 支持简化后的数据结构
@@ -104,6 +107,9 @@ class SimpleTailFilter:
         Returns:
             (过滤后内容, 是否过滤了内容, 移除的尾部内容, 分析详情)
         """
+        # 检查是否需要重新加载
+        self.reload_if_needed()
+        
         if not content or not content.strip():
             return content, False, "", {"reason": "内容为空"}
         
@@ -158,6 +164,14 @@ class SimpleTailFilter:
         logger.info(f"   移除了 {len(removed_lines)} 行推广内容")
         
         return filtered_content, True, removed_content, analysis
+    
+    def reload_if_needed(self):
+        """检查文件是否修改，需要时重新加载"""
+        if self._samples_file.exists():
+            current_mtime = self._samples_file.stat().st_mtime
+            if current_mtime != self._samples_mtime:
+                logger.info("检测到尾部样本文件更新，重新加载...")
+                self._load_regex_rules()
     
     def _line_matches_rules(self, text: str) -> bool:
         """检查文本是否匹配任何正则规则"""

@@ -92,7 +92,8 @@ class ConfigManager:
             self.target_channel_id = system_config["target.channel_id"]["value"]
             self.review_group_id = system_config["review.group_id"]["value"]
             self.history_limit = int(system_config["source.history_limit"]["value"])
-            self.collection_enabled = system_config.get("collection.enabled", {}).get("value", False)
+            collection_value = system_config.get("collection.enabled", {}).get("value", "false")
+            self.collection_enabled = collection_value.lower() == "true" if isinstance(collection_value, str) else bool(collection_value)
             self._system_mtime = system_mtime
             logger.info(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}")
     
@@ -248,12 +249,13 @@ class ContentProcessingPipeline:
             
             # 3. 分隔符过滤处理（在markdown过滤后执行）
             separator_result, separator_stats = self.separator_filter.filter_content(current_content)
-            if separator_stats.get('removed_lines_count', 0) > 0:
+            if separator_stats.get('removed_blocks_count', 0) > 0:
                 current_content = separator_result
-                filter_reasons.append(f"分隔符过滤: 移除{separator_stats['removed_lines_count']}行分隔符")
-                logger.info(f"消息 {message.message_id} 分隔符过滤: 移除了{separator_stats['removed_lines_count']}行")
+                removed_chars = separator_stats.get('original_length', 0) - separator_stats.get('filtered_length', 0)
+                filter_reasons.append(f"分隔符过滤: 移除{separator_stats['removed_blocks_count']}个内容块({removed_chars}字符)")
+                logger.info(f"消息 {message.message_id} 分隔符过滤: 移除了{separator_stats['removed_blocks_count']}个内容块")
             else:
-                logger.debug(f"消息 {message.message_id} 无分隔符需要过滤")
+                logger.debug(f"消息 {message.message_id} 无分隔符内容块需要过滤")
             
             # 更新消息内容
             message.filtered_content = current_content
@@ -379,14 +381,27 @@ class TelegramMessageCollector:
         logger.info("单轮采集完成")
     
     async def _smart_wait(self, start_time: float):
-        """智能间隔等待，确保不会过频采集"""
+        """智能间隔等待，确保不会过频采集，并支持配置热更新"""
         runtime = time.time() - start_time
         min_interval = 30  # 最小间隔30秒
         
         if runtime < min_interval:
             wait_time = min_interval - runtime
             logger.info(f"本轮采集耗时 {runtime:.1f}s，等待 {wait_time:.1f}s 后继续下轮")
-            await asyncio.sleep(wait_time)
+            
+            # 分段等待，每2秒检查一次配置
+            check_interval = 2
+            elapsed = 0
+            
+            while elapsed < wait_time:
+                sleep_time = min(check_interval, wait_time - elapsed)
+                await asyncio.sleep(sleep_time)
+                elapsed += sleep_time
+                
+                # 检查配置变更
+                if not await self._should_continue():
+                    logger.info("等待期间检测到停止信号")
+                    return
         else:
             logger.info(f"本轮采集耗时 {runtime:.1f}s，立即开始下轮")
     

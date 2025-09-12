@@ -152,14 +152,6 @@ class PermissionChecker {
     }
     
     /**
-     * 是否可以补抓媒体
-     */
-    canRefetchMedia() {
-        return this.hasPermission('channels.refetch') || 
-               this.hasPermission('channels.edit'); // 兼容旧权限
-    }
-    
-    /**
      * 是否可以管理频道
      */
     canManageChannels() {
@@ -224,7 +216,6 @@ class PermissionChecker {
             markAsAd: this.canMarkAsAd(),
             markAsTail: this.canMarkAsTail(),
             executeFilter: this.canExecuteFilter(),
-            refetchMedia: this.canRefetchMedia(),
             delete: this.canDeleteMessage()
         };
     }
@@ -252,9 +243,6 @@ class PermissionChecker {
                 case 'filter':
                 case 'executeFilter':
                     return visibility.executeFilter;
-                case 'refetch':
-                case 'refetchMedia':
-                    return visibility.refetchMedia;
                 case 'delete':
                     return visibility.delete;
                 default:

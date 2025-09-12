@@ -17,7 +17,17 @@ const app = createApp({
             activeTab: 'config',
             
             // 分隔符模式 - 初始化为空，从服务器加载实际数据
-            separatorPatterns: []
+            separatorPatterns: [],
+            
+            // 正则测试数据
+            regexTest: {
+                content: '',      // 测试内容
+                pattern: '',      // 正则表达式
+                matches: [],      // 匹配结果
+                error: '',        // 错误信息
+                highlightedContent: '',  // 高亮显示的内容
+                filteredContent: ''  // 过滤后的内容
+            }
         };
     },
     
@@ -80,6 +90,100 @@ const app = createApp({
         },
         
         // 消息提示已统一使用 window.SimpleUI.Message
+        
+        // 测试正则表达式
+        testRegex() {
+            // 清空之前的结果
+            this.regexTest.matches = [];
+            this.regexTest.error = '';
+            this.regexTest.highlightedContent = '';
+            this.regexTest.filteredContent = '';
+            
+            // 如果没有输入，直接返回
+            if (!this.regexTest.pattern || !this.regexTest.content) {
+                return;
+            }
+            
+            try {
+                // 固定使用 gi 标志，与后端保持一致
+                // g: 全局匹配
+                // i: 忽略大小写（对应后端的 re.IGNORECASE）
+                const flags = 'gi';
+                
+                // 创建正则表达式对象
+                const regex = new RegExp(this.regexTest.pattern, flags);
+                
+                // 收集所有匹配
+                const matches = [];
+                let match;
+                
+                // 使用exec循环获取所有匹配
+                while ((match = regex.exec(this.regexTest.content)) !== null) {
+                    matches.push({
+                        text: match[0],
+                        index: match.index,
+                        length: match[0].length
+                    });
+                    
+                    // 防止无限循环（零长度匹配）
+                    if (match.index === regex.lastIndex) {
+                        regex.lastIndex++;
+                    }
+                }
+                
+                this.regexTest.matches = matches;
+                
+                // 生成高亮显示的内容和过滤后的内容（模拟后端的 pattern.sub）
+                if (matches.length > 0) {
+                    let highlightedContent = this.regexTest.content;
+                    
+                    // 生成过滤后的内容（模拟后端的 pattern.sub('', content)）
+                    this.regexTest.filteredContent = this.regexTest.content.replace(regex, '');
+                    // 清理多余的空行（与后端一致）
+                    this.regexTest.filteredContent = this.regexTest.filteredContent.replace(/\n{3,}/g, '\n\n').trim();
+                    
+                    // 从后往前替换，避免索引偏移
+                    for (let i = matches.length - 1; i >= 0; i--) {
+                        const match = matches[i];
+                        const before = highlightedContent.substring(0, match.index);
+                        const matchText = highlightedContent.substring(match.index, match.index + match.length);
+                        const after = highlightedContent.substring(match.index + match.length);
+                        
+                        // 对匹配文本进行HTML转义
+                        const escapedMatch = this.escapeHtml(matchText);
+                        
+                        highlightedContent = before + 
+                            '<span style="background: #ffc107; padding: 2px 4px; border-radius: 3px; font-weight: bold;">' + 
+                            escapedMatch + 
+                            '</span>' + 
+                            after;
+                    }
+                    
+                    // 转义其他HTML字符
+                    this.regexTest.highlightedContent = highlightedContent;
+                }
+                
+            } catch (error) {
+                // 正则表达式语法错误
+                this.regexTest.error = '正则表达式语法错误: ' + error.message;
+            }
+        },
+        
+        // HTML转义
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        },
+        
+        // 选择预设的正则表达式
+        selectPresetPattern(event) {
+            const pattern = event.target.value;
+            if (pattern) {
+                this.regexTest.pattern = pattern;
+                this.testRegex();
+            }
+        }
     },
     
     async mounted() {

@@ -318,7 +318,7 @@ const DataUtils = {
     // 处理图片加载错误（增强版本）
     handleImageError(message, event) {
         // 静默处理，不输出日志避免控制台噪音
-        // 标记媒体为不存在，触发补抓按钮显示
+        // 标记媒体加载失败
         if (message && !message._mediaLoadFailed) {
             message._mediaLoadFailed = true;
         }

@@ -15,15 +15,11 @@ logger = logging.getLogger(__name__)
 OLD_TO_NEW_MAPPING = {
     'training.submit': ['training.mark_ad', 'training.mark_tail'],  # 拆分训练提交权限
     'config.edit': ['filter.add_keyword'],  # 配置编辑包含添加关键词
-    'channels.edit': ['channels.refetch'],  # 频道编辑包含补抓功能
 }
 
 async def add_new_permissions():
     """添加新的权限定义"""
     new_permissions = [
-        # 频道管理新权限
-        {"name": "channels.refetch", "module": "channels", "action": "refetch", "description": "补抓消息"},
-        
         # 训练管理细化权限
         {"name": "training.mark_ad", "module": "training", "action": "mark_ad", "description": "标记为广告"},
         {"name": "training.mark_tail", "module": "training", "action": "mark_tail", "description": "标记尾部内容"},

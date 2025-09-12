@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     trainApp = createApp({
         components: {
-            'training-nav': TrainingNav
+            'training-nav': TrainingNav,
+            'keyword-manager': KeywordManager
         },
         data() {
             return {
@@ -73,7 +74,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // 预览内容
                 filteredPreview: '',
-                promoFilteredPreview: ''
+                promoFilteredPreview: '',
+                
+                // 关键词管理器显示状态
+                showKeywordManager: false
             }
         },
         
@@ -262,12 +266,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 打开训练管理器
             openTrainingManager(type) {
-                // 根据类型跳转到相应的管理页面
+                // 根据类型跳转或显示对话框
                 if (type === 'tail') {
                     window.location.href = API.pages.tailFilterManager;
                 } else if (type === 'ad') {
-                    window.location.href = API.pages.adVectorManager;
+                    // 显示关键词管理器对话框
+                    this.showKeywordManager = true;
                 }
+            },
+            
+            // 关闭关键词管理器
+            closeKeywordManager() {
+                this.showKeywordManager = false;
             },
             
             // 格式化文件大小

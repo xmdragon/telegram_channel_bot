@@ -662,8 +662,6 @@ class MessageProcessor:
             # 向上传递异常，让API层能处理具体错误
             raise
     
-    # refetch_media方法已删除 - 现在使用MediaRefetchService队列方式处理
-    
     async def refilter_message(self, channel_id: str, message_id: int, filtered_content: str = None) -> bool:
         """
         重新过滤消息

@@ -139,6 +139,7 @@ git status && git log --oneline -1
 - **测试文件、临时文件用完立即删除**
 - **禁止创建代码备份文件（.bak、.backup、*-backup.*等）**
 - **版本控制使用git，不需要手动备份文件**
+- **删除内容时不要留下原内容注释，做到无痕删除**
 
 #### 允许的核心文件：
 ✅ CLAUDE.md, README.md, requirements.txt, .gitignore
@@ -157,6 +158,7 @@ tools/
 ├── git/         # Git工具
 ├── admin/       # 管理工具
 ├── batch/       # 批量处理
+├── conf/        # 配置文件
 ├── debug/       # 调试工具
 ├── utils/       # 通用工具
 ├── testing/     # 测试脚本

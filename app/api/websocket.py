@@ -137,35 +137,6 @@ class WebSocketManager:
         }
         logger.info(f"📡 广播进度: {operation} - {progress}% - {message}")
         await self.broadcast(json.dumps(payload, ensure_ascii=False))
-    
-    async def broadcast_media_refetched(self, data: Dict):
-        """广播媒体补抓完成通知"""
-        payload = {
-            "type": "media_refetched",
-            "data": data,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        message_id = data.get("message_id", "unknown")
-        logger.info(f"📡 广播媒体补抓完成: {message_id}")
-        
-        # 添加详细日志
-        payload_json = json.dumps(payload, ensure_ascii=False)
-        logger.info(f"🔍 WebSocket广播内容: {payload_json}")
-        logger.info(f"🔗 当前连接数: {len(self.active_connections)}")
-        
-        # 检查连接状态，支持短暂等待重连
-        if not self.active_connections:
-            logger.warning(f"⚠️ 没有活跃的WebSocket连接，等待1秒后重试发送: {message_id}")
-            await asyncio.sleep(1)
-            
-            # 重试一次
-            if not self.active_connections:
-                logger.error(f"❌ 重试后仍无WebSocket连接，媒体补抓通知发送失败: {message_id}")
-                return
-            else:
-                logger.info(f"✅ 重试成功，找到 {len(self.active_connections)} 个连接")
-        
-        await self.broadcast(payload_json)
 
     async def start_redis_listener(self):
         """启动Redis订阅监听器（跨进程通信）"""
