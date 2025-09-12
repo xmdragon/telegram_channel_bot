@@ -953,38 +953,19 @@ async def delete_review_message(
 
 
 async def _add_to_whitelist(message: Dict[str, Any], source: str = "user_approval"):
-    """将用户批准的内容添加到白名单向量库"""
+    """将用户批准的内容添加到白名单"""
     try:
         content = message.get('filtered_content') or message.get('content', '')
         if not content or not content.strip():
             logger.debug("消息内容为空，跳过白名单添加")
             return
             
-        # 提取语义向量
-        from app.services.semantic_extractor import get_semantic_extractor
-        semantic_extractor = get_semantic_extractor(768)
-        
-        extract_result = semantic_extractor.extract_vector_with_info(content)
-        if not extract_result['success']:
-            logger.warning(f"无法提取白名单向量: {extract_result.get('error_message')}")
-            return
-            
-        # 添加到白名单向量库
-        from app.services.vector_manager import vector_manager
-        success = vector_manager.add_whitelist_vector(
-            vector=extract_result['vector'],
-            content=content,
-            message_id=message.get('message_id', ''),
-            source=source
-        )
-        
-        if success:
-            logger.info(f"✅ 已将用户批准的内容添加到白名单: {message.get('message_id')}")
-        else:
-            logger.warning(f"白名单添加失败: {message.get('message_id')}")
+        # 记录用户批准的内容用于后续分析
+        logger.debug(f"用户批准内容: {message.get('message_id')}")
+        return
             
     except Exception as e:
-        logger.error(f"添加白名单向量失败: {e}")
+        logger.error(f"添加白名单失败: {e}")
 
 async def _record_ad_detection_feedback(message: Dict[str, Any], user_decision: str):
     """记录广告检测反馈"""

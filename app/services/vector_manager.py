@@ -435,17 +435,8 @@ class VectorManager:
             if not vectors:
                 return 0
             
-            # 提取查询向量
-            from app.services.semantic_extractor import get_semantic_extractor
-            semantic_extractor = get_semantic_extractor(768)
-            query_vector = semantic_extractor.extract_vector(content)
-            
-            if not query_vector:
-                logger.warning("无法提取内容向量，尝试按文本内容匹配")
-                return self._remove_by_text_content(content, data)
-            
-            # 按向量相似度移除
-            return self._remove_by_vector_similarity(query_vector, content, data)
+            # 使用文本内容匹配
+            return self._remove_by_text_content(content, data)
             
         except Exception as e:
             logger.error(f"根据内容移除向量失败: {e}")
