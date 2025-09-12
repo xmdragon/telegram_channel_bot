@@ -393,6 +393,11 @@ class TelegramMessageCollector:
             single_messages = []  # 单独消息
             
             for msg in messages:
+                # 过滤空消息（无文本且无媒体）
+                if not msg.message and not msg.media:
+                    logger.info(f"过滤空消息 {msg.id}：无文本内容且无媒体")
+                    continue
+                
                 if msg.grouped_id:
                     # 组消息
                     if msg.grouped_id not in message_groups:
@@ -566,11 +571,6 @@ class TelegramMessageCollector:
     async def _process_single_message(self, message: TLMessage, channel_id: str, channel: dict) -> Optional[LocalMessage]:
         """处理单个消息，包括媒体下载"""
         try:
-            # 早期过滤：丢弃空消息（无文本且无媒体）
-            if not message.message and not message.media:
-                logger.debug(f"丢弃空消息 {message.id}：无文本内容且无媒体")
-                return None
-                
             # 下载媒体（如果有）
             media_info = None
             if message.media:
