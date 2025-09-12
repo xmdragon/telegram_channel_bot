@@ -170,39 +170,46 @@ mkdir -p logs data temp_media
 # 设置权限
 chmod 755 logs data temp_media
 
-# Linus式修复：启动原生服务，彻底消除Docker依赖
+# 加载跨平台服务管理工具
+if [[ -f "tools/utils/service_manager.sh" ]]; then
+    source tools/utils/service_manager.sh
+    SERVICE_MANAGER_LOADED=true
+else
+    echo "⚠️  服务管理工具未找到，使用基础检查"
+    SERVICE_MANAGER_LOADED=false
+fi
+
+# 启动本地服务
 if [ "$SKIP_REDIS" = false ]; then
-    echo "🍺 启动本地Redis和Nginx服务..."
-    
-    # 检查并启动Redis
-    if ! brew services list | grep -q "redis.*started"; then
-        echo "📦 启动Redis..."
-        brew services start redis
+    if [ "$SERVICE_MANAGER_LOADED" = true ]; then
+        echo "🚀 启动本地服务 ($(detect_system))..."
+        if ! start_all_services "$VERBOSE"; then
+            echo "❌ 服务启动失败"
+            show_install_instructions
+            exit 1
+        fi
     else
-        [ "$VERBOSE" = true ] && echo "✅ Redis已在运行"
+        # 降级到基础检查
+        echo "🔧 检查本地服务..."
+        
+        # 检查Redis
+        if ! redis-cli ping >/dev/null 2>&1; then
+            echo "❌ Redis未运行，请手动启动："
+            echo "   macOS: brew services start redis"
+            echo "   Linux: sudo service redis-server start"
+            exit 1
+        fi
+        [ "$VERBOSE" = true ] && echo "✅ Redis连接正常"
+        
+        # 检查Nginx
+        if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
+            echo "❌ Nginx未运行或配置错误，请手动启动："
+            echo "   macOS: brew services start nginx"
+            echo "   Linux: sudo service nginx start"
+            exit 1
+        fi
+        [ "$VERBOSE" = true ] && echo "✅ Nginx服务正常"
     fi
-    
-    # 检查并启动Nginx  
-    if ! brew services list | grep -q "nginx.*started"; then
-        echo "🌐 启动Nginx..."
-        brew services start nginx
-    else
-        [ "$VERBOSE" = true ] && echo "✅ Nginx已在运行"
-    fi
-    
-    # 验证服务状态
-    echo "🔧 验证服务状态..."
-    if ! redis-cli ping >/dev/null 2>&1; then
-        echo "❌ Redis连接失败"
-        exit 1
-    fi
-    [ "$VERBOSE" = true ] && echo "✅ Redis连接正常"
-    
-    if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
-        echo "❌ Nginx静态文件服务异常"
-        exit 1  
-    fi
-    [ "$VERBOSE" = true ] && echo "✅ Nginx服务正常"
 else
     [ "$VERBOSE" = true ] && echo "⏭️ 跳过本地服务启动"
 fi

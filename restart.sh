@@ -172,33 +172,49 @@ fi
 echo "✅ 所有服务已停止"
 echo
 
-# 步骤2：Linus式修复 - 重启原生服务，彻底消除Docker
+# 加载跨平台服务管理工具
+if [[ -f "tools/utils/service_manager.sh" ]]; then
+    source tools/utils/service_manager.sh
+    SERVICE_MANAGER_LOADED=true
+else
+    SERVICE_MANAGER_LOADED=false
+fi
+
+# 步骤2：重启本地服务
 if [ "$KEEP_REDIS" = false ]; then
-    echo "2️⃣ 重启本地Redis和Nginx服务..."
-    
-    # 重启Redis服务
-    echo "📦 重启Redis服务..."
-    brew services restart redis > /dev/null 2>&1 || true
-    
-    # 重启Nginx服务  
-    echo "🌐 重启Nginx服务..."
-    brew services restart nginx > /dev/null 2>&1 || true
-    
-    # 等待服务完全重启
-    echo "⏳ 等待服务重启完成（3秒）..."
-    sleep 3
-    
-    # 验证服务状态
-    if ! redis-cli ping >/dev/null 2>&1; then
-        echo "❌ Redis重启后连接失败，但继续尝试启动"
+    if [ "$SERVICE_MANAGER_LOADED" = true ]; then
+        echo "2️⃣ 重启本地服务 ($(detect_system))..."
+        
+        # 重启Redis
+        restart_redis "$VERBOSE"
+        
+        # 重启Nginx
+        restart_nginx "$VERBOSE"
+        
+        # 等待服务完全重启
+        echo "⏳ 等待服务重启完成（3秒）..."
+        sleep 3
+        
+        # 验证服务状态
+        if ! check_redis_status; then
+            echo "❌ Redis重启后连接失败，但继续尝试启动"
+        else
+            [ "$VERBOSE" = true ] && echo "✅ Redis重启成功"
+        fi
+        
+        if ! check_nginx_status; then
+            echo "❌ Nginx重启后服务异常，但继续尝试启动"
+        else
+            [ "$VERBOSE" = true ] && echo "✅ Nginx重启成功"
+        fi
     else
-        [ "$VERBOSE" = true ] && echo "✅ Redis重启成功"
-    fi
-    
-    if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
-        echo "❌ Nginx重启后服务异常，但继续尝试启动"
-    else
-        [ "$VERBOSE" = true ] && echo "✅ Nginx重启成功"
+        # 降级到手动提示
+        echo "2️⃣ 请手动重启本地服务："
+        echo "   macOS: brew services restart redis nginx"
+        echo "   Linux: sudo service redis-server restart && sudo service nginx restart"
+        echo ""
+        echo "⏳ 等待服务重启（5秒）..."
+        sleep 5
     fi
 else
     [ "$VERBOSE" = true ] && echo "2️⃣ 保持本地服务不变..."

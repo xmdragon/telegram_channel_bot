@@ -214,17 +214,27 @@ fi
 
 echo "✅ 所有服务进程已停止"
 
-# 停止Redis服务
-# Linus式修复：停止原生服务，彻底消除Docker依赖
+# 加载跨平台服务管理工具
+if [[ -f "tools/utils/service_manager.sh" ]]; then
+    source tools/utils/service_manager.sh
+    SERVICE_MANAGER_LOADED=true
+else
+    SERVICE_MANAGER_LOADED=false
+fi
+
+# 停止本地服务（可选）
 if [ "$KEEP_REDIS" = false ]; then
-    [ "$QUIET" = false ] && echo "🍺 本地服务管理："
-    [ "$QUIET" = false ] && echo "   - Redis: brew services stop redis (可选)"
-    [ "$QUIET" = false ] && echo "   - Nginx: brew services stop nginx (可选)"
-    [ "$QUIET" = false ] && echo ""
-    [ "$QUIET" = false ] && echo "💡 提示："
-    [ "$QUIET" = false ] && echo "   本地服务可以继续运行，供其他应用使用"
-    [ "$QUIET" = false ] && echo "   如需完全停止，请手动运行："
-    [ "$QUIET" = false ] && echo "   brew services stop redis nginx"
+    if [ "$SERVICE_MANAGER_LOADED" = true ]; then
+        [ "$QUIET" = false ] && echo "🍺 本地服务管理 ($(detect_system))："
+        stop_all_services "$VERBOSE" false  # false表示实际停止服务
+    else
+        # 降级到手动提示
+        [ "$QUIET" = false ] && echo "💡 本地服务管理："
+        [ "$QUIET" = false ] && echo "   本地服务可以继续运行，供其他应用使用"
+        [ "$QUIET" = false ] && echo "   如需完全停止，请手动运行："
+        [ "$QUIET" = false ] && echo "   macOS: brew services stop redis nginx"
+        [ "$QUIET" = false ] && echo "   Linux: sudo service redis-server stop && sudo service nginx stop"
+    fi
 else
     [ "$VERBOSE" = true ] && echo "⏭️ 保持本地服务运行（推荐）"
 fi
