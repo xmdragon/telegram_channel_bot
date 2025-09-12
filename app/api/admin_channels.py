@@ -108,8 +108,17 @@ async def add_channel(
                 }
             }
         else:
-            # 业务错误（如频道已存在）
-            raise HTTPException(status_code=400, detail=result['message'])
+            # 业务错误（如频道已存在）- 返回200状态码但success为false
+            if "已存在" in result['message']:
+                # 频道已存在，返回现有频道信息
+                return {
+                    "success": False,
+                    "message": result['message'],
+                    "channel": result.get('data')  # 返回已存在的频道信息
+                }
+            else:
+                # 其他错误仍返回400
+                raise HTTPException(status_code=400, detail=result['message'])
             
     except HTTPException:
         raise
