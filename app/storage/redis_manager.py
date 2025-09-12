@@ -467,28 +467,46 @@ class RedisManager:
             logger.error(f"删除消息失败: {e}")
             return False
     
-    def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0, status: str = None) -> List[Dict[str, Any]]:
         """获取频道消息列表"""
         try:
-            # 使用与原系统兼容的索引键
-            message_ids = self.client.zrevrange(f"index:msg:{channel_id}", offset, offset + limit - 1)
+            if status and status in ['pending', 'approved', 'rejected']:
+                # 当指定状态时，从状态索引中获取该频道的消息
+                status_keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
+                # 筛选出属于该频道的消息
+                channel_message_ids = []
+                for key in status_keys:
+                    if key.startswith(f"{channel_id}:"):
+                        msg_id = key.split(':', 1)[1]
+                        channel_message_ids.append(int(msg_id))
+                
+                # 按消息ID倒序排列并分页
+                channel_message_ids.sort(reverse=True)
+                paginated_ids = channel_message_ids[offset:offset + limit]
+            else:
+                # 无状态筛选时，使用频道索引
+                message_ids = self.client.zrevrange(f"index:msg:{channel_id}", offset, offset + limit - 1)
+                paginated_ids = [int(msg_id) for msg_id in message_ids]
             
-            if not message_ids:
+            if not paginated_ids:
                 return []
             
             messages = []
             invalid_ids = []
             
             # 批量获取消息数据
-            for msg_id in message_ids:
-                message_data = self.get_message(channel_id, int(msg_id))
+            for msg_id in paginated_ids:
+                message_data = self.get_message(channel_id, msg_id)
                 if message_data:
+                    # 如果指定了状态，验证消息状态是否匹配
+                    if status and message_data.get('status') != status:
+                        continue
                     messages.append(message_data)
                 else:
                     invalid_ids.append(msg_id)
             
             # 清理无效索引
-            if invalid_ids:
+            if invalid_ids and not status:
                 logger.info(f"清理频道 {channel_id} 中 {len(invalid_ids)} 个无效索引条目")
                 pipeline = self.client.pipeline()
                 for invalid_id in invalid_ids:

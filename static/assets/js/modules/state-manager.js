@@ -39,8 +39,7 @@ const StateManager = {
                 status: 'pending',
                 is_ad: null,
                 source_channel: '',
-                filter_reason: null,
-                _show_duplicates: false
+                filter_reason: null
             },
             
             // 统计状态
@@ -115,8 +114,7 @@ const StateManager = {
             status: 'pending',
             is_ad: null,
             source_channel: '',
-            filter_reason: null,
-            _show_duplicates: false
+            filter_reason: null
         };
         state.searchKeyword = '';
     },

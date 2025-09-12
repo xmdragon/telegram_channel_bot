@@ -65,8 +65,7 @@ const EventHandlers = {
                 const params = {
                     ...context.state.filters,
                     page: context.state.currentPage,
-                    size: context.state.pageSize,
-                    show_duplicates: context.state.filters._show_duplicates || false
+                    size: context.state.pageSize
                 };
                 
                 // 处理搜索关键词

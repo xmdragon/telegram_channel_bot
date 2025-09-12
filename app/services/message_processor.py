@@ -369,10 +369,10 @@ class MessageProcessor:
             return False
     
     async def get_messages_by_channel(self, channel_id: str, 
-                                    limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+                                    limit: int = 50, offset: int = 0, status: str = None) -> List[Dict[str, Any]]:
         """获取频道消息列表"""
         try:
-            return self.redis_store.get_messages_by_channel(channel_id, limit, offset)
+            return self.redis_store.get_messages_by_channel(channel_id, limit, offset, status)
         except Exception as e:
             logger.error(f"获取频道消息失败 {channel_id}: {e}")
             return []

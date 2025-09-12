@@ -136,11 +136,12 @@ async def get_messages(
         
         # 🚀 Linus式性能优化：根据查询类型选择最优方法
         if source_channel:
-            # 从指定频道获取消息
+            # 从指定频道获取消息，支持状态筛选
             all_messages = redis_manager.get_messages_by_channel(
                 source_channel, 
                 limit=page_size,
-                offset=offset
+                offset=offset,
+                status=status
             )
         else:
             # 🚀 Linus式统一逻辑：消除特殊情况

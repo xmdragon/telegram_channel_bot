@@ -58,8 +58,7 @@ const MainApp = {
                 status: 'pending',
                 is_ad: null,
                 source_channel: '',
-                filter_reason: null,
-                _show_duplicates: false
+                filter_reason: null
             },
             
             
@@ -609,14 +608,11 @@ const MainApp = {
             }
             
             try {
-                // 准备请求参数，将_show_duplicates转换为show_duplicates
-                const { _show_duplicates, ...apiFilters } = this.filters;
+                // 准备请求参数
                 const params = {
-                    ...apiFilters,
+                    ...this.filters,
                     page: this.currentPage,
-                    page_size: this.pageSize,
-                    // 🚀 Linus式优化：传递show_duplicates参数到后端专用查询
-                    show_duplicates: _show_duplicates || false
+                    page_size: this.pageSize
                 };
                 
                 // 只有当status为null或undefined时才使用默认值，空字符串应该被保留
@@ -848,19 +844,16 @@ const MainApp = {
                     this.filters.status = 'pending';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
-                    this.filters._show_duplicates = false;
                     break;
                 case 'approved':
                     this.filters.status = 'approved';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
-                    this.filters._show_duplicates = false;
                     break;
                 case 'rejected':
                     this.filters.status = 'rejected';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
-                    this.filters._show_duplicates = false;
                     break;
                 default:
                     // 未知状态：不做任何操作
