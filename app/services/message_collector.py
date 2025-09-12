@@ -1,6 +1,5 @@
 """
-TelegramMessageCollector - 全新的消息采集处理架构
-基于流程图重新设计的干净架构，集成Telegram核心组件
+消息采集处理架构
 """
 import logging
 import asyncio
@@ -21,8 +20,6 @@ from app.services.filters.separator_filter import SeparatorFilter
 from app.services.filters.base import FilterContext
 
 logger = logging.getLogger(__name__)
-
-
 
 @dataclass
 class LocalMessage:
@@ -75,51 +72,29 @@ class LocalMessage:
         if self.source_channel is None:
             self.source_channel = self.channel_id
 
-class ChannelManager:
-    """频道管理器"""
+class ConfigManager:
+    """系统配置管理器"""
     
     def __init__(self):
-        self.source_channels: List[Dict] = []    # 源频道列表缓存
-        self.target_channel_id: Optional[str] = None    # 目标频道ID
-        self.review_group_id: Optional[str] = None      # 审核群ID
-        self.history_limit: int = 10                    # 历史消息采集数配置
-        self.entities: Dict[str, Any] = {}              # Telethon实体缓存
-        
-        # 文件修改时间缓存（用于检测配置变化）
-        self._channels_mtime = 0
+        self.target_channel_id: Optional[str] = None
+        self.review_group_id: Optional[str] = None  
+        self.history_limit: int = 10
+        self.collection_enabled: bool = False
         self._system_mtime = 0
     
     async def load_config(self):
-        """检测配置文件变化并动态加载"""
-        # 获取当前文件修改时间
-        channels_mtime = PathConfig.CHANNELS_CONFIG_FILE.stat().st_mtime
+        """检测系统配置文件变化并动态加载"""
         system_mtime = PathConfig.SYSTEM_CONFIG_FILE.stat().st_mtime
         
-        # 只有频道配置文件变化时才重新加载
-        if channels_mtime != self._channels_mtime:
-            with open(PathConfig.CHANNELS_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                self.source_channels = json.load(f)
-            self._channels_mtime = channels_mtime
-            logger.info(f"频道配置已更新: {len(self.source_channels)}个源频道")
-        
-        # 只有系统配置文件变化时才重新加载
         if system_mtime != self._system_mtime:
             with open(PathConfig.SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
                 system_config = json.load(f)
             self.target_channel_id = system_config["target.channel_id"]["value"]
             self.review_group_id = system_config["review.group_id"]["value"]
             self.history_limit = int(system_config["source.history_limit"]["value"])
+            self.collection_enabled = system_config.get("collection.enabled", {}).get("value", False)
             self._system_mtime = system_mtime
-            logger.info(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}")
-    
-    # 使用示例（在消息采集循环中）：
-    # await channel_manager.load_config()  # 自动检测配置更新
-    # channels = await channel_manager.get_all_source_channels()
-    
-    async def get_all_source_channels(self) -> List[Dict]:
-        """获取所有源频道列表"""
-        await self.load_config()
-        return self.source_channels
+            logger.info(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}")
     
     async def get_target_channel_id(self) -> Optional[str]:
         """获取目标频道ID"""
@@ -135,6 +110,37 @@ class ChannelManager:
         """获取历史消息采集数配置"""
         await self.load_config()
         return self.history_limit
+    
+    async def get_collection_enabled(self) -> bool:
+        """获取采集开关配置"""
+        await self.load_config()
+        return self.collection_enabled
+
+class ChannelManager:
+    """频道管理器 - 专注频道相关功能"""
+    
+    def __init__(self):
+        self.source_channels: List[Dict] = []    # 源频道列表缓存
+        self.entities: Dict[str, Any] = {}       # Telethon实体缓存
+        
+        # 频道配置文件修改时间缓存
+        self._channels_mtime = 0
+    
+    async def load_config(self):
+        """检测频道配置文件变化并动态加载"""
+        channels_mtime = PathConfig.CHANNELS_CONFIG_FILE.stat().st_mtime
+        
+        # 只有频道配置文件变化时才重新加载
+        if channels_mtime != self._channels_mtime:
+            with open(PathConfig.CHANNELS_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                self.source_channels = json.load(f)
+            self._channels_mtime = channels_mtime
+            logger.info(f"频道配置已更新: {len(self.source_channels)}个源频道")
+
+    async def get_all_source_channels(self) -> List[Dict]:
+        """获取所有源频道列表"""
+        await self.load_config()
+        return self.source_channels
     
     async def get_channel_entity(self, channel_id: str, client: TelegramClient):
         """获取频道Telethon实体（带缓存）"""
@@ -241,7 +247,6 @@ class ContentProcessingPipeline:
             # 处理失败时返回原消息
             return message
 
-
 class TelegramMessageCollector:
     """消息采集器 - 统一入口"""
     
@@ -252,7 +257,8 @@ class TelegramMessageCollector:
         
         self.telethon_client: Optional[TelegramClient] = None
         
-        # 频道管理
+        # 配置和频道管理
+        self.config_manager = ConfigManager()
         self.channel_manager = ChannelManager()
         
         # 业务组件
@@ -281,13 +287,15 @@ class TelegramMessageCollector:
             if self.telethon_client and not self.telethon_client.is_connected():
                 await self.telethon_client.connect()
             
-            # 4. 初始化频道配置
+            # 4. 初始化配置
+            await self.config_manager.load_config()
             await self.channel_manager.load_config()
-            source_channels = await self.channel_manager.get_all_source_channels()
-            target_channel = await self.channel_manager.get_target_channel_id()
-            review_group = await self.channel_manager.get_review_group_id()
             
-            logger.info(f"频道配置初始化完成: {len(source_channels)}个源频道, 目标频道={target_channel}, 审核群={review_group}")
+            source_channels = await self.channel_manager.get_all_source_channels()
+            target_channel = await self.config_manager.get_target_channel_id()
+            review_group = await self.config_manager.get_review_group_id()
+            
+            logger.info(f"配置初始化完成: {len(source_channels)}个源频道, 目标频道={target_channel}, 审核群={review_group}")
             
             self._initialized = True
             logger.info("TelegramMessageCollector初始化完成")
@@ -367,7 +375,7 @@ class TelegramMessageCollector:
         try:
             if checkpoint == 0:
                 # 首次采集：获取历史消息ID
-                history_limit = await self.channel_manager.get_history_limit()
+                history_limit = await self.config_manager.get_history_limit()
                 # 实际获取数量 = 配置值 × 5，考虑组消息情况
                 actual_limit = history_limit * 5
                 # 获取最新的actual_limit条消息ID
@@ -399,7 +407,7 @@ class TelegramMessageCollector:
             
             # 🎯 重要：只返回最近的history_limit个消息组
             if checkpoint == 0:  # 只在首次采集时限制
-                history_limit = await self.channel_manager.get_history_limit()
+                history_limit = await self.config_manager.get_history_limit()
                 if len(all_groups) > history_limit:
                     result = all_groups[:history_limit]  # 取前history_limit个（最新的）
                 else:
@@ -490,7 +498,7 @@ class TelegramMessageCollector:
             try:
                 # 直接使用LocalMessage对象属性构建存储数据
                 message_data = {
-                    'channel_id': collected_message.channel_id,
+                    'channel_id': channel_id,
                     'message_id': collected_message.message_id,
                     'grouped_id': collected_message.grouped_id,
                     'content': collected_message.content,
@@ -659,15 +667,8 @@ class TelegramMessageCollector:
             return False
         
         try:
-            # 然后检查配置文件（保持现有逻辑）
-            await self.channel_manager.load_config()
-            
-            # 读取系统配置文件检查collection.enabled
-            with open(PathConfig.SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                system_config = json.load(f)
-            
             # 检查collection.enabled配置项
-            collection_enabled = system_config.get("collection.enabled", {}).get("value", False)
+            collection_enabled = await self.config_manager.get_collection_enabled()
             
             if not collection_enabled:
                 logger.info("检测到collection.enabled=False，准备停止采集")
@@ -679,7 +680,6 @@ class TelegramMessageCollector:
             logger.error(f"检查采集继续条件失败: {e}")
             # 出错时停止采集，确保安全
             return False
-
 
 # 全局实例
 message_collector = TelegramMessageCollector()
