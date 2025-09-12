@@ -23,6 +23,10 @@ from app.core.config import settings
 from app.core.media_paths import media_paths
 from app.core.path_config import PathConfig
 from app.api import api_router
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 使用统一的日志配置
 from app.core.logging_config import setup_logging, get_logger
@@ -165,7 +169,7 @@ async def lifespan(app: FastAPI):
         
         # 设置健康状态（提早设置，让健康检查通过）
         await health_monitor.set_healthy({
-            "web_server_port": 8000,
+            "web_server_port": settings.WEB_PORT,
             "api_endpoints": ["health", "messages", "admin", "auth"],
             "static_files": True
         })
@@ -345,7 +349,7 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0", 
-        port=8000,
+        port=settings.WEB_PORT,
         reload=False,          # 通过dev_supervisor管理，禁用自动重载
         log_config=None,       # 使用应用自身的日志配置
         access_log=False       # 减少日志噪音

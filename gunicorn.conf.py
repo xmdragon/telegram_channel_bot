@@ -3,9 +3,16 @@
 
 import multiprocessing
 import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+# 获取端口配置
+WEB_PORT = int(os.getenv("WEB_PORT", "8008"))
 
 # 进程管理
-bind = "0.0.0.0:8000"
+bind = f"0.0.0.0:{WEB_PORT}"
 workers = int(os.getenv("WORKERS", multiprocessing.cpu_count()))
 worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 1000

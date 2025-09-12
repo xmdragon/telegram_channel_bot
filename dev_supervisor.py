@@ -16,6 +16,11 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 from app.core.url_config import url_config
+from app.core.config import settings
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 配置日志
 logging.basicConfig(
@@ -120,8 +125,8 @@ class ServiceProcess:
             return True
         
         # Web服务启动前检查端口
-        if self.config.name == "web" and not self._check_port_available(8000):
-            logger.error("端口 8000 已被占用，无法启动Web服务")
+        if self.config.name == "web" and not self._check_port_available(settings.WEB_PORT):
+            logger.error(f"端口 {settings.WEB_PORT} 已被占用，无法启动Web服务")
             logger.error("请检查是否有其他实例正在运行，或使用 ./stop.sh 停止现有服务")
             self.status = ServiceStatus.FAILED
             return False

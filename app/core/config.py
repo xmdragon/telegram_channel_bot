@@ -9,9 +9,19 @@ class AppSettings:
     """统一的应用配置管理器"""
     
     def __init__(self):
+        # 端口配置
+        self.WEB_PORT: int = int(os.getenv("WEB_PORT", "8008"))
+        self.NGINX_PORT: int = int(os.getenv("NGINX_PORT", "8080"))
+        
+        # URL配置
+        self.BASE_URL: str = os.getenv("BASE_URL", f"http://localhost:{self.NGINX_PORT}")
+        self.API_URL: str = os.getenv("API_URL", f"http://localhost:{self.WEB_PORT}")
+        
         # 环境变量配置
         self.REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
         self.DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+        self.ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+        self.WORKERS: int = int(os.getenv("WORKERS", "4"))
         
         # 兼容性属性
         self.redis_url = self.REDIS_URL
@@ -116,6 +126,23 @@ class AppSettings:
         await self._ensure_initialized()
         return await self._config_manager.get_config("review.auto_forward_delay", 1800)
     
+    # ============= 端口配置方法 =============
+    
+    def get_web_port(self) -> int:
+        """获取Web服务端口"""
+        return self.WEB_PORT
+    
+    def get_nginx_port(self) -> int:
+        """获取Nginx服务端口"""
+        return self.NGINX_PORT
+    
+    def get_base_url(self) -> str:
+        """获取基础URL"""
+        return self.BASE_URL
+    
+    def get_api_url(self) -> str:
+        """获取API URL"""
+        return self.API_URL
     
     # ============= 兼容性方法 =============
     

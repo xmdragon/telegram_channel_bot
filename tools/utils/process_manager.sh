@@ -3,6 +3,14 @@
 # 进程管理工具函数
 # 用于统一处理PID文件、端口检查、进程冲突等
 
+# 加载环境配置
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
+# 使用配置的端口，提供默认值
+WEB_PORT=${WEB_PORT:-8008}
+
 # PID文件目录
 PID_DIR="./logs/pids"
 mkdir -p "$PID_DIR"
@@ -116,15 +124,15 @@ check_system_status() {
     print_info "检查系统状态..."
     
     # 检查Web服务端口
-    if check_port_usage 8000 "Web服务"; then
-        print_success "端口 8000 可用"
+    if check_port_usage $WEB_PORT "Web服务"; then
+        print_success "端口 $WEB_PORT 可用"
     else
         local port_result=$?
         if [[ $port_result -eq 2 ]]; then
             print_warning "Web服务可能已在运行"
             has_conflicts=true
         else
-            print_error "端口 8000 被其他进程占用"
+            print_error "端口 $WEB_PORT 被其他进程占用"
             has_conflicts=true
         fi
     fi
@@ -189,7 +197,7 @@ handle_conflicts() {
                 ps aux | grep -E "(dev_supervisor|web_server|telegram_collector|message_scheduler)" | grep -v grep | head -10
                 echo
                 echo "端口占用情况："
-                lsof -i :8000 2>/dev/null || echo "端口 8000 未被占用"
+                lsof -i :$WEB_PORT 2>/dev/null || echo "端口 $WEB_PORT 未被占用"
                 echo
                 ;;
             3)

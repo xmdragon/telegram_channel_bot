@@ -4,6 +4,11 @@
 
 set -e
 
+# 加载环境配置
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
 # 🚀 Linus式修复: 强制使用HuggingFace离线模式，避免API限流
 export HF_HUB_OFFLINE=1
 
@@ -12,8 +17,10 @@ export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
 # 🌐 URL配置: 环境变量支持，消除硬编码
-export BASE_URL=${BASE_URL:-"http://localhost:8080"}
-export API_URL=${API_URL:-"http://localhost:8000"}
+WEB_PORT=${WEB_PORT:-8008}
+NGINX_PORT=${NGINX_PORT:-8080}
+export BASE_URL=${BASE_URL:-"http://localhost:${NGINX_PORT}"}
+export API_URL=${API_URL:-"http://localhost:${WEB_PORT}"}
 
 # 显示帮助信息
 show_help() {
@@ -37,7 +44,7 @@ show_help() {
     echo "  • 提供详细的日志文件路径"
     echo ""
     echo "🏗️ 启动的服务架构:"
-    echo "  ├── 🌐 Web服务器        (端口8000)"
+    echo "  ├── 🌐 Web服务器        (端口${WEB_PORT})"
     echo "  │   • Web界面: ${API_URL}"
     echo "  │   • 消息审核、配置管理、系统监控"
     echo "  │"

@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# 加载环境配置
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
+# 使用配置的端口，提供默认值
+WEB_PORT=${WEB_PORT:-8008}
+
 # Telegram 消息审核系统停止脚本
 
 # 显示帮助信息
@@ -27,7 +35,7 @@ show_help() {
     echo "      • 服务监控和管理进程"
     echo ""
     echo "  2️⃣ 🌐 Web服务器 (web_server.py)"
-    echo "      • 端口8000的Web界面服务"
+    echo "      • 端口${WEB_PORT}的Web界面服务"
     echo "      • 消息审核、配置管理界面"
     echo ""
     echo "  3️⃣ 📡 Telegram采集服务 (telegram_collector.py)"
@@ -47,7 +55,7 @@ show_help() {
     echo "超时处理:"
     echo "  • 每个服务最多等待10秒优雅关闭"
     echo "  • 超时后自动强制终止进程"
-    echo "  • 清理8000端口占用"
+    echo "  • 清理${WEB_PORT}端口占用"
     echo ""
     echo "相关命令:"
     echo "  ./start.sh            启动所有服务"
@@ -197,10 +205,10 @@ fi
 pkill -f "python3 main.py" 2>/dev/null || true
 pkill -f "uvicorn main:app" 2>/dev/null || true
 
-# 强制清理8000端口占用
-PORT_PID=$(lsof -ti:8000 2>/dev/null)
+# 强制清理端口占用
+PORT_PID=$(lsof -ti:${WEB_PORT} 2>/dev/null)
 if [ ! -z "$PORT_PID" ]; then
-    echo "📍 清理端口8000占用 PID: $PORT_PID"
+    echo "📍 清理端口${WEB_PORT}占用 PID: $PORT_PID"
     kill -9 $PORT_PID 2>/dev/null || true
 fi
 

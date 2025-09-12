@@ -4,6 +4,11 @@
 
 set -e
 
+# 加载环境配置
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
 # 🚀 Linus式修复: 强制使用HuggingFace离线模式，避免API限流
 export HF_HUB_OFFLINE=1
 
@@ -12,8 +17,10 @@ export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
 # 🌐 URL配置: 环境变量支持，消除硬编码
-export BASE_URL=${BASE_URL:-"http://localhost:8080"}
-export API_URL=${API_URL:-"http://localhost:8000"}
+WEB_PORT=${WEB_PORT:-8008}
+NGINX_PORT=${NGINX_PORT:-8080}
+export BASE_URL=${BASE_URL:-"http://localhost:${NGINX_PORT}"}
+export API_URL=${API_URL:-"http://localhost:${WEB_PORT}"}
 
 # 显示帮助信息
 show_help() {
@@ -23,7 +30,7 @@ show_help() {
     echo ""
     echo "🛠️ 可用服务选项:"
     echo "  all         启动所有服务 (默认)"
-    echo "              ├── Web服务器 (端口8000)"
+    echo "              ├── Web服务器 (端口${WEB_PORT})"
     echo "              ├── Telegram消息采集服务"
     echo "              ├── 消息队列处理器"
     echo "              └── 消息调度和清理服务"
@@ -191,7 +198,7 @@ if [ "$USE_LEGACY" = true ]; then
     # 检查是否安装了uvicorn
     if python3 -c "import uvicorn" 2>/dev/null; then
         # 使用uvicorn的热重载功能
-        exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+        exec uvicorn main:app --host 0.0.0.0 --port ${WEB_PORT} --reload
     else
         # 降级为普通启动
         echo "⚠️  未检测到uvicorn，使用普通模式启动（不支持热重载）"

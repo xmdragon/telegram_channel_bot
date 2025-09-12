@@ -28,6 +28,10 @@ from app.core.url_config import url_config
 from app.api import api_router
 from app.telegram.bot import TelegramBot
 from app.services.scheduler import MessageScheduler
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 使用统一的日志配置
 from app.core.logging_config import setup_logging, get_logger
@@ -220,6 +224,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=settings.WEB_PORT,
         reload=False
     )

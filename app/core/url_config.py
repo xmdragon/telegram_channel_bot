@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 # 加载环境变量配置文件
 load_dotenv()
 
+# 导入端口配置
+from app.core.config import settings
+
 
 class URLConfig:
     """URL配置管理类，提供统一的URL生成方法"""
@@ -17,7 +20,7 @@ class URLConfig:
     def __init__(self):
         # 基础URL配置，支持环境变量覆盖
         self._base_url = os.getenv('BASE_URL', 'http://localhost:8080')
-        self._api_url = os.getenv('API_URL', 'http://localhost:8000')
+        self._api_url = os.getenv('API_URL', f'http://localhost:{settings.WEB_PORT}')
         
         # 确保URL末尾没有斜杠
         self._base_url = self._base_url.rstrip('/')
