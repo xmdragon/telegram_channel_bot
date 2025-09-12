@@ -142,18 +142,38 @@ class ChannelManager:
         await self.load_config()
         return self.source_channels
     
-    async def get_channel_entity(self, channel_id: str, client: TelegramClient):
+    async def get_channel_entity(self, channel: dict, client: TelegramClient):
         """获取频道Telethon实体（带缓存）"""
-        if channel_id in self.entities:
+        channel_id = channel.get('channel_id')
+        channel_name = channel.get('channel_name')
+        
+        # 使用channel_id作为缓存key
+        if channel_id and channel_id in self.entities:
             return self.entities[channel_id]
         
-        try:
-            entity = await client.get_entity(int(channel_id))
-            self.entities[channel_id] = entity
-            return entity
-        except Exception as e:
-            logger.error(f"获取频道实体失败 {channel_id}: {e}")
-            return None
+        # 优先尝试用户名（对公有频道更可靠）
+        if channel_name:
+            try:
+                username = channel_name.lstrip('@')  # 去掉@前缀
+                entity = await client.get_entity(username)
+                if channel_id:
+                    self.entities[channel_id] = entity
+                logger.info(f"使用用户名 {channel_name} 成功获取频道实体")
+                return entity
+            except Exception as e:
+                logger.debug(f"使用用户名 {channel_name} 获取失败: {e}")
+        
+        # 回退到ID方式
+        if channel_id:
+            try:
+                entity = await client.get_entity(int(channel_id))
+                self.entities[channel_id] = entity
+                logger.info(f"使用ID {channel_id} 成功获取频道实体")
+                return entity
+            except Exception as e:
+                logger.error(f"获取频道实体失败 {channel_name or channel_id}: {e}")
+        
+        return None
 
 class CheckpointManager:
     """Checkpoint管理器"""
@@ -470,7 +490,7 @@ class TelegramMessageCollector:
         logger.info(f"处理频道 {channel_name}, checkpoint: {checkpoint}")
         
         # 获取频道实体
-        entity = await self.channel_manager.get_channel_entity(channel_id, self.telethon_client)
+        entity = await self.channel_manager.get_channel_entity(channel, self.telethon_client)
         if not entity:
             logger.error(f"无法获取频道 {channel_name} 的实体，跳过")
             return

@@ -49,7 +49,10 @@ class UnifiedChannelService:
             # 解析要添加的频道ID（如果需要）
             resolved_id = channel_id
             if not channel_id and channel_name:
+                logger.info(f"解析频道ID: {channel_name}")
                 resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
+                if not resolved_id:
+                    return {"success": False, "message": f"无法解析频道ID: {channel_name}", "data": None}
             
             # 检查是否为目标频道
             if (resolved_id and resolved_id == target_channel_id) or \
@@ -65,21 +68,34 @@ class UnifiedChannelService:
             if not channel_store:
                 return {"success": False, "message": "存储服务未初始化", "data": None}
             
-            # 检查频道是否已存在
+            # 检查频道是否已存在（使用解析后的ID）
             existing_channels = channel_store.get_all_channels()
             for ch in existing_channels:
-                if (ch.get('channel_id') == channel_id and channel_id) or \
-                   (ch.get('channel_name') == channel_name):
-                    logger.warning(f"频道已存在: {channel_name} / {channel_id}")
+                # 优先使用解析后的ID进行比较
+                if resolved_id and ch.get('channel_id') == resolved_id:
+                    # 如果ID相同但名称不同，说明频道改名了，更新名称
+                    if channel_name and ch.get('channel_name') != channel_name:
+                        logger.info(f"检测到频道名称变更: {ch.get('channel_name')} -> {channel_name}")
+                        # 更新频道信息
+                        ch['channel_name'] = channel_name
+                        ch['updated_at'] = get_current_time().isoformat()
+                        # 重新解析标题
+                        if resolve_title:
+                            try:
+                                ch['channel_title'] = await self._resolve_channel_title(channel_name, resolved_id)
+                            except Exception as e:
+                                logger.warning(f"解析频道标题失败: {e}")
+                                ch['channel_title'] = channel_name.lstrip('@') if channel_name.startswith('@') else channel_name
+                        # 更新存储
+                        channel_store.update_channel(ch)
+                        return {"success": True, "message": "频道信息已更新", "data": ch}
+                    else:
+                        logger.warning(f"频道已存在（ID相同）: {channel_name} / {resolved_id}")
+                        return {"success": False, "message": "频道已存在", "data": ch}
+                # 如果没有解析到ID，才用名称判断
+                elif not resolved_id and ch.get('channel_name') == channel_name:
+                    logger.warning(f"频道已存在（名称相同）: {channel_name}")
                     return {"success": False, "message": "频道已存在", "data": ch}
-            
-            # 如果没有提供channel_id，尝试解析
-            resolved_id = channel_id
-            if not channel_id:
-                logger.info(f"解析频道ID: {channel_name}")
-                resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
-                if not resolved_id:
-                    return {"success": False, "message": f"无法解析频道ID: {channel_name}", "data": None}
             
             # 解析真实频道标题
             channel_title = ""

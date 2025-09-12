@@ -192,15 +192,10 @@
                             <div v-if="searchForm.results.length > 0" class="search-results mt-3">
                                 <h5>搜索结果：</h5>
                                 <div v-for="result in searchForm.results" :key="result.id" class="search-result-item">
-                                    <div class="flex-between">
-                                        <div>
-                                            <strong>{{ result.title }}</strong>
-                                            <span class="text-info ml-2">ID: {{ result.id }}</span>
-                                            <span class="tag tag-info tag-sm ml-2">{{ result.participants_count || 'N/A' }} 成员</span>
-                                        </div>
-                                        <button class="btn btn-primary btn-sm" @click="addSearchedChannel(result)">
-                                            添加监听
-                                        </button>
+                                    <div>
+                                        <strong>{{ result.title }}</strong>
+                                        <span class="text-info ml-2">ID: {{ result.id }}</span>
+                                        <span class="tag tag-info tag-sm ml-2">{{ result.participants_count || 'N/A' }} 成员</span>
                                     </div>
                                     <div v-if="result.description" class="description">
                                         {{ result.description }}

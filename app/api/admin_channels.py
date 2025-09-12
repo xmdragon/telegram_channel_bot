@@ -80,76 +80,43 @@ async def get_channels(
 async def add_channel(
     request: ChannelCreateRequest
 ):
-    """添加频道配置 - 自动解析频道ID和标题"""
+    """添加频道配置 - 使用统一服务自动解析频道ID和标题"""
     try:
-        channel_store = get_json_channel_store()
+        # 处理频道名称格式
+        channel_name = request.channel_name.strip()
+        if not channel_name.startswith('@'):
+            channel_name = '@' + channel_name
         
-        # 检查频道名称是否已存在
-        existing_channels = channel_store.get_all_channels()
-        if any(ch.get('channel_name') == request.channel_name for ch in existing_channels):
-            raise HTTPException(status_code=400, detail="频道名称已存在")
+        # 使用统一频道服务添加频道
+        result = await unified_channel_service.add_channel(
+            channel_name=channel_name,
+            channel_id=request.channel_id if request.channel_id else "",
+            description="",
+            resolve_title=True  # 自动解析标题
+        )
         
-        # 自动解析频道信息
-        from app.services.channel_id_resolver import channel_id_resolver
-        
-        resolved_id = request.channel_id if request.channel_id else None
-        resolved_title = request.channel_title if request.channel_title else None
-        
-        # 如果没有提供ID或标题，尝试自动解析
-        if not resolved_id or not resolved_title:
-            # 使用双Session系统获取客户端
-            from app.telegram.dual_session_manager import dual_session_manager
-            client = await dual_session_manager.get_listener_client()
-            
-            if client:
-                try:
-                    # 获取频道详细信息
-                    channel_info = await channel_id_resolver.get_channel_info(request.channel_name)
-                    if channel_info:
-                        # 如果没有提供ID，使用解析的ID
-                        if not resolved_id:
-                            resolved_id = channel_info['id']
-                            # 确保ID格式正确（频道ID应该以-100开头）
-                            if not resolved_id.startswith('-100'):
-                                resolved_id = f"-100{resolved_id}" if not resolved_id.startswith('-') else resolved_id
-                        
-                        # 如果没有提供标题，使用解析的标题
-                        if not resolved_title:
-                            resolved_title = channel_info['title']
-                        
-                        logger.info(f"自动解析频道信息: {request.channel_name} -> ID: {resolved_id}, 标题: {resolved_title}")
-                except Exception as e:
-                    logger.warning(f"自动解析频道信息失败: {e}")
-                    # 继续执行，使用用户提供的或空值
-        
-        # 创建频道记录
-        channel_data = {
-            "id": len(existing_channels) + 1,
-            "channel_id": resolved_id,
-            "channel_name": request.channel_name,
-            "channel_title": resolved_title or request.channel_name,
-            "config": request.config or {},
-            "created_at": datetime.now().isoformat()
-        }
-        
-        if channel_store.add_channel(channel_data):
+        if result['success']:
+            # 成功添加或更新
             return {
-                "success": True, 
-                "message": "频道添加成功",
+                "success": True,
+                "message": result['message'],
                 "channel": {
-                    "id": channel_data["id"],
-                    "channel_id": channel_data["channel_id"],
-                    "channel_name": channel_data["channel_name"],
-                    "channel_title": channel_data["channel_title"]
+                    "id": result['data']['id'],
+                    "channel_id": result['data']['channel_id'],
+                    "channel_name": result['data']['channel_name'],
+                    "channel_title": result['data']['channel_title']
                 }
             }
         else:
-            raise HTTPException(status_code=500, detail="频道添加失败")
+            # 业务错误（如频道已存在）
+            raise HTTPException(status_code=400, detail=result['message'])
             
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
+        # 系统错误
+        logger.error(f"添加频道失败: {e}")
+        raise HTTPException(status_code=500, detail=f"系统错误: {str(e)}")
 
 @router.put(ROUTES.admin.channels_by_name)
 async def update_channel(

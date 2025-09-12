@@ -693,33 +693,6 @@ const ConfigApp = {
             }
         },
         
-        // 添加搜索到的频道
-        async addSearchedChannel(channel) {
-            try {
-                // 准备频道数据
-                const channelData = {
-                    name: channel.id.toString(),
-                    title: channel.title,
-                    channel_id: channel.id.toString()
-                };
-                
-                const response = await axios.post(API.admin.addChannel, channelData);
-                
-                if (response.data.success) {
-                    MessageManager.success('频道添加成功');
-                    // 重新加载频道列表
-                    await this.loadChannels();
-                    // 清空搜索结果
-                    this.searchForm.query = '';
-                    this.searchForm.results = [];
-                    this.searchForm.searched = false;
-                } else {
-                    MessageManager.error(response.data.message || '添加失败');
-                }
-            } catch (error) {
-                MessageManager.error('添加频道失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
         
         // Telegram API 配置验证
         validateApiId() {

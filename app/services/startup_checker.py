@@ -11,6 +11,7 @@ from app.services.channel_id_resolver import channel_id_resolver
 from app.services.channel_manager import channel_manager
 from app.storage.json_store import get_json_channel_store
 from app.storage.redis_manager import redis_manager
+from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,8 @@ class StartupChecker:
             'review_group': None,
             'errors': [],
             'warnings': [],
-            'resolved': []
+            'resolved': [],
+            'duplicates_removed': []  # 新增：记录删除的重复项
         }
         
         try:
@@ -64,6 +66,7 @@ class StartupChecker:
             results['errors'].extend(source_results['errors'])
             results['warnings'].extend(source_results['warnings'])
             results['resolved'].extend(source_results['resolved'])
+            results['duplicates_removed'].extend(source_results.get('duplicates_removed', []))
             
             # 2. 检查并解析目标频道
             logger.info("\n🎯 检查目标频道配置...")
@@ -136,7 +139,8 @@ class StartupChecker:
             'channels': [],
             'errors': [],
             'warnings': [],
-            'resolved': []
+            'resolved': [],
+            'duplicates_removed': []  # 新增：记录删除的重复项
         }
         
         try:
@@ -152,7 +156,39 @@ class StartupChecker:
                 result['errors'].append("未配置任何源频道")
                 return result
             
+            # 步骤1: 检测并删除重复的频道（基于channel_id）
+            seen_ids = {}  # 记录已见过的channel_id
+            channels_to_process = []  # 处理后的频道列表
+            
             for channel in channels:
+                channel_id = channel.get('channel_id', '')
+                channel_name = channel.get('channel_name', '')
+                
+                if channel_id and channel_id.startswith('-100'):  # 有效的频道ID
+                    if channel_id in seen_ids:
+                        # 发现重复，删除当前项
+                        existing = seen_ids[channel_id]
+                        logger.warning(f"发现重复频道ID {channel_id}: {existing.get('channel_name')} vs {channel_name}")
+                        
+                        # 删除重复的频道记录
+                        success = channel_store.delete_channel(channel_name)
+                        if success:
+                            result['duplicates_removed'].append(f"{channel_name} (重复ID: {channel_id})")
+                            logger.info(f"已删除重复频道: {channel_name}")
+                        continue
+                    else:
+                        seen_ids[channel_id] = channel
+                        channels_to_process.append(channel)
+                else:
+                    # 没有有效ID的频道，暂时保留
+                    channels_to_process.append(channel)
+            
+            # 如果有删除的重复项，记录到警告
+            if result['duplicates_removed']:
+                result['warnings'].append(f"已删除 {len(result['duplicates_removed'])} 个重复频道")
+            
+            # 继续处理剩余的频道
+            for channel in channels_to_process:
                     
                 channel_name = channel.get('channel_name', '')
                 channel_id = channel.get('channel_id', '')
@@ -169,9 +205,21 @@ class StartupChecker:
                     resolved_id = await self._resolve_and_save_channel_id(channel_name)
                         
                     if resolved_id:
-                        result['channels'].append(resolved_id)
-                        result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
-                        logger.info(f"    ✅ 解析成功: {resolved_id}")
+                        # 检查解析后是否产生重复
+                        if resolved_id in seen_ids:
+                            existing = seen_ids[resolved_id]
+                            logger.warning(f"解析后发现重复ID {resolved_id}: {existing.get('channel_name')} vs {channel_name}")
+                            # 删除当前频道，保留已存在的
+                            channel_store.delete_channel(channel_name)
+                            result['duplicates_removed'].append(f"{channel_name} (解析后重复: {resolved_id})")
+                            result['warnings'].append(f"频道 {channel_name} 解析后与 {existing.get('channel_name')} 重复，已删除")
+                        else:
+                            # 更新频道信息并检查名称变化
+                            await self._update_channel_info(channel, resolved_id, result)
+                            seen_ids[resolved_id] = channel
+                            result['channels'].append(resolved_id)
+                            result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
+                            logger.info(f"    ✅ 解析成功: {resolved_id}")
                     else:
                         result['warnings'].append(f"源频道 {channel_name} ID解析失败")
                         logger.warning(f"    ❌ 解析失败")
@@ -183,9 +231,19 @@ class StartupChecker:
                         resolved_id = await self._resolve_and_save_channel_id(channel_name)
                             
                         if resolved_id:
-                            result['channels'].append(resolved_id)
-                            result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
-                            logger.info(f"    ✅ 解析成功: {resolved_id}")
+                            # 检查解析后是否产生重复
+                            if resolved_id in seen_ids:
+                                existing = seen_ids[resolved_id]
+                                logger.warning(f"解析后发现重复ID {resolved_id}: {existing.get('channel_name')} vs {channel_name}")
+                                channel_store.delete_channel(channel_name)
+                                result['duplicates_removed'].append(f"{channel_name} (解析后重复: {resolved_id})")
+                                result['warnings'].append(f"频道 {channel_name} 解析后与 {existing.get('channel_name')} 重复，已删除")
+                            else:
+                                await self._update_channel_info(channel, resolved_id, result)
+                                seen_ids[resolved_id] = channel
+                                result['channels'].append(resolved_id)
+                                result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
+                                logger.info(f"    ✅ 解析成功: {resolved_id}")
                         else:
                             result['warnings'].append(f"源频道 {channel_name} ID解析失败")
                             logger.warning(f"    ❌ 解析失败")
@@ -195,9 +253,19 @@ class StartupChecker:
                         resolved_id = await self._resolve_and_save_channel_id(channel_name)
                             
                         if resolved_id:
-                            result['channels'].append(resolved_id)
-                            result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
-                            logger.info(f"    ✅ 解析成功: {resolved_id}")
+                            # 检查解析后是否产生重复
+                            if resolved_id in seen_ids:
+                                existing = seen_ids[resolved_id]
+                                logger.warning(f"解析后发现重复ID {resolved_id}: {existing.get('channel_name')} vs {channel_name}")
+                                channel_store.delete_channel(channel_name)
+                                result['duplicates_removed'].append(f"{channel_name} (解析后重复: {resolved_id})")
+                                result['warnings'].append(f"频道 {channel_name} 解析后与 {existing.get('channel_name')} 重复，已删除")
+                            else:
+                                await self._update_channel_info(channel, resolved_id, result)
+                                seen_ids[resolved_id] = channel
+                                result['channels'].append(resolved_id)
+                                result['resolved'].append(f"源频道 {channel_name} -> {resolved_id}")
+                                logger.info(f"    ✅ 解析成功: {resolved_id}")
                         else:
                             # 解析失败，仍然使用原ID但给出警告
                             result['warnings'].append(f"源频道 {channel_name} 的ID格式可能不正确: {channel_id}")
@@ -214,6 +282,52 @@ class StartupChecker:
             result['errors'].append(f"检查源频道失败: {str(e)}")
             
         return result
+    
+    async def _update_channel_info(self, channel: Dict, resolved_id: str, result: Dict) -> None:
+        """更新频道信息并检查名称变化"""
+        try:
+            # 使用双Session系统获取客户端
+            from app.telegram.dual_session_manager import dual_session_manager
+            client = await dual_session_manager.get_listener_client()
+            
+            if not client:
+                return
+            
+            # 获取频道最新信息
+            try:
+                entity = await client.get_entity(int(resolved_id))
+                current_username = f"@{entity.username}" if hasattr(entity, 'username') and entity.username else None
+                current_title = entity.title if hasattr(entity, 'title') else None
+                
+                old_name = channel.get('channel_name', '')
+                
+                # 检查用户名是否变化
+                if current_username and current_username != old_name:
+                    logger.info(f"检测到频道名称变化: {old_name} -> {current_username}")
+                    result['warnings'].append(f"频道名称已更改: {old_name} -> {current_username}")
+                    channel['channel_name'] = current_username
+                
+                # 更新频道标题
+                if current_title:
+                    channel['channel_title'] = current_title
+                
+                # 更新频道ID
+                channel['channel_id'] = resolved_id
+                channel['updated_at'] = get_current_time().isoformat()
+                
+                # 保存更新
+                channel_store = get_json_channel_store()
+                channel_store.update_channel(channel)
+                
+            except Exception as e:
+                logger.debug(f"获取频道详细信息失败: {e}")
+                # 即使获取详细信息失败，也要更新ID
+                channel['channel_id'] = resolved_id
+                channel_store = get_json_channel_store()
+                channel_store.update_channel(channel)
+                
+        except Exception as e:
+            logger.error(f"更新频道信息失败: {e}")
     
     async def _resolve_and_save_channel_id(self, channel_name: str, channel_type: str = 'source') -> Optional[str]:
         """解析并保存频道ID到JSON存储（仅用于源频道）"""

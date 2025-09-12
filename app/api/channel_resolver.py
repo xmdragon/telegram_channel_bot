@@ -110,6 +110,7 @@ async def resolve_all_channels():
             "target_channel": results['target_channel'],
             "review_group": results['review_group'],
             "resolved": results['resolved'],
+            "duplicates_removed": results.get('duplicates_removed', []),  # 新增：返回删除的重复项
             "errors": results['errors'],
             "warnings": results['warnings']
         }

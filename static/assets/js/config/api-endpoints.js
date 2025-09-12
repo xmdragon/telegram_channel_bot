@@ -206,7 +206,6 @@ const API_ENDPOINTS = {
         
         // 频道管理
         channels: '/api/admin/channels',                           // GET/POST - 获取/添加频道
-        addChannel: '/api/admin/add-channel',                      // POST - 添加单个频道
         resolveChannelId: '/api/admin/resolve-channel-id',         // POST - 解析频道ID
         resolveChannelIds: '/api/admin/resolve-channel-ids',       // POST - 批量解析频道ID
         searchChannels: '/api/admin/search-channels',              // GET - 搜索频道
