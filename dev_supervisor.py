@@ -236,8 +236,8 @@ class DevSupervisor:
         self.service_configs = {
             "web": ServiceConfig(
                 name="web",
-                command=["./start_web.sh", "prod"],  # Linus式改进：使用生产级启动
-                description="Web服务器 (Gunicorn + UvicornWorker)"
+                command=["python3", "web_server.py"],  # 直接启动web_server.py
+                description="Web服务器 (FastAPI + Uvicorn)"
             ),
             "collector": ServiceConfig(
                 name="collector", 
