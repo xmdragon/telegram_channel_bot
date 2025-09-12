@@ -41,7 +41,7 @@ class StandardMessage:
             defaults = {
                 'removed_hidden_links': [],
                 'is_combined': False,
-                'media_group': None,
+                'media_group_display': None,
                 'target_message_id': None,
                 'forwarded_time': None,
                 'id': f"{self._data.get('source_channel')}:{self._data.get('message_id')}"
@@ -117,7 +117,7 @@ class MessageForwarder:
             # 如果消息已经在上面处理过（广告内容被完全过滤），跳过这里
             if not sent_message:
                 # 检查是否为组合消息
-                if message_data.get('is_combined') and message_data.get('media_group'):
+                if message_data.get('is_combined') and message_data.get('media_group_display'):
                     # 发送组合消息到审核群
                     sent_message = await self._send_combined_message_to_review(client, review_group_id, message_data, message_text)
                 elif message_data.get('media_type'):
@@ -212,7 +212,7 @@ class MessageForwarder:
             
             # 🔧 检查是否为组合消息，支持动态组合检测
             is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False)
-            media_group = getattr(message, 'media_group', None) or message.get('media_group', None)
+            media_group = getattr(message, 'media_group_display', None) or message.get('media_group_display', None)
             media_type = getattr(message, 'media_type', None) or message.get('media_type', None)
             media_url = getattr(message, 'media_url', None) or message.get('media_url', None)
             grouped_id = getattr(message, 'grouped_id', None) or message.get('grouped_id', None)
@@ -297,7 +297,7 @@ class MessageForwarder:
             updated_content = message.filtered_content or message.content
             
             # 检查消息是否包含媒体
-            has_media = (message.media_type and message.media_url) or (message.is_combined and message.media_group)
+            has_media = (message.media_type and message.media_url) or (message.is_combined and message.media_group_display)
             
             # 尝试直接编辑消息（适用于纯文本或带caption的媒体）
             try:
@@ -325,7 +325,7 @@ class MessageForwarder:
                 sent_message = None
                 
                 # 检查是否为组合消息
-                if message.is_combined and message.media_group:
+                if message.is_combined and message.media_group_display:
                     # 发送组合消息到审核群
                     sent_message = await self._send_combined_message_to_review(client, review_group_id, message, updated_content)
                 elif message.media_type and message.media_url and os.path.exists(message.media_url):
@@ -420,7 +420,7 @@ class MessageForwarder:
             missing_items = []
             
             # 准备媒体文件列表
-            for media_item in message.media_group:
+            for media_item in message.media_group_display:
                 file_path = media_item.get('file_path')
                 if file_path and os.path.exists(file_path):
                     media_files.append(file_path)
@@ -569,7 +569,7 @@ class MessageForwarder:
             caption_text = await self._add_channel_footer(caption_text)
             
             # 准备媒体文件列表
-            for media_item in message.media_group:
+            for media_item in message.media_group_display:
                 file_path = media_item['file_path']
                 if os.path.exists(file_path):
                     media_files.append(file_path)
@@ -629,7 +629,7 @@ class MessageForwarder:
         try:
             # 🔧 修复：兼容字典和对象两种类型
             is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False) if hasattr(message, 'get') else False
-            media_group = getattr(message, 'media_group', None) or message.get('media_group', None) if hasattr(message, 'get') else None
+            media_group = getattr(message, 'media_group_display', None) or message.get('media_group_display', None) if hasattr(message, 'get') else None
             media_url = getattr(message, 'media_url', None) or message.get('media_url', None) if hasattr(message, 'get') else None
             
             if is_combined and media_group:

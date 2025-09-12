@@ -567,7 +567,7 @@ class TelegramMessageCollector:
         """处理单个消息，包括媒体下载"""
         try:
             # 早期过滤：丢弃空消息（无文本且无媒体）
-            if not message.message and not hasattr(message, 'media'):
+            if not message.message and not message.media:
                 logger.debug(f"丢弃空消息 {message.id}：无文本内容且无媒体")
                 return None
                 

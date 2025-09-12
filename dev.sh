@@ -103,7 +103,7 @@ done
 # 如果只是查看状态，直接执行
 if [ "$SHOW_STATUS" = true ]; then
     echo "📊 查看服务状态..."
-    python3 dev_supervisor.py --status
+    source venv/bin/activate && python3 dev_supervisor.py --status
     exit 0
 fi
 
@@ -251,7 +251,7 @@ echo "🎯 启动进程管理器..."
 # 创建PID文件记录
 if [[ $(type -t create_pid_file) == function ]]; then
     # 在后台启动进程管理器，获取PID
-    python3 dev_supervisor.py "${SERVICES[@]}" &
+    source venv/bin/activate && python3 dev_supervisor.py "${SERVICES[@]}" &
     SUPERVISOR_PID=$!
     
     # 创建PID文件
@@ -264,5 +264,5 @@ if [[ $(type -t create_pid_file) == function ]]; then
     wait $SUPERVISOR_PID
 else
     # 降级为直接启动
-    exec python3 dev_supervisor.py "${SERVICES[@]}"
+    exec venv/bin/python3 dev_supervisor.py "${SERVICES[@]}"
 fi

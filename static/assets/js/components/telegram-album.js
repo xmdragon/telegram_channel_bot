@@ -216,7 +216,16 @@ const TelegramAlbum = {
 
         // 获取媒体URL
         getMediaUrl(mediaItem) {
-            return mediaItem.file_path ? `/${mediaItem.file_path}` : '';
+            // 优先使用已经格式化好的 URL
+            if (mediaItem.url) return mediaItem.url;
+            if (mediaItem.display_url) return mediaItem.display_url;
+            // 向后兼容 file_path
+            if (mediaItem.file_path) {
+                return mediaItem.file_path.startsWith('/') ? 
+                       mediaItem.file_path : 
+                       `/${mediaItem.file_path}`;
+            }
+            return '';
         },
 
         // 检查是否为视频

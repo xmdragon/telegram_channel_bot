@@ -161,25 +161,38 @@ def generate_line_regex(text: str) -> str:
     
     # 检查是否包含Telegram链接
     if 't.me/' in text:
-        # t.me/+abc123 → t\.me/\+[a-zA-Z0-9]+
+        # t.me/+abc123 → t\.me/\+[a-zA-Z0-9_]+
         # t.me/channel → t\.me/[a-zA-Z0-9_]+
-        if '+' in text:
-            pattern = re.sub(r't\.me/\+[a-zA-Z0-9_]+', r't\.me/\+[a-zA-Z0-9_]+', text)
+        # 先转义特殊字符
+        escaped = re.escape(text)
+        # 然后替换Telegram链接部分为通配模式
+        if '\+' in escaped:  # 注意：re.escape后+变成\+
+            pattern = re.sub(r't\\\.me/\\\+[a-zA-Z0-9_]+', r't\\.me/\\+[a-zA-Z0-9_]+', escaped)
         else:
-            pattern = re.sub(r't\.me/[a-zA-Z0-9_]+', r't\.me/[a-zA-Z0-9_]+', text)
-        return escape_regex_special_chars(pattern)
+            pattern = re.sub(r't\\\.me/[a-zA-Z0-9_]+', r't\\.me/[a-zA-Z0-9_]+', escaped)
+        # 处理空格
+        pattern = re.sub(r'\\\ +', r'\\s*', pattern)
+        return pattern
     
     # 检查是否包含@用户名
     elif '@' in text:
         # 投稿澄清爆料： @tx188 → 投稿澄清爆料：\s*@\w+
-        pattern = re.sub(r'@[a-zA-Z0-9_]+', r'@\w+', text)
-        return escape_regex_special_chars(pattern)
+        escaped = re.escape(text)
+        # 替换@用户名为通配模式
+        pattern = re.sub(r'@[a-zA-Z0-9_]+', r'@\\w+', escaped)
+        # 处理空格
+        pattern = re.sub(r'\\\ +', r'\\s*', pattern)
+        return pattern
     
     # 检查是否包含https链接
     elif 'https://' in text or 'http://' in text:
-        # https://example.com → https?://\S+
-        pattern = re.sub(r'https?://[^\s]+', r'https?://\S+', text)
-        return escape_regex_special_chars(pattern)
+        # https://example.com → https?://[^\s]+
+        escaped = re.escape(text)
+        # 替换URL为通配模式
+        pattern = re.sub(r'https?://[^\\\s]+', r'https?://[^\\s]+', escaped)
+        # 处理空格
+        pattern = re.sub(r'\\\ +', r'\\s*', pattern)
+        return pattern
     
     # 纯文字内容，直接转义特殊字符
     else:
@@ -188,6 +201,7 @@ def generate_line_regex(text: str) -> str:
 def escape_regex_special_chars(text: str) -> str:
     """
     转义正则表达式特殊字符
+    注意：只需要单层转义，JSON会自动处理转义
     
     Args:
         text: 原始文本
@@ -195,15 +209,11 @@ def escape_regex_special_chars(text: str) -> str:
     Returns:
         转义后的文本
     """
-    # 需要转义的特殊字符
-    special_chars = r'\.^$*+?{}[]|()'
-    escaped = text
-    
-    for char in special_chars:
-        escaped = escaped.replace(char, '\\' + char)
+    # 使用re.escape自动转义所有特殊字符
+    escaped = re.escape(text)
     
     # 处理空格变化（可能有多个空格或制表符）
-    escaped = re.sub(r'\s+', r'\\s*', escaped)
+    escaped = re.sub(r'\\\s+', r'\\s*', escaped)
     
     return escaped
 

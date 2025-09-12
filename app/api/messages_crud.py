@@ -200,9 +200,15 @@ async def get_messages(
             # 处理单个媒体显示URL（支持多种字段名）
             media_path = message.get('media_path') or message.get('media_url')
             if media_path:
-                message['media_display_url'] = media_paths.get_temp_media_url(
-                    os.path.basename(media_path)
-                )
+                # 修复路径处理：正确处理temp_media/前缀
+                if media_path.startswith('temp_media/'):
+                    # 如果路径已经包含temp_media/，直接加前导斜杠
+                    message['media_display_url'] = '/' + media_path
+                else:
+                    # 否则使用原有逻辑
+                    message['media_display_url'] = media_paths.get_temp_media_url(
+                        os.path.basename(media_path)
+                    )
                 # 统一字段名，确保前端能找到
                 message['media_path'] = media_path
             
@@ -231,9 +237,13 @@ async def get_messages(
                     }
                     # 添加显示URL
                     if media_item.get('media_path'):
-                        media_item['display_url'] = media_paths.get_temp_media_url(
-                            os.path.basename(media_item['media_path'])
-                        )
+                        # 修复路径处理：正确处理temp_media/前缀
+                        if media_item['media_path'].startswith('temp_media/'):
+                            media_item['display_url'] = '/' + media_item['media_path']
+                        else:
+                            media_item['display_url'] = media_paths.get_temp_media_url(
+                                os.path.basename(media_item['media_path'])
+                            )
                     media_group_display.append(media_item)
                 
                 message['media_group_display'] = media_group_display
@@ -247,9 +257,13 @@ async def get_messages(
             elif message.get('media_group_display'):
                 for media in message['media_group_display']:
                     if media.get('media_path'):
-                        media['display_url'] = media_paths.get_temp_media_url(
-                            os.path.basename(media['media_path'])
-                        )
+                        # 修复路径处理：正确处理temp_media/前缀
+                        if media['media_path'].startswith('temp_media/'):
+                            media['display_url'] = '/' + media['media_path']
+                        else:
+                            media['display_url'] = media_paths.get_temp_media_url(
+                                os.path.basename(media['media_path'])
+                            )
             
             # 🚀 性能优化：单独消息已清理，重复消息处理大幅简化
             if message.get('duplicate_original_id'):
@@ -260,9 +274,13 @@ async def get_messages(
                         # 处理原始消息的单个媒体URL（支持多种字段名）
                         original_media_path = original_message.get('media_path') or original_message.get('media_url')
                         if original_media_path:
-                            original_message['media_display_url'] = media_paths.get_temp_media_url(
-                                os.path.basename(original_media_path)
-                            )
+                            # 修复路径处理：正确处理temp_media/前缀
+                            if original_media_path.startswith('temp_media/'):
+                                original_message['media_display_url'] = '/' + original_media_path
+                            else:
+                                original_message['media_display_url'] = media_paths.get_temp_media_url(
+                                    os.path.basename(original_media_path)
+                                )
                             original_message['media_path'] = original_media_path
                         
                         # 处理原始消息的组合媒体
@@ -288,9 +306,13 @@ async def get_messages(
                                     'error': media.get('error')
                                 }
                                 if media_item.get('media_path'):
-                                    media_item['display_url'] = media_paths.get_temp_media_url(
-                                        os.path.basename(media_item['media_path'])
-                                    )
+                                    # 修复路径处理：正确处理temp_media/前缀
+                                    if media_item['media_path'].startswith('temp_media/'):
+                                        media_item['display_url'] = '/' + media_item['media_path']
+                                    else:
+                                        media_item['display_url'] = media_paths.get_temp_media_url(
+                                            os.path.basename(media_item['media_path'])
+                                        )
                                 media_group_display.append(media_item)
                             
                             original_message['media_group_display'] = media_group_display
@@ -301,9 +323,13 @@ async def get_messages(
                         elif original_message.get('media_group_display'):
                             for media in original_message['media_group_display']:
                                 if media.get('media_path'):
-                                    media['display_url'] = media_paths.get_temp_media_url(
-                                        os.path.basename(media['media_path'])
-                                    )
+                                    # 修复路径处理：正确处理temp_media/前缀
+                                    if media['media_path'].startswith('temp_media/'):
+                                        media['display_url'] = '/' + media['media_path']
+                                    else:
+                                        media['display_url'] = media_paths.get_temp_media_url(
+                                            os.path.basename(media['media_path'])
+                                        )
                         
                         # 为原始消息添加id字段
                         if 'source_channel' in original_message and 'message_id' in original_message:
@@ -436,9 +462,15 @@ async def get_message(
         # 处理单个媒体显示URL（支持多种字段名）
         media_path = message.get('media_path') or message.get('media_url')
         if media_path:
-            message['media_display_url'] = media_paths.get_temp_media_url(
-                os.path.basename(media_path)
-            )
+            # 修复路径处理：正确处理temp_media/前缀
+            if media_path.startswith('temp_media/'):
+                # 如果路径已经包含temp_media/，直接加前导斜杠
+                message['media_display_url'] = '/' + media_path
+            else:
+                # 否则使用原有逻辑
+                message['media_display_url'] = media_paths.get_temp_media_url(
+                    os.path.basename(media_path)
+                )
             # 统一字段名
             message['media_path'] = media_path
         
@@ -458,9 +490,13 @@ async def get_message(
                 }
                 # 添加显示URL
                 if media_item.get('media_path'):
-                    media_item['display_url'] = media_paths.get_temp_media_url(
-                        os.path.basename(media_item['media_path'])
-                    )
+                    # 修复路径处理：正确处理temp_media/前缀
+                    if media_item['media_path'].startswith('temp_media/'):
+                        media_item['display_url'] = '/' + media_item['media_path']
+                    else:
+                        media_item['display_url'] = media_paths.get_temp_media_url(
+                            os.path.basename(media_item['media_path'])
+                        )
                 media_group_display.append(media_item)
             
             message['media_group_display'] = media_group_display
@@ -475,9 +511,13 @@ async def get_message(
         elif message.get('media_group_display'):
             for media in message['media_group_display']:
                 if media.get('media_path'):
-                    media['display_url'] = media_paths.get_temp_media_url(
-                        os.path.basename(media['media_path'])
-                    )
+                    # 修复路径处理：正确处理temp_media/前缀
+                    if media['media_path'].startswith('temp_media/'):
+                        media['display_url'] = '/' + media['media_path']
+                    else:
+                        media['display_url'] = media_paths.get_temp_media_url(
+                            os.path.basename(media['media_path'])
+                        )
         
         return {
             "success": True,
