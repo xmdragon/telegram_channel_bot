@@ -24,7 +24,7 @@
 ```python
 # ✅ 正确示例
 message_processor.py
-telegram_collector.py
+message_collector.py
 unified_filter_engine.py
 config_manager.py
 
@@ -181,7 +181,6 @@ telegram_channel_bot/
 ├── tools/                  # 工具脚本
 ├── temp_media/             # 临时媒体文件
 ├── venv/                   # Python虚拟环境
-├── main.py                 # 应用入口
 ├── CLAUDE.md               # Claude工作指导
 ├── README.md               # 项目说明
 ├── requirements.txt        # Python依赖

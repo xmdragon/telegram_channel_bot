@@ -97,7 +97,7 @@ git status && git log --oneline -1
 - **版本控制使用git，不需要手动备份文件**
 
 #### 允许的核心文件：
-✅ main.py, CLAUDE.md, README.md, requirements.txt, .gitignore
+✅ CLAUDE.md, README.md, requirements.txt, .gitignore
 ✅ docker-compose.yml, Dockerfile  
 ✅ dev.sh, start.sh, stop.sh, restart.sh
 ✅ app/, data/, docs/, logs/, static/, tools/, temp_media/, venv/
@@ -159,7 +159,7 @@ tools/
 ```
 系统架构 (v4.0)
 ├── web_server.py          # Web服务器 (端口8000)
-├── telegram_collector.py  # Telegram消息采集
+├── message_collector.py   # 消息采集服务
 ├── message_scheduler.py   # 消息调度和清理
 ├── dev_supervisor.py      # 进程管理器
 └── health_monitor.py      # 健康监控系统
@@ -345,7 +345,7 @@ API_ENDPOINTS = {
   - 技术栈：FastAPI + Gunicorn + UvicornWorker
   - 职责：REST API、WebSocket实时通信、业务逻辑处理
   
-- **Telegram采集服务** (`telegram_collector.py`)
+- **消息采集服务** (`message_collector.py`)
   - 技术栈：Telethon + asyncio
   - 职责：实时消息监听、历史消息采集、智能过滤
   

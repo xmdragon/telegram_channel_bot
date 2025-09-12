@@ -38,7 +38,7 @@ show_help() {
     echo "      • 端口${WEB_PORT}的Web界面服务"
     echo "      • 消息审核、配置管理界面"
     echo ""
-    echo "  3️⃣ 📡 Telegram采集服务 (telegram_collector.py)"
+    echo "  3️⃣ 📡 消息采集服务 (message_collector.py)"
     echo "      • 消息采集和内容过滤"
     echo "      • 从源频道到审核群组"
     echo ""
@@ -46,10 +46,7 @@ show_help() {
     echo "      • 自动转发和定时清理"
     echo "      • 数据维护和文件管理"
     echo ""
-    echo "  5️⃣ 📊 传统模式进程 (main.py)"
-    echo "      • 兼容旧版本单进程模式"
-    echo ""
-    echo "  6️⃣ 🗄️ Redis缓存服务"
+    echo "  5️⃣ 🗄️ Redis缓存服务"
     echo "      • 数据存储和缓存服务"
     echo ""
     echo "超时处理:"
@@ -183,7 +180,6 @@ stop_process() {
 # 按依赖顺序停止服务
 stop_process "进程管理器" "dev_supervisor.py" 5
 stop_process "Web服务器" "web_server.py" 5  
-stop_process "Telegram采集服务" "telegram_collector.py" 8
 stop_process "消息调度服务" "message_scheduler.py" 5
 stop_process "消息队列处理器" "message_processor.py" 8
 
@@ -191,19 +187,10 @@ stop_process "消息队列处理器" "message_processor.py" 8
 echo "🧹 执行最终清理..."
 pkill -f "dev_supervisor.py" 2>/dev/null || true
 pkill -f "web_server.py" 2>/dev/null || true  
-pkill -f "telegram_collector.py" 2>/dev/null || true
 pkill -f "message_scheduler.py" 2>/dev/null || true
 pkill -f "message_processor.py" 2>/dev/null || true
 pkill -f "uvicorn.*web_server:app" 2>/dev/null || true
 
-# 兼容旧版本 - 停止main.py进程
-MAIN_PID=$(ps aux | grep "[p]ython3 main.py" | awk '{print $2}')
-if [ ! -z "$MAIN_PID" ]; then
-    echo "📍 停止传统模式进程 PID: $MAIN_PID"
-    kill -TERM $MAIN_PID 2>/dev/null || true
-fi
-pkill -f "python3 main.py" 2>/dev/null || true
-pkill -f "uvicorn main:app" 2>/dev/null || true
 
 # 强制清理端口占用
 PORT_PID=$(lsof -ti:${WEB_PORT} 2>/dev/null)

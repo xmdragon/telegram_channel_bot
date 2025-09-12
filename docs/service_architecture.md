@@ -5,7 +5,7 @@
 为了解决本地开发时主进程停止导致采集和页面都无法访问的问题，我们将系统重构为服务分离架构。现在系统由三个独立的服务组成：
 
 - **Web服务器** (`web_server.py`) - 提供Web界面和API服务
-- **Telegram采集服务** (`telegram_collector.py`) - 处理Telegram消息采集
+- **Telegram采集服务** (`message_collector.py`) - 处理Telegram消息采集
 - **消息调度服务** (`message_scheduler.py`) - 处理自动转发和数据清理
 
 ## 使用方法
@@ -51,7 +51,7 @@
   - 健康检查端点
 - **日志**: `./logs/app.log`
 
-### Telegram采集服务 (telegram_collector.py)
+### Telegram采集服务 (message_collector.py)
 - **功能**:
   - Telegram消息采集
   - 消息过滤和处理
@@ -189,7 +189,7 @@ docker compose up -d redis  # 启动Redis
 ```bash
 # 直接运行单个服务进行调试
 python3 web_server.py
-python3 telegram_collector.py
+python3 message_collector.py
 python3 message_scheduler.py
 ```
 
@@ -208,7 +208,6 @@ curl http://localhost:8000/api/health | jq .
 ## 兼容性
 
 ### 向后兼容
-- 保留原有的 `main.py` 文件
 - 可通过 `--legacy` 参数使用传统模式
 - 所有API接口保持不变
 - Web界面功能完全一致

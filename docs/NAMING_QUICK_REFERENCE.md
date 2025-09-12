@@ -24,7 +24,7 @@
 ```python
 # 文件名
 message_processor.py           ✅
-telegram_collector.py         ✅
+message_collector.py         ✅
 
 # 类名  
 class MessageProcessor:        ✅

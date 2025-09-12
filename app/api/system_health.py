@@ -22,19 +22,19 @@ router = APIRouter(tags=["system-health"])
 # 记录启动时间
 START_TIME = datetime.now()
 
-def check_telegram_collector_process() -> bool:
-    """检测telegram_collector.py进程是否运行"""
+def check_message_collector_process() -> bool:
+    """检测message_collector.py进程是否运行"""
     try:
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 cmdline = proc.info['cmdline']
-                if cmdline and any('telegram_collector.py' in str(arg) for arg in cmdline):
+                if cmdline and any('message_collector.py' in str(arg) for arg in cmdline):
                     return True
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         return False
     except Exception as e:
-        logger.error(f"检测telegram_collector进程失败: {e}")
+        logger.error(f"检测message_collector进程失败: {e}")
         return False
 
 @router.get(ROUTES.system.status)
@@ -197,7 +197,7 @@ async def get_detailed_status() -> Dict[str, Any]:
                 },
                 "services": {
                     "web_server": "running",
-                    "telegram_bot": "running" if check_telegram_collector_process() else "stopped",
+                    "telegram_bot": "running" if check_message_collector_process() else "stopped",
                     "storage": "running",
                     "message_processor": "running",
                     "system_monitor": "running" if current_status else "stopped"

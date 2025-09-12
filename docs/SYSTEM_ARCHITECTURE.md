@@ -24,7 +24,7 @@
             ▼                           ▼
 ┌─────────────────────────┐ ┌─────────────────────────┐
 │   Telegram采集服务      │ │    消息调度服务         │
-│ (telegram_collector.py) │ │ (message_scheduler.py)  │
+│ (message_collector.py) │ │ (message_scheduler.py)  │
 │ - 实时消息监听          │ │ - 自动转发队列          │
 │ - 历史消息采集          │ │ - 过期数据清理          │
 │ - 消息过滤处理          │ │ - 定时任务调度          │
@@ -54,7 +54,7 @@
 - **功能**: REST API、WebSocket、静态文件服务
 - **依赖**: FastAPI、app.api路由模块
 
-#### telegram_collector.py
+#### message_collector.py
 - **职责**: Telegram消息采集
 - **功能**: 实时监听、历史采集、消息过滤
 - **依赖**: Telethon、app.telegram.bot
@@ -187,7 +187,7 @@ app/services/intelligent_tail_filter.py (部分功能可能仍在使用)
 
 ### 4.1 核心依赖链
 ```
-telegram_collector.py
+message_collector.py
     └── app.telegram.bot
         └── app.services.unified_message_processor
             ├── app.services.content_filter

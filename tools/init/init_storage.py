@@ -369,7 +369,7 @@ async def initialize_storage_system():
     logger.info("\n🎉 存储系统初始化完成！")
     logger.info("\n📋 下一步操作：")
     logger.info("1. 运行 python3 init_admin.py 创建超级管理员")
-    logger.info("2. 启动系统: python3 main.py 或 ./start.sh")
+    logger.info("2. 启动系统: ./dev.sh 或 ./start.sh")
     logger.info(f"3. 访问 {url_config.get_auth_url()} 完成Telegram认证")
     logger.info(f"4. 访问 {url_config.get_config_url()} 配置频道")
     logger.info(f"5. 访问 {url_config.base_url} 开始使用系统")

@@ -27,7 +27,6 @@
 ### 2) 前后端页面/静态路径不一致
 
 - 认证页常量错误：后端重定向到 `api_paths.AUTH_PAGE = "/static/auth.html"`（`app/core/api_paths.py:1`），实际文件为 `"/static/telegram-auth.html"`（`static/telegram-auth.html`）。
-  - 影响：`GET /auth`（`main.py:241`、`web_server.py:341`）指向不存在页面。
 - 训练媒体路径不匹配：后端/前端常量指 `"/media/ad_training_data"`（`app/core/api_paths.py:1`、`static/assets/js/config/api-endpoints.js:219`），但 Nginx 将 `data/training/ad` 映射为 `"/media/"`（`nginx/nginx.conf:45`）。
 - 建议：
   - 修正 `api_paths.AUTH_PAGE` 为 `"/static/telegram-auth.html"`。
@@ -85,8 +84,6 @@
 - AI 端点重复：详见“端点一致性”。
 - Web 与静态服务切换历史残留：
   - `web_server.py:219` 起已移除静态挂载；Nginx 专职静态。
-  - `main.py:201`（传统模式）仍挂载静态，属合理兼容；建议 README 明确“开发/生产”差异。
-- 注释残留：`main.py:214`、`web_server.py:289` 保留“已删除模块”的注释引用。
 - 消息处理器命名冲突：
   - 根目录进程型消费者：`message_processor.py:1`
   - 服务层逻辑：`app/services/message_processor.py:1`
@@ -97,8 +94,6 @@
 ## 日志与可观测性
 
 - `FilteredTimedRotatingFileHandler` 在多个入口重复定义且策略不一致：
-  - 文件：`main.py:31`、`web_server.py:23`、`telegram_collector.py:23`、`message_scheduler.py:23`、`message_processor.py:21`
-  - 风险：部分实例使用关键词级别过滤（如 main.py 中屏蔽 delete/select），可能误伤正常日志。
 - 建议：抽取统一日志初始化模块（如 `app/core/logging.py`），仅按 logger name 过滤，去除关键词过滤。
 
 ---
@@ -165,7 +160,6 @@
 6. 拒绝原因字段不一致：`app/api/training.py:86,97` vs `app/services/message_processor.py:75`。
 7. 媒体字段不一致（`media_path`/`file_path`/`media_url`）：`app/api/messages_crud.py:1` 多处适配。
 8. AI 端点族重复：`app/api/ai_config.py:1`（旧族） vs `app/api/ai_control.py:1`（新族）。
-9. 日志器重复/不一致：`main.py:31`、`web_server.py:23`、`telegram_collector.py:23`、`message_scheduler.py:23`、`message_processor.py:21`。
 10. 前端死端点：`static/assets/js/config/api-endpoints.js:21,34,45` 未见后端实现。
 
 ---
@@ -175,9 +169,8 @@
 - 前端端点集中配置：`static/assets/js/config/api-endpoints.js:1`
 - Nginx 静态/代理配置：`nginx/nginx.conf:1`
 - Web 入口（生产/Web-only）：`web_server.py:1`
-- 采集服务：`telegram_collector.py:1`
+- 采集服务：`message_collector.py:1`
 - 调度服务：`message_scheduler.py:1`
-- 传统模式入口：`main.py:1`
 
 ---
 

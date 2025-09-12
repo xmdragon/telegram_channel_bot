@@ -186,10 +186,9 @@ telegram_channel_bot/
 │   └── service_architecture.md  # 架构文档
 ├── temp_media/             # 临时媒体文件
 ├── web_server.py           # Web服务器（独立）
-├── telegram_collector.py   # Telegram采集服务（独立）
+├── message_collector.py   # Telegram采集服务（独立）
 ├── message_scheduler.py    # 消息调度服务（独立）
 ├── dev_supervisor.py       # 进程管理器
-├── main.py                 # 传统模式入口（兼容）
 └── dev.sh                  # 开发启动脚本
 ```
 

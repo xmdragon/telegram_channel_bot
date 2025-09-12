@@ -146,7 +146,7 @@ check_system_status() {
     fi
     
     # 检查各个服务进程
-    for service in "web_server.py" "telegram_collector.py" "message_scheduler.py"; do
+    for service in "web_server.py" "message_scheduler.py"; do
         if pgrep -f "$service" >/dev/null; then
             local pid=$(pgrep -f "$service" | head -1)
             print_warning "${service%.*} 进程已运行 (PID: $pid)"
@@ -251,7 +251,7 @@ get_status_summary() {
         web_status="running"
     fi
     
-    if pgrep -f "telegram_collector.py" >/dev/null; then
+    if pgrep -f "message_collector.py" >/dev/null; then
         collector_status="running"
     fi
     

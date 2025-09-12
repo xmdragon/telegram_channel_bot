@@ -57,7 +57,6 @@ show_help() {
     echo "其他选项:"
     echo "  --help, -h  显示此帮助信息"
     echo "  --status    显示服务状态"
-    echo "  --legacy    使用传统模式启动 (单进程)"
     echo ""
     echo "示例:"
     echo "  $0                    # 启动所有服务"
@@ -65,13 +64,11 @@ show_help() {
     echo "  $0 web collector     # 启动Web和采集服务"
     echo "  $0 collector processor  # 启动采集和处理服务"
     echo "  $0 --status          # 查看服务状态"
-    echo "  $0 --legacy          # 使用传统模式"
     echo ""
 }
 
 # 解析命令行参数
 SERVICES=()
-USE_LEGACY=false
 SHOW_STATUS=false
 
 while [[ $# -gt 0 ]]; do
@@ -82,10 +79,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --status)
             SHOW_STATUS=true
-            shift
-            ;;
-        --legacy)
-            USE_LEGACY=true
             shift
             ;;
         web|collector|scheduler|processor|all)
@@ -208,26 +201,6 @@ else
 fi
 
 
-# 如果使用传统模式
-if [ "$USE_LEGACY" = true ]; then
-    echo "🌟 启动应用（传统模式，单进程）..."
-    echo "📝 提示：修改代码后会自动重新加载"
-    echo "📊 日志文件："
-    echo "   - 完整日志: ./logs/app.log"
-    echo "   - 错误日志: ./logs/error.log (仅WARNING和ERROR)"
-    echo "   - Web查看错误: ${API_URL}/static/admin.html"
-    echo
-
-    # 检查是否安装了uvicorn
-    if python3 -c "import uvicorn" 2>/dev/null; then
-        # 使用uvicorn的热重载功能
-        exec uvicorn main:app --host 0.0.0.0 --port ${WEB_PORT} --reload
-    else
-        # 降级为普通启动
-        echo "⚠️  未检测到uvicorn，使用普通模式启动（不支持热重载）"
-        exec python3 main.py
-    fi
-fi
 
 # 使用新的服务分离模式
 echo "🎯 启动服务分离模式..."
@@ -235,7 +208,7 @@ echo "📋 启动服务: ${SERVICES[*]}"
 echo ""
 echo "📊 日志文件："
 echo "   - Web服务: ./logs/app.log"
-echo "   - 采集服务: ./logs/telegram_collector.log" 
+echo "   - 采集服务: ./logs/message_collector.log" 
 echo "   - 调度服务: ./logs/message_scheduler.log"
 echo "   - 管理器状态: ./logs/supervisor_status.json"
 echo ""

@@ -24,14 +24,14 @@ async def get_system_logs(limit: int = 100, log_type: str = "collector") -> Dict
         # 根据日志类型选择文件模式
         from app.core.path_config import PathConfig
         log_type_mapping = {
-            "collector": "telegram_collector.log*",
+            "collector": "message_collector.log*",
             "web": "app.log*", 
             "scheduler": "message_scheduler.log*",
             "error": "error.log*",
             "all": "*.log*"
         }
         
-        log_pattern = f"{PathConfig.LOGS_DIR}/{log_type_mapping.get(log_type, 'telegram_collector.log*')}"
+        log_pattern = f"{PathConfig.LOGS_DIR}/{log_type_mapping.get(log_type, 'message_collector.log*')}"
         log_files = glob.glob(log_pattern)
         
         # 如果是all类型，需要特殊处理

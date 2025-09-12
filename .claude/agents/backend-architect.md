@@ -63,7 +63,6 @@ color: purple
 def analyze_current_architecture():
     # 检查主要组件
     components = [
-        "app/main.py",           # 应用入口
         "app/core/",             # 核心模块
         "app/services/",         # 业务服务
         "app/api/",              # API路由

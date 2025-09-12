@@ -24,44 +24,13 @@ router = APIRouter(tags=["system-maintenance"])
 async def restart_services() -> Dict[str, Any]:
     """重启服务"""
     try:
-        # 重启Telegram采集器进程
+        # 重启Telegram双Session系统连接
         try:
-            # 先停止telegram_collector.py进程
-            collector_stopped = False
-            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                try:
-                    cmdline = proc.info['cmdline']
-                    if cmdline and any('telegram_collector.py' in str(arg) for arg in cmdline):
-                        logger.info(f"停止Telegram采集器进程 PID: {proc.info['pid']}")
-                        proc.terminate()
-                        proc.wait(timeout=5)  # 等待进程优雅退出
-                        collector_stopped = True
-                        break
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
-                    continue
-            
-            # 重新启动telegram_collector.py
-            if collector_stopped:
-                # 使用nohup在后台启动
-                result = subprocess.Popen(
-                    ['nohup', 'python3', 'telegram_collector.py'],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=True
-                )
-                logger.info(f"重启Telegram采集器进程: PID {result.pid}")
-            
-            # 同时重启内部客户端连接（使用双Session系统）
-            try:
-                from app.telegram.dual_session_manager import dual_session_manager
-                # 重置双Session系统连接
-                await dual_session_manager.disconnect_all()
-                logger.info("Telegram双Session系统已断开连接，需要重新认证")
-            except Exception as dual_error:
-                logger.error(f"重置双Session系统失败: {dual_error}")
-                
-        except Exception as e:
-            logger.error(f"重启Telegram服务失败: {e}")
+            from app.telegram.dual_session_manager import dual_session_manager
+            await dual_session_manager.disconnect_all()
+            logger.info("Telegram双Session系统已断开连接，需要重新认证")
+        except Exception as dual_error:
+            logger.error(f"重置双Session系统失败: {dual_error}")
         
         # 重启系统监控
         try:

@@ -6,7 +6,6 @@
 - `app/telegram`：Telethon 集成；注意 Python 3.13 作用域变更，类型导入必须在模块顶部。
 - `app/storage`：Redis/JSON 存储与管理；路径统一使用 `app/core/path_config.py`。
 - `app/core`：配置、日志、路径、URL 工具；避免硬编码 URL，使用 `app/core/url_config.py`。
-- 入口：`main.py`（Web API）、`telegram_collector.py`（采集）、`message_scheduler.py`（调度）；静态/文档在 `static/`、`docs/`；测试在 `tests/`。
 
 ## 构建、测试与本地开发
 - 环境准备：`python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`
