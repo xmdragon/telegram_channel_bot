@@ -7,12 +7,17 @@
 import logging
 import asyncio
 import time
-from typing import Optional, Callable, List
+import os
+from typing import Optional, Callable, List, Dict, Any
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import FloodWaitError, AuthKeyUnregisteredError, SessionRevokedError
+from dotenv import load_dotenv
 
 from app.services.config_manager import ConfigManager
+
+# 加载环境变量
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +42,38 @@ class TelegramDualSessionManager:
         self._listener_callbacks: List[Callable] = []
         self._sender_callbacks: List[Callable] = []
         self._disconnection_callbacks: List[Callable] = []
+        
+        # 获取代理配置
+        self._proxy_config = self._get_proxy_config()
+    
+    def _get_proxy_config(self) -> Optional[Dict[str, Any]]:
+        """从环境变量获取代理配置"""
+        use_proxy = os.getenv('TELEGRAM_USE_PROXY', 'false').lower() == 'true'
+        
+        if not use_proxy:
+            logger.info("Telegram代理未启用")
+            return None
+        
+        proxy_type = os.getenv('TELEGRAM_PROXY_TYPE', 'http')
+        proxy_host = os.getenv('TELEGRAM_PROXY_HOST', '127.0.0.1')
+        proxy_port = int(os.getenv('TELEGRAM_PROXY_PORT', '10808'))
+        
+        proxy = {
+            'proxy_type': proxy_type,
+            'addr': proxy_host,
+            'port': proxy_port
+        }
+        
+        # 可选的认证信息
+        username = os.getenv('TELEGRAM_PROXY_USERNAME')
+        password = os.getenv('TELEGRAM_PROXY_PASSWORD')
+        
+        if username and password:
+            proxy['username'] = username
+            proxy['password'] = password
+        
+        logger.info(f"使用{proxy_type}代理: {proxy_host}:{proxy_port}")
+        return proxy
     
     def add_listener_callback(self, callback: Callable):
         """添加监听客户端连接成功回调"""
@@ -98,6 +135,7 @@ class TelegramDualSessionManager:
                 StringSession(session),
                 int(api_id),
                 api_hash,
+                proxy=self._proxy_config,       # 使用代理配置（如果有）
                 connection_retries=8,          # 增加重试次数 5->8
                 retry_delay=2,                 # 减少重试延迟 3->2
                 auto_reconnect=True,
@@ -175,6 +213,7 @@ class TelegramDualSessionManager:
                 StringSession(session),
                 int(api_id),
                 api_hash,
+                proxy=self._proxy_config,       # 使用代理配置（如果有）
                 connection_retries=8,          # 增加重试次数 5->8
                 retry_delay=2,                 # 减少重试延迟 3->2
                 auto_reconnect=True,
