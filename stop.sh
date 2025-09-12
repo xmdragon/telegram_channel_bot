@@ -181,14 +181,12 @@ stop_process() {
 stop_process "进程管理器" "dev_supervisor.py" 5
 stop_process "Web服务器" "web_server.py" 5  
 stop_process "消息调度服务" "message_scheduler.py" 5
-stop_process "消息队列处理器" "message_processor.py" 8
 
 # 额外清理：使用pkill确保所有相关进程都被停止
 echo "🧹 执行最终清理..."
 pkill -f "dev_supervisor.py" 2>/dev/null || true
 pkill -f "web_server.py" 2>/dev/null || true  
 pkill -f "message_scheduler.py" 2>/dev/null || true
-pkill -f "message_processor.py" 2>/dev/null || true
 pkill -f "uvicorn.*web_server:app" 2>/dev/null || true
 
 

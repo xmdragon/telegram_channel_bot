@@ -238,7 +238,7 @@ class QueuePerformanceAnalyzer:
                 'category': '立即执行',
                 'title': '增加工作进程数量',
                 'description': '将工作进程从5个增加到10-15个',
-                'implementation': 'python3 message_processor.py --workers 15',
+                'implementation': '# 队列处理功能已整合到services模块 --workers 15',
                 'expected_result': '处理速度提升2-3倍'
             })
         

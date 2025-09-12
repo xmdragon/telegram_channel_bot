@@ -265,7 +265,7 @@ class QueueStallDiagnoser:
                 'description': '根本原因: 消息处理器进程未运行或已停滞',
                 'severity': 'critical',
                 'impact': '需要重启消息处理器',
-                'solution': 'python3 message_processor.py --workers 10'
+                'solution': '# 队列处理功能已整合到services模块 --workers 10'
             })
         elif 'dequeue_failed' in issue_types and 'queue_backlog' in issue_types:
             result['issues'].append({
@@ -281,7 +281,7 @@ class QueueStallDiagnoser:
                 'description': '根本原因: 工作进程数量不足以应对当前负载',
                 'severity': 'high', 
                 'impact': '需要增加工作进程数量',
-                'solution': '增加工作进程: python3 message_processor.py --workers 15'
+                'solution': '增加工作进程: # 队列处理功能已整合到services模块 --workers 15'
             })
         
         return result

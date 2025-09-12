@@ -44,11 +44,6 @@ show_help() {
     echo "              • 内容过滤和去重处理"
     echo "              • 发送到审核群组"
     echo ""
-    echo "  processor   仅启动消息队列处理器"
-    echo "              • 处理队列中的消息"
-    echo "              • 消息保存到存储系统"
-    echo "              • 3个工作线程并发处理"
-    echo ""
     echo "  scheduler   仅启动消息调度服务"
     echo "              • 自动转发已审核消息"
     echo "              • 定时清理过期数据"
@@ -62,7 +57,7 @@ show_help() {
     echo "  $0                    # 启动所有服务"
     echo "  $0 web               # 仅启动Web服务"
     echo "  $0 web collector     # 启动Web和采集服务"
-    echo "  $0 collector processor  # 启动采集和处理服务"
+    echo "  $0 collector scheduler  # 启动采集和调度服务"
     echo "  $0 --status          # 查看服务状态"
     echo ""
 }
@@ -81,7 +76,7 @@ while [[ $# -gt 0 ]]; do
             SHOW_STATUS=true
             shift
             ;;
-        web|collector|scheduler|processor|all)
+        web|collector|scheduler|all)
             SERVICES+=("$1")
             shift
             ;;

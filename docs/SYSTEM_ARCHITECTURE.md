@@ -81,7 +81,6 @@
 #### 核心处理器
 | 模块 | 功能 | 状态 |
 |-----|------|------|
-| **unified_message_processor.py** | 统一消息处理器（新架构） | ✅ 主要使用 |
 | message_processor.py | 旧消息处理器 | ⚠️ 逐步废弃 |
 | **unified_filter_engine.py** | 统一过滤引擎 | ✅ 主要使用 |
 | content_filter.py | 内容过滤器（主） | ✅ 使用中 |

@@ -85,7 +85,6 @@
 - Web 与静态服务切换历史残留：
   - `web_server.py:219` 起已移除静态挂载；Nginx 专职静态。
 - 消息处理器命名冲突：
-  - 根目录进程型消费者：`message_processor.py:1`
   - 服务层逻辑：`app/services/message_processor.py:1`
   - 建议：明确命名与职责，避免 `from ... import MessageProcessor` 歧义（可重命名根文件为 `queue_processor.py` 等）。
 
