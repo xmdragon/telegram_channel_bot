@@ -60,10 +60,16 @@ const app = createApp({
                     ])
                 );
                 
-                // 直接使用API返回的分页数据
+                // 使用API返回的数据
                 this.samples = samplesResponse.data.samples || [];
                 this.totalCount = samplesResponse.data.total || 0;
-                
+
+                // 适配数据格式 - 后端返回的是tail_part字段
+                this.samples = this.samples.map(sample => ({
+                    ...sample,
+                    rule: sample.tail_part || sample.content || ''  // 使用tail_part作为规则内容
+                }));
+
                 // 按创建时间倒序排序（最新的在前）
                 this.samples.sort((a, b) => {
                     const timeA = new Date(a.created_at || 0).getTime();
@@ -240,22 +246,25 @@ const app = createApp({
         editSample(sample) {
             this.editingSample = {
                 id: sample.id,
-                tail_part: sample.tail_part
+                tail_part: sample.tail_part,
+                rule: sample.rule
             };
             this.editDialog = true;
         },
         
         // 保存编辑
         async saveEdit() {
-            if (!this.editingSample || !this.editingSample.tail_part.trim()) {
-                SimpleUI.showMessage('请输入尾部内容', 'warning');
+            const contentToSave = this.editingSample.rule || this.editingSample.tail_part;
+            if (!this.editingSample || !contentToSave || !contentToSave.trim()) {
+                SimpleUI.showMessage('请输入规则内容', 'warning');
                 return;
             }
-            
+
             this.submitting = true;
             try {
                 const response = await axios.put(API.training.tailFilterSampleById(this.editingSample.id), {
-                    tail_part: this.editingSample.tail_part.trim()
+                    rule: contentToSave.trim(),
+                    tail_part: this.editingSample.tail_part?.trim()
                 });
                 
                 if (response.data.success) {

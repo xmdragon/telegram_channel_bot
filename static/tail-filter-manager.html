@@ -100,7 +100,7 @@
                                         ID
                                         <span class="sort-icon" :class="getSortClass('id')">↕️</span>
                                     </th>
-                                    <th class="content-col">尾部内容</th>
+                                    <th class="content-col">尾部过滤规则</th>
                                     <th class="time-col sortable" @click="sortBy('created_at')">
                                         创建时间
                                         <span class="sort-icon" :class="getSortClass('created_at')">↕️</span>
@@ -115,7 +115,10 @@
                                     </td>
                                     <td>{{ sample.id }}</td>
                                     <td>
-                                        <div v-if="sample.tail_part" class="content-preview clickable" @click="showDetail(sample)">
+                                        <div v-if="sample.rule" class="content-preview clickable" @click="showDetail(sample)">
+                                            {{ truncateText(sample.rule, 100) }}
+                                        </div>
+                                        <div v-else-if="sample.tail_part" class="content-preview clickable" @click="showDetail(sample)">
                                             {{ truncateText(sample.tail_part, 100) }}
                                         </div>
                                         <span v-else>-</span>
@@ -155,7 +158,7 @@
         <div v-if="detailDialog" class="modal-overlay" @click="detailDialog = false">
             <div class="modal-content" @click.stop>
                 <div class="modal-header">
-                    <h3 class="modal-title">尾部内容详情</h3>
+                    <h3 class="modal-title">尾部过滤规则详情</h3>
                     <button @click="detailDialog = false" class="modal-close">×</button>
                 </div>
                 <div class="modal-body">
@@ -171,7 +174,11 @@
                             </div>
                         </div>
                         
-                        <div v-if="currentSample.tail_part" class="content-section">
+                        <div v-if="currentSample.rule" class="content-section">
+                            <h4>完整过滤规则：</h4>
+                            <div class="detail-content">{{ currentSample.rule }}</div>
+                        </div>
+                        <div v-else-if="currentSample.tail_part" class="content-section">
                             <h4>完整尾部内容：</h4>
                             <div class="detail-content">{{ currentSample.tail_part }}</div>
                         </div>
@@ -190,15 +197,15 @@
                 <div class="modal-body">
                     <form v-if="editingSample" @submit.prevent="saveEdit">
                         <div class="form-group">
-                            <label class="form-label required">尾部内容</label>
+                            <label class="form-label required">过滤规则</label>
                             <textarea
-                                v-model="editingSample.tail_part"
+                                v-model="editingSample.rule || editingSample.tail_part"
                                 class="form-textarea"
                                 rows="8"
-                                placeholder="编辑尾部内容..."
+                                placeholder="编辑过滤规则（正则表达式）..."
                                 required
                             ></textarea>
-                            <div class="char-count">{{ editingSample.tail_part ? editingSample.tail_part.length : 0 }} 字符</div>
+                            <div class="char-count">{{ (editingSample.rule || editingSample.tail_part) ? (editingSample.rule || editingSample.tail_part).length : 0 }} 字符</div>
                         </div>
                     </form>
                 </div>

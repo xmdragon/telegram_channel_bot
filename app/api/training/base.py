@@ -68,25 +68,36 @@ class FeedbackData(BaseModel):
 # 所有训练数据现在通过专门的训练数据模块管理
 
 
-def load_tail_filter_samples() -> List[Dict]:
-    """加载尾部过滤样本"""
+def load_tail_filter_samples() -> Any:
+    """加载尾部过滤样本 - 支持新旧格式"""
     try:
         if TAIL_FILTER_SAMPLES_FILE.exists():
             data = SafeFileOperation.read_json_safe(TAIL_FILTER_SAMPLES_FILE)
-            return data.get('samples', []) if data else []
-        return []
+            # 返回完整数据，让调用方处理格式
+            return data if data else {}
+        return {}
     except Exception as e:
         logger.error(f"加载尾部过滤样本失败: {e}")
-        return []
+        return {}
 
-def save_tail_filter_samples(samples: List[Dict]) -> bool:
-    """保存尾部过滤样本"""
+def save_tail_filter_samples(data: Any) -> bool:
+    """保存尾部过滤样本 - 支持新旧格式"""
     try:
-        data = {
-            'samples': samples,
-            'updated_at': datetime.now().isoformat(),
-            'total_count': len(samples)
-        }
+        # 如果传入的是列表，转换为旧格式
+        if isinstance(data, list):
+            data = {
+                'samples': data,
+                'updated_at': datetime.now().isoformat(),
+                'total_count': len(data)
+            }
+        # 如果是字典且有rules字段，更新时间戳
+        elif isinstance(data, dict) and 'rules' in data:
+            data['updated_at'] = datetime.now().isoformat()
+            data['total_count'] = len(data.get('rules', []))
+        # 其他情况，确保有更新时间
+        elif isinstance(data, dict):
+            data['updated_at'] = datetime.now().isoformat()
+
         SafeFileOperation.write_json_safe(TAIL_FILTER_SAMPLES_FILE, data)
         return True
     except Exception as e:

@@ -478,7 +478,6 @@ class TelegramMessageCollector:
         for message_group in message_groups:
             # 检查采集是否仍然启用（消息级别的最细粒度检查）
             collection_enabled = await self.config_manager.get_collection_enabled()
-            logger.info(f'采集开关: {collection_enabled}')
             if not collection_enabled:
                 logger.info(f"检测到采集已禁用，停止处理频道 {channel_name} 的剩余消息")
                 break
