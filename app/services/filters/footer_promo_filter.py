@@ -46,7 +46,7 @@ class FooterPromoFilter(BaseFilter):
     def load_separator_patterns(self):
         """加载分隔符模式"""
         try:
-            separator_file = PathConfig.DATA_DIR / "training/tail/separator_patterns.json"
+            separator_file = PathConfig.SEPARATOR_PATTERNS_FILE
             if separator_file.exists():
                 with open(separator_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)

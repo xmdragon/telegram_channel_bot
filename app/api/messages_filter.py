@@ -87,11 +87,11 @@ async def filter_message_content(
                 "message": "消息没有内容可以过滤"
             }
         
-        # 使用新的ContentProcessingPipeline，不进行广告检测
-        from app.services.content_processor import ContentProcessingPipeline, LocalMessage
-        
+        # 使用新的ContentProcessor，不进行广告检测
+        from app.services.content_processor import ContentProcessor, LocalMessage
+
         # 创建处理管道
-        pipeline = ContentProcessingPipeline()
+        pipeline = ContentProcessor()
         
         # 创建LocalMessage对象
         local_message = LocalMessage(

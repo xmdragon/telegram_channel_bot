@@ -24,7 +24,7 @@ class WeightedKeywordDetector:
     
     def __init__(self):
         self.name = "WeightedKeywordDetector"
-        self.keywords_file = PathConfig.DATA_DIR / "config" / "ad_keywords.json"
+        self.keywords_file = PathConfig.AD_KEYWORDS_FILE
         self.keywords: Dict[str, float] = {}
         self.threshold: float = 3.0
         self._file_mtime: float = 0

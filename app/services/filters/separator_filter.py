@@ -31,7 +31,7 @@ class SeparatorFilter:
         self.pattern_descriptions: List[str] = []
         self.initialized = False
         self._patterns_mtime = 0  # 记录文件修改时间
-        self._patterns_file = PathConfig.DATA_DIR / "training/tail/separator_patterns.json"
+        self._patterns_file = PathConfig.SEPARATOR_PATTERNS_FILE
         
         self._load_separator_patterns()
     

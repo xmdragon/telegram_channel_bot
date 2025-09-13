@@ -24,7 +24,7 @@ class AdKeywordExtractor:
     
     def __init__(self):
         # 加载已有关键词
-        self.keywords_file = PathConfig.DATA_DIR / "config" / "ad_keywords.json"
+        self.keywords_file = PathConfig.AD_KEYWORDS_FILE
         self.existing_keywords: Set[str] = set()
         self.load_existing_keywords()
         
