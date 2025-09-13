@@ -142,13 +142,6 @@ const API_ENDPOINTS = {
         previewPromoFilter: '/api/training/preview-promo-filter', // POST - 预览推广过滤器
         
         // 阈值管理
-        thresholdsStats: '/api/training/thresholds/stats',          // GET - 获取阈值统计
-        thresholdsOptimize: '/api/training/thresholds/optimize',    // POST - 优化阈值
-        thresholdsReset: (filterName, metricName) => `/api/training/thresholds/${filterName}/${metricName}/reset`, // POST - 重置阈值
-        thresholdsManualUpdate: '/api/training/thresholds/manual-update', // POST - 手动更新阈值
-        thresholdsPreview: '/api/training/thresholds/preview',           // POST - 预览阈值调整效果
-        thresholdsFeedback: '/api/training/thresholds/feedback',    // POST - 提交阈值反馈
-        thresholdsOptimizeSettings: '/api/training/thresholds/optimize-settings' // GET/POST - 优化设置
     },
 
     // 配置管理模块 - /api/config
@@ -157,7 +150,6 @@ const API_ENDPOINTS = {
         channelConfig: '/api/config/channel-config',               // GET/POST - 频道配置
         systemConfig: '/api/config/system-config',                // GET/POST - 系统配置
         filterConfig: '/api/config/filter-config',                // GET/POST - 过滤器配置
-        thresholds: '/api/config/thresholds',                     // GET/POST - 阈值配置
         export: '/api/config/export',                             // GET - 导出配置
         import: '/api/config/import',                             // POST - 导入配置
         channelsBatchAdd: '/api/config/channels/batch-add',       // POST - 批量添加频道
@@ -261,7 +253,6 @@ const API_ENDPOINTS = {
         promoTraining: '/static/promo-training.html',              // 推广链接训练页面
         separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
         mediaManager: '/static/media-manager.html',                // 媒体文件管理页面
-        thresholdDashboard: '/static/threshold-dashboard.html'     // 阈值监控面板页面
     }
 };
 

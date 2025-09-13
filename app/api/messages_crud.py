@@ -997,7 +997,7 @@ async def _record_ad_detection_feedback(message: Dict[str, Any], user_decision: 
             
             # 更新消息的检测信息
             ad_detection_score = similarity
-            ad_detection_threshold = ad_detector.threshold_manager.get_threshold('ad_detector', 'classifier')
+            ad_detection_threshold = 0.7  # 固定阈值
             
             # 保存到消息数据
             message['ad_detection_score'] = ad_detection_score

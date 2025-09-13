@@ -238,12 +238,6 @@ class RouteConfig:
         tail_filter_deduplicate = "/training/tail-filter-samples/deduplicate"
         tail_filter_rebuild_vectors = "/training/tail-filter-rebuild-vectors"
         
-        # 阈值管理
-        thresholds_stats = "/training/thresholds/stats"
-        thresholds_optimize = "/training/thresholds/optimize"
-        thresholds_reset = "/training/thresholds/{filter_name}/{metric_name}/reset"
-        thresholds_manual_update = "/training/thresholds/manual-update"
-        thresholds_preview = "/training/thresholds/preview"
         
         # 媒体文件
         media_files = "/training/media-files"

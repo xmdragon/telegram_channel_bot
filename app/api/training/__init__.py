@@ -10,7 +10,6 @@ from .media import router as media_router
 from .ad_vector import router as ad_vector_router
 # OCR功能已移除
 from .admin import router as admin_router
-from .thresholds import router as thresholds_router
 from .promo_training import router as promo_training_router
 
 # 创建主路由器（不设置prefix，由主API路由器设置）
@@ -37,8 +36,6 @@ def register_training_routes():
     # 系统管理
     router.include_router(admin_router, tags=["training-admin"])
     
-    # 阈值管理
-    router.include_router(thresholds_router, tags=["training-thresholds"])
     
     # 推广链接训练
     router.include_router(promo_training_router, tags=["training-promo"])

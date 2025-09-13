@@ -8,7 +8,6 @@ from typing import Tuple, Optional, List, Dict
 
 from app.services.filters.base import BaseFilter, FilterResult, FilterContext
 from app.services.promo_vector_manager import promo_vector_manager
-from app.core.threshold_manager import threshold_manager
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +18,9 @@ class TrailingPromoFilter(BaseFilter):
         super().__init__("trailing_promo_filter")
         self.description = "清理消息尾部的推广内容"
         
-        # 获取动态阈值
-        self.similarity_threshold = threshold_manager.get_threshold(
-            self.name, "similarity"
-        )
-        self.min_length_threshold = threshold_manager.get_threshold(
-            self.name, "min_length"
-        )
+        # 默认阈值
+        self.similarity_threshold = 0.7
+        self.min_length_threshold = 15
         
     def _split_into_segments(self, content: str) -> List[str]:
         """
@@ -172,13 +167,6 @@ class TrailingPromoFilter(BaseFilter):
             )
         
         try:
-            # 更新动态阈值
-            self.similarity_threshold = threshold_manager.get_threshold(
-                self.name, "similarity"
-            )
-            self.min_length_threshold = threshold_manager.get_threshold(
-                self.name, "min_length"
-            )
             
             # 检查是否有推广样本数据
             cache_stats = promo_vector_manager.get_cache_stats()

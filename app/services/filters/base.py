@@ -110,9 +110,6 @@ class BaseFilter(ABC):
             'avg_processing_time_ms': 0.0
         }
         
-        # 初始化阈值管理器
-        self._threshold_manager = None
-        self._initialize_threshold_manager()
         
     @abstractmethod
     async def filter(self, content: str, context: FilterContext) -> FilterResult:
@@ -271,62 +268,21 @@ class BaseFilter(ABC):
     def __repr__(self) -> str:
         return self.__str__()
     
-    def _initialize_threshold_manager(self):
-        """初始化阈值管理器"""
-        try:
-            from app.core.threshold_manager import threshold_manager
-            self._threshold_manager = threshold_manager
-        except ImportError as e:
-            logger.warning(f"⚠️ 无法导入阈值管理器: {e}")
-            self._threshold_manager = None
     
     def get_threshold(self, metric_name: str, default: float = 0.5) -> float:
         """
-        获取动态阈值
+        获取阈值（从配置或默认值）
         
         Args:
             metric_name: 指标名称
             default: 默认阈值
             
         Returns:
-            float: 当前最优阈值
+            float: 阈值
         """
-        if self._threshold_manager:
-            try:
-                return self._threshold_manager.get_threshold(self.name, metric_name)
-            except Exception as e:
-                logger.debug(f"获取阈值失败: {e}")
-        
-        # Fallback到配置或默认值
         return self.config.get(f'{metric_name}_threshold', default)
     
-    def record_threshold_feedback(self, metric_name: str, predicted_score: float, 
-                                 actual_result: str, threshold_used: float = None):
-        """
-        记录阈值反馈
-        
-        Args:
-            metric_name: 指标名称
-            predicted_score: 预测分数
-            actual_result: 实际结果 ('positive', 'negative')
-            threshold_used: 使用的阈值
-        """
-        if self._threshold_manager:
-            try:
-                self._threshold_manager.record_feedback(
-                    self.name, metric_name, predicted_score, 
-                    actual_result, threshold_used
-                )
-            except Exception as e:
-                logger.debug(f"记录阈值反馈失败: {e}")
     
-    def get_threshold_config(self, metric_name: str) -> Dict:
-        """获取阈值配置信息"""
-        if self._threshold_manager:
-            try:
-                return self._threshold_manager.get_threshold_config(self.name, metric_name)
-            except Exception as e:
-                logger.debug(f"获取阈值配置失败: {e}")
         
         return {}
 
