@@ -59,8 +59,8 @@ class FilterPipeline:
             config: 管道配置
         """
         self.config = config or PipelineConfig()
-        self.filters: List[BaseFilter] = []
-        self.filter_map: Dict[str, BaseFilter] = {}
+        self.filters: List = []  # 支持BaseFilter和独立过滤器类
+        self.filter_map: Dict[str, Any] = {}
         
         # 统计信息
         self._pipeline_stats = {
@@ -75,20 +75,33 @@ class FilterPipeline:
         
         # 性能监控
         self._recent_results = []
+    
+    def _get_filter_name(self, filter_instance) -> str:
+        """获取过滤器名称 - 兼容独立类和BaseFilter类
         
-    def add_filter(self, filter_instance: BaseFilter) -> None:
+        Args:
+            filter_instance: 过滤器实例
+            
+        Returns:
+            str: 过滤器名称（优先使用name属性，否则使用类名）
+        """
+        return getattr(filter_instance, 'name', filter_instance.__class__.__name__)
+        
+    def add_filter(self, filter_instance) -> None:
         """添加过滤器到管道
         
         Args:
             filter_instance: 过滤器实例
         """
-        if filter_instance.name in self.filter_map:
-            logger.warning(f"过滤器 {filter_instance.name} 已存在，将被替换")
+        filter_name = self._get_filter_name(filter_instance)
+        
+        if filter_name in self.filter_map:
+            logger.warning(f"过滤器 {filter_name} 已存在，将被替换")
             
         self.filters.append(filter_instance)
-        self.filter_map[filter_instance.name] = filter_instance
+        self.filter_map[filter_name] = filter_instance
         
-        logger.info(f"添加过滤器: {filter_instance.name} (总数: {len(self.filters)})")
+        logger.info(f"添加过滤器: {filter_name} (总数: {len(self.filters)})")
     
     def remove_filter(self, filter_name: str) -> bool:
         """从管道中移除过滤器
@@ -103,26 +116,26 @@ class FilterPipeline:
             return False
             
         # 从列表中移除
-        self.filters = [f for f in self.filters if f.name != filter_name]
+        self.filters = [f for f in self.filters if self._get_filter_name(f) != filter_name]
         del self.filter_map[filter_name]
         
         logger.info(f"移除过滤器: {filter_name} (剩余: {len(self.filters)})")
         return True
     
-    def get_filter(self, filter_name: str) -> Optional[BaseFilter]:
+    def get_filter(self, filter_name: str) -> Optional[Any]:
         """获取指定的过滤器
         
         Args:
             filter_name: 过滤器名称
             
         Returns:
-            BaseFilter: 过滤器实例，不存在时返回None
+            Any: 过滤器实例（BaseFilter或独立过滤器类），不存在时返回None
         """
         return self.filter_map.get(filter_name)
     
     def list_filters(self) -> List[str]:
         """获取所有过滤器名称列表"""
-        return [f.name for f in self.filters]
+        return [self._get_filter_name(f) for f in self.filters]
     
     async def process(self, content: str, context: FilterContext) -> PipelineResult:
         """处理内容通过整个过滤器管道（带详细性能计时）
@@ -152,14 +165,14 @@ class FilterPipeline:
             
             # 逐个执行过滤器（带详细计时）
             for i, filter_instance in enumerate(self.filters):
-                if not filter_instance.is_enabled():
-                    logger.debug(f"跳过已禁用的过滤器: {filter_instance.name}")
+                if not getattr(filter_instance, 'is_enabled', lambda: True)():
+                    logger.debug(f"跳过已禁用的过滤器: {self._get_filter_name(filter_instance)}")
                     continue
                 
                 # 为每个过滤器创建计时器
                 filter_timer = None
                 if pipeline_timer:
-                    filter_timer = pipeline_timer.add_child(filter_instance.name).start()
+                    filter_timer = pipeline_timer.add_child(self._get_filter_name(filter_instance)).start()
                 
                 filter_start = time.perf_counter()
                 
@@ -179,8 +192,9 @@ class FilterPipeline:
                             filter_timer.set_metric('reason', filter_result.reason)
                     
                     # 记录过滤器结果
-                    pipeline_result.filter_results[filter_instance.name] = filter_result
-                    pipeline_result.applied_filters.append(filter_instance.name)
+                    filter_name = self._get_filter_name(filter_instance)
+                    pipeline_result.filter_results[filter_name] = filter_result
+                    pipeline_result.applied_filters.append(filter_name)
                     
                     # 更新当前内容
                     current_content = filter_result.filtered_content
@@ -190,24 +204,24 @@ class FilterPipeline:
                         pipeline_result.passed = False
                         pipeline_result.overall_reason = filter_result.reason
                         
-                        logger.info(f"内容被过滤器拦截: {filter_instance.name}, "
+                        logger.info(f"内容被过滤器拦截: {self._get_filter_name(filter_instance)}, "
                                    f"reason={filter_result.reason}, "
                                    f"confidence={filter_result.confidence}")
                     
                     # 检查早停条件
                     if (self.config.enable_early_stopping and 
                         filter_result.should_early_stop and
-                        filter_instance.name in self.config.early_stop_filters):
+                        self._get_filter_name(filter_instance) in self.config.early_stop_filters):
                         
-                        pipeline_result.early_stopped_at = filter_instance.name
+                        pipeline_result.early_stopped_at = self._get_filter_name(filter_instance)
                         self._pipeline_stats['early_stopped'] += 1
                         
-                        logger.info(f"管道早停: {filter_instance.name}, "
+                        logger.info(f"管道早停: {self._get_filter_name(filter_instance)}, "
                                    f"reason={filter_result.reason}")
                         break
                         
                 except Exception as e:
-                    error_msg = f"过滤器执行失败: {filter_instance.name}, error={str(e)}"
+                    error_msg = f"过滤器执行失败: {self._get_filter_name(filter_instance)}, error={str(e)}"
                     logger.error(error_msg, exc_info=True)
                     
                     # 记录错误结果
@@ -218,8 +232,9 @@ class FilterPipeline:
                         confidence=0.0,
                         details={'error': str(e), 'error_type': type(e).__name__}
                     )
-                    pipeline_result.filter_results[filter_instance.name] = error_result
-                    pipeline_result.applied_filters.append(filter_instance.name)
+                    filter_name = self._get_filter_name(filter_instance)
+                    pipeline_result.filter_results[filter_name] = error_result
+                    pipeline_result.applied_filters.append(filter_name)
                     
                     self._pipeline_stats['errors'] += 1
                     
@@ -267,7 +282,7 @@ class FilterPipeline:
         try:
             # 预检查
             if not await filter_instance.pre_filter(content, context):
-                logger.debug(f"过滤器预检查跳过: {filter_instance.name}")
+                logger.debug(f"过滤器预检查跳过: {self._get_filter_name(filter_instance)}")
                 return FilterResult(
                     filtered_content=content,
                     passed=True,
@@ -288,7 +303,7 @@ class FilterPipeline:
             # 后处理
             filter_result = await filter_instance.post_filter(filter_result, context)
             
-            logger.debug(f"过滤器执行完成: {filter_instance.name}, "
+            logger.debug(f"过滤器执行完成: {self._get_filter_name(filter_instance)}, "
                         f"passed={filter_result.passed}, "
                         f"time={processing_time_ms:.2f}ms, "
                         f"confidence={filter_result.confidence}")
@@ -296,13 +311,14 @@ class FilterPipeline:
             return filter_result
             
         except asyncio.TimeoutError:
-            error_msg = f"过滤器超时: {filter_instance.name}"
+            filter_name = self._get_filter_name(filter_instance)
+            error_msg = f"过滤器超时: {filter_name}"
             logger.error(error_msg)
-            raise FilterException(filter_instance.name, "执行超时")
+            raise FilterException(filter_name, "执行超时")
             
         except Exception as e:
             processing_time_ms = (time.time() - filter_start_time) * 1000
-            logger.error(f"过滤器执行异常: {filter_instance.name}, "
+            logger.error(f"过滤器执行异常: {self._get_filter_name(filter_instance)}, "
                         f"error={str(e)}, time={processing_time_ms:.2f}ms", 
                         exc_info=True)
             raise
@@ -345,7 +361,8 @@ class FilterPipeline:
         
         # 添加各个过滤器的统计
         for filter_instance in self.filters:
-            stats['filters'][filter_instance.name] = filter_instance.get_stats()
+            filter_name = self._get_filter_name(filter_instance)
+            stats['filters'][filter_name] = getattr(filter_instance, 'get_stats', lambda: {})()
         
         # 计算额外的统计指标
         total = self._pipeline_stats['total_processed']
@@ -398,11 +415,11 @@ class FilterPipeline:
         """获取过滤器链信息"""
         return {
             'total_filters': len(self.filters),
-            'enabled_filters': len([f for f in self.filters if f.is_enabled()]),
+            'enabled_filters': len([f for f in self.filters if getattr(f, 'is_enabled', lambda: True)()]),
             'filter_chain': [
                 {
-                    'name': f.name,
-                    'enabled': f.is_enabled(),
+                    'name': self._get_filter_name(f),
+                    'enabled': getattr(f, 'is_enabled', lambda: True)(),
                     'type': f.__class__.__name__
                 }
                 for f in self.filters
@@ -433,22 +450,27 @@ class FilterPipeline:
         # 验证各个过滤器
         for filter_instance in self.filters:
             try:
-                filter_valid = await filter_instance.validate_config()
-                results['filter_validations'][filter_instance.name] = {
+                validate_method = getattr(filter_instance, 'validate_config', None)
+                if validate_method:
+                    filter_valid = await validate_method()
+                else:
+                    filter_valid = True  # 独立过滤器默认配置有效
+                filter_name = self._get_filter_name(filter_instance)
+                results['filter_validations'][filter_name] = {
                     'valid': filter_valid,
-                    'enabled': filter_instance.is_enabled()
+                    'enabled': getattr(filter_instance, 'is_enabled', lambda: True)()
                 }
                 if not filter_valid:
-                    results['errors'].append(f"过滤器配置无效: {filter_instance.name}")
+                    results['errors'].append(f"过滤器配置无效: {filter_name}")
                     results['valid'] = False
             except Exception as e:
-                results['errors'].append(f"过滤器验证失败: {filter_instance.name}, error={str(e)}")
+                results['errors'].append(f"过滤器验证失败: {self._get_filter_name(filter_instance)}, error={str(e)}")
                 results['valid'] = False
         
         return results
     
     def __str__(self) -> str:
-        enabled_count = len([f for f in self.filters if f.is_enabled()])
+        enabled_count = len([f for f in self.filters if getattr(f, 'is_enabled', lambda: True)()])
         return f"<FilterPipeline(filters={len(self.filters)}, enabled={enabled_count})>"
     
     def __repr__(self) -> str:

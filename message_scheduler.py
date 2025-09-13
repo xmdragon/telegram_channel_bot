@@ -80,10 +80,8 @@ class MessageSchedulerService:
             await settings.load_db_configs()
             
             # 启动消息调度器
-            from app.telegram import bot as bot_module
             scheduler = MessageScheduler()
             scheduler.start()
-            bot_module.message_scheduler = scheduler
             self.message_scheduler = scheduler
             
             
