@@ -78,7 +78,7 @@ class URLConfig:
     
     def get_health_url(self) -> str:
         """获取健康检查URL"""
-        return f"{self._api_url}/api/health"
+        return f"{self._api_url}/system/health"
     
     def get_websocket_url(self) -> str:
         """获取WebSocket URL"""
