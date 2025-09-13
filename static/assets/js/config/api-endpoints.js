@@ -103,6 +103,14 @@ const API_ENDPOINTS = {
         adVectorTestDetection: '/api/training/ad-vectors/test-detection', // POST - 测试关键词检测
         adVectorAddFromText: '/api/training/ad-vectors/add-from-text', // POST - 从文本添加关键词
         adVectorStats: '/api/training/ad-vector-stats',          // GET - 获取关键词统计
+        
+        // 权重关键词管理系统（新）
+        adKeywords: '/api/training/ad-keywords',                  // GET - 获取所有关键词及权重
+        addKeyword: '/api/training/ad-keywords',                  // POST - 添加关键词
+        updateKeyword: (keyword) => `/api/training/ad-keywords/${encodeURIComponent(keyword)}`, // PUT - 更新关键词权重
+        deleteKeyword: (keyword) => `/api/training/ad-keywords/${encodeURIComponent(keyword)}`, // DELETE - 删除关键词
+        updateThreshold: '/api/training/ad-keywords/threshold',   // PUT - 更新检测阈值
+        keywordStats: '/api/training/ad-keywords/stats',          // GET - 获取关键词检测统计
 
         // 尾部过滤样本管理
         tailFilterSamples: '/api/training/tail-filter-samples',  // GET/POST - 获取/添加尾部过滤样本

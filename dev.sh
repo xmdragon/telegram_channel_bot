@@ -233,9 +233,9 @@ if [[ $(type -t create_pid_file) == function ]]; then
     # 设置退出陷阱，确保清理PID文件
     trap 'cleanup_pid_file "dev_supervisor"; kill -TERM $SUPERVISOR_PID 2>/dev/null || true' EXIT INT TERM
     
-    # 等待服务启动完成（最多等待10秒）
+    # 等待服务启动完成（减少等待时间）
     echo "⏳ 等待服务启动..."
-    sleep 3
+    sleep 1
     
     # 检查服务状态
     if kill -0 $SUPERVISOR_PID 2>/dev/null; then

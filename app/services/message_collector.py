@@ -18,6 +18,7 @@ from app.services.simple_tail_filter import filter_tail_content
 from app.services.filters.markdown_filter import MarkdownFilter
 from app.services.filters.separator_filter import SeparatorFilter
 from app.services.filters.base import FilterContext
+from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,12 @@ class LocalMessage:
     status: str = "pending"
     filter_reason: Optional[str] = None
     removed_hidden_links: Optional[List] = None
+    reject_reason: Optional[str] = None
+    
+    # 广告检测字段
+    is_ad: bool = False
+    ad_weight: float = 0.0
+    matched_keywords: Optional[List[str]] = None
     
     # 频道字段
     source_channel: Optional[str] = None
@@ -80,6 +87,7 @@ class ConfigManager:
         self.review_group_id: Optional[str] = None  
         self.history_limit: int = 10
         self.collection_enabled: bool = False
+        self.auto_reject_ads: bool = True  # 是否自动拒绝广告
         self._system_mtime = 0
     
     async def load_config(self):
@@ -94,8 +102,13 @@ class ConfigManager:
             self.history_limit = int(system_config["source.history_limit"]["value"])
             collection_value = system_config.get("collection.enabled", {}).get("value", "false")
             self.collection_enabled = collection_value.lower() == "true" if isinstance(collection_value, str) else bool(collection_value)
+            
+            # 加载自动拒绝广告配置
+            auto_reject_value = system_config.get("review.auto_reject_ads", {}).get("value", "true")
+            self.auto_reject_ads = auto_reject_value.lower() == "true" if isinstance(auto_reject_value, str) else bool(auto_reject_value)
+            
             self._system_mtime = system_mtime
-            logger.info(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}")
+            logger.info(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}, 自动拒绝广告={self.auto_reject_ads}")
     
     async def get_target_channel_id(self) -> Optional[str]:
         """获取目标频道ID"""
@@ -116,6 +129,11 @@ class ConfigManager:
         """获取采集开关配置"""
         await self.load_config()
         return self.collection_enabled
+    
+    async def get_auto_reject_ads(self) -> bool:
+        """获取是否自动拒绝广告配置"""
+        await self.load_config()
+        return self.auto_reject_ads
 
 class ChannelManager:
     """频道管理器 - 专注频道相关功能"""
@@ -210,8 +228,9 @@ class ContentProcessingPipeline:
         """初始化处理管道"""
         self.markdown_filter = MarkdownFilter()
         self.separator_filter = SeparatorFilter()
+        self.keyword_detector = get_weighted_keyword_detector()
     
-    async def process(self, message: LocalMessage) -> LocalMessage:
+    async def process(self, message: LocalMessage, config_manager: Optional[ConfigManager] = None) -> LocalMessage:
         """执行内容过滤处理 - 尾部过滤 → markdown过滤 → 分隔符过滤"""
         try:
             if not message.content:
@@ -256,6 +275,27 @@ class ContentProcessingPipeline:
                 logger.info(f"消息 {message.message_id} 分隔符过滤: 移除了{separator_stats['removed_blocks_count']}个内容块")
             else:
                 logger.debug(f"消息 {message.message_id} 无分隔符内容块需要过滤")
+            
+            # 4. 广告关键词检测（在所有过滤完成后进行）
+            is_ad, total_weight, matched_keywords = self.keyword_detector.detect(current_content)
+            
+            if is_ad:
+                message.is_ad = True
+                message.ad_weight = total_weight
+                message.matched_keywords = matched_keywords[:5]  # 保存前5个关键词
+                filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(matched_keywords[:3])}")
+                logger.info(f"消息 {message.message_id} 检测为广告: 权重={total_weight:.1f}, 关键词={matched_keywords[:3]}")
+                
+                # 根据配置决定是否自动拒绝
+                if config_manager:
+                    try:
+                        auto_reject = await config_manager.get_auto_reject_ads()
+                        if auto_reject:
+                            message.status = "rejected"
+                            message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
+                            logger.info(f"消息 {message.message_id} 被自动拒绝（广告）")
+                    except Exception as e:
+                        logger.error(f"获取自动拒绝配置失败: {e}")
             
             # 更新消息内容
             message.filtered_content = current_content
@@ -531,8 +571,8 @@ class TelegramMessageCollector:
                 logger.warning(f"消息组 {message_group} 获取失败，跳过")
                 continue
             
-            # 3. 处理这个组的消息 - 内容过滤
-            collected_message = await self.content_pipeline.process(collected_message)
+            # 3. 处理这个组的消息 - 内容过滤（包含广告检测）
+            collected_message = await self.content_pipeline.process(collected_message, self.config_manager)
 
             # 4. 保存消息到Redis,更新状态索引和频道索引
             try:
@@ -556,6 +596,10 @@ class TelegramMessageCollector:
                     'status': collected_message.status,
                     'filter_reason': collected_message.filter_reason,
                     'removed_hidden_links': collected_message.removed_hidden_links,
+                    'reject_reason': collected_message.reject_reason,
+                    'is_ad': 'True' if collected_message.is_ad else 'False',
+                    'ad_weight': collected_message.ad_weight,
+                    'matched_keywords': collected_message.matched_keywords,
                     'source_channel': collected_message.source_channel,
                     'source_channel_link_prefix': f"https://t.me/{channel.get('channel_name', '').lstrip('@')}",
                     'source_channel_title': channel.get('channel_title'),

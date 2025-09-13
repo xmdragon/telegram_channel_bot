@@ -12,9 +12,8 @@
         document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/training-common.css?v=' + RESOURCE_VERSION + '">');
-        document.write('<link rel="stylesheet" href="assets/css/training-manager.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
-        document.write('<link rel="stylesheet" href="assets/css/components/pagination.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/keyword-manager.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
@@ -25,244 +24,9 @@
         <div class="container">
             <!-- 子导航 -->
             <training-nav active-tab="ad"></training-nav>
-            <!-- 统计信息栏 -->
-            <div class="stats-section compact">
-                <div class="stats-inline">
-                    <div class="stat-item-inline">
-                        <span class="stat-label">关键词规则数:</span>
-                        <span class="stat-value">{{ stats.totalVectors }}</span>
-                    </div>
-                    <div class="stat-item-inline">
-                        <span class="stat-label">最后更新:</span>
-                        <span class="stat-value">{{ stats.lastUpdate || '未知' }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 操作工具栏 -->
-            <div class="toolbar-section">
-                <div class="toolbar-card">
-                    <div class="toolbar-content">
-                        <!-- 搜索栏 -->
-                        <div class="search-bar">
-                            <div class="search-input-container">
-                                <input 
-                                    type="text" 
-                                    v-model="searchText" 
-                                    placeholder="搜索训练样本..." 
-                                    class="search-input"
-                                    @keyup.enter="searchVectors">
-                                <button class="search-btn" @click="searchVectors" title="搜索">
-                                    🔍
-                                </button>
-                                <button v-if="searchText" class="clear-btn" @click="clearSearch" title="清除">
-                                    ✖️
-                                </button>
-                            </div>
-                        </div>
-                        <!-- 按钮栏 -->
-                        <div class="button-bar">
-                            <button @click="addDialog = true" class="btn btn-success">
-                                ➕ 添加关键词
-                            </button>
-                            <button @click="testDialog = true" class="btn btn-info">
-                                🧪 测试关键词
-                            </button>
-                            <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedVectors.length">
-                                🗑️ 批量删除 ({{ selectedVectors.length }})
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 数据表格 -->
-            <div class="table-section">
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3 class="table-title">🔤 关键词管理</h3>
-                    </div>
-                    <div class="table-content">
-                        <div v-if="loading" class="loading-container">
-                            <div class="loading-spinner"></div>
-                            <div class="loading-text">正在加载数据...</div>
-                        </div>
-                        <div v-else class="table-container">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th class="checkbox-column">
-                                            <input type="checkbox" @change="toggleAllSelection" v-model="allSelected">
-                                        </th>
-                                        <th class="id-column" @click="handleSort('id')">
-                                            消息ID
-                                            <span class="sort-indicator" v-if="sortField === 'id'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                                        </th>
-                                        <th class="content-column">内容预览</th>
-                                        <th class="source-column">标记者</th>
-                                        <th class="time-column" @click="handleSort('created_at')">
-                                            标记时间
-                                            <span class="sort-indicator" v-if="sortField === 'created_at'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                                        </th>
-                                        <th class="action-column">操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="vector in vectors" :key="vector.id" class="table-row">
-                                        <td class="checkbox-cell">
-                                            <input type="checkbox" :value="vector.id" v-model="selectedVectorIds" @change="handleVectorSelect(vector)">
-                                        </td>
-                                        <td class="id-cell">{{ vector.id }}</td>
-                                        <td class="content-cell">
-                                            <div class="content-preview" @click="showDetail(vector)">
-                                                {{ truncateText(vector.content, 100) }}
-                                            </div>
-                                        </td>
-                                        <td class="source-cell">
-                                            <span :class="'tag tag-' + getSourceTypeClass(vector.source)">
-                                                {{ vector.source }}
-                                            </span>
-                                        </td>
-                                        <td class="time-cell">{{ formatTime(vector.created_at) }}</td>
-                                        <td class="action-cell">
-                                            <button class="btn btn-danger btn-small" @click="deleteVector(vector)">
-                                                删除
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <div v-if="!vectors.length" class="empty-state">
-                                <div class="empty-icon">📄</div>
-                                <div class="empty-text">暂无关键词规则</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 分页组件 -->
-                    <pagination-component
-                        :current-page="currentPage"
-                        :total-count="totalCount"
-                        :page-size="pageSize"
-                        mode="full"
-                        @page-change="handlePageChange">
-                    </pagination-component>
-                </div>
-            </div>
-        </div>
-
-        <!-- 详情模态框 -->
-        <div v-if="detailDialog" class="modal-overlay" @click="closeDetailDialog">
-            <div class="modal-content" @click.stop>
-                <div class="modal-header">
-                    <h3>关键词详情</h3>
-                    <button class="modal-close" @click="closeDetailDialog">✖️</button>
-                </div>
-                <div class="modal-body" v-if="currentVector">
-                    <div class="detail-section">
-                        <h4>内容：</h4>
-                        <div class="detail-content">{{ currentVector.content }}</div>
-                    </div>
-                    
-                    
-                    <div class="detail-info">
-                        <div class="detail-grid">
-                            <div class="detail-item">
-                                <label>ID:</label>
-                                <span>{{ currentVector.id }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <label>标记者:</label>
-                                <span :class="'tag tag-' + getSourceTypeClass(currentVector.source)">
-                                    {{ currentVector.source }}
-                                </span>
-                            </div>
-                            <div class="detail-item">
-                                <label>描述:</label>
-                                <span>{{ currentVector.description || '无' }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <label>标记时间:</label>
-                                <span>{{ formatTime(currentVector.created_at) }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline" @click="closeDetailDialog">关闭</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 添加样本对话框 -->
-        <div v-if="addDialog" class="modal-overlay" @click="closeAddDialog">
-            <div class="modal-content" @click.stop>
-                <div class="modal-header">
-                    <h3>添加关键词规则</h3>
-                    <button class="modal-close" @click="closeAddDialog">✖️</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>关键词内容：</label>
-                        <textarea v-model="addContent" class="form-control" rows="6" placeholder="请输入关键词或短语..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>规则来源：</label>
-                        <select v-model="addSource" class="form-control">
-                            <option value="manual">手动添加</option>
-                            <option value="auto">自动检测</option>
-                            <option value="import">导入数据</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline" @click="closeAddDialog">取消</button>
-                    <button class="btn btn-success" @click="addVector" :disabled="addLoading">
-                        {{ addLoading ? '添加中...' : '添加' }}
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 测试检测对话框 -->
-        <div v-if="testDialog" class="modal-overlay" @click="closeTestDialog">
-            <div class="modal-content" @click.stop>
-                <div class="modal-header">
-                    <h3>测试关键词检测</h3>
-                    <button class="modal-close" @click="closeTestDialog">✖️</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>测试内容：</label>
-                        <textarea v-model="testContent" class="form-control" rows="6" placeholder="输入要测试的内容..."></textarea>
-                    </div>
-                    <div v-if="testResult" class="test-result">
-                        <h4>检测结果：</h4>
-                        <div class="result-info">
-                            <div class="result-item">
-                                <label>是否为广告：</label>
-                                <span :class="testResult.is_ad ? 'text-danger' : 'text-success'">
-                                    {{ testResult.is_ad ? '是' : '否' }}
-                                </span>
-                            </div>
-                            <div class="result-item">
-                                <label>置信度：</label>
-                                <span>{{ (testResult.confidence * 100).toFixed(2) }}%</span>
-                            </div>
-                            <div v-if="testResult.details && testResult.details.reason" class="result-item">
-                                <label>检测原因：</label>
-                                <span>{{ testResult.details.reason }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline" @click="closeTestDialog">关闭</button>
-                    <button class="btn btn-info" @click="testDetection" :disabled="testLoading">
-                        {{ testLoading ? '检测中...' : '开始检测' }}
-                    </button>
-                </div>
-            </div>
+            
+            <!-- 关键词管理组件 -->
+            <keyword-manager></keyword-manager>
         </div>
     </div>
 
@@ -276,9 +40,39 @@
         document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
-        document.write('<script src="assets/js/components/pagination.js?v=' + RESOURCE_VERSION + '"><\/script>');
-        document.write('<script src="assets/js/components/ad-training-samples.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/keyword-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
     </script>
-
+    
+    <script>
+        const { createApp } = Vue;
+        
+        const app = createApp({
+            data() {
+                return {};
+            },
+            async mounted() {
+                // 初始化权限检查（不阻塞组件加载）
+                try {
+                    await authManager.initPageAuth('training.view');
+                } catch (error) {
+                    console.error('权限检查失败:', error);
+                    // 继续加载页面，让组件内部处理认证
+                }
+            }
+        });
+        
+        // 注册组件
+        if (window.NavBar) {
+            app.component('nav-bar', window.NavBar);
+        }
+        if (window.TrainingNav) {
+            app.component('training-nav', window.TrainingNav);
+        }
+        if (window.KeywordManager) {
+            app.component('keyword-manager', window.KeywordManager);
+        }
+        
+        app.mount('#app');
+    </script>
 </body>
 </html>

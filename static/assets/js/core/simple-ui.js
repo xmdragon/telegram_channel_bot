@@ -439,11 +439,132 @@ class SimpleMessageBox {
     }
 }
 
-// ============= 3. 全局API注册 =============
+// ============= 3. 加载指示器 =============
+class SimpleLoading {
+    static overlay = null;
+    static isVisible = false;
+    static defaultMessage = '加载中...';
+
+    static show(message = this.defaultMessage) {
+        if (this.isVisible) {
+            // 如果已经显示，只更新消息
+            this.updateMessage(message);
+            return;
+        }
+
+        // 创建遮罩层
+        this.overlay = document.createElement('div');
+        this.overlay.className = 'simple-loading-overlay';
+        this.overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(1px);
+        `;
+
+        // 创建加载内容容器
+        const content = document.createElement('div');
+        content.className = 'simple-loading-content';
+        content.style.cssText = `
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            min-width: 200px;
+        `;
+
+        // 创建旋转器
+        const spinner = document.createElement('div');
+        spinner.className = 'simple-loading-spinner';
+        spinner.style.cssText = `
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e9ecef;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: simple-loading-spin 1s linear infinite;
+        `;
+
+        // 创建文本
+        const text = document.createElement('div');
+        text.className = 'simple-loading-text';
+        text.textContent = message;
+        text.style.cssText = `
+            color: #333;
+            font-size: 14px;
+            white-space: nowrap;
+        `;
+
+        // 添加旋转动画样式
+        if (!document.getElementById('simple-loading-styles')) {
+            const style = document.createElement('style');
+            style.id = 'simple-loading-styles';
+            style.textContent = `
+                @keyframes simple-loading-spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        content.appendChild(spinner);
+        content.appendChild(text);
+        this.overlay.appendChild(content);
+
+        // 添加到页面
+        document.body.appendChild(this.overlay);
+        this.isVisible = true;
+    }
+
+    static hide() {
+        if (!this.isVisible || !this.overlay) {
+            return;
+        }
+
+        // 淡出动画
+        this.overlay.style.opacity = '0';
+        setTimeout(() => {
+            if (this.overlay && this.overlay.parentNode) {
+                this.overlay.parentNode.removeChild(this.overlay);
+            }
+            this.overlay = null;
+            this.isVisible = false;
+        }, 150);
+    }
+
+    static updateMessage(message) {
+        if (!this.isVisible || !this.overlay) {
+            return;
+        }
+
+        const textElement = this.overlay.querySelector('.simple-loading-text');
+        if (textElement) {
+            textElement.textContent = message;
+        }
+    }
+
+    static isShowing() {
+        return this.isVisible;
+    }
+}
+
+// ============= 4. 全局API注册 =============
 window.SimpleUI = {
     Message: SimpleMessage,
     MessageBox: SimpleMessageBox,
-    version: '2.0.0',
+    Loading: SimpleLoading,
+    version: '2.1.0',
     // 便捷方法
     showMessage: (text, type = 'info', duration) => SimpleMessage.show(text, type, duration),
     showConfirm: (message, title, options) => SimpleMessageBox.confirm(message, title, options),

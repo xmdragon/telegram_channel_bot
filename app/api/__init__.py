@@ -23,7 +23,6 @@ from .version import router as version_router
 from .training_base import router as training_base_router
 from .training import router as training_router
 from .telegram_tools import router as telegram_tools_router
-from .training.keyword_management import router as keyword_management_router
 
 api_router = APIRouter()
 
@@ -52,6 +51,5 @@ api_router.include_router(version_router, tags=["version"])
 # 使用重构后的训练路由
 api_router.include_router(training_base_router, tags=["training-base"])
 api_router.include_router(training_router, tags=["training"])
-api_router.include_router(keyword_management_router, tags=["keyword-management"])
 # Telegram工具路由
 api_router.include_router(telegram_tools_router, tags=["telegram-tools"])

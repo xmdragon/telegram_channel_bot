@@ -95,12 +95,12 @@ class ServiceProcess:
             import urllib.request
             import asyncio
             
-            for attempt in range(10):  # 最多等待10秒
+            for attempt in range(6):  # 最多等待3秒
                 try:
                     # 使用asyncio.to_thread来包装同步的urllib.request
                     def check_health():
                         req = urllib.request.Request(url_config.get_health_url())
-                        response = urllib.request.urlopen(req, timeout=1)
+                        response = urllib.request.urlopen(req, timeout=0.5)
                         return response.getcode() == 200
                     
                     if await asyncio.to_thread(check_health):
@@ -108,14 +108,14 @@ class ServiceProcess:
                         return True
                 except:
                     pass
-                await asyncio.sleep(0.5)  # 减少检查间隔
+                await asyncio.sleep(0.2)  # 进一步减少检查间隔
             
             logger.error("❌ Web服务健康检查超时")
             return False
         else:
             # 其他服务只需要检查进程存在
             import asyncio
-            await asyncio.sleep(1)  # 减少非Web服务等待时间
+            await asyncio.sleep(0.3)  # 进一步减少非Web服务等待时间
             return self.process.poll() is None
     
     async def start(self) -> bool:
@@ -331,7 +331,7 @@ class DevSupervisor:
                 config = self.services[service_name].config
                 if config.enabled:
                     await self.start_service(service_name)
-                    await asyncio.sleep(0.2)  # 减少错开启动时间
+                    await asyncio.sleep(0.1)  # 进一步减少错开启动时间
     
     async def stop_all_services(self) -> None:
         """停止所有服务"""

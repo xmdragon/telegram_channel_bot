@@ -43,7 +43,7 @@ const KeywordManager = {
                     <div v-for="item in keywords" 
                          :key="item.keyword" 
                          class="keyword-tag"
-                         :class="getWeightClass(item.weight)"
+                         :class="getWeightClass(item.weight)">
                         <span class="keyword-text">{{ item.keyword }}</span>
                         <input type="number" 
                                class="weight-selector" 
@@ -55,7 +55,7 @@ const KeywordManager = {
                         <button class="delete-btn" 
                                 @click="deleteKeyword(item.keyword)"
                                 title="删除关键词">
-                            <i class="fas fa-trash-alt"></i>
+                            ×
                         </button>
                     </div>
                 </div>
@@ -85,13 +85,30 @@ const KeywordManager = {
         async loadKeywords() {
             this.loading = true;
             try {
-                const response = await axios.get('/api/training/ad-keywords');
+                console.log('正在加载关键词，API端点:', window.API.training.adKeywords);
+                const response = await axios.get(window.API.training.adKeywords);
+                console.log('关键词响应:', response.data);
+                
                 if (response.data.success) {
                     this.keywords = response.data.data.keywords || [];
                     this.threshold = response.data.data.threshold || 3;
+                    console.log('加载成功，关键词数量:', this.keywords.length);
+                } else {
+                    console.error('API返回失败:', response.data);
+                    window.SimpleUI.Message.error('加载关键词失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                window.SimpleUI.Message.error('加载关键词失败: ' + error.message);
+                console.error('加载关键词出错:', error);
+                if (error.response) {
+                    console.error('错误响应:', error.response.data);
+                    if (error.response.status === 401) {
+                        window.SimpleUI.Message.error('未授权，请先登录');
+                    } else {
+                        window.SimpleUI.Message.error('加载关键词失败: ' + (error.response.data.detail || error.message));
+                    }
+                } else {
+                    window.SimpleUI.Message.error('网络错误: ' + error.message);
+                }
             } finally {
                 this.loading = false;
             }
@@ -119,7 +136,7 @@ const KeywordManager = {
             
             this.loading = true;
             try {
-                const response = await axios.post('/api/training/ad-keywords', {
+                const response = await axios.post(window.API.training.addKeyword, {
                     keyword: keyword,
                     weight: parseFloat(this.newWeight)
                 });
@@ -151,7 +168,7 @@ const KeywordManager = {
             this.loading = true;
             try {
                 const response = await axios.put(
-                    `/api/training/ad-keywords/${encodeURIComponent(keyword)}`,
+                    window.API.training.updateKeyword(keyword),
                     { weight: parseFloat(newWeight) }
                 );
                 
@@ -177,7 +194,7 @@ const KeywordManager = {
             this.loading = true;
             try {
                 const response = await axios.delete(
-                    `/api/training/ad-keywords/${encodeURIComponent(keyword)}`
+                    window.API.training.deleteKeyword(keyword)
                 );
                 
                 if (response.data.success) {
@@ -213,7 +230,7 @@ const KeywordManager = {
             this.loading = true;
             try {
                 const response = await axios.put(
-                    '/api/training/ad-keywords/threshold',
+                    window.API.training.updateThreshold,
                     { threshold: this.threshold }
                 );
                 

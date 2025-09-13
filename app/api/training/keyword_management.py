@@ -7,6 +7,7 @@ Created: 2025-09-12
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -20,12 +21,22 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# 认证配置
+security = HTTPBearer()
+
 # 认证依赖
-async def get_current_user(credentials: Optional[str] = None) -> Optional[Dict[str, Any]]:
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> Optional[Dict[str, Any]]:
     """获取当前用户"""
+    if not credentials:
+        return None
+    
     try:
         auth_service = get_auth_service()
-        return await auth_service.get_current_user(credentials)
+        # 传递token而不是整个credentials对象
+        user = await auth_service.get_current_user(credentials.credentials)
+        return user
     except Exception as e:
         logger.error(f"获取当前用户失败: {e}")
         return None
@@ -37,7 +48,7 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
     return user
 
 
-@router.get("/api/training/ad-keywords")
+@router.get("/training/ad-keywords")
 async def get_ad_keywords(
     user: Dict[str, Any] = Depends(require_auth)
 ):
@@ -72,7 +83,7 @@ class AddKeywordRequest(BaseModel):
     keyword: str
     weight: float
 
-@router.post("/api/training/ad-keywords")
+@router.post("/training/ad-keywords")
 async def add_ad_keyword(
     request: AddKeywordRequest,
     user: Dict[str, Any] = Depends(require_auth)
@@ -107,7 +118,7 @@ async def add_ad_keyword(
         raise HTTPException(status_code=500, detail=f"添加关键词失败: {str(e)}")
 
 
-@router.put("/api/training/ad-keywords/{keyword}")
+@router.put("/training/ad-keywords/{keyword}")
 async def update_ad_keyword(
     keyword: str,
     weight: float = Body(..., embed=True),
@@ -140,7 +151,7 @@ async def update_ad_keyword(
         raise HTTPException(status_code=500, detail=f"更新关键词失败: {str(e)}")
 
 
-@router.delete("/api/training/ad-keywords/{keyword}")
+@router.delete("/training/ad-keywords/{keyword}")
 async def delete_ad_keyword(
     keyword: str,
     user: Dict[str, Any] = Depends(require_auth)
@@ -168,7 +179,7 @@ async def delete_ad_keyword(
         raise HTTPException(status_code=500, detail=f"删除关键词失败: {str(e)}")
 
 
-@router.put("/api/training/ad-keywords/threshold")
+@router.put("/training/ad-keywords/threshold")
 async def update_threshold(
     threshold: float = Body(..., embed=True),
     user: Dict[str, Any] = Depends(require_auth)
@@ -199,7 +210,7 @@ async def update_threshold(
         raise HTTPException(status_code=500, detail=f"更新阈值失败: {str(e)}")
 
 
-@router.get("/api/training/ad-keywords/stats")
+@router.get("/training/ad-keywords/stats")
 async def get_keyword_stats(
     user: Dict[str, Any] = Depends(require_auth)
 ):

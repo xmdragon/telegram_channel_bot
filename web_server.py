@@ -11,6 +11,7 @@ warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 import asyncio
 import logging
 import os
+import time
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -319,6 +320,7 @@ async def health_check():
     """获取系统健康状态"""
     from app.services.health_monitor import HealthCheckService
     return await HealthCheckService.get_system_summary()
+
 
 @app.get("/api/health/{service_name}")
 async def service_health_check(service_name: str):
