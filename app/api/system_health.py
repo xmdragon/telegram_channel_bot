@@ -23,12 +23,12 @@ router = APIRouter(tags=["system-health"])
 START_TIME = datetime.now()
 
 def check_message_collector_process() -> bool:
-    """检测message_collector.py进程是否运行"""
+    """检测message_collector.py或telegram_collector.py进程是否运行"""
     try:
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 cmdline = proc.info['cmdline']
-                if cmdline and any('message_collector.py' in str(arg) for arg in cmdline):
+                if cmdline and any(('message_collector.py' in str(arg) or 'telegram_collector.py' in str(arg)) for arg in cmdline):
                     return True
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
@@ -52,30 +52,23 @@ async def get_system_status() -> Dict[str, Any]:
         source_channels = len([ch for ch in all_channels if ch.get('channel_type') == 'source'])
         
         # 检查服务状态（快速）
-        telegram_connected = False
+        # 直接检查进程是否运行
+        telegram_connected = check_message_collector_process()
         web_server_running = True
         scheduler_running = True
         
-        # 快速检查健康监控状态
+        # 检查scheduler进程
         try:
-            import redis
-            from app.core.config import settings
-            r = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True, socket_timeout=2)
-            health_data = r.get('service_health:telegram_collector')
-            if health_data:
-                health_obj = json.loads(health_data)
-                telegram_connected = (
-                    health_obj.get('status') == 'healthy' and
-                    health_obj.get('metadata', {}).get('telegram_authenticated', False)
-                )
-            
-            scheduler_data = r.get('service_health:message_scheduler')
-            if scheduler_data:
-                scheduler_obj = json.loads(scheduler_data)
-                scheduler_running = scheduler_obj.get('status') == 'healthy'
-                
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info['cmdline']
+                    if cmdline and any('message_scheduler.py' in str(arg) for arg in cmdline):
+                        scheduler_running = True
+                        break
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
         except Exception as e:
-            logger.warning(f"健康监控检查失败: {e}")
+            logger.warning(f"检查scheduler进程失败: {e}")
         
         result = {
             "services": {

@@ -152,6 +152,12 @@ const API_ENDPOINTS = {
     system: {
         // 系统健康检查（保留唯一使用的端点）
         health: '/api/health',                                     // GET - 健康检查（主要使用）
+        systemStatus: '/api/system/status',                        // GET - 系统状态
+        detailedStatus: '/api/system/status-detailed',             // GET - 详细系统状态
+        
+        // 服务管理
+        restart: '/api/system/restart',                            // POST - 重启服务
+        reset: '/api/system/reset',                                // POST - 重置系统
         
         // 锁状态管理（保留实际使用的端点）
         lockStatus: '/api/system/lock-status',                     // GET - 获取Telegram锁状态
