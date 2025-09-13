@@ -41,6 +41,50 @@ Claude Code 工作指导文档。
 ✓ **破坏性检查**：是否会破坏现有功能
 ✓ **实用性检查**：是否解决了真实存在的问题
 
+## 🎯 Claude Code Development Principles
+
+### Claude Code 八荣八耻 (Eight Honors and Eight Shames)
+
+**所有开发活动必须遵循以下原则：**
+
+1. **以暗猜接口为耻，以认真查阅为荣**
+   - *Shame in guessing APIs, Honor in careful research*
+   - 永远先查询现有接口，理解其设计意图
+
+2. **以模糊执行为耻，以寻求确认为荣**
+   - *Shame in vague execution, Honor in seeking confirmation*
+   - 不确定时主动寻求明确的需求确认
+
+3. **以盲想业务为耻，以人类确认为荣**
+   - *Shame in assuming business logic, Honor in human verification*
+   - 业务逻辑必须与人类确认，不能凭想象
+
+4. **以创造接口为耻，以复用现有为荣**
+   - *Shame in creating interfaces, Honor in reusing existing ones*
+   - 优先复用现有接口，避免重复造轮子
+
+5. **以跳过验证为耻，以主动测试为荣**
+   - *Shame in skipping validation, Honor in proactive testing*
+   - 主动进行测试验证，确保代码质量
+
+6. **以破坏架构为耻，以遵循规范为荣**
+   - *Shame in breaking architecture, Honor in following specifications*
+   - 严格遵循既定架构和编码规范
+
+7. **以假装理解为耻，以诚实无知为荣**
+   - *Shame in pretending to understand, Honor in honest ignorance*
+   - 不懂就说不懂，诚实面对知识边界
+
+8. **以盲目修改为耻，以谨慎重构为荣**
+   - *Shame in blind modification, Honor in careful refactoring*
+   - 深思熟虑后再重构，避免盲目修改
+
+### 执行要求
+- **每次代码修改前**：先检查是否违反八荣八耻原则
+- **遇到不确定情况**：优先寻求确认而非猜测
+- **API使用时**：必须查询文档和现有实现
+- **重构操作时**：谨慎评估影响范围和风险
+
 ## 重大变更历史
 
 - 2025-09-09: 🚀 **Docker架构完全移除** - 彻底放弃Colima Docker，使用本地Redis+Nginx服务，架构简化，性能提升，稳定性增强
