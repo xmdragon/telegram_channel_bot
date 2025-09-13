@@ -45,6 +45,82 @@ const MessageContentRenderer = {
             return this.message.filtered_content || this.message.content || '';
         },
         
+        // 高亮命中关键词的过滤后内容
+        highlightedFilteredContent() {
+            let content = this.message.filtered_content || '';
+            if (!content || !this.message.hit_keywords || this.message.hit_keywords.length === 0) {
+                return content;
+            }
+            
+            // 转义HTML特殊字符
+            content = this.escapeHtml(content);
+            
+            // 按关键词长度从长到短排序，避免短关键词先匹配
+            const sortedKeywords = [...this.message.hit_keywords].sort((a, b) => 
+                b.keyword.length - a.keyword.length
+            );
+            
+            // 高亮每个关键词
+            for (const item of sortedKeywords) {
+                const keyword = item.keyword;
+                const weight = item.weight || 1.0;
+                
+                // 根据权重选择不同的高亮样式
+                let highlightClass = 'ad-keyword-highlight';
+                if (weight >= 3.0) {
+                    highlightClass += ' high-weight';
+                } else if (weight >= 2.0) {
+                    highlightClass += ' medium-weight';
+                }
+                
+                // 使用正则替换，确保大小写不敏感
+                const regex = new RegExp(this.escapeRegExp(keyword), 'gi');
+                content = content.replace(regex, match => 
+                    `<span class="${highlightClass}" title="权重: ${weight}">${match}</span>`
+                );
+            }
+            
+            return content;
+        },
+        
+        // 高亮命中关键词的原始内容
+        highlightedOriginalContent() {
+            let content = this.message.content || '';
+            if (!content || !this.message.hit_keywords || this.message.hit_keywords.length === 0) {
+                return content;
+            }
+            
+            // 转义HTML特殊字符
+            content = this.escapeHtml(content);
+            
+            // 按关键词长度从长到短排序
+            const sortedKeywords = [...this.message.hit_keywords].sort((a, b) => 
+                b.keyword.length - a.keyword.length
+            );
+            
+            // 高亮每个关键词
+            for (const item of sortedKeywords) {
+                const keyword = item.keyword;
+                const weight = item.weight || 1.0;
+                
+                // 根据权重选择不同的高亮样式
+                let highlightClass = 'ad-keyword-highlight';
+                if (weight >= 3.0) {
+                    highlightClass += ' high-weight';
+                } else if (weight >= 2.0) {
+                    highlightClass += ' medium-weight';
+                }
+                
+                // 使用正则替换
+                const regex = new RegExp(this.escapeRegExp(keyword), 'gi');
+                content = content.replace(regex, match => 
+                    `<span class="${highlightClass}" title="权重: ${weight}">${match}</span>`
+                );
+            }
+            
+            return content;
+        },
+        
         // 🆕 媒体组信息显示
         mediaGroupInfoDisplay() {
             if (!this.message.media_group_info) return null;
@@ -313,6 +389,23 @@ const MessageContentRenderer = {
             return null;
         },
         
+        // HTML转义
+        escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        },
+        
+        // 转义正则特殊字符
+        escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        },
+        
         // 处理图片错误
         handleImageError(message, event) {
             this.$emit('handle-image-error', message, event);
@@ -407,8 +500,8 @@ const MessageContentRenderer = {
                                 </div>
                             </div>
                             
-                            <!-- 过滤后的文本内容 -->
-                            <div v-if="message.filtered_content" class="message-text" v-html="message.filtered_content">
+                            <!-- 过滤后的文本内容（高亮广告关键词） -->
+                            <div v-if="message.filtered_content" class="message-text" v-html="highlightedFilteredContent">
                             </div>
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无过滤后内容
@@ -458,9 +551,8 @@ const MessageContentRenderer = {
                                 </div>
                             </div>
                             
-                            <!-- 原始的文本内容 -->
-                            <div v-if="message.content" class="message-text">
-                                {{ message.content }}
+                            <!-- 原始的文本内容（高亮广告关键词） -->
+                            <div v-if="message.content" class="message-text" v-html="highlightedOriginalContent">
                             </div>
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无原始内容
@@ -506,7 +598,9 @@ const MessageContentRenderer = {
                 <button data-action="rejectMessage" :data-message-id="computedMessageId" class="btn btn-sm btn-danger">
                     ❌ 拒绝
                 </button>
-                <button data-action="markAsAd" :data-message-id="computedMessageId" class="btn btn-sm btn-warning">
+                <button :data-action="message.is_ad ? 'markAsNotAd' : 'markAsAd'" 
+                        :data-message-id="computedMessageId" 
+                        class="btn btn-sm btn-warning">
                     {{ message.is_ad ? '✅ 不是广告' : '🚫 广告' }}
                 </button>
                 <button data-action="trainTail" :data-message-id="computedMessageId" class="btn btn-sm btn-info">

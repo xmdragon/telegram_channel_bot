@@ -316,3 +316,26 @@ body {
 .ad-marking-dialog .btn-add:hover {
     background: #45a049;
 }
+
+/* 广告关键词高亮样式 */
+.ad-keyword-highlight {
+    background-color: #ffeb3b;
+    color: #333;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: bold;
+    border: 1px solid #ffc107;
+    cursor: help;
+}
+
+.ad-keyword-highlight.high-weight {
+    background-color: #ff5252;
+    color: white;
+    border-color: #d32f2f;
+}
+
+.ad-keyword-highlight.medium-weight {
+    background-color: #ff9800;
+    color: white;
+    border-color: #f57c00;
+}

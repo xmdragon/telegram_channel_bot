@@ -48,7 +48,7 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
     return user
 
 
-@router.get("/training/ad-keywords")
+@router.get(ROUTES.training.ad_keywords)
 async def get_ad_keywords(
     user: Dict[str, Any] = Depends(require_auth)
 ):
@@ -83,7 +83,7 @@ class AddKeywordRequest(BaseModel):
     keyword: str
     weight: float
 
-@router.post("/training/ad-keywords")
+@router.post(ROUTES.training.ad_keywords)
 async def add_ad_keyword(
     request: AddKeywordRequest,
     user: Dict[str, Any] = Depends(require_auth)
@@ -118,7 +118,7 @@ async def add_ad_keyword(
         raise HTTPException(status_code=500, detail=f"添加关键词失败: {str(e)}")
 
 
-@router.put("/training/ad-keywords/{keyword}")
+@router.put(ROUTES.training.ad_keywords_by_keyword)
 async def update_ad_keyword(
     keyword: str,
     weight: float = Body(..., embed=True),
@@ -151,7 +151,7 @@ async def update_ad_keyword(
         raise HTTPException(status_code=500, detail=f"更新关键词失败: {str(e)}")
 
 
-@router.delete("/training/ad-keywords/{keyword}")
+@router.delete(ROUTES.training.ad_keywords_by_keyword)
 async def delete_ad_keyword(
     keyword: str,
     user: Dict[str, Any] = Depends(require_auth)
@@ -179,7 +179,7 @@ async def delete_ad_keyword(
         raise HTTPException(status_code=500, detail=f"删除关键词失败: {str(e)}")
 
 
-@router.put("/training/ad-keywords/threshold")
+@router.put(ROUTES.training.ad_keywords_threshold)
 async def update_threshold(
     threshold: float = Body(..., embed=True),
     user: Dict[str, Any] = Depends(require_auth)
@@ -210,7 +210,7 @@ async def update_threshold(
         raise HTTPException(status_code=500, detail=f"更新阈值失败: {str(e)}")
 
 
-@router.get("/training/ad-keywords/stats")
+@router.get(ROUTES.training.ad_keywords_stats)
 async def get_keyword_stats(
     user: Dict[str, Any] = Depends(require_auth)
 ):

@@ -234,6 +234,7 @@ async def mark_not_ad(
 ):
     """
     标记消息为非广告（用于训练）
+    同时对命中的关键词进行降权操作
     """
     try:
         # 解析消息ID
@@ -242,15 +243,62 @@ async def mark_not_ad(
         else:
             raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        # 执行非广告标记
-        success = await message_processor.mark_as_not_ad(channel_id, int(msg_id), user.get('user_id'))
+        # 获取消息数据
+        message = redis_manager.get_message(channel_id, int(msg_id))
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+        
+        # 如果消息有命中的关键词，进行降权
+        if message.get('hit_keywords'):
+            from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
+            detector = get_weighted_keyword_detector()
+            
+            decreased_keywords = []
+            deleted_keywords = []
+            
+            for keyword_info in message.get('hit_keywords', []):
+                keyword = keyword_info.get('keyword')
+                if keyword:
+                    # 使用检测器的降权方法
+                    success = detector.decrease_keyword_weight(keyword)
+                    if success:
+                        # 检查关键词是否仍然存在
+                        current_keywords = detector.get_keywords()
+                        if keyword in current_keywords:
+                            decreased_keywords.append(keyword)
+                        else:
+                            deleted_keywords.append(keyword)
+            
+            logger.info(f"关键词降权: 降低={decreased_keywords}, 删除={deleted_keywords}")
+        
+        # 更新消息状态
+        update_data = {
+            'is_ad': 'False',  # 清除广告标记
+            'ad_weight': 0,
+            'hit_keywords': None,  # 清除命中的关键词
+            'status': 'pending',  # 改为待审核
+            'updated_at': get_current_time().isoformat()
+        }
+        
+        success = redis_manager.update_message(channel_id, int(msg_id), update_data)
         
         if not success:
-            raise HTTPException(status_code=404, detail="消息不存在或标记失败")
+            raise HTTPException(status_code=500, detail="更新消息状态失败")
+        
+        # 更新统计数据
+        from app.storage.linus_stats_store import get_linus_stats_store
+        stats_store = get_linus_stats_store()
+        stats_store.increment_pending()
+        if message.get('status') == 'rejected':
+            stats_store.decrement_rejected()
         
         return {
             "success": True,
-            "message": "消息已标记为非广告",
+            "message": "消息已标记为非广告，关键词已降权",
+            "data": {
+                "decreased_keywords": decreased_keywords if 'decreased_keywords' in locals() else [],
+                "deleted_keywords": deleted_keywords if 'deleted_keywords' in locals() else []
+            },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         

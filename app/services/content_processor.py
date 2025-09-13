@@ -103,9 +103,12 @@ class ContentProcessingPipeline:
                 if is_ad:
                     message.is_ad = True
                     message.ad_weight = total_weight
-                    message.matched_keywords = matched_keywords[:5]  # 保存前5个关键词
-                    filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(matched_keywords[:3])}")
-                    logger.info(f"消息 {message.message_id} 检测为广告: 权重={total_weight:.1f}, 关键词={matched_keywords[:3]}")
+                    message.hit_keywords = matched_keywords[:10]  # 保存前10个命中的关键词及权重
+                    
+                    # 为日志准备关键词名称列表
+                    keyword_names = [item['keyword'] for item in matched_keywords[:3]]
+                    filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(keyword_names)}")
+                    logger.info(f"消息 {message.message_id} 检测为广告: 权重={total_weight:.1f}, 关键词={keyword_names}")
                     
                     # 根据配置决定是否自动拒绝
                     if config_manager:

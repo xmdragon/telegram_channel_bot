@@ -5,7 +5,7 @@ import logging
 import asyncio
 import json
 import time
-from typing import Optional, Dict, List, Any, Tuple
+from typing import Optional, Dict, List, Any, Tuple, Union
 from dataclasses import dataclass
 from datetime import datetime
 from telethon import TelegramClient
@@ -55,7 +55,7 @@ class LocalMessage:
     # 广告检测字段
     is_ad: bool = False
     ad_weight: float = 0.0
-    matched_keywords: Optional[List[str]] = None
+    hit_keywords: Optional[List[Dict[str, Union[str, float]]]] = None  # 命中的关键词及权重
     
     # 频道字段
     source_channel: Optional[str] = None
@@ -518,7 +518,7 @@ class TelegramMessageCollector:
                     'reject_reason': collected_message.reject_reason,
                     'is_ad': 'True' if collected_message.is_ad else 'False',
                     'ad_weight': collected_message.ad_weight,
-                    'matched_keywords': collected_message.matched_keywords,
+                    'hit_keywords': collected_message.hit_keywords,  # 命中的关键词详情
                     'source_channel': collected_message.source_channel,
                     'source_channel_link_prefix': f"https://t.me/{channel.get('channel_name', '').lstrip('@')}",
                     'source_channel_title': channel.get('channel_title'),

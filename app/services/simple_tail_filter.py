@@ -41,7 +41,7 @@ class SimpleTailFilter:
         self._load_regex_rules()
     
     def _load_regex_rules(self):
-        """从样本文件加载正则规则"""
+        """从样本文件加载正则规则（新格式：直接存储规则列表）"""
         try:
             if not self._samples_file.exists():
                 logger.warning(f"样本文件不存在: {self._samples_file}")
@@ -54,24 +54,31 @@ class SimpleTailFilter:
             with open(self._samples_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # 支持简化后的数据结构
-            if 'samples' in data:
+            # 新格式：直接读取rules数组
+            if 'rules' in data:
+                rules = data['rules']
+            # 兼容旧格式
+            elif 'samples' in data:
                 samples = data['samples']
+                # 从样本中收集所有正则规则
+                all_rules = set()
+                for sample in samples:
+                    rules_list = sample.get('rules', [])
+                    if rules_list:
+                        all_rules.update(rules_list)
+                rules = list(all_rules)
+            else:
+                logger.warning("样本文件格式不正确")
+                logger.warning("过滤器将保持未初始化状态，不进行尾部过滤")
+                return
 
-            if not samples:
-                logger.warning("样本文件中没有样本数据")
+            if not rules:
+                logger.warning("样本文件中没有规则数据")
                 logger.warning("过滤器将保持未初始化状态，不进行尾部过滤")
                 return
             
-            # 从样本中收集所有正则规则
-            all_rules = set()
-            for sample in samples:
-                rules = sample.get('rules', [])
-                if rules:
-                    all_rules.update(rules)
-            
             # 编译正则表达式
-            self._compile_regex_rules(list(all_rules))
+            self._compile_regex_rules(rules)
             self.initialized = True
             
             logger.info(f"✅ 简单尾部过滤器初始化成功")

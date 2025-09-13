@@ -99,7 +99,7 @@ class WeightedKeywordDetector:
         except Exception as e:
             logger.warning(f"检查配置更新失败: {e}")
     
-    def detect(self, content: str) -> Tuple[bool, int, List[str]]:
+    def detect(self, content: str) -> Tuple[bool, float, List[Dict[str, Union[str, float]]]]:
         """
         检测内容是否为广告
         
@@ -107,7 +107,8 @@ class WeightedKeywordDetector:
             content: 要检测的内容
             
         Returns:
-            (是否广告, 总权重, 匹配的关键词列表)
+            (是否广告, 总权重, 匹配的关键词详情列表)
+            关键词详情格式: [{"keyword": "xxx", "weight": 1.0}, ...]
         """
         start_time = time.time()
         
@@ -120,21 +121,26 @@ class WeightedKeywordDetector:
         if not content or not self.keywords:
             return False, 0, []
         
-        total_weight = 0
+        total_weight = 0.0
         matched_keywords = []
         
         # 简单的关键词匹配
         for keyword, weight in self.keywords.items():
             if keyword in content:
                 total_weight += weight
-                matched_keywords.append(keyword)
+                matched_keywords.append({
+                    "keyword": keyword,
+                    "weight": weight
+                })
         
         # 判定是否为广告
         is_ad = total_weight >= self.threshold
         
         if is_ad:
             self.stats['ad_detected'] += 1
-            logger.debug(f"检测到广告: 权重={total_weight}, 关键词={matched_keywords[:5]}")
+            # 只记录前5个关键词用于日志
+            keywords_for_log = [item['keyword'] for item in matched_keywords[:5]]
+            logger.debug(f"检测到广告: 权重={total_weight}, 关键词={keywords_for_log}")
         
         # 更新平均检测时间
         detection_time = (time.time() - start_time) * 1000
@@ -237,6 +243,36 @@ class WeightedKeywordDetector:
             return self._save_keywords()
         except Exception as e:
             logger.error(f"设置阈值失败: {e}")
+            return False
+    
+    def decrease_keyword_weight(self, keyword: str) -> bool:
+        """降低关键词权重（用于纠正误判）"""
+        try:
+            # 加载最新配置
+            self.reload_if_needed()
+            
+            if keyword not in self.keywords:
+                logger.warning(f"关键词不存在: {keyword}")
+                return False
+            
+            current_weight = self.keywords[keyword]
+            
+            # 降权逻辑
+            if current_weight > 1.0:
+                # 降低0.5或降到1.0，取较大值
+                new_weight = max(current_weight - 0.5, 1.0)
+                self.keywords[keyword] = new_weight
+                logger.info(f"降低关键词权重: {keyword} {current_weight} -> {new_weight}")
+            else:
+                # 权重为1.0时，删除关键词
+                del self.keywords[keyword]
+                logger.info(f"删除低权重关键词: {keyword}")
+            
+            # 保存到文件
+            return self._save_keywords()
+            
+        except Exception as e:
+            logger.error(f"降低关键词权重失败: {e}")
             return False
     
     def get_stats(self) -> Dict:

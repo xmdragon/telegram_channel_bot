@@ -121,9 +121,27 @@ class RouteConfig:
     class System:
         """系统相关路由"""
         # 健康检查（保留实际使用的端点）
+        status = "/system/status"
+        status_detailed = "/system/status-detailed"
+        health = "/system/health"
         lock_status = "/system/lock-status"
         clear_lock = "/system/clear-lock"
         auto_clear_lock = "/system/auto-clear-lock"
+        
+        # 日志管理
+        logs = "/system/logs"
+        logs_realtime = "/system/logs/realtime"
+        
+        # 服务管理
+        services = "/system/services"
+        service_status = "/system/services/{service_name}/status"
+        service_start = "/system/services/{service_name}/start"
+        service_stop = "/system/services/{service_name}/stop"
+        service_restart = "/system/services/{service_name}/restart"
+        
+        # 维护操作
+        restart = "/system/restart"
+        reset = "/system/reset"
     
     
     class AI:
@@ -141,6 +159,13 @@ class RouteConfig:
         cache_info = "/ai/cache/info"
         cache_preload = "/ai/cache/preload"
     
+    class ChannelResolver:
+        """频道解析路由"""
+        resolve = "/resolve"
+        resolve_all = "/resolve-all"
+        resolve_target = "/resolve-target"
+        resolve_review = "/resolve-review"
+    
     class Training:
         """训练数据管理路由"""
         # 广告向量
@@ -157,6 +182,32 @@ class RouteConfig:
         # 基础训练（保留实际使用的端点）
         mark_ad_message = "/training/mark-ad-message"
         separator_patterns = "/training/separator-patterns"
+        ad_samples = "/training/ad-samples"
+        stats = "/training/stats"
+        channels = "/training/channels"
+        history = "/training/history"
+        submit = "/training/submit"
+        sample_by_id = "/training/{sample_id}"
+        apply = "/training/apply"
+        clear_by_channel = "/training/clear/{channel_id}"
+        export = "/training/export"
+        auto_learn = "/training/auto-learn/{channel_id}"
+        sample_detail = "/training/sample/{sample_id}"
+        reload_model = "/training/reload-model"
+        
+        # 管理功能
+        optimize_storage = "/training/optimize-storage"
+        optimize_storage_sse = "/training/optimize-storage-sse"
+        learning_stats = "/training/learning-stats"
+        emergency_backup = "/training/emergency-backup"
+        integrity_report = "/training/integrity-report"
+        verify_integrity = "/training/verify-integrity"
+        cleanup_backups = "/training/cleanup-backups"
+        backups = "/training/backups"
+        restore = "/training/restore/{backup_filename}"
+        feedback = "/training/feedback"
+        statistics = "/training/statistics"
+        clear = "/training/clear"
         
         
         # 尾部过滤器
@@ -174,11 +225,18 @@ class RouteConfig:
         media_files_by_hash = "/training/media-files/{file_hash}"
         media_files_clean_orphaned = "/training/media-files/clean-orphaned"
         media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
+        media_files_export = "/training/media-files/export"
         
         # 推广链接训练
         promo_samples = "/training/promo-samples"
         promo_samples_by_id = "/training/promo-samples/{sample_id}"
         preview_promo_filter = "/training/preview-promo-filter"
+        
+        # 关键词管理
+        ad_keywords = "/training/ad-keywords"
+        ad_keywords_by_keyword = "/training/ad-keywords/{keyword}"
+        ad_keywords_threshold = "/training/ad-keywords/threshold"
+        ad_keywords_stats = "/training/ad-keywords/stats"
     
     def __init__(self):
         self.messages = self.Messages()
@@ -188,6 +246,7 @@ class RouteConfig:
         self.config = self.Config()
         self.system = self.System()
         self.ai = self.AI()
+        self.channel_resolver = self.ChannelResolver()
         self.training = self.Training()
 
 # 全局路由配置实例

@@ -351,29 +351,52 @@ async def get_tail_filter_history(limit: int = 20):
 
 @router.get(ROUTES.training.tail_filter_samples)
 async def get_tail_filter_samples(page: int = 1, page_size: int = 20):
-    """获取尾部过滤训练样本列表"""
+    """获取尾部过滤规则列表（新格式）"""
     try:
-        samples = load_tail_filter_samples()
+        data = load_tail_filter_samples()
         
-        # 格式化样本数据以匹配前端期望的格式
-        formatted_samples = []
-        for sample in samples:
-            # 原始数据格式兼容处理
-            content = sample.get('content', sample.get('original_message', ''))
-            tail_content = sample.get('tail_part', '')
+        # 新格式处理
+        if 'rules' in data:
+            # 新格式：基于规则的列表
+            rules = data.get('rules', [])
             
-            # 统一使用tail_part字段
-            formatted_samples.append({
-                "id": sample.get('id', ''),
-                "content": content,
-                "tail_part": tail_content,  # 统一使用tail_part字段
-                "separator": sample.get('separator', ''),
-                "normal_part": sample.get('normal_part', ''),
-                "created_at": sample.get('created_at', ''),
-                "channel_id": sample.get('channel_id', 'unknown'),
-                "channel_name": sample.get('channel_name', '历史数据'),
-                "is_applied": sample.get('is_applied', True)  # 历史数据默认已应用
-            })
+            # 将规则转换为前端期望的格式
+            formatted_samples = []
+            for idx, rule in enumerate(rules):
+                formatted_samples.append({
+                    "id": idx + 1,  # 生成临时ID用于显示
+                    "content": rule,  # 规则内容
+                    "tail_part": rule,  # 兼容字段
+                    "separator": "",
+                    "normal_part": "",
+                    "created_at": data.get('updated_at', ''),
+                    "channel_id": "rules",
+                    "channel_name": "正则规则",
+                    "is_applied": True
+                })
+        else:
+            # 旧格式兼容处理
+            samples = data if isinstance(data, list) else data.get('samples', [])
+            
+            # 格式化样本数据以匹配前端期望的格式
+            formatted_samples = []
+            for sample in samples:
+                # 原始数据格式兼容处理
+                content = sample.get('content', sample.get('original_message', ''))
+                tail_content = sample.get('tail_part', '')
+                
+                # 统一使用tail_part字段
+                formatted_samples.append({
+                    "id": sample.get('id', ''),
+                    "content": content,
+                    "tail_part": tail_content,  # 统一使用tail_part字段
+                    "separator": sample.get('separator', ''),
+                    "normal_part": sample.get('normal_part', ''),
+                    "created_at": sample.get('created_at', ''),
+                    "channel_id": sample.get('channel_id', 'unknown'),
+                    "channel_name": sample.get('channel_name', '历史数据'),
+                    "is_applied": sample.get('is_applied', True)  # 历史数据默认已应用
+                })
         
         # 应用分页
         page, page_size = validate_pagination_params(page, page_size)
@@ -400,7 +423,7 @@ async def get_tail_filter_samples(page: int = 1, page_size: int = 20):
 
 @router.post(ROUTES.training.tail_filter_samples)
 async def add_tail_filter_sample(request: dict):
-    """添加尾部过滤训练样本"""
+    """添加尾部过滤训练规则（新格式：基于规则去重）"""
     try:
         # 提取参数
         content = request.get("content", "")
@@ -414,49 +437,82 @@ async def add_tail_filter_sample(request: dict):
         if not content or not tail_part:
             return {"success": False, "message": "内容和尾部内容不能为空"}
         
-        samples = load_tail_filter_samples()
+        # 加载当前数据
+        data = load_tail_filter_samples()
         
-        # 生成新的ID
-        new_id = max([s.get('id', 0) for s in samples], default=0) + 1
-        
-        # 生成正则规则
-        regex_rules = extract_regex_rules_from_tail(tail_part)
-        
-        # 创建新样本（只保留核心字段）
-        new_sample = {
-            "id": new_id,
-            "tail_part": tail_part,
-            "rules": regex_rules,
-            "created_at": datetime.now().isoformat()
-        }
-        
-        # 计算哈希用于重复检查（但不保存到样本）
-        content_hash = hashlib.md5(content.encode()).hexdigest()
-        
-        # 检查重复
-        existing_sample = None
-        for sample in samples:
-            # 兼容旧格式的哈希检查
-            existing_hash = sample.get('content_hash')
-            if not existing_hash and sample.get('content'):
-                # 为历史数据生成哈希
-                existing_hash = hashlib.md5(sample.get('content', '').encode()).hexdigest()
-            # 或者直接比较tail_part
-            if existing_hash == content_hash or sample.get('tail_part') == tail_part:
-                existing_sample = sample
-                break
-        
-        if existing_sample:
-            # 样本已存在，但仍然返回成功，只是不添加重复样本
-            logger.info(f"尾部过滤训练样本已存在，跳过添加: {existing_sample.get('id')}")
-            sample_id = existing_sample.get('id')
+        # 新格式处理：基于规则的存储
+        if 'rules' in data:
+            # 新格式：直接操作rules数组
+            existing_rules = set(data.get('rules', []))
+            
+            # 从tail_part生成新规则
+            new_rules = extract_regex_rules_from_tail(tail_part)
+            
+            # 找出真正新的规则（去重）
+            unique_new_rules = [rule for rule in new_rules if rule not in existing_rules]
+            
+            if unique_new_rules:
+                # 添加新规则到数组
+                data['rules'].extend(unique_new_rules)
+                data['updated_at'] = datetime.now().isoformat()
+                data['total_count'] = len(data['rules'])
+                
+                # 保存更新后的数据
+                if not save_tail_filter_samples(data):
+                    raise HTTPException(status_code=500, detail="保存规则失败")
+                
+                logger.info(f"添加了 {len(unique_new_rules)} 个新规则，跳过了 {len(new_rules) - len(unique_new_rules)} 个重复规则")
+                result_message = f"成功添加 {len(unique_new_rules)} 个新规则"
+            else:
+                logger.info(f"所有 {len(new_rules)} 个规则都已存在，跳过添加")
+                result_message = "所有规则都已存在，未添加新规则"
         else:
-            # 添加新样本
-            samples.append(new_sample)
-            if not save_tail_filter_samples(samples):
-                raise HTTPException(status_code=500, detail="保存样本失败")
-            sample_id = new_id
-            logger.info(f"新尾部过滤训练样本已保存: {sample_id}，生成了 {len(regex_rules)} 个正则规则")
+            # 旧格式兼容处理（基于samples）
+            samples = data if isinstance(data, list) else data.get('samples', [])
+            
+            # 生成新的ID
+            new_id = max([s.get('id', 0) for s in samples], default=0) + 1
+            
+            # 生成正则规则
+            regex_rules = extract_regex_rules_from_tail(tail_part)
+            
+            # 创建新样本（只保留核心字段）
+            new_sample = {
+                "id": new_id,
+                "tail_part": tail_part,
+                "rules": regex_rules,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            # 计算哈希用于重复检查（但不保存到样本）
+            content_hash = hashlib.md5(content.encode()).hexdigest()
+            
+            # 检查重复
+            existing_sample = None
+            for sample in samples:
+                # 兼容旧格式的哈希检查
+                existing_hash = sample.get('content_hash')
+                if not existing_hash and sample.get('content'):
+                    # 为历史数据生成哈希
+                    existing_hash = hashlib.md5(sample.get('content', '').encode()).hexdigest()
+                # 或者直接比较tail_part
+                if existing_hash == content_hash or sample.get('tail_part') == tail_part:
+                    existing_sample = sample
+                    break
+            
+            if existing_sample:
+                # 样本已存在，但仍然返回成功，只是不添加重复样本
+                logger.info(f"尾部过滤训练样本已存在，跳过添加: {existing_sample.get('id')}")
+                result_message = "训练样本已存在，数据保存成功"
+            else:
+                # 添加新样本
+                samples.append(new_sample)
+                # 保存时需要维持旧格式
+                save_data = {"samples": samples} if not isinstance(data, list) else samples
+                if not save_tail_filter_samples(save_data):
+                    raise HTTPException(status_code=500, detail="保存样本失败")
+                logger.info(f"新尾部过滤训练样本已保存: {new_id}，生成了 {len(regex_rules)} 个正则规则")
+                result_message = "训练样本已提交"
         
         # 如果有message_id，直接使用用户编辑的内容更新filtered_content
         if message_id and normal_part:
@@ -465,7 +521,7 @@ async def add_tail_filter_sample(request: dict):
                 from app.storage.redis_manager import redis_manager
                 if not redis_manager.is_healthy():
                     logger.error("Redis不可用，无法更新消息")
-                    return {"success": True, "message": "训练样本已提交，但Redis连接失败，请手动刷新页面", "id": sample_id}
+                    return {"success": True, "message": result_message + "，但Redis连接失败，请手动刷新页面"}
                 
                 # 解析消息ID
                 if ':' in message_id:
@@ -477,30 +533,16 @@ async def add_tail_filter_sample(request: dict):
                     
                     if success:
                         logger.info(f"成功更新消息的filtered_content: {message_id}")
-                        if existing_sample:
-                            return {"success": True, "message": "训练样本已存在，消息内容已更新", "id": sample_id}
-                        else:
-                            return {"success": True, "message": "训练样本已提交并自动应用到消息", "id": sample_id}
+                        return {"success": True, "message": result_message + "，消息内容已更新"}
                     else:
                         logger.warning(f"更新消息内容失败: {message_id}")
-                        if existing_sample:
-                            return {"success": True, "message": "训练样本已存在，但内容更新失败，请手动刷新页面", "id": sample_id}
-                        else:
-                            return {"success": True, "message": "训练样本已提交，但内容更新失败，请手动刷新页面", "id": sample_id}
+                        return {"success": True, "message": result_message + "，但内容更新失败，请手动刷新页面"}
             except Exception as update_error:
                 logger.error(f"更新消息内容失败: {update_error}")
-                if existing_sample:
-                    return {"success": True, "message": "训练样本已存在，但内容更新失败，请手动刷新页面", "id": sample_id}
-                else:
-                    return {"success": True, "message": "训练样本已提交，但内容更新失败，请手动刷新页面", "id": sample_id}
+                return {"success": True, "message": result_message + "，但内容更新失败，请手动刷新页面"}
         
-        # 返回成功，提供适当的消息
-        if existing_sample:
-            logger.info(f"尾部过滤训练样本已存在: ID={sample_id}")
-            return {"success": True, "message": "训练样本已存在，数据保存成功", "id": sample_id}
-        else:
-            logger.info(f"成功添加尾部过滤训练样本: ID={sample_id}")
-            return {"success": True, "message": "训练样本已提交", "id": sample_id}
+        # 返回成功消息
+        return {"success": True, "message": result_message}
             
     except Exception as e:
         raise handle_api_error(e, "添加尾部过滤训练样本")
@@ -580,29 +622,53 @@ async def update_tail_filter_sample(sample_id: int, request: dict):
 
 @router.delete(ROUTES.training.tail_filter_samples_by_id)
 async def delete_tail_filter_sample(sample_id: int):
-    """删除尾部过滤训练样本"""
+    """删除尾部过滤规则（新格式）"""
     try:
-        samples = load_tail_filter_samples()
+        data = load_tail_filter_samples()
         
-        # 查找并删除样本
-        original_count = len(samples)
-        sample_to_delete = None
-        for sample in samples:
-            if sample.get('id') == sample_id:
-                sample_to_delete = sample
-                break
-        
-        if not sample_to_delete:
-            return {"success": False, "message": "训练样本不存在"}
-        
-        samples = [s for s in samples if s.get('id') != sample_id]
-        
-        # 保存更新后的数据
-        if not save_tail_filter_samples(samples):
-            raise HTTPException(status_code=500, detail="保存数据失败")
-        
-        
-        return {"success": True, "message": "删除成功"}
+        # 新格式处理
+        if 'rules' in data:
+            # 新格式：基于规则的删除
+            rules = data.get('rules', [])
+            
+            # sample_id在新格式中是规则的索引+1
+            rule_index = sample_id - 1
+            if 0 <= rule_index < len(rules):
+                deleted_rule = rules.pop(rule_index)
+                data['updated_at'] = datetime.now().isoformat()
+                data['total_count'] = len(rules)
+                
+                # 保存更新后的数据
+                if not save_tail_filter_samples(data):
+                    raise HTTPException(status_code=500, detail="保存数据失败")
+                
+                logger.info(f"删除规则成功: {deleted_rule[:50]}...")
+                return {"success": True, "message": "删除成功"}
+            else:
+                return {"success": False, "message": "规则不存在"}
+        else:
+            # 旧格式兼容处理
+            samples = data if isinstance(data, list) else data.get('samples', [])
+            
+            # 查找并删除样本
+            original_count = len(samples)
+            sample_to_delete = None
+            for sample in samples:
+                if sample.get('id') == sample_id:
+                    sample_to_delete = sample
+                    break
+            
+            if not sample_to_delete:
+                return {"success": False, "message": "训练样本不存在"}
+            
+            samples = [s for s in samples if s.get('id') != sample_id]
+            
+            # 保存更新后的数据
+            save_data = {"samples": samples} if not isinstance(data, list) else samples
+            if not save_tail_filter_samples(save_data):
+                raise HTTPException(status_code=500, detail="保存数据失败")
+            
+            return {"success": True, "message": "删除成功"}
     except Exception as e:
         raise handle_api_error(e, "删除尾部过滤训练样本")
 
