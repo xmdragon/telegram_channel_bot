@@ -260,5 +260,5 @@ if [[ $(type -t create_pid_file) == function ]]; then
     fi
 else
     # 降级为直接启动
-    exec venv/bin/python3 dev_supervisor.py "${SERVICES[@]}"
+    exec venv/bin/python3 dev_supervisor.py ${SERVICES[*]}
 fi
