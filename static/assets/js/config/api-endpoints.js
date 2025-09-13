@@ -251,7 +251,6 @@ const API_ENDPOINTS = {
         config: '/static/config.html',                             // 配置页面
         auth: '/static/telegram-auth.html',                        // Telegram认证页面
         status: '/static/status.html',                             // 状态页面
-        train: '/static/train.html',                               // 训练页面
         login: '/static/login.html',                               // 登录页面
         
         // 训练模块页面

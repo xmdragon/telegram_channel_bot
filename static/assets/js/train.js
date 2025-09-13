@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
             async loadChannels() {
                 try {
                     const response = await axios.get(API.training.channels);
-                    // 处理频道数据但不存储（train.html可能不需要）
+                    // 处理频道数据但不存储
                 } catch (error) {
                     this.showMessage('加载频道列表失败', 'error');
                 }
