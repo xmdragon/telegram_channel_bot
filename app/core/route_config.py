@@ -120,46 +120,11 @@ class RouteConfig:
     
     class System:
         """系统相关路由"""
-        # 健康检查
+        # 健康检查（保留实际使用的端点）
         lock_status = "/system/lock-status"
         clear_lock = "/system/clear-lock"
         auto_clear_lock = "/system/auto-clear-lock"
-        # 其他系统路由
-        status = "/system/status"
-        status_detailed = "/system/status/detailed"
-        health = "/system/health"
-        
-        # 日志管理
-        logs = "/system/logs"
-        logs_realtime = "/system/logs/realtime"
-        
-        # 服务管理
-        services = "/system/services"
-        service_status = "/system/services/{service_name}/status"
-        service_start = "/system/services/{service_name}/start"
-        service_stop = "/system/services/{service_name}/stop"
-        service_restart = "/system/services/{service_name}/restart"
-        
-        # 维护操作
-        restart = "/system/restart"
-        reset = "/system/reset"
-        
-        # 历史消息采集
-        history_progress = "/system/history-collection/progress"
-        history_start = "/system/history-collection/start/{channel_id}"
-        history_stop = "/system/history-collection/stop/{channel_id}"
     
-    class ChannelResolver:
-        """频道解析路由"""
-        resolve = "/resolve"
-        resolve_all = "/resolve-all"
-        resolve_target = "/resolve-target"
-        resolve_review = "/resolve-review"
-    
-    class Lock:
-        """锁管理路由"""
-        status = "/lock/status"
-        force_release = "/lock/force-release"
     
     class AI:
         """AI功能控制路由"""
@@ -189,45 +154,10 @@ class RouteConfig:
         ad_vector_add_from_text = "/training/ad-vectors/add-from-text"
         ad_vector_stats = "/training/ad-vector-stats"
         
-        # 基础训练
+        # 基础训练（保留实际使用的端点）
         mark_ad_message = "/training/mark-ad-message"
-        ad_samples = "/training/ad-samples"
-        channels = "/training/channels"
-        stats = "/training/stats"
-        history = "/training/history"
-        submit = "/training/submit"
-        sample_by_id = "/training/{sample_id}"
-        apply = "/training/apply"
-        clear_by_channel = "/training/clear/{channel_id}"
-        export = "/training/export"
-        auto_learn = "/training/auto-learn/{channel_id}"
-        sample_detail = "/training/sample/{sample_id}"
         separator_patterns = "/training/separator-patterns"
-        reload_model = "/training/reload-model"
         
-        # OCR样本
-        ocr_samples = "/training/ocr-samples"
-        ocr_statistics = "/training/ocr-samples/statistics"
-        ocr_learn = "/training/ocr-samples/learn"
-        ocr_samples_by_id = "/training/ocr-samples/{sample_id}"
-        ocr_export = "/training/ocr-samples/export"
-        ocr_add = "/training/ocr-samples/add"
-        ocr_batch_process = "/training/ocr-samples/batch-process"
-        ocr_confidence_distribution = "/training/ocr-samples/confidence-distribution"
-        
-        # 管理功能
-        optimize_storage = "/training/optimize-storage"
-        optimize_storage_sse = "/training/optimize-storage-sse"
-        learning_stats = "/training/learning-stats"
-        emergency_backup = "/training/emergency-backup"
-        integrity_report = "/training/integrity-report"
-        verify_integrity = "/training/verify-integrity"
-        cleanup_backups = "/training/cleanup-backups"
-        backups = "/training/backups"
-        restore = "/training/restore/{backup_filename}"
-        feedback = "/training/feedback"
-        statistics = "/training/statistics"
-        clear = "/training/clear"
         
         # 尾部过滤器
         tail_filter_statistics = "/training/tail-filter-statistics"
@@ -239,15 +169,11 @@ class RouteConfig:
         tail_filter_rebuild_vectors = "/training/tail-filter-rebuild-vectors"
         
         
-        # 媒体文件
+        # 媒体文件（保留实际使用的端点）
         media_files = "/training/media-files"
-        media_files_clean_orphaned = "/training/media-files/clean-orphaned"
-        media_files_duplicates = "/training/media-files/duplicates"
-        media_files_export = "/training/media-files/export"
-        media_files_deduplicate = "/training/media-files/deduplicate"
-        media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
-        # OCR功能已移除
         media_files_by_hash = "/training/media-files/{file_hash}"
+        media_files_clean_orphaned = "/training/media-files/clean-orphaned"
+        media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
         
         # 推广链接训练
         promo_samples = "/training/promo-samples"
@@ -261,8 +187,6 @@ class RouteConfig:
         self.auth = self.Auth()
         self.config = self.Config()
         self.system = self.System()
-        self.channel_resolver = self.ChannelResolver()
-        self.lock = self.Lock()
         self.ai = self.AI()
         self.training = self.Training()
 

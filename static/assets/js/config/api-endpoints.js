@@ -119,29 +119,13 @@ const API_ENDPOINTS = {
         mediaFilesCleanOrphaned: '/api/training/media-files/clean-orphaned', // POST - 清理孤立文件
         mediaFilesRebuildHashes: '/api/training/media-files/rebuild-visual-hashes', // POST - 重建视觉哈希
 
-        // 其他训练功能
-        channels: '/api/training/channels',                      // GET - 获取频道列表
-        stats: '/api/training/stats',                           // GET - 获取训练统计
-        history: '/api/training/history',                       // GET - 获取训练历史
-        submit: '/api/training/submit',                         // POST - 提交训练数据
-        apply: '/api/training/apply',                           // POST - 应用训练数据
-        sampleById: (id) => `/api/training/sample/${id}`,       // GET - 获取训练样本详情
-        clearChannel: (id) => `/api/training/clear/${id}`,      // DELETE - 清除频道训练数据
-        autoLearn: (id) => `/api/training/auto-learn/${id}`,    // POST - 自动学习频道模式
-        exportData: '/api/training/export',                     // GET - 导出训练数据
-        optimizeStorage: '/api/training/optimize-storage',      // POST - 优化存储空间
-        reloadModel: '/api/training/reload-model',              // POST - 重新加载模型
-        markAdMessage: '/api/training/mark-ad-message',         // POST - 标记消息为广告
-        markAdTest: '/api/training/mark-ad-test',               // POST - 测试标记功能
-        learningStats: '/api/training/learning-stats',         // GET - 获取学习统计
+        // 其他训练功能（保留实际使用的端点）
+        markAdMessage: '/api/training/mark-ad-message',         // POST - 标记消息为广告（实际使用）
         
-        // 额外的训练相关端点
-        tailAdSamples: '/api/training/tail-ad-samples',         // GET/POST - 尾部广告样本
+        // 推广样本管理（保留实际使用的端点）
         promoSamples: '/api/training/promo-samples',            // GET/POST - 推广样本
         promoSampleById: (id) => `/api/training/promo-samples/${id}`, // PUT/DELETE - 更新/删除推广样本
-        previewPromoFilter: '/api/training/preview-promo-filter', // POST - 预览推广过滤器
-        
-        // 阈值管理
+        previewPromoFilter: '/api/training/preview-promo-filter' // POST - 预览推广过滤器
     },
 
     // 配置管理模块 - /api/config
@@ -158,36 +142,13 @@ const API_ENDPOINTS = {
 
     // 系统状态模块 - /api/system
     system: {
-        // 系统健康检查
-        status: '/api/status',                                     // GET - 系统基本状态
-        systemStatus: '/api/system/status',                        // GET - 系统详细状态
-        statusDetailed: '/api/system/status/detailed',             // GET - 系统详细状态信息
-        health: '/api/health',                                     // GET - 简单健康检查
-        systemHealth: '/api/system/health',                        // GET - 详细健康检查
+        // 系统健康检查（保留唯一使用的端点）
+        health: '/api/health',                                     // GET - 健康检查（主要使用）
         
-        // 系统日志管理
-        logs: '/api/system/logs',                                  // GET - 系统日志
-        logsRealtime: '/api/system/logs/realtime',                 // GET - 实时日志更新
-        
-        
-        // 系统维护操作
-        restart: '/api/system/restart',                            // POST - 重启系统服务
-        reset: '/api/system/reset',                                // POST - 重置系统数据
-        
-        // 服务管理
-        services: '/api/system/services',                          // GET - 获取所有服务状态
-        serviceStatus: (serviceName) => `/api/system/services/${serviceName}/status`,   // GET - 获取单个服务状态
-        serviceStart: (serviceName) => `/api/system/services/${serviceName}/start`,     // POST - 启动服务
-        serviceStop: (serviceName) => `/api/system/services/${serviceName}/stop`,       // POST - 停止服务
-        serviceRestart: (serviceName) => `/api/system/services/${serviceName}/restart`, // POST - 重启服务
-        
-        // 锁状态管理
+        // 锁状态管理（保留实际使用的端点）
         lockStatus: '/api/system/lock-status',                     // GET - 获取Telegram锁状态
         clearLock: '/api/system/clear-lock',                       // POST - 清理锁
         autoClearLock: '/api/system/auto-clear-lock',              // POST - 智能清理过期锁
-        
-        // 已废弃或重复的端点（保留向后兼容）
-        clearCache: '/api/system/clear-cache',                     // POST - 清理缓存（已废弃）
     },
 
     // 管理功能模块 - /api/admin
