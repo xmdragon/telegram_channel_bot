@@ -14,7 +14,7 @@ from telethon.tl.types import Message as TLMessage
 from app.core.path_config import PathConfig
 from app.storage.redis_manager import redis_manager
 from app.utils.timezone import get_current_time
-from app.services.content_processor import ContentProcessingPipeline
+from app.services.content_processor import ContentProcessor, LocalMessage as ProcessorLocalMessage
 
 logger = logging.getLogger(__name__)
 
@@ -235,7 +235,7 @@ class TelegramMessageCollector:
         
         # 业务组件
         self.checkpoint_manager = CheckpointManager()
-        self.content_pipeline = ContentProcessingPipeline()
+        self.content_processor = ContentProcessor()
         
         # 初始化标志
         self._initialized = False
@@ -490,7 +490,7 @@ class TelegramMessageCollector:
                 continue
             
             # 3. 处理这个组的消息 - 内容过滤（包含广告检测）
-            collected_message = await self.content_pipeline.process(collected_message, self.config_manager)
+            collected_message = await self.content_processor.process(collected_message, self.config_manager)
 
             # 4. 保存消息到Redis,更新状态索引和频道索引
             try:

@@ -1,88 +1,126 @@
 """
-尾部过滤器 - 极简化版本
-只使用向量过滤，不降级
+尾部过滤器 - 完全独立，所有代码在一个类里
+基于正则规则的直接匹配，无需导入其他文件
 
-Linus哲学：既然向量过滤100%有效，其他都是无用的复杂性
-Author: Claude
-Updated: 2025-09-06
+Author: Claude (Linus式重构)
+Created: 2025-09-13
 """
 
-import time
+import re
+import json
 import logging
-from typing import Dict, Any, Optional
-
-from app.services.filters.base import BaseFilter, FilterResult, FilterContext
-from app.services.simple_tail_filter import filter_tail_content
+from pathlib import Path
+from typing import Tuple, List
+from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
 
 
-class TailFilter(BaseFilter):
-    """极简尾部过滤器
-    
-    只做一件事：调用TailFilterEngine进行向量过滤
-    失败就返回原内容，没有降级，没有复杂逻辑
-    """
-    
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """初始化尾部过滤器"""
-        super().__init__("tail_filter", config)
-        
-        # 简化：不需要复杂的引擎初始化
-        logger.info("✅ 尾部过滤器初始化完成（直接正则模式）")
-    
-    async def filter(self, content: str, context: FilterContext) -> FilterResult:
-        """执行尾部过滤
-        
-        Args:
-            content: 要过滤的内容
-            context: 过滤器上下文
-            
-        Returns:
-            FilterResult: 过滤结果
-        """
-        start_time = time.time()
-        
+class TailFilter:
+    """尾部过滤器 - 基于正则规则的直接匹配"""
+
+    def __init__(self):
+        """初始化并加载规则"""
+        self.regex_rules: List[re.Pattern] = []
+        self.initialized = False
+        self._samples_file = PathConfig.TAIL_FILTER_SAMPLES_FILE
+        self._samples_mtime = 0
+        self._load_rules()
+
+    def _load_rules(self):
+        """从样本文件加载正则规则"""
         try:
-            # 直接调用简单正则过滤器
-            filtered_content, was_filtered, removed_tail, analysis = filter_tail_content(content)
-            
-            # 计算处理时间
-            processing_time = (time.time() - start_time) * 1000
-            
-            # 构建结果
-            result = FilterResult(
-                filtered_content=filtered_content,
-                passed=True,  # 尾部过滤不阻止消息通过
-                processing_time_ms=processing_time,
-                reason="尾部过滤" if was_filtered else "无需尾部过滤",
-                confidence=analysis.get('confidence', 0.0) if analysis else 0.0,
-                should_early_stop=False,
-                details=analysis or {}
-            )
-            
-            # 如果过滤了内容，记录修改信息
-            if was_filtered and removed_tail:
-                result.modifications.append(f"移除尾部内容({len(removed_tail)}字符)")
-                result.details['removed_tail'] = removed_tail
-                result.details['original_length'] = len(content)
-                result.details['filtered_length'] = len(filtered_content)
-                
-                logger.info(f"✅ 尾部过滤成功: {len(content)} -> {len(filtered_content)} 字符")
-            
-            return result
-            
+            if not self._samples_file.exists():
+                logger.warning(f"样本文件不存在: {self._samples_file}")
+                return
+
+            self._samples_mtime = self._samples_file.stat().st_mtime
+
+            with open(self._samples_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # 获取规则
+            rules = data.get('rules', []) or []
+            if not rules and 'samples' in data:
+                # 兼容旧格式
+                all_rules = set()
+                for sample in data['samples']:
+                    if sample.get('rules'):
+                        all_rules.update(sample['rules'])
+                rules = list(all_rules)
+
+            # 编译正则
+            self.regex_rules = []
+            for rule in rules:
+                if not rule:
+                    continue
+                try:
+                    compiled = re.compile(rule, re.IGNORECASE | re.MULTILINE)
+                    self.regex_rules.append(compiled)
+                except re.error as e:
+                    logger.warning(f"正则编译失败 '{rule}': {e}")
+
+            if self.regex_rules:
+                self.initialized = True
+                logger.info(f"加载了 {len(self.regex_rules)} 条尾部过滤规则")
+
         except Exception as e:
-            # 出错就返回原内容，不要让过滤器阻塞消息
-            logger.error(f"❌ 尾部过滤异常: {e}")
-            processing_time = (time.time() - start_time) * 1000
-            
-            return FilterResult(
-                filtered_content=content,
-                passed=True,
-                processing_time_ms=processing_time,
-                reason=f"过滤异常: {str(e)}",
-                confidence=0.0,
-                should_early_stop=False,
-                details={'error': str(e)}
-            )
+            logger.error(f"加载尾部规则失败: {e}")
+
+    def filter(self, content: str) -> Tuple[str, bool, str]:
+        """过滤尾部内容
+
+        Args:
+            content: 输入内容
+
+        Returns:
+            (过滤后内容, 是否过滤, 删除的内容)
+        """
+        # 检查是否需要重新加载
+        if self._samples_file.exists():
+            current_mtime = self._samples_file.stat().st_mtime
+            if current_mtime != self._samples_mtime:
+                logger.info("检测到规则文件更新，重新加载...")
+                self._load_rules()
+
+        # 如果未初始化或内容为空，直接返回
+        if not self.initialized or not content:
+            return content, False, ""
+
+        # 按行分割
+        lines = content.split('\n')
+        if len(lines) <= 1:
+            return content, False, ""
+
+        # 从后向前查找第一个匹配的行
+        matched_idx = -1
+        for i in range(len(lines) - 1, -1, -1):
+            line = lines[i].strip()
+            if not line:
+                continue
+
+            # 检查是否匹配任何规则
+            for rule in self.regex_rules:
+                if rule.search(line):
+                    matched_idx = i
+                    break
+
+            if matched_idx != -1:
+                break
+
+        # 如果找到匹配，删除该行及其后的所有内容
+        if matched_idx != -1:
+            filtered_lines = lines[:matched_idx]
+
+            # 去除末尾空行
+            while filtered_lines and not filtered_lines[-1].strip():
+                filtered_lines.pop()
+
+            filtered = '\n'.join(filtered_lines)
+            removed = '\n'.join(lines[matched_idx:])
+
+            logger.debug(f"尾部过滤: 匹配在第 {matched_idx + 1} 行")
+            return filtered, True, removed
+
+        # 没有匹配
+        return content, False, ""

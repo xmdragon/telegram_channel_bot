@@ -1,19 +1,22 @@
 """
-统一的内容处理管道
-独立模块，避免循环依赖，便于多处复用
+内容处理器 - Linus式极简实现
+统一的内容处理管道，使用独立的过滤器类，无抽象层
+
+Author: Claude (Linus式重构)
+Created: 2025-09-13
 """
+
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
-from datetime import datetime
 import logging
 
-from app.services.simple_tail_filter import filter_tail_content
+from app.services.filters.tail_filter import TailFilter
 from app.services.filters.markdown_filter import MarkdownFilter
 from app.services.filters.separator_filter import SeparatorFilter
-from app.services.filters.base import FilterContext
-from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
+from app.services.filters.ad_detector import AdDetector
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class LocalMessage:
@@ -27,89 +30,90 @@ class LocalMessage:
     reject_reason: Optional[str] = None
     is_ad: bool = False
     ad_weight: float = 0.0
-    matched_keywords: Optional[List[str]] = None
+    hit_keywords: Optional[List[Dict]] = None
     entities: Optional[List] = None
-    
+
     def __post_init__(self):
         if self.filtered_content == "":
             self.filtered_content = self.content
 
 
-class ContentProcessingPipeline:
-    """内容处理管道 - 尾部过滤 + markdown过滤 + 分隔符过滤处理"""
-    
+class ContentProcessor:
+    """内容处理器 - 直接使用独立的过滤器类
+
+    处理流程：
+    1. 尾部过滤 - 删除推广内容
+    2. Markdown过滤 - 删除链接
+    3. 分隔符过滤 - 删除特定内容块
+    4. 广告检测 - 识别广告内容
+
+    无继承，无抽象，直接调用
+    """
+
     def __init__(self):
-        """初始化处理管道"""
+        """初始化处理器，创建所有独立的过滤器实例"""
+        self.tail_filter = TailFilter()
         self.markdown_filter = MarkdownFilter()
         self.separator_filter = SeparatorFilter()
-        self.keyword_detector = get_weighted_keyword_detector()
-    
+        self.ad_detector = AdDetector()
+
+        logger.info("ContentProcessor初始化完成（Linus式架构）")
+
     async def process(self, message: LocalMessage, config_manager: Optional[Any] = None, detect_ad: bool = True) -> LocalMessage:
-        """执行内容过滤处理 - 尾部过滤 → markdown过滤 → 分隔符过滤 → 广告检测
-        
+        """处理消息内容
+
         Args:
             message: 要处理的消息
-            config_manager: 配置管理器，用于获取自动拒绝广告配置
-            detect_ad: 是否进行广告检测，默认为True
+            config_manager: 配置管理器（用于获取自动拒绝广告配置）
+            detect_ad: 是否进行广告检测
+
+        Returns:
+            处理后的消息对象
         """
         try:
             if not message.content:
                 return message
-            
+
             current_content = message.content
             filter_reasons = []
-            
-            # 1. 尾部过滤处理（先处理，删除尾部推广内容）
-            filtered_content, is_filtered, removed_content, analysis = filter_tail_content(current_content)
+
+            # 1. 尾部过滤
+            filtered_content, is_filtered, removed_tail = self.tail_filter.filter(current_content)
             if is_filtered:
                 current_content = filtered_content
-                filter_reasons.append(f"尾部过滤: {analysis.get('reason', '检测到推广内容')}")
+                filter_reasons.append(f"尾部过滤: 删除{len(removed_tail)}字符")
                 logger.info(f"消息 {message.message_id} 尾部过滤: {len(message.content)} -> {len(current_content)} 字符")
-            else:
-                logger.debug(f"消息 {message.message_id} 无尾部内容需要过滤")
-            
-            # 2. markdown过滤处理（后处理，使用原始entities，位置仍准确）
-            if message.entities:
-                # 创建FilterContext
-                context = FilterContext(
-                    message_id=str(message.message_id),
-                    channel_id=message.channel_id
-                )
-                context.add_metadata('entities', message.entities)
-                
-                # 执行markdown过滤
-                markdown_result = await self.markdown_filter.filter(current_content, context)
-                if markdown_result.passed and markdown_result.filtered_content != current_content:
-                    current_content = markdown_result.filtered_content
-                    filter_reasons.append(f"markdown过滤: {markdown_result.reason}")
-                    logger.info(f"消息 {message.message_id} markdown过滤完成，最终: {len(current_content)} 字符")
-                else:
-                    logger.debug(f"消息 {message.message_id} 无markdown链接需要处理")
-            
-            # 3. 分隔符过滤处理（在markdown过滤后执行）
-            separator_result, separator_stats = self.separator_filter.filter_content(current_content)
-            if separator_stats.get('removed_blocks_count', 0) > 0:
-                current_content = separator_result
+
+            # 2. Markdown链接过滤
+            filtered_content, links_removed = self.markdown_filter.filter(current_content, message.entities)
+            if links_removed > 0:
+                current_content = filtered_content
+                filter_reasons.append(f"Markdown过滤: 移除{links_removed}个链接")
+                logger.info(f"消息 {message.message_id} Markdown过滤: 移除{links_removed}个链接")
+
+            # 3. 分隔符过滤
+            filtered_content, separator_stats = self.separator_filter.filter_content(current_content)
+            removed_blocks = separator_stats.get('removed_blocks_count', 0)
+            if removed_blocks > 0:
+                current_content = filtered_content
                 removed_chars = separator_stats.get('original_length', 0) - separator_stats.get('filtered_length', 0)
-                filter_reasons.append(f"分隔符过滤: 移除{separator_stats['removed_blocks_count']}个内容块({removed_chars}字符)")
-                logger.info(f"消息 {message.message_id} 分隔符过滤: 移除了{separator_stats['removed_blocks_count']}个内容块")
-            else:
-                logger.debug(f"消息 {message.message_id} 无分隔符内容块需要过滤")
-            
-            # 4. 广告关键词检测（在所有过滤完成后进行，可选）
+                filter_reasons.append(f"分隔符过滤: 移除{removed_blocks}个块({removed_chars}字符)")
+                logger.info(f"消息 {message.message_id} 分隔符过滤: 移除{removed_blocks}个内容块")
+
+            # 4. 广告检测（可选）
             if detect_ad:
-                is_ad, total_weight, matched_keywords = self.keyword_detector.detect(current_content)
-                
+                is_ad, total_weight, matched_keywords = self.ad_detector.detect(current_content)
+
                 if is_ad:
                     message.is_ad = True
                     message.ad_weight = total_weight
-                    message.hit_keywords = matched_keywords[:10]  # 保存前10个命中的关键词及权重
-                    
-                    # 为日志准备关键词名称列表
+                    message.hit_keywords = matched_keywords[:10]  # 保存前10个关键词
+
+                    # 准备日志
                     keyword_names = [item['keyword'] for item in matched_keywords[:3]]
                     filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(keyword_names)}")
-                    logger.info(f"消息 {message.message_id} 检测为广告: 权重={total_weight:.1f}, 关键词={keyword_names}")
-                    
+                    logger.info(f"消息 {message.message_id} 检测为广告: 权重={total_weight:.1f}")
+
                     # 根据配置决定是否自动拒绝
                     if config_manager:
                         try:
@@ -120,17 +124,14 @@ class ContentProcessingPipeline:
                                 logger.info(f"消息 {message.message_id} 被自动拒绝（广告）")
                         except Exception as e:
                             logger.error(f"获取自动拒绝配置失败: {e}")
-            else:
-                logger.debug(f"消息 {message.message_id} 跳过广告检测")
-            
-            # 更新消息内容
+
+            # 更新消息
             message.filtered_content = current_content
             if filter_reasons:
                 message.filter_reason = "; ".join(filter_reasons)
-            
+
             return message
-            
+
         except Exception as e:
             logger.error(f"内容处理失败 {message.message_id}: {e}")
-            # 处理失败时返回原消息
             return message
