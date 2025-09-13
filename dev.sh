@@ -224,7 +224,7 @@ echo "🎯 启动进程管理器..."
 # 创建PID文件记录
 if [[ $(type -t create_pid_file) == function ]]; then
     # 在后台启动进程管理器，获取PID
-    source venv/bin/activate && python3 dev_supervisor.py "${SERVICES[@]}" &
+    source venv/bin/activate && python3 dev_supervisor.py ${SERVICES[*]} &
     SUPERVISOR_PID=$!
     
     # 创建PID文件

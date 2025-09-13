@@ -20,11 +20,9 @@ class URLConfig:
     def __init__(self):
         # 基础URL配置，支持环境变量覆盖
         self._base_url = os.getenv('BASE_URL', 'http://localhost:8080')
-        self._api_url = os.getenv('API_URL', f'http://localhost:{settings.WEB_PORT}')
         
         # 确保URL末尾没有斜杠
         self._base_url = self._base_url.rstrip('/')
-        self._api_url = self._api_url.rstrip('/')
     
     @property
     def base_url(self) -> str:
@@ -33,8 +31,9 @@ class URLConfig:
     
     @property
     def api_url(self) -> str:
-        """获取后端API URL (FastAPI)"""
-        return self._api_url
+        """获取后端API URL (FastAPI) - 动态读取环境变量"""
+        api_url = os.getenv('API_URL', f'http://localhost:{settings.WEB_PORT}')
+        return api_url.rstrip('/')
     
     # 静态页面URL生成方法
     def get_static_url(self, path: str) -> str:
@@ -72,18 +71,19 @@ class URLConfig:
     
     # API URL生成方法
     def get_api_url(self, path: str) -> str:
-        """生成API URL"""
+        """生成API URL - 动态生成"""
         path = path.lstrip('/')
-        return f"{self._api_url}/api/{path}"
+        return f"{self.api_url}/api/{path}"
     
     def get_health_url(self) -> str:
-        """获取健康检查URL"""
-        return f"{self._api_url}/system/health"
+        """获取健康检查URL - 动态生成"""
+        return f"{self.api_url}/api/health"
     
     def get_websocket_url(self) -> str:
-        """获取WebSocket URL"""
-        ws_scheme = 'ws' if self._api_url.startswith('http://') else 'wss'
-        host_port = self._api_url.replace('http://', '').replace('https://', '')
+        """获取WebSocket URL - 动态生成"""
+        api_url = self.api_url
+        ws_scheme = 'ws' if api_url.startswith('http://') else 'wss'
+        host_port = api_url.replace('http://', '').replace('https://', '')
         return f"{ws_scheme}://{host_port}/ws"
     
     # 媒体文件URL生成方法

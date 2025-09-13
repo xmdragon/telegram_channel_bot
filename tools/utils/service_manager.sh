@@ -258,13 +258,37 @@ restart_nginx() {
     esac
 }
 
-# 检查Nginx状态
+# 检查Nginx状态 - 带重试机制，使用动态端口
 check_nginx_status() {
-    if curl -s http://localhost:8080/static/favicon.svg &>/dev/null; then
-        return 0
-    else
-        return 1
-    fi
+    local max_retries=3
+    local retry_delay=1
+    local nginx_port=${NGINX_PORT:-8080}
+    local test_url="http://localhost:${nginx_port}/static/favicon.svg"
+    
+    for ((i=1; i<=max_retries; i++)); do
+        if curl -s --connect-timeout 2 --max-time 5 "$test_url" &>/dev/null; then
+            return 0
+        fi
+        
+        if [ $i -lt $max_retries ]; then
+            sleep $retry_delay
+        fi
+    done
+    
+    # 最后一次检查失败，输出调试信息
+    echo "🔍 Nginx检查调试信息："
+    echo "   - 尝试次数: $max_retries"
+    echo "   - 检查URL: $test_url"
+    echo "   - Nginx端口: $nginx_port"
+    
+    # 检查Nginx服务状态
+    case $SYSTEM_TYPE in
+        macos)
+            echo "   - Nginx服务状态: $(brew services list | grep nginx || echo 'Unknown')"
+            ;;
+    esac
+    
+    return 1
 }
 
 # 获取Nginx服务状态
@@ -295,6 +319,10 @@ start_all_services() {
     [ "$verbose" = true ] && echo "🚀 启动所有服务..."
     start_redis "$verbose"
     start_nginx "$verbose"
+    
+    # 等待服务完全启动
+    [ "$verbose" = true ] && echo "⏳ 等待服务启动完成..."
+    sleep 2
     
     # 验证服务状态
     [ "$verbose" = true ] && echo "🔧 验证服务状态..."

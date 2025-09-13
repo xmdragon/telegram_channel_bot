@@ -95,12 +95,12 @@ class ServiceProcess:
             import urllib.request
             import asyncio
             
-            for attempt in range(6):  # 最多等待3秒
+            for attempt in range(12):  # 最多等待12次，每次间隔1秒 = 12秒
                 try:
                     # 使用asyncio.to_thread来包装同步的urllib.request
                     def check_health():
                         req = urllib.request.Request(url_config.get_health_url())
-                        response = urllib.request.urlopen(req, timeout=0.5)
+                        response = urllib.request.urlopen(req, timeout=2.0)  # 增加单次请求超时
                         return response.getcode() == 200
                     
                     if await asyncio.to_thread(check_health):
@@ -108,7 +108,7 @@ class ServiceProcess:
                         return True
                 except:
                     pass
-                await asyncio.sleep(0.2)  # 进一步减少检查间隔
+                await asyncio.sleep(1.0)  # 增加检查间隔，给Web服务更多启动时间
             
             logger.error("❌ Web服务健康检查超时")
             return False
@@ -293,18 +293,35 @@ class DevSupervisor:
         return False
     
     async def start_all_services(self, service_names: List[str] = None) -> None:
-        """启动所有服务或指定服务"""
+        """启动所有服务或指定服务 - Web服务最后启动"""
         if service_names is None:
             service_names = list(self.services.keys())
-            
-        logger.info(f"启动服务: {', '.join(service_names)}")
+        
+        # 重新排序：先启动非Web服务，Web服务放最后
+        ordered_services = []
+        web_services = []
         
         for service_name in service_names:
+            if service_name == "web":
+                web_services.append(service_name)
+            else:
+                ordered_services.append(service_name)
+        
+        # Web服务放最后
+        ordered_services.extend(web_services)
+        
+        logger.info(f"启动服务: {', '.join(ordered_services)}")
+        
+        for service_name in ordered_services:
             if service_name in self.services:
                 config = self.services[service_name].config
                 if config.enabled:
                     await self.start_service(service_name)
-                    await asyncio.sleep(0.1)  # 进一步减少错开启动时间
+                    # Web服务启动前多等待一些时间
+                    if service_name == "web":
+                        await asyncio.sleep(1.0)  # Web服务启动前额外等待
+                    else:
+                        await asyncio.sleep(0.1)
     
     async def stop_all_services(self) -> None:
         """停止所有服务"""
