@@ -79,12 +79,7 @@ async def filter_message_content(
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 前端手动过滤时，必须基于当前显示的内容（filtered_content）
-        original_content = msg_data.get('filtered_content') or msg_data.get('content')
-        
-        # 🚀 Linus式修复：移除媒体组标记干扰，让过滤器专注于实际内容
-        if '[📎 媒体组' in original_content:
-            media_tag_start = original_content.find('[📎 媒体组')
-            original_content = original_content[:media_tag_start].rstrip()
+        original_content = msg_data.get('filtered_content')
         
         if not original_content:
             return {
@@ -92,55 +87,25 @@ async def filter_message_content(
                 "message": "消息没有内容可以过滤"
             }
         
-        # 🚀 Linus式解决方案：使用统一过滤引擎（受过滤器开关控制）
-        from app.services.unified_filter_engine import unified_filter_engine
-        from app.services.filters.base import FilterContext
-        from app.services.filters.filter_pipeline import FilterPipeline, PipelineConfig
-        from app.services.filters.tail_filter import TailFilter
-        from app.services.filters.footer_promo_filter import FooterPromoFilter
-        from app.services.filters.markdown_filter import MarkdownFilter
-        from app.services.filters.trailing_promo_filter import TrailingPromoFilter
+        # 使用新的ContentProcessingPipeline，不进行广告检测
+        from app.services.content_processor import ContentProcessingPipeline, LocalMessage
         
-        # 创建内容过滤专用的轻量级管道（受系统配置控制）
-        # 获取当前过滤器配置
-        filter_settings = unified_filter_engine._load_filter_settings()
+        # 创建处理管道
+        pipeline = ContentProcessingPipeline()
         
-        pipeline = FilterPipeline(PipelineConfig(enable_early_stopping=False))
-        
-        # 🚀 统一过滤器顺序：与UnifiedFilterEngine保持完全一致
-        # 只添加内容清理类过滤器（1-4），不包含检测类过滤器（5-7）
-        if filter_settings.get('tail_filter', True):
-            pipeline.add_filter(TailFilter())           # 1. 尾部过滤
-            
-        if filter_settings.get('footer_promo_filter', True):
-            pipeline.add_filter(FooterPromoFilter())    # 2. 尾部推广链接过滤器
-            
-        if filter_settings.get('promo_vector_filter', True):
-            pipeline.add_filter(TrailingPromoFilter())    # 3. 尾部推广内容过滤（与统一引擎顺序一致）
-            
-        if filter_settings.get('markdown_filter', True):
-            pipeline.add_filter(MarkdownFilter())       # 4. Markdown格式清理
-        
-        # 记录启用的过滤器（按实际执行顺序）
-        enabled_filters = [name for name in ['tail_filter', 'footer_promo_filter', 'promo_vector_filter', 'markdown_filter'] 
-                          if filter_settings.get(name, True)]
-        logger.info(f"手动内容过滤启用的过滤器: {enabled_filters}")
-        
-        # 创建过滤上下文
-        filter_context = FilterContext(
-            message_id=f"{channel_id}:{msg_id}",
-            channel_id=channel_id
+        # 创建LocalMessage对象
+        local_message = LocalMessage(
+            message_id=int(msg_id),
+            channel_id=channel_id,
+            content=original_content,
+            filtered_content=original_content,
+            entities=msg_data.get('entities')
         )
         
-        # 添加元数据
-        has_media = msg_data.get('media_type') in ['photo', 'video', 'document']
-        # is_history已移除：统一处理，不区分历史/实时
-        filter_context.add_metadata('has_media', has_media)
-        filter_context.add_metadata('message_obj', msg_data)
+        # 执行过滤，不进行广告检测（detect_ad=False）
+        processed_message = await pipeline.process(local_message, detect_ad=False)
         
-        # 执行过滤管道
-        pipeline_result = await pipeline.process(original_content, filter_context)
-        filtered_content = pipeline_result.final_content
+        filtered_content = processed_message.filtered_content
         
         # 简单的调试日志
         removed_length = len(original_content) - len(filtered_content)
@@ -174,9 +139,9 @@ async def filter_message_content(
                 "filtered_content": filtered_content,
                 "has_tail": content_changed,
                 "removed_tail": original_content[len(filtered_content):] if removed_length > 0 else "",
-                "filter_details": pipeline_result.filter_results
+                "filter_reason": processed_message.filter_reason
             },
-            "message": f"内容过滤已执行，应用了 {len(pipeline_result.applied_filters)} 个过滤器" if content_changed else "内容无需过滤",
+            "message": f"内容过滤已执行: {processed_message.filter_reason}" if content_changed else "内容无需过滤",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         

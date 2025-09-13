@@ -10,6 +10,33 @@
 // 确保全局依赖可用
 let createApp;
 
+// 安全的Loading包装器 - 防止undefined错误
+const SafeLoading = {
+    show(message) {
+        if (window.SimpleUI?.Loading?.show) {
+            window.SimpleUI.Loading.show(message);
+        } else {
+            // 创建临时加载提示
+            const tempLoading = document.createElement('div');
+            tempLoading.id = 'temp-loading-indicator';
+            tempLoading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999';
+            tempLoading.textContent = message || '加载中...';
+            document.body.appendChild(tempLoading);
+        }
+    },
+    hide() {
+        if (window.SimpleUI?.Loading?.hide) {
+            window.SimpleUI.Loading.hide();
+        } else {
+            // 移除临时加载提示
+            const tempLoading = document.getElementById('temp-loading-indicator');
+            if (tempLoading) {
+                tempLoading.remove();
+            }
+        }
+    }
+};
+
 // 延迟初始化函数
 function initializeGlobals() {
     if (!createApp) {
@@ -19,6 +46,7 @@ function initializeGlobals() {
             createApp = Vue.createApp;
         }
     }
+    
 }
 
 // 主应用协调器 - 纯协调层，不包含具体业务逻辑
@@ -2102,14 +2130,40 @@ const MainApp = {
             
             try {
                 // 第一步：提取关键词
-                window.SimpleUI.Loading.show('正在提取广告关键词...');
+                // 安全检查：确保Loading组件可用
+                if (window.SimpleUI && window.SimpleUI.Loading && typeof window.SimpleUI.Loading.show === 'function') {
+
+                    window.SimpleUI.Loading.show('正在提取广告关键词...');
+                } else {
+                    // 可选：显示一个简单的加载提示
+                    const tempLoading = document.createElement('div');
+                    tempLoading.id = 'temp-loading-indicator';
+                    tempLoading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999';
+                    tempLoading.textContent = '正在提取广告关键词...';
+                    document.body.appendChild(tempLoading);
+                }
+                
                 const extractResponse = await axios.post(
                     window.API.messages.extractAdKeywords(this.ensureChannelIdPrefix(searchId))
                 );
-                window.SimpleUI.Loading.hide();
                 
+                // 隐藏加载提示
+                if (window.SimpleUI && window.SimpleUI.Loading && typeof window.SimpleUI.Loading.hide === 'function') {
+                    window.SimpleUI.Loading.hide();
+                } else {
+                    // 移除临时加载提示
+                    const tempLoading = document.getElementById('temp-loading-indicator');
+                    if (tempLoading) {
+                        tempLoading.remove();
+                    }
+                }
+
                 if (!extractResponse.data.success) {
-                    window.SimpleUI.Message.error('提取关键词失败');
+                    if (window.SimpleUI && window.SimpleUI.Message) {
+                        window.SimpleUI.Message.error('提取关键词失败');
+                    } else {
+                        alert('提取关键词失败');
+                    }
                     return;
                 }
                 
@@ -2119,8 +2173,24 @@ const MainApp = {
                 this.showAdMarkingDialog(message, extractedKeywords);
                 
             } catch (error) {
-                window.SimpleUI.Loading.hide();
-                window.SimpleUI.Message.error('操作失败: ' + (error.response?.data?.detail || error.message));
+                // 隐藏加载提示
+                if (window.SimpleUI && window.SimpleUI.Loading && typeof window.SimpleUI.Loading.hide === 'function') {
+                    window.SimpleUI.Loading.hide();
+                } else {
+                    // 移除临时加载提示
+                    const tempLoading = document.getElementById('temp-loading-indicator');
+                    if (tempLoading) {
+                        tempLoading.remove();
+                    }
+                }
+                
+                // 显示错误消息
+                const errorMsg = '操作失败: ' + (error.response?.data?.detail || error.message);
+                if (window.SimpleUI && window.SimpleUI.Message) {
+                    window.SimpleUI.Message.error(errorMsg);
+                } else {
+                    alert(errorMsg);
+                }
             }
         },
         
@@ -2135,46 +2205,96 @@ const MainApp = {
                     </div>
                     
                     <div class="keywords-section">
-                        <h4>识别的广告关键词</h4>
+                        <h4>识别到的新广告关键词</h4>
                         <div class="keywords-list" id="keywords-list">
                             ${extractedKeywords.length > 0 ? 
                                 extractedKeywords.map((item, index) => `
-                                    <div class="keyword-item">
-                                        <span class="keyword-text">${this.escapeHtml(item.keyword)}</span>
-                                        <select class="keyword-weight" data-keyword="${this.escapeHtml(item.keyword)}">
-                                            <option value="1" ${item.weight === 1 ? 'selected' : ''}>权重: 1</option>
-                                            <option value="2" ${item.weight === 2 ? 'selected' : ''}>权重: 2</option>
-                                            <option value="3" ${item.weight === 3 ? 'selected' : ''}>权重: 3</option>
-                                        </select>
+                                    <div class="keyword-item" data-keyword-id="keyword-${index}" style="display:flex;align-items:center;margin-bottom:8px;padding:8px;background:#f5f7fa;border-radius:4px">
+                                        <input type="text" 
+                                               class="keyword-text" 
+                                               value="${this.escapeHtml(item.keyword)}"
+                                               style="flex:1;margin-right:10px;padding:6px;border:1px solid #dcdfe6;border-radius:4px;background:white">
+                                        <input type="number" 
+                                               class="keyword-weight" 
+                                               value="${item.weight || 1.0}"
+                                               min="1.0"
+                                               max="10.0"
+                                               step="0.1"
+                                               style="width:60px;padding:6px;border:1px solid #dcdfe6;border-radius:4px;margin-right:10px">
+                                        <button onclick="app.removeKeywordFromList('keyword-${index}')" 
+                                                style="background:#f56c6c;color:white;border:none;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:14px"
+                                                onmouseover="this.style.background='#f78989'"
+                                                onmouseout="this.style.background='#f56c6c'">×</button>
                                     </div>
                                 `).join('') : 
                                 '<p class="no-keywords">未识别到新的广告关键词</p>'
                             }
                         </div>
                         
-                        <div class="add-keyword-section">
-                            <input type="text" id="new-keyword-input" placeholder="手动添加关键词">
-                            <select id="new-keyword-weight">
-                                <option value="1">权重: 1</option>
-                                <option value="2">权重: 2</option>
-                                <option value="3">权重: 3</option>
-                            </select>
-                            <button onclick="app.addKeywordToList()" class="btn-add">添加</button>
+                        <div class="add-keyword-section" style="margin-top:15px;padding-top:15px;border-top:1px solid #e4e7ed">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <input type="text" 
+                                       id="new-keyword-input" 
+                                       placeholder="手动添加关键词"
+                                       style="flex:1;padding:8px;border:1px solid #dcdfe6;border-radius:4px">
+                                <input type="number" 
+                                       id="new-keyword-weight"
+                                       value="1.0"
+                                       min="1.0"
+                                       max="10.0"
+                                       step="0.1"
+                                       placeholder="权重"
+                                       style="width:80px;padding:8px;border:1px solid #dcdfe6;border-radius:4px">
+                                <button onclick="app.addKeywordToList()" 
+                                        class="btn-add"
+                                        style="padding:8px 16px;background:#67c23a;color:white;border:none;border-radius:4px;cursor:pointer">添加</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
             
-            // 显示弹窗
-            window.SimpleUI.Dialog.show({
-                title: '标记为广告',
-                content: dialogHtml,
-                confirmText: '确认标记',
-                cancelText: '取消',
-                onConfirm: () => {
-                    this.submitAdMarking(message.id);
+            // 创建自定义对话框
+            const dialog = document.createElement('div');
+            dialog.className = 'simple-dialog-overlay';
+            dialog.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+            
+            const dialogBox = document.createElement('div');
+            dialogBox.className = 'simple-dialog-box';
+            dialogBox.style.cssText = 'background:white;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,0.2)';
+            
+            dialogBox.innerHTML = `
+                <div style="padding:20px;border-bottom:1px solid #e4e7ed">
+                    <h3 style="margin:0;font-size:18px">标记为广告</h3>
+                </div>
+                <div style="padding:20px">
+                    ${dialogHtml}
+                </div>
+                <div style="padding:20px;border-top:1px solid #e4e7ed;text-align:right">
+                    <button id="dialog-cancel" style="margin-right:10px;padding:8px 20px;border:1px solid #dcdfe6;background:white;border-radius:4px;cursor:pointer">取消</button>
+                    <button id="dialog-confirm" style="padding:8px 20px;background:#409eff;color:white;border:none;border-radius:4px;cursor:pointer">确认标记</button>
+                </div>
+            `;
+            
+            dialog.appendChild(dialogBox);
+            document.body.appendChild(dialog);
+            
+            // 绑定事件
+            document.getElementById('dialog-cancel').onclick = () => {
+                document.body.removeChild(dialog);
+            };
+            
+            document.getElementById('dialog-confirm').onclick = () => {
+                document.body.removeChild(dialog);
+                this.submitAdMarking(message.id);
+            };
+            
+            // 点击遮罩关闭
+            dialog.onclick = (e) => {
+                if (e.target === dialog) {
+                    document.body.removeChild(dialog);
                 }
-            });
+            };
         },
         
         // 添加关键词到列表
@@ -2191,7 +2311,7 @@ const MainApp = {
             // 检查是否已存在
             const existingItems = document.querySelectorAll('.keyword-item .keyword-text');
             for (let item of existingItems) {
-                if (item.textContent === keyword) {
+                if (item.value === keyword) {
                     window.SimpleUI.Message.warning('关键词已存在');
                     return;
                 }
@@ -2204,21 +2324,51 @@ const MainApp = {
                 noKeywordsMsg.remove();
             }
             
+            // 生成唯一ID
+            const itemId = 'keyword-manual-' + Date.now();
+            
             const newItem = document.createElement('div');
             newItem.className = 'keyword-item';
+            newItem.setAttribute('data-keyword-id', itemId);
+            newItem.style.cssText = 'display:flex;align-items:center;margin-bottom:8px;padding:8px;background:#f5f7fa;border-radius:4px';
             newItem.innerHTML = `
-                <span class="keyword-text">${this.escapeHtml(keyword)}</span>
-                <select class="keyword-weight" data-keyword="${this.escapeHtml(keyword)}">
-                    <option value="1" ${weight === '1' ? 'selected' : ''}>权重: 1</option>
-                    <option value="2" ${weight === '2' ? 'selected' : ''}>权重: 2</option>
-                    <option value="3" ${weight === '3' ? 'selected' : ''}>权重: 3</option>
-                </select>
+                <input type="text" 
+                       class="keyword-text" 
+                       value="${this.escapeHtml(keyword)}"
+                       style="flex:1;margin-right:10px;padding:6px;border:1px solid #dcdfe6;border-radius:4px;background:white">
+                <input type="number" 
+                       class="keyword-weight" 
+                       value="${parseFloat(weight) || 1.0}"
+                       min="1.0"
+                       max="10.0"
+                       step="0.1"
+                       style="width:60px;padding:6px;border:1px solid #dcdfe6;border-radius:4px;margin-right:10px">
+                <button onclick="app.removeKeywordFromList('${itemId}')" 
+                        style="background:#f56c6c;color:white;border:none;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:14px"
+                        onmouseover="this.style.background='#f78989'"
+                        onmouseout="this.style.background='#f56c6c'">×</button>
             `;
             keywordsList.appendChild(newItem);
             
             // 清空输入
             input.value = '';
+            document.getElementById('new-keyword-weight').value = '1.0';
             window.SimpleUI.Message.success('已添加关键词');
+        },
+        
+        // 从列表中删除关键词
+        removeKeywordFromList(itemId) {
+            const item = document.querySelector(`[data-keyword-id="${itemId}"]`);
+            if (item) {
+                item.remove();
+                
+                // 检查是否还有关键词
+                const keywordsList = document.getElementById('keywords-list');
+                const remainingItems = keywordsList.querySelectorAll('.keyword-item');
+                if (remainingItems.length === 0) {
+                    keywordsList.innerHTML = '<p class="no-keywords">未识别到新的广告关键词</p>';
+                }
+            }
         },
         
         // 提交广告标记
@@ -2229,9 +2379,12 @@ const MainApp = {
                 const keywordItems = document.querySelectorAll('.keyword-item');
                 
                 keywordItems.forEach(item => {
-                    const keywordText = item.querySelector('.keyword-text').textContent;
-                    const weight = parseInt(item.querySelector('.keyword-weight').value);
-                    keywords[keywordText] = weight;
+                    const keywordText = item.querySelector('.keyword-text').value.trim();
+                    const weight = parseFloat(item.querySelector('.keyword-weight').value) || 1.0;
+                    // 只添加非空的关键词
+                    if (keywordText) {
+                        keywords[keywordText] = weight;
+                    }
                 });
                 
                 // 发送请求
@@ -2695,7 +2848,9 @@ function initializeVueApp() {
             app.component('telegram-album', window.TelegramAlbum);
         }
         
-        app.mount('#app');
+        const vmInstance = app.mount('#app');
+        // 暴露到全局，让内联事件处理器可以访问
+        window.app = vmInstance;
     } catch (error) {
         console.error('Failed to mount Vue app:', error);
         // 提供更友好的错误界面

@@ -573,11 +573,12 @@ window.SimpleUI = {
     prompt: (message, title, options) => SimpleMessageBox.prompt(message, title, options)
 };
 
-// ============= 4. 自动初始化 =============
+// ============= 5. 自动初始化 =============
 // 确保在DOM准备好后初始化
 const initializeSimpleUI = () => {
     SimpleMessage.init();
     SimpleMessageBox.init();
+    
 };
 
 if (document.readyState === 'loading') {
@@ -586,6 +587,7 @@ if (document.readyState === 'loading') {
     // DOM已经加载完成，立即初始化
     initializeSimpleUI();
 }
+
 
 // Vue 3集成
 if (typeof Vue !== 'undefined' && Vue.config) {

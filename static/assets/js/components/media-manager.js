@@ -3,8 +3,8 @@ const { createApp } = Vue;
 
 // 原生消息和对话框工具
 const showMessage = (message, type = 'info', duration = 3000) => {
-    if (window.SimpleUI && window.SimpleUI.showNotification) {
-        window.SimpleUI.showNotification(message, type, { duration });
+    if (window.SimpleUI && window.SimpleUI.showMessage) {
+        window.SimpleUI.showMessage(message, type, duration);
     } else {
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
@@ -29,8 +29,8 @@ const showConfirm = (message, title = '确认', options = {}) => {
 
 const showAlert = (message, title = '提示', options = {}) => {
     return new Promise((resolve) => {
-        if (window.SimpleUI && window.SimpleUI.showAlert) {
-            window.SimpleUI.showAlert(title, message, options)
+        if (window.SimpleUI && window.SimpleUI.alert) {
+            window.SimpleUI.alert(message, title, options)
                 .then(() => resolve());
         } else {
             alert(`${title}\n\n${message}`);

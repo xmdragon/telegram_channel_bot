@@ -5,7 +5,7 @@ import logging
 import asyncio
 import json
 import time
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from telethon import TelegramClient
@@ -14,11 +14,7 @@ from telethon.tl.types import Message as TLMessage
 from app.core.path_config import PathConfig
 from app.storage.redis_manager import redis_manager
 from app.utils.timezone import get_current_time
-from app.services.simple_tail_filter import filter_tail_content
-from app.services.filters.markdown_filter import MarkdownFilter
-from app.services.filters.separator_filter import SeparatorFilter
-from app.services.filters.base import FilterContext
-from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
+from app.services.content_processor import ContentProcessingPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +75,7 @@ class LocalMessage:
         if self.source_channel is None:
             self.source_channel = self.channel_id
 
-class ConfigManager:
+class CollectorConfigManager:
     """系统配置管理器"""
     
     def __init__(self):
@@ -127,6 +123,8 @@ class ConfigManager:
     
     async def get_collection_enabled(self) -> bool:
         """获取采集开关配置"""
+        # 强制重新加载配置（忽略mtime缓存）
+        self._system_mtime = 0
         await self.load_config()
         return self.collection_enabled
     
@@ -221,94 +219,6 @@ class CheckpointManager:
         except Exception as e:
             logger.error(f"更新checkpoint失败 {channel_id}: {e}")
 
-class ContentProcessingPipeline:
-    """内容处理管道 - 尾部过滤 + markdown过滤 + 分隔符过滤处理"""
-    
-    def __init__(self):
-        """初始化处理管道"""
-        self.markdown_filter = MarkdownFilter()
-        self.separator_filter = SeparatorFilter()
-        self.keyword_detector = get_weighted_keyword_detector()
-    
-    async def process(self, message: LocalMessage, config_manager: Optional[ConfigManager] = None) -> LocalMessage:
-        """执行内容过滤处理 - 尾部过滤 → markdown过滤 → 分隔符过滤"""
-        try:
-            if not message.content:
-                return message
-            
-            current_content = message.content
-            filter_reasons = []
-            
-            # 1. 尾部过滤处理（先处理，删除尾部推广内容）
-            filtered_content, is_filtered, removed_content, analysis = filter_tail_content(current_content)
-            if is_filtered:
-                current_content = filtered_content
-                filter_reasons.append(f"尾部过滤: {analysis.get('reason', '检测到推广内容')}")
-                logger.info(f"消息 {message.message_id} 尾部过滤: {len(message.content)} -> {len(current_content)} 字符")
-            else:
-                logger.debug(f"消息 {message.message_id} 无尾部内容需要过滤")
-            
-            # 2. markdown过滤处理（后处理，使用原始entities，位置仍准确）
-            if message.entities:
-                # 创建FilterContext
-                context = FilterContext(
-                    message_id=message.message_id,
-                    channel_id=message.channel_id
-                )
-                context.add_metadata('entities', message.entities)
-                
-                # 执行markdown过滤
-                markdown_result = await self.markdown_filter.filter(current_content, context)
-                if markdown_result.passed and markdown_result.filtered_content != current_content:
-                    current_content = markdown_result.filtered_content
-                    filter_reasons.append(f"markdown过滤: {markdown_result.reason}")
-                    logger.info(f"消息 {message.message_id} markdown过滤完成，最终: {len(current_content)} 字符")
-                else:
-                    logger.debug(f"消息 {message.message_id} 无markdown链接需要处理")
-            
-            # 3. 分隔符过滤处理（在markdown过滤后执行）
-            separator_result, separator_stats = self.separator_filter.filter_content(current_content)
-            if separator_stats.get('removed_blocks_count', 0) > 0:
-                current_content = separator_result
-                removed_chars = separator_stats.get('original_length', 0) - separator_stats.get('filtered_length', 0)
-                filter_reasons.append(f"分隔符过滤: 移除{separator_stats['removed_blocks_count']}个内容块({removed_chars}字符)")
-                logger.info(f"消息 {message.message_id} 分隔符过滤: 移除了{separator_stats['removed_blocks_count']}个内容块")
-            else:
-                logger.debug(f"消息 {message.message_id} 无分隔符内容块需要过滤")
-            
-            # 4. 广告关键词检测（在所有过滤完成后进行）
-            is_ad, total_weight, matched_keywords = self.keyword_detector.detect(current_content)
-            
-            if is_ad:
-                message.is_ad = True
-                message.ad_weight = total_weight
-                message.matched_keywords = matched_keywords[:5]  # 保存前5个关键词
-                filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(matched_keywords[:3])}")
-                logger.info(f"消息 {message.message_id} 检测为广告: 权重={total_weight:.1f}, 关键词={matched_keywords[:3]}")
-                
-                # 根据配置决定是否自动拒绝
-                if config_manager:
-                    try:
-                        auto_reject = await config_manager.get_auto_reject_ads()
-                        if auto_reject:
-                            message.status = "rejected"
-                            message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
-                            logger.info(f"消息 {message.message_id} 被自动拒绝（广告）")
-                    except Exception as e:
-                        logger.error(f"获取自动拒绝配置失败: {e}")
-            
-            # 更新消息内容
-            message.filtered_content = current_content
-            if filter_reasons:
-                message.filter_reason = "; ".join(filter_reasons)
-            
-            return message
-            
-        except Exception as e:
-            logger.error(f"内容处理失败 {message.message_id}: {e}")
-            # 处理失败时返回原消息
-            return message
-
 class TelegramMessageCollector:
     """消息采集器 - 统一入口"""
     
@@ -320,7 +230,7 @@ class TelegramMessageCollector:
         self.telethon_client: Optional[TelegramClient] = None
         
         # 配置和频道管理
-        self.config_manager = ConfigManager()
+        self.config_manager = CollectorConfigManager()
         self.channel_manager = ChannelManager()
         
         # 业务组件
@@ -368,31 +278,32 @@ class TelegramMessageCollector:
     
     async def start_collecting(self):
         """开始连续消息采集循环"""
-        logger.info("开始连续消息采集循环")
+        logger.info("消息采集服务已启动，等待配置...")
         
         while True:
-            loop_start_time = time.time()
-            
             try:
-                # 检查是否应该继续采集
-                if not await self._should_continue():
-                    logger.info("采集已停止")
+                # 首先检查停止信号（服务退出）
+                if not self.running:
+                    logger.info("检测到停止信号，服务将退出")
                     break
+                
+                # 直接执行采集（配置检测在消息组级别进行）
+                loop_start_time = time.time()
                 
                 # 执行单轮采集
                 await self._do_single_collection_round()
                 
-                # 再次检查，确保及时退出
-                if not await self._should_continue():
+                # 再次检查退出信号
+                if not self.running:
                     logger.info("单轮采集完成后检测到停止信号")
                     break
                 
+                # 智能间隔等待
+                await self._smart_wait(loop_start_time)
+                
             except Exception as e:
                 logger.error(f"采集轮次失败: {e}")
-                # 继续下一轮，不中断整个循环
-            
-            # 智能间隔等待
-            await self._smart_wait(loop_start_time)
+                await asyncio.sleep(30)  # 错误时等待30秒再重试
         
         logger.info("连续采集循环已结束")
     
@@ -468,9 +379,10 @@ class TelegramMessageCollector:
             single_messages = []  # 单独消息
             
             for msg in messages:
-                # 过滤空消息（无文本且无媒体）
-                if not msg.message and not msg.media:
-                    logger.info(f"过滤空消息 {msg.id}：无文本内容且无媒体")
+                # 高级空消息判断
+                is_empty, reason = self._is_empty_message(msg)
+                if is_empty:
+                    logger.info(f"过滤空消息 {msg.id}：{reason}")
                     continue
                 
                 if msg.grouped_id:
@@ -564,6 +476,13 @@ class TelegramMessageCollector:
         processed_count = 0
         
         for message_group in message_groups:
+            # 检查采集是否仍然启用（消息级别的最细粒度检查）
+            collection_enabled = await self.config_manager.get_collection_enabled()
+            logger.info(f'采集开关: {collection_enabled}')
+            if not collection_enabled:
+                logger.info(f"检测到采集已禁用，停止处理频道 {channel_name} 的剩余消息")
+                break
+            
             collected_message = await self._fetch_telegram_messages(entity, message_group, channel)
             
             # 检查是否获取到消息
@@ -739,26 +658,78 @@ class TelegramMessageCollector:
             return None
     
     async def _should_continue(self) -> bool:
-        """检查是否应该继续采集 - 基于信号控制 + collection.enabled配置"""
-        # 首先检查信号控制
+        """检查是否应该继续采集 - 仅基于信号控制"""
+        # 检查服务停止信号
         if not self.running:
             logger.info("检测到停止信号，准备停止采集")
             return False
         
-        try:
-            # 检查collection.enabled配置项
-            collection_enabled = await self.config_manager.get_collection_enabled()
-            
-            if not collection_enabled:
-                logger.info("检测到collection.enabled=False，准备停止采集")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"检查采集继续条件失败: {e}")
-            # 出错时停止采集，确保安全
+        return True
+    
+    def _is_substantial_media(self, media) -> bool:
+        """判断是否为有实质内容的媒体"""
+        if not media:
             return False
+        
+        try:
+            # 导入Telegram媒体类型
+            from telethon.tl.types import (
+                MessageMediaPhoto,      # 图片 - 实质内容
+                MessageMediaDocument,   # 文档/视频/音频 - 实质内容  
+                MessageMediaWebPage,    # 网页预览 - 可能有实质内容
+                MessageMediaGiveaway,   # 抽奖 - 无实质内容
+                MessageMediaPoll,       # 投票 - 无实质内容
+                MessageMediaGame,       # 游戏 - 无实质内容
+                MessageMediaContact,    # 联系人 - 无实质内容
+                MessageMediaVenue,      # 地点 - 无实质内容
+                MessageMediaGeo,        # 地理位置 - 无实质内容
+                MessageMediaDice,       # 骰子 - 无实质内容
+                MessageMediaUnsupported # 不支持 - 无实质内容
+            )
+            
+            # 有实质内容的媒体类型
+            substantial_types = (
+                MessageMediaPhoto,
+                MessageMediaDocument,
+                MessageMediaWebPage  # 网页预览可能包含图片
+            )
+            
+            return isinstance(media, substantial_types)
+            
+        except ImportError as e:
+            logger.warning(f"导入媒体类型失败: {e}")
+            # 导入失败时保守处理，认为有实质内容
+            return True
+        except Exception as e:
+            logger.error(f"判断媒体类型失败: {e}")
+            return True
+    
+    def _is_empty_message(self, msg) -> Tuple[bool, str]:
+        """
+        高级空消息判断
+        
+        Args:
+            msg: Telegram消息对象
+            
+        Returns:
+            (是否为空消息, 判断原因)
+        """
+        # 有文本内容，不是空消息
+        if msg.message and msg.message.strip():
+            return False, "有文本内容"
+        
+        # 无文本且无媒体
+        if not msg.media:
+            return True, "无文本内容且无媒体"
+        
+        # 无文本但有实质媒体内容
+        if self._is_substantial_media(msg.media):
+            media_type = type(msg.media).__name__
+            return False, f"有实质媒体内容: {media_type}"
+        
+        # 无文本且只有非实质媒体
+        media_type = type(msg.media).__name__
+        return True, f"只有非实质媒体: {media_type}"
 
 # 全局实例
 message_collector = TelegramMessageCollector()

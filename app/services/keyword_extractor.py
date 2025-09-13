@@ -28,28 +28,16 @@ class AdKeywordExtractor:
         self.existing_keywords: Set[str] = set()
         self.load_existing_keywords()
         
+        # 加载配置文件
+        self.rules_file = PathConfig.DATA_DIR / "config" / "keyword_rules.json"
+        self.stopwords_file = PathConfig.DATA_DIR / "config" / "stopwords.json"
+        self.keyword_rules = {}
+        self.stop_words = set()
+        self.load_rules_config()
+        self.load_stopwords()
+        
         # 设置jieba参数
         jieba.setLogLevel(logging.INFO)
-        
-        # 常见停用词（不提取的词）
-        self.stop_words = {
-            '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '一个',
-            '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好',
-            '自己', '这', '那', '些', '什么', '他', '她', '它', '们', '我们', '你们', '他们',
-            '这个', '那个', '吗', '吧', '啊', '呢', '呀', '啦', '哦', '哈', '嗯', '哇', '呃',
-            '可以', '能', '得', '过', '给', '对', '将', '把', '被', '让', '使', '用', '从',
-            '为', '以', '于', '与', '及', '其', '或', '如', '等', '当', '但', '而', '后',
-            '前', '下', '里', '内', '外', '中', '间', '之', '又', '已', '才', '只', '还',
-            '就是', '可是', '如果', '因为', '所以', '虽然', '但是', '不过', '现在', '这样',
-            '那样', '这里', '那里', '这么', '那么', '怎么', '什么样', '为什么', '没有'
-        }
-        
-        # 数字、英文等模式（不作为关键词）
-        self.ignore_patterns = [
-            r'^\d+$',  # 纯数字
-            r'^[a-zA-Z]+$',  # 纯英文
-            r'^\W+$',  # 纯符号
-        ]
     
     def load_existing_keywords(self) -> None:
         """加载已存在的关键词"""
@@ -62,6 +50,35 @@ class AdKeywordExtractor:
         except Exception as e:
             logger.error(f"加载已有关键词失败: {e}")
             self.existing_keywords = set()
+    
+    def load_rules_config(self) -> None:
+        """加载关键词规则配置"""
+        try:
+            if self.rules_file.exists():
+                with open(self.rules_file, 'r', encoding='utf-8') as f:
+                    self.keyword_rules = json.load(f)
+                logger.info(f"加载关键词规则配置成功")
+            else:
+                logger.warning(f"关键词规则配置文件不存在: {self.rules_file}")
+                self.keyword_rules = {}
+        except Exception as e:
+            logger.error(f"加载关键词规则配置失败: {e}")
+            self.keyword_rules = {}
+    
+    def load_stopwords(self) -> None:
+        """加载停用词表"""
+        try:
+            if self.stopwords_file.exists():
+                with open(self.stopwords_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.stop_words = set(data.get('stopwords', []))
+                logger.info(f"加载停用词: {len(self.stop_words)}个")
+            else:
+                logger.warning(f"停用词配置文件不存在: {self.stopwords_file}")
+                self.stop_words = set()
+        except Exception as e:
+            logger.error(f"加载停用词失败: {e}")
+            self.stop_words = set()
     
     def extract_keywords(self, text: str, top_k: int = 20) -> List[Tuple[str, float]]:
         """
@@ -96,14 +113,20 @@ class AdKeywordExtractor:
                 if keyword in self.stop_words:
                     continue
                 
-                # 跳过太短的词（单字符）
-                if len(keyword) < 2:
+                # 跳过太短的词
+                min_length = self.keyword_rules.get('extraction_config', {}).get('min_keyword_length', 2)
+                if len(keyword) < min_length:
                     continue
                 
                 # 跳过纯数字、纯英文等
                 import re
                 skip = False
-                for pattern in self.ignore_patterns:
+                ignore_patterns = self.keyword_rules.get('extraction_config', {}).get('ignore_patterns', [
+                    r'^\d+$',  # 纯数字
+                    r'^[a-zA-Z]+$',  # 纯英文
+                    r'^\W+$',  # 纯符号
+                ])
+                for pattern in ignore_patterns:
                     if re.match(pattern, keyword):
                         skip = True
                         break
@@ -152,7 +175,8 @@ class AdKeywordExtractor:
                     continue
                 
                 # 跳过太短的词
-                if len(word) < 2:
+                min_length = self.keyword_rules.get('extraction_config', {}).get('min_keyword_length', 2)
+                if len(word) < min_length:
                     continue
                 
                 # 统计频率
@@ -188,19 +212,25 @@ class AdKeywordExtractor:
         
         suggested = []
         for keyword, tfidf_score in keywords:
-            # 根据TF-IDF分数推荐权重
-            if tfidf_score > 0.3:
-                weight = 3  # 高重要性
-            elif tfidf_score > 0.15:
-                weight = 2  # 中等重要性
-            else:
-                weight = 1  # 低重要性
+            # 根据TF-IDF分数规则计算基础权重
+            weight = 1.0  # 默认权重
+            tfidf_rules = self.keyword_rules.get('tfidf_weight_rules', [])
+            for rule in tfidf_rules:
+                if rule['min_score'] <= tfidf_score <= rule['max_score']:
+                    weight = rule['base_weight']
+                    break
             
-            # 特殊关键词加权
-            if any(k in keyword for k in ['娱乐城', '赌', '博彩', 'USDT', '出款']):
-                weight = min(weight + 2, 5)  # 最高权重5
-            elif any(k in keyword for k in ['充值', '会员', '优惠', '活动']):
-                weight = min(weight + 1, 3)
+            # 根据关键词分类调整权重
+            categories = self.keyword_rules.get('keyword_categories', [])
+            # 按优先级排序
+            categories = sorted(categories, key=lambda x: x.get('priority', 999))
+            
+            for category in categories:
+                if any(k in keyword for k in category.get('keywords', [])):
+                    adjustment = category.get('weight_adjustment', 0)
+                    max_weight = category.get('max_weight', 5.0)
+                    weight = min(weight + adjustment, max_weight)
+                    break  # 只应用第一个匹配的分类
             
             suggested.append((keyword, weight))
         

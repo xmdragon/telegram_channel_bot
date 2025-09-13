@@ -264,38 +264,11 @@ class DevSupervisor:
         for config in self.service_configs.values():
             self.services[config.name] = ServiceProcess(config)
     
-    async def _check_collector_config(self) -> bool:
-        """检查collector服务配置是否启用"""
-        try:
-            import json
-            from app.core.path_config import PathConfig
-            
-            with open(PathConfig.SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                system_config = json.load(f)
-            
-            collection_value = system_config.get("collection.enabled", {}).get("value", "false")
-            collection_enabled = collection_value.lower() == "true" if isinstance(collection_value, str) else bool(collection_value)
-            
-            return collection_enabled
-        except Exception as e:
-            logger.warning(f"检查collector配置失败: {e}，默认启用")
-            return True
-
     async def start_service(self, service_name: str) -> bool:
         """启动单个服务"""
         if service_name not in self.services:
             logger.error(f"未知服务: {service_name}")
             return False
-        
-        # 对collector服务进行配置检查
-        if service_name == "collector":
-            if not await self._check_collector_config():
-                logger.info("📋 Collector服务已被配置禁用 (collection.enabled=false)")
-                logger.info("   如需启用采集功能，请修改系统配置")
-                # 将服务标记为已停止状态，但不视为错误
-                service = self.services[service_name]
-                service.status = ServiceStatus.STOPPED
-                return True  # 返回True表示"成功"处理了禁用状态
             
         service = self.services[service_name]
         return await service.start()
