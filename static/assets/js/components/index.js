@@ -842,6 +842,19 @@ const MainApp = {
                     if (messageId) {
                         this.restoreMessage(messageId);
                     }
+                } else if (action === 'markAsNotAd') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        // 找到对应的消息对象
+                        const message = this.messages.find(msg => 
+                            `${msg.source_channel}:${msg.message_id}` === messageId);
+                        if (message) {
+                            this.markAsNotAd(event, message);
+                        }
+                    }
                 }
             });
         },
@@ -1068,6 +1081,11 @@ const MainApp = {
         
         // 恢复被拒绝的消息
         async restoreMessage(messageId) {
+            // 添加确认对话框
+            if (!confirm('确定要恢复此消息为待审核状态吗？\n\n这将仅修改消息状态，不会影响AI训练数据。')) {
+                return;
+            }
+            
             try {
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
@@ -2432,7 +2450,7 @@ const MainApp = {
                 };
             }
             try {
-                if (!confirm('确定将此消息标记为"不是广告"吗？这将帮助AI减少误判。')) {
+                if (!confirm('确定要将此广告标记为"不是广告"吗？\n\n这将执行以下操作：\n• 降低相关关键词的权重\n• 取消广告标记\n• 恢复为待审核状态\n\n这有助于提高AI广告识别的准确性。')) {
                     return;
                 }
                 

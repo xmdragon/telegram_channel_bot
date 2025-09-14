@@ -649,9 +649,20 @@ const MessageContentRenderer = {
                 </button>
             </div>
             
-            <!-- 已拒绝消息的恢复按钮 -->
+            <!-- 已拒绝消息的差异化按钮 -->
             <div v-else-if="message.status === 'rejected'" class="message-actions">
-                <button data-action="restoreMessage" :data-message-id="computedMessageId" class="btn btn-sm btn-warning">
+                <!-- 广告消息：显示"不是广告"按钮 -->
+                <button v-if="isMessageAd(message)" 
+                        data-action="markAsNotAd" 
+                        :data-message-id="computedMessageId" 
+                        class="btn btn-sm btn-warning">
+                    ❌ 不是广告
+                </button>
+                <!-- 非广告消息：显示"恢复"按钮 -->
+                <button v-else 
+                        data-action="restoreMessage" 
+                        :data-message-id="computedMessageId" 
+                        class="btn btn-sm btn-warning">
                     🔄 恢复
                 </button>
             </div>
