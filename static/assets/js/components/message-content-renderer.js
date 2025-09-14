@@ -635,10 +635,10 @@ const MessageContentRenderer = {
                 <button data-action="rejectMessage" :data-message-id="computedMessageId" class="btn btn-sm btn-danger">
                     ❌ 拒绝
                 </button>
-                <button :data-action="message.is_ad ? 'markAsNotAd' : 'markAsAd'" 
+                <button :data-action="isMessageAd(message) ? 'markAsNotAd' : 'markAsAd'" 
                         :data-message-id="computedMessageId" 
                         class="btn btn-sm btn-warning">
-                    {{ message.is_ad ? '✅ 不是广告' : '🚫 广告' }}
+                    {{ isMessageAd(message) ? '✅ 不是广告' : '🚫 广告' }}
                 </button>
                 <button data-action="trainTail" :data-message-id="computedMessageId" class="btn btn-sm btn-info">
                     ✂️ 尾部
