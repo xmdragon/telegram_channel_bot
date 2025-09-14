@@ -217,7 +217,6 @@ class RouteConfig:
         tail_filter_samples_by_id = "/training/tail-filter-samples/{sample_id}"
         tail_filter_detect_duplicates = "/training/tail-filter-samples/detect-duplicates"
         tail_filter_deduplicate = "/training/tail-filter-samples/deduplicate"
-        tail_filter_rebuild_vectors = "/training/tail-filter-rebuild-vectors"
         
         
         # 媒体文件（保留实际使用的端点）

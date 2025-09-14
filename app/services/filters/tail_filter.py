@@ -92,17 +92,26 @@ class TailFilter:
         if len(lines) <= 1:
             return content, False, ""
 
+        # 🔍 调试日志：显示所有行
+        logger.debug(f"尾部过滤调试 - 总行数: {len(lines)}")
+        for i, line in enumerate(lines):
+            logger.debug(f"第{i+1}行: '{line}' (stripped: '{line.strip()}')")
+
         # 从后向前查找第一个匹配的行
         matched_idx = -1
+        matched_rule = None
         for i in range(len(lines) - 1, -1, -1):
             line = lines[i].strip()
             if not line:
+                logger.debug(f"第{i+1}行为空行，跳过")
                 continue
 
             # 检查是否匹配任何规则
             for rule in self.regex_rules:
                 if rule.search(line):
                     matched_idx = i
+                    matched_rule = rule.pattern
+                    logger.debug(f"🎯 匹配成功! 第{i+1}行: '{line}' 匹配规则: '{rule.pattern}'")
                     break
 
             if matched_idx != -1:
@@ -110,17 +119,34 @@ class TailFilter:
 
         # 如果找到匹配，删除该行及其后的所有内容
         if matched_idx != -1:
+            logger.debug(f"🗑️ 准备删除: 从第{matched_idx+1}行开始的所有内容")
+            logger.debug(f"   匹配规则: '{matched_rule}'")
+            logger.debug(f"   删除范围: 第{matched_idx+1}行到第{len(lines)}行")
+            
+            # 显示将要删除的行
+            for i in range(matched_idx, len(lines)):
+                logger.debug(f"   删除第{i+1}行: '{lines[i]}'")
+            
             filtered_lines = lines[:matched_idx]
+            logger.debug(f"   保留行数: {len(filtered_lines)}")
 
             # 去除末尾空行
+            original_filtered_count = len(filtered_lines)
             while filtered_lines and not filtered_lines[-1].strip():
-                filtered_lines.pop()
+                removed_empty = filtered_lines.pop()
+                logger.debug(f"   去除末尾空行: '{removed_empty}'")
 
             filtered = '\n'.join(filtered_lines)
             removed = '\n'.join(lines[matched_idx:])
 
-            logger.debug(f"尾部过滤: 匹配在第 {matched_idx + 1} 行")
+            logger.debug(f"✂️ 尾部过滤完成:")
+            logger.debug(f"   原始内容长度: {len(content)} 字符, {len(lines)} 行")
+            logger.debug(f"   过滤后长度: {len(filtered)} 字符, {len(filtered_lines)} 行")
+            logger.debug(f"   删除内容长度: {len(removed)} 字符, {len(lines) - matched_idx} 行")
+            logger.debug(f"   过滤后内容预览: '{filtered[:100]}...'")
+            
             return filtered, True, removed
 
         # 没有匹配
+        logger.debug(f"🚫 尾部过滤: 未找到匹配的推广内容，保持原内容")
         return content, False, ""

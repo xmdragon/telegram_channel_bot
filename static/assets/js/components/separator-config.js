@@ -105,10 +105,11 @@ const app = createApp({
             }
             
             try {
-                // 固定使用 gi 标志，与后端保持一致
+                // 固定使用 gim 标志，与后端保持一致
                 // g: 全局匹配
                 // i: 忽略大小写（对应后端的 re.IGNORECASE）
-                const flags = 'gi';
+                // m: 多行匹配（对应后端的 re.MULTILINE）
+                const flags = 'gim';
                 
                 // 创建正则表达式对象
                 const regex = new RegExp(this.regexTest.pattern, flags);

@@ -117,7 +117,6 @@ const API_ENDPOINTS = {
         tailFilterSampleById: (id) => `/api/training/tail-filter-samples/${id}`, // PUT/DELETE - 更新/删除尾部过滤样本
         tailFilterStatistics: '/api/training/tail-filter-statistics', // GET - 获取尾部过滤统计
         tailFilterHistory: '/api/training/tail-filter-history',  // GET - 获取尾部过滤历史
-        tailFilterRebuildVectors: '/api/training/tail-filter-rebuild-vectors', // POST - 重建尾部过滤向量索引
 
         // 媒体文件管理
         mediaFiles: '/api/training/media-files',                 // GET - 获取媒体文件列表

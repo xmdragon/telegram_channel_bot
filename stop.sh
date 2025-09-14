@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# 🔧 Linus式修复: 全局禁用作业控制，避免"Killed"消息
+set +m  # 禁用作业控制消息
+
 # 加载环境配置
 if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
@@ -107,6 +110,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "🛑 停止 Telegram 消息审核系统..."
+echo "💡 提示：如出现 'Killed: 9' 消息，属于bash正常的进程终止提示，请忽略"
 
 # 停止服务分离架构的所有服务
 echo "📍 查找并停止所有服务进程..."
@@ -177,16 +181,26 @@ stop_process() {
     [ "$QUIET" = false ] && echo "   ✅ $process_name 进程已强制停止"
 }
 
-# 按依赖顺序停止服务
-stop_process "进程管理器" "dev_supervisor.py" 5
-stop_process "Web服务器" "web_server.py" 5  
-stop_process "消息调度服务" "message_scheduler.py" 5
+# 按依赖顺序停止服务 - 增加等待时间，减少强制终止
+stop_process "进程管理器" "dev_supervisor.py" 10  # 延长到10秒
+stop_process "Web服务器" "web_server.py" 8     # 延长到8秒
+stop_process "消息调度服务" "message_scheduler.py" 8  # 延长到8秒
 
 # 额外清理：使用pkill确保所有相关进程都被停止
 echo "🧹 执行最终清理..."
-pkill -f "dev_supervisor.py" 2>/dev/null || true
-pkill -f "web_server.py" 2>/dev/null || true  
+# 🔧 Linus式修复: 优先使用SIGTERM优雅停止，增加等待时间
+pkill -TERM -f "dev_supervisor.py" 2>/dev/null || true
+sleep 3  # 增加等待时间，减少强制终止
+pkill -f "dev_supervisor.py" 2>/dev/null || true  # 最后才强制停止
+
+pkill -TERM -f "web_server.py" 2>/dev/null || true  
+sleep 2  # 增加等待时间
+pkill -f "web_server.py" 2>/dev/null || true
+
+pkill -TERM -f "message_scheduler.py" 2>/dev/null || true
+sleep 2  # 增加等待时间
 pkill -f "message_scheduler.py" 2>/dev/null || true
+
 pkill -f "uvicorn.*web_server:app" 2>/dev/null || true
 
 

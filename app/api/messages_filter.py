@@ -67,6 +67,10 @@ async def filter_message_content(
     对单条消息执行内容过滤（包括尾部、推广链接等）
     """
     try:
+        # 标准化消息ID格式 - 与其他API保持一致
+        from app.api.messages_crud import _normalize_message_id
+        message_id = _normalize_message_id(message_id)
+
         # 解析消息ID
         if ':' in message_id:
             channel_id, msg_id = message_id.split(':', 1)

@@ -64,10 +64,6 @@
                             </div>
                             <div class="toolbar-right">
                                 <div class="btn-group">
-                                    <button @click="syncVectors" class="btn btn-info">
-                                        <span class="btn-icon">🔄</span>
-                                        同步向量
-                                    </button>
                                     <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedSamples.length">
                                         <span class="btn-icon">🗑️</span>
                                         批量删除 ({{ selectedSamples.length }})
@@ -117,9 +113,6 @@
                                     <td>
                                         <div v-if="sample.rule" class="content-preview clickable" @click="showDetail(sample)">
                                             {{ truncateText(sample.rule, 100) }}
-                                        </div>
-                                        <div v-else-if="sample.tail_part" class="content-preview clickable" @click="showDetail(sample)">
-                                            {{ truncateText(sample.tail_part, 100) }}
                                         </div>
                                         <span v-else>-</span>
                                     </td>
@@ -178,10 +171,6 @@
                             <h4>完整过滤规则：</h4>
                             <div class="detail-content">{{ currentSample.rule }}</div>
                         </div>
-                        <div v-else-if="currentSample.tail_part" class="content-section">
-                            <h4>完整尾部内容：</h4>
-                            <div class="detail-content">{{ currentSample.tail_part }}</div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -199,13 +188,13 @@
                         <div class="form-group">
                             <label class="form-label required">过滤规则</label>
                             <textarea
-                                v-model="editingSample.rule || editingSample.tail_part"
+                                v-model="editingSample.rule"
                                 class="form-textarea"
                                 rows="8"
                                 placeholder="编辑过滤规则（正则表达式）..."
                                 required
                             ></textarea>
-                            <div class="char-count">{{ (editingSample.rule || editingSample.tail_part) ? (editingSample.rule || editingSample.tail_part).length : 0 }} 字符</div>
+                            <div class="char-count">{{ editingSample.rule ? editingSample.rule.length : 0 }} 字符</div>
                         </div>
                     </form>
                 </div>

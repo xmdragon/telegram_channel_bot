@@ -246,16 +246,14 @@ const app = createApp({
         editSample(sample) {
             this.editingSample = {
                 id: sample.id,
-                tail_part: sample.tail_part,
-                rule: sample.rule
+                rule: sample.rule || ''
             };
             this.editDialog = true;
         },
         
         // 保存编辑
         async saveEdit() {
-            const contentToSave = this.editingSample.rule || this.editingSample.tail_part;
-            if (!this.editingSample || !contentToSave || !contentToSave.trim()) {
+            if (!this.editingSample || !this.editingSample.rule || !this.editingSample.rule.trim()) {
                 SimpleUI.showMessage('请输入规则内容', 'warning');
                 return;
             }
@@ -263,8 +261,7 @@ const app = createApp({
             this.submitting = true;
             try {
                 const response = await axios.put(API.training.tailFilterSampleById(this.editingSample.id), {
-                    rule: contentToSave.trim(),
-                    tail_part: this.editingSample.tail_part?.trim()
+                    rule: this.editingSample.rule.trim()
                 });
                 
                 if (response.data.success) {
@@ -320,43 +317,6 @@ const app = createApp({
             } catch (error) {
                 console.error('批量删除失败:', error);
                 SimpleUI.showMessage('批量删除失败', 'error');
-            }
-        },
-        
-        
-        // 同步向量索引
-        async syncVectors() {
-            let confirmed = false;
-            try {
-                confirmed = await SimpleUI.showConfirm(
-                    '同步向量将重建尾部样本的AI向量索引，确保AI过滤功能使用最新的训练数据。\n此操作需要几秒钟时间，确认执行吗？',
-                    '同步向量索引'
-                );
-            } catch (error) {
-                if (error === 'cancel') return;
-                confirmed = confirm('同步向量将重建尾部样本的AI向量索引，确保AI过滤功能使用最新的训练数据。\n此操作需要几秒钟时间，确认执行吗？');
-            }
-            
-            if (!confirmed) return;
-            
-            try {
-                // 使用现有的loading状态变量（Linus式统一模式）
-                this.loading = true;
-                
-                const response = await axios.post(API.training.tailFilterRebuildVectors);
-                
-                if (response.data.success) {
-                    SimpleUI.showMessage(`向量同步成功！处理了 ${response.data.vectorized_samples} 个样本`, 'success');
-                } else {
-                    SimpleUI.showMessage('向量同步失败: ' + (response.data.message || '未知错误'), 'error');
-                }
-                
-            } catch (error) {
-                console.error('同步向量失败:', error);
-                SimpleUI.showMessage('同步向量失败: ' + (error.response?.data?.message || error.message), 'error');
-            } finally {
-                // 确保无论成功还是失败都重置loading状态
-                this.loading = false;
             }
         },
         

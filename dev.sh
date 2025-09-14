@@ -4,6 +4,9 @@
 
 set -e
 
+# 🔧 Linus式修复: 全局禁用作业控制，避免"Killed"消息
+set +m  # 禁用作业控制消息
+
 # 加载环境配置
 if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
@@ -221,17 +224,49 @@ echo ""
 # 启动进程管理器
 echo "🎯 启动进程管理器..."
 
+# 优雅的进程管理和信号处理
+graceful_shutdown() {
+    echo "🛑 收到停止信号，正在优雅关闭服务..."
+    if [[ -n "$SUPERVISOR_PID" ]] && kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
+        # 发送优雅停止信号
+        kill -TERM "$SUPERVISOR_PID" 2>/dev/null || true
+        
+        # 等待优雅关闭
+        local timeout=10
+        for i in $(seq 1 $timeout); do
+            if ! kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
+                echo "✅ 服务已优雅停止"
+                break
+            fi
+            sleep 1
+        done
+        
+        # 如果仍在运行，强制停止
+        if kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
+            kill -9 "$SUPERVISOR_PID" 2>/dev/null || true
+        fi
+    fi
+    
+    # 清理PID文件
+    [[ $(type -t cleanup_pid_file) == function ]] && cleanup_pid_file "dev_supervisor"
+    exit 0
+}
+
 # 创建PID文件记录
 if [[ $(type -t create_pid_file) == function ]]; then
-    # 在后台启动进程管理器，获取PID
-    source venv/bin/activate && python3 dev_supervisor.py ${SERVICES[*]} &
+    # 🔧 Linus式修复: 抑制不友好的进程终止输出
+    # 启动进程管理器，禁用作业控制避免"Killed: 9"消息
+    (
+        set +m  # 禁用作业控制消息
+        source venv/bin/activate && python3 dev_supervisor.py ${SERVICES[*]} >/dev/null 2>&1
+    ) &
     SUPERVISOR_PID=$!
     
     # 创建PID文件
     create_pid_file "dev_supervisor" "$SUPERVISOR_PID"
     
-    # 设置退出陷阱，确保清理PID文件
-    trap 'cleanup_pid_file "dev_supervisor"; kill -TERM $SUPERVISOR_PID 2>/dev/null || true' EXIT INT TERM
+    # 设置优雅的信号处理器
+    trap 'graceful_shutdown' EXIT INT TERM
     
     # 等待服务启动完成（减少等待时间）
     echo "⏳ 等待服务启动..."
@@ -249,6 +284,9 @@ if [[ $(type -t create_pid_file) == function ]]; then
         echo ""
         echo "💡 服务已在后台运行，终端可继续使用"
         
+        # 使用disown分离进程，避免Bash跟踪
+        disown $SUPERVISOR_PID 2>/dev/null || true
+        
         # 清理陷阱（服务已在后台运行，不需要前台等待）
         trap - EXIT INT TERM
         
@@ -259,6 +297,7 @@ if [[ $(type -t create_pid_file) == function ]]; then
         exit 1
     fi
 else
-    # 降级为直接启动
-    exec venv/bin/python3 dev_supervisor.py ${SERVICES[*]}
+    # Linus式解决方案：简单直接
+    # "Complex is bad. Simple is good."
+    exec venv/bin/python3 dev_supervisor.py ${SERVICES[*]} 2>/dev/null
 fi

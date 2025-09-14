@@ -938,48 +938,9 @@ async def _add_to_whitelist(message: Dict[str, Any], source: str = "user_approva
 async def _record_ad_detection_feedback(message: Dict[str, Any], user_decision: str):
     """记录广告检测反馈"""
     try:
-        # 检查消息是否有广告检测信息
+        # 获取消息的广告检测信息
         ad_detection_score = message.get('ad_detection_score')
         ad_detection_threshold = message.get('ad_detection_threshold')
-        
-        # 如果缺少广告检测信息，进行补充检测
-        if ad_detection_score is None or ad_detection_threshold is None:
-            logger.info(f"消息 {message.get('message_id')} 缺少广告检测信息，进行补充检测...")
-            
-            # 重新进行广告检测
-            from app.services.processors.message_ad_detector_processor import MessageAdDetectorProcessor
-            from app.services.message_context import MessageContext
-            
-            ad_detector = MessageAdDetectorProcessor()
-            
-            # 构造消息上下文
-            context = MessageContext(
-                raw_message=message,
-                text_content=message.get('text', ''),
-                filtered_content=message.get('text', '')
-            )
-            
-            # 执行检测
-            is_ad, similarity, reason = ad_detector._detect_advertisement_content(context)
-            
-            # 更新消息的检测信息
-            ad_detection_score = similarity
-            ad_detection_threshold = 0.7  # 固定阈值
-            
-            # 保存到消息数据
-            message['ad_detection_score'] = ad_detection_score
-            message['ad_detection_threshold'] = ad_detection_threshold 
-            message['ad_detected'] = is_ad
-            
-            # 同步到Redis
-            from app.storage.redis_manager import redis_manager
-            redis_manager.update_message_fields(message.get('message_id', ''), {
-                'ad_detection_score': ad_detection_score,
-                'ad_detection_threshold': ad_detection_threshold,
-                'ad_detected': is_ad
-            })
-            
-            logger.info(f"✅ 补充检测完成: {message.get('message_id')} - 得分: {ad_detection_score:.3f}, 阈值: {ad_detection_threshold}, 检测结果: {is_ad}")
         
         if ad_detection_score is not None and ad_detection_threshold is not None:
             # 获取广告检测处理器实例

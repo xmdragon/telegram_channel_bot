@@ -67,7 +67,7 @@ class SeparatorFilter:
                     continue
                 
                 try:
-                    compiled_pattern = re.compile(regex, re.IGNORECASE)
+                    compiled_pattern = re.compile(regex, re.IGNORECASE | re.MULTILINE | re.DOTALL)
                     compiled_patterns.append(compiled_pattern)
                     descriptions.append(description)
                 except re.error as e:
