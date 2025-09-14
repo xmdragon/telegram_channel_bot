@@ -273,8 +273,8 @@ const StateManager = {
                 return false;
             }
             
-            // 广告筛选
-            if (filters.is_ad !== null && message.is_ad !== filters.is_ad) {
+            // 广告筛选 - 使用统一的匹配函数修复字符串"False"问题
+            if (!MessageUtils.matchesAdFilter(message, filters.is_ad)) {
                 return false;
             }
             

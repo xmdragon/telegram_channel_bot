@@ -454,13 +454,9 @@ const MessageContentRenderer = {
             this.openMediaPreview(url);
         },
         
-        // 判断消息是否为广告 - 修复字符串"False"被当作true的问题
+        // 判断消息是否为广告 - 使用全局统一函数
         isMessageAd(message) {
-            const isAd = message.is_ad;
-            if (typeof isAd === 'string') {
-                return isAd.toLowerCase() === 'true';
-            }
-            return !!isAd;
+            return MessageUtils.isMessageAd(message);
         }
     },
     template: `

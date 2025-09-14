@@ -194,8 +194,8 @@ const MainApp = {
                     return false;
                 }
                 
-                // 广告筛选
-                if (this.filters.is_ad !== null && message.is_ad !== this.filters.is_ad) {
+                // 广告筛选 - 使用统一的匹配函数修复字符串"False"问题
+                if (!MessageUtils.matchesAdFilter(message, this.filters.is_ad)) {
                     return false;
                 }
                 
@@ -1996,8 +1996,8 @@ const MainApp = {
                 
                 const [sourceChannel, messageId] = idParts;
                 
-                // 确认操作
-                const confirmText = message.is_ad 
+                // 确认操作 - 使用统一的广告判断函数
+                const confirmText = MessageUtils.isMessageAd(message) 
                     ? '确定要重置此广告消息吗？这将从训练样本中移除并重置为待审核状态。'
                     : '确定要重置此消息为待审核状态吗？';
                     
@@ -2008,7 +2008,7 @@ const MainApp = {
                 const response = await axios.post(window.API.messages.reset, {
                     source_channel: sourceChannel,
                     message_id: parseInt(messageId),
-                    is_ad: message.is_ad
+                    is_ad: MessageUtils.getRawAdValue(message)
                 });
                 
                 if (response.data.success) {

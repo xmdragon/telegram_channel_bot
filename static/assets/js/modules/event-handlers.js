@@ -383,7 +383,7 @@ const EventHandlers = {
             const filters = context.state.filters;
             
             if (filters.status && message.status !== filters.status) return false;
-            if (filters.is_ad !== null && message.is_ad !== filters.is_ad) return false;
+            if (!MessageUtils.matchesAdFilter(message, filters.is_ad)) return false;
             if (filters.source_channel && message.source_channel_id !== filters.source_channel) return false;
             
             return true;
