@@ -48,7 +48,19 @@ const MessageContentRenderer = {
         // 高亮命中关键词的过滤后内容
         highlightedFilteredContent() {
             let content = this.message.filtered_content || '';
-            if (!content || !this.message.hit_keywords || this.message.hit_keywords.length === 0) {
+            
+            // 🎯 优先从新字段ad_keywords_detail获取关键词信息
+            let keywordsToHighlight = [];
+            
+            if (this.message.ad_keywords_detail && this.message.ad_keywords_detail.matched_keywords) {
+                // 新格式：使用ad_keywords_detail
+                keywordsToHighlight = this.message.ad_keywords_detail.matched_keywords;
+            } else if (this.message.hit_keywords && this.message.hit_keywords.length > 0) {
+                // 旧格式：使用hit_keywords
+                keywordsToHighlight = this.message.hit_keywords;
+            }
+            
+            if (!content || keywordsToHighlight.length === 0) {
                 return content;
             }
             
@@ -56,7 +68,7 @@ const MessageContentRenderer = {
             content = this.escapeHtml(content);
             
             // 按关键词长度从长到短排序，避免短关键词先匹配
-            const sortedKeywords = [...this.message.hit_keywords].sort((a, b) => 
+            const sortedKeywords = [...keywordsToHighlight].sort((a, b) => 
                 b.keyword.length - a.keyword.length
             );
             
@@ -67,10 +79,12 @@ const MessageContentRenderer = {
                 
                 // 根据权重选择不同的高亮样式
                 let highlightClass = 'ad-keyword-highlight';
-                if (weight >= 3.0) {
-                    highlightClass += ' high-weight';
+                if (weight >= 5.0) {
+                    highlightClass += ' high-weight';     // 红色背景
                 } else if (weight >= 2.0) {
-                    highlightClass += ' medium-weight';
+                    highlightClass += ' medium-weight';   // 橙色背景
+                } else {
+                    highlightClass += ' low-weight';      // 黄色背景
                 }
                 
                 // 使用正则替换，确保大小写不敏感
@@ -86,7 +100,19 @@ const MessageContentRenderer = {
         // 高亮命中关键词的原始内容
         highlightedOriginalContent() {
             let content = this.message.content || '';
-            if (!content || !this.message.hit_keywords || this.message.hit_keywords.length === 0) {
+            
+            // 🎯 优先从新字段ad_keywords_detail获取关键词信息
+            let keywordsToHighlight = [];
+            
+            if (this.message.ad_keywords_detail && this.message.ad_keywords_detail.matched_keywords) {
+                // 新格式：使用ad_keywords_detail
+                keywordsToHighlight = this.message.ad_keywords_detail.matched_keywords;
+            } else if (this.message.hit_keywords && this.message.hit_keywords.length > 0) {
+                // 旧格式：使用hit_keywords
+                keywordsToHighlight = this.message.hit_keywords;
+            }
+            
+            if (!content || keywordsToHighlight.length === 0) {
                 return content;
             }
             
@@ -94,7 +120,7 @@ const MessageContentRenderer = {
             content = this.escapeHtml(content);
             
             // 按关键词长度从长到短排序
-            const sortedKeywords = [...this.message.hit_keywords].sort((a, b) => 
+            const sortedKeywords = [...keywordsToHighlight].sort((a, b) => 
                 b.keyword.length - a.keyword.length
             );
             
@@ -105,10 +131,12 @@ const MessageContentRenderer = {
                 
                 // 根据权重选择不同的高亮样式
                 let highlightClass = 'ad-keyword-highlight';
-                if (weight >= 3.0) {
-                    highlightClass += ' high-weight';
+                if (weight >= 5.0) {
+                    highlightClass += ' high-weight';     // 红色背景
                 } else if (weight >= 2.0) {
-                    highlightClass += ' medium-weight';
+                    highlightClass += ' medium-weight';   // 橙色背景
+                } else {
+                    highlightClass += ' low-weight';      // 黄色背景
                 }
                 
                 // 使用正则替换

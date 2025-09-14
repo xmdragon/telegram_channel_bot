@@ -198,25 +198,38 @@ class MessageFilterProcessor(MessageProcessor):
             context.filtered_content = filtered_content
             context.filter_reason = ""
             
-            # 广告检测逻辑简化：主要基于尾部过滤结果
-            context.is_ad = was_filtered  # 如果过滤了推广内容，就认为有广告性质
+            # 🎯 使用增强的AdDetector进行广告检测
+            from app.services.filters.ad_detector import AdDetector
+            ad_detector = AdDetector()
             
+            # 对过滤后的内容进行广告检测，获取关键词位置信息
+            is_ad, ad_weight, matched_keywords = ad_detector.detect(filtered_content)
+            
+            # 设置广告检测结果
+            context.is_ad = is_ad
+            context.ad_weight = ad_weight
+            context.ad_keywords_detail = {
+                'matched_keywords': matched_keywords,
+                'total_weight': ad_weight,
+                'threshold': ad_detector.threshold
+            }
+            
+            # 构建过滤原因
+            filter_reasons = []
             if was_filtered:
-                context.filter_reason = f"移除了推广尾部内容({filter_analysis.get('removed_lines_count', 0)}行)"
+                filter_reasons.append(f"移除了推广尾部内容({filter_analysis.get('removed_lines_count', 0)}行)")
+            
+            if is_ad:
+                keyword_names = [k['keyword'] for k in matched_keywords[:3]]
+                filter_reasons.append(f"广告检测(权重{ad_weight:.1f}, 关键词: {', '.join(keyword_names)})")
+            
+            context.filter_reason = "; ".join(filter_reasons) if filter_reasons else ""
             
             # 调试日志：记录广告检测结果
             if context.is_ad:
-                self.logger.info(f"🚫 消息被检测为广告: {context.filter_reason}")
+                self.logger.info(f"🚫 消息被检测为广告: 权重={ad_weight:.1f}, 关键词={len(matched_keywords)}个")
             else:
                 self.logger.debug(f"✅ 消息未检测为广告")
-            
-            # 更新广告检测原因
-            if ad_detection_result and ad_detection_result.get('is_ad', False):
-                ai_reason = ad_detection_result.get('main_reason', 'AI检测')
-                if not context.filter_reason:
-                    context.filter_reason = f"AI检测到疑似广告: {ai_reason}"
-                else:
-                    context.filter_reason += f" + AI检测: {ai_reason}"
             
             
             # 记录过滤效果

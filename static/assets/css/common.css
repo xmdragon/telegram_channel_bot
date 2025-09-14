@@ -339,3 +339,9 @@ body {
     color: white;
     border-color: #f57c00;
 }
+
+.ad-keyword-highlight.low-weight {
+    background-color: #ffeb3b;
+    color: #333;
+    border-color: #fbc02d;
+}

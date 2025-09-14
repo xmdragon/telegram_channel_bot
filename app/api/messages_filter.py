@@ -248,28 +248,31 @@ async def mark_not_ad(
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
-        # 如果消息有命中的关键词，进行降权
-        if message.get('hit_keywords'):
-            from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
-            detector = get_weighted_keyword_detector()
+        # 🎯 使用统一的AdDetector处理负面反馈
+        decreased_keywords = []
+        deleted_keywords = []
+        
+        # 获取消息的关键词详情，优先从新字段获取
+        matched_keywords = []
+        if message.get('ad_keywords_detail'):
+            # 新格式：从ad_keywords_detail获取
+            matched_keywords = [k['keyword'] for k in message.get('ad_keywords_detail', {}).get('matched_keywords', [])]
+        elif message.get('hit_keywords'):
+            # 旧格式：从hit_keywords获取
+            matched_keywords = [kw.get('keyword') for kw in message.get('hit_keywords', []) if kw.get('keyword')]
+        
+        if matched_keywords:
+            from app.services.filters.ad_detector import AdDetector
+            ad_detector = AdDetector()
             
-            decreased_keywords = []
-            deleted_keywords = []
-            
-            for keyword_info in message.get('hit_keywords', []):
-                keyword = keyword_info.get('keyword')
-                if keyword:
-                    # 使用检测器的降权方法
-                    success = detector.decrease_keyword_weight(keyword)
-                    if success:
-                        # 检查关键词是否仍然存在
-                        current_keywords = detector.get_keywords()
-                        if keyword in current_keywords:
-                            decreased_keywords.append(keyword)
-                        else:
-                            deleted_keywords.append(keyword)
-            
-            logger.info(f"关键词降权: 降低={decreased_keywords}, 删除={deleted_keywords}")
+            # 使用AdDetector的负面反馈处理
+            success = ad_detector.handle_negative_feedback(matched_keywords)
+            if success:
+                logger.info(f"AdDetector负面反馈处理完成: 关键词={matched_keywords}")
+            else:
+                logger.error("AdDetector负面反馈处理失败")
+        else:
+            logger.info("消息无匹配关键词，跳过负面反馈处理")
         
         # 更新消息状态
         update_data = {
@@ -296,8 +299,8 @@ async def mark_not_ad(
             "success": True,
             "message": "消息已标记为非广告，关键词已降权",
             "data": {
-                "decreased_keywords": decreased_keywords if 'decreased_keywords' in locals() else [],
-                "deleted_keywords": deleted_keywords if 'deleted_keywords' in locals() else []
+                "matched_keywords": matched_keywords,
+                "feedback_processed": len(matched_keywords) > 0
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
@@ -435,16 +438,22 @@ async def mark_as_ad(
         else:
             raise HTTPException(status_code=400, detail="不支持的消息ID格式")
         
-        # 保存新关键词到配置
+        # 🎯 使用统一的AdDetector处理正面反馈
         if keywords:
-            from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
-            detector = get_weighted_keyword_detector()
+            from app.services.filters.ad_detector import AdDetector
+            ad_detector = AdDetector()
             
-            for keyword, weight in keywords.items():
-                if keyword and weight > 0:
-                    detector.add_keyword(keyword, weight)
+            # 转换权重为float类型
+            float_keywords = {k: float(v) for k, v in keywords.items() if k and v > 0}
             
-            logger.info(f"添加了 {len(keywords)} 个新关键词")
+            # 使用AdDetector的正面反馈处理
+            success = ad_detector.handle_positive_feedback(float_keywords)
+            if success:
+                logger.info(f"AdDetector正面反馈处理完成: 添加了 {len(float_keywords)} 个新关键词")
+            else:
+                logger.error("AdDetector正面反馈处理失败")
+        else:
+            logger.info("无新关键词需要添加")
         
         # 更新消息状态为拒绝
         success = await message_processor.update_message_status(
