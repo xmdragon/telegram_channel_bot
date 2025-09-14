@@ -33,18 +33,23 @@ class LocalMessageViewer:
         """解析消息ID
         
         支持格式:
-        - channel_id:message_id (如 -1002557968812:2251)
+        - channel_id:message_id (如 -1002557968812:2251 或 1521754979:261368)
         - channel_id:message_id:xxx (兼容旧格式)
         """
         parts = message_id.split(':')
         if len(parts) >= 2:
-            return parts[0], int(parts[1])
+            channel_id = parts[0]
+            # 统一转换为完整的channel_id格式
+            if not channel_id.startswith('-100'):
+                # 如果没有-100前缀，添加它
+                channel_id = f"-100{channel_id}"
+            return channel_id, int(parts[1])
         else:
             raise ValueError(f"无效的消息ID格式: {message_id}")
     
     def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:
         """获取消息"""
-        return self.redis_manager.get_message(channel_id, message_id, silent=True)
+        return self.redis_store.get_message(channel_id, message_id, silent=True)
     
     def display_message(self, msg: Dict[str, Any], show_raw: bool = False, show_media: bool = False):
         """显示消息信息"""
@@ -77,7 +82,13 @@ class LocalMessageViewer:
         
         # 标记信息
         print(f"\n🏷️ 标记:")
-        print(f"  是否广告: {'是' if msg.get('is_ad') else '否'}")
+        # 正确处理 is_ad 字段（可能是布尔值或字符串）
+        is_ad_value = msg.get('is_ad')
+        if isinstance(is_ad_value, str):
+            is_ad_display = '是' if is_ad_value.lower() == 'true' else '否'
+        else:
+            is_ad_display = '是' if is_ad_value else '否'
+        print(f"  是否广告: {is_ad_display} (原值: {is_ad_value})")
         print(f"  是否组合: {'是' if msg.get('is_combined') else '否'}")
         if msg.get('grouped_id'):
             print(f"  组ID: {msg.get('grouped_id')}")
@@ -187,7 +198,8 @@ class LocalMessageViewer:
                     print(f"    {i}. {media.get('media_type')} - {media.get('display_url', 'No URL')}")
         
         # 重复消息信息
-        if msg.get('details', {}).get('is_duplicate'):
+        details = msg.get('details')
+        if details and details.get('is_duplicate'):
             print(f"\n🔁 重复消息信息:")
             details = msg['details']
             print(f"  原始消息ID: {details.get('original_message_id')}")
@@ -227,7 +239,7 @@ class LocalMessageViewer:
             for cm in msg['combined_messages']:
                 sub_msg_id = cm.get('message_id')
                 if sub_msg_id:
-                    sub_msg = self.redis_manager.get_message(channel_id, int(sub_msg_id), silent=True)
+                    sub_msg = self.redis_store.get_message(channel_id, int(sub_msg_id), silent=True)
                     if sub_msg:
                         print(f"  ✅ 消息 #{sub_msg_id} 存在 (已合并)")
                     else:
@@ -243,7 +255,7 @@ class LocalMessageViewer:
         print(f"\n邻近消息:")
         for offset in [-2, -1, 1, 2]:
             nearby_id = message_id + offset
-            nearby_msg = self.redis_manager.get_message(channel_id, nearby_id, silent=True)
+            nearby_msg = self.redis_store.get_message(channel_id, nearby_id, silent=True)
             if nearby_msg:
                 marker = "📦" if nearby_msg.get('is_combined') else "📄"
                 status = nearby_msg.get('status', 'unknown')

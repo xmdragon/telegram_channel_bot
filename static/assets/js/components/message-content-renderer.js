@@ -452,6 +452,15 @@ const MessageContentRenderer = {
         // 🚀 处理单个媒体点击事件
         handleSingleMediaClick({ mediaItem, index, url }) {
             this.openMediaPreview(url);
+        },
+        
+        // 判断消息是否为广告 - 修复字符串"False"被当作true的问题
+        isMessageAd(message) {
+            const isAd = message.is_ad;
+            if (typeof isAd === 'string') {
+                return isAd.toLowerCase() === 'true';
+            }
+            return !!isAd;
         }
     },
     template: `
@@ -484,7 +493,7 @@ const MessageContentRenderer = {
                     <span :class="['tag', 'tag-' + statusTag.type]">
                         {{ statusTag.text }}
                     </span>
-                    <span v-if="message.is_ad" class="tag tag-danger">广告</span>
+                    <span v-if="isMessageAd(message)" class="tag tag-danger">广告</span>
                     <span v-if="(message.filter_reason || message.rejection_reason) && message.status === 'rejected'" 
                           class="tag tag-secondary reject-reason-hover" 
                           :title="message.filter_reason || message.rejection_reason">
