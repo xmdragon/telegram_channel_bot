@@ -97,11 +97,11 @@ class MessageProcessor:
     
     async def process_new_message(self, message_data: dict) -> Optional[Dict[str, Any]]:
         """
-        处理新消息，包括重复检测
-        
+        处理新消息，包括智能去重检测 - Linus式优化版本
+
         Args:
             message_data: 消息数据字典
-            
+
         Returns:
             处理后的消息字典，如果重复则返回None
         """
@@ -109,20 +109,57 @@ class MessageProcessor:
             # 确保redis_store已初始化
             if self.redis_store is None:
                 self.redis_store = redis_manager
-            
+
             channel_id = str(message_data.get('source_channel', ''))
             message_id = message_data.get('message_id')
-            
+
             if not channel_id or not message_id:
                 logger.error("消息数据缺少必要字段: source_channel 或 message_id")
                 return None
-            
-            # 直接检查Redis中是否已存在消息
+
+            # Linus优化1: 快速检查Redis中是否已存在（O(1)操作）
             existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
-            
             if existing_message:
-                logger.info(f"📋 message_processor: 消息已存在于Redis中：频道 {channel_id}，消息ID {message_id}")
+                logger.info(f"📋 快速去重: 消息已存在 {channel_id}:{message_id}")
                 return existing_message
+
+            # Linus优化2: 智能去重检测（仅对新消息）
+            from app.services.filters.deduplication_engine import get_deduplication_engine
+            dedup_engine = get_deduplication_engine()
+
+            duplicate_result = dedup_engine.check_duplicate(message_data, channel_id)
+            if duplicate_result.is_duplicate:
+                logger.info(f"🔄 智能去重: {duplicate_result.reason} (相似度: {duplicate_result.similarity_score:.2f})")
+
+                # 返回第一个匹配的消息（如果存在）
+                if duplicate_result.matched_messages:
+                    first_match = duplicate_result.matched_messages[0]
+                    try:
+                        match_channel_id, match_msg_id = first_match.split(':', 1)
+                        existing_dup = self.redis_store.get_message(match_channel_id, int(match_msg_id), silent=True)
+                        if existing_dup:
+                            # 在现有消息中记录重复信息
+                            dup_info = existing_dup.get('duplicates', [])
+                            dup_info.append({
+                                'channel_id': channel_id,
+                                'message_id': message_id,
+                                'similarity_score': duplicate_result.similarity_score,
+                                'hash_type': duplicate_result.hash_type,
+                                'detected_at': time.strftime("%Y-%m-%dT%H:%M:%S")
+                            })
+                            self.redis_store.update_message(match_channel_id, int(match_msg_id), {'duplicates': dup_info})
+                            return existing_dup
+                    except Exception as e:
+                        logger.warning(f"处理重复消息引用失败: {e}")
+
+                # 如果找不到原始消息，仍然保存新消息但标记为重复
+                message_data['is_duplicate'] = True
+                message_data['duplicate_info'] = {
+                    'similarity_score': duplicate_result.similarity_score,
+                    'hash_type': duplicate_result.hash_type,
+                    'reason': duplicate_result.reason,
+                    'matched_count': len(duplicate_result.matched_messages)
+                }
             
             # 保存新消息到Redis
             try:

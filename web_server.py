@@ -319,7 +319,12 @@ async def train():
 async def health_check():
     """获取系统健康状态"""
     from app.services.health_monitor import HealthCheckService
-    return await HealthCheckService.get_system_summary()
+    from fastapi.responses import JSONResponse
+
+    data = await HealthCheckService.get_system_summary()
+    response = JSONResponse(data)
+    response.headers["Connection"] = "close"  # 强制关闭连接，防止CLOSE-WAIT
+    return response
 
 
 @app.get("/api/health/{service_name}")
@@ -350,9 +355,13 @@ if __name__ == "__main__":
     # 开发模式：使用单worker uvicorn，简单稳定
     uvicorn.run(
         app,
-        host="0.0.0.0", 
+        host="0.0.0.0",
         port=settings.WEB_PORT,
         reload=False,          # 通过dev_supervisor管理，禁用自动重载
         log_config=None,       # 使用应用自身的日志配置
-        access_log=False       # 减少日志噪音
+        access_log=False,      # 减少日志噪音
+        # 连接管理参数，防止CLOSE-WAIT堆积
+        timeout_keep_alive=5,        # keep-alive 超时 5 秒
+        limit_concurrency=100,       # 限制并发连接数
+        timeout_graceful_shutdown=10 # 优雅关闭超时
     )

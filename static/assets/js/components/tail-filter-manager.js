@@ -62,7 +62,7 @@ const app = createApp({
                 
                 // 使用API返回的数据
                 this.samples = samplesResponse.data.samples || [];
-                this.totalCount = samplesResponse.data.total || 0;
+                this.totalCount = samplesResponse.data.pagination?.total || 0;
 
                 // 适配数据格式 - 后端返回的是tail_part字段
                 this.samples = this.samples.map(sample => ({
@@ -80,13 +80,9 @@ const app = createApp({
                 // 使用统一的统计API数据（Linus式单一数据源）
                 if (statsResponse.data.success) {
                     this.totalSamples = statsResponse.data.total_samples || this.totalCount;
-                    this.validSamples = statsResponse.data.valid_samples || this.totalCount;
-                    this.todayAdded = statsResponse.data.today_added || 0;
                 } else {
                     // 降级到使用当前数据计算（保持向后兼容）
                     this.totalSamples = this.totalCount;
-                    this.validSamples = this.totalCount;
-                    this.todayAdded = 0;
                 }
                 
                 // 清除页面加载超时检测

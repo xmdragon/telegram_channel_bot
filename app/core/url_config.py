@@ -19,7 +19,7 @@ class URLConfig:
     
     def __init__(self):
         # 基础URL配置，支持环境变量覆盖
-        self._base_url = os.getenv('BASE_URL', 'http://localhost:8080')
+        self._base_url = os.getenv('BASE_URL', f'http://localhost:{settings.WEB_PORT}')
         
         # 确保URL末尾没有斜杠
         self._base_url = self._base_url.rstrip('/')

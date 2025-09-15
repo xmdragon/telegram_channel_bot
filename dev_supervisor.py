@@ -245,8 +245,22 @@ class DevSupervisor:
         self.service_configs = {
             "web": ServiceConfig(
                 name="web",
-                command=["venv/bin/python3", "web_server.py"],  # 使用虚拟环境Python
-                description="Web服务器 (FastAPI + Uvicorn)"
+                command=[
+                    "venv/bin/gunicorn", "web_server:app",
+                    "--bind", "0.0.0.0:8008",
+                    "--workers", "1",
+                    "--worker-class", "uvicorn.workers.UvicornWorker",
+                    "--max-requests", "500",
+                    "--max-requests-jitter", "50",
+                    "--timeout", "60",
+                    "--graceful-timeout", "10",
+                    "--worker-connections", "100",
+                    "--preload",
+                    "--access-logfile", "logs/gunicorn_access.log",
+                    "--error-logfile", "logs/gunicorn_error.log",
+                    "--log-level", "info"
+                ],
+                description="Web服务器 (Gunicorn + UvicornWorker - 稳定模式)"
             ),
             "collector": ServiceConfig(
                 name="collector", 

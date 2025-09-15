@@ -800,16 +800,6 @@
     "updated_at": "2025-09-12T07:28:41.685268"
   },
   {
-    "id": 81,
-    "channel_name": "@wenanhs1",
-    "channel_id": "-1001738049772",
-    "channel_title": "人间清醒【文案馆】",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:28:41.959560",
-    "updated_at": "2025-09-12T07:28:41.960335"
-  },
-  {
     "id": 82,
     "channel_name": "@xigang13",
     "channel_id": "-1002125005952",
@@ -838,16 +828,6 @@
     "config": {},
     "created_at": "2025-09-12T07:28:42.840204",
     "updated_at": "2025-09-12T07:28:42.840517"
-  },
-  {
-    "id": 85,
-    "channel_name": "@taiwantuku111",
-    "channel_id": "-1001926471614",
-    "channel_title": "台灣 素材群",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:28:43.128312",
-    "updated_at": "2025-09-12T07:28:43.128990"
   },
   {
     "id": 87,
@@ -977,16 +957,6 @@
     "config": {},
     "created_at": "2025-09-12T15:29:40.234416",
     "updated_at": "2025-09-12T07:29:40.234805"
-  },
-  {
-    "id": 100,
-    "channel_name": "@chigua2022",
-    "channel_id": "-1001786596225",
-    "channel_title": "吃瓜群众🍉",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:29:40.559077",
-    "updated_at": "2025-09-12T07:29:40.559540"
   },
   {
     "id": 101,

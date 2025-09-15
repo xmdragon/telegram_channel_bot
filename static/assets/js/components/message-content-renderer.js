@@ -100,10 +100,16 @@ const MessageContentRenderer = {
         // 高亮命中关键词的原始内容
         highlightedOriginalContent() {
             let content = this.message.content || '';
-            
+
+            // 如果没有内容，返回空字符串
+            if (!content) return '';
+
+            // 总是先转义HTML特殊字符（安全性）
+            content = this.escapeHtml(content);
+
             // 🎯 优先从新字段ad_keywords_detail获取关键词信息
             let keywordsToHighlight = [];
-            
+
             if (this.message.ad_keywords_detail && this.message.ad_keywords_detail.matched_keywords) {
                 // 新格式：使用ad_keywords_detail
                 keywordsToHighlight = this.message.ad_keywords_detail.matched_keywords;
@@ -111,24 +117,22 @@ const MessageContentRenderer = {
                 // 旧格式：使用hit_keywords
                 keywordsToHighlight = this.message.hit_keywords;
             }
-            
-            if (!content || keywordsToHighlight.length === 0) {
+
+            // 如果没有关键词，返回转义后的内容
+            if (!keywordsToHighlight || keywordsToHighlight.length === 0) {
                 return content;
             }
-            
-            // 转义HTML特殊字符
-            content = this.escapeHtml(content);
-            
+
             // 按关键词长度从长到短排序
-            const sortedKeywords = [...keywordsToHighlight].sort((a, b) => 
+            const sortedKeywords = [...keywordsToHighlight].sort((a, b) =>
                 b.keyword.length - a.keyword.length
             );
-            
+
             // 高亮每个关键词
             for (const item of sortedKeywords) {
                 const keyword = item.keyword;
                 const weight = item.weight || 1.0;
-                
+
                 // 根据权重选择不同的高亮样式
                 let highlightClass = 'ad-keyword-highlight';
                 if (weight >= 5.0) {
@@ -138,14 +142,14 @@ const MessageContentRenderer = {
                 } else {
                     highlightClass += ' low-weight';      // 黄色背景
                 }
-                
-                // 使用正则替换
+
+                // 使用正则替换（忽略positions字段，直接匹配）
                 const regex = new RegExp(this.escapeRegExp(keyword), 'gi');
-                content = content.replace(regex, match => 
+                content = content.replace(regex, match =>
                     `<span class="${highlightClass}" title="权重: ${weight}">${match}</span>`
                 );
             }
-            
+
             return content;
         },
         
@@ -506,7 +510,11 @@ const MessageContentRenderer = {
                     <!-- 左栏：过滤后内容（包含媒体） -->
                     <div class="content-column content-filtered">
                         <div class="content-column-header">
-                            <span class="content-label">🔍 过滤后内容</span>
+                            <!-- 对于拒绝的广告消息，显示"检测到的广告内容"标签 -->
+                            <span v-if="message.status === 'rejected' && isMessageAd(message)" class="content-label">
+                                🚫 检测到的广告内容
+                            </span>
+                            <span v-else class="content-label">🔍 过滤后内容</span>
                         </div>
                         <div class="content-column-body">
                             <!-- 媒体内容 - 统一使用TelegramAlbum组件 -->
@@ -521,25 +529,30 @@ const MessageContentRenderer = {
                                     class="comparison-media"
                                 />
                             </div>
-                            
+
                             <!-- 媒体缺失时的占位符 -->
-                            <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
+                            <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)"
                                  class="media-placeholder media-content">
                                 <div>
-                                    📷 {{ message.media_type === 'photo' ? '图片' : 
-                                         message.media_type === 'video' ? '视频' : 
+                                    📷 {{ message.media_type === 'photo' ? '图片' :
+                                         message.media_type === 'video' ? '视频' :
                                          message.media_type }}
                                     <div class="media-missing-text">媒体文件缺失</div>
                                 </div>
                             </div>
-                            
-                            <!-- 过滤后的文本内容（高亮广告关键词） -->
-                            <div v-if="message.filtered_content" class="message-text" v-html="highlightedFilteredContent">
+
+                            <!-- 文本内容：对于拒绝的广告消息显示高亮的原始内容，其他情况显示过滤后内容 -->
+                            <!-- 拒绝的广告消息：显示原始内容并高亮关键词 -->
+                            <div v-if="message.status === 'rejected' && isMessageAd(message) && message.content"
+                                 class="message-text" v-html="highlightedOriginalContent">
+                            </div>
+                            <!-- 其他消息：显示过滤后的内容 -->
+                            <div v-else-if="message.filtered_content" class="message-text" v-html="highlightedFilteredContent">
                             </div>
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无过滤后内容
                             </div>
-                            
+
                         </div>
                         
                         <!-- 显示被移除的隐藏链接信息 -->

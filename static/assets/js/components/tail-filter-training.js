@@ -74,8 +74,7 @@ const app = createApp({
                 } else {
                     // 添加新样本
                     const response = await axios.post(API.training.tailFilterSamples, {
-                        content: originalMessage,
-                        tailPart: this.trainingForm.tail_content
+                        tail_part: this.trainingForm.tail_content
                     });
                     window.SimpleUI.Message.success('训练样本提交成功！');
                 }

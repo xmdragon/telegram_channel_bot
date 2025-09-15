@@ -56,28 +56,25 @@ def convert_tail_filter_format():
         for rule, count in sorted(duplicated_rules.items(), key=lambda x: x[1], reverse=True)[:5]:
             print(f"  {count}次: {rule[:50]}..." if len(rule) > 50 else f"  {count}次: {rule}")
     
+    # 统计原始规则数（用于打印信息）
+    original_rule_count = sum(len(s.get('rules', [])) for s in samples)
+
     # 创建新格式数据
     new_data = {
         "rules": unique_rules,
         "updated_at": datetime.now().isoformat(),
-        "total_count": len(unique_rules),
-        "metadata": {
-            "converted_from": "tail_part_format",
-            "original_sample_count": len(samples),
-            "original_rule_count": sum(len(s.get('rules', [])) for s in samples),
-            "conversion_date": datetime.now().isoformat()
-        }
+        "total_count": len(unique_rules)
     }
-    
+
     # 保存新格式数据
     print("\n保存新格式数据...")
     with open(samples_file, 'w', encoding='utf-8') as f:
         json.dump(new_data, f, ensure_ascii=False, indent=2)
-    
+
     print(f"✅ 转换完成！")
-    print(f"   原始规则数: {new_data['metadata']['original_rule_count']}")
+    print(f"   原始规则数: {original_rule_count}")
     print(f"   唯一规则数: {len(unique_rules)}")
-    print(f"   减少了: {new_data['metadata']['original_rule_count'] - len(unique_rules)} 个重复规则")
+    print(f"   减少了: {original_rule_count - len(unique_rules)} 个重复规则")
     print(f"   文件已保存到: {samples_file}")
     
     return new_data

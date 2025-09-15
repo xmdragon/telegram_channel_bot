@@ -72,7 +72,7 @@ class AdDetector:
             logger.warning(f"检查配置更新失败: {e}")
 
     def detect(self, content: str) -> Tuple[bool, float, List[Dict[str, Any]]]:
-        """检测内容是否为广告（带关键词位置信息）
+        """检测内容是否为广告 - Linus式性能优化版本
 
         Args:
             content: 要检测的内容
@@ -80,8 +80,8 @@ class AdDetector:
         Returns:
             (是否为广告, 总权重, 命中的关键词详情)
             关键词详情格式: [{
-                'keyword': str, 
-                'weight': float, 
+                'keyword': str,
+                'weight': float,
                 'positions': [{'start': int, 'end': int}]
             }]
         """
@@ -91,36 +91,54 @@ class AdDetector:
         if not content or not self.keywords:
             return False, 0.0, []
 
-        # 转换为小写进行匹配
+        # 性能优化：预处理内容
         content_lower = content.lower()
+        content_length = len(content_lower)
 
-        # 计算权重并记录位置
-        total_weight = 0.0
-        matched_keywords = []
+        # Linus优化1：使用集合进行O(1)查找的预筛选
+        content_chars = set(content_lower)
+        potential_keywords = []
 
         for keyword, weight in self.keywords.items():
             keyword_lower = keyword.lower()
+            # 快速预筛选：检查关键词的字符是否在内容中
+            if all(char in content_chars for char in set(keyword_lower)):
+                potential_keywords.append((keyword, keyword_lower, weight))
+
+        if not potential_keywords:
+            return False, 0.0, []
+
+        # Linus优化2：批量匹配和权重累计
+        total_weight = 0.0
+        matched_keywords = []
+
+        # 使用更高效的字符串搜索
+        for keyword, keyword_lower, weight in potential_keywords:
             if keyword_lower in content_lower:
-                # 查找所有匹配位置
-                positions = []
-                start = 0
-                while True:
-                    pos = content_lower.find(keyword_lower, start)
-                    if pos == -1:
-                        break
-                    positions.append({
-                        'start': pos,
-                        'end': pos + len(keyword)
-                    })
-                    start = pos + 1
-                
+                # 精确计算位置（仅对匹配的关键词）
+                positions = self._find_keyword_positions(content_lower, keyword_lower)
+
                 if positions:
-                    total_weight += weight
+                    # Linus优化3：重复关键词权重递减策略
+                    count = len(positions)
+                    if count == 1:
+                        adjusted_weight = weight
+                    elif count <= 3:
+                        adjusted_weight = weight * (1.0 + count * 0.2)  # 轻微加权
+                    else:
+                        adjusted_weight = weight * 1.5  # 防止权重爆炸
+
+                    total_weight += adjusted_weight
                     matched_keywords.append({
                         'keyword': keyword,
-                        'weight': weight,
+                        'weight': adjusted_weight,
                         'positions': positions
                     })
+
+                    # Linus优化4：早期退出优化
+                    if total_weight >= self.threshold * 2.0:  # 明显超过阈值就提前结束
+                        logger.debug(f"早期退出: 权重{total_weight:.1f}明显超过阈值{self.threshold}")
+                        break
 
         # 按权重排序
         matched_keywords.sort(key=lambda x: x['weight'], reverse=True)
@@ -132,6 +150,29 @@ class AdDetector:
             logger.debug(f"检测到广告: 权重={total_weight:.1f}, 关键词={[k['keyword'] for k in matched_keywords[:3]]}")
 
         return is_ad, total_weight, matched_keywords
+
+    def _find_keyword_positions(self, content_lower: str, keyword_lower: str) -> List[Dict[str, int]]:
+        """高效查找关键词位置"""
+        positions = []
+        start = 0
+        keyword_len = len(keyword_lower)
+
+        # 使用更高效的查找方法
+        while True:
+            pos = content_lower.find(keyword_lower, start)
+            if pos == -1:
+                break
+            positions.append({
+                'start': pos,
+                'end': pos + keyword_len
+            })
+            start = pos + 1
+
+            # 限制单个关键词的最大匹配数，防止性能问题
+            if len(positions) >= 10:  # 最多记录10个位置
+                break
+
+        return positions
 
     def add_keyword(self, keyword: str, weight: float) -> bool:
         """添加新关键词

@@ -2,7 +2,7 @@
 消息过滤API模块
 处理尾部过滤、阈值管理、训练数据等功能
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
@@ -428,7 +428,7 @@ async def extract_ad_keywords(
 @router.post(ROUTES.messages.mark_as_ad)
 async def mark_as_ad(
     id: str,
-    keywords: Dict[str, int],
+    keywords: Dict[str, float] = Body(..., embed=True),
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
@@ -441,15 +441,15 @@ async def mark_as_ad(
             channel_id, msg_id = id.split(':', 1)
         else:
             raise HTTPException(status_code=400, detail="不支持的消息ID格式")
-        
+
         # 🎯 使用统一的AdDetector处理正面反馈
         if keywords:
             from app.services.filters.ad_detector import AdDetector
             ad_detector = AdDetector()
-            
-            # 转换权重为float类型
-            float_keywords = {k: float(v) for k, v in keywords.items() if k and v > 0}
-            
+
+            # 过滤掉权重小于等于0的关键词
+            float_keywords = {k: v for k, v in keywords.items() if k and v > 0}
+
             # 使用AdDetector的正面反馈处理
             success = ad_detector.handle_positive_feedback(float_keywords)
             if success:

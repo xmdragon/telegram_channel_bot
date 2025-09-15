@@ -426,6 +426,9 @@ class TelegramMessageCollector:
             
             # 2. 处理消息
             channel_id = str(entity.id) if hasattr(entity, 'id') else "unknown"
+            # Telegram超级群组/频道ID需要加上-100前缀
+            if not channel_id.startswith('-') and channel_id != "unknown":
+                channel_id = f'-100{channel_id}'
             
             if len(message_groups) == 1:
                 # 单条消息

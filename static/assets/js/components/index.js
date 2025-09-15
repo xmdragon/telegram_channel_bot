@@ -2134,13 +2134,8 @@ const MainApp = {
 
         // 标记为广告 - 新流程：提取关键词 -> 选择权重 -> 保存
         async markAsAd(messageId) {
-            // 去掉-100前缀来查找消息
-            let searchId = messageId;
-            if (messageId && messageId.startsWith('-100')) {
-                searchId = messageId.replace('-100', '');
-            }
-            
-            const message = this.messages.find(msg => msg.id === searchId);
+            // 直接使用messageId查找消息（已包含-100前缀）
+            const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
                 window.SimpleUI.Message.error('未找到消息');
                 return;
@@ -2162,7 +2157,7 @@ const MainApp = {
                 }
                 
                 const extractResponse = await axios.post(
-                    window.API.messages.extractAdKeywords(this.ensureChannelIdPrefix(searchId))
+                    window.API.messages.extractAdKeywords(this.ensureChannelIdPrefix(message.id))
                 );
                 
                 // 隐藏加载提示
@@ -2472,14 +2467,9 @@ const MainApp = {
         
         // 训练尾部
         trainTail(messageId) {
-            // 去掉-100前缀来查找消息
-            let searchId = messageId;
-            if (messageId && messageId.startsWith('-100')) {
-                searchId = messageId.replace('-100', '');
-            }
-            
-            const message = this.messages.find(msg => msg.id === searchId);
-            
+            // 直接使用messageId查找消息（已包含-100前缀）
+            const message = this.messages.find(msg => msg.id === messageId);
+
             if (!message) {
                 window.SimpleUI.Message.error('未找到消息');
                 return;

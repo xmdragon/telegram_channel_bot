@@ -9,6 +9,7 @@
     <!-- 动态版本号 - 防缓存 -->
     <script>window.RESOURCE_VERSION = Date.now();</script>
     <script>
+        document.write('<link rel="stylesheet" href="assets/css/common.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/index.css?v=' + RESOURCE_VERSION + '">');

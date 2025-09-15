@@ -44,6 +44,11 @@ venv.bak/
 *.log
 logs/
 
+# Redis dump files (应该在 data/backups/redis/ 但有时会在根目录)
+dump.rdb
+*.rdb
+appendonly.aof
+
 # Telethon sessions
 sessions/
 *.session

@@ -387,9 +387,19 @@ async def get_channel_info(
                 channel_name = channel.get('channel_name', '')
                 username = channel_name.lstrip('@') if channel_name else ''
                 
+                # 确保频道 ID 格式统一（添加 -100 前缀）
+                channel_id = channel.get('channel_id', '')
+                if channel_id and not channel_id.startswith('-100'):
+                    # 如果是纯数字且没有 -100 前缀，添加前缀
+                    if channel_id.isdigit() or (channel_id.startswith('-') and channel_id[1:].isdigit()):
+                        if not channel_id.startswith('-'):
+                            channel_id = f"-100{channel_id}"
+                        elif not channel_id.startswith('-100'):
+                            channel_id = f"-100{channel_id[1:]}"
+
                 channels.append({
-                    "channel_id": channel.get('channel_id', ''),
-                    "title": channel.get('channel_title', channel.get('title', f'频道 {channel.get("channel_id", "")}')),
+                    "channel_id": channel_id,  # 使用统一格式的 ID
+                    "title": channel.get('channel_title', channel.get('title', f'频道 {channel_id}')),
                     "username": username,
                     "enabled": channel.get('is_active', channel.get('enabled', True)),
                     "channel_type": channel.get('channel_type', 'source'),
