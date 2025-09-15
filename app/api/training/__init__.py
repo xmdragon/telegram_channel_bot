@@ -6,11 +6,9 @@ from fastapi import APIRouter
 # 导入所有子模块的路由
 from .basic import router as basic_router
 from .tail_filter import router as tail_filter_router
-from .media import router as media_router
-from .ad_vector import router as ad_vector_router
+# 注意：ad_vector模块已移除
 # OCR功能已移除
 from .admin import router as admin_router
-from .promo_training import router as promo_training_router
 from .keyword_management import router as keyword_router
 from .separator_test import router as separator_test_router
 
@@ -27,20 +25,10 @@ def register_training_routes():
     # 尾部过滤管理
     router.include_router(tail_filter_router, tags=["training-tail-filter"])
     
-    # 媒体文件管理
-    router.include_router(media_router, tags=["training-media"])
-    
-    # 广告向量管理
-    router.include_router(ad_vector_router, tags=["training-ad-vector"])
-    
-    # OCR功能已移除
-    
+    # 注意：广告向量管理已移除
+
     # 系统管理
     router.include_router(admin_router, tags=["training-admin"])
-    
-    
-    # 推广链接训练
-    router.include_router(promo_training_router, tags=["training-promo"])
 
     # 关键词管理
     router.include_router(keyword_router, tags=["training-keywords"])

@@ -28,9 +28,8 @@ const NavBar = {
                 <div class="navbar-links">
                     <a href="./index.html" :class="['nav-link', isActive('/index.html') ? 'active' : '']">🏠 主控制台</a>
                     <a href="./config.html" :class="['nav-link', isActive('/config.html') ? 'active' : '']">⚙️ 系统配置</a>
-                    <a href="./tail-filter-manager.html" :class="['nav-link', isActive('/tail-filter-manager.html') ? 'active' : '']">🤖 AI训练</a>
+                    <a href="./tail-filter-manager.html" :class="['nav-link', isActive('/tail-filter-manager.html') ? 'active' : '']">🤖 训练中心</a>
                     <a href="./status.html" :class="['nav-link', isActive('/status.html') ? 'active' : '']">📊 系统状态</a>
-                    <a href="./logs.html" :class="['nav-link', isActive('/logs.html') ? 'active' : '']">📋 系统日志</a>
                     <a href="./admin-manage.html" :class="['nav-link', isActive('/admin-manage.html') ? 'active' : '']">👥 管理员</a>
                     <a href="./telegram-auth.html" :class="['nav-link', isActive('/telegram-auth.html') ? 'active' : '']">📱 Telegram认证</a>
                     <a href="#" @click.prevent="handleLogout" class="nav-link">🚪 登出</a>

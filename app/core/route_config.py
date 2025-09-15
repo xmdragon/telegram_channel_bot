@@ -127,10 +127,8 @@ class RouteConfig:
         lock_status = "/system/lock-status"
         clear_lock = "/system/clear-lock"
         auto_clear_lock = "/system/auto-clear-lock"
-        
-        # 日志管理
-        logs = "/system/logs"
         logs_realtime = "/system/logs/realtime"
+        
         
         # 服务管理
         services = "/system/services"

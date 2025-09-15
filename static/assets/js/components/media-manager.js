@@ -128,7 +128,7 @@ const app = createApp({
     methods: {
         // 获取媒体文件URL - 直接使用nginx静态文件路径
         getMediaUrl(filePath) {
-            // AI训练媒体文件直接通过nginx访问，无需FastAPI权限验证
+            // 训练媒体文件直接通过nginx访问，无需FastAPI权限验证
             // Docker配置: ./data/training/ad -> /usr/share/nginx/html/media
             return `/media/${filePath}`;
         },

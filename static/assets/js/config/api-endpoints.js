@@ -119,21 +119,8 @@ const API_ENDPOINTS = {
         tailFilterStatistics: '/api/training/tail-filter-statistics', // GET - 获取尾部过滤统计
         tailFilterHistory: '/api/training/tail-filter-history',  // GET - 获取尾部过滤历史
 
-        // 媒体文件管理
-        mediaFiles: '/api/training/media-files',                 // GET - 获取媒体文件列表
-        mediaFileById: (hash) => `/api/training/media-files/${hash}`, // DELETE - 删除媒体文件
-        // OCR功能已移除
-        mediaFilesExport: '/api/training/media-files/export',    // GET - 导出媒体文件
-        mediaFilesCleanOrphaned: '/api/training/media-files/clean-orphaned', // POST - 清理孤立文件
-        mediaFilesRebuildHashes: '/api/training/media-files/rebuild-visual-hashes', // POST - 重建视觉哈希
-
         // 其他训练功能（保留实际使用的端点）
-        markAdMessage: '/api/training/mark-ad-message',         // POST - 标记消息为广告（实际使用）
-        
-        // 推广样本管理（保留实际使用的端点）
-        promoSamples: '/api/training/promo-samples',            // GET/POST - 推广样本
-        promoSampleById: (id) => `/api/training/promo-samples/${id}`, // PUT/DELETE - 更新/删除推广样本
-        previewPromoFilter: '/api/training/preview-promo-filter' // POST - 预览推广过滤器
+        markAdMessage: '/api/training/mark-ad-message'         // POST - 标记消息为广告（实际使用）
     },
 
     // 配置管理模块 - /api/config
@@ -224,10 +211,7 @@ const API_ENDPOINTS = {
         tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
         tailFilterTraining: '/static/tail-filter-training.html',   // 尾部过滤训练独立页面
         adVectorManager: '/static/ad-training-samples.html',       // 关键词管理页面
-        promoManager: '/static/promo-manager.html',                // 推广链接数据管理页面
-        promoTraining: '/static/promo-training.html',              // 推广链接训练页面
-        separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
-        mediaManager: '/static/media-manager.html',                // 媒体文件管理页面
+        separatorConfig: '/static/separator-config.html'          // 分隔符配置页面
     }
 };
 

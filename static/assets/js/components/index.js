@@ -1082,7 +1082,7 @@ const MainApp = {
         // 恢复被拒绝的消息
         async restoreMessage(messageId) {
             // 添加确认对话框
-            if (!confirm('确定要恢复此消息为待审核状态吗？\n\n这将仅修改消息状态，不会影响AI训练数据。')) {
+            if (!confirm('确定要恢复此消息为待审核状态吗？\n\n这将仅修改消息状态，不会影响训练数据。')) {
                 return;
             }
             

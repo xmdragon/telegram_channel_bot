@@ -142,8 +142,7 @@ async def batch_approve_messages(
         
         approved_count = sum(1 for success in update_results.values() if success)
         
-        # 处理广告消息的媒体保存（新增逻辑）
-        await _handle_approved_media_training(valid_messages)
+        # 注意：已移除媒体训练数据保存功能
         
         # 使用任务队列批量转发到目标频道，避免客户端锁冲突
         forwarded_count = 0
@@ -304,8 +303,7 @@ async def batch_reject_messages(
         
         rejected_count = sum(1 for success in update_results.values() if success)
         
-        # 处理被拒绝消息的媒体移除（新增逻辑）
-        await _handle_rejected_media_removal(valid_messages)
+        # 注意：已移除媒体训练数据移除功能
         
         # 发送统计更新通知
         await _notify_stats_update()
@@ -405,151 +403,10 @@ async def batch_delete_messages(
         raise HTTPException(status_code=500, detail=f"批量删除消息失败: {str(e)}")
 
 
-async def _handle_approved_media_training(valid_messages: List[Dict[str, Any]]):
-    """
-    处理批准消息的媒体训练数据保存
-    如果消息被标记为广告且有媒体，保存到训练目录
-    """
-    try:
-        from app.services.training_media_manager import training_media_manager
-        
-        for msg_data in valid_messages:
-            # 检查消息是否被标记为广告且有媒体
-            is_ad = msg_data.get('is_ad') == 'True'
-            has_media = msg_data.get('media_type') and msg_data.get('media_path')
-            
-            if is_ad and has_media:
-                try:
-                    # 从临时目录保存到训练目录
-                    temp_media_path = msg_data.get('media_path')
-                    if temp_media_path:
-                        saved_path = await training_media_manager.save_training_media(
-                            source_path=temp_media_path,
-                            message_id=msg_data.get('message_id'),
-                            media_type=msg_data.get('media_type'),
-                            channel_id=msg_data.get('source_channel'),
-                            is_ad=True
-                        )
-                        if saved_path:
-                            logger.info(f"✅ 批准时保存广告媒体到训练目录: {saved_path}")
-                        else:
-                            logger.warning(f"⚠️  批准时保存广告媒体失败: {temp_media_path}")
-                
-                except Exception as e:
-                    logger.error(f"❌ 批准时保存媒体到训练目录失败: {e}")
-                    
-    except ImportError:
-        logger.warning("训练媒体管理器不可用，跳过媒体训练数据保存")
-    except Exception as e:
-        logger.error(f"处理批准媒体训练失败: {e}")
+# 注意：_handle_approved_media_training 函数已移除（媒体训练功能已废弃）
 
 
-async def _handle_rejected_media_removal(valid_messages: List[Dict[str, Any]]):
-    """
-    处理拒绝消息的媒体移除
-    如果消息之前被误标记为广告，从训练目录移除
-    """
-    try:
-        from app.services.training_media_manager import training_media_manager
-        from app.core.path_config import PathConfig
-        from pathlib import Path
-        import hashlib
-        
-        for msg_data in valid_messages:
-            # 检查是否有媒体需要从训练目录移除
-            has_media = msg_data.get('media_type') and msg_data.get('media_path')
-            
-            if has_media:
-                try:
-                    # 计算媒体文件hash来查找训练目录中的对应文件
-                    temp_media_path = msg_data.get('media_path')
-                    if temp_media_path and Path(temp_media_path).exists():
-                        # 计算文件hash
-                        sha256_hash = hashlib.sha256()
-                        with open(temp_media_path, "rb") as f:
-                            for byte_block in iter(lambda: f.read(4096), b""):
-                                sha256_hash.update(byte_block)
-                        file_hash = sha256_hash.hexdigest()
-                        
-                        # 检查训练目录中是否存在此hash的文件
-                        if file_hash in training_media_manager.metadata.get("media_files", {}):
-                            # 从训练目录和OCR样本中移除
-                            await _remove_media_from_training(file_hash, msg_data)
-                            logger.info(f"✅ 拒绝时从训练目录移除媒体: {file_hash[:12]}")
-                        
-                except Exception as e:
-                    logger.error(f"❌ 拒绝时移除训练媒体失败: {e}")
-                    
-    except ImportError:
-        logger.warning("训练媒体管理器不可用，跳过媒体移除")
-    except Exception as e:
-        logger.error(f"处理拒绝媒体移除失败: {e}")
-
-
-async def _remove_media_from_training(file_hash: str, msg_data: Dict[str, Any]):
-    """移除训练媒体和对应OCR样本"""
-    try:
-        from app.services.training_media_manager import training_media_manager
-        from app.core.path_config import PathConfig
-        from app.utils.safe_file_ops import SafeFileOperation
-        from pathlib import Path
-        import shutil
-        
-        # 获取文件信息
-        file_info = training_media_manager.metadata.get("media_files", {}).get(file_hash)
-        if not file_info:
-            return
-        
-        # 删除物理文件
-        training_dir = PathConfig.AD_TRAINING_DIR
-        file_path = training_dir / file_info["path"]
-        if file_path.exists():
-            file_path.unlink()
-            logger.info(f"删除训练媒体文件: {file_path}")
-        
-        # 删除缩略图（如果存在）
-        if "thumbnail_path" in file_info:
-            thumbnail_path = training_dir / file_info["thumbnail_path"]
-            if thumbnail_path.exists():
-                thumbnail_path.unlink()
-                logger.info(f"删除训练媒体缩略图: {thumbnail_path}")
-        
-        # 从媒体元数据中移除
-        del training_media_manager.metadata["media_files"][file_hash]
-        training_media_manager.save_metadata()
-        
-        # 从OCR样本中移除
-        ocr_samples_file = PathConfig.OCR_SAMPLES_FILE
-        if ocr_samples_file.exists():
-            data = SafeFileOperation.read_json_safe(ocr_samples_file)
-            if data and "samples" in data:
-                # 过滤掉对应hash的样本
-                original_count = len(data["samples"])
-                data["samples"] = [
-                    sample for sample in data["samples"] 
-                    if sample.get("image_hash") != file_hash
-                ]
-                removed_count = original_count - len(data["samples"])
-                
-                if removed_count > 0:
-                    # 更新统计信息
-                    samples = data["samples"]
-                    data["statistics"] = {
-                        "total_samples": len(samples),
-                        "ad_samples": len([s for s in samples if s.get("is_ad")]),
-                        "non_ad_samples": len([s for s in samples if not s.get("is_ad")]),
-                        "auto_rejected_samples": len([s for s in samples if s.get("auto_rejected")]),
-                        "high_score_samples": len([s for s in samples if s.get("ad_score", 0) >= 50.0]),
-                        "last_updated": msg_data.get("created_at", ""),
-                        "created_at": data["statistics"].get("created_at", "")
-                    }
-                    
-                    # 保存更新后的OCR数据
-                    SafeFileOperation.write_json_safe(ocr_samples_file, data)
-                    logger.info(f"从OCR样本中移除 {removed_count} 个样本")
-        
-    except Exception as e:
-        logger.error(f"移除训练媒体失败: {e}")
+# 注意：_handle_rejected_media_removal 和 _remove_media_from_training 函数已移除（媒体训练功能已废弃）
 
 
 async def _notify_stats_update():

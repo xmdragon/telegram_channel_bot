@@ -980,38 +980,14 @@ async def _handle_single_reject_media_training(message: Dict[str, Any], reason: 
         # 检查消息是否有媒体
         has_media = message.get('media_type') and message.get('media_path')
         
+        # 注意：已移除媒体训练数据保存功能
         if is_ad_rejection and has_media:
-            try:
-                from app.services.training_media_manager import training_media_manager
-                
-                # 标记消息为广告（用于训练数据保存）
-                message['is_ad'] = 'True'  # 设置广告标记
-                
-                # 从临时目录保存到训练目录
-                temp_media_path = message.get('media_path')
-                if temp_media_path:
-                    saved_path = await training_media_manager.save_training_media(
-                        source_path=temp_media_path,
-                        message_id=message.get('message_id'),
-                        media_type=message.get('media_type'),
-                        channel_id=message.get('source_channel'),
-                        is_ad=True
-                    )
-                    if saved_path:
-                        logger.info(f"✅ 单个拒绝时保存广告媒体到训练目录: {saved_path}")
-                        logger.info(f"🏷️  拒绝原因: {reason}")
-                    else:
-                        logger.warning(f"⚠️  单个拒绝时保存广告媒体失败: {temp_media_path}")
-                
-            except ImportError:
-                logger.warning("训练媒体管理器不可用，跳过媒体训练数据保存")
-            except Exception as e:
-                logger.error(f"❌ 单个拒绝时保存媒体到训练目录失败: {e}")
+            logger.debug(f"消息拒绝为广告但媒体训练功能已移除: {message.get('message_id')}")
         else:
             if not is_ad_rejection:
-                logger.debug(f"拒绝原因不包含广告关键词，跳过媒体保存: {reason}")
+                logger.debug(f"拒绝原因不包含广告关键词: {reason}")
             if not has_media:
-                logger.debug(f"消息无媒体，跳过媒体保存")
+                logger.debug(f"消息无媒体")
                 
     except Exception as e:
         logger.error(f"处理单个拒绝媒体训练失败: {e}")

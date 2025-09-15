@@ -7,7 +7,7 @@ import logging
 from typing import Tuple, Optional, List, Dict
 
 from app.services.filters.base import BaseFilter, FilterResult, FilterContext
-from app.services.promo_vector_manager import promo_vector_manager
+# 注意：已移除向量管理功能，改为基于规则的过滤
 
 logger = logging.getLogger(__name__)
 
@@ -70,21 +70,9 @@ class TrailingPromoFilter(BaseFilter):
             return False, 0.0, ""
         
         try:
-            # 🧠 第一步：训练样本检查
-            cache_stats = promo_vector_manager.get_cache_stats()
-            sample_count = cache_stats.get('total_vectors', 0)
-            
-            # 🚀 Linus式简化：无训练样本时跳过向量过滤
-            if sample_count == 0:
-                logger.debug(f"无训练样本，跳过向量过滤")
-                return False, 0.0, ""
-            
-            # 🔍 第二步：纯向量相似度检测
-            similar_samples = promo_vector_manager.find_similar_samples(
-                segment, 
-                threshold=self.similarity_threshold,
-                top_k=3
-            )
+            # 注意：已移除向量相似度检测，使用基于规则的检测
+            logger.debug(f"向量功能已移除，跳过向量过滤")
+            return False, 0.0, ""
             
             vector_similarity = 0.0
             matched_sample = ""
@@ -168,17 +156,8 @@ class TrailingPromoFilter(BaseFilter):
         
         try:
             
-            # 检查是否有推广样本数据
-            cache_stats = promo_vector_manager.get_cache_stats()
-            if cache_stats['total_vectors'] == 0:
-                logger.debug("没有推广样本向量，跳过向量过滤")
-                return FilterResult(
-                    filtered_content=content,
-                    passed=True,
-                    processing_time_ms=0.0,
-                    reason="无推广样本数据",
-                    confidence=0.0
-                )
+            # 注意：已移除向量检查，改为基于规则的过滤
+            logger.debug("向量功能已移除，使用基于规则的过滤")
             
             # 分割内容为段落
             segments = self._split_into_segments(content)

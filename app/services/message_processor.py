@@ -587,26 +587,9 @@ class MessageProcessor:
                 logger.error(f"更新消息状态失败: {channel_id}:{message_id}")
                 return False
             
-            # 清理相关训练数据
-            try:
-                from app.services.training_media_manager import training_media_manager
-                deleted_count = await training_media_manager.remove_training_media_by_message(message_id)
-                logger.info(f"消息 {channel_id}:{message_id} 标记为非广告，清理了 {deleted_count} 个训练文件")
-            except Exception as e:
-                logger.error(f"清理训练数据失败: {e}")
-                # 不因为清理失败而让整个操作失败
+            # 注意：已移除媒体训练数据清理功能
             
-            # 从向量数据库移除相关广告向量（使用content）
-            try:
-                from app.services.vector_manager import vector_manager
-                content = msg_data.get('content', '')
-                if content:
-                    removed_count = vector_manager.remove_vector_by_content(content)
-                    logger.info(f"🚫 标记非广告：从向量库移除 {removed_count} 个向量")
-                else:
-                    logger.warning("消息缺少content，跳过向量移除")
-            except Exception as e:
-                logger.error(f"移除广告向量失败: {e}")
+            # 注意：已移除向量数据库功能
             
             logger.info(f"消息 {channel_id}:{message_id} 已标记为非广告")
             return True

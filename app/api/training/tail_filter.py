@@ -166,7 +166,7 @@ def generate_line_regex(text: str) -> str:
         # 先转义特殊字符
         escaped = re.escape(text)
         # 然后替换Telegram链接部分为通配模式
-        if '\+' in escaped:  # 注意：re.escape后+变成\+
+        if r'\+' in escaped:  # 注意：re.escape后+变成\+
             pattern = re.sub(r't\\\.me/\\\+[a-zA-Z0-9_]+', r't\\.me/\\+[a-zA-Z0-9_]+', escaped)
         else:
             pattern = re.sub(r't\\\.me/[a-zA-Z0-9_]+', r't\\.me/[a-zA-Z0-9_]+', escaped)
@@ -350,7 +350,7 @@ async def get_tail_filter_history(limit: int = 20):
         return {"success": False, "history": []}
 
 @router.get(ROUTES.training.tail_filter_samples)
-async def get_tail_filter_samples(page: int = 1, page_size: int = 20):
+async def get_tail_filter_samples(page: int = 1, page_size: int = 20, search: str = ""):
     """获取尾部过滤规则列表（新格式）"""
     try:
         data = load_tail_filter_samples()
@@ -359,6 +359,11 @@ async def get_tail_filter_samples(page: int = 1, page_size: int = 20):
         if 'rules' in data:
             # 新格式：基于规则的列表
             rules = data.get('rules', [])
+            
+            # 搜索过滤 - Linus式简化：直接字符串匹配
+            if search and search.strip():
+                search_term = search.strip().lower()
+                rules = [rule for rule in rules if search_term in rule.lower()]
             
             # 将规则转换为前端期望的格式
             formatted_samples = []
@@ -375,28 +380,8 @@ async def get_tail_filter_samples(page: int = 1, page_size: int = 20):
                     "is_applied": True
                 })
         else:
-            # 旧格式兼容处理
-            samples = data if isinstance(data, list) else data.get('samples', [])
-            
-            # 格式化样本数据以匹配前端期望的格式
+            # 如果没有rules字段，返回空数据
             formatted_samples = []
-            for sample in samples:
-                # 原始数据格式兼容处理
-                content = sample.get('content', sample.get('original_message', ''))
-                tail_content = sample.get('tail_part', '')
-                
-                # 统一使用tail_part字段
-                formatted_samples.append({
-                    "id": sample.get('id', ''),
-                    "content": content,
-                    "tail_part": tail_content,  # 统一使用tail_part字段
-                    "separator": sample.get('separator', ''),
-                    "normal_part": sample.get('normal_part', ''),
-                    "created_at": sample.get('created_at', ''),
-                    "channel_id": sample.get('channel_id', 'unknown'),
-                    "channel_name": sample.get('channel_name', '历史数据'),
-                    "is_applied": sample.get('is_applied', True)  # 历史数据默认已应用
-                })
         
         # 应用分页
         page, page_size = validate_pagination_params(page, page_size)

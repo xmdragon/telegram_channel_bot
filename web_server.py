@@ -195,9 +195,9 @@ async def lifespan(app: FastAPI):
                 # 这样确保监听器和WebSocket连接在同一个进程中
                 logger.info("✅ WebSocket Redis订阅监听器将按需启动（与连接同进程）")
                 
-                # 🎯 Linus式优化: 移除AI模型预加载，实现按需加载
-                # 向量数据库初始化移到实际使用时进行，减少75%内存占用
-                logger.info("✅ Web服务采用延迟加载策略，AI资源按需初始化")
+                # 🎯 Linus式优化: 采用延迟加载策略，按需初始化资源
+                # 规则引擎初始化移到实际使用时进行，减少内存占用
+                logger.info("✅ Web服务采用延迟加载策略，资源按需初始化")
                 
             except Exception as e:
                 logger.error(f"❌ 后台初始化失败: {e}")
@@ -310,7 +310,7 @@ async def status():
 
 @app.get("/train")
 async def train():
-    """AI训练界面"""
+    """规则管理界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=media_paths.TRAIN_PAGE)
 

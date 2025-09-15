@@ -18,7 +18,7 @@ worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 1000
 
 # 超时配置 - Linus式：保守但实用的值
-timeout = 300           # 请求处理超时（增加到5分钟，避免AI模型加载超时）
+timeout = 300           # 请求处理超时（5分钟，应对大量消息处理）
 graceful_timeout = 30   # 优雅关闭超时
 keepalive = 5          # HTTP keep-alive
 
