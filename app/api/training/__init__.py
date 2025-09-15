@@ -12,6 +12,7 @@ from .ad_vector import router as ad_vector_router
 from .admin import router as admin_router
 from .promo_training import router as promo_training_router
 from .keyword_management import router as keyword_router
+from .separator_test import router as separator_test_router
 
 # 创建主路由器（不设置prefix，由主API路由器设置）
 router = APIRouter(tags=["training"])
@@ -40,9 +41,12 @@ def register_training_routes():
     
     # 推广链接训练
     router.include_router(promo_training_router, tags=["training-promo"])
-    
+
     # 关键词管理
     router.include_router(keyword_router, tags=["training-keywords"])
+
+    # 分隔符测试
+    router.include_router(separator_test_router, tags=["training-separator-test"])
 
 # 执行路由注册
 register_training_routes()

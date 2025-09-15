@@ -67,7 +67,7 @@ const app = createApp({
             try {
                 // 过滤出有效的分隔符模式
                 const validPatterns = this.separatorPatterns.filter(p => p.regex && p.description);
-                
+
                 // 使用PUT方法进行批量更新（完全替换）
                 const response = await axios.put(API.training.separatorPatterns, {
                     patterns: validPatterns
@@ -92,81 +92,64 @@ const app = createApp({
         // 消息提示已统一使用 window.SimpleUI.Message
         
         // 测试正则表达式
-        testRegex() {
+        async testRegex() {
             // 清空之前的结果
             this.regexTest.matches = [];
             this.regexTest.error = '';
             this.regexTest.highlightedContent = '';
             this.regexTest.filteredContent = '';
-            
-            // 如果没有输入，直接返回
-            if (!this.regexTest.pattern || !this.regexTest.content) {
+
+            // 如果没有输入内容，直接返回
+            if (!this.regexTest.content) {
                 return;
             }
-            
+
             try {
-                // 固定使用 gim 标志，与后端保持一致
-                // g: 全局匹配
-                // i: 忽略大小写（对应后端的 re.IGNORECASE）
-                // m: 多行匹配（对应后端的 re.MULTILINE）
-                const flags = 'gim';
-                
-                // 创建正则表达式对象
-                const regex = new RegExp(this.regexTest.pattern, flags);
-                
-                // 收集所有匹配
-                const matches = [];
-                let match;
-                
-                // 使用exec循环获取所有匹配
-                while ((match = regex.exec(this.regexTest.content)) !== null) {
-                    matches.push({
-                        text: match[0],
-                        index: match.index,
-                        length: match[0].length
-                    });
-                    
-                    // 防止无限循环（零长度匹配）
-                    if (match.index === regex.lastIndex) {
-                        regex.lastIndex++;
+                // 调用后端API进行测试
+                const response = await axios.post(API.training.testSeparator, {
+                    content: this.regexTest.content,
+                    pattern: this.regexTest.pattern || null
+                });
+
+                if (response.data.success) {
+                    const data = response.data;
+
+                    // 设置匹配结果
+                    this.regexTest.matches = data.matches || [];
+                    this.regexTest.filteredContent = data.filtered_content || '';
+
+                    // 生成高亮显示（如果有匹配）
+                    if (this.regexTest.matches.length > 0) {
+                        let highlightedContent = this.regexTest.content;
+
+                        // 从后往前替换，避免索引偏移
+                        for (let i = this.regexTest.matches.length - 1; i >= 0; i--) {
+                            const match = this.regexTest.matches[i];
+                            const before = highlightedContent.substring(0, match.index);
+                            const matchText = highlightedContent.substring(match.index, match.index + match.length);
+                            const after = highlightedContent.substring(match.index + match.length);
+
+                            const escapedMatch = this.escapeHtml(matchText);
+
+                            highlightedContent = before +
+                                '<span style="background: #ffc107; padding: 2px 4px; border-radius: 3px; font-weight: bold;">' +
+                                escapedMatch +
+                                '</span>' +
+                                after;
+                        }
+
+                        this.regexTest.highlightedContent = highlightedContent;
                     }
-                }
-                
-                this.regexTest.matches = matches;
-                
-                // 生成高亮显示的内容和过滤后的内容（模拟后端的 pattern.sub）
-                if (matches.length > 0) {
-                    let highlightedContent = this.regexTest.content;
-                    
-                    // 生成过滤后的内容（模拟后端的 pattern.sub('', content)）
-                    this.regexTest.filteredContent = this.regexTest.content.replace(regex, '');
-                    // 清理多余的空行（与后端一致）
-                    this.regexTest.filteredContent = this.regexTest.filteredContent.replace(/\n{3,}/g, '\n\n').trim();
-                    
-                    // 从后往前替换，避免索引偏移
-                    for (let i = matches.length - 1; i >= 0; i--) {
-                        const match = matches[i];
-                        const before = highlightedContent.substring(0, match.index);
-                        const matchText = highlightedContent.substring(match.index, match.index + match.length);
-                        const after = highlightedContent.substring(match.index + match.length);
-                        
-                        // 对匹配文本进行HTML转义
-                        const escapedMatch = this.escapeHtml(matchText);
-                        
-                        highlightedContent = before + 
-                            '<span style="background: #ffc107; padding: 2px 4px; border-radius: 3px; font-weight: bold;">' + 
-                            escapedMatch + 
-                            '</span>' + 
-                            after;
+
+                    // 如果没有指定pattern，显示完整的过滤统计
+                    if (!this.regexTest.pattern && data.stats) {
+                        console.log('分隔符过滤统计:', data.stats);
                     }
-                    
-                    // 转义其他HTML字符
-                    this.regexTest.highlightedContent = highlightedContent;
+                } else {
+                    this.regexTest.error = data.error || '测试失败';
                 }
-                
             } catch (error) {
-                // 正则表达式语法错误
-                this.regexTest.error = '正则表达式语法错误: ' + error.message;
+                this.regexTest.error = '测试失败: ' + (error.response?.data?.detail || error.message);
             }
         },
         

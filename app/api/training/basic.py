@@ -138,20 +138,20 @@ async def update_all_separator_patterns(patterns_data: dict):
     """批量更新所有分隔符模式（完全替换）"""
     try:
         patterns_list = patterns_data.get('patterns', [])
-        
+
         # 转换格式并验证
         updated_patterns = []
         for pattern_item in patterns_list:
             # 支持两种格式：{regex: "", description: ""} 和 {pattern: "", description: ""}
             regex = pattern_item.get('regex') or pattern_item.get('pattern', '')
             description = pattern_item.get('description', '')
-            
+
             if regex and description:  # 只保存有效的模式
                 updated_patterns.append({
                     "regex": regex,
                     "description": description
                 })
-        
+
         # 完全替换现有数据
         if not save_separator_patterns(updated_patterns):
             raise HTTPException(status_code=500, detail="保存分隔符模式失败")

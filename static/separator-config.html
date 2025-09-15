@@ -153,14 +153,15 @@
                     <div class="regex-test-section">
                         <!-- 使用说明 -->
                         <div class="help-tips" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-                            <h4 style="margin-top: 0;">💡 系统实际使用的正则表达式</h4>
+                            <h4 style="margin-top: 0;">💡 测试说明</h4>
                             <ul style="margin: 10px 0;">
-                                <li><code>[➖\s]{5,}[\s\S]*?[➖\s]{5,}</code> - 特殊包裹推广内容</li>
-                                <li><code>[\U0001F300-\U0001F9FF\u2600-\u27BF]{5,}[\s\S]*?[\U0001F300-\U0001F9FF\u2600-\u27BF]{5,}</code> - emoji包裹推广内容</li>
-                                <li><code>[━═─▬\-—=*+~_|&lt;&gt;#{}[\]().,:;'"!?@#$%^&amp;]{5,}[\s\S]*?[━═─▬\-—=*+~_|&lt;&gt;#{}[\]().,:;'"!?@#$%^&amp;]{5,}</code> - 符号包裹推广内容</li>
+                                <li>测试由后端Python执行，确保与实际过滤效果一致</li>
+                                <li>支持复杂的Unicode和Emoji正则表达式（如匹配5个以上emoji）</li>
+                                <li>如果不输入正则表达式，将使用所有已配置的分隔符模式</li>
+                                <li>后端使用 re.IGNORECASE | re.MULTILINE | re.DOTALL 模式</li>
                             </ul>
                             <p style="margin-bottom: 0; color: #6c757d;">
-                                注意：后端默认使用忽略大小写匹配，使用 <code>[\s\S]*?</code> 实现跨行匹配
+                                提示：测试结果与系统实际过滤完全一致
                             </p>
                         </div>
                         
@@ -204,7 +205,7 @@
                             
                             <!-- 匹配说明 -->
                             <div style="margin-top: 10px; padding: 8px; background: #e7f3ff; border-radius: 4px; font-size: 12px; color: #0066cc;">
-                                💡 测试使用与后端相同的匹配规则：全局匹配(g) + 忽略大小写(i)
+                                💡 由后端Python执行测试，支持所有Python正则表达式语法
                             </div>
                             
                             <!-- 错误提示 -->

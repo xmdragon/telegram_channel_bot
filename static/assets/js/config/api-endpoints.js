@@ -94,6 +94,7 @@ const API_ENDPOINTS = {
     training: {
         // 分隔符模式管理
         separatorPatterns: '/api/training/separator-patterns',   // GET/POST - 获取/保存分隔符模式
+        testSeparator: '/api/training/test-separator',   // POST - 测试分隔符过滤
 
         // 关键词管理 (原广告向量管理)
         adVectors: '/api/training/ad-vectors',                   // GET - 获取关键词规则列表（分页）

@@ -182,6 +182,7 @@ class RouteConfig:
         # 基础训练（保留实际使用的端点）
         mark_ad_message = "/training/mark-ad-message"
         separator_patterns = "/training/separator-patterns"
+        test_separator = "/training/test-separator"
         ad_samples = "/training/ad-samples"
         stats = "/training/stats"
         channels = "/training/channels"
