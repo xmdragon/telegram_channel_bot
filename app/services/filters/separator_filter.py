@@ -87,16 +87,16 @@ class SeparatorFilter:
     def filter_content(self, content: str) -> Tuple[str, Dict[str, Any]]:
         """
         过滤内容中的分隔符包裹的内容块
-        
+
         Args:
             content: 要过滤的内容
-            
+
         Returns:
             (过滤后内容, 过滤统计信息)
         """
         # 检查是否需要重新加载
         self.reload_if_needed()
-        
+
         if not content or not content.strip():
             return content, {
                 "reason": "内容为空",
@@ -107,7 +107,7 @@ class SeparatorFilter:
                 "removed_blocks": [],
                 "matched_patterns": []
             }
-        
+
         if not self.initialized:
             return content, {
                 "reason": "过滤器未初始化",
@@ -118,36 +118,65 @@ class SeparatorFilter:
                 "removed_blocks": [],
                 "matched_patterns": []
             }
-        
+
         # 记录原始内容长度
         original_length = len(content)
         filtered_content = content
         removed_blocks = []
         matched_patterns = []
-        
-        # 对每个正则模式进行整体匹配和替换
+
+        # 对每个正则模式进行处理 - Linus式简化：直接应用规则
         for pattern_idx, pattern in enumerate(self.regex_patterns):
-            # 查找所有匹配的内容块
-            matches = pattern.findall(filtered_content)
-            
-            if matches:
-                # 记录匹配信息
-                for match in matches:
-                    # 限制记录的内容长度，避免日志过大
-                    preview = match[:100] + '...' if len(match) > 100 else match
+            pattern_str = pattern.pattern
+
+            # 简单判断：如果规则包含[\s\S]*，说明要删除匹配点之后的所有内容
+            if r'[\s\S]*' in pattern_str:
+                # 查找匹配
+                match = pattern.search(filtered_content)
+                if match:
+                    # 删除匹配位置及之后的所有内容
+                    removed_content = filtered_content[match.start():]
+                    filtered_content = filtered_content[:match.start()]
+
+                    # 记录删除信息
+                    preview = removed_content[:100] + '...' if len(removed_content) > 100 else removed_content
                     removed_blocks.append({
                         'content_preview': preview,
-                        'content_length': len(match),
+                        'content_length': len(removed_content),
                         'matched_pattern': self.pattern_descriptions[pattern_idx],
                         'regex': pattern.pattern
                     })
                     matched_patterns.append(self.pattern_descriptions[pattern_idx])
-                
-                # 使用 re.sub 移除所有匹配的内容块
-                filtered_content = pattern.sub('', filtered_content)
-                
-                logger.debug(f"模式 '{self.pattern_descriptions[pattern_idx]}' 移除了 {len(matches)} 个内容块")
-        
+
+                    logger.debug(f"模式 '{self.pattern_descriptions[pattern_idx]}' 删除了 {len(removed_content)} 字符")
+
+                    # 找到一个匹配就跳出，避免重复处理
+                    break
+            else:
+                # 普通规则：按行删除匹配的行
+                lines = filtered_content.split('\n')
+                filtered_lines = []
+                removed_lines = []
+
+                for line in lines:
+                    if pattern.search(line):
+                        # 记录被删除的行
+                        preview = line[:100] + '...' if len(line) > 100 else line
+                        removed_lines.append(line)
+                        removed_blocks.append({
+                            'content_preview': preview,
+                            'content_length': len(line),
+                            'matched_pattern': self.pattern_descriptions[pattern_idx],
+                            'regex': pattern.pattern
+                        })
+                    else:
+                        filtered_lines.append(line)
+
+                if removed_lines:
+                    filtered_content = '\n'.join(filtered_lines)
+                    matched_patterns.append(self.pattern_descriptions[pattern_idx])
+                    logger.debug(f"模式 '{self.pattern_descriptions[pattern_idx]}' 删除了 {len(removed_lines)} 行")
+
         # 清理多余的空行（连续3个或更多换行符替换为2个）
         filtered_content = re.sub(r'\n{3,}', '\n\n', filtered_content).strip()
         
