@@ -1,25 +1,20 @@
 """
-双Session认证API - 支持前端双栏认证界面
-提供独立的采集Session和发送Session认证接口
-实现真正的并行认证流程
+双Session认证API - 基于dual_session_manager的统一实现
+复用现有的Session连接，避免冲突
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Literal
 import logging
 
-from app.telegram.dual_auth_manager import dual_auth_manager
-# from app.services.session_migrator import session_migrator  # 已删除
+# 导入统一的Session管理器
+from app.telegram.dual_session_manager import dual_session_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 # 请求模型定义
-class SharedApiConfigRequest(BaseModel):
-    api_id: int
-    api_hash: str
-
 class SessionInitRequest(BaseModel):
     session_type: Literal["listener", "sender"]
 
@@ -38,119 +33,112 @@ class VerifyPasswordRequest(BaseModel):
 class ClearSessionRequest(BaseModel):
     session_type: Literal["listener", "sender"]
 
-@router.post("/shared-api-config")
-async def set_shared_api_config(request: SharedApiConfigRequest):
-    """设置共享的API配置"""
-    try:
-        await dual_auth_manager.set_shared_api_config(
-            request.api_id, 
-            request.api_hash
-        )
-        
-        return {
-            "success": True,
-            "message": "API配置已设置",
-            "api_id": request.api_id
-        }
-        
-    except Exception as e:
-        logger.error(f"设置API配置失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/init-session")
 async def init_session_auth(request: SessionInitRequest):
-    """初始化Session认证"""
+    """初始化Session认证 - 基于现有连接"""
     try:
-        success = await dual_auth_manager.create_session_client(request.session_type)
-        
-        if success:
-            status = await dual_auth_manager.get_session_status(request.session_type)
-            return {
-                "success": True,
-                "message": f"{request.session_type}Session已初始化",
-                "session_type": request.session_type,
-                "status": status
+        session_manager = dual_session_manager
+
+        # 检查对应的Session是否已连接
+        if request.session_type == "listener":
+            is_connected = await session_manager.is_listener_connected()
+            if is_connected:
+                return {
+                    "success": True,
+                    "message": f"{request.session_type}Session已连接",
+                    "session_type": request.session_type,
+                    "status": {
+                        "state": "authorized",
+                        "error_message": None,
+                        "has_client": True
+                    }
+                }
+        else:  # sender
+            is_connected = await session_manager.is_sender_connected()
+            if is_connected:
+                return {
+                    "success": True,
+                    "message": f"{request.session_type}Session已连接",
+                    "session_type": request.session_type,
+                    "status": {
+                        "state": "authorized",
+                        "error_message": None,
+                        "has_client": True
+                    }
+                }
+
+        # 如果未连接，返回需要认证状态
+        return {
+            "success": True,
+            "message": f"{request.session_type}Session需要认证",
+            "session_type": request.session_type,
+            "status": {
+                "state": "phone_needed",
+                "error_message": None,
+                "has_client": False
             }
-        else:
-            return {
-                "success": False,
-                "error": f"初始化{request.session_type}Session失败"
-            }
-            
+        }
+
     except Exception as e:
         logger.error(f"初始化{request.session_type}Session失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/send-code")
 async def send_verification_code(request: SendCodeRequest):
-    """发送验证码"""
-    try:
-        result = await dual_auth_manager.send_code(
-            request.session_type, 
-            request.phone
-        )
-        
-        if result["success"]:
-            return result
-        else:
-            raise HTTPException(status_code=400, detail=result["error"])
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"发送{request.session_type}Session验证码失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """发送验证码 - 暂不支持，需要通过系统配置页面完成认证"""
+    return {
+        "success": False,
+        "error": "请通过系统配置页面完成Telegram认证，此界面仅显示当前认证状态"
+    }
 
 @router.post("/verify-code")
 async def verify_verification_code(request: VerifyCodeRequest):
-    """验证验证码"""
-    try:
-        result = await dual_auth_manager.verify_code(
-            request.session_type, 
-            request.code
-        )
-        
-        if result["success"]:
-            return result
-        else:
-            raise HTTPException(status_code=400, detail=result["error"])
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"验证{request.session_type}Session验证码失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """验证验证码 - 暂不支持，需要通过系统配置页面完成认证"""
+    return {
+        "success": False,
+        "error": "请通过系统配置页面完成Telegram认证，此界面仅显示当前认证状态"
+    }
 
 @router.post("/verify-password")
 async def verify_two_step_password(request: VerifyPasswordRequest):
-    """验证两步验证密码"""
-    try:
-        result = await dual_auth_manager.verify_password(
-            request.session_type,
-            request.password
-        )
-        
-        if result["success"]:
-            return result
-        else:
-            raise HTTPException(status_code=400, detail=result["error"])
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"验证{request.session_type}Session密码失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """验证两步验证密码 - 暂不支持，需要通过系统配置页面完成认证"""
+    return {
+        "success": False,
+        "error": "请通过系统配置页面完成Telegram认证，此界面仅显示当前认证状态"
+    }
 
 @router.get("/session-status/{session_type}")
 async def get_session_status(session_type: Literal["listener", "sender"]):
     """获取Session状态"""
     try:
-        status = await dual_auth_manager.get_session_status(session_type)
-        return {
-            "success": True,
-            "status": status
-        }
-        
+        session_manager = dual_session_manager
+
+        if session_type == "listener":
+            is_connected = await session_manager.is_listener_connected()
+        else:
+            is_connected = await session_manager.is_sender_connected()
+
+        if is_connected:
+            return {
+                "success": True,
+                "status": {
+                    "session_type": session_type,
+                    "state": "authorized",
+                    "error_message": None,
+                    "has_client": True
+                }
+            }
+        else:
+            return {
+                "success": True,
+                "status": {
+                    "session_type": session_type,
+                    "state": "idle",
+                    "error_message": "未连接或需要重新认证",
+                    "has_client": False
+                }
+            }
+
     except Exception as e:
         logger.error(f"获取{session_type}Session状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -159,73 +147,51 @@ async def get_session_status(session_type: Literal["listener", "sender"]):
 async def get_dual_session_status():
     """获取双Session状态"""
     try:
-        listener_status = await dual_auth_manager.get_session_status("listener")
-        sender_status = await dual_auth_manager.get_session_status("sender")
-        
-        # 检查配置状态
-        # config_status = await session_migrator.check_dual_session_status()  # 已删除
-        config_status = {"listener_configured": True, "sender_configured": True}  # 简化逻辑
-        
+        session_manager = dual_session_manager
+
+        listener_connected = await session_manager.is_listener_connected()
+        sender_connected = await session_manager.is_sender_connected()
+
+        listener_status = {
+            "session_type": "listener",
+            "state": "authorized" if listener_connected else "idle",
+            "error_message": None if listener_connected else "未连接或需要重新认证",
+            "has_client": listener_connected
+        }
+
+        sender_status = {
+            "session_type": "sender",
+            "state": "authorized" if sender_connected else "idle",
+            "error_message": None if sender_connected else "未连接或需要重新认证",
+            "has_client": sender_connected
+        }
+
         return {
             "success": True,
             "listener": listener_status,
             "sender": sender_status,
-            "config": config_status
+            "config": {
+                "listener_configured": listener_connected,
+                "sender_configured": sender_connected
+            }
         }
-        
+
     except Exception as e:
         logger.error(f"获取双Session状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/clear-session")
 async def clear_session_auth(request: ClearSessionRequest):
-    """清除Session认证"""
-    try:
-        await dual_auth_manager.clear_session(request.session_type)
-        
-        return {
-            "success": True,
-            "message": f"{request.session_type}Session已清除"
-        }
-        
-    except Exception as e:
-        logger.error(f"清除{request.session_type}Session失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/migrate-config")
-async def migrate_legacy_config():
-    """迁移旧配置到双Session结构"""
-    try:
-        # result = await session_migrator.migrate_legacy_session()  # 已删除
-        result = {"migrated": False, "message": "无需迁移：新配置系统已启用"}
-        
-        if result["migrated"]:
-            return {
-                "success": True,
-                "message": "配置迁移成功",
-                "details": result
-            }
-        else:
-            return {
-                "success": True,
-                "message": result["message"]
-            }
-            
-    except Exception as e:
-        logger.error(f"配置迁移失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """清除Session认证 - 暂不支持，避免影响业务系统"""
+    return {
+        "success": False,
+        "error": "为避免影响系统运行，请通过系统配置页面管理Session认证"
+    }
 
 @router.post("/disconnect-all")
 async def disconnect_all_sessions():
-    """断开所有Session连接"""
-    try:
-        await dual_auth_manager.disconnect_all()
-        
-        return {
-            "success": True,
-            "message": "所有Session连接已断开"
-        }
-        
-    except Exception as e:
-        logger.error(f"断开Session连接失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """断开所有Session连接 - 暂不支持，避免影响业务系统"""
+    return {
+        "success": False,
+        "error": "为避免影响系统运行，请通过系统配置页面管理Session连接"
+    }

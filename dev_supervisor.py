@@ -91,7 +91,13 @@ class ServiceProcess:
     async def _wait_for_service_ready(self) -> bool:
         """等待服务真正就绪"""
         import asyncio
-        await asyncio.sleep(0.5)  # 给服务一点启动时间
+
+        # Web服务需要更多时间来启动Gunicorn + FastAPI
+        if self.config.name == "web":
+            await asyncio.sleep(3.0)  # Web服务给更多启动时间
+        else:
+            await asyncio.sleep(0.5)  # 其他服务保持原有时间
+
         return self.process.poll() is None
     
     async def start(self) -> bool:

@@ -36,6 +36,7 @@ class LocalMessage:
     media_display_url: Optional[str] = None
     media_path: Optional[str] = None
     media_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     
     # 组合消息字段
     is_combined: bool = False
@@ -534,6 +535,7 @@ class TelegramMessageCollector:
                     'media_display_url': collected_message.media_display_url,
                     'media_path': collected_message.media_path,
                     'media_url': collected_message.media_url,
+                    'thumbnail_url': collected_message.thumbnail_url,
                     'is_combined': collected_message.is_combined,
                     'media_group_display': collected_message.media_group_display,
                     'media_group_info': collected_message.media_group_info,
@@ -616,6 +618,7 @@ class TelegramMessageCollector:
                 media_type=media_info.get('media_type') if media_info else None,
                 media_path=media_info.get('file_path') if media_info else None,
                 media_url=media_info.get('file_path') if media_info else None,
+                thumbnail_url=media_info.get('thumbnail_url') if media_info else None,
                 is_combined=False,  # 单条消息不是组合消息
                 timestamp=message.date,
                 status="pending",

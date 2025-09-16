@@ -7,8 +7,8 @@
  * const response = await axios.get(API.messages.list);
  * const response = await axios.delete(API.messages.deleteById(messageId));
  * 
- * 更新时间: 2025-08-17
- * 版本: 1.0.0
+ * 更新时间: 2025-09-16
+ * 版本: 1.1.0
  */
 
 const API_ENDPOINTS = {
@@ -57,17 +57,17 @@ const API_ENDPOINTS = {
         adminById: (id) => `/api/admin/auth/admins/${id}`           // PUT/DELETE - 更新/删除管理员
     },
 
-    // Telegram认证模块 - /api/telegram-auth
+    // Telegram认证模块 - /api/dual-auth (已统一到双Session系统)
     telegramAuth: {
-        init: '/api/telegram-auth/init',                            // POST - 初始化认证
-        sendCode: '/api/telegram-auth/send-code',                   // POST - 发送验证码
-        verifyCode: '/api/telegram-auth/verify-code',               // POST - 验证验证码
-        verifyPassword: '/api/telegram-auth/verify-password',       // POST - 验证密码
-        status: '/api/telegram-auth/status',                        // GET - 获取认证状态
-        info: '/api/telegram-auth/info',                            // GET - 获取认证信息
-        clear: '/api/telegram-auth/clear',                          // POST - 清理认证
-        disconnect: '/api/telegram-auth/disconnect',                // POST - 断开连接
-        logout: '/api/telegram-auth/logout'                         // POST - 登出Telegram
+        init: '/api/dual-auth/init-session',                        // POST - 初始化认证 (重定向到dual-auth)
+        sendCode: '/api/dual-auth/send-code',                       // POST - 发送验证码
+        verifyCode: '/api/dual-auth/verify-code',                   // POST - 验证验证码
+        verifyPassword: '/api/dual-auth/verify-password',           // POST - 验证密码
+        status: '/api/dual-auth/dual-session-status',               // GET - 获取认证状态
+        info: '/api/dual-auth/dual-session-status',                 // GET - 获取认证信息 (使用统一状态接口)
+        clear: '/api/dual-auth/clear-session',                      // POST - 清理认证
+        disconnect: '/api/dual-auth/disconnect-all',                // POST - 断开连接
+        logout: '/api/dual-auth/disconnect-all'                     // POST - 登出Telegram (使用断开所有连接)
     },
 
     // Telegram工具模块 - /api/telegram
@@ -85,7 +85,6 @@ const API_ENDPOINTS = {
         sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}`, // GET - 获取Session状态
         dualSessionStatus: '/api/dual-auth/dual-session-status',       // GET - 获取双Session状态
         clearSession: '/api/dual-auth/clear-session',                  // POST - 清除Session
-        migrateConfig: '/api/dual-auth/migrate-config',                // POST - 迁移配置
         disconnectAll: '/api/dual-auth/disconnect-all'                 // POST - 断开所有连接
     },
 

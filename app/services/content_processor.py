@@ -168,7 +168,7 @@ class ContentProcessor:
 
             # 1. 尾部过滤（最常见，最快，放第一）
             if filter_config.get('tail_filter', True):
-                filtered_content, is_filtered, removed_tail = self.tail_filter.filter(current_content)
+                filtered_content, is_filtered, removed_tail, _ = self.tail_filter.filter(current_content)
             else:
                 filtered_content, is_filtered, removed_tail = current_content, False, ""
             if is_filtered:

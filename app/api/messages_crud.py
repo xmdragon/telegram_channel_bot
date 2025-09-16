@@ -182,7 +182,8 @@ async def get_messages(
                         'file_size': media.get('file_size'),
                         'mime_type': media.get('mime_type'),
                         'download_failed': media.get('download_failed', False),
-                        'error': media.get('error')
+                        'error': media.get('error'),
+                        'thumbnail_url': media.get('thumbnail_url')  # 添加缩略图URL
                     }
                     # 添加显示URL
                     if media_item.get('media_path'):
@@ -193,6 +194,14 @@ async def get_messages(
                             media_item['display_url'] = media_paths.get_temp_media_url(
                                 os.path.basename(media_item['media_path'])
                             )
+
+                    # 处理视频缩略图URL
+                    if media_item.get('media_type') == 'video' and media_item.get('thumbnail_url'):
+                        thumbnail_url = media_item['thumbnail_url']
+                        if not thumbnail_url.startswith('/'):
+                            media_item['thumbnail_display_url'] = '/' + thumbnail_url
+                        else:
+                            media_item['thumbnail_display_url'] = thumbnail_url
                     media_group_display.append(media_item)
                 
                 message['media_group_display'] = media_group_display
