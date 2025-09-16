@@ -76,7 +76,7 @@ class MessageFilterProcessor(MessageProcessor):
             message = context.telegram_message
             content = context.processed_content
             
-            # 🔧 Linus式修复：检查是否为组合消息的子消息
+            # 🔧 修复：检查是否为组合消息的子消息
             # 组合消息子消息跳过所有过滤步骤，保持原始内容
             if hasattr(message, 'grouped_id') and message.grouped_id:
                 context.filtered_content = context.original_content
@@ -106,7 +106,7 @@ class MessageFilterProcessor(MessageProcessor):
                 pipeline_timer = filter_timer.add_child("content_filtering").start()
             self.logger.debug(f"开始内容过滤 #{message.id}")
             
-            # 🛡️ Linus式修复：多层超时保护，确保永不阻塞
+            # 🛡️ 修复：多层超时保护，确保永不阻塞
             import asyncio
             try:
                 # 第一层：内容过滤超时保护（10秒）
@@ -188,7 +188,7 @@ class MessageFilterProcessor(MessageProcessor):
             filter_context.add_metadata('media_files', media_files)
             filter_context.add_metadata('message_obj', context.telegram_message)
             
-            # 🎯 Linus式简化：直接调用简单尾部过滤器，绕过复杂管道
+            # 🎯 简化：直接调用简单尾部过滤器，绕过复杂管道
             from app.services.simple_tail_filter import filter_tail_content
             
             # 直接过滤尾部推广内容

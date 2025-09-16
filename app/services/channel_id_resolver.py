@@ -120,7 +120,7 @@ class ChannelIdResolver:
                     logger.error(f"保存频道配置失败: {channel_name}")
                     return False
             else:
-                # 🚀 Linus式修复：channel_id_resolver只负责解析ID，不创建频道记录
+                # 🚀 修复：channel_id_resolver只负责解析ID，不创建频道记录
                 # 避免目标频道被错误创建为源频道类型
                 logger.debug(f"频道 {channel_name} 不存在于频道列表中，跳过创建记录")
                 return True  # 返回True表示解析成功，即使没有更新记录

@@ -64,10 +64,9 @@ const ConfigApp = {
                 // 过滤设置
                 'filter.enabled': true,
                 'filter.tail_filter': true,
-                'filter.footer_promo': true,
+                'filter.separator': true,
                 'filter.markdown': true,
-                'filter.promo_vector': true,
-                'filter.ad_detector': true,
+                'filter.ad_detector': false,
                 // 审核设置
                 'review.require_approval': true,
                 'review.auto_reject_ads': false,
@@ -93,9 +92,8 @@ const ConfigApp = {
                 'telegram.api_hash': 'string',
                 'filter.enabled': 'boolean',
                 'filter.tail_filter': 'boolean',
-                'filter.footer_promo': 'boolean',
+                'filter.separator': 'boolean',
                 'filter.markdown': 'boolean',
-                'filter.promo_vector': 'boolean',
                 'filter.ad_detector': 'boolean',
                 'review.require_approval': 'boolean',
                 'review.auto_reject_ads': 'boolean',
@@ -497,16 +495,15 @@ const ConfigApp = {
                 const filterKeys = [
                     'filter.enabled',
                     'filter.tail_filter',
-                    'filter.footer_promo', 
+                    'filter.separator',
                     'filter.markdown',
-                    'filter.promo_vector',
                     'filter.ad_detector'
                 ];
                 
                 await this.saveConfigs(filterKeys);
-                
-                // 通知系统重新加载过滤器
-                await this.reloadFilters();
+
+                // 直接显示成功消息，配置已保存并会自动生效
+                MessageManager.success('过滤器配置已保存，将在下次处理消息时生效');
                 
             } catch (error) {
                 console.error('保存过滤器配置失败:', error);
@@ -518,31 +515,12 @@ const ConfigApp = {
             // 重置过滤器配置到默认值
             this.configs['filter.enabled'] = true;
             this.configs['filter.tail_filter'] = true;
-            this.configs['filter.footer_promo'] = true;
+            this.configs['filter.separator'] = true;
             this.configs['filter.markdown'] = true;
-            this.configs['filter.promo_vector'] = true;
-            this.configs['filter.ad_detector'] = true;
+            this.configs['filter.ad_detector'] = false;
             
             MessageManager.success('过滤器配置已重置为默认值');
-        },
-        
-        async reloadFilters() {
-            try {
-                // 调用系统API重新加载过滤器配置
-                // 注：需要后端实现此API端点
-                const response = await axios.post(API.admin.reloadFilters || '/api/admin/reload-filters');
-                
-                if (response.data && response.data.success) {
-                    MessageManager.success('过滤器重新加载成功');
-                } else {
-                    console.warn('过滤器重新加载API响应异常，但配置可能已生效');
-                }
-            } catch (error) {
-                // 如果API不存在，仍然显示成功消息（配置已保存）
-                console.warn('过滤器重新加载API调用失败，但配置已保存:', error);
-                MessageManager.info('配置已保存，系统将在下次消息处理时应用新配置');
-            }
-        },
+},
         
         showReviewGroupHelp() {
             // 如果已经有提示在显示，不再弹出新的

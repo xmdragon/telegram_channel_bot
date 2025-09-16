@@ -7,7 +7,7 @@
     "created_at": "2025-08-29T19:32:07.310111"
   },
   "filter.enabled": {
-    "value": "false",
+    "value": "true",
     "config_type": "boolean",
     "description": "启用内容过滤",
     "is_active": true,
@@ -132,10 +132,10 @@
     "is_active": true,
     "created_at": "2025-08-29T19:32:07.309842"
   },
-  "filter.footer_promo": {
+  "filter.separator": {
     "value": "true",
     "config_type": "boolean",
-    "description": "启用尾部推广过滤",
+    "description": "启用分隔符过滤",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.482099"
   },
@@ -145,13 +145,6 @@
     "description": "启用Markdown格式过滤",
     "is_active": true,
     "created_at": "2025-08-26T11:59:09.483169"
-  },
-  "filter.promo_vector": {
-    "value": "true",
-    "config_type": "boolean",
-    "description": "启用推广向量检测",
-    "is_active": true,
-    "created_at": "2025-08-26T11:59:09.484163"
   },
   "filter.ad_detector": {
     "value": "false",

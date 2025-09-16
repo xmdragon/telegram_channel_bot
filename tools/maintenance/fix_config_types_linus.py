@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Linus风格的配置类型修复工具
+配置类型修复工具
 "Good taste means getting rid of special cases. This config type mess is a special case."
 
 一次性彻底解决所有配置类型问题：
@@ -28,7 +28,7 @@ from app.services.config_manager import DEFAULT_CONFIGS
 
 
 class LinusConfigFixer:
-    """Linus风格的配置修复器 - 无废话，直接干活"""
+    """配置修复器 - 无废话，直接干活"""
     
     def __init__(self):
         self.config_file = project_root / "data/config/system.json"
@@ -38,7 +38,7 @@ class LinusConfigFixer:
         
     def analyze_all_issues(self):
         """分析所有配置问题"""
-        print("🔍 Linus: 'Let me see what crap you've built...'")
+        print("🔍 开始分析配置问题...")
         print("=" * 60)
         
         # 1. 检查配置文件
@@ -161,7 +161,7 @@ class LinusConfigFixer:
     def _generate_report(self):
         """生成问题报告"""
         print("\n" + "=" * 60)
-        print("📊 Linus风格问题报告")
+        print("📊 问题报告")
         print("=" * 60)
         
         if not self.issues_found:
@@ -285,11 +285,11 @@ class LinusConfigFixer:
             print(f"  📝 {file_path}:{line_num}")
             print(f"     添加 config_type=\"{config_type}\" 参数")
         
-        print(f"\n💡 Linus建议: '下次直接写对，别让我再看到这种垃圾。'")
+        print(f"\n💡 建议: 下次直接写对配置类型")
 
 
 def main():
-    print("🔥 Linus配置类型修复工具")
+    print("🔥 配置类型修复工具")
     print("'This is how you fix design mistakes properly.'")
     print()
     

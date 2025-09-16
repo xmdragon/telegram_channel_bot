@@ -1,5 +1,5 @@
 """
-Linus式队列监控器 - 监控队列状态并处理异常
+队列监控器 - 监控队列状态并处理异常
 遵循"简单直接"的原则，提供实时监控和自动恢复功能
 """
 import asyncio
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class QueueMonitor:
     """
-    队列监控器 - Linus式简洁监控
+    队列监控器 - 简洁监控
     
     职责:
     1. 监控队列长度和处理速度

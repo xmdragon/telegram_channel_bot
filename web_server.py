@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-# 🔥 Linus: 删除StaticFiles导入 - 静态文件由Nginx服务
+# 🔥 删除StaticFiles导入 - 静态文件由Nginx服务
 
 from app.core.config import settings
 from app.core.media_paths import media_paths
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
         logger.info("📦 初始化存储层...")
         storage_start = time.time()
         
-        # Redis管理器自动初始化 - Linus式简洁
+        # Redis管理器自动初始化 - 简洁
         from app.storage.redis_manager import redis_manager
         
         # 检查Redis连接（触发lazy初始化）
@@ -195,7 +195,7 @@ async def lifespan(app: FastAPI):
                 # 这样确保监听器和WebSocket连接在同一个进程中
                 logger.info("✅ WebSocket Redis订阅监听器将按需启动（与连接同进程）")
                 
-                # 🎯 Linus式优化: 采用延迟加载策略，按需初始化资源
+                # 🎯 优化: 采用延迟加载策略，按需初始化资源
                 # 规则引擎初始化移到实际使用时进行，减少内存占用
                 logger.info("✅ Web服务采用延迟加载策略，资源按需初始化")
                 
@@ -260,7 +260,7 @@ app.add_websocket_route("/api/ws/messages", websocket_endpoint)
 app.add_websocket_route("/api/websocket", websocket_endpoint)  # 兼容性路由
 app.add_websocket_route("/ws", websocket_endpoint)             # 主控制台WebSocket路由
 
-# 🔥 Linus: 删除所有静态文件服务 - 专业的事交给Nginx做
+# 🔥 删除所有静态文件服务 - 专业的事交给Nginx做
 # 静态文件现在由Nginx高性能服务，FastAPI专注API
 # 
 # 静态文件与媒体服务（回退模式）
@@ -339,7 +339,7 @@ async def service_health_check(service_name: str):
         raise HTTPException(status_code=404, detail="服务未找到")
 
 if __name__ == "__main__":
-    # Linus式改进：检测运行环境，选择最佳启动方式
+    # 改进：检测运行环境，选择最佳启动方式
     import uvicorn
     
     # 检测是否在生产环境

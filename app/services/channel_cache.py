@@ -17,11 +17,11 @@ class ChannelCache:
     def __init__(self):
         self.config_manager = config_manager
         
-    # Linus式简化：移除冗余的Redis连接管理
+    # 简化：移除冗余的Redis连接管理
     # 直接使用导入的redis_manager，保持代码简洁
     
     async def resolve_channel(self, channel_input: str) -> Optional[str]:
-        """解析频道用户名为数字ID - Linus式优化：缓存优先"""
+        """解析频道用户名为数字ID - 优化：缓存优先"""
         if not channel_input:
             return None
             
@@ -30,7 +30,7 @@ class ChannelCache:
             if channel_input.startswith('-100'):
                 return channel_input
             
-            # 🔥 Linus式优化：先检查缓存，避免重复解析
+            # 🔥 优化：先检查缓存，避免重复解析
             try:
                 cached = redis_manager.client.hget('cache:source_channels', channel_input)
                 if cached:
@@ -101,7 +101,7 @@ class ChannelCache:
             return None
     
     async def init_cache(self):
-        """应用启动时预加载所有频道ID到Redis缓存 - Linus式幂等设计"""
+        """应用启动时预加载所有频道ID到Redis缓存 - 幂等设计"""
         try:
             # 检查是否已初始化（防止重复执行）
             if redis_manager.client.exists('cache:initialized'):
@@ -132,7 +132,7 @@ class ChannelCache:
                         target_channel_id = resolved_id
             
             if target_channel_id:
-                # Linus式：Redis不可用时优雅降级，不阻塞服务启动
+                # Redis不可用时优雅降级，不阻塞服务启动
                 try:
                     redis_manager.client.set('cache:target_channel_id', target_channel_id)
                     logger.info(f"目标频道ID已缓存: {target_channel_id}")

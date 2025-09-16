@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Linus式索引修复脚本 - 消除所有特殊情况
+索引修复脚本 - 消除所有特殊情况
 
 按照Linus Torvalds的"好品味"原则：
 1. 强制所有消息必须有有效status字段
@@ -34,7 +34,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class MessageIndexFixer:
-    """Linus式消息索引修复器"""
+    """消息索引修复器"""
     
     def __init__(self, dry_run: bool = True):
         self.redis_manager = RedisManager()
@@ -48,7 +48,7 @@ class MessageIndexFixer:
         }
         
     def analyze_current_state(self) -> Dict[str, Any]:
-        """分析当前数据状态 - Linus原则：先了解问题"""
+        """分析当前数据状态 - 设计原则：先了解问题"""
         logger.info("🔍 开始分析当前数据状态...")
         
         try:
@@ -115,7 +115,7 @@ class MessageIndexFixer:
             raise
     
     def fix_message_statuses(self) -> int:
-        """修复所有消息的status字段 - Linus原则：强制数据完整性"""
+        """修复所有消息的status字段 - 设计原则：强制数据完整性"""
         logger.info("🔧 开始修复消息status字段...")
         
         fixed_count = 0
@@ -132,7 +132,7 @@ class MessageIndexFixer:
                     
                 status = message_data.get('status')
                 
-                # Linus原则：消除特殊情况，强制所有消息必须有有效status
+                # 设计原则：消除特殊情况，强制所有消息必须有有效status
                 if status not in ['pending', 'approved', 'rejected']:
                     if self.dry_run:
                         logger.info(f"[DRY RUN] 将修复: {channel_id}:{message_id} status='{status}' -> 'pending'")
@@ -141,7 +141,7 @@ class MessageIndexFixer:
                         # 强制设置为pending状态
                         message_data['status'] = 'pending'
                         message_data['updated_at'] = datetime.now().isoformat()
-                        message_data['fixed_by_linus'] = True  # 标记为Linus修复
+                        message_data['fixed_by_tool'] = True  # 标记为工具修复
                         
                         # 直接更新Redis，不通过update_message（避免索引问题）
                         message_key = f"message:{channel_id}:{message_id}"
@@ -165,7 +165,7 @@ class MessageIndexFixer:
         return fixed_count
     
     def rebuild_all_indexes(self) -> int:
-        """重建所有状态索引 - Linus原则：从零开始，确保正确性"""
+        """重建所有状态索引 - 设计原则：从零开始，确保正确性"""
         logger.info("🏗️ 开始重建所有状态索引...")
         
         # 1. 清空所有现有索引
@@ -222,7 +222,7 @@ class MessageIndexFixer:
         return rebuilt_count
     
     def verify_fix(self) -> Dict[str, Any]:
-        """验证修复结果 - Linus原则：验证结果的正确性"""
+        """验证修复结果 - 设计原则：验证结果的正确性"""
         logger.info("✅ 开始验证修复结果...")
         
         # 重新分析状态
@@ -249,7 +249,7 @@ class MessageIndexFixer:
     def run_fix(self) -> Dict[str, Any]:
         """执行完整的修复流程"""
         start_time = time.time()
-        logger.info(f"🚀 开始Linus式索引修复 (dry_run={self.dry_run})...")
+        logger.info(f"🚀 开始索引修复 (dry_run={self.dry_run})...")
         
         try:
             # 1. 分析当前状态
@@ -289,7 +289,7 @@ class MessageIndexFixer:
     def _print_final_report(self, result: Dict[str, Any]):
         """输出最终报告"""
         logger.info("="*60)
-        logger.info("📋 Linus式索引修复 - 最终报告")
+        logger.info("📋 索引修复 - 最终报告")
         logger.info("="*60)
         
         if result.get('success'):
@@ -320,7 +320,7 @@ class MessageIndexFixer:
 def main():
     import argparse
     
-    parser = argparse.ArgumentParser(description="Linus式消息索引修复工具")
+    parser = argparse.ArgumentParser(description="消息索引修复工具")
     parser.add_argument("--dry-run", action="store_true", default=True,
                         help="只分析不修改（默认）")
     parser.add_argument("--fix", action="store_true",

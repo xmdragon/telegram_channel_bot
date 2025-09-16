@@ -53,12 +53,12 @@ class MessageReceiver(MessageProcessor):
             # 步骤3: 设置时间戳
             context.created_at = parse_telegram_time(message.date)
             
-            # 步骤4: Linus式源头提取 - 立即提取并保存grouped_id
+            # 步骤4: 源头提取 - 立即提取并保存grouped_id
             if hasattr(message, 'grouped_id') and message.grouped_id:
                 context.grouped_id = str(message.grouped_id)
                 self.logger.info(f"🔗 检测到组消息ID: {context.grouped_id} (消息#{message.id})")
             
-            # 步骤5: Linus式源头拦截 - 直接丢弃空消息
+            # 步骤5: 源头拦截 - 直接丢弃空消息
             if not self._is_valid_message(context):
                 self.logger.debug(f"消息 #{message.id} 无有效内容，直接丢弃（不进入处理流程）")
                 # 返回成功但标记为空消息，让后续处理器跳过（不记录错误）

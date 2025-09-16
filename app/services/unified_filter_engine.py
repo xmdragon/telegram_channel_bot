@@ -54,9 +54,9 @@ class UnifiedFilterEngine:
         return LayerPipeline(config)
         
     def _load_filter_settings(self) -> Dict[str, bool]:
-        """从系统配置加载过滤器设置 - Linus式修复：直接读取JSON文件，避免事件循环阻塞"""
+        """从系统配置加载过滤器设置 - 修复：直接读取JSON文件，避免事件循环阻塞"""
         try:
-            # 🔧 Linus式修复：直接读取JSON配置文件，避免复杂的异步调用
+            # 🔧 修复：直接读取JSON配置文件，避免复杂的异步调用
             import json
             from pathlib import Path
             
@@ -65,9 +65,8 @@ class UnifiedFilterEngine:
             # 默认值
             filter_enabled = False  # 从之前清理Redis缓存时确认用户设置为false
             tail_filter_enabled = True
-            footer_promo_enabled = True
+            separator_enabled = True
             markdown_enabled = True
-            promo_vector_enabled = True
             ad_detector_enabled = False
             auto_reject_ads = True
             
@@ -87,15 +86,14 @@ class UnifiedFilterEngine:
                     
                 filter_enabled = get_config_value('filter.enabled', filter_enabled)
                 tail_filter_enabled = get_config_value('filter.tail_filter', tail_filter_enabled)
-                footer_promo_enabled = get_config_value('filter.footer_promo', footer_promo_enabled)
+                separator_enabled = get_config_value('filter.separator', separator_enabled)
                 markdown_enabled = get_config_value('filter.markdown', markdown_enabled)
-                promo_vector_enabled = get_config_value('filter.promo_vector', promo_vector_enabled)
                 ad_detector_enabled = get_config_value('filter.ad_detector', ad_detector_enabled)
                 auto_reject_ads = get_config_value('review.auto_reject_ads', auto_reject_ads)
             else:
                 logger.warning(f"配置文件不存在: {config_file}，使用默认值")
             
-            # 分层架构配置 - Linus式修复：主开关控制一切
+            # 分层架构配置 - 修复：主开关控制一切
             settings = {
                 # 主开关false时，所有过滤都禁用
                 'content_layer_enabled': filter_enabled,  # 主开关控制内容层
@@ -103,9 +101,8 @@ class UnifiedFilterEngine:
                 
                 # 子过滤器只在主开关true时生效
                 'tail_filter': filter_enabled and tail_filter_enabled,
-                'footer_promo_filter': filter_enabled and footer_promo_enabled,
+                'separator_filter': filter_enabled and separator_enabled,
                 'markdown_filter': filter_enabled and markdown_enabled,
-                'promo_vector_filter': filter_enabled and promo_vector_enabled,
                 
                 # 广告拒绝独立控制（不受主开关影响）
                 'auto_reject_ads': auto_reject_ads
@@ -122,9 +119,8 @@ class UnifiedFilterEngine:
                 'content_layer_enabled': filter_enabled_default,
                 'detector_layer_enabled': filter_enabled_default,
                 'tail_filter': filter_enabled_default,
-                'footer_promo_filter': filter_enabled_default,
+                'separator_filter': filter_enabled_default,
                 'markdown_filter': filter_enabled_default,
-                'promo_vector_filter': filter_enabled_default,
                 'auto_reject_ads': True  # 广告拒绝独立控制
             }
         

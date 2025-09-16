@@ -24,7 +24,7 @@ class TrailingPromoFilter(BaseFilter):
         
     def _split_into_segments(self, content: str) -> List[str]:
         """
-        将内容按行分割成独立段落 - Linus式简化版本
+        将内容按行分割成独立段落 - 简化版本
         
         核心改进：
         1. 按行优先分割（符合Telegram消息实际结构）
@@ -39,7 +39,7 @@ class TrailingPromoFilter(BaseFilter):
             content = re.sub(r' {5,}', '\n', content)
             logger.debug(f"推广向量过滤器：连续空格转换为行分隔符")
         
-        # 🎯 第二步：直接按行分割（Linus式简化）
+        # 🎯 第二步：直接按行分割（简化）
         lines = content.split('\n')
         
         # 🧹 第三步：清理并过滤短行
@@ -105,7 +105,7 @@ class TrailingPromoFilter(BaseFilter):
     
     def _make_vector_decision(self, vector_similarity: float, position_ratio: float = 0.5) -> Tuple[bool, float]:
         """
-        🚀 Linus式决策 + 位置权重优化
+        🚀 决策 + 位置权重优化
         
         核心改进：
         1. 基础相似度检测
@@ -247,7 +247,7 @@ class TrailingPromoFilter(BaseFilter):
                 f"最高相似度{max_similarity:.3f}"
             )
             
-            # 🎯 Linus式逻辑：只有过滤后没有有效内容才拒绝
+            # 🎯 逻辑：只有过滤后没有有效内容才拒绝
             # 如果还有有效内容，说明过滤成功，应该通过
             has_valid_content = bool(filtered_content.strip())
             

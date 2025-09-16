@@ -2,13 +2,13 @@
 """
 硬编码API路径检查和修复工具
 
-这是一个Linus式的"一次修复，永远正确"解决方案：
+这是一个的"一次修复，永远正确"解决方案：
 - 检查所有Python文件中的@router装饰器
 - 发现硬编码路径违规
 - 自动修复：将硬编码替换为ROUTES引用
 - 生成违规报告，确保以后不再犯同样错误
 
-作者：Linus Torvalds 思维模式
+作者：路由检查工具
 原则：消除特殊情况，简化数据结构，永不破坏用户空间
 """
 
@@ -45,7 +45,7 @@ class RouteAnalysis:
     missing_route_configs: Set[str]
 
 class RouteChecker:
-    """路由检查器 - Linus式设计：简单、直接、无特殊情况"""
+    """路由检查器 - 设计：简单、直接、无特殊情况"""
     
     def __init__(self, project_root: str):
         self.project_root = Path(project_root)
@@ -137,7 +137,7 @@ class RouteChecker:
     
     def _is_acceptable_hardcode(self, path: str) -> bool:
         """判断硬编码是否可接受（极少数例外情况）"""
-        # Linus原则：特殊情况应该极少，且有明确理由
+        # 设计原则：特殊情况应该极少，且有明确理由
         acceptable_patterns = [
             r'^/static/',  # 静态文件路径
             r'^/docs/',    # 文档路径  
@@ -163,7 +163,7 @@ class RouteChecker:
         return self._smart_route_suggestion(hardcoded_path)
     
     def _smart_route_suggestion(self, hardcoded_path: str) -> Optional[str]:
-        """智能路由建议 - Linus式简单映射"""
+        """智能路由建议 - 简单映射"""
         
         # AI路由映射
         ai_mappings = {
@@ -312,7 +312,7 @@ class RouteChecker:
         return missing
     
     def generate_report(self, analysis: RouteAnalysis) -> str:
-        """生成Linus式的直接报告"""
+        """生成的直接报告"""
         report_lines = [
             "=" * 80,
             "🚨 硬编码API路径违规报告",
@@ -329,7 +329,7 @@ class RouteChecker:
         if analysis.hardcoded_routes == 0:
             report_lines.extend([
                 "🎉 恭喜！没有发现硬编码路径违规",
-                "   代码质量达到Linus标准：简洁、一致、无特殊情况",
+                "   代码质量达到标准：简洁、一致、无特殊情况",
                 ""
             ])
         else:
@@ -368,9 +368,9 @@ class RouteChecker:
                 report_lines.append(f"   class {missing_class}:")
             report_lines.append("")
         
-        # Linus式建议
+        # 建议
         report_lines.extend([
-            "💡 Linus式修复建议：",
+            "💡 修复建议：",
             "-" * 20,
             "1. 所有API路径必须在route_config.py中定义",
             "2. 消除硬编码特殊情况，使用统一的ROUTES引用",

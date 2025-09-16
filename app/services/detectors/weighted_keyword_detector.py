@@ -1,5 +1,5 @@
 """
-权重关键词广告检测器 - Linus式极简设计
+权重关键词广告检测器
 基于关键词权重累计的广告检测方案
 
 "好品味"原则：消除复杂性，只做一件事
@@ -11,6 +11,7 @@ Created: 2025-09-12
 import logging
 import json
 import time
+from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Union
 from pathlib import Path
 
@@ -66,10 +67,7 @@ class WeightedKeywordDetector:
         """创建默认配置文件"""
         default_data = {
             "keywords": {
-                "娱乐城": 5.0,
-                "USDT": 3.0,
-                "充值": 1.0,
-                "会员": 1.0
+                "娱乐城": 5.0
             },
             "threshold": 3.0,
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -216,7 +214,7 @@ class WeightedKeywordDetector:
             data = {
                 "keywords": self.keywords,
                 "threshold": self.threshold,
-                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                "updated_at": datetime.now().isoformat(),
                 "version": "1.0.0"
             }
             

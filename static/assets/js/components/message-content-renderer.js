@@ -310,6 +310,23 @@ const MessageContentRenderer = {
         toggleSelect() {
             this.$emit('toggle-select', this.message.id);
         },
+
+        // 处理视频缩略图点击
+        handleVideoThumbnailClick(message) {
+            // 打开原始消息链接
+            if (message.source_channel_link_prefix && message.source_channel_message_id) {
+                const originalLink = `${message.source_channel_link_prefix}${message.source_channel_message_id}`;
+                window.open(originalLink, '_blank');
+            } else {
+                SimpleUI.showMessage('无法打开原始消息链接', 'warning');
+            }
+        },
+
+        // 处理缩略图加载错误
+        handleThumbnailError(event) {
+            console.error('视频缩略图加载失败:', event.target.src);
+            this.mediaLoadError = true;
+        },
         
         // 格式化时间
         formatTime(timeStr) {
@@ -530,6 +547,20 @@ const MessageContentRenderer = {
                                 />
                             </div>
 
+                            <!-- 视频缩略图显示 -->
+                            <div v-else-if="message.media_type === 'video' && message.thumbnail_display_url && !mediaLoadError"
+                                 class="video-thumbnail-container media-content"
+                                 @click="handleVideoThumbnailClick(message)">
+                                <img :src="message.thumbnail_display_url"
+                                     alt="视频缩略图"
+                                     class="video-thumbnail"
+                                     @error="handleThumbnailError">
+                                <div class="video-play-overlay">
+                                    <span class="play-icon">▶️</span>
+                                    <span class="video-label">视频</span>
+                                </div>
+                            </div>
+
                             <!-- 媒体缺失时的占位符 -->
                             <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)"
                                  class="media-placeholder media-content">
@@ -586,12 +617,26 @@ const MessageContentRenderer = {
                                 />
                             </div>
                             
+                            <!-- 视频缩略图显示 -->
+                            <div v-else-if="message.media_type === 'video' && message.thumbnail_display_url && !mediaLoadError"
+                                 class="video-thumbnail-container media-content"
+                                 @click="handleVideoThumbnailClick(message)">
+                                <img :src="message.thumbnail_display_url"
+                                     alt="视频缩略图"
+                                     class="video-thumbnail"
+                                     @error="handleThumbnailError">
+                                <div class="video-play-overlay">
+                                    <span class="play-icon">▶️</span>
+                                    <span class="video-label">视频</span>
+                                </div>
+                            </div>
+
                             <!-- 媒体缺失时的占位符 -->
-                            <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)" 
+                            <div v-else-if="message.media_type && (!message.media_display_url || mediaLoadError)"
                                  class="media-placeholder media-content">
                                 <div>
-                                    📷 {{ message.media_type === 'photo' ? '图片' : 
-                                         message.media_type === 'video' ? '视频' : 
+                                    📷 {{ message.media_type === 'photo' ? '图片' :
+                                         message.media_type === 'video' ? '视频' :
                                          message.media_type }}
                                     <div class="media-missing-text">媒体文件缺失</div>
                                 </div>

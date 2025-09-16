@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 🔧 Linus式修复: 全局禁用作业控制，避免"Killed"消息
+# 🔧 修复: 全局禁用作业控制，避免"Killed"消息
 set +m  # 禁用作业控制消息
 
 # 加载环境配置
@@ -188,7 +188,7 @@ stop_process "消息调度服务" "message_scheduler.py" 8  # 延长到8秒
 
 # 额外清理：使用pkill确保所有相关进程都被停止
 echo "🧹 执行最终清理..."
-# 🔧 Linus式修复: 优先使用SIGTERM优雅停止，增加等待时间
+# 🔧 修复: 优先使用SIGTERM优雅停止，增加等待时间
 pkill -TERM -f "dev_supervisor.py" 2>/dev/null || true
 sleep 3  # 增加等待时间，减少强制终止
 pkill -f "dev_supervisor.py" 2>/dev/null || true  # 最后才强制停止

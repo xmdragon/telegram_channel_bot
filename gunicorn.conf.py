@@ -1,4 +1,4 @@
-# Gunicorn配置文件 - Linus式生产级部署
+# Gunicorn配置文件 - 生产级部署
 # "正确的工具做正确的事" - Gunicorn管理进程，uvicorn处理异步
 
 import multiprocessing
@@ -17,7 +17,7 @@ workers = int(os.getenv("WORKERS", multiprocessing.cpu_count()))
 worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 1000
 
-# 超时配置 - Linus式：保守但实用的值
+# 超时配置 - 保守但实用的值
 timeout = 300           # 请求处理超时（5分钟，应对大量消息处理）
 graceful_timeout = 30   # 优雅关闭超时
 keepalive = 5          # HTTP keep-alive
@@ -30,7 +30,7 @@ max_requests_jitter = 50    # 随机化重启时间，避免同时重启
 preload_app = True      # 预加载应用，节省内存
 reload = False          # 生产环境禁用热重载
 
-# 日志配置 - Linus式明确命名
+# 日志配置 - 明确命名
 accesslog = "./logs/gunicorn_access.log"    # HTTP访问日志
 errorlog = "./logs/gunicorn_error.log"      # 只记录ERROR级别日志
 loglevel = "error"                          # 只记录错误级别

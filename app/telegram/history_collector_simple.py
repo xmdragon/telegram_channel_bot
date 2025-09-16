@@ -1,7 +1,7 @@
 """
 简化版Telegram历史消息采集器
 参考用户的bot_v3.py设计理念 - 简单直接，永不卡死
-Linus原则：消除所有不必要的复杂性
+设计原则：消除所有不必要的复杂性
 """
 import logging
 import asyncio
@@ -84,7 +84,7 @@ class SimpleHistoryCollector:
         
         logger.info(f"[{index}/{total}] 开始采集频道: {channel_name}")
         
-        # 🎯 Linus式解决方案：使用asyncio.create_task + asyncio.wait实现真正的超时控制
+        # 🎯 解决方案：使用asyncio.create_task + asyncio.wait实现真正的超时控制
         # 这是唯一能够中断iter_messages()的方法
         try:
             # 创建采集任务
@@ -231,7 +231,7 @@ class SimpleHistoryCollector:
                             logger.warning(f"消息 {msg.id} 管道处理超时，跳过")
                             # 阻塞时继续处理下一条消息
                         
-                        # 🚨 Linus式实用主义：checkpoint更新暂时禁用，避免阻塞采集
+                        # 🚨 实用主义：checkpoint更新暂时禁用，避免阻塞采集
                         # TODO: 实现unified_channel_service.update_channel_checkpoint方法
                         if msg.id > last_message_id:
                             last_message_id = msg.id
@@ -261,7 +261,7 @@ class SimpleHistoryCollector:
         
         logger.info(f"开始获取主消息ID列表，min_id={min_id}, 需要{limit}个主消息")
         
-        # 🎯 Linus式修复：使用更小的批次和超时控制
+        # 🎯 修复：使用更小的批次和超时控制
         # 不再尝试一次获取5倍数量，而是分批获取
         message_count = 0
         batch_size = min(50, limit * 2)  # 每批最多50条，减少阻塞风险
@@ -345,7 +345,7 @@ class SimpleHistoryCollector:
                 logger.debug(f"组 {group_id}: 在附近{len(nearby_messages)}条消息中找到{len(group_messages)}条同组消息")
                 return sorted(group_messages, key=lambda x: x.id)
             else:
-                # Linus式简化：如果没找到组消息，尝试直接获取单条消息作为回退
+                # 简化：如果没找到组消息，尝试直接获取单条消息作为回退
                 logger.warning(f"组 {group_id}: 未找到组消息，尝试单消息回退")
                 fallback_msg = await asyncio.wait_for(
                     client.get_messages(entity, ids=sample_id),

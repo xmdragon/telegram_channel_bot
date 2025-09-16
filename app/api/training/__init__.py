@@ -8,7 +8,6 @@ from .basic import router as basic_router
 from .tail_filter import router as tail_filter_router
 # 注意：ad_vector模块已移除
 # OCR功能已移除
-from .admin import router as admin_router
 from .keyword_management import router as keyword_router
 from .separator_test import router as separator_test_router
 
@@ -27,8 +26,6 @@ def register_training_routes():
     
     # 注意：广告向量管理已移除
 
-    # 系统管理
-    router.include_router(admin_router, tags=["training-admin"])
 
     # 关键词管理
     router.include_router(keyword_router, tags=["training-keywords"])

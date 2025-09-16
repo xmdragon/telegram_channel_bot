@@ -26,7 +26,7 @@ class HistoryCollector:
         """设置消息处理器回调"""
         self._message_processor = processor
     
-    # Linus式简化：删除不再需要的超时计算方法
+    # 简化：删除不再需要的超时计算方法
     
     async def collect_channel_history(self, client: TelegramClient):
         """采集所有监听频道的历史消息"""
@@ -58,7 +58,7 @@ class HistoryCollector:
                 channel_name = channel.get('channel_name', 'unknown')
                 logger.info(f"[{idx}/{len(channels)}] 开始采集频道: {channel_name}")
                 
-                # 🎯 Linus式解决方案：使用asyncio.create_task + asyncio.wait实现真正的超时控制
+                # 🎯 解决方案：使用asyncio.create_task + asyncio.wait实现真正的超时控制
                 try:
                     # 创建采集任务
                     collect_task = asyncio.create_task(
@@ -161,7 +161,7 @@ class HistoryCollector:
         
         logger.info(f"开始获取主消息ID列表，min_id={min_id}, 需要{limit}个主消息")
         
-        # 🎯 Linus式修复：使用更小的批次和超时控制
+        # 🎯 修复：使用更小的批次和超时控制
         # 不再尝试一次获取10倍数量，而是分批获取
         message_count = 0
         batch_size = min(50, limit * 2)  # 每批最多50条，减少阻塞风险
@@ -247,7 +247,7 @@ class HistoryCollector:
                 logger.debug(f"组 {group_id}: 在附近{len(nearby_messages)}条消息中找到{len(group_messages)}条同组消息")
                 return sorted(group_messages, key=lambda x: x.id)
             else:
-                # Linus式简化：如果没找到组消息，尝试直接获取单条消息作为回退
+                # 简化：如果没找到组消息，尝试直接获取单条消息作为回退
                 logger.warning(f"组 {group_id}: 未找到组消息，尝试单消息回退")
                 fallback_msg = await asyncio.wait_for(
                     client.get_messages(entity, ids=sample_id),
@@ -418,7 +418,7 @@ class HistoryCollector:
                 logger.error(f"获取频道 {channel_name} 实体失败: {e}")
                 return
             
-            # 🔥 Linus式简化：checkpoint是唯一真相源
+            # 🔥 简化：checkpoint是唯一真相源
             from app.storage.channel_store import RedisChannelStore
             from app.storage.redis_manager import redis_manager
             
@@ -431,7 +431,7 @@ class HistoryCollector:
             redis_channel_store = RedisChannelStore(redis_manager.client)
             checkpoint_id = redis_channel_store.get_checkpoint(channel_id)
             
-            # 🔥 Linus式解决方案：在源头确保类型安全
+            # 🔥 解决方案：在源头确保类型安全
             min_id = int(checkpoint_id) if checkpoint_id else 0
             
             if checkpoint_id:

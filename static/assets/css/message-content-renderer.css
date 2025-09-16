@@ -1,0 +1,51 @@
+
+/* 视频缩略图容器样式 */
+.video-thumbnail-container {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    overflow: hidden;
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.video-thumbnail-container:hover {
+    transform: scale(1.02);
+}
+
+.video-thumbnail {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.video-play-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    transition: background 0.2s;
+}
+
+.video-thumbnail-container:hover .video-play-overlay {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.video-play-overlay .play-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.video-play-overlay .video-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}

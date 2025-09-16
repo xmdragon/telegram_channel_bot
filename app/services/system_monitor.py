@@ -157,7 +157,7 @@ class SystemMonitor:
             # 获取频道配置（源频道从channels表）
             channels = await self.channel_manager.get_all_channels()
             
-            # Linus式修复：channels.json中所有频道默认都是source频道
+            # 修复：channels.json中所有频道默认都是source频道
             for channel in channels:
                 channel_id = channel.get('channel_id', '')
                 if channel_id:  # 只要有channel_id就认为是源频道

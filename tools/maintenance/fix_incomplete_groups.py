@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Linus式组合消息修复工具
+组合消息修复工具
 修复因超时机制导致的不完整消息组
 
 背景：
@@ -139,9 +139,9 @@ class IncompleteGroupsFixer:
                 print(f"❌ 无法获取样本消息ID")
                 return False
             
-            print(f"📡 使用Linus式方法重新获取完整消息组...")
+            print(f"📡 使用方法重新获取完整消息组...")
             
-            # 使用Linus式方法获取完整的消息组
+            # 使用方法获取完整的消息组
             await message_grouper._init_telegram_client()
             complete_group = await message_grouper._fetch_complete_group(
                 channel_id, grouped_id, sample_message_id

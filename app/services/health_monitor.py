@@ -193,7 +193,7 @@ class HealthCheckService:
                         data = json.loads(value)
                         health = ServiceHealth.from_dict(data)
                         
-                        # Linus式修复：更合理的心跳超时时间（3倍心跳间隔 = 90秒）
+                        # 修复：更合理的心跳超时时间（3倍心跳间隔 = 90秒）
                         heartbeat_timeout = 90  # 30秒心跳间隔的3倍
                         if (datetime.now() - health.last_heartbeat).total_seconds() > heartbeat_timeout:
                             health.status = ServiceStatus.UNKNOWN

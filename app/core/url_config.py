@@ -1,7 +1,7 @@
 """
 URL配置管理模块
 统一管理所有URL配置，支持环境变量，消除硬编码
-符合Linus设计原则：消除特殊情况，统一配置管理
+符合设计原则：消除特殊情况，统一配置管理
 """
 import os
 from typing import Optional

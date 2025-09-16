@@ -1,5 +1,5 @@
 """
-Linus式Redis管理器 - 统一、简洁、强健
+Redis管理器 - 统一、简洁、强健
 单例模式管理所有Redis操作，消除分散的连接管理和初始化噪音
 """
 import json
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class RedisManager:
     """唯一的Redis管理器 - 单例模式
     
-    遵循Linus哲学：
+    遵循设计哲学：
     1. 单一职责：只管Redis，管好Redis
     2. 简洁接口：一行代码解决所有Redis需求
     3. 自动管理：连接、重试、错误处理全部内置
@@ -74,7 +74,7 @@ class RedisManager:
             
             self._redis_client = redis.Redis(connection_pool=self._connection_pool)
             
-            # Linus式连接验证：快速失败，不浪费时间
+            # 连接验证：快速失败，不浪费时间
             max_retries = 3
             for attempt in range(1, max_retries + 2):
                 try:
@@ -163,7 +163,7 @@ class RedisManager:
             if message_data:
                 message = self._deserialize_json(message_data)
                 
-                # Linus式修复：对特殊的JSON字段进行二次解析
+                # 修复：对特殊的JSON字段进行二次解析
                 if message:
                     # media_group字段需要二次解析
                     if 'media_group' in message and isinstance(message['media_group'], str):
@@ -230,7 +230,7 @@ class RedisManager:
     
     def update_message_atomic(self, message_id: str, update_data: Dict[str, Any], user_id: str = None) -> bool:
         """
-        Linus式原子更新消息 - 唯一的消息更新方法
+        原子更新消息 - 唯一的消息更新方法
         
         消除特殊情况：
         1. 所有更新都通过这个方法
@@ -274,7 +274,7 @@ class RedisManager:
             if user_id:
                 existing_data['updated_by'] = user_id
             
-            # Linus原则：确保所有消息都有有效status
+            # 设计原则：确保所有消息都有有效status
             new_status = existing_data.get('status', 'pending')
             if new_status not in ['pending', 'approved', 'rejected']:
                 logger.warning(f"强制修正无效状态 '{new_status}' -> 'pending': {message_id}")
@@ -320,7 +320,7 @@ class RedisManager:
     
     def update_message_field(self, channel_id: str, message_id: int, field_name: str, field_value: Any, user_id: str = None) -> bool:
         """
-        更新消息的单个字段 - Linus式简洁实现
+        更新消息的单个字段 - 简洁实现
         
         Args:
             channel_id: 频道ID
@@ -333,7 +333,7 @@ class RedisManager:
             bool: 是否更新成功
         """
         try:
-            # Linus式优化：统一使用原子更新方法
+            # 优化：统一使用原子更新方法
             message_full_id = f"{channel_id}:{message_id}"
             update_data = {field_name: field_value}
             return self.update_message_atomic(message_full_id, update_data, user_id)
@@ -362,7 +362,7 @@ class RedisManager:
     
     def update_message_status(self, message_id: str, new_status: str, user_id: str = None) -> bool:
         """
-        更新消息状态 - Linus式简化实现
+        更新消息状态 - 简化实现
         
         Args:
             message_id: 完整消息ID格式 "channel_id:message_id" 
@@ -373,7 +373,7 @@ class RedisManager:
             bool: 是否更新成功
         """
         try:
-            # Linus原则：消除重复代码，直接使用原子更新方法
+            # 设计原则：消除重复代码，直接使用原子更新方法
             update_data = {'status': new_status}
             return self.update_message_atomic(message_id, update_data, user_id)
             
@@ -533,7 +533,7 @@ class RedisManager:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
                     if message_data:
-                        # 🔥 Linus式状态验证：确保消息状态与索引匹配
+                        # 🔥 状态验证：确保消息状态与索引匹配
                         actual_status = message_data.get('status', 'pending')
                         if actual_status == 'pending':
                             messages.append(message_data)

@@ -96,14 +96,6 @@ const API_ENDPOINTS = {
         separatorPatterns: '/api/training/separator-patterns',   // GET/POST - 获取/保存分隔符模式
         testSeparator: '/api/training/test-separator',   // POST - 测试分隔符过滤
 
-        // 关键词管理 (原广告向量管理)
-        adVectors: '/api/training/ad-vectors',                   // GET - 获取关键词规则列表（分页）
-        adVectorById: (id) => `/api/training/ad-vectors/${id}`,  // DELETE - 删除单个关键词规则
-        adVectorsBatch: '/api/training/ad-vectors/batch',        // DELETE - 批量删除关键词规则
-        adVectorStatistics: '/api/training/ad-vector-statistics', // GET - 获取关键词规则统计
-        adVectorTestDetection: '/api/training/ad-vectors/test-detection', // POST - 测试关键词检测
-        adVectorAddFromText: '/api/training/ad-vectors/add-from-text', // POST - 从文本添加关键词
-        adVectorStats: '/api/training/ad-vector-stats',          // GET - 获取关键词统计
         
         // 权重关键词管理系统（新）
         adKeywords: '/api/training/ad-keywords',                  // GET - 获取所有关键词及权重

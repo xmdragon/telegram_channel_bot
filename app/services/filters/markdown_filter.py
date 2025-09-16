@@ -1,8 +1,8 @@
 """
-Markdown链接过滤器 - Linus式独立实现
+Markdown链接过滤器 - 独立实现
 完全独立的类，不继承任何基类，消除所有抽象层
 
-Author: Claude (Linus式重构)
+Author: Claude ()
 Created: 2025-09-13
 """
 

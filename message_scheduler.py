@@ -47,7 +47,7 @@ class MessageSchedulerService:
             # 基础系统初始化
             logger.info("初始化存储层和认证服务...")
             
-            # Redis管理器自动处理连接管理 - Linus式简洁
+            # Redis管理器自动处理连接管理 - 简洁
             from app.storage.redis_manager import redis_manager
             if not redis_manager.is_healthy():
                 await self.health_monitor.set_unhealthy("Redis连接不可用")
@@ -143,7 +143,7 @@ class MessageSchedulerService:
 scheduler_service = None
 
 def signal_handler(signum, frame):
-    """信号处理器 - Linus式修复：避免创建新事件循环"""
+    """信号处理器 - 修复：避免创建新事件循环"""
     logger.info(f"收到信号 {signum}，正在关闭服务...")
     if scheduler_service:
         try:

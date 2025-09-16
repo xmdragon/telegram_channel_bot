@@ -34,7 +34,7 @@ class SessionAuthState:
         self.error_message = None
 
 class DualSessionAuthManager:
-    """双Session认证管理器 - Linus式清晰分离"""
+    """双Session认证管理器 - 清晰分离"""
     
     def __init__(self):
         self.config_manager = ConfigManager()

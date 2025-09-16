@@ -102,9 +102,17 @@ class CollectorConfigManager:
             # 加载自动拒绝广告配置
             auto_reject_value = system_config.get("review.auto_reject_ads", {}).get("value", "true")
             self.auto_reject_ads = auto_reject_value.lower() == "true" if isinstance(auto_reject_value, str) else bool(auto_reject_value)
-            
+
+            # 加载过滤器配置
+            self.filter_enabled = self._parse_bool_config(system_config.get("filter.enabled", {}).get("value", "false"))
+            self.tail_filter = self._parse_bool_config(system_config.get("filter.tail_filter", {}).get("value", "true"))
+            self.separator_filter = self._parse_bool_config(system_config.get("filter.separator", {}).get("value", "true"))
+            self.markdown_filter = self._parse_bool_config(system_config.get("filter.markdown", {}).get("value", "true"))
+            self.ad_detector = self._parse_bool_config(system_config.get("filter.ad_detector", {}).get("value", "false"))
+
             self._system_mtime = system_mtime
-            logger.info(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}, 自动拒绝广告={self.auto_reject_ads}")
+            logger.debug(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}, 自动拒绝广告={self.auto_reject_ads}")
+            logger.debug(f"过滤器配置: 主开关={self.filter_enabled}, 尾部={self.tail_filter}, 分隔符={self.separator_filter}, Markdown={self.markdown_filter}, 广告检测={self.ad_detector}")
     
     async def get_target_channel_id(self) -> Optional[str]:
         """获取目标频道ID"""
@@ -123,8 +131,6 @@ class CollectorConfigManager:
     
     async def get_collection_enabled(self) -> bool:
         """获取采集开关配置"""
-        # 强制重新加载配置（忽略mtime缓存）
-        self._system_mtime = 0
         await self.load_config()
         return self.collection_enabled
     
@@ -132,6 +138,22 @@ class CollectorConfigManager:
         """获取是否自动拒绝广告配置"""
         await self.load_config()
         return self.auto_reject_ads
+
+    def _parse_bool_config(self, value) -> bool:
+        """解析布尔配置值"""
+        if isinstance(value, str):
+            return value.lower() == "true"
+        return bool(value)
+
+    def get_filter_config(self) -> dict:
+        """获取过滤器配置"""
+        return {
+            'enabled': self.filter_enabled,
+            'tail_filter': self.tail_filter,
+            'separator_filter': self.separator_filter,
+            'markdown_filter': self.markdown_filter,
+            'ad_detector': self.ad_detector
+        }
 
 class ChannelManager:
     """频道管理器 - 专注频道相关功能"""
@@ -152,7 +174,7 @@ class ChannelManager:
             with open(PathConfig.CHANNELS_CONFIG_FILE, 'r', encoding='utf-8') as f:
                 self.source_channels = json.load(f)
             self._channels_mtime = channels_mtime
-            logger.info(f"频道配置已更新: {len(self.source_channels)}个源频道")
+            logger.debug(f"频道配置已更新: {len(self.source_channels)}个源频道")
 
     async def get_all_source_channels(self) -> List[Dict]:
         """获取所有源频道列表"""
@@ -493,7 +515,10 @@ class TelegramMessageCollector:
                 continue
             
             # 3. 处理这个组的消息 - 内容过滤（包含广告检测）
-            collected_message = await self.content_processor.process(collected_message, self.config_manager)
+            # 获取最新的过滤器配置
+            await self.config_manager.load_config()
+            filter_config = self.config_manager.get_filter_config()
+            collected_message = await self.content_processor.process(collected_message, self.config_manager, filter_config=filter_config)
 
             # 4. 保存消息到Redis,更新状态索引和频道索引
             try:

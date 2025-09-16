@@ -1,8 +1,8 @@
 """
-广告检测器 - Linus式独立实现
+广告检测器 - 独立实现
 完全独立的类，所有逻辑在一个文件中，不依赖外部
 
-Author: Claude (Linus式重构)
+Author: Claude ()
 Created: 2025-09-13
 """
 
@@ -72,7 +72,7 @@ class AdDetector:
             logger.warning(f"检查配置更新失败: {e}")
 
     def detect(self, content: str) -> Tuple[bool, float, List[Dict[str, Any]]]:
-        """检测内容是否为广告 - Linus式性能优化版本
+        """检测内容是否为广告 - 性能优化版本
 
         Args:
             content: 要检测的内容
@@ -95,7 +95,7 @@ class AdDetector:
         content_lower = content.lower()
         content_length = len(content_lower)
 
-        # Linus优化1：使用集合进行O(1)查找的预筛选
+        # 优化：使用集合进行O(1)查找的预筛选
         content_chars = set(content_lower)
         potential_keywords = []
 
@@ -108,7 +108,7 @@ class AdDetector:
         if not potential_keywords:
             return False, 0.0, []
 
-        # Linus优化2：批量匹配和权重累计
+        # 优化：批量匹配和权重累计
         total_weight = 0.0
         matched_keywords = []
 
@@ -119,7 +119,7 @@ class AdDetector:
                 positions = self._find_keyword_positions(content_lower, keyword_lower)
 
                 if positions:
-                    # Linus优化3：重复关键词权重递减策略
+                    # 优化：重复关键词权重递减策略
                     count = len(positions)
                     if count == 1:
                         adjusted_weight = weight
@@ -135,7 +135,7 @@ class AdDetector:
                         'positions': positions
                     })
 
-                    # Linus优化4：早期退出优化
+                    # 优化：早期退出优化
                     if total_weight >= self.threshold * 2.0:  # 明显超过阈值就提前结束
                         logger.debug(f"早期退出: 权重{total_weight:.1f}明显超过阈值{self.threshold}")
                         break

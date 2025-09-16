@@ -47,7 +47,7 @@ class LayerPipelineConfig:
 
 class LayerPipeline:
     """
-    分层管道 - Linus式两阶段设计
+    分层管道 - 两阶段设计
     
     阶段1: 内容清理层 - 清理推广内容，优化后续检测
     阶段2: 检测器层 - 检测问题内容，支持Early Stopping

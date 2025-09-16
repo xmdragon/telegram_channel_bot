@@ -40,7 +40,7 @@ class DetectorLayerConfig:
 
 class DetectorLayer:
     """
-    检测器层 - Linus式设计
+    检测器层 - 设计
     
     职责单一：只负责内容检测，不做内容清理
     支持Early Stopping：检测到问题时立即停止

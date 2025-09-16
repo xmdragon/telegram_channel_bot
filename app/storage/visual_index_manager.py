@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class VisualIndexManager:
-    """视觉哈希专门索引管理器 - Linus式解决方案"""
+    """视觉哈希专门索引管理器 - 解决方案"""
     
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
@@ -52,7 +52,7 @@ class VisualIndexManager:
             
             message_key = f"{channel_id}:{message_id}"
             
-            # 🚀 Linus式类型兼容：处理单个字典或字典列表
+            # 🚀 类型兼容：处理单个字典或字典列表
             hash_dicts = []
             if isinstance(visual_hashes, list):
                 # 组合消息：visual_hashes是多个字典的列表
@@ -125,7 +125,7 @@ class VisualIndexManager:
             score_min = time_threshold.timestamp()
             score_max = datetime.utcnow().timestamp()
             
-            # 🚀 Linus式优化：使用ZRANGEBYSCORE而不是扫描所有key
+            # 🚀 优化：使用ZRANGEBYSCORE而不是扫描所有key
             timeline_members = self.redis.zrangebyscore(
                 self.timeline_key, 
                 score_min, 

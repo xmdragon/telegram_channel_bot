@@ -2,7 +2,7 @@
 
 # Telegram 消息审核系统重启脚本
 
-# 🚀 Linus式修复: 强制使用HuggingFace离线模式，避免API限流
+# 🚀 修复: 强制使用HuggingFace离线模式，避免API限流
 export HF_HUB_OFFLINE=1
 
 # 🔧 PyTorch MPS修复: 禁用MPS后端避免多进程Fork崩溃
@@ -130,7 +130,7 @@ STOP_ARGS=""
 
 ./stop.sh $STOP_ARGS || true
 
-# Linus式：直接检查，不盲目等待
+# 直接检查，不盲目等待
 echo "🔍 检查进程状态..."
 
 # 使用智能进程检查和清理

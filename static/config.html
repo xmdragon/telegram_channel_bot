@@ -466,25 +466,12 @@
                                     
                                     <div class="filter-item">
                                         <div class="filter-info">
-                                            <div class="filter-label">尾部推广链接过滤</div>
-                                            <div class="filter-description">检测并移除消息尾部的推广链接</div>
+                                            <div class="filter-label">分隔符过滤</div>
+                                            <div class="filter-description">根据分隔符规则过滤特定内容块</div>
                                         </div>
                                         <div class="filter-control">
                                             <label class="switch">
-                                                <input type="checkbox" v-model="configs['filter.footer_promo']">
-                                                <span class="slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="filter-item">
-                                        <div class="filter-info">
-                                            <div class="filter-label">推广内容向量过滤</div>
-                                            <div class="filter-description">使用AI向量识别并过滤推广内容段落</div>
-                                        </div>
-                                        <div class="filter-control">
-                                            <label class="switch">
-                                                <input type="checkbox" v-model="configs['filter.promo_vector']">
+                                                <input type="checkbox" v-model="configs['filter.separator']">
                                                 <span class="slider"></span>
                                             </label>
                                         </div>
@@ -524,9 +511,6 @@
                             </button>
                             <button type="button" class="btn btn-secondary" @click="resetFilterSettings">
                                 🔄 重置默认
-                            </button>
-                            <button type="button" class="btn btn-info" @click="reloadFilters">
-                                🔄 重新加载过滤器
                             </button>
                         </div>
                     </div>

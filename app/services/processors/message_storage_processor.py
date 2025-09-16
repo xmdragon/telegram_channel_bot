@@ -107,7 +107,7 @@ class MessageStorageProcessor(MessageProcessor):
                 self.logger.info(f"✅ 已合并组消息保存成功: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
                 
             else:
-                # Linus式修复：直接从context获取，消除getattr特殊情况
+                # 修复：直接从context获取，消除getattr特殊情况
                 grouped_id = getattr(message, 'grouped_id', None)
                 
                 if grouped_id:
@@ -223,7 +223,7 @@ class MessageStorageProcessor(MessageProcessor):
             save_data['status'] = 'approved'
             self.logger.info(f"人工审核已关闭，消息 #{message.id} 自动批准")
         
-        # 🔧 Linus式修复：为组合消息子消息添加特殊标记
+        # 🔧 修复：为组合消息子消息添加特殊标记
         if hasattr(message, 'grouped_id') and message.grouped_id:
             save_data['is_group_child'] = True
             save_data['grouped_id'] = str(message.grouped_id)
@@ -278,12 +278,12 @@ class MessageStorageProcessor(MessageProcessor):
         try:
             message = context.telegram_message
             
-            # 智能决策：是否使用Linus式主动获取
+            # 智能决策：是否使用主动获取
             should_use_active_fetch = await self._should_use_active_fetch(context, grouped_id)
             
             if should_use_active_fetch:
-                # 使用Linus式主动获取完整组（现在包含媒体下载）
-                self.logger.info(f"使用Linus式主动获取处理组合消息: {grouped_id}")
+                # 使用主动获取完整组（现在包含媒体下载）
+                self.logger.info(f"使用主动获取处理组合消息: {grouped_id}")
                 
                 # 直接调用主动获取方法
                 complete_group = await self.message_grouper._fetch_complete_group(
@@ -300,11 +300,11 @@ class MessageStorageProcessor(MessageProcessor):
                     if processed_data:
                         # 保存到Redis
                         await self.message_grouper._save_to_redis(processed_data, combined_message, context.channel_id)
-                        self.logger.info(f"✅ Linus式处理完成，组合消息包含 {len(complete_group)} 条消息")
+                        self.logger.info(f"✅ 处理完成，组合消息包含 {len(complete_group)} 条消息")
                     else:
-                        self.logger.error(f"❌ Linus式处理失败，数据处理错误")
+                        self.logger.error(f"❌ 处理失败，数据处理错误")
                 else:
-                    self.logger.error(f"❌ Linus式主动获取失败，回退到传统方式")
+                    self.logger.error(f"❌ 主动获取失败，回退到传统方式")
                     # 回退到传统方式
                     await self._handle_grouped_message_traditional(context, grouped_id)
             else:
@@ -315,7 +315,7 @@ class MessageStorageProcessor(MessageProcessor):
             self.logger.error(f"处理组合消息失败: {e}")
     
     async def _should_use_active_fetch(self, context: MessageContext, grouped_id: str) -> bool:
-        """判断是否应该使用Linus式主动获取"""
+        """判断是否应该使用主动获取"""
         try:
             # 检查是否已经存在不完整的组合消息
             existing_combined = await self.message_grouper._get_existing_combined_message(context.channel_id, grouped_id)
@@ -418,7 +418,7 @@ class MessageStorageProcessor(MessageProcessor):
     
     def _generate_channel_link_prefix(self, channel_id: str, channel_username: str = None) -> str:
         """
-        生成频道链接前缀 - Linus式简化逻辑
+        生成频道链接前缀 - 简化逻辑
         优先使用已知的频道用户名，否则查找配置，最后使用内部ID格式
         """
         try:

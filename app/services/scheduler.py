@@ -40,7 +40,7 @@ class MessageScheduler:
             id='cleanup_logs'
         )
         
-        # 🚀 Linus式优化：每小时清理过期的视觉哈希索引（96小时前）
+        # 🚀 优化：每小时清理过期的视觉哈希索引（96小时前）
         self.scheduler.add_job(
             self.cleanup_visual_hash_index,
             'interval',

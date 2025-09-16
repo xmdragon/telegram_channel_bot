@@ -67,7 +67,6 @@ class RouteConfig:
         review_group_status = "/admin/review-group-status"
         resolve_channel_ids = "/admin/resolve-channel-ids"
         resolve_channel_id = "/admin/resolve-channel-id"
-        reload_filters = "/admin/reload-filters"
     
     class AdminAuth:
         """管理员认证路由"""
@@ -181,32 +180,7 @@ class RouteConfig:
         mark_ad_message = "/training/mark-ad-message"
         separator_patterns = "/training/separator-patterns"
         test_separator = "/training/test-separator"
-        ad_samples = "/training/ad-samples"
-        stats = "/training/stats"
-        channels = "/training/channels"
-        history = "/training/history"
-        submit = "/training/submit"
-        sample_by_id = "/training/{sample_id}"
-        apply = "/training/apply"
-        clear_by_channel = "/training/clear/{channel_id}"
-        export = "/training/export"
-        auto_learn = "/training/auto-learn/{channel_id}"
-        sample_detail = "/training/sample/{sample_id}"
-        reload_model = "/training/reload-model"
         
-        # 管理功能
-        optimize_storage = "/training/optimize-storage"
-        optimize_storage_sse = "/training/optimize-storage-sse"
-        learning_stats = "/training/learning-stats"
-        emergency_backup = "/training/emergency-backup"
-        integrity_report = "/training/integrity-report"
-        verify_integrity = "/training/verify-integrity"
-        cleanup_backups = "/training/cleanup-backups"
-        backups = "/training/backups"
-        restore = "/training/restore/{backup_filename}"
-        feedback = "/training/feedback"
-        statistics = "/training/statistics"
-        clear = "/training/clear"
         
         
         # 尾部过滤器

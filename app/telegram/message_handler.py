@@ -143,7 +143,7 @@ class MessageHandler:
     async def _analyze_no_save_reason(self, result, message_id):
         """分析消息未保存的原因"""
         if not result.success:
-            # Linus式优化：空消息丢弃是正常行为，使用debug级别日志
+            # 优化：空消息丢弃是正常行为，使用debug级别日志
             if hasattr(result, 'error') and "无有效内容，直接丢弃" in result.error:
                 logger.debug(f"🗑️ 消息 #{message_id} 为空消息，已优化丢弃")
                 return "empty_discarded"
@@ -194,7 +194,7 @@ class MessageHandler:
     
     
     async def _extract_message_quickly(self, message: TLMessage, channel_id: str, chat) -> CollectedMessage:
-        """快速提取消息基础信息 - Linus式最小必要信息"""
+        """快速提取消息基础信息 - 最小必要信息"""
         from app.utils.timezone import get_current_time
         
         # 基础文本内容 - Telethon的Message对象使用text属性，不是message属性
@@ -490,7 +490,7 @@ class MessageHandler:
         pass
     
     async def _handle_group_message_in_collector(self, collected_msg: CollectedMessage, telegram_message: TLMessage, channel_id: str) -> Optional[CollectedMessage]:
-        """在collector中处理组消息合并 - Linus式方案1实现"""
+        """在collector中处理组消息合并 - 方案1实现"""
         try:
             from app.services.message_grouper import message_grouper
             

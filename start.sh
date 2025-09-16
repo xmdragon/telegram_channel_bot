@@ -9,7 +9,7 @@ if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
 
-# 🚀 Linus式修复: 强制使用HuggingFace离线模式，避免API限流
+# 🚀 修复: 强制使用HuggingFace离线模式，避免API限流
 export HF_HUB_OFFLINE=1
 
 # 🔧 PyTorch MPS修复: 禁用MPS后端避免多进程Fork崩溃

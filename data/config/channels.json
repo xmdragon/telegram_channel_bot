@@ -57,13 +57,13 @@
   {
     "id": 6,
     "channel_id": "-1002477782460",
-    "channel_name": "@dongnanya127",
+    "channel_name": "@ytc127",
     "config": {},
     "description": "手动添加",
     "created_at": "2025-08-14 10:06:40.327913",
-    "channel_title": "亚太新闻 ｜妙瓦低新闻 ｜东南亚新闻｜爆料 甩人",
+    "channel_title": "亚太新闻 ｜妙瓦低新闻｜缅甸大事件 🔰",
     "last_message_id": 0,
-    "updated_at": "2025-09-09T07:26:40.233858"
+    "updated_at": "2025-09-15T23:47:45.304965"
   },
   {
     "id": 8,
@@ -195,17 +195,6 @@
     "channel_title": "缅甸新闻|缅甸曝光|缅甸事件|缅甸大事件|缅甸安危事件",
     "last_message_id": 0,
     "updated_at": "2025-09-09T07:26:40.244172"
-  },
-  {
-    "id": 20,
-    "channel_id": "-1002610200443",
-    "channel_name": "@feilvbingi",
-    "config": {},
-    "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
-    "created_at": "2025-08-14 10:06:40.341651",
-    "channel_title": "菲律宾新闻|菲律宾曝光|菲律宾事件|菲律宾大事件|菲律宾安危事件",
-    "last_message_id": 0,
-    "updated_at": "2025-09-09T07:26:40.245039"
   },
   {
     "id": 21,
@@ -340,16 +329,6 @@
     "updated_at": "2025-09-09T07:26:40.255586"
   },
   {
-    "id": 34,
-    "channel_id": "-1002119717735",
-    "channel_name": "@miandianQ",
-    "channel_title": "缅甸大事件|爆光|吃瓜|悬赏|",
-    "config": {},
-    "created_at": "2025-09-09T11:08:46.056156",
-    "updated_at": "2025-09-09T07:26:40.256525",
-    "last_message_id": 0
-  },
-  {
     "id": 35,
     "channel_id": "-1002839600858",
     "channel_name": "@dny107",
@@ -368,16 +347,6 @@
     "config": {},
     "created_at": "2025-09-09T17:24:37.312981",
     "updated_at": "2025-09-09T09:24:37.314450"
-  },
-  {
-    "id": 38,
-    "channel_name": "@xigangz",
-    "channel_id": "-1002010426724",
-    "channel_title": "西港日记/华人大事件",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-09T09:34:23.316020",
-    "updated_at": "2025-09-09T09:34:23.316531"
   },
   {
     "id": 39,
@@ -830,36 +799,6 @@
     "updated_at": "2025-09-12T07:28:42.840517"
   },
   {
-    "id": 87,
-    "channel_name": "@jianpuzhaiu",
-    "channel_id": "-1001906241345",
-    "channel_title": "柬埔寨新闻|曝光|吃瓜|悬赏|",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:28:43.673113",
-    "updated_at": "2025-09-12T07:28:43.673386"
-  },
-  {
-    "id": 88,
-    "channel_name": "@taiguoD",
-    "channel_id": "-1002061177828",
-    "channel_title": "泰国大事件|新闻|爆料|吃瓜|",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:28:43.958066",
-    "updated_at": "2025-09-12T07:28:43.958344"
-  },
-  {
-    "id": 89,
-    "channel_name": "@dongnanyam",
-    "channel_id": "-1002141760635",
-    "channel_title": "东南亚大事件",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:28:44.246709",
-    "updated_at": "2025-09-12T07:28:44.246985"
-  },
-  {
     "id": 90,
     "channel_name": "@dongnanyaY",
     "channel_id": "-1002080675786",
@@ -880,16 +819,6 @@
     "updated_at": "2025-09-12T07:28:44.809147"
   },
   {
-    "id": 92,
-    "channel_name": "@yameishi",
-    "channel_id": "-1001177092572",
-    "channel_title": "💯【佳佳】美食素材圈💯",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:28:45.080143",
-    "updated_at": "2025-09-12T07:28:45.080450"
-  },
-  {
     "id": 93,
     "channel_name": "@dnynew",
     "channel_id": "-1002035353521",
@@ -898,16 +827,6 @@
     "config": {},
     "created_at": "2025-09-12T07:28:45.399463",
     "updated_at": "2025-09-12T07:28:45.399718"
-  },
-  {
-    "id": 94,
-    "channel_name": "@yuenanU",
-    "channel_id": "-1002104091566",
-    "channel_title": "越南大事件/曝光悬赏吃瓜新闻",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:28:45.698530",
-    "updated_at": "2025-09-12T07:28:45.699615"
   },
   {
     "id": 95,
@@ -1009,16 +928,6 @@
     "updated_at": "2025-09-12T07:29:39.864004"
   },
   {
-    "id": 106,
-    "channel_name": "@mupaix",
-    "channel_id": "-1002026184184",
-    "channel_title": "木牌大事件/聚焦柬埔寨🇰🇭",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:29:40.149793",
-    "updated_at": "2025-09-12T07:29:40.150085"
-  },
-  {
     "id": 107,
     "channel_name": "@chigua181",
     "channel_id": "-1001697201545",
@@ -1079,16 +988,6 @@
     "updated_at": "2025-09-12T07:29:42.319523"
   },
   {
-    "id": 113,
-    "channel_name": "@chiguak",
-    "channel_id": "-1002035889505",
-    "channel_title": "东南亚大事件（吃瓜新闻）",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:29:42.743564",
-    "updated_at": "2025-09-12T07:29:42.743973"
-  },
-  {
     "id": 114,
     "channel_name": "@XJ_6666",
     "channel_id": "-1002127990087",
@@ -1107,5 +1006,15 @@
     "config": {},
     "created_at": "2025-09-12T07:29:43.463640",
     "updated_at": "2025-09-12T07:29:43.463954"
+  },
+  {
+    "id": 116,
+    "channel_name": "@jpzdnyxw",
+    "channel_id": "-1002492002148",
+    "channel_title": "柬埔寨新闻/东南亚新闻/爆料/吃瓜",
+    "description": "",
+    "config": {},
+    "created_at": "2025-09-16T00:22:36.576803",
+    "updated_at": "2025-09-16T00:22:36.577210"
   }
 ]

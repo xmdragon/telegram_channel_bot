@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 修复system.json配置类型不一致问题
-Linus原则：消除特殊情况，让数据类型与值保持一致
+设计原则：消除特殊情况，让数据类型与值保持一致
 """
 
 import json

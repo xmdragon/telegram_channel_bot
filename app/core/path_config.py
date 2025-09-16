@@ -24,10 +24,9 @@ class PathConfig:
     ADMINS_CONFIG_FILE = CONFIG_DIR / "admins.json"
     CHANNELS_CONFIG_FILE = CONFIG_DIR / "channels.json"
     PERMISSIONS_CONFIG_FILE = CONFIG_DIR / "permissions.json"
-    AD_KEYWORDS_FILE = CONFIG_DIR / "ad_keywords.json"  # 广告关键词配置
-    
     # 广告检测相关
     AD_TRAINING_DIR = TRAINING_DIR / "ad"
+    AD_KEYWORDS_FILE = AD_TRAINING_DIR / "ad_keywords.json"  # 广告关键词配置（移到训练目录）
     AD_JSON_DIR = AD_TRAINING_DIR / "json"
     AD_TRAINING_FILE = AD_JSON_DIR / "ad_training_data.json"
     AD_MEDIA_DIR = AD_TRAINING_DIR

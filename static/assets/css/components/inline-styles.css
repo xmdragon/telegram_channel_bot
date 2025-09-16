@@ -1,4 +1,4 @@
-/* Linus式统一内联样式清理 - 消除所有style=""垃圾 */
+/* 统一内联样式清理 - 消除所有style=""垃圾 */
 
 /* 布局类 - 替代内联布局样式 */
 .flex-center { display: flex; align-items: center; }

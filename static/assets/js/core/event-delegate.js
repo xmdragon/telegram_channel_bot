@@ -29,10 +29,10 @@ class EventDelegate {
             // 立即停止事件传播
             e.preventDefault();
             e.stopPropagation();
-            
+
             // 执行对应的操作
             if (this.vm[action]) {
-                this.vm[action](messageId);
+                this.vm[action](e, messageId);
             }
             return;
         }

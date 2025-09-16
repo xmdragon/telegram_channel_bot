@@ -32,7 +32,6 @@ def check_permission(permission_name: str):
     return dependency
 
 # Pydantic模型定义
-# TrainingSubmission 类已废弃 - 手动训练数据功能已移除
 
 class TailFilterSample(BaseModel):
     """尾部过滤样本模型"""
@@ -57,15 +56,8 @@ class PromoSample(BaseModel):
     separator_type: Optional[str] = ""
     created_at: Optional[str] = None
 
-class FeedbackData(BaseModel):
-    """反馈数据模型"""
-    sample_id: str
-    is_correct: bool
-    user_feedback: str = ""
 
-# 核心数据操作函数 - 手动训练数据功能已移除
-# load_training_data() 和 save_training_data() 函数已废弃
-# 所有训练数据现在通过专门的训练数据模块管理
+# 核心数据操作函数
 
 
 def load_tail_filter_samples() -> Any:

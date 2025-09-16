@@ -222,7 +222,7 @@ class MediaHandler:
                 file_name = f"{file_prefix}_photo.jpg"
                 file_path = self.temp_dir / file_name
                 
-                # 🔥 Linus式修复：统一超时设置
+                # 🔥 修复：统一超时设置
                 if timeout:
                     download_timeout = timeout
                 else:
@@ -251,7 +251,7 @@ class MediaHandler:
                         logger.error(f"❌ 图片下载真正失败，文件不存在: {file_name}")
                         return None
                 
-                # 🔥 Linus式修复：下载功能保持简单，不做额外处理
+                # 🔥 修复：下载功能保持简单，不做额外处理
                 media_info.update({
                     "file_path": str(file_path),
                     "file_name": file_name,
@@ -271,6 +271,24 @@ class MediaHandler:
                 if mime_type.startswith("video/"):
                     media_info["media_type"] = "video"
                     extension = ".mp4"
+
+                    # 尝试下载视频缩略图
+                    if hasattr(document, 'thumbs') and document.thumbs:
+                        try:
+                            # 获取最大的缩略图
+                            thumb = max(document.thumbs, key=lambda t: getattr(t, 'size', 0))
+                            thumb_file_name = f"{file_prefix}_video_thumb.jpg"
+                            thumb_path = self.temp_dir / thumb_file_name
+
+                            # 下载缩略图
+                            await client.download_media(thumb, thumb_path)
+
+                            if thumb_path.exists():
+                                media_info["thumbnail_path"] = str(thumb_path)
+                                media_info["thumbnail_url"] = f"/media/{thumb_file_name}"
+                                logger.debug(f"视频缩略图下载完成: {thumb_file_name}")
+                        except Exception as e:
+                            logger.warning(f"下载视频缩略图失败: {e}")
                 elif mime_type.startswith("image/"):
                     if "gif" in mime_type:
                         media_info["media_type"] = "animation"

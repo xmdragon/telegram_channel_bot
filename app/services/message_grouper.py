@@ -118,7 +118,7 @@ class MessageGrouper:
             if not message_data['grouped_id']:
                 return await self._create_single_message(message_data, channel_id)
             
-            # 有grouped_id，使用Linus式主动获取完整组
+            # 有grouped_id，使用主动获取完整组
             return await self._handle_grouped_message_active(message_data, channel_id, is_batch)
             
         except Exception as e:
@@ -169,14 +169,14 @@ class MessageGrouper:
         }
     
     async def _handle_grouped_message_active(self, message_data: Dict, channel_id: str, is_batch: bool = False) -> Optional[Dict]:
-        """Linus式主动获取完整消息组处理 - 并发安全版本"""
+        """主动获取完整消息组处理 - 并发安全版本"""
         grouped_id = str(message_data['grouped_id']) if message_data.get('grouped_id') else None
         if not grouped_id:
             return await self._create_single_message(message_data, channel_id)
             
         group_key = f"{channel_id}_{grouped_id}"
         
-        # 🔧 Linus式并发控制：获取或创建该组的专用锁
+        # 🔧 并发控制：获取或创建该组的专用锁
         if group_key not in self.group_locks:
             self.group_locks[group_key] = asyncio.Lock()
         
@@ -198,7 +198,7 @@ class MessageGrouper:
             self.processed_groups[group_key] = "processing"
             
             try:
-                # Linus式直接获取完整组 - 不要猜测，直接获取完整数据
+                # 直接获取完整组 - 不要猜测，直接获取完整数据
                 complete_group = await self._fetch_complete_group(channel_id, grouped_id, message_data['message_id'])
                 
                 if not complete_group:
@@ -217,7 +217,7 @@ class MessageGrouper:
                     # 保存到Redis - 增加错误处理
                     await self._save_to_redis_safe(processed_data, combined_message, channel_id)
                     
-                    logger.info(f"✅ Linus式处理完成：消息组 {grouped_id} 包含 {len(complete_group)} 条消息")
+                    logger.info(f"✅ 处理完成：消息组 {grouped_id} 包含 {len(complete_group)} 条消息")
                     return processed_data
                 else:
                     logger.error(f"处理组合消息数据失败: {group_key}")
@@ -231,7 +231,7 @@ class MessageGrouper:
                 return await self._create_single_message(message_data, channel_id)
     
     async def _fetch_complete_group(self, channel_id: str, grouped_id: str, sample_message_id: int) -> List[Dict]:
-        """Linus式获取完整消息组 - 不要猜测，直接获取完整数据"""
+        """获取完整消息组 - 不要猜测，直接获取完整数据"""
         try:
             # 检查客户端状态（可能由bot_manager设置，也可能需要自己初始化）
             if not self.telegram_client:
@@ -271,7 +271,7 @@ class MessageGrouper:
                     channel_username = username
             
             if not channel_username:
-                # Linus式统一配置读取：从配置文件动态获取所有频道映射
+                # 统一配置读取：从配置文件动态获取所有频道映射
                 try:
                     all_channels = channel_store.get_all_channels()
                     for ch in all_channels:
@@ -332,7 +332,7 @@ class MessageGrouper:
             # 按ID排序
             group_messages.sort(key=lambda x: x.id)
             
-            logger.info(f"🎯 Linus式获取成功: grouped_id={grouped_id} 找到 {len(group_messages)} 条消息")
+            logger.info(f"🎯 获取成功: grouped_id={grouped_id} 找到 {len(group_messages)} 条消息")
             
             # 转换为内部格式，包含媒体下载
             converted_messages = []
@@ -481,7 +481,7 @@ class MessageGrouper:
             if not require_approval:
                 logger.info(f"人工审核已关闭，组合消息 {channel_id}:{processed_data['message_id']} 自动批准")
             
-            # 保存到Redis - Linus式：提供详细失败原因
+            # 保存到Redis - ：提供详细失败原因
             try:
                 logger.debug(f"🔄 准备保存组合消息: {channel_id}:{processed_data['message_id']}")
                 logger.debug(f"保存数据详情: {save_data}")
@@ -548,7 +548,7 @@ class MessageGrouper:
             from app.services.message_processor import MessageProcessor
             from app.storage.redis_manager import redis_manager
             
-            # 🔧 Linus式优化：先检查是否已存在，避免重复检测器误报
+            # 🔧 优化：先检查是否已存在，避免重复检测器误报
             message_id = processed_data['message_id']
             existing_message = None
             
@@ -584,7 +584,7 @@ class MessageGrouper:
         # 按时间排序
         messages.sort(key=lambda x: x['date'])
         
-        # 🔧 Linus式修复：收集所有原始内容（子消息已跳过过滤）
+        # 🔧 修复：收集所有原始内容（子消息已跳过过滤）
         all_texts = []
         text_message_count = 0  # 记录有文本的消息数量
         
@@ -717,7 +717,7 @@ class MessageGrouper:
             
             message_ids = [str(msg['message_id']) for msg in messages]
             
-            # 🚀 Linus式改进：将媒体组信息从内容中分离，消除特殊情况
+            # 🚀 改进：将媒体组信息从内容中分离，消除特殊情况
             media_group_info = {
                 'summary': ' + '.join(summary_parts),
                 'available_count': available_count,
@@ -772,7 +772,7 @@ class MessageGrouper:
             from app.services.unified_filter_engine import unified_filter_engine
             from app.services.filters.base import FilterContext
             
-            # 🔧 Linus式修复：创建过滤上下文 - 使用真实的频道ID和消息ID
+            # 🔧 修复：创建过滤上下文 - 使用真实的频道ID和消息ID
             context = FilterContext(
                 message_id=message_id if message_id else 0,
                 channel_id=channel_id  # 使用真实频道ID，而不是"grouper"
@@ -800,7 +800,7 @@ class MessageGrouper:
             # 返回处理后的组合消息数据
             processed_data = await self._trigger_combined_message_event(combined_message, channel_id)
             
-            # 🔥 Linus式修复：组消息保存后立即更新checkpoint
+            # 🔥 修复：组消息保存后立即更新checkpoint
             if processed_data:
                 await self._update_group_checkpoint(combined_message, channel_id)
             
@@ -997,10 +997,10 @@ class MessageGrouper:
             logger.error(f"清理单独消息时出错: {e}")
     
     async def cleanup_expired_groups(self):
-        """清理过期的消息组 - Linus式重构后无需此功能"""
+        """清理过期的消息组 - 后无需此功能"""
         try:
-            logger.debug("Linus式设计：无需清理过期组，所有组均即时处理")
-            # Linus式设计：没有待处理的组，所以也没有过期的组
+            logger.debug("设计：无需清理过期组，所有组均即时处理")
+            # 设计：没有待处理的组，所以也没有过期的组
                 
         except Exception as e:
             logger.error(f"清理过期消息组时出错: {e}")

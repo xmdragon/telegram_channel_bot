@@ -1,8 +1,8 @@
 """
-内容处理器 - Linus式极简实现
+内容处理器 - 统一的实现
 统一的内容处理管道，使用独立的过滤器类，无抽象层
 
-Author: Claude (Linus式重构)
+Author: Claude ()
 Created: 2025-09-13
 """
 
@@ -39,7 +39,7 @@ class LocalMessage:
 
 
 class ContentProcessor:
-    """内容处理器 - Linus式性能优化版本
+    """内容处理器 - 性能优化版本
 
     处理流程（按性能优化顺序）：
     1. 快速预筛选 - 跳过明显的正常内容
@@ -68,7 +68,7 @@ class ContentProcessor:
         self._cache_hits = 0
         self._cache_misses = 0
 
-        logger.info("ContentProcessor初始化完成（Linus式延迟加载架构）")
+        logger.info("ContentProcessor初始化完成（延迟加载架构）")
 
     @property
     def tail_filter(self):
@@ -105,8 +105,8 @@ class ContentProcessor:
         self._cache_misses = 0
         logger.info("ContentProcessor缓存已清空")
 
-    async def process(self, message: LocalMessage, config_manager: Optional[Any] = None, detect_ad: bool = True) -> LocalMessage:
-        """处理消息内容 - Linus式性能优化版本
+    async def process(self, message: LocalMessage, config_manager: Optional[Any] = None, detect_ad: bool = True, filter_config: Optional[dict] = None) -> LocalMessage:
+        """处理消息内容 - 性能优化版本
 
         Args:
             message: 要处理的消息
@@ -151,9 +151,26 @@ class ContentProcessor:
                 return message
 
             # 重新排序处理步骤，按性能优化顺序
+            # 获取过滤器配置
+            if filter_config is None:
+                filter_config = {
+                    'enabled': True,
+                    'tail_filter': True,
+                    'separator_filter': True,
+                    'markdown_filter': True,
+                    'ad_detector': False
+                }
+
+            # 如果主开关关闭，直接返回
+            if not filter_config.get('enabled', True):
+                message.filtered_content = current_content
+                return message
 
             # 1. 尾部过滤（最常见，最快，放第一）
-            filtered_content, is_filtered, removed_tail = self.tail_filter.filter(current_content)
+            if filter_config.get('tail_filter', True):
+                filtered_content, is_filtered, removed_tail = self.tail_filter.filter(current_content)
+            else:
+                filtered_content, is_filtered, removed_tail = current_content, False, ""
             if is_filtered:
                 current_content = filtered_content
                 filter_reasons.append(f"尾部过滤: 删除{len(removed_tail)}字符")
@@ -167,8 +184,13 @@ class ContentProcessor:
                     return message
 
             # 2. 分隔符过滤（较快，处理结构化内容）
-            filtered_content, separator_stats = self.separator_filter.filter_content(current_content)
-            removed_blocks = separator_stats.get('removed_blocks_count', 0)
+            if filter_config.get('separator_filter', True):
+                filtered_content, separator_stats = self.separator_filter.filter_content(current_content)
+                removed_blocks = separator_stats.get('removed_blocks_count', 0)
+            else:
+                filtered_content = current_content
+                removed_blocks = 0
+                separator_stats = {}
             if removed_blocks > 0:
                 current_content = filtered_content
                 removed_chars = separator_stats.get('original_length', 0) - separator_stats.get('filtered_length', 0)
@@ -176,7 +198,7 @@ class ContentProcessor:
                 logger.debug(f"消息 {message.message_id} 分隔符过滤: 移除{removed_blocks}个内容块")
 
             # 3. Markdown链接过滤（中等开销）
-            if message.entities and len(message.entities) > 0:  # 只有有entities时才处理
+            if filter_config.get('markdown_filter', True) and message.entities and len(message.entities) > 0:  # 只有有entities时才处理
                 filtered_content, links_removed = self.markdown_filter.filter(current_content, message.entities)
                 if links_removed > 0:
                     current_content = filtered_content
@@ -184,7 +206,7 @@ class ContentProcessor:
                     logger.debug(f"消息 {message.message_id} Markdown过滤: 移除{links_removed}个链接")
 
             # 4. 广告检测（最慢，放最后，支持早期退出）
-            if detect_ad and current_content and len(current_content.strip()) > 10:
+            if detect_ad and filter_config.get('ad_detector', False) and current_content and len(current_content.strip()) > 10:
                 is_ad, total_weight, matched_keywords = self.ad_detector.detect(current_content)
 
                 if is_ad:

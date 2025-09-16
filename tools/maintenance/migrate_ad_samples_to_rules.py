@@ -25,7 +25,7 @@ from app.core.path_config import PathConfig
 
 
 class AdSampleMigrator:
-    """广告样本迁移器 - Linus式设计：简单、直接、有效"""
+    """广告样本迁移器 - 设计：简单、直接、有效"""
     
     def __init__(self):
         self.ad_training_file = PathConfig.AD_TRAINING_FILE

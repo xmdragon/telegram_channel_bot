@@ -37,7 +37,7 @@ class MediaProcessor:
             else:
                 media_type = "other"
             
-            # 🔥 Linus式修复：统一超时设置
+            # 🔥 修复：统一超时设置
             if timeout is None:
                 timeout = 1800.0  # 30分钟，统一处理所有媒体类型
             

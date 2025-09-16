@@ -4,7 +4,7 @@
 
 set -e
 
-# 🔧 Linus式修复: 全局禁用作业控制，避免"Killed"消息
+# 🔧 修复: 全局禁用作业控制，避免"Killed"消息
 set +m  # 禁用作业控制消息
 
 # 加载环境配置
@@ -12,7 +12,7 @@ if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
 
-# 🚀 Linus式修复: 强制使用HuggingFace离线模式，避免API限流
+# 🚀 修复: 强制使用HuggingFace离线模式，避免API限流
 export HF_HUB_OFFLINE=1
 
 # 🔧 PyTorch MPS修复: 禁用MPS后端避免多进程Fork崩溃
@@ -254,7 +254,7 @@ graceful_shutdown() {
 
 # 创建PID文件记录
 if [[ $(type -t create_pid_file) == function ]]; then
-    # 🔧 Linus式修复: 抑制不友好的进程终止输出
+    # 🔧 修复: 抑制不友好的进程终止输出
     # 启动进程管理器，禁用作业控制避免"Killed: 9"消息
     (
         set +m  # 禁用作业控制消息
@@ -297,7 +297,7 @@ if [[ $(type -t create_pid_file) == function ]]; then
         exit 1
     fi
 else
-    # Linus式解决方案：简单直接
+    # 解决方案：简单直接
     # "Complex is bad. Simple is good."
     exec venv/bin/python3 dev_supervisor.py ${SERVICES[*]} 2>/dev/null
 fi

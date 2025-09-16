@@ -36,7 +36,7 @@ class LayerConfig:
 
 class ContentFilterLayer:
     """
-    内容过滤层 - Linus式设计
+    内容过滤层 - 设计
     
     职责单一：只负责内容清理，不做内容检测
     执行顺序固定：TailFilter → MarkdownFilter → FooterPromoFilter → TrailingPromoFilter

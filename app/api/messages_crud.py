@@ -4,7 +4,7 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 from datetime import datetime
 from app.utils.timezone import get_current_time, format_for_api
 import logging
@@ -134,7 +134,7 @@ async def get_messages(
         # 计算分页参数
         offset = (page - 1) * page_size
         
-        # 🚀 Linus式性能优化：根据查询类型选择最优方法
+        # 🚀 性能优化：根据查询类型选择最优方法
         if source_channel:
             # 从指定频道获取消息，支持状态筛选
             all_messages = redis_manager.get_messages_by_channel(
@@ -144,7 +144,7 @@ async def get_messages(
                 status=status
             )
         else:
-            # 🚀 Linus式统一逻辑：消除特殊情况
+            # 🚀 统一逻辑：消除特殊情况
             if status in ["pending", "approved", "rejected"]:
                 all_messages = redis_manager.get_messages_by_status(status, limit=page_size, offset=offset)
             else:
@@ -212,6 +212,16 @@ async def get_messages(
                     )
                 # 统一字段名，确保前端能找到
                 message['media_path'] = media_path
+
+            # 处理视频缩略图URL
+            if message.get('media_type') == 'video' and message.get('thumbnail_url'):
+                # 确保缩略图路径也正确处理
+                thumbnail_path = message.get('thumbnail_url')
+                if thumbnail_path:
+                    if not thumbnail_path.startswith('/'):
+                        message['thumbnail_display_url'] = '/' + thumbnail_path
+                    else:
+                        message['thumbnail_display_url'] = thumbnail_path
             
             # 处理组合消息媒体 - 转换数据格式
             if message.get('media_group'):
@@ -420,7 +430,7 @@ async def get_channel_info(
 
 def _normalize_message_id(message_id: str) -> str:
     """
-    Linus式消息ID标准化 - 统一处理所有格式变体
+    消息ID标准化 - 统一处理所有格式变体
     自动检测并补全缺少的-100前缀
     """
     if ':' not in message_id:
@@ -448,7 +458,7 @@ async def get_message(
     try:
         redis_store = redis_manager
         
-        # 🚀 Linus式智能ID处理 - 消除格式特殊情况
+        # 🚀 智能ID处理 - 消除格式特殊情况
         normalized_id = _normalize_message_id(message_id)
         
         message = redis_manager.get_message_by_id(normalized_id)
@@ -542,64 +552,6 @@ async def get_message(
         logger.error(f"获取消息详情失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取消息详情失败: {str(e)}")
 
-async def _publish_message_to_target(message_id: str, user_id: str = None) -> dict:
-    """
-    统一的发布消息逻辑 - 批准并转发到目标频道
-    供 approve_message、publish_message、resend_message 复用
-    """
-    redis_store = redis_manager
-    message = redis_manager.get_message_by_id(message_id)
-    if not message:
-        raise HTTPException(status_code=404, detail="消息不存在")
-    
-    # 通过队列异步转发消息到目标频道
-    try:
-        from app.services.message_forward_queue import forward_queue
-        import asyncio
-        
-        # 提交转发任务到队列
-        task_id = await forward_queue.submit_forward_task(message_id, "forward_to_target")
-        logger.info(f"发布任务已提交到队列: {message_id}, 任务ID: {task_id}")
-        
-        # 等待任务结果（短超时，避免阻塞用户响应）
-        task_result = await forward_queue.get_task_result(message_id, timeout=5)
-        
-        if task_result:
-            if task_result.get("success"):
-                # 任务成功，更新状态为已发布
-                redis_manager.update_message_status(message_id, "approved", user_id)
-                
-                # 记录广告检测反馈
-                await _record_ad_detection_feedback(message, "approve")
-                
-                logger.info(f"消息发布成功: {message_id}")
-            else:
-                # 任务失败
-                error_msg = task_result.get("error_message", "未知错误")
-                logger.error(f"消息发布失败: {message_id}, 错误: {error_msg}")
-                return {
-                    "success": False,
-                    "message": f"消息发布失败: {error_msg}",
-                    "timestamp": format_for_api(get_current_time())
-                }
-        else:
-            # 任务还在处理中或超时，先更新为处理中状态
-            redis_manager.update_message_status(message_id, "processing", user_id)
-            logger.info(f"消息发布任务处理中: {message_id}")
-            
-    except Exception as e:
-        logger.error(f"提交发布任务失败: {message_id}, 错误: {e}")
-        return {
-            "success": False,
-            "message": f"提交发布任务失败: {str(e)}",
-            "timestamp": format_for_api(get_current_time())
-        }
-    
-    return {
-        "success": True,
-        "message": "消息已发布到目标频道",
-        "timestamp": format_for_api(get_current_time())
-    }
 
 @router.post(ROUTES.messages.approve)
 @check_permission("message.approve")
@@ -611,8 +563,30 @@ async def approve_message(
     发布单个消息到目标频道
     """
     try:
-        return await _publish_message_to_target(message_id, user.get('user_id'))
-        
+        # 获取消息数据
+        message = redis_manager.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+
+        # 判断消息类型并选择处理方式
+        has_media = message.get('media_type') or message.get('is_combined') == 'True'
+
+        if not has_media:
+            # 文本消息：直接转发
+            result = await _direct_forward_message(message_id, user.get('user_id'))
+            return result
+        else:
+            # 媒体消息：异步处理
+            import asyncio
+            asyncio.create_task(_async_forward_with_redis_notify(message_id, user.get('user_id')))
+
+            return {
+                "success": True,
+                "mode": "async",
+                "message": "媒体消息正在后台处理",
+                "timestamp": format_for_api(get_current_time())
+            }
+
     except HTTPException:
         raise
     except Exception as e:
@@ -635,9 +609,6 @@ async def reject_message(
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
-        # 记录广告检测反馈
-        await _record_ad_detection_feedback(message, "reject")
-        
         # 更新消息状态为已拒绝
         success = redis_manager.update_message_status(message_id, "rejected", user.get('user_id'))
         if not success:
@@ -649,9 +620,6 @@ async def reject_message(
             if ':' in message_id:
                 channel_id, msg_id = message_id.rsplit(':', 1)
                 redis_manager.update_message(channel_id, int(msg_id), {"rejection_reason": reason})
-        
-        # 处理广告媒体保存（单个消息拒绝时）
-        await _handle_single_reject_media_training(message, reason)
         
         return {
             "success": True,
@@ -708,37 +676,6 @@ async def restore_message(
         logger.error(f"恢复消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"恢复消息失败: {str(e)}")
 
-@router.delete(ROUTES.messages.delete)
-@check_permission("message.delete")
-async def delete_message(
-    message_id: str,
-    user: Dict[str, Any] = Depends(require_auth)
-):
-    """
-    删除消息
-    """
-    try:
-        redis_store = redis_manager
-        message = redis_manager.get_message_by_id(message_id)
-        if not message:
-            raise HTTPException(status_code=404, detail="消息不存在")
-        
-        # 删除消息
-        success = redis_manager.delete_message(message_id)
-        if not success:
-            raise HTTPException(status_code=500, detail="删除消息失败")
-        
-        return {
-            "success": True,
-            "message": "消息已删除",
-            "timestamp": format_for_api(get_current_time())
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"删除消息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"删除消息失败: {str(e)}")
 
 @router.put(ROUTES.messages.update)
 @check_permission("message.update")
@@ -803,23 +740,6 @@ async def update_message(
         logger.error(f"更新消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"更新消息失败: {str(e)}")
 
-@router.post(ROUTES.messages.publish)
-@check_permission("message.publish")
-async def publish_message(
-    message_id: str,
-    user: Dict[str, Any] = Depends(require_auth)
-):
-    """
-    发布消息到目标频道
-    """
-    try:
-        return await _publish_message_to_target(message_id, user.get('user_id'))
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"发布消息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"发布消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.edit_publish)
 @check_permission("message.edit_publish")
@@ -869,15 +789,30 @@ async def resend_message(
     重新发布消息到目标频道
     """
     try:
-        # 使用统一的发布逻辑，自动处理状态检查
-        result = await _publish_message_to_target(message_id, user.get('user_id'))
-        
-        # 修改返回消息文本
-        if result.get('success') and "已发布到目标频道" in result.get('message', ''):
+        # 获取消息数据
+        message = redis_manager.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+
+        # 判断消息类型并选择处理方式
+        has_media = message.get('media_type') or message.get('is_combined') == 'True'
+
+        if not has_media:
+            # 文本消息：直接转发
+            result = await _direct_forward_message(message_id, user.get('user_id'))
             result['message'] = "消息已重新发布到目标频道"
-        
-        return result
-        
+            return result
+        else:
+            # 媒体消息：异步处理
+            import asyncio
+            asyncio.create_task(_async_forward_with_redis_notify(message_id, user.get('user_id')))
+
+            return {
+                "success": True,
+                "message": "消息重新发布中，媒体处理需要时间，请稍后查看结果",
+                "timestamp": format_for_api(get_current_time())
+            }
+
     except HTTPException:
         raise
     except Exception as e:
@@ -930,77 +865,8 @@ async def delete_review_message(
         raise HTTPException(status_code=500, detail=f"删除审核消息失败: {str(e)}")
 
 
-async def _add_to_whitelist(message: Dict[str, Any], source: str = "user_approval"):
-    """将用户批准的内容添加到白名单"""
-    try:
-        content = message.get('filtered_content') or message.get('content', '')
-        if not content or not content.strip():
-            logger.debug("消息内容为空，跳过白名单添加")
-            return
-            
-        # 记录用户批准的内容用于后续分析
-        logger.debug(f"用户批准内容: {message.get('message_id')}")
-        return
-            
-    except Exception as e:
-        logger.error(f"添加白名单失败: {e}")
 
-async def _record_ad_detection_feedback(message: Dict[str, Any], user_decision: str):
-    """记录广告检测反馈"""
-    try:
-        # 获取消息的广告检测信息
-        ad_detection_score = message.get('ad_detection_score')
-        ad_detection_threshold = message.get('ad_detection_threshold')
-        
-        if ad_detection_score is not None and ad_detection_threshold is not None:
-            # 获取广告检测处理器实例
-            from app.services.processors.message_ad_detector_processor import MessageAdDetectorProcessor
-            ad_detector = MessageAdDetectorProcessor()
-            
-            # 记录用户反馈
-            ad_detector.record_user_feedback(
-                message_id=message.get('message_id', ''),
-                user_decision=user_decision,
-                detection_score=float(ad_detection_score),
-                detection_threshold=float(ad_detection_threshold)
-            )
-            
-            # 如果用户批准了被检测为广告的消息，添加到白名单
-            if user_decision == "approve" and message.get('ad_detected', False):
-                await _add_to_whitelist(message, "user_approval")
-            
-            logger.info(f"📝 已记录广告检测反馈: {message.get('message_id')} - {user_decision}")
-        else:
-            logger.warning(f"消息 {message.get('message_id')} 仍然缺少广告检测信息，跳过反馈记录")
-            
-    except Exception as e:
-        logger.error(f"记录广告检测反馈失败: {e}")
 
-async def _handle_single_reject_media_training(message: Dict[str, Any], reason: str):
-    """
-    处理单个消息拒绝时的广告媒体训练数据保存
-    如果拒绝原因包含广告相关内容且有媒体，保存到训练目录
-    """
-    try:
-        # 检查拒绝原因是否包含广告相关内容
-        is_ad_rejection = any(keyword in reason.lower() for keyword in [
-            '广告', 'ad', '推广', '营销', '宣传', '促销', 'spam', '垃圾'
-        ])
-        
-        # 检查消息是否有媒体
-        has_media = message.get('media_type') and message.get('media_path')
-        
-        # 注意：已移除媒体训练数据保存功能
-        if is_ad_rejection and has_media:
-            logger.debug(f"消息拒绝为广告但媒体训练功能已移除: {message.get('message_id')}")
-        else:
-            if not is_ad_rejection:
-                logger.debug(f"拒绝原因不包含广告关键词: {reason}")
-            if not has_media:
-                logger.debug(f"消息无媒体")
-                
-    except Exception as e:
-        logger.error(f"处理单个拒绝媒体训练失败: {e}")
 
 # ========== 新增：直接发布API（解决采集开关依赖问题） ==========
 
@@ -1021,10 +887,7 @@ async def _direct_forward_message(message_id: str, user_id: str = None) -> dict:
         
         # 更新消息状态为已发布
         redis_manager.update_message_status(message_id, "approved", user_id)
-        
-        # 记录广告检测反馈
-        await _record_ad_detection_feedback(message, "approve")
-        
+
         logger.info(f"直接转发成功: {message_id}")
         return {
             "success": True,
@@ -1058,10 +921,7 @@ async def _async_forward_with_redis_notify(message_id: str, user_id: str = None)
         
         # 更新消息状态
         redis_manager.update_message_status(message_id, "approved", user_id)
-        
-        # 记录广告检测反馈
-        await _record_ad_detection_feedback(message, "approve")
-        
+
         # 通知成功
         await _redis_websocket_notify("publish_success", message_id, 
                                     "媒体消息发布成功")

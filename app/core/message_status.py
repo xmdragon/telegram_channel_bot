@@ -1,5 +1,5 @@
 """
-Linus式消息状态定义
+消息状态定义
 消除所有特殊情况，只保留本质的3种状态
 
 核心哲学：
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class MessageStatus(Enum):
     """
-    Linus式消息状态 - 只有3种，消除所有特殊情况
+    消息状态 - 只有3种，消除所有特殊情况
     
     这是消息的本质状态，任何复杂的业务逻辑都不应该增加新状态
     """
@@ -41,7 +41,7 @@ class RejectionReason(Enum):
 
 class StatusMapper:
     """
-    状态映射器 - 将遗留的复杂状态映射到Linus式3状态
+    状态映射器 - 将遗留的复杂状态映射到3状态
     
     这是过渡期间的工具，最终应该移除所有遗留状态
     """
@@ -128,7 +128,7 @@ class StatusMapper:
 
 def normalize_message_data(message_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    规范化消息数据，将其转换为Linus式格式
+    规范化消息数据，将其转换为格式
     
     Args:
         message_data: 原始消息数据

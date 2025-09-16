@@ -1,5 +1,5 @@
 """
-Linus式消息队列 - 采集与处理解耦的核心基础设施
+消息队列 - 采集与处理解耦的核心基础设施
 遵循"做一件事并做好"的原则，提供简洁高效的消息队列服务
 """
 import json
@@ -23,7 +23,7 @@ class MessageType(Enum):
 
 @dataclass
 class CollectedMessage:
-    """采集到的原始消息 - Linus式简洁数据结构"""
+    """采集到的原始消息 - 简洁数据结构"""
     
     # 基础标识
     channel_id: str
@@ -79,7 +79,7 @@ class CollectedMessage:
     
     @staticmethod
     def _serialize_datetime_recursive(obj: Any) -> Any:
-        """递归序列化datetime对象 - Linus式通用解决方案"""
+        """递归序列化datetime对象 - 通用解决方案"""
         if isinstance(obj, datetime):
             return obj.isoformat()
         elif isinstance(obj, dict):
@@ -156,7 +156,7 @@ class GroupedMessages:
 
 class MessageQueue:
     """
-    Linus式消息队列 - 简洁高效的生产者消费者模式
+    消息队列 - 简洁高效的生产者消费者模式
     
     设计原则:
     1. "做一件事并做好" - 只管队列操作
@@ -193,7 +193,7 @@ class MessageQueue:
     
     async def enqueue_message(self, message: CollectedMessage) -> bool:
         """
-        消息入队 - Linus式统一接口
+        消息入队 - 统一接口
         单消息直接入队，组消息缓冲后批量入队
         """
         try:
@@ -252,7 +252,7 @@ class MessageQueue:
     
     async def _should_enqueue_group(self, grouped_id: str, current_size: int) -> bool:
         """判断组消息是否应该入队"""
-        # Linus式简单启发式规则
+        # 简单启发式规则
         # 1. 达到最大大小
         if current_size >= self.MAX_GROUP_SIZE:
             return True
@@ -469,7 +469,7 @@ class MessageQueue:
     
     async def clear_all_queues(self) -> Dict[str, int]:
         """
-        清空所有队列 - Linus式彻底清理
+        清空所有队列 - 彻底清理
         用于系统重置时完全清空消息队列系统
         """
         try:

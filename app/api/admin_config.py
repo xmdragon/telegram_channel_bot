@@ -337,28 +337,3 @@ async def get_review_group_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取审核群状态失败: {str(e)}")
 
-@router.post(ROUTES.admin.reload_filters)
-async def reload_filters():
-    """重新加载过滤器配置"""
-    try:
-        from app.services.unified_filter_engine import unified_filter_engine
-        
-        # 重新初始化过滤器管道
-        unified_filter_engine.filter_pipeline = unified_filter_engine._init_layer_pipeline()
-        
-        # 获取更新后的统计信息
-        stats = unified_filter_engine.get_pipeline_stats()
-        metrics = unified_filter_engine.get_performance_metrics()
-        
-        logger.info("过滤器配置重新加载成功")
-        
-        return {
-            "success": True,
-            "message": "过滤器配置重新加载成功",
-            "pipeline_stats": stats,
-            "performance_metrics": metrics
-        }
-        
-    except Exception as e:
-        logger.error(f"重新加载过滤器配置失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"重新加载过滤器配置失败: {str(e)}")

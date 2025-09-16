@@ -67,7 +67,7 @@ class BotManager:
             from app.telegram.message_event_handler import message_event_handler
             await message_event_handler.register_event_handlers(self.client)
             
-            # 启动自动转发任务 - Linus式简单解决方案
+            # 启动自动转发任务 - 简单解决方案
             logger.info("启动自动转发任务...")
             self.auto_forward_task = asyncio.create_task(self._auto_forward_loop())
             

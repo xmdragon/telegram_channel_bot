@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Linus式队列性能分析器 - 识别瓶颈并提供优化建议
+队列性能分析器 - 识别瓶颈并提供优化建议
 遵循"数据说话"的原则，用具体指标驱动优化决策
 """
 import os
@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 class QueuePerformanceAnalyzer:
-    """队列性能分析器 - Linus式简洁分析"""
+    """队列性能分析器 - 简洁分析"""
     
     def __init__(self):
         self.queue = None
@@ -225,7 +225,7 @@ class QueuePerformanceAnalyzer:
         return analysis
     
     async def _generate_optimization_recommendations(self) -> Dict[str, Any]:
-        """生成优化建议 - Linus式实用主义"""
+        """生成优化建议 - 实用主义"""
         recommendations = []
         
         status = await self.queue.get_queue_status()
@@ -270,7 +270,7 @@ class QueuePerformanceAnalyzer:
             'expected_result': '更好的问题诊断能力'
         })
         
-        # Linus式实用主义建议
+        # 实用主义建议
         linus_recommendations = [
             {
                 'principle': '"做一件事并做好"',

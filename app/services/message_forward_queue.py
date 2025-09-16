@@ -127,7 +127,7 @@ class MessageForwardQueue:
         try:
             self._ensure_redis()
             
-            # 使用非阻塞方式获取任务ID (Linus式修复：消除阻塞特殊情况)
+            # 使用非阻塞方式获取任务ID (修复：消除阻塞特殊情况)
             task_id = self.redis.rpop(self.TASK_QUEUE_KEY)
             if not task_id:
                 return None

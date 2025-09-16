@@ -2,7 +2,7 @@
 尾部过滤器 - 完全独立，所有代码在一个类里
 基于正则规则的直接匹配，无需导入其他文件
 
-Author: Claude (Linus式重构)
+Author: Claude ()
 Created: 2025-09-13
 """
 
@@ -10,7 +10,7 @@ import re
 import json
 import logging
 from pathlib import Path
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Dict, Any
 from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class TailFilter:
         self._load_rules()
 
     def _load_rules(self):
-        """从样本文件加载正则规则 - Linus式优化版本"""
+        """从样本文件加载正则规则 - 优化版本"""
         try:
             if not self._samples_file.exists():
                 logger.warning(f"样本文件不存在: {self._samples_file}")
@@ -77,7 +77,7 @@ class TailFilter:
                     logger.warning(f"正则编译失败 '{rule}': {e}")
 
             if valid_rules:
-                # Linus优化：合并规则为单个正则模式
+                # 优化：合并规则为单个正则模式
                 self._build_optimized_patterns(valid_rules)
                 self._rule_keywords = keywords
                 self.initialized = True
@@ -137,14 +137,15 @@ class TailFilter:
             logger.warning(f"构建优化模式失败: {e}")
             # 降级到基础方式
 
-    def filter(self, content: str) -> Tuple[str, bool, str]:
-        """过滤尾部内容 - Linus式性能优化版本
+    def filter(self, content: str, return_matched_rules: bool = False) -> Tuple[str, bool, str, Optional[List[Dict[str, Any]]]]:
+        """过滤尾部内容 - 性能优化版本
 
         Args:
             content: 输入内容
+            return_matched_rules: 是否返回匹配的规则详情
 
         Returns:
-            (过滤后内容, 是否过滤, 删除的内容)
+            (过滤后内容, 是否过滤, 删除的内容, 匹配的规则详情)
         """
         # 检查是否需要重新加载
         if self._samples_file.exists():
@@ -155,24 +156,24 @@ class TailFilter:
 
         # 如果未初始化或内容为空，直接返回
         if not self.initialized or not content:
-            return content, False, ""
+            return content, False, "", None if not return_matched_rules else []
 
         # 按行分割
         lines = content.split('\n')
         if len(lines) <= 1:
-            return content, False, ""
+            return content, False, "", None if not return_matched_rules else []
 
         # 性能优化：快速预筛选
         if self._rule_keywords:
             content_lower = content.lower()
             if not any(keyword in content_lower for keyword in self._rule_keywords):
                 logger.debug("快速预筛选：无匹配关键词，跳过详细匹配")
-                return content, False, ""
+                return content, False, "", None if not return_matched_rules else []
 
         logger.debug(f"尾部过滤调试 - 总行数: {len(lines)}")
 
-        # Linus优化：批量匹配减少循环
-        matched_idx = self._find_tail_match_optimized(lines)
+        # 优化：批量匹配减少循环 - 增强版本，支持返回匹配的规则
+        matched_idx, matched_rule_info = self._find_tail_match_optimized(lines, return_matched_rules)
 
         # 如果找到匹配，删除该行及其后的所有内容
         if matched_idx != -1:
@@ -180,7 +181,7 @@ class TailFilter:
 
             filtered_lines = lines[:matched_idx]
 
-            # 去除末尾空行 - Linus式简化
+            # 去除末尾空行 - 简化
             while filtered_lines and not filtered_lines[-1].strip():
                 filtered_lines.pop()
 
@@ -189,14 +190,35 @@ class TailFilter:
 
             logger.debug(f"✂️ 尾部过滤: {len(content)} -> {len(filtered)} 字符 ({len(lines) - matched_idx}行删除)")
 
-            return filtered, True, removed
+            # 构建返回的规则信息
+            matched_rules = None
+            if return_matched_rules and matched_rule_info:
+                matched_rules = [{
+                    'rule_pattern': matched_rule_info.get('pattern', ''),
+                    'rule_index': matched_rule_info.get('index', -1),
+                    'matched_line': matched_rule_info.get('matched_line', ''),
+                    'matched_line_number': matched_idx + 1,
+                    'removed_content': removed,
+                    'removed_chars': len(removed),
+                    'removed_lines': len(lines) - matched_idx
+                }]
+
+            return filtered, True, removed, matched_rules
 
         # 没有匹配
         logger.debug("🚫 尾部过滤: 未找到匹配的推广内容")
-        return content, False, ""
+        return content, False, "", None if not return_matched_rules else []
 
-    def _find_tail_match_optimized(self, lines: List[str]) -> int:
-        """优化的尾部匹配查找 - 从前向后，找到第一个匹配就停止"""
+    def _find_tail_match_optimized(self, lines: List[str], return_matched_rules: bool = False) -> Tuple[int, Optional[Dict[str, Any]]]:
+        """优化的尾部匹配查找 - 从前向后，找到第一个匹配就停止
+
+        Args:
+            lines: 文本行列表
+            return_matched_rules: 是否返回匹配的规则信息
+
+        Returns:
+            (匹配的行索引, 匹配的规则信息)
+        """
         try:
             # 从前向后遍历，找第一个匹配的行
             for i in range(len(lines)):
@@ -207,21 +229,39 @@ class TailFilter:
                 # 方法1：尝试合并模式匹配（如果可用）
                 if self._compiled_combined_pattern and self._compiled_combined_pattern.search(line):
                     logger.debug(f"🎯 合并模式匹配: 第{i+1}行")
-                    return i
+                    if return_matched_rules:
+                        # 需要找出具体是哪个规则匹配的
+                        for rule_idx, rule in enumerate(self.regex_rules):
+                            if rule.search(line):
+                                return i, {
+                                    'pattern': rule.pattern,
+                                    'index': rule_idx,
+                                    'matched_line': line,
+                                    'match_type': 'combined_then_individual'
+                                }
+                    return i, None
 
                 # 方法2：逐个规则匹配（保持原有精度）
-                for rule in self.regex_rules:
+                for rule_idx, rule in enumerate(self.regex_rules):
                     if rule.search(line):
-                        logger.debug(f"🎯 单规则匹配: 第{i+1}行")
-                        return i
+                        logger.debug(f"🎯 单规则匹配: 第{i+1}行, 规则索引: {rule_idx}")
+                        if return_matched_rules:
+                            return i, {
+                                'pattern': rule.pattern,
+                                'index': rule_idx,
+                                'matched_line': line,
+                                'match_type': 'individual'
+                            }
+                        return i, None
 
-            return -1
+            return -1, None
         except Exception as e:
             logger.warning(f"优化匹配失败，降级到基础模式: {e}")
             # 降级处理
-            return self._find_tail_match_basic(lines)
+            basic_result = self._find_tail_match_basic(lines, return_matched_rules)
+            return basic_result
 
-    def _find_tail_match_basic(self, lines: List[str]) -> int:
+    def _find_tail_match_basic(self, lines: List[str], return_matched_rules: bool = False) -> Tuple[int, Optional[Dict[str, Any]]]:
         """基础尾部匹配查找 - 降级版本"""
         # 从前向后查找
         for i in range(len(lines)):
@@ -229,10 +269,17 @@ class TailFilter:
             if not line:
                 continue
 
-            for rule in self.regex_rules:
+            for rule_idx, rule in enumerate(self.regex_rules):
                 if rule.search(line):
-                    return i
-        return -1
+                    if return_matched_rules:
+                        return i, {
+                            'pattern': rule.pattern,
+                            'index': rule_idx,
+                            'matched_line': line,
+                            'match_type': 'basic'
+                        }
+                    return i, None
+        return -1, None
 
 
 from datetime import datetime

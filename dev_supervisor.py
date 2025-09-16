@@ -135,7 +135,7 @@ class ServiceProcess:
         self.status = ServiceStatus.STARTING
         
         try:
-            # 🚀 Linus式修复: 设置环境变量，确保使用离线模式
+            # 🚀 修复: 设置环境变量，确保使用离线模式
             import os
             env = os.environ.copy()
             env['HF_HUB_OFFLINE'] = '1'  # 强制使用HuggingFace离线模式
