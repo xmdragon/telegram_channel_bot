@@ -50,34 +50,6 @@ async def stop_service(service_name: str) -> Dict[str, Any]:
         logger.error(f"停止服务失败: {e}")
         return {"success": False, "message": f"停止服务失败: {str(e)}"}
 
-@router.post(ROUTES.system.service_restart)
-async def restart_service(service_name: str) -> Dict[str, Any]:
-    """重启服务（先停止再启动）"""
-    try:
-        from app.services.config_manager import config_manager
-        
-        if service_name == "collector":
-            # 先停止
-            await config_manager.set_boolean('collection.enabled', False, "重启服务 - 停止阶段")
-            # 等待一下让服务停止
-            import asyncio
-            await asyncio.sleep(2)
-            # 再启动  
-            await config_manager.set_boolean('collection.enabled', True, "重启服务 - 启动阶段")
-            return {"success": True, "message": "采集服务已重启"}
-        elif service_name == "scheduler":
-            await config_manager.set_boolean('scheduler.enabled', False, "重启服务 - 停止阶段")
-            import asyncio
-            await asyncio.sleep(2)
-            await config_manager.set_boolean('scheduler.enabled', True, "重启服务 - 启动阶段")
-            return {"success": True, "message": "调度服务已重启"}
-        else:
-            return {"success": False, "message": f"未知服务: {service_name}"}
-            
-    except Exception as e:
-        logger.error(f"重启服务失败: {e}")
-        return {"success": False, "message": f"重启服务失败: {str(e)}"}
-
 @router.get(ROUTES.system.service_status)
 async def get_service_status(service_name: str) -> Dict[str, Any]:
     """获取服务状态"""

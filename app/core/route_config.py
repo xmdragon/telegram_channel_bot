@@ -54,7 +54,6 @@ class RouteConfig:
         config = "/admin/config"
         config_batch = "/admin/config/batch"
         config_forwarding = "/admin/config/forwarding"
-        restart = "/admin/restart"
         backup = "/admin/backup"
         clear_cache = "/admin/clear-cache"
         export_logs = "/admin/export-logs"
@@ -123,10 +122,7 @@ class RouteConfig:
         service_status = "/system/services/{service_name}/status"
         service_start = "/system/services/{service_name}/start"
         service_stop = "/system/services/{service_name}/stop"
-        service_restart = "/system/services/{service_name}/restart"
-        
-        # 维护操作
-        restart = "/system/restart"
+
         reset = "/system/reset"
     
     

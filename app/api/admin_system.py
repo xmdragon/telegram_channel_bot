@@ -20,16 +20,6 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post(ROUTES.admin.restart)
-async def restart_system():
-    """重启系统"""
-    try:
-        # 这里可以实现系统重启逻辑
-        # 在实际部署中，可能需要通过进程管理工具重启
-        return {"success": True, "message": "系统重启命令已发送"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"系统重启失败: {str(e)}")
-
 @router.post(ROUTES.admin.backup)
 async def backup_data():
     """备份数据"""

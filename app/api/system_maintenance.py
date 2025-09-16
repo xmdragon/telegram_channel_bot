@@ -20,36 +20,6 @@ from app.api.websocket import websocket_manager
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system-maintenance"])
 
-@router.post(ROUTES.system.restart)
-async def restart_services() -> Dict[str, Any]:
-    """重启服务"""
-    try:
-        # 重启Telegram双Session系统连接
-        try:
-            from app.telegram.dual_session_manager import dual_session_manager
-            await dual_session_manager.disconnect_all()
-            logger.info("Telegram双Session系统已断开连接，需要重新认证")
-        except Exception as dual_error:
-            logger.error(f"重置双Session系统失败: {dual_error}")
-        
-        # 重启系统监控
-        try:
-            await system_monitor.start_monitoring()
-            logger.info("系统监控已重启")
-        except Exception as e:
-            logger.error(f"重启系统监控失败: {e}")
-        
-        return {
-            "success": True,
-            "message": "服务重启成功"
-        }
-    except Exception as e:
-        logger.error(f"重启服务失败: {e}")
-        return {
-            "success": False,
-            "message": f"重启失败: {str(e)}"
-        }
-
 @router.post(ROUTES.system.reset)
 async def reset_system() -> Dict[str, Any]:
     """重置消息系统 - 清空所有消息数据和媒体文件，通过WebSocket实时推送进度"""

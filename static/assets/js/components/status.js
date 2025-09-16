@@ -151,32 +151,6 @@ const app = createApp({
             }
         },
         
-        async restartServices() {
-            if (!confirm('确定要重启所有服务吗？这可能会暂时中断消息处理。')) {
-                return;
-            }
-                
-            this.loading = true;
-            this.loadingMessage = '正在重启服务...';
-            
-            try {
-                const response = await axios.post(API.system.restart);
-                if (response.data.success) {
-                    MessageManager.success('服务重启成功');
-                    // 等待几秒后刷新状态
-                    setTimeout(() => {
-                        this.loadSystemStatus();
-                    }, 3000);
-                } else {
-                    MessageManager.error(response.data.message || '重启失败');
-                }
-            } catch (error) {
-                MessageManager.error('重启服务失败');
-            } finally {
-                this.loading = false;
-            }
-        },
-        
         async resetMessages() {
             const confirmMessage = '⚠️ 警告：此操作将执行以下危险操作：\n\n' +
                 '• 停止Telegram消息采集器\n' +

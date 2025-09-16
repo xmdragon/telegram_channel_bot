@@ -4,11 +4,12 @@
 避免状态混乱，实现真正的并行认证
 """
 import logging
+import asyncio
 from typing import Optional, Dict, Any
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import (
-    PhoneCodeInvalidError, SessionPasswordNeededError, 
+    PhoneCodeInvalidError, SessionPasswordNeededError,
     AuthKeyUnregisteredError, SessionRevokedError, FloodWaitError
 )
 
@@ -107,12 +108,13 @@ class DualSessionAuthManager:
                     StringSession(saved_session),
                     self.shared_api_id,
                     self.shared_api_hash,
-                    connection_retries=5,
-                    retry_delay=3
+                    connection_retries=3,
+                    retry_delay=1
                 )
-                
-                await session_auth.client.start()
-                
+
+                # 连接客户端
+                await session_auth.client.connect()
+
                 # 检查授权状态
                 if await session_auth.client.is_user_authorized():
                     session_auth.state = "authorized"
@@ -128,10 +130,11 @@ class DualSessionAuthManager:
                 StringSession(),  # 空Session，需要认证
                 self.shared_api_id,
                 self.shared_api_hash,
-                connection_retries=5,
-                retry_delay=3
+                connection_retries=3,
+                retry_delay=1
             )
-            
+
+            # 连接客户端
             await session_auth.client.connect()
             session_auth.state = "phone_needed"
             session_auth.auth_data = {
