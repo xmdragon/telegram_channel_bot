@@ -134,6 +134,7 @@ async def get_current_admin_info(
     return {
         "id": admin['id'],
         "username": admin['username'],
+        "is_super_admin": admin.get('is_super_admin', admin['id'] == 1),  # ID为1的管理员默认为超级管理员
         "last_login": admin.get('last_login'),
         "created_at": admin.get('created_at')
     }
@@ -178,11 +179,13 @@ class CreateAdminRequest(BaseModel):
     """创建管理员请求"""
     username: str
     password: str
+    is_super_admin: bool = False
 
 
 class UpdateAdminRequest(BaseModel):
     """更新管理员请求"""
     is_active: Optional[bool] = None
+    is_super_admin: Optional[bool] = None
     password: Optional[str] = None
 
 
@@ -202,6 +205,7 @@ async def get_admins(
             "id": int(admin_id),
             "username": admin_data.get('username'),
             "is_active": admin_data.get('is_active', True),
+            "is_super_admin": admin_data.get('is_super_admin', int(admin_id) == 1),  # ID为1的管理员默认为超级管理员
             "last_login": admin_data.get('last_login'),
             "created_at": admin_data.get('created_at')
         })
@@ -225,9 +229,17 @@ async def create_admin(
         username=req.username,
         password=req.password
     )
-    
+
     if not new_admin:
         raise HTTPException(status_code=400, detail="用户名已存在或创建失败")
+
+    # 设置是否为超级管理员
+    if req.is_super_admin:
+        admin_store = get_json_admin_store()
+        new_admin_data = admin_store.get_admin_by_id(new_admin['id'])
+        if new_admin_data:
+            new_admin_data['is_super_admin'] = True
+            admin_store.save_admin(new_admin_data)
     
     return {
         "success": True,
@@ -257,7 +269,10 @@ async def update_admin(
     # 更新基本信息
     if req.is_active is not None:
         target_admin['is_active'] = req.is_active
-    
+
+    if req.is_super_admin is not None:
+        target_admin['is_super_admin'] = req.is_super_admin
+
     if req.password:
         if len(req.password) < 6:
             raise HTTPException(status_code=400, detail="密码长度至少6位")

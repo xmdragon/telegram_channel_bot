@@ -260,7 +260,9 @@ class AuthService:
                 'id': admin['id'],
                 'username': admin['username'],
                 'is_active': admin.get('is_active', True),
+                'is_super_admin': admin.get('is_super_admin', admin['id'] == 1),  # ID为1的管理员默认为超级管理员
                 'last_login': admin.get('last_login'),
+                'created_at': admin.get('created_at'),
                 'session_info': {
                     'ip_address': session_data.get('ip_address'),
                     'user_agent': session_data.get('user_agent'),
