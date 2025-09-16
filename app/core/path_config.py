@@ -23,7 +23,6 @@ class PathConfig:
     SYSTEM_CONFIG_FILE = CONFIG_DIR / "system.json"
     ADMINS_CONFIG_FILE = CONFIG_DIR / "admins.json"
     CHANNELS_CONFIG_FILE = CONFIG_DIR / "channels.json"
-    PERMISSIONS_CONFIG_FILE = CONFIG_DIR / "permissions.json"
     # 广告检测相关
     AD_TRAINING_DIR = TRAINING_DIR / "ad"
     AD_KEYWORDS_FILE = AD_TRAINING_DIR / "ad_keywords.json"  # 广告关键词配置（移到训练目录）
@@ -39,30 +38,15 @@ class PathConfig:
     TAIL_FILTER_SAMPLES_FILE = TAIL_TRAINING_DIR / "tail_filter_samples.json"
     SEPARATOR_PATTERNS_FILE = TAIL_TRAINING_DIR / "separator_patterns.json"
     
-    # 推广链接过滤相关
-    PROMO_TRAINING_DIR = TRAINING_DIR / "promo"
-    PROMO_SAMPLES_FILE = PROMO_TRAINING_DIR / "promo_samples.json"
-    
     # 其他训练数据
     OTHER_TRAINING_DIR = TRAINING_DIR / "other"
-    AI_FILTER_PATTERNS_FILE = OTHER_TRAINING_DIR / "ai_filter_patterns.json"
     LEARNED_PATTERNS_FILE = OTHER_TRAINING_DIR / "learned_patterns.json"
-    # OCR功能已移除
-    
-    # 模型和缓存目录
-    MODELS_DIR = DATA_DIR / "models"
-    LIGHTWEIGHT_SIMILARITY_CACHE_FILE = MODELS_DIR / "lightweight_similarity_cache.pkl"
     
     # 日志文件
     APP_LOG_FILE = LOGS_DIR / "app.log"
     ERROR_LOG_FILE = LOGS_DIR / "error.log"
     SUPERVISOR_STATUS_FILE = LOGS_DIR / "supervisor_status.json"
     
-    # AI配置文件
-    AI_CONFIG_FILE = CONFIG_DIR / "ai_config.json"
-    
-    # OCR导出文件目录
-    OCR_EXPORT_DIR = DATA_DIR / "exports"
     
     @classmethod
     def ensure_directories(cls):
@@ -90,18 +74,9 @@ class PathConfig:
             
             # 创建尾部过滤相关目录
             cls.TAIL_TRAINING_DIR.mkdir(exist_ok=True)
-            
-            # 创建推广链接过滤相关目录
-            cls.PROMO_TRAINING_DIR.mkdir(exist_ok=True)
-            
+
             # 创建其他训练数据目录
             cls.OTHER_TRAINING_DIR.mkdir(exist_ok=True)
-            
-            # 创建模型缓存目录
-            cls.MODELS_DIR.mkdir(exist_ok=True)
-            
-            # 创建OCR导出目录
-            cls.OCR_EXPORT_DIR.mkdir(exist_ok=True)
             
             logger.info("所有系统目录结构初始化完成")
             return True

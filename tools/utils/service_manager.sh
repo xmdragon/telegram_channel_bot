@@ -63,12 +63,20 @@ start_redis() {
             fi
             ;;
         ubuntu|debian|wsl)
-            [ "$verbose" = true ] && echo "📦 启动Redis (service)..."
+            # 优先尝试启动用户Redis进程
+            if command -v redis-server &> /dev/null; then
+                [ "$verbose" = true ] && echo "📦 启动Redis (用户进程)..."
+                redis-server --daemonize yes 2>/dev/null && return 0
+            fi
+
+            # 如果用户进程启动失败，尝试系统服务
+            [ "$verbose" = true ] && echo "📦 启动Redis (系统服务)..."
 
             # 检查sudo权限
             if ! sudo -n true 2>/dev/null; then
                 echo "⚠️ 需要sudo权限启动Redis"
                 echo "请手动运行: sudo systemctl start redis-server"
+                echo "或安装redis-server: sudo apt install redis-server"
                 return 1
             fi
 
@@ -89,7 +97,7 @@ start_redis() {
 # 停止Redis
 stop_redis() {
     local verbose=${1:-false}
-    
+
     case $SYSTEM_TYPE in
         macos)
             if brew services list | grep -q "redis.*started"; then
@@ -101,11 +109,19 @@ stop_redis() {
             ;;
         ubuntu|debian|wsl)
             if pgrep -x redis-server > /dev/null; then
-                [ "$verbose" = true ] && echo "🛑 停止Redis (service)..."
-                if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
-                    sudo systemctl stop redis || sudo systemctl stop redis-server
+                # 检查是否为用户进程
+                USER_REDIS_PID=$(pgrep -u $USER redis-server 2>/dev/null)
+                if [ -n "$USER_REDIS_PID" ]; then
+                    [ "$verbose" = true ] && echo "🛑 停止Redis用户进程 ($USER_REDIS_PID)..."
+                    kill $USER_REDIS_PID 2>/dev/null || true
                 else
-                    sudo service redis-server stop
+                    # 系统服务
+                    [ "$verbose" = true ] && echo "🛑 停止Redis系统服务..."
+                    if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
+                        sudo systemctl stop redis 2>/dev/null || sudo systemctl stop redis-server 2>/dev/null || true
+                    else
+                        sudo service redis-server stop 2>/dev/null || true
+                    fi
                 fi
             else
                 [ "$verbose" = true ] && echo "✅ Redis未在运行"
@@ -117,18 +133,13 @@ stop_redis() {
     esac
 }
 
-# 重启Redis - 功能优先，智能处理
+# 重启Redis
 restart_redis() {
     local verbose=${1:-false}
 
-    # 如果Redis已经正常工作，跳过重启
-    if check_redis_status; then
-        [ "$verbose" = true ] && echo "✅ Redis已正常运行，跳过重启"
-        return 0
-    fi
-
-    # Redis不工作时才尝试启动
-    [ "$verbose" = true ] && echo "🔄 Redis未运行，尝试启动..."
+    [ "$verbose" = true ] && echo "🔄 重启Redis..."
+    stop_redis "$verbose"
+    sleep 1
     start_redis "$verbose"
 }
 
@@ -233,18 +244,13 @@ stop_nginx() {
     esac
 }
 
-# 重启Nginx - 功能优先，智能处理
+# 重启Nginx
 restart_nginx() {
     local verbose=${1:-false}
 
-    # 如果Nginx已经正常工作，跳过重启
-    if check_nginx_status; then
-        [ "$verbose" = true ] && echo "✅ Nginx已正常运行，跳过重启"
-        return 0
-    fi
-
-    # Nginx不工作时才尝试启动
-    [ "$verbose" = true ] && echo "🔄 Nginx未运行，尝试启动..."
+    [ "$verbose" = true ] && echo "🔄 重启Nginx..."
+    stop_nginx "$verbose"
+    sleep 1
     start_nginx "$verbose"
 }
 

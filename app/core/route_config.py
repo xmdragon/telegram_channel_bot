@@ -130,20 +130,6 @@ class RouteConfig:
         reset = "/system/reset"
     
     
-    class AI:
-        """AI功能控制路由"""
-        # 兼容routes.py的路径格式
-        status = "/ai-config/status"
-        config = "/ai-config/global-config"
-        module_config = "/ai-config/module-config"
-        cache_clear = "/ai-config/cache/clear"
-        lightweight_train = "/ai-config/lightweight/train"
-        recommendations = "/ai-config/recommendations"
-        # 额外的功能路由
-        enable = "/ai/enable"
-        disable = "/ai/disable"
-        cache_info = "/ai/cache/info"
-        cache_preload = "/ai/cache/preload"
     
     class Channels:
         """统一的频道管理路由"""
@@ -197,10 +183,6 @@ class RouteConfig:
         media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
         media_files_export = "/training/media-files/export"
         
-        # 推广链接训练
-        promo_samples = "/training/promo-samples"
-        promo_samples_by_id = "/training/promo-samples/{sample_id}"
-        preview_promo_filter = "/training/preview-promo-filter"
         
         # 关键词管理
         ad_keywords = "/training/ad-keywords"
@@ -215,8 +197,7 @@ class RouteConfig:
         self.auth = self.Auth()
         self.config = self.Config()
         self.system = self.System()
-        self.ai = self.AI()
-        self.channel_resolver = self.ChannelResolver()
+        self.channels = self.Channels()
         self.training = self.Training()
 
 # 全局路由配置实例
