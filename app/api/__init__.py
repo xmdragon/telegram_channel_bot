@@ -9,6 +9,7 @@ from .messages_stats import router as messages_stats_router
 from .message_stats_api import router as message_stats_router
 from .admin import router as admin_router
 from .config import router as config_router
+from .channels import router as channels_router
 from .telegram_dual_auth import router as dual_auth_router
 from .system_health import router as system_health_router
 from .system_monitor import router as system_monitor_router
@@ -16,7 +17,6 @@ from .system_maintenance import router as system_maintenance_router
 from .system_admin import router as system_admin_router
 from .system_lock import router as system_lock_router
 from .admin_auth import router as admin_auth_router
-# 注意：AI相关路由已移除
 from .version import router as version_router
 from .training_base import router as training_base_router
 from .training import router as training_router
@@ -34,6 +34,7 @@ api_router.include_router(message_stats_router, tags=["message-stats"])
 # 其他API路由
 api_router.include_router(admin_router, tags=["admin"])
 api_router.include_router(config_router, tags=["config"])
+api_router.include_router(channels_router, prefix="/channels", tags=["channels"])  # 统一的频道管理
 api_router.include_router(dual_auth_router, prefix="/dual-auth", tags=["telegram-dual-auth"])  # 双Session认证
 api_router.include_router(admin_auth_router, tags=["admin-auth"])  # 管理员认证，使用不同路径
 # 注册重构后的系统模块路由

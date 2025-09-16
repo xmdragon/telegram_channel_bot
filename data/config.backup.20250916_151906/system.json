@@ -1,0 +1,184 @@
+{
+  "review.auto_forward_delay": {
+    "value": "1800",
+    "config_type": "integer",
+    "description": "自动转发延迟(秒)",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.310111"
+  },
+  "filter.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用内容过滤",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.309145"
+  },
+  "filter.tail_filter": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用尾部过滤",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.309382"
+  },
+  "review.require_approval": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "需要人工审核",
+    "is_active": true,
+    "created_at": "2025-08-15T19:03:51.231269"
+  },
+  "review.auto_reject_ads": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "自动拒绝广告消息",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.310363"
+  },
+  "review.auto_forward_after_collect": {
+    "value": "false",
+    "config_type": "boolean",
+    "description": "采集消息后自动转发到审核群",
+    "is_active": true,
+    "created_at": "2025-08-20T16:00:00.000000"
+  },
+  "collection.enabled": {
+    "value": "false",
+    "config_type": "boolean",
+    "description": "系统重置时自动禁用采集",
+    "is_active": true,
+    "created_at": "2025-09-08T16:42:33.415787"
+  },
+  "collection.max_messages_per_batch": {
+    "value": "50",
+    "config_type": "integer",
+    "description": "每批最大消息数",
+    "is_active": true,
+    "created_at": "2025-08-15T19:03:51.232630"
+  },
+  "system.log_level": {
+    "value": "INFO",
+    "config_type": "string",
+    "description": "日志级别",
+    "is_active": true,
+    "created_at": "2025-08-15T19:03:51.232962"
+  },
+  "scheduler.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用消息调度服务（自动转发、清理）",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.310927"
+  },
+  "scheduler.data_cleanup_interval_hours": {
+    "value": "24",
+    "config_type": "string",
+    "description": "数据清理时间间隔（小时）",
+    "is_active": true,
+    "created_at": "2025-09-03T11:50:00.000000"
+  },
+  "source.history_limit": {
+    "value": "5",
+    "config_type": "integer",
+    "description": "首次采集频道时获取的历史消息条数",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.308901"
+  },
+  "target.signature": {
+    "value": "🔔 订阅📡东南亚曝光台\n🔗  t.me/dny9527\n☎️ 投稿曝料：@stan0505",
+    "config_type": "string",
+    "description": "频道落款内容（支持多行，用\\n分隔）",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.811456"
+  },
+  "target.channel_id": {
+    "value": "-1002696592354",
+    "config_type": "string",
+    "description": "目标频道ID（系统解析缓存）",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.307968"
+  },
+  "review.group_id": {
+    "value": "-1002871459104",
+    "config_type": "string",
+    "description": "审核群ID（系统解析缓存）",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.308680"
+  },
+  "target.channel_link": {
+    "value": "@bigeventsinsea",
+    "config_type": "string",
+    "description": "目标频道链接（用户配置）",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.810123"
+  },
+  "review.group_link": {
+    "value": "https://t.me/+TfGC_XoQ5gllZWY1",
+    "config_type": "string",
+    "description": "审核群链接（用户配置）",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.810789"
+  },
+  "storage.delete_single_messages": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "组合消息保存后删除单独消息（性能优化，可回滚）",
+    "is_active": true,
+    "created_at": "2025-08-20T14:46:30.000000"
+  },
+  "review.auto_forward_enabled": {
+    "value": "false",
+    "config_type": "boolean",
+    "description": "是否启用自动转发",
+    "is_active": true,
+    "created_at": "2025-08-29T19:32:07.309842"
+  },
+  "filter.separator": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用分隔符过滤",
+    "is_active": true,
+    "created_at": "2025-08-26T11:59:09.482099"
+  },
+  "filter.markdown": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用Markdown格式过滤",
+    "is_active": true,
+    "created_at": "2025-08-26T11:59:09.483169"
+  },
+  "filter.ad_detector": {
+    "value": "false",
+    "config_type": "boolean",
+    "description": "启用广告检测器",
+    "is_active": true,
+    "created_at": "2025-09-07T10:30:00.000000"
+  },
+  "telegram.api_id": {
+    "value": "24382238",
+    "config_type": "string",
+    "description": "Telegram API ID（双Session共用）",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.808646"
+  },
+  "telegram.api_hash": {
+    "value": "a926790195b42a472477e7709a74fc24",
+    "config_type": "string",
+    "description": "Telegram API Hash（双Session共用）",
+    "is_active": true,
+    "created_at": "2025-08-28T11:59:03.809428"
+  },
+  "telegram.sender_session": {
+    "value": "1BVtsOHIBu3H13roL4kGsYqWS5ZCtJBralmtaDnZGpSWHBIPSfARd4EXkMvvHsRABYaIz27rvbxGqGFcl4-9l5cfKmHCyLFsoOpGdUVCS2d-jpj_t_1NQBHRWJqKr0Vq_n80CiO1R7gFKC0WrvGY8butms5Bo2pf4TiNm39gyaV_2SIJoVBaDHJJ2Fo6o3y6BkJRpNYKMvMnlMka8CcJzzROHFGVJAXjZWNEj79RqvgJLFWTWqeUE5c7mNJ-m1Lbl31hIEGNt65Z4ezsnOvC5b-pDT3dhozkhxqqrqoSXYF2CVKOU_OirQIqpwdSbdFnJbbCXQBtugoGFtv3NWfL5tO-JThPOJWA=",
+    "config_type": "string",
+    "description": "Telegram Sender Session",
+    "is_active": true,
+    "created_at": "2025-08-29T08:32:50.806683"
+  },
+  "telegram.listener_session": {
+    "value": "1BVtsOHIBuyWw98qawmSotE4dTBMlLwzD1psgTxf_E-Wqx5MkorC594hHI54JmA8ykEWto1OtVa1gml1HimEAcmEM6nqzKWWWdy94i512ckw5eDS9XCsp2ZDLFT3Cy7y-tP7nZ59MfX6FZufwJwoDGPhVOfEg5rBX8FiHJy9vLNasvpo_bWA2p-MLJTo1z_uAnLCIe2JVOhaxpJkyNfx5PTB7XwB3-81tuQ3Qz9xd66fFbcVUzZ4_OcxojRF-NAqDb0c-MVvvovKMl-O8Uu3pWq6g0hLGCz5LQQFKUGtjf9v9Bob7Sw8ZZkveDbIXOhdakiaCKxHaKq5Mdu0xWGbW4o3TUhoG_As=",
+    "config_type": "string",
+    "description": "Telegram Listener Session",
+    "is_active": true,
+    "created_at": "2025-08-29T10:27:28.223796"
+  }
+}

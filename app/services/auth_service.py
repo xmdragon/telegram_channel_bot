@@ -183,7 +183,6 @@ class AuthService:
             session_data = {
                 'admin_id': admin_id,
                 'username': admin['username'],
-                'is_super_admin': admin.get('is_super_admin', False),
                 'ip_address': ip_address,
                 'user_agent': user_agent,
                 'login_time': datetime.now().isoformat()
@@ -208,7 +207,6 @@ class AuthService:
                 'token': token,
                 'admin_id': admin_id,
                 'username': admin['username'],
-                'is_super_admin': admin.get('is_super_admin', False),
                 'expires_at': (datetime.now() + timedelta(seconds=self.default_session_expire)).isoformat()
             }
             
@@ -261,7 +259,6 @@ class AuthService:
             return {
                 'id': admin['id'],
                 'username': admin['username'],
-                'is_super_admin': admin.get('is_super_admin', False),
                 'is_active': admin.get('is_active', True),
                 'last_login': admin.get('last_login'),
                 'session_info': {
@@ -275,46 +272,8 @@ class AuthService:
             logger.error(f"获取用户信息异常: {e}")
             return None
     
-    async def check_permission(self, token: str, permission_name: str) -> bool:
-        """检查用户权限"""
-        try:
-            # 获取当前用户
-            user = await self.get_current_user(token)
-            if not user:
-                return False
-            
-            # 超级管理员拥有所有权限
-            if user.get('is_super_admin'):
-                return True
-            
-            # 检查具体权限
-            return self.admin_store.has_permission(user['id'], permission_name)
-            
-        except Exception as e:
-            logger.error(f"检查权限异常: {e}")
-            return False
     
-    async def get_user_permissions(self, token: str) -> List[str]:
-        """获取用户权限列表"""
-        try:
-            user = await self.get_current_user(token)
-            if not user:
-                return []
-            
-            # 超级管理员返回所有权限
-            if user.get('is_super_admin'):
-                all_permissions = self.admin_store.get_all_permissions()
-                return [perm['name'] for perm in all_permissions]
-            
-            # 普通用户返回已分配权限
-            return self.admin_store.get_admin_permissions(user['id'])
-            
-        except Exception as e:
-            logger.error(f"获取用户权限异常: {e}")
-            return []
-    
-    async def create_user(self, username: str, password: str, 
-                         is_super_admin: bool = False) -> Optional[Dict[str, Any]]:
+    async def create_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
         """创建用户"""
         try:
             # 检查用户名是否已存在
@@ -322,12 +281,11 @@ class AuthService:
             if existing_user:
                 logger.warning(f"创建用户失败: 用户名已存在 {username}")
                 return None
-            
+
             # 创建用户数据
             admin_data = {
                 'username': username,
                 'password_hash': self.hash_password(password),
-                'is_super_admin': is_super_admin,
                 'is_active': True,
                 'created_at': datetime.now().isoformat(),
                 'updated_at': datetime.now().isoformat()
@@ -381,26 +339,6 @@ class AuthService:
             logger.error(f"更新密码异常: {e}")
             return False
     
-    async def set_user_permissions(self, admin_id: int, permission_names: List[str]) -> bool:
-        """设置用户权限"""
-        try:
-            # 检查用户是否存在
-            admin = self.admin_store.get_admin_by_id(admin_id)
-            if not admin:
-                logger.warning(f"设置权限失败: 用户不存在 {admin_id}")
-                return False
-            
-            # 设置权限
-            if self.admin_store.set_admin_permissions(admin_id, permission_names):
-                logger.info(f"权限设置成功: 用户 {admin_id}, 权限: {permission_names}")
-                return True
-            else:
-                logger.error(f"权限设置失败: 用户 {admin_id}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"设置权限异常: {e}")
-            return False
     
     async def get_active_sessions(self) -> List[Dict[str, Any]]:
         """获取活跃会话列表"""

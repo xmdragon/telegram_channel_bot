@@ -9,7 +9,6 @@ from .base import MessageContext, ProcessorResult, MessageProcessor, MessagePipe
 # 具体处理器
 from .message_receiver import MessageReceiver, MediaMetadataProcessor
 from .message_filter_processor import MessageFilterProcessor
-from .message_ad_detector_processor import MessageAdDetectorProcessor
 from .message_storage_processor import MessageStorageProcessor
 from .message_forwarder_processor import MessageForwarderProcessor, ReviewForwarder, WebSocketBroadcaster
 
@@ -26,10 +25,7 @@ __all__ = [
     
     # 过滤处理器
     'MessageFilterProcessor',
-    
-    # 广告检测处理器
-    'MessageAdDetectorProcessor',
-    
+
     # 存储处理器
     'MessageStorageProcessor',
     

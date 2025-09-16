@@ -54,8 +54,7 @@ const API_ENDPOINTS = {
         current: '/api/admin/auth/current',                         // GET - 获取当前管理员信息
         changePassword: '/api/admin/auth/change-password',          // POST - 修改密码
         admins: '/api/admin/auth/admins',                           // GET/POST - 获取/创建管理员列表
-        adminById: (id) => `/api/admin/auth/admins/${id}`,          // PUT/DELETE - 更新/删除管理员
-        permissions: '/api/admin/auth/permissions'                  // GET - 获取权限列表
+        adminById: (id) => `/api/admin/auth/admins/${id}`           // PUT/DELETE - 更新/删除管理员
     },
 
     // Telegram认证模块 - /api/telegram-auth
@@ -122,9 +121,24 @@ const API_ENDPOINTS = {
         systemConfig: '/api/config/system-config',                // GET/POST - 系统配置
         filterConfig: '/api/config/filter-config',                // GET/POST - 过滤器配置
         export: '/api/config/export',                             // GET - 导出配置
-        import: '/api/config/import',                             // POST - 导入配置
-        channelsBatchAdd: '/api/config/channels/batch-add',       // POST - 批量添加频道
-        channelsById: (channel_id) => `/api/config/channels/${channel_id}` // GET/DELETE - 获取/删除频道
+        import: '/api/config/import'                              // POST - 导入配置
+    },
+
+    // 统一频道管理模块 - /api/channels
+    channels: {
+        // 基础管理
+        list: '/api/channels/',                                   // GET - 获取所有源频道
+        add: '/api/channels/',                                    // POST - 添加源频道
+        delete: (channel_id) => `/api/channels/${channel_id}`,    // DELETE - 删除源频道
+        get: (channel_id) => `/api/channels/${channel_id}`,       // GET - 获取单个频道信息
+
+        // 批量操作
+        batchAdd: '/api/channels/batch-add',                      // POST - 批量添加源频道
+        search: '/api/channels/search',                           // GET - 搜索源频道
+
+        // 解析功能（仅源频道）
+        resolve: '/api/channels/resolve',                         // POST - 解析单个源频道ID
+        resolveAll: '/api/channels/resolve-all'                   // POST - 批量解析所有源频道
     },
 
     // 系统状态模块 - /api/system
@@ -150,11 +164,7 @@ const API_ENDPOINTS = {
         test: '/api/admin/test',                                   // POST - 测试功能
         stopCollection: '/api/admin/stop-collection',             // POST - 停止采集
         
-        // 频道管理
-        channels: '/api/admin/channels',                           // GET/POST - 获取/添加频道
-        resolveChannelId: '/api/admin/resolve-channel-id',         // POST - 解析频道ID
-        resolveChannelIds: '/api/admin/resolve-channel-ids',       // POST - 批量解析频道ID
-        searchChannels: '/api/admin/search-channels',              // GET - 搜索频道
+        // 目标频道和审核群解析（保留在admin配置中）
         resolveReviewGroup: '/api/admin/resolve-review-group',     // POST - 解析审核群组
         
         // 配置管理

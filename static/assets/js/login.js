@@ -80,10 +80,7 @@ const LoginApp = {
                     localStorage.setItem('admin_token', response.data.token);
                     localStorage.setItem('admin_info', JSON.stringify(response.data.admin));
                     
-                    // 🚀 缓存权限信息和时间戳 - 避免每个页面重复验证权限
-                    if (response.data.admin.permissions) {
-                        localStorage.setItem('admin_permissions', JSON.stringify(response.data.admin.permissions));
-                    }
+                    // 缓存时间戳
                     localStorage.setItem('auth_timestamp', Date.now().toString());
                     
                     // 使用SimpleUI显示成功消息

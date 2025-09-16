@@ -35,8 +35,6 @@ class AdminResponse(BaseModel):
     """管理员响应"""
     id: int
     username: str
-    is_super_admin: bool
-    permissions: List[str]
     last_login: Optional[str]
     created_at: Optional[str]
 
@@ -68,37 +66,6 @@ async def require_admin(admin: dict = Depends(get_current_admin)) -> dict:
     return admin
 
 
-async def require_super_admin(admin: dict = Depends(require_admin)) -> dict:
-    """要求超级管理员权限"""
-    if not admin.get('is_super_admin', False):
-        raise HTTPException(status_code=403, detail="需要超级管理员权限")
-    return admin
-
-
-def check_permission(permission_name: str):
-    """检查权限装饰器 - 返回依赖函数"""
-    async def permission_checker(
-        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-    ) -> dict:
-        if not credentials:
-            raise HTTPException(status_code=401, detail="未登录")
-        
-        token = credentials.credentials
-        auth = get_auth()
-        
-        # 获取当前用户
-        admin = await auth.get_current_user(token)
-        if not admin:
-            raise HTTPException(status_code=401, detail="未登录或登录已过期")
-        
-        # 检查权限
-        has_permission = await auth.check_permission(token, permission_name)
-        if not has_permission:
-            raise HTTPException(status_code=403, detail=f"缺少权限: {permission_name}")
-        
-        return admin
-    
-    return permission_checker
 
 
 @router.post(ROUTES.admin_auth.login)
@@ -128,17 +95,12 @@ async def login(
     if not login_result:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     
-    # 获取权限列表
-    permissions = await auth.get_user_permissions(login_result['token'])
-    
     return {
         "success": True,
         "token": login_result['token'],
         "admin": {
             "id": login_result['admin_id'],
-            "username": login_result['username'],
-            "is_super_admin": login_result['is_super_admin'],
-            "permissions": permissions
+            "username": login_result['username']
         }
     }
 
@@ -169,14 +131,9 @@ async def get_current_admin_info(
     auth = get_auth()
     token = credentials.credentials
     
-    # 获取权限列表
-    permissions = await auth.get_user_permissions(token)
-    
     return {
         "id": admin['id'],
         "username": admin['username'],
-        "is_super_admin": admin.get('is_super_admin', False),
-        "permissions": permissions,
         "last_login": admin.get('last_login'),
         "created_at": admin.get('created_at')
     }
@@ -211,8 +168,7 @@ async def change_password(
 async def check_auth(admin: Optional[dict] = Depends(get_current_admin)) -> dict:
     """检查认证状态"""
     return {
-        "authenticated": admin is not None,
-        "is_super_admin": admin.get('is_super_admin', False) if admin else False
+        "authenticated": admin is not None
     }
 
 
@@ -222,21 +178,17 @@ class CreateAdminRequest(BaseModel):
     """创建管理员请求"""
     username: str
     password: str
-    is_super_admin: bool = False
-    permissions: List[str] = []
 
 
 class UpdateAdminRequest(BaseModel):
     """更新管理员请求"""
     is_active: Optional[bool] = None
-    is_super_admin: Optional[bool] = None
-    permissions: Optional[List[str]] = None
     password: Optional[str] = None
 
 
 @router.get(ROUTES.admin_auth.admins)
 async def get_admins(
-    admin: dict = Depends(require_super_admin)
+    admin: dict = Depends(require_admin)
 ) -> dict:
     """获取所有管理员列表"""
     admin_store = get_json_admin_store()
@@ -246,17 +198,10 @@ async def get_admins(
     
     admin_list = []
     for admin_id, admin_data in admins_data.items():
-        # 获取权限列表
-        permissions = []
-        if not admin_data.get('is_super_admin', False):
-            permissions = admin_store.get_admin_permissions(int(admin_id))
-        
         admin_list.append({
             "id": int(admin_id),
             "username": admin_data.get('username'),
             "is_active": admin_data.get('is_active', True),
-            "is_super_admin": admin_data.get('is_super_admin', False),
-            "permissions": permissions,
             "last_login": admin_data.get('last_login'),
             "created_at": admin_data.get('created_at')
         })
@@ -270,7 +215,7 @@ async def get_admins(
 @router.post(ROUTES.admin_auth.admins)
 async def create_admin(
     req: CreateAdminRequest,
-    admin: dict = Depends(require_super_admin)
+    admin: dict = Depends(require_admin)
 ) -> dict:
     """创建新管理员"""
     auth = get_auth()
@@ -278,26 +223,18 @@ async def create_admin(
     # 创建管理员
     new_admin = await auth.create_user(
         username=req.username,
-        password=req.password,
-        is_super_admin=req.is_super_admin
+        password=req.password
     )
     
     if not new_admin:
         raise HTTPException(status_code=400, detail="用户名已存在或创建失败")
-    
-    # 分配权限（仅非超级管理员）
-    if not req.is_super_admin and req.permissions:
-        success = await auth.set_user_permissions(new_admin['id'], req.permissions)
-        if not success:
-            logger.warning(f"创建管理员成功但权限设置失败: {new_admin['id']}")
     
     return {
         "success": True,
         "message": "管理员创建成功",
         "admin": {
             "id": new_admin['id'],
-            "username": new_admin['username'],
-            "is_super_admin": new_admin.get('is_super_admin', False)
+            "username": new_admin['username']
         }
     }
 
@@ -306,7 +243,7 @@ async def create_admin(
 async def update_admin(
     admin_id: int,
     req: UpdateAdminRequest,
-    admin: dict = Depends(require_super_admin)
+    admin: dict = Depends(require_admin)
 ) -> dict:
     """更新管理员信息"""
     admin_store = get_json_admin_store()
@@ -317,16 +254,9 @@ async def update_admin(
     if not target_admin:
         raise HTTPException(status_code=404, detail="管理员不存在")
     
-    # 不允许修改自己的超级管理员权限
-    if admin_id == admin['id'] and req.is_super_admin is False:
-        raise HTTPException(status_code=400, detail="不能取消自己的超级管理员权限")
-    
     # 更新基本信息
     if req.is_active is not None:
         target_admin['is_active'] = req.is_active
-    
-    if req.is_super_admin is not None:
-        target_admin['is_super_admin'] = req.is_super_admin
     
     if req.password:
         if len(req.password) < 6:
@@ -339,19 +269,13 @@ async def update_admin(
     if not admin_store.save_admin(target_admin):
         raise HTTPException(status_code=500, detail="更新管理员信息失败")
     
-    # 更新权限（仅非超级管理员）
-    if req.permissions is not None and not target_admin.get('is_super_admin', False):
-        success = admin_store.set_admin_permissions(admin_id, req.permissions or [])
-        if not success:
-            logger.warning(f"更新管理员权限失败: {admin_id}")
-    
     return {"success": True, "message": "管理员信息更新成功"}
 
 
 @router.delete(ROUTES.admin_auth.admin_by_id)
 async def delete_admin(
     admin_id: int,
-    admin: dict = Depends(require_super_admin)
+    admin: dict = Depends(require_admin)
 ) -> dict:
     """删除管理员"""
     # 不允许删除自己
@@ -371,48 +295,19 @@ async def delete_admin(
         del admins_data[str(admin_id)]
         admin_store._save_json(admin_store.ADMIN_FILE, admins_data)
     
-    # 删除权限关联
-    admin_perms_data = admin_store._load_json(admin_store.ADMIN_PERM_FILE)
-    if str(admin_id) in admin_perms_data:
-        del admin_perms_data[str(admin_id)]
-        admin_store._save_json(admin_store.ADMIN_PERM_FILE, admin_perms_data)
     
     # TODO: 清理相关会话（需要从Redis中清理）
     
     return {"success": True, "message": "管理员删除成功"}
 
 
-@router.get(ROUTES.admin_auth.permissions)
-async def get_permissions(
-    admin: dict = Depends(require_super_admin)
-) -> dict:
-    """获取所有可用权限"""
-    admin_store = get_json_admin_store()
-    
-    # 获取所有权限
-    permissions = admin_store.get_all_permissions()
-    
-    # 按模块分组
-    modules = {}
-    for perm in permissions:
-        module = perm.get('module', 'default')
-        if module not in modules:
-            modules[module] = []
-        modules[module].append({
-            "id": perm['id'],
-            "name": perm.get('name', ''),
-            "action": perm.get('action', ''),
-            "description": perm.get('description', '')
-        })
-    
-    return {"success": True, "permissions": modules}
 
 
 # ==================== 会话管理功能 ====================
 
 @router.get(ROUTES.admin_auth.sessions)
 async def get_active_sessions(
-    admin: dict = Depends(require_super_admin)
+    admin: dict = Depends(require_admin)
 ) -> dict:
     """获取活跃会话列表"""
     auth = get_auth()
@@ -423,7 +318,7 @@ async def get_active_sessions(
 @router.delete(ROUTES.admin_auth.session_by_token)
 async def revoke_session(
     token: str,
-    admin: dict = Depends(require_super_admin)
+    admin: dict = Depends(require_admin)
 ) -> dict:
     """撤销指定会话"""
     auth = get_auth()
@@ -444,16 +339,3 @@ async def get_me(
     return await get_current_admin_info(admin, credentials)
 
 
-@router.get(ROUTES.admin_auth.permissions_me)
-async def get_my_permissions(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> dict:
-    """获取当前用户权限"""
-    if not credentials:
-        raise HTTPException(status_code=401, detail="未登录")
-    
-    auth = get_auth()
-    token = credentials.credentials
-    permissions = await auth.get_user_permissions(token)
-    
-    return {"success": True, "permissions": permissions}

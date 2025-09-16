@@ -23,7 +23,7 @@ show_help() {
     echo "  --help, -h     显示此帮助信息"
     echo "  --quick, -q    快速重启（跳过状态检查和等待）"
     echo "  --force, -f    强制重启（强制停止进程）"
-    echo "  --keep-redis   重启时保持Redis服务不变"
+    echo "  --restart-infra  同时重启基础设施服务（Redis/Nginx）"
     echo "  --skip-logs    跳过日志统计显示"
     echo "  --verbose, -v  显示详细重启信息"
     echo ""
@@ -72,7 +72,7 @@ show_help() {
 # 解析命令行参数
 QUICK_MODE=false
 FORCE_RESTART=false
-KEEP_REDIS=false
+RESTART_INFRA=false
 SKIP_LOGS=false
 VERBOSE=false
 
@@ -90,8 +90,8 @@ while [[ $# -gt 0 ]]; do
             FORCE_RESTART=true
             shift
             ;;
-        --keep-redis)
-            KEEP_REDIS=true
+        --restart-infra)
+            RESTART_INFRA=true
             shift
             ;;
         --skip-logs)
@@ -125,7 +125,7 @@ fi
 echo "1️⃣ 停止所有服务..."
 STOP_ARGS=""
 [ "$FORCE_RESTART" = true ] && STOP_ARGS="$STOP_ARGS --force"
-[ "$KEEP_REDIS" = true ] && STOP_ARGS="$STOP_ARGS --keep-redis"
+[ "$RESTART_INFRA" = true ] && STOP_ARGS="$STOP_ARGS --stop-infra"
 [ "$VERBOSE" = true ] && STOP_ARGS="$STOP_ARGS --verbose" || STOP_ARGS="$STOP_ARGS --quiet"
 
 ./stop.sh $STOP_ARGS || true
@@ -168,44 +168,18 @@ fi
 echo "✅ 所有服务已停止"
 echo
 
-# 加载跨平台服务管理工具
-if [[ -f "tools/utils/service_manager.sh" ]]; then
-    source tools/utils/service_manager.sh
-    SERVICE_MANAGER_LOADED=true
-else
-    SERVICE_MANAGER_LOADED=false
-fi
+# 步骤2：基础设施服务管理（可选）
+if [ "$RESTART_INFRA" = true ]; then
+    echo "2️⃣ 重启基础设施服务..."
 
-# 步骤2：重启本地服务
-if [ "$KEEP_REDIS" = false ]; then
-    if [ "$SERVICE_MANAGER_LOADED" = true ]; then
-        echo "2️⃣ 重启本地服务 ($(detect_system))..."
-        
-        # 重启Redis
-        restart_redis "$VERBOSE"
-        
-        # 重启Nginx
-        restart_nginx "$VERBOSE"
-        
-        # 等待服务完全重启
+    # 使用infra.sh重启基础服务
+    if [ -f "./infra.sh" ]; then
+        ./infra.sh restart
         echo "⏳ 等待服务重启完成（3秒）..."
         sleep 3
-        
-        # 验证服务状态
-        if ! check_redis_status; then
-            echo "❌ Redis重启后连接失败，但继续尝试启动"
-        else
-            [ "$VERBOSE" = true ] && echo "✅ Redis重启成功"
-        fi
-        
-        if ! check_nginx_status; then
-            echo "❌ Nginx重启后服务异常，但继续尝试启动"
-        else
-            [ "$VERBOSE" = true ] && echo "✅ Nginx重启成功"
-        fi
     else
-        # 降级到手动提示
-        echo "2️⃣ 请手动重启本地服务："
+        echo "❌ 未找到infra.sh脚本"
+        echo "手动重启命令："
         echo "   macOS: brew services restart redis nginx"
         echo "   Linux: sudo service redis-server restart && sudo service nginx restart"
         echo ""
@@ -213,7 +187,16 @@ if [ "$KEEP_REDIS" = false ]; then
         sleep 5
     fi
 else
-    [ "$VERBOSE" = true ] && echo "2️⃣ 保持本地服务不变..."
+    [ "$VERBOSE" = true ] && echo "2️⃣ 保持基础设施服务不变（默认）..."
+
+    # 检查基础服务状态
+    echo "🔍 检查基础设施服务状态..."
+    if ! redis-cli ping >/dev/null 2>&1; then
+        echo "⚠️  Redis未运行，请先运行：./infra.sh start"
+    fi
+    if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
+        echo "⚠️  Nginx未运行，请先运行：./infra.sh start"
+    fi
 fi
 
 echo

@@ -389,31 +389,6 @@ class JSONAdminStore(JSONStore):
             logger.error(f"检查权限失败 {admin_id} {permission_name}: {e}")
             return False
 
-    def init_default_permissions(self):
-        """初始化默认权限"""
-        try:
-            permissions = self._load_json(self.PERMISSION_FILE)
-            
-            # 如果权限文件为空，创建默认权限
-            if not permissions:
-                default_permissions = {
-                    "1": {"name": "messages.view", "module": "messages", "action": "view", "description": "查看消息"},
-                    "2": {"name": "messages.edit", "module": "messages", "action": "edit", "description": "编辑消息"},
-                    "3": {"name": "messages.delete", "module": "messages", "action": "delete", "description": "删除消息"},
-                    "4": {"name": "config.view", "module": "config", "action": "view", "description": "查看配置"},
-                    "5": {"name": "config.edit", "module": "config", "action": "edit", "description": "编辑配置"},
-                    "6": {"name": "admin.manage", "module": "admin", "action": "manage", "description": "管理员管理"},
-                    "7": {"name": "system.monitor", "module": "system", "action": "monitor", "description": "系统监控"},
-                }
-                
-                for perm_id, perm_data in default_permissions.items():
-                    perm_data['created_at'] = get_current_time().isoformat()
-                
-                self._save_json(self.PERMISSION_FILE, default_permissions)
-                logger.info("默认权限已创建")
-                
-        except Exception as e:
-            logger.error(f"初始化权限失败: {e}")
 
 # 全局实例和初始化同步机制
 import threading
@@ -452,8 +427,6 @@ def init_json_stores(data_dir: str = None):
         channel_store = JSONChannelStore(data_dir)
         admin_store = JSONAdminStore(data_dir)
         
-        # 初始化默认权限
-        admin_store.init_default_permissions()
         
         # 原子性设置全局变量
         with _init_lock:

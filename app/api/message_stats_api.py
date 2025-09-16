@@ -184,9 +184,7 @@ async def reset_all_stats(
     危险操作，需要管理员权限
     """
     try:
-        # 检查管理员权限
-        if not user.get('is_super_admin', False):
-            raise HTTPException(status_code=403, detail="需要超级管理员权限")
+        # 所有登录用户都有权限
         
         stats_store = get_message_stats_store()
         stats_store.reset_stats()

@@ -22,7 +22,7 @@ show_help() {
     echo "选项:"
     echo "  --help, -h       显示此帮助信息"
     echo "  --force, -f      强制停止（跳过优雅关闭）"
-    echo "  --keep-redis     保持Redis服务运行"
+    echo "  --stop-infra     同时停止基础设施服务（Redis/Nginx）"
     echo "  --timeout=SEC    设置停止超时时间（默认10秒）"
     echo "  --verbose, -v    显示详细停止信息"
     echo "  --quiet, -q      静默模式（减少输出）"
@@ -66,7 +66,7 @@ show_help() {
 
 # 解析命令行参数
 FORCE_STOP=false
-KEEP_REDIS=false
+STOP_INFRA=false
 TIMEOUT=10
 VERBOSE=false
 QUIET=false
@@ -81,8 +81,8 @@ while [[ $# -gt 0 ]]; do
             FORCE_STOP=true
             shift
             ;;
-        --keep-redis)
-            KEEP_REDIS=true
+        --stop-infra)
+            STOP_INFRA=true
             shift
             ;;
         --timeout=*)
@@ -213,29 +213,23 @@ fi
 
 echo "✅ 所有服务进程已停止"
 
-# 加载跨平台服务管理工具
-if [[ -f "tools/utils/service_manager.sh" ]]; then
-    source tools/utils/service_manager.sh
-    SERVICE_MANAGER_LOADED=true
-else
-    SERVICE_MANAGER_LOADED=false
-fi
+# 基础设施服务管理（可选）
+if [ "$STOP_INFRA" = true ]; then
+    [ "$QUIET" = false ] && echo "🏛 停止基础设施服务..."
+    [ "$QUIET" = false ] && echo "⚠️  注意：基础服务通常不需要停止"
 
-# 停止本地服务（可选）
-if [ "$KEEP_REDIS" = false ]; then
-    if [ "$SERVICE_MANAGER_LOADED" = true ]; then
-        [ "$QUIET" = false ] && echo "🍺 本地服务管理 ($(detect_system))："
-        stop_all_services "$VERBOSE" false  # false表示实际停止服务
+    # 使用infra.sh停止基础服务
+    if [ -f "./infra.sh" ]; then
+        ./infra.sh stop
     else
-        # 降级到手动提示
-        [ "$QUIET" = false ] && echo "💡 本地服务管理："
-        [ "$QUIET" = false ] && echo "   本地服务可以继续运行，供其他应用使用"
-        [ "$QUIET" = false ] && echo "   如需完全停止，请手动运行："
+        [ "$QUIET" = false ] && echo "❌ 未找到infra.sh脚本"
+        [ "$QUIET" = false ] && echo "手动停止命令："
         [ "$QUIET" = false ] && echo "   macOS: brew services stop redis nginx"
         [ "$QUIET" = false ] && echo "   Linux: sudo service redis-server stop && sudo service nginx stop"
     fi
 else
-    [ "$VERBOSE" = true ] && echo "⏭️ 保持本地服务运行（推荐）"
+    [ "$VERBOSE" = true ] && echo "⏭️ 保持基础设施服务运行（默认）"
+    [ "$VERBOSE" = true ] && echo "💡 使用 --stop-infra 参数停止基础服务"
 fi
 
 # 清理PID文件

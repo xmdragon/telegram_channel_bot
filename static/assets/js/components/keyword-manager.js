@@ -85,22 +85,16 @@ const KeywordManager = {
         async loadKeywords() {
             this.loading = true;
             try {
-                console.log('正在加载关键词，API端点:', window.API.training.adKeywords);
                 const response = await axios.get(window.API.training.adKeywords);
-                console.log('关键词响应:', response.data);
                 
                 if (response.data.success) {
                     this.keywords = response.data.data.keywords || [];
                     this.threshold = response.data.data.threshold || 3;
-                    console.log('加载成功，关键词数量:', this.keywords.length);
                 } else {
-                    console.error('API返回失败:', response.data);
                     window.SimpleUI.Message.error('加载关键词失败: ' + (response.data.message || '未知错误'));
                 }
             } catch (error) {
-                console.error('加载关键词出错:', error);
                 if (error.response) {
-                    console.error('错误响应:', error.response.data);
                     if (error.response.status === 401) {
                         window.SimpleUI.Message.error('未授权，请先登录');
                     } else {

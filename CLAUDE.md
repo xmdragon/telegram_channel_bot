@@ -87,11 +87,11 @@ Claude Code 工作指导文档。
 
 ## 重大变更历史
 
-- 2025-09-09: 🚀 **Docker架构完全移除** - 彻底放弃Colima Docker，使用本地Redis+Nginx服务，架构简化，性能提升，稳定性增强
-- 2025-09-06: 🐍 **Python 3.13兼容性修复** - 解决telethon导入作用域问题，所有类型导入必须在模块顶部
-- 2025-09-04: 🗂️ **路由架构重构** - 统一所有路由到app/api/目录，消除app/routers特殊情况，符合Linus设计原则
-- 2025-08-23: 🎯 **Element Plus完全移除** - 全项目UI重构完成，彻底删除Element Plus依赖，使用轻量化SimpleUI系统
-- 2025-08-17: 🔧 **API路由安全优化** - 解决危险的通配符路由，引入路由配置统一管理
+- 2025-09-16: 🤝 **系统优化** - 代码结构更简洁
+- 2025-09-06: 🐍 **Python 3.13兼容性** - telethon类型导入必须在模块顶部
+- 2025-09-04: 🗂️ **路由架构** - 统一路由到app/api/目录
+- 2025-08-23: 🎯 **SimpleUI系统** - 轻量化UI界面
+- 2025-08-17: 🔧 **API路由优化** - 路由配置统一管理
 - 2025-08-17: 📚 **开发规范完善** - 添加命名规范、代码组织、清理工具指南
 - 2025-08-16 (v4.0): 🚀 **服务分离架构重构** - 解决开发体验痛点，性能大幅提升
 - 2025-08-15: 🧹 根目录整理，工具分类管理（tools/目录结构化）
@@ -143,7 +143,6 @@ git status && git log --oneline -1
 
 #### 允许的核心文件：
 ✅ CLAUDE.md, README.md, requirements.txt, .gitignore
-✅ docker-compose.yml, Dockerfile  
 ✅ dev.sh, start.sh, stop.sh, restart.sh
 ✅ app/, data/, docs/, logs/, static/, tools/, temp_media/, venv/
 

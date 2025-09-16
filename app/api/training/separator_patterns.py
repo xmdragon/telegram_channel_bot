@@ -2,16 +2,66 @@
 分隔符模式管理模块
 """
 from fastapi import APIRouter, HTTPException
+from datetime import datetime
+from typing import List, Dict
+from pydantic import BaseModel
 import logging
+import json
+from pathlib import Path
 
-from .base import (
-    SeparatorPattern,
-    load_separator_patterns, save_separator_patterns,
-    handle_api_error
-)
+from app.core.path_config import PathConfig
+from app.utils.safe_file_ops import SafeFileOperation
 from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
+
+# 文件路径配置
+SEPARATOR_PATTERNS_FILE = PathConfig.SEPARATOR_PATTERNS_FILE
+
+# 确保目录存在
+PathConfig.ensure_directories()
+
+# Pydantic模型定义
+class SeparatorPattern(BaseModel):
+    """分隔符模式模型"""
+    pattern: str  # 前端传入的字段名，内部映射到regex
+    description: str = ""
+
+# 核心数据操作函数
+def load_separator_patterns() -> List[Dict]:
+    """加载分隔符模式"""
+    try:
+        if SEPARATOR_PATTERNS_FILE.exists():
+            data = SafeFileOperation.read_json_safe(SEPARATOR_PATTERNS_FILE)
+            return data.get('patterns', []) if data else []
+        return []
+    except Exception as e:
+        logger.error(f"加载分隔符模式失败: {e}")
+        return []
+
+def save_separator_patterns(patterns: List[Dict]) -> bool:
+    """保存分隔符模式"""
+    try:
+        data = {
+            'patterns': patterns,
+            'updated_at': datetime.now().isoformat(),
+            'total_count': len(patterns)
+        }
+        SafeFileOperation.write_json_safe(SEPARATOR_PATTERNS_FILE, data)
+        return True
+    except Exception as e:
+        logger.error(f"保存分隔符模式失败: {e}")
+        return False
+
+# 错误处理工具
+def handle_api_error(error: Exception, operation: str) -> HTTPException:
+    """统一的API错误处理"""
+    logger.error(f"{operation}失败: {error}")
+    return HTTPException(
+        status_code=500,
+        detail=f"{operation}失败: {str(error)}"
+    )
+
 router = APIRouter(tags=["training-separator-patterns"])
 @router.get(ROUTES.training.separator_patterns)
 async def get_separator_patterns():

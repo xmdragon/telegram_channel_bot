@@ -3,11 +3,6 @@
 // 确保API配置可用
 const API = window.API;
 
-// 检查依赖
-if (!window.Vue) {
-    console.error('Vue 未加载!');
-}
-
 const { createApp } = Vue;
 
 const app = createApp({
@@ -51,13 +46,10 @@ const app = createApp({
                 const response = await axios.get(API.training.separatorPatterns);
                 if (response.data.success && response.data.patterns) {
                     this.separatorPatterns = response.data.patterns;
-                    console.log(`成功加载 ${response.data.patterns.length} 条分隔符配置`);
                 } else {
-                    console.error('API响应格式错误:', response.data);
                     window.SimpleUI.Message.error('分隔符配置格式错误');
                 }
             } catch (error) {
-                console.error('加载分隔符配置失败:', error);
                 window.SimpleUI.Message.error('加载分隔符配置失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -84,7 +76,6 @@ const app = createApp({
                     window.SimpleUI.Message.error(response.data.message || '保存失败');
                 }
             } catch (error) {
-                console.error('保存分隔符配置失败:', error);
                 window.SimpleUI.Message.error('保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
@@ -141,10 +132,6 @@ const app = createApp({
                         this.regexTest.highlightedContent = highlightedContent;
                     }
 
-                    // 如果没有指定pattern，显示完整的过滤统计
-                    if (!this.regexTest.pattern && data.stats) {
-                        console.log('分隔符过滤统计:', data.stats);
-                    }
                 } else {
                     this.regexTest.error = data.error || '测试失败';
                 }
@@ -172,7 +159,6 @@ const app = createApp({
     
     async mounted() {
         // 组件挂载后的初始化
-        console.log('分隔符配置组件已加载');
         await this.loadSeparatorPatterns();
     }
 });

@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 from app.services.auth_service import get_auth_service
-from app.services.detectors.weighted_keyword_detector import get_weighted_keyword_detector
+from app.services.filters.ad_detector import get_ad_detector
 from app.core.route_config import ROUTES
 
 import logging
@@ -54,7 +54,7 @@ async def get_ad_keywords(
 ):
     """获取所有广告关键词及权重"""
     try:
-        detector = get_weighted_keyword_detector()
+        detector = get_ad_detector()
         keywords = detector.get_keywords()
         
         # 转换为前端需要的格式
@@ -96,7 +96,7 @@ async def add_ad_keyword(
         if not keyword or weight < 0.1 or weight > 10.0:
             raise HTTPException(status_code=400, detail="权重必须在0.1-10.0之间")
         
-        detector = get_weighted_keyword_detector()
+        detector = get_ad_detector()
         success = detector.add_keyword(keyword, weight)
         
         if success:
@@ -129,7 +129,7 @@ async def update_ad_keyword(
         if weight < 0.1 or weight > 10.0:
             raise HTTPException(status_code=400, detail="权重必须在0.1-10.0之间")
         
-        detector = get_weighted_keyword_detector()
+        detector = get_ad_detector()
         success = detector.update_keyword(keyword, weight)
         
         if success:
@@ -158,8 +158,8 @@ async def delete_ad_keyword(
 ):
     """删除关键词"""
     try:
-        detector = get_weighted_keyword_detector()
-        success = detector.delete_keyword(keyword)
+        detector = get_ad_detector()
+        success = detector.remove_keyword(keyword)
         
         if success:
             return {
@@ -189,7 +189,7 @@ async def update_threshold(
         if threshold < 0.1 or threshold > 20.0:
             raise HTTPException(status_code=400, detail="阈值必须在0.1-20.0之间")
         
-        detector = get_weighted_keyword_detector()
+        detector = get_ad_detector()
         success = detector.set_threshold(threshold)
         
         if success:

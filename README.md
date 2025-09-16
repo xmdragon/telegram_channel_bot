@@ -17,7 +17,7 @@
 - 🌐 Web管理：现代化Vue3界面
 - 📊 数据统计：详细的消息处理统计
 - 🚀 批量操作：支持批量审核和管理
-- 🔐 管理员认证：JWT令牌认证 (默认: admin/admin123)
+- 🔐 登录认证：JWT令牌认证 (默认: admin/admin123)
 - 📱 响应式设计：适配各种设备
 
 ### 🚀 架构优势 (v4.0)
@@ -66,15 +66,15 @@
 
 ### 应用技术
 - **后端**: Python 3.11 + FastAPI + Redis + Telethon
-- **前端**: Vue.js 3 + Element Plus + Axios
+- **前端**: Vue.js 3 + SimpleUI系统 + Axios
 - **认证**: JWT + Redis会话管理
 
 ## 🚀 快速开始
 
 ### 环境要求
 - Python 3.11+
-- Docker & Docker Compose
 - Redis 7.0+
+- Nginx 1.18+
 
 ### 安装部署
 
@@ -100,9 +100,6 @@ cd telegram_channel_bot
 python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
-
-# 启动Redis
-docker compose up -d redis
 
 # 启动应用
 ./start.sh
@@ -234,7 +231,9 @@ python3 tools/git/auto_commit.py
 
 1. **Redis连接失败**
    ```bash
-   docker compose up -d redis
+   # 本地安装启动Redis
+   brew services start redis  # macOS
+   sudo systemctl start redis  # Linux
    ```
 
 2. **Telegram认证失败**

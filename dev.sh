@@ -147,60 +147,35 @@ fi
 # 创建必要的目录
 mkdir -p logs data temp_media
 
-# 加载跨平台服务管理工具
-if [[ -f "tools/utils/service_manager.sh" ]]; then
-    source tools/utils/service_manager.sh
+# 检查基础设施服务状态
+echo "🔍 检查基础设施服务..."
+
+# 快速检查Redis和Nginx状态
+INFRA_OK=true
+if ! redis-cli ping >/dev/null 2>&1; then
+    echo "❌ Redis未运行"
+    INFRA_OK=false
 else
-    echo "⚠️  服务管理工具未找到，使用传统方式"
-    # 降级到传统方式
-    echo "🍺 启动本地Redis和Nginx服务..."
-    
-    # 尝试通用的服务启动命令
-    if command -v redis-cli &>/dev/null; then
-        echo "📦 检查Redis..."
-        if ! redis-cli ping >/dev/null 2>&1; then
-            echo "⚠️  Redis未运行，请手动启动"
-            echo "   macOS: brew services start redis"
-            echo "   Linux: sudo service redis-server start"
-        else
-            echo "✅ Redis已在运行"
-        fi
-    else
-        echo "❌ Redis未安装"
-        exit 1
-    fi
-    
-    if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
-        echo "⚠️  Nginx未运行或配置错误，请检查"
-        echo "   macOS: brew services start nginx"
-        echo "   Linux: sudo service nginx start"
-    else
-        echo "✅ Nginx服务正常"
-    fi
+    echo "✅ Redis运行正常"
 fi
 
-# 使用服务管理工具启动服务
-if [[ $(type -t start_all_services) == function ]]; then
-    echo "🚀 启动本地服务..."
-    if ! start_all_services true; then
-        echo "❌ 服务启动失败"
-        show_install_instructions
-        exit 1
-    fi
+if ! curl -s http://localhost:${NGINX_PORT}/static/favicon.svg >/dev/null 2>&1; then
+    echo "❌ Nginx未运行"
+    INFRA_OK=false
 else
-    # 如果函数不存在，手动检查
-    echo "🔧 验证服务状态..."
-    if ! redis-cli ping >/dev/null 2>&1; then
-        echo "❌ Redis连接失败"
-        exit 1
-    fi
-    echo "✅ Redis连接正常"
-    
-    if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
-        echo "❌ Nginx静态文件服务异常"
-        exit 1
-    fi
-    echo "✅ Nginx服务正常"
+    echo "✅ Nginx运行正常"
+fi
+
+# 如果基础服务未运行，提示用户
+if [ "$INFRA_OK" = false ]; then
+    echo ""
+    echo "⚠️  基础设施服务未完全启动"
+    echo "请先运行以下命令启动基础服务："
+    echo ""
+    echo "   ./infra.sh start"
+    echo ""
+    echo "提示：基础服务通常只需启动一次，可以持续运行"
+    exit 1
 fi
 
 

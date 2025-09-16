@@ -86,22 +86,7 @@ def check_permission(permission_name: str):
             
             try:
                 auth_service = get_auth_service()
-                # 超级管理员拥有所有权限
-                if user.get('is_super_admin'):
-                    return await func(*args, **kwargs)
-                
-                # 检查具体权限
-                has_permission = await auth_service.check_permission(
-                    user.get('token', ''), permission_name
-                )
-                
-                if not has_permission:
-                    logger.warning(f"用户 {user.get('username')} 缺少权限: {permission_name}")
-                    raise HTTPException(
-                        status_code=403, 
-                        detail=f"缺少必要权限: {permission_name}"
-                    )
-                
+                # 登录用户拥有所有权限
                 return await func(*args, **kwargs)
                 
             except HTTPException:

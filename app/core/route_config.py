@@ -51,10 +51,6 @@ class RouteConfig:
     
     class Admin:
         """管理员相关路由"""
-        channels = "/admin/channels"
-        channels_by_name = "/admin/channels/{channel_name}"
-        channels_refresh_titles = "/admin/channels/refresh-titles"
-        search_channels = "/admin/search-channels"
         config = "/admin/config"
         config_batch = "/admin/config/batch"
         config_forwarding = "/admin/config/forwarding"
@@ -78,11 +74,9 @@ class RouteConfig:
         check_auth = "/admin/auth/check-auth"
         admins = "/admin/auth/admins"
         admin_by_id = "/admin/auth/admins/{admin_id}"
-        permissions = "/admin/auth/permissions"
         sessions = "/admin/auth/sessions"
         session_by_token = "/admin/auth/sessions/{token}"
         me = "/admin/auth/me"
-        permissions_me = "/admin/auth/permissions/me"
     
     class Auth:
         """Telegram认证路由"""
@@ -111,11 +105,6 @@ class RouteConfig:
         batch = "/config/batch"
         batch_update = "/config/batch-update"
         reset_defaults = "/config/reset-defaults"
-        channels_add = "/config/channels/add"
-        channels_by_id = "/config/channels/{channel_id}"
-        channels_status = "/config/channels/{channel_id}/status"
-        channels_list = "/config/channels/"
-        channels_batch_add = "/config/channels/batch-add"
     
     class System:
         """系统相关路由"""
@@ -156,12 +145,21 @@ class RouteConfig:
         cache_info = "/ai/cache/info"
         cache_preload = "/ai/cache/preload"
     
-    class ChannelResolver:
-        """频道解析路由"""
+    class Channels:
+        """统一的频道管理路由"""
+        # 基础管理
+        list = "/"
+        add = "/"
+        delete = "/{channel_id}"
+        get = "/{channel_id}"
+
+        # 批量操作
+        batch_add = "/batch-add"
+        search = "/search"
+
+        # 解析功能（仅源频道）
         resolve = "/resolve"
         resolve_all = "/resolve-all"
-        resolve_target = "/resolve-target"
-        resolve_review = "/resolve-review"
     
     class Training:
         """训练数据管理路由"""

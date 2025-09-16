@@ -248,6 +248,54 @@ class AdDetector:
             logger.error(f"删除关键词失败: {e}")
             return False
 
+    def update_keyword(self, keyword: str, weight: float) -> bool:
+        """更新关键词权重
+
+        Args:
+            keyword: 关键词
+            weight: 新权重
+
+        Returns:
+            是否成功
+        """
+        try:
+            # 加载最新配置
+            self.reload_if_needed()
+
+            if keyword not in self.keywords:
+                return False
+
+            # 更新关键词
+            self.keywords[keyword] = weight
+
+            # 保存配置
+            data = {
+                'keywords': self.keywords,
+                'threshold': self.threshold,
+                'updated_at': time.strftime("%Y-%m-%dT%H:%M:%S"),
+                'version': '1.0.0'
+            }
+
+            with open(self.keywords_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
+            self._file_mtime = self.keywords_file.stat().st_mtime
+            logger.info(f"更新关键词: {keyword} (新权重: {weight})")
+            return True
+
+        except Exception as e:
+            logger.error(f"更新关键词失败: {e}")
+            return False
+
+    def get_keywords(self) -> Dict[str, float]:
+        """获取所有关键词
+
+        Returns:
+            关键词字典
+        """
+        self.reload_if_needed()
+        return self.keywords.copy()
+
     def set_threshold(self, threshold: float) -> bool:
         """设置检测阈值
 
@@ -281,6 +329,22 @@ class AdDetector:
         except Exception as e:
             logger.error(f"设置阈值失败: {e}")
             return False
+
+
+# 全局实例
+_ad_detector_instance = None
+
+
+def get_ad_detector() -> AdDetector:
+    """获取广告检测器单例
+
+    Returns:
+        AdDetector实例
+    """
+    global _ad_detector_instance
+    if _ad_detector_instance is None:
+        _ad_detector_instance = AdDetector()
+    return _ad_detector_instance
 
     def handle_positive_feedback(self, new_keywords: Dict[str, float]) -> bool:
         """处理"广告"反馈：添加新关键词

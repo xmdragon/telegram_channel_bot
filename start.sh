@@ -30,7 +30,7 @@ show_help() {
     echo ""
     echo "选项:"
     echo "  --help, -h         显示此帮助信息"
-    echo "  --no-redis         跳过Redis服务启动"
+    echo "  --check-infra      检查基础设施服务状态"
     echo "  --skip-deps        跳过依赖检查和安装"
     echo "  --force-reinstall  强制重新安装依赖"
     echo "  --verbose, -v      显示详细启动信息"
@@ -80,7 +80,7 @@ show_help() {
 }
 
 # 解析命令行参数
-SKIP_REDIS=false
+CHECK_INFRA=true
 SKIP_DEPS=false
 FORCE_REINSTALL=false
 VERBOSE=false
@@ -92,8 +92,8 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        --no-redis)
-            SKIP_REDIS=true
+        --check-infra)
+            CHECK_INFRA=true
             shift
             ;;
         --skip-deps)
@@ -170,48 +170,43 @@ mkdir -p logs data temp_media
 # 设置权限
 chmod 755 logs data temp_media
 
-# 加载跨平台服务管理工具
-if [[ -f "tools/utils/service_manager.sh" ]]; then
-    source tools/utils/service_manager.sh
-    SERVICE_MANAGER_LOADED=true
-else
-    echo "⚠️  服务管理工具未找到，使用基础检查"
-    SERVICE_MANAGER_LOADED=false
-fi
+# 检查基础设施服务状态
+if [ "$CHECK_INFRA" = true ]; then
+    echo "🔍 检查基础设施服务..."
 
-# 启动本地服务
-if [ "$SKIP_REDIS" = false ]; then
-    if [ "$SERVICE_MANAGER_LOADED" = true ]; then
-        echo "🚀 启动本地服务 ($(detect_system))..."
-        if ! start_all_services "$VERBOSE"; then
-            echo "❌ 服务启动失败"
-            show_install_instructions
-            exit 1
-        fi
+    INFRA_OK=true
+
+    # 检查Redis
+    if ! redis-cli ping >/dev/null 2>&1; then
+        echo "❌ Redis未运行"
+        INFRA_OK=false
     else
-        # 降级到基础检查
-        echo "🔧 检查本地服务..."
-        
-        # 检查Redis
-        if ! redis-cli ping >/dev/null 2>&1; then
-            echo "❌ Redis未运行，请手动启动："
-            echo "   macOS: brew services start redis"
-            echo "   Linux: sudo service redis-server start"
-            exit 1
-        fi
-        [ "$VERBOSE" = true ] && echo "✅ Redis连接正常"
-        
-        # 检查Nginx
-        if ! curl -s http://localhost:8080/static/favicon.svg >/dev/null 2>&1; then
-            echo "❌ Nginx未运行或配置错误，请手动启动："
-            echo "   macOS: brew services start nginx"
-            echo "   Linux: sudo service nginx start"
-            exit 1
-        fi
-        [ "$VERBOSE" = true ] && echo "✅ Nginx服务正常"
+        [ "$VERBOSE" = true ] && echo "✅ Redis运行正常"
     fi
+
+    # 检查Nginx
+    if ! curl -s http://localhost:${NGINX_PORT}/static/favicon.svg >/dev/null 2>&1; then
+        echo "❌ Nginx未运行"
+        INFRA_OK=false
+    else
+        [ "$VERBOSE" = true ] && echo "✅ Nginx运行正常"
+    fi
+
+    # 如果基础服务未运行，提示用户
+    if [ "$INFRA_OK" = false ]; then
+        echo ""
+        echo "⚠️  基础设施服务未完全启动"
+        echo "请先运行以下命令启动基础服务："
+        echo ""
+        echo "   ./infra.sh start"
+        echo ""
+        echo "提示：基础服务通常只需启动一次，可以持续运行"
+        exit 1
+    fi
+
+    echo "✅ 基础设施服务检查通过"
 else
-    [ "$VERBOSE" = true ] && echo "⏭️ 跳过本地服务启动"
+    [ "$VERBOSE" = true ] && echo "⏭️ 跳过基础设施检查"
 fi
 
 # 数据库初始化已废弃（使用Redis+JSON存储）
