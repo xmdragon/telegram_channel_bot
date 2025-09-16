@@ -8,7 +8,6 @@ from .messages_filter import router as messages_filter_router
 from .messages_stats import router as messages_stats_router
 from .message_stats_api import router as message_stats_router
 from .admin import router as admin_router
-from .config import router as config_router
 from .channels import router as channels_router
 from .telegram_dual_auth import router as dual_auth_router
 from .system_health import router as system_health_router
@@ -32,7 +31,6 @@ api_router.include_router(message_stats_router, tags=["message-stats"])
 
 # 其他API路由
 api_router.include_router(admin_router, tags=["admin"])
-api_router.include_router(config_router, tags=["config"])
 api_router.include_router(channels_router, prefix="/channels", tags=["channels"])  # 统一的频道管理
 api_router.include_router(dual_auth_router, prefix="/dual-auth", tags=["telegram-dual-auth"])  # 双Session认证
 api_router.include_router(admin_auth_router, tags=["admin-auth"])  # 管理员认证，使用不同路径
