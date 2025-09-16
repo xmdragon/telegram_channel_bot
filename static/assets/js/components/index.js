@@ -281,7 +281,7 @@ const MainApp = {
             
             
             // 初始化权限检查
-            const isAuthorized = await authManager.initPageAuth('messages.view');
+            const isAuthorized = await authManager.initPageAuth();
             if (!isAuthorized) {
                 console.error('❌ 权限验证失败，停止初始化');
                 return;

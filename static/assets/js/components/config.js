@@ -365,7 +365,7 @@ const ConfigApp = {
             this.batchChannel.results = null;
             
             try {
-                const response = await axios.post(API.config.channelsBatchAdd, {
+                const response = await axios.post(API.channels.batchAdd, {
                     channels: this.batchChannel.channels
                 });
                 
@@ -399,7 +399,7 @@ const ConfigApp = {
         async resolveChannelId(channelName) {
             try {
                 const response = await axios.post(API.channels.resolve, {
-                    channel_name: channelName
+                    channel_input: channelName
                 });
                 
                 if (response.data.success) {

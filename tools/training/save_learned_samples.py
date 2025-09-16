@@ -5,7 +5,8 @@
 
 import json
 from datetime import datetime
-from app.services.intelligent_tail_filter import intelligent_tail_filter
+# from app.services.intelligent_tail_filter import intelligent_tail_filter
+# NOTE: intelligent_tail_filter已被移除，此工具已废弃
 from app.core.path_config import PathConfig
 
 def save_learned_samples():

@@ -12,8 +12,7 @@ from pathlib import Path
 from typing import Tuple, List, Dict, Any
 
 from app.storage.redis_manager import redis_manager
-from app.services.content_filter import ContentFilter
-from app.services.ad_detector import AdDetector
+from app.services.filters.ad_detector import AdDetector
 
 # 直接使用Redis URL，避免复杂的配置依赖
 REDIS_URL = "redis://localhost:6379"

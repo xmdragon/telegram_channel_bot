@@ -9,23 +9,12 @@ class AuthManager {
     }
 
     /**
-     * 初始化页面认证
-     * @param {string} authType - 认证类型 ('admin' | 'telegram.sender.auth' | 'telegram.listener.auth' | 'telegram.dual.auth')
+     * 初始化页面认证 - 检查管理员登录状态
      * @returns {Promise<boolean>} - 是否认证成功
      */
-    async initPageAuth(authType = 'admin') {
+    async initPageAuth() {
         try {
-            switch (authType) {
-                case 'admin':
-                    return await this.checkAdminAuth();
-                case 'telegram.sender.auth':
-                case 'telegram.listener.auth':
-                case 'telegram.dual.auth':
-                    return await this.checkTelegramAuth(authType);
-                default:
-                    console.warn('未知的认证类型:', authType);
-                    return true;
-            }
+            return await this.checkAdminAuth();
         } catch (error) {
             console.error('认证检查失败:', error);
             return false;
@@ -64,48 +53,6 @@ class AuthManager {
         }
     }
 
-    /**
-     * 检查Telegram认证状态
-     * @param {string} authType 
-     */
-    async checkTelegramAuth(authType) {
-        try {
-            // 首先检查管理员认证
-            const adminAuthed = await this.checkAdminAuth();
-            if (!adminAuthed) {
-                return false;
-            }
-
-            // 然后检查Telegram认证状态
-            const sessionType = this.getSessionTypeFromAuthType(authType);
-            const response = await axios.get(`${this.apiBaseUrl}/dual-auth/session-status/${sessionType}`, {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
-
-            if (response.data && response.data.success && response.data.status.state === 'authorized') {
-                return true;
-            } else {
-                // Telegram未认证，跳转到认证页面
-                this.redirectToTelegramAuth(authType);
-                return false;
-            }
-        } catch (error) {
-            console.error('Telegram认证检查失败:', error);
-            this.redirectToTelegramAuth(authType);
-            return false;
-        }
-    }
-
-    /**
-     * 从认证类型获取Session类型
-     */
-    getSessionTypeFromAuthType(authType) {
-        if (authType.includes('sender')) return 'sender';
-        if (authType.includes('listener')) return 'listener';
-        return 'sender'; // 默认
-    }
 
     /**
      * 获取认证Token
@@ -131,23 +78,6 @@ class AuthManager {
         }
         setTimeout(() => {
             window.location.href = '/static/login.html';
-        }, this.redirectTimeout);
-    }
-
-    /**
-     * 跳转到Telegram认证页面
-     */
-    redirectToTelegramAuth(authType) {
-        if (window.SimpleUI) {
-            window.SimpleUI.showMessage('请先完成Telegram认证', 'warning');
-        }
-        
-        let hash = '';
-        if (authType === 'telegram.sender.auth') hash = '#sender';
-        else if (authType === 'telegram.listener.auth') hash = '#listener';
-        
-        setTimeout(() => {
-            window.location.href = `/static/telegram-auth.html${hash}`;
         }, this.redirectTimeout);
     }
 

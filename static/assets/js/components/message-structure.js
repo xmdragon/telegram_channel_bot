@@ -19,7 +19,7 @@ const MessageStructureApp = {
     async mounted() {
         // 初始化管理员认证检查
         try {
-            const isAuthorized = await authManager.initPageAuth('admin');
+            const isAuthorized = await authManager.initPageAuth();
             if (!isAuthorized) {
                 return; // 认证失败，页面已跳转到登录页
             }

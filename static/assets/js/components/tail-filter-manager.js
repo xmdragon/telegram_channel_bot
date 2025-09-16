@@ -378,7 +378,7 @@ const app = createApp({
     
     async mounted() {
         // 初始化权限检查
-        const isAuthorized = await authManager.initPageAuth('training.view');
+        const isAuthorized = await authManager.initPageAuth();
         if (!isAuthorized) {
             return;
         }

@@ -57,8 +57,9 @@ else:
 
 # 测试过滤器功能
 print("\n测试尾部过滤器...")
-from app.services.intelligent_tail_filter import intelligent_tail_filter
-from app.services.content_filter import content_filter
+# from app.services.intelligent_tail_filter import intelligent_tail_filter
+# from app.services.content_filter import content_filter
+# NOTE: 这些过滤器已被移除，此工具已废弃
 
 # 强制重新加载训练数据
 intelligent_tail_filter._load_training_data(force_reload=True)

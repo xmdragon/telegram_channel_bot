@@ -23,15 +23,10 @@ class PathConfig:
     SYSTEM_CONFIG_FILE = CONFIG_DIR / "system.json"
     ADMINS_CONFIG_FILE = CONFIG_DIR / "admins.json"
     CHANNELS_CONFIG_FILE = CONFIG_DIR / "channels.json"
-    # 广告检测相关
-    AD_TRAINING_DIR = TRAINING_DIR / "ad"
-    AD_KEYWORDS_FILE = AD_TRAINING_DIR / "ad_keywords.json"  # 广告关键词配置（移到训练目录）
-    AD_JSON_DIR = AD_TRAINING_DIR / "json"
-    
-    # 尾部过滤相关
-    TAIL_TRAINING_DIR = TRAINING_DIR / "tail"
-    TAIL_FILTER_SAMPLES_FILE = TAIL_TRAINING_DIR / "tail_filter_samples.json"
-    SEPARATOR_PATTERNS_FILE = TAIL_TRAINING_DIR / "separator_patterns.json"
+    # 过滤器配置文件（统一在训练目录根部）
+    AD_KEYWORDS_FILE = TRAINING_DIR / "ad_keywords.json"  # 广告关键词配置
+    TAIL_FILTER_SAMPLES_FILE = TRAINING_DIR / "tail_filter_samples.json"  # 尾部过滤样本
+    SEPARATOR_PATTERNS_FILE = TRAINING_DIR / "separator_patterns.json"  # 分隔符模式
     
     # 其他训练数据
     OTHER_TRAINING_DIR = TRAINING_DIR / "other"
@@ -54,28 +49,13 @@ class PathConfig:
             cls.BACKUP_DIR.mkdir(exist_ok=True)
             cls.LOGS_DIR.mkdir(exist_ok=True)
             cls.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
-            
-            # 创建广告检测相关目录
-            cls.AD_TRAINING_DIR.mkdir(exist_ok=True)
-            cls.AD_JSON_DIR.mkdir(exist_ok=True)
-            (cls.AD_TRAINING_DIR / "images").mkdir(exist_ok=True)
-            (cls.AD_TRAINING_DIR / "videos").mkdir(exist_ok=True)
-            
-            # 按月份创建图片目录（当前月份）
-            from datetime import datetime
-            current_month = datetime.now().strftime("%Y-%m")
-            month_dir = cls.AD_TRAINING_DIR / "images" / current_month
-            month_dir.mkdir(exist_ok=True)
-            
-            # 创建尾部过滤相关目录
-            cls.TAIL_TRAINING_DIR.mkdir(exist_ok=True)
 
-            # 创建其他训练数据目录
-            cls.OTHER_TRAINING_DIR.mkdir(exist_ok=True)
-            
+            # 创建训练数据目录
+            cls.OTHER_TRAINING_DIR.mkdir(exist_ok=True)   # 用于其他训练数据
+
             logger.info("所有系统目录结构初始化完成")
             return True
-            
+
         except Exception as e:
             logger.error(f"创建目录失败: {e}")
             return False

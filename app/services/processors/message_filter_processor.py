@@ -30,8 +30,8 @@ class MessageFilterProcessor(MessageProcessor):
     def filter_pipeline(self):
         """延迟加载过滤管道"""
         if self._filter_pipeline is None:
-            from app.services.unified_filter_engine import unified_filter_engine
-            self._filter_pipeline = unified_filter_engine.filter_pipeline
+            from app.services.filters.filter_pipeline import FilterPipeline
+            self._filter_pipeline = FilterPipeline()
         return self._filter_pipeline
     
     async def _ensure_rule_manager_initialized(self):
