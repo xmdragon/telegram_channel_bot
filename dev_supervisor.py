@@ -90,33 +90,9 @@ class ServiceProcess:
     
     async def _wait_for_service_ready(self) -> bool:
         """等待服务真正就绪"""
-        if self.config.name == "web":
-            # Web服务需要等待HTTP端点可用
-            import urllib.request
-            import asyncio
-            
-            for attempt in range(12):  # 最多等待12次，每次间隔1秒 = 12秒
-                try:
-                    # 使用asyncio.to_thread来包装同步的urllib.request
-                    def check_health():
-                        req = urllib.request.Request(url_config.get_health_url())
-                        response = urllib.request.urlopen(req, timeout=2.0)  # 增加单次请求超时
-                        return response.getcode() == 200
-                    
-                    if await asyncio.to_thread(check_health):
-                        logger.info(f"✅ Web服务健康检查通过 (尝试第{attempt + 1}次)")
-                        return True
-                except:
-                    pass
-                await asyncio.sleep(1.0)  # 增加检查间隔，给Web服务更多启动时间
-            
-            logger.error("❌ Web服务健康检查超时")
-            return False
-        else:
-            # 其他服务只需要检查进程存在
-            import asyncio
-            await asyncio.sleep(0.3)  # 进一步减少非Web服务等待时间
-            return self.process.poll() is None
+        import asyncio
+        await asyncio.sleep(0.5)  # 给服务一点启动时间
+        return self.process.poll() is None
     
     async def start(self) -> bool:
         """启动服务"""
@@ -171,7 +147,7 @@ class ServiceProcess:
                         return False
                 else:
                     self.status = ServiceStatus.FAILED
-                    logger.error(f"❌ 服务 {self.config.name} 健康检查失败")
+                    logger.error(f"❌ 服务 {self.config.name} 启动失败")
                     return False
                 
         except Exception as e:
