@@ -159,11 +159,11 @@ else
     echo "✅ Redis运行正常"
 fi
 
-if ! curl -s http://localhost:${NGINX_PORT}/static/favicon.svg >/dev/null 2>&1; then
+if timeout 3 curl -s --connect-timeout 1 --max-time 2 http://localhost:${NGINX_PORT}/static/favicon.svg >/dev/null 2>&1; then
+    echo "✅ Nginx运行正常"
+else
     echo "❌ Nginx未运行"
     INFRA_OK=false
-else
-    echo "✅ Nginx运行正常"
 fi
 
 # 如果基础服务未运行，提示用户

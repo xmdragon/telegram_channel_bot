@@ -42,39 +42,45 @@ debug_system_info() {
 
 # ==================== Redis 服务管理 ====================
 
-# 启动Redis
+# 启动Redis - 功能优先检测
 start_redis() {
     local verbose=${1:-false}
-    
+
+    # 先检查Redis是否已经可用
+    if check_redis_status; then
+        [ "$verbose" = true ] && echo "✅ Redis已在运行"
+        return 0
+    fi
+
     case $SYSTEM_TYPE in
         macos)
             if command -v brew &> /dev/null; then
-                if ! brew services list | grep -q "redis.*started"; then
-                    [ "$verbose" = true ] && echo "📦 启动Redis (brew)..."
-                    brew services start redis
-                else
-                    [ "$verbose" = true ] && echo "✅ Redis已在运行"
-                fi
+                [ "$verbose" = true ] && echo "📦 启动Redis (brew)..."
+                brew services start redis
             else
-                echo "❌ 未安装Homebrew，请先安装: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                echo "❌ 未安装Homebrew，请先安装"
                 return 1
             fi
             ;;
         ubuntu|debian|wsl)
-            if ! pgrep -x redis-server > /dev/null; then
-                [ "$verbose" = true ] && echo "📦 启动Redis (service)..."
-                if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
-                    sudo systemctl start redis || sudo systemctl start redis-server
-                else
-                    sudo service redis-server start
-                fi
+            [ "$verbose" = true ] && echo "📦 启动Redis (service)..."
+
+            # 检查sudo权限
+            if ! sudo -n true 2>/dev/null; then
+                echo "⚠️ 需要sudo权限启动Redis"
+                echo "请手动运行: sudo systemctl start redis-server"
+                return 1
+            fi
+
+            if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
+                sudo systemctl start redis 2>/dev/null || sudo systemctl start redis-server 2>/dev/null
             else
-                [ "$verbose" = true ] && echo "✅ Redis已在运行"
+                sudo service redis-server start 2>/dev/null
             fi
             ;;
         *)
-            echo "⚠️  不支持的系统: $SYSTEM_TYPE"
-            echo "   请手动启动Redis服务"
+            echo "⚠️ 不支持的系统: $SYSTEM_TYPE"
+            echo "请手动启动Redis服务"
             return 1
             ;;
     esac
@@ -111,37 +117,24 @@ stop_redis() {
     esac
 }
 
-# 重启Redis
+# 重启Redis - 功能优先，智能处理
 restart_redis() {
     local verbose=${1:-false}
-    
-    case $SYSTEM_TYPE in
-        macos)
-            [ "$verbose" = true ] && echo "🔄 重启Redis (brew)..."
-            brew services restart redis
-            ;;
-        ubuntu|debian|wsl)
-            [ "$verbose" = true ] && echo "🔄 重启Redis (service)..."
-            if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
-                sudo systemctl restart redis || sudo systemctl restart redis-server
-            else
-                sudo service redis-server restart
-            fi
-            ;;
-        *)
-            echo "⚠️  不支持的系统: $SYSTEM_TYPE"
-            return 1
-            ;;
-    esac
+
+    # 如果Redis已经正常工作，跳过重启
+    if check_redis_status; then
+        [ "$verbose" = true ] && echo "✅ Redis已正常运行，跳过重启"
+        return 0
+    fi
+
+    # Redis不工作时才尝试启动
+    [ "$verbose" = true ] && echo "🔄 Redis未运行，尝试启动..."
+    start_redis "$verbose"
 }
 
-# 检查Redis状态
+# 检查Redis状态 - 功能优先，不管进程类型
 check_redis_status() {
-    if redis-cli ping &>/dev/null; then
-        return 0
-    else
-        return 1
-    fi
+    redis-cli ping >/dev/null 2>&1
 }
 
 # 获取Redis服务状态
@@ -165,39 +158,45 @@ get_redis_status() {
 
 # ==================== Nginx 服务管理 ====================
 
-# 启动Nginx
+# 启动Nginx - 功能优先检测
 start_nginx() {
     local verbose=${1:-false}
-    
+
+    # 先检查Nginx是否已经可用
+    if check_nginx_status; then
+        [ "$verbose" = true ] && echo "✅ Nginx已在运行"
+        return 0
+    fi
+
     case $SYSTEM_TYPE in
         macos)
             if command -v brew &> /dev/null; then
-                if ! brew services list | grep -q "nginx.*started"; then
-                    [ "$verbose" = true ] && echo "🌐 启动Nginx (brew)..."
-                    brew services start nginx
-                else
-                    [ "$verbose" = true ] && echo "✅ Nginx已在运行"
-                fi
+                [ "$verbose" = true ] && echo "🌐 启动Nginx (brew)..."
+                brew services start nginx
             else
                 echo "❌ 未安装Homebrew"
                 return 1
             fi
             ;;
         ubuntu|debian|wsl)
-            if ! pgrep -x nginx > /dev/null; then
-                [ "$verbose" = true ] && echo "🌐 启动Nginx (service)..."
-                if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
-                    sudo systemctl start nginx
-                else
-                    sudo service nginx start
-                fi
+            [ "$verbose" = true ] && echo "🌐 启动Nginx (service)..."
+
+            # 检查sudo权限
+            if ! sudo -n true 2>/dev/null; then
+                echo "⚠️ 需要sudo权限启动Nginx"
+                echo "请手动运行: sudo systemctl start nginx"
+                return 1
+            fi
+
+            if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
+                sudo systemctl start nginx 2>/dev/null
             else
-                [ "$verbose" = true ] && echo "✅ Nginx已在运行"
+                sudo service nginx start 2>/dev/null
             fi
             ;;
         *)
-            echo "⚠️  不支持的系统: $SYSTEM_TYPE"
-            echo "   请手动启动Nginx服务"
+            echo "⚠️ 不支持的系统: $SYSTEM_TYPE"
+            echo "请手动启动Nginx服务"
             return 1
             ;;
     esac
@@ -234,61 +233,28 @@ stop_nginx() {
     esac
 }
 
-# 重启Nginx
+# 重启Nginx - 功能优先，智能处理
 restart_nginx() {
     local verbose=${1:-false}
-    
-    case $SYSTEM_TYPE in
-        macos)
-            [ "$verbose" = true ] && echo "🔄 重启Nginx (brew)..."
-            brew services restart nginx
-            ;;
-        ubuntu|debian|wsl)
-            [ "$verbose" = true ] && echo "🔄 重启Nginx (service)..."
-            if [[ "$SERVICE_MANAGER" == "systemctl" ]] && [[ "$SYSTEM_TYPE" != "wsl" ]]; then
-                sudo systemctl restart nginx
-            else
-                sudo service nginx restart
-            fi
-            ;;
-        *)
-            echo "⚠️  不支持的系统: $SYSTEM_TYPE"
-            return 1
-            ;;
-    esac
+
+    # 如果Nginx已经正常工作，跳过重启
+    if check_nginx_status; then
+        [ "$verbose" = true ] && echo "✅ Nginx已正常运行，跳过重启"
+        return 0
+    fi
+
+    # Nginx不工作时才尝试启动
+    [ "$verbose" = true ] && echo "🔄 Nginx未运行，尝试启动..."
+    start_nginx "$verbose"
 }
 
-# 检查Nginx状态 - 带重试机制，使用动态端口
+# 检查Nginx状态 - 快速检测，避免卡死
 check_nginx_status() {
-    local max_retries=3
-    local retry_delay=1
     local nginx_port=${NGINX_PORT:-8080}
     local test_url="http://localhost:${nginx_port}/static/favicon.svg"
-    
-    for ((i=1; i<=max_retries; i++)); do
-        if curl -s --connect-timeout 2 --max-time 5 "$test_url" &>/dev/null; then
-            return 0
-        fi
-        
-        if [ $i -lt $max_retries ]; then
-            sleep $retry_delay
-        fi
-    done
-    
-    # 最后一次检查失败，输出调试信息
-    echo "🔍 Nginx检查调试信息："
-    echo "   - 尝试次数: $max_retries"
-    echo "   - 检查URL: $test_url"
-    echo "   - Nginx端口: $nginx_port"
-    
-    # 检查Nginx服务状态
-    case $SYSTEM_TYPE in
-        macos)
-            echo "   - Nginx服务状态: $(brew services list | grep nginx || echo 'Unknown')"
-            ;;
-    esac
-    
-    return 1
+
+    # 使用更短的超时，避免卡死
+    timeout 3 curl -s --connect-timeout 1 --max-time 2 "$test_url" >/dev/null 2>&1
 }
 
 # 获取Nginx服务状态

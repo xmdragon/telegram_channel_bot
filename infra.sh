@@ -283,7 +283,7 @@ show_status() {
 quick_check() {
     local all_good=true
 
-    # 检查Redis
+    # 检查Redis - 功能优先
     if check_redis_status; then
         [ "$QUIET" = false ] && echo "✅ Redis: 运行中"
     else
@@ -291,7 +291,7 @@ quick_check() {
         all_good=false
     fi
 
-    # 检查Nginx
+    # 检查Nginx - 快速检测
     if check_nginx_status; then
         [ "$QUIET" = false ] && echo "✅ Nginx: 运行中"
     else
@@ -303,7 +303,7 @@ quick_check() {
         [ "$QUIET" = false ] && echo "✅ 所有基础服务正常"
         exit 0
     else
-        [ "$QUIET" = false ] && echo "⚠️  部分服务未运行，使用 './infra.sh start' 启动"
+        [ "$QUIET" = false ] && echo "⚠️ 部分服务未运行，使用 './infra.sh start' 启动"
         exit 1
     fi
 }

@@ -76,9 +76,7 @@ class MessageStatsStore:
             })
             pipe.hset(self.REJECTION_STATS_KEY, mapping={
                 'ad': 0,
-                'duplicate': 0,
-                'chat': 0,
-                'other': 0
+                'manual': 0
             })
             pipe.execute()
     
