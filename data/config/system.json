@@ -133,7 +133,7 @@
     "created_at": "2025-08-29T19:32:07.309842"
   },
   "filter.separator": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "启用分隔符过滤",
     "is_active": true,

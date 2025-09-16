@@ -110,8 +110,6 @@ const API_ENDPOINTS = {
         tailFilterStatistics: '/api/training/tail-filter-statistics', // GET - 获取尾部过滤统计
         tailFilterHistory: '/api/training/tail-filter-history',  // GET - 获取尾部过滤历史
 
-        // 其他训练功能（保留实际使用的端点）
-        markAdMessage: '/api/training/mark-ad-message'         // POST - 标记消息为广告（实际使用）
     },
 
     // 配置管理模块 - /api/config

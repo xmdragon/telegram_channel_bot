@@ -55,7 +55,7 @@ const app = createApp({
             const adminInfo = localStorage.getItem('admin_info');
             if (adminInfo) {
                 const admin = JSON.parse(adminInfo);
-                return admin.is_super_admin || (admin.permissions && admin.permissions.includes('training.manage'));
+                return admin.is_super_admin || admin.role === 'admin';
             }
             return false;
         },
@@ -358,17 +358,6 @@ const app = createApp({
             return text.substring(0, length) + '...';
         },
         
-        // 检查权限
-        checkPermission() {
-            if (!this.isAdmin) {
-                window.SimpleUI.Message.info('您没有权限访问此页面');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1500);
-                return false;
-            }
-            return true;
-        },
         
         // 关闭对话框
         closeDetailDialog() {
@@ -392,15 +381,11 @@ const app = createApp({
     
     async mounted() {
         // 初始化权限检查
-        const isAuthorized = await authManager.initPageAuth('training.view');
+        const isAuthorized = await authManager.initPageAuth();
         if (!isAuthorized) {
             return;
         }
         
-        // 检查管理权限
-        if (!this.checkPermission()) {
-            return;
-        }
         
         // 初始加载数据
         this.loadVectors();

@@ -412,11 +412,6 @@ const EventHandlers = {
             EventHandlers.emit('error:network', error);
         },
         
-        // 处理权限错误
-        handlePermissionError() {
-            window.MessageManager?.error('权限不足，请联系管理员');
-            EventHandlers.emit('error:permission');
-        }
     }
 };
 

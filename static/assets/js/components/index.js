@@ -135,16 +135,6 @@ const MainApp = {
             messageItemHeight: 200,
             virtualListHeight: 600,
             
-            // 权限控制
-            buttonVisibility: {
-                edit: true,
-                approve: true,
-                reject: true,
-                markAsAd: true,
-                markAsTail: true,
-                executeFilter: true,
-                delete: false
-            }
         };
         
         // 如果StateManager可用，验证并使用其初始状态
@@ -297,8 +287,6 @@ const MainApp = {
                 return;
             }
             
-            // 初始化权限按钮可见性
-            await this.initializePermissions();
             
             // 初始化状态管理器
             if (window.messageStateManager) {
@@ -450,118 +438,7 @@ const MainApp = {
             return this.filteringMessages.has(messageId);
         },
         
-        // 初始化权限
-        async initializePermissions() {
-            try {
-                // 获取当前用户信息
-                const response = await axios.get(window.API.adminAuth.current);
-                const adminInfo = response.data;
-                
-                // 检查权限检查器是否存在
-                if (window.permissionChecker && typeof window.permissionChecker.initialize === 'function') {
-                    try {
-                        const initialized = await window.permissionChecker.initialize(adminInfo);
-                        if (initialized) {
-                            // 更新按钮可见性
-                            this.buttonVisibility = window.permissionChecker.getButtonVisibility();
-                        } else {
-                            // 初始化失败，使用降级权限
-                            this.setFallbackPermissions('limited');
-                        }
-                    } catch (error) {
-                        // 权限初始化异常 - 使用降级权限
-                        console.error('权限检查器执行错误:', error);
-                        this.setFallbackPermissions('limited');
-                    }
-                } else {
-                    // 权限检查器不存在，根据用户角色设置基础权限
-                    if (adminInfo && adminInfo.role) {
-                        // 根据角色设置权限
-                        if (adminInfo.role === 'super_admin') {
-                            this.setFallbackPermissions('full');
-                        } else if (adminInfo.role === 'admin') {
-                            this.setFallbackPermissions('admin');
-                        } else {
-                            this.setFallbackPermissions('view');
-                        }
-                    } else {
-                        // 默认只读权限
-                        this.setFallbackPermissions('view');
-                    }
-                }
-            } catch (error) {
-                // 获取用户信息失败 - 使用最小权限
-                console.error('获取用户信息失败:', error);
-                this.setFallbackPermissions('minimal');
-            }
-        },
         
-        // 设置降级权限
-        setFallbackPermissions(level) {
-            switch(level) {
-                case 'full':
-                    // 完整权限
-                    this.buttonVisibility = {
-                        edit: true,
-                        approve: true,
-                        reject: true,
-                        markAsAd: true,
-                        markAsTail: true,
-                        executeFilter: true,
-                        delete: true
-                    };
-                    break;
-                case 'admin':
-                    // 管理员权限
-                    this.buttonVisibility = {
-                        edit: true,
-                        approve: true,
-                        reject: true,
-                        markAsAd: true,
-                        markAsTail: false,
-                        executeFilter: true,
-                        delete: false
-                    };
-                    break;
-                case 'limited':
-                    // 有限权限
-                    this.buttonVisibility = {
-                        edit: true,
-                        approve: true,
-                        reject: true,
-                        markAsAd: false,
-                        markAsTail: false,
-                        executeFilter: false,
-                        delete: false
-                    };
-                    break;
-                case 'view':
-                    // 只读权限
-                    this.buttonVisibility = {
-                        edit: false,
-                        approve: false,
-                        reject: false,
-                        markAsAd: false,
-                        markAsTail: false,
-                        executeFilter: false,
-                        delete: false
-                    };
-                    break;
-                case 'minimal':
-                default:
-                    // 最小权限
-                    this.buttonVisibility = {
-                        edit: false,
-                        approve: false,
-                        reject: false,
-                        markAsAd: false,
-                        markAsTail: false,
-                        executeFilter: false,
-                        delete: false
-                    };
-                    break;
-            }
-        },
         
         async loadChannelInfo() {
             try {

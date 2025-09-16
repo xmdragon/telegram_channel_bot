@@ -27,11 +27,6 @@ class PathConfig:
     AD_TRAINING_DIR = TRAINING_DIR / "ad"
     AD_KEYWORDS_FILE = AD_TRAINING_DIR / "ad_keywords.json"  # 广告关键词配置（移到训练目录）
     AD_JSON_DIR = AD_TRAINING_DIR / "json"
-    AD_TRAINING_FILE = AD_JSON_DIR / "ad_training_data.json"
-    AD_MEDIA_DIR = AD_TRAINING_DIR
-    AD_MEDIA_METADATA_FILE = AD_JSON_DIR / "media_metadata.json"
-    AD_IMAGE_HASHES_FILE = AD_JSON_DIR / "ad_image_hashes.json"
-    NORMAL_TRAINING_FILE = AD_JSON_DIR / "normal_training_data.json"
     
     # 尾部过滤相关
     TAIL_TRAINING_DIR = TRAINING_DIR / "tail"

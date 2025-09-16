@@ -7,11 +7,9 @@ createApp({
                 id: null,
                 username: '',
                 is_super_admin: false,
-                permissions: [],
                 last_login: null
             },
             admins: [],
-            availablePermissions: {},
             
             // 修改密码对话框
             changePasswordDialog: {
@@ -44,8 +42,7 @@ createApp({
                 form: {
                     is_active: true,
                     is_super_admin: false,
-                    permissions: [],
-                    password: ''
+                        password: ''
                 }
             }
         };
@@ -53,8 +50,8 @@ createApp({
     
     async mounted() {
         try {
-            // 初始化认证 - 需要admin.manage权限
-            const authResult = await authManager.initPageAuth('admin.manage');
+            // 初始化认证
+            const authResult = await authManager.initPageAuth();
             if (!authResult) {
                 return; // 认证失败，页面已跳转
             }
@@ -62,10 +59,9 @@ createApp({
             // 加载当前管理员信息
             await this.loadCurrentAdmin();
             
-            // 如果是超级管理员，加载管理员列表和权限
+            // 如果是超级管理员，加载管理员列表
             if (this.currentAdmin.is_super_admin) {
                 await this.loadAdmins();
-                await this.loadPermissions();
             }
             
         } catch (error) {
@@ -101,15 +97,6 @@ createApp({
             }
         },
         
-        // 加载可用权限
-        async loadPermissions() {
-            try {
-                const response = await axios.get(API.adminAuth.permissions);
-                this.availablePermissions = response.data.permissions;
-            } catch (error) {
-                SimpleUI.Message.error('加载权限列表失败');
-            }
-        },
         
         // 显示修改密码对话框
         showChangePasswordDialog() {
@@ -204,10 +191,6 @@ createApp({
                 return;
             }
             
-            if (!form.is_super_admin && form.permissions.length === 0) {
-                SimpleUI.Message.warning('普通管理员至少需要分配一个权限');
-                return;
-            }
             
             this.createAdminDialog.loading = true;
             try {
@@ -232,7 +215,6 @@ createApp({
             this.editAdminDialog.form = {
                 is_active: admin.is_active,
                 is_super_admin: admin.is_super_admin,
-                permissions: [...admin.permissions],
                 password: ''
             };
             this.editAdminDialog.visible = true;
@@ -255,16 +237,11 @@ createApp({
                 return;
             }
             
-            if (!form.is_super_admin && form.permissions.length === 0) {
-                SimpleUI.Message.warning('普通管理员至少需要分配一个权限');
-                return;
-            }
             
             // 构建更新数据
             const updateData = {
                 is_active: form.is_active,
                 is_super_admin: form.is_super_admin,
-                permissions: form.is_super_admin ? null : form.permissions
             };
             
             if (form.password) {
@@ -315,33 +292,6 @@ createApp({
             }
         },
         
-        // 获取权限标签
-        getPermissionLabel(permission) {
-            const labels = {
-                'messages.view': '查看消息',
-                'messages.approve': '发布消息',
-                'messages.reject': '拒绝消息',
-                'config.view': '查看配置',
-                'config.edit': '编辑配置',
-                'training.view': '查看训练',
-                'training.edit': '编辑训练',
-                'system.view': '查看系统',
-                'system.manage': '管理系统'
-            };
-            return labels[permission] || permission;
-        },
-        
-        // 获取模块标签
-        getModuleLabel(module) {
-            const labels = {
-                'messages': '消息管理',
-                'config': '配置管理',
-                'training': '训练管理',
-                'admin': '管理员管理',
-                'system': '系统管理'
-            };
-            return labels[module] || module;
-        },
         
         // 格式化日期时间
         formatDateTime(datetime) {

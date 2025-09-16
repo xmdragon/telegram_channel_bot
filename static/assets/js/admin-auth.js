@@ -42,34 +42,6 @@ class AuthManager {
         return !!this.token && !!this.adminInfo;
     }
     
-    /**
-     * 检查是否有指定权限
-     */
-    hasPermission(permission) {
-        if (!this.adminInfo) return false;
-        if (this.adminInfo.is_super_admin) return true;
-        return this.adminInfo.permissions && this.adminInfo.permissions.includes(permission);
-    }
-    
-    /**
-     * 检查多个权限（满足其一即可）
-     */
-    hasAnyPermission(permissions) {
-        if (!Array.isArray(permissions)) {
-            permissions = [permissions];
-        }
-        return permissions.some(p => this.hasPermission(p));
-    }
-    
-    /**
-     * 检查多个权限（必须全部满足）
-     */
-    hasAllPermissions(permissions) {
-        if (!Array.isArray(permissions)) {
-            permissions = [permissions];
-        }
-        return permissions.every(p => this.hasPermission(p));
-    }
     
     /**
      * 获取带认证的请求头
@@ -122,9 +94,6 @@ class AuthManager {
             localStorage.setItem('auth_timestamp', Date.now().toString());
             
             // 如果响应包含权限信息，也缓存起来
-            if (response.data.permissions) {
-                localStorage.setItem('admin_permissions', JSON.stringify(response.data.permissions));
-            }
             
             this.adminInfo = response.data;
             return true;
@@ -197,67 +166,54 @@ class AuthManager {
     }
     
     /**
-     * 初始化页面权限检查 - 带超时处理
+     * 初始化页面认证检查 - 带超时处理
      */
-    async initPageAuth(requiredPermission = null) {
+    async initPageAuth() {
         try {
             // 开始页面加载超时检测
             if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.startPageLoadTimeout) {
                 window.AxiosConfig.startPageLoadTimeout();
             }
-            
+
             // 验证登录状态
             const isValid = await this.verifyAuth();
             if (!isValid) {
                 return false;
             }
-            
-            // 检查特定权限
-            if (requiredPermission && !this.hasPermission(requiredPermission)) {
-                if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
-                    window.SimpleUI.showMessage('您没有权限访问此页面', 'error');
-                } else {
-                    alert('您没有权限访问此页面');
-                }
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1500);
-                return false;
-            }
-            
+
             // 配置axios
             this.configureAxios();
-            
+
             // 清除页面加载超时检测
             if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.clearPageLoadTimeout) {
                 window.AxiosConfig.clearPageLoadTimeout();
             }
-            
+
             return true;
         } catch (error) {
-            console.error('页面权限检查失败:', error);
-            
+            console.error('页面认证检查失败:', error);
+
             // 清除页面加载超时检测
             if (typeof window.AxiosConfig !== 'undefined' && window.AxiosConfig.clearPageLoadTimeout) {
                 window.AxiosConfig.clearPageLoadTimeout();
             }
-            
+
             // 显示错误信息并提供重试
             if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
-                window.SimpleUI.showMessage('权限检查失败，请刷新页面重试', 'error', 8000);
+                window.SimpleUI.showMessage('认证检查失败，请刷新页面重试', 'error', 8000);
             }
-            
+
             // 3秒后提供刷新按钮
             setTimeout(() => {
                 this.addRetryButton();
             }, 3000);
-            
+
             return false;
         }
     }
     
     /**
-     * 后台静默刷新权限
+     * 后台静默刷新认证
      */
     async refreshAuthSilently() {
         if (!this.token) return false;
@@ -272,9 +228,6 @@ class AuthManager {
             localStorage.setItem('admin_info', JSON.stringify(response.data));
             localStorage.setItem('auth_timestamp', Date.now().toString());
             
-            if (response.data.permissions) {
-                localStorage.setItem('admin_permissions', JSON.stringify(response.data.permissions));
-            }
             
             this.adminInfo = response.data;
             return true;
@@ -283,7 +236,7 @@ class AuthManager {
                 this.logout();
                 return false;
             }
-            console.error('后台刷新权限失败:', error);
+            console.error('后台刷新认证失败:', error);
             return false;
         }
     }
@@ -391,7 +344,7 @@ function getAuthToken() {
 // 导出为全局函数
 window.getAuthToken = getAuthToken;
 
-// ⚡ 启动后台权限刷新机制 - 每5分钟静默刷新一次
+// ⚡ 启动后台认证刷新机制 - 每5分钟静默刷新一次
 if (typeof window !== 'undefined') {
     // 避免重复启动定时器
     if (!window.authRefreshTimer) {

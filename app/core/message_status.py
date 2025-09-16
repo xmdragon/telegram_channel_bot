@@ -2,8 +2,6 @@
 消息状态定义
 只保留本质的3种状态和2种拒绝原因
 
-消息要么在处理中(PENDING)，要么被批准了(APPROVED)，要么被拒绝了(REJECTED)
-拒绝原因只有广告(AD)和手动拒绝(MANUAL)两种
 """
 from enum import Enum
 
@@ -12,9 +10,9 @@ class MessageStatus(Enum):
     """
     消息状态 - 只有3种
     """
-    PENDING = "pending"      # 待审核 - 消息刚到达，等待审核
-    APPROVED = "approved"    # 已发布 - 消息通过所有过滤器，可以发布
-    REJECTED = "rejected"    # 已拒绝 - 消息被过滤器拒绝
+    PENDING = "pending"      # 待审核 - 消息等待审核
+    APPROVED = "approved"    # 已发布 - 消息已经发布
+    REJECTED = "rejected"    # 已拒绝 - 消息已被拒绝
 
 
 class RejectionReason(Enum):

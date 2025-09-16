@@ -87,8 +87,7 @@ async def backup_permissions_and_users():
         from app.core.path_config import PathConfig
         training_files = [
             str(PathConfig.TAIL_FILTER_SAMPLES_FILE),
-            str(PathConfig.OCR_SAMPLES_FILE),
-            str(PathConfig.AD_TRAINING_FILE)
+            str(PathConfig.OCR_SAMPLES_FILE)
         ]
         
         for training_file in training_files:
@@ -246,8 +245,7 @@ async def restore_from_backup(backup_path: str):
         from app.core.path_config import PathConfig
         training_files = [
             (PathConfig.TAIL_FILTER_SAMPLES_FILE.name, PathConfig.TAIL_FILTER_SAMPLES_FILE),
-            (PathConfig.OCR_SAMPLES_FILE.name, PathConfig.OCR_SAMPLES_FILE),
-            (PathConfig.AD_TRAINING_FILE.name, PathConfig.AD_TRAINING_FILE)
+            (PathConfig.OCR_SAMPLES_FILE.name, PathConfig.OCR_SAMPLES_FILE)
         ]
         
         for file_name, dest_path in training_files:

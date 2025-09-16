@@ -55,7 +55,6 @@
                                     <th>用户名</th>
                                     <th>角色</th>
                                     <th>状态</th>
-                                    <th>权限</th>
                                     <th>最后登录</th>
                                     <th>创建时间</th>
                                     <th>操作</th>
@@ -72,17 +71,6 @@
                                         <span :class="admin.is_active ? 'tag tag-success' : 'tag tag-warning'">
                                             {{ admin.is_active ? '启用' : '禁用' }}
                                         </span>
-                                    </td>
-                                    <td class="permissions-cell">
-                                        <div v-if="admin.is_super_admin">
-                                            <span class="tag tag-danger">所有权限</span>
-                                        </div>
-                                        <div v-else class="permission-tags">
-                                            <span v-for="perm in admin.permissions" :key="perm" 
-                                                  class="tag tag-secondary permission-tag">
-                                                {{ getPermissionLabel(perm) }}
-                                            </span>
-                                        </div>
                                     </td>
                                     <td class="datetime-cell">
                                         {{ formatDateTime(admin.last_login) || '从未登录' }}
@@ -110,23 +98,6 @@
                 </div>
             </div>
 
-            <!-- 权限说明 -->
-            <div v-if="currentAdmin.is_super_admin" class="permissions-info-card">
-                <div class="card-header">
-                    <h3>权限说明</h3>
-                </div>
-                <div class="card-body">
-                    <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module">
-                        <h4>{{ getModuleLabel(module) }}</h4>
-                        <div class="permission-list">
-                            <div v-for="perm in perms" :key="perm.name" class="permission-item">
-                                <span class="permission-name">{{ perm.name }}</span>
-                                <span class="permission-desc">{{ perm.description }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- 修改密码对话框 -->
@@ -225,22 +196,6 @@
                                 </span>
                             </div>
                         </div>
-                        <div v-if="!createAdminDialog.form.is_super_admin" class="form-row">
-                            <label class="form-label">权限分配</label>
-                            <div class="permission-checkbox-group">
-                                <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
-                                    <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
-                                    <div class="permission-checkbox-grid">
-                                        <label v-for="perm in perms" :key="perm.name" class="checkbox-wrapper">
-                                            <input type="checkbox" 
-                                                   :value="perm.name"
-                                                   v-model="createAdminDialog.form.permissions">
-                                            <span class="checkbox-label">{{ perm.description }}</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -303,22 +258,6 @@
                                 <span class="switch-label">
                                     {{ editAdminDialog.form.is_super_admin ? '超级管理员' : '普通管理员' }}
                                 </span>
-                            </div>
-                        </div>
-                        <div v-if="!editAdminDialog.form.is_super_admin" class="form-row">
-                            <label class="form-label">权限分配</label>
-                            <div class="permission-checkbox-group">
-                                <div v-for="(perms, module) in availablePermissions" :key="module" class="permission-module-group">
-                                    <div class="permission-module-title">{{ getModuleLabel(module) }}</div>
-                                    <div class="permission-checkbox-grid">
-                                        <label v-for="perm in perms" :key="perm.name" class="checkbox-wrapper">
-                                            <input type="checkbox" 
-                                                   :value="perm.name"
-                                                   v-model="editAdminDialog.form.permissions">
-                                            <span class="checkbox-label">{{ perm.description }}</span>
-                                        </label>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </form>

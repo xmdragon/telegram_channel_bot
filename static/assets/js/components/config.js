@@ -112,7 +112,7 @@ const ConfigApp = {
     
     async mounted() {
         // 初始化权限检查
-        const isAuthorized = await authManager.initPageAuth('config.view');
+        const isAuthorized = await authManager.initPageAuth();
         if (!isAuthorized) {
             return;
         }
@@ -135,8 +135,8 @@ const ConfigApp = {
             
             const filter = this.channelSearchFilter.toLowerCase();
             return this.channels.filter(channel => {
-                const name = (channel.name || '').toLowerCase();
-                const title = (channel.title || '').toLowerCase();
+                const name = (channel.channel_name || '').toLowerCase();
+                const title = (channel.channel_title || '').toLowerCase();
                 const channelId = (channel.channel_id || '').toLowerCase();
                 // 搜索时同时匹配标题、名称和ID
                 return name.includes(filter) || title.includes(filter) || channelId.includes(filter);
@@ -276,7 +276,7 @@ const ConfigApp = {
         
         async loadChannels() {
             try {
-                const response = await axios.get(API.admin.channels);
+                const response = await axios.get(API.channels.list);
                 if (response.data.success) {
                     this.channels = response.data.channels;
                 }
@@ -301,7 +301,7 @@ const ConfigApp = {
                     channelName = '@' + channelName;
                 }
                 
-                const response = await axios.post(API.admin.channels, {
+                const response = await axios.post(API.channels.add, {
                     channel_id: "",  // 自动解析
                     channel_name: channelName,
                     channel_title: ""  // 自动解析
@@ -323,7 +323,7 @@ const ConfigApp = {
         async removeChannel(channelId) {
             try {
                 
-                const response = await axios.delete(API.config.channelsById(channelId));
+                const response = await axios.delete(API.channels.delete(channelId));
                 
                 
                 if (response.data.success) {
@@ -339,8 +339,8 @@ const ConfigApp = {
         
         async resolveChannelIds() {
             try {
-                
-                const response = await axios.post(API.admin.resolveChannelIds);
+
+                const response = await axios.post(API.channels.resolveAll);
                 
                 if (response.data.success) {
                     MessageManager.success(`频道ID解析完成：${response.data.message}`);
@@ -398,7 +398,7 @@ const ConfigApp = {
         
         async resolveChannelId(channelName) {
             try {
-                const response = await axios.post(API.admin.resolveChannelId, {
+                const response = await axios.post(API.channels.resolve, {
                     channel_name: channelName
                 });
                 
@@ -618,7 +618,7 @@ const ConfigApp = {
         async resolveAllChannels() {
             try {
                 
-                const response = await axios.post(API.admin.resolveChannelIds);
+                const response = await axios.post(API.channels.resolveAll);
                 
                 if (response.data.success) {
                     MessageManager.success(`频道解析完成: ${response.data.message}`);

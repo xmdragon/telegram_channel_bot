@@ -161,7 +161,6 @@ class RouteConfig:
         ad_vector_stats = "/training/ad-vector-stats"
         
         # 基础训练（保留实际使用的端点）
-        mark_ad_message = "/training/mark-ad-message"
         separator_patterns = "/training/separator-patterns"
         test_separator = "/training/test-separator"
         
