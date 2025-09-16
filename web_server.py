@@ -269,10 +269,10 @@ SERVE_STATIC_FALLBACK = os.getenv("SERVE_STATIC_FALLBACK", "true").lower() == "t
 if SERVE_STATIC_FALLBACK:
     # 挂载 /static 与 /temp_media 以及训练媒体，便于本地直接预览
     PathConfig.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
-    PathConfig.AD_TRAINING_DIR.mkdir(exist_ok=True)
+    PathConfig.TRAINING_DIR.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory="static"), name="static")
     app.mount("/temp_media", StaticFiles(directory=str(PathConfig.TEMP_MEDIA_DIR)), name="temp_media")
-    app.mount("/media/ad_training_data", StaticFiles(directory=str(PathConfig.AD_TRAINING_DIR)), name="training_media")
+    app.mount("/media/ad_training_data", StaticFiles(directory=str(PathConfig.TRAINING_DIR)), name="training_media")
     logger.info("🧩 已启用本地静态与媒体回退服务（SERVE_STATIC_FALLBACK=true）")
 else:
     logger.info("🚀 生产模式：静态与媒体由外部服务器提供（SERVE_STATIC_FALLBACK=false）")
