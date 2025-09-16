@@ -260,8 +260,6 @@ class JSONAdminStore(JSONStore):
     """管理员数据存储"""
     
     ADMIN_FILE = "admins.json"
-    PERMISSION_FILE = "permissions.json"
-    ADMIN_PERM_FILE = "admin_permissions.json"
     
     def get_admin_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         """根据用户名获取管理员"""
@@ -319,75 +317,6 @@ class JSONAdminStore(JSONStore):
             logger.error(f"保存管理员失败: {e}")
             return False
     
-    def get_admin_permissions(self, admin_id: int) -> List[str]:
-        """获取管理员权限"""
-        try:
-            admin_perms = self._load_json(self.ADMIN_PERM_FILE)
-            permissions = self._load_json(self.PERMISSION_FILE)
-            
-            result = []
-            for perm_id in admin_perms.get(str(admin_id), []):
-                perm_data = permissions.get(str(perm_id))
-                if perm_data:
-                    result.append(perm_data.get('name', ''))
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"获取管理员权限失败 {admin_id}: {e}")
-            return []
-    
-    def set_admin_permissions(self, admin_id: int, permission_names: List[str]) -> bool:
-        """设置管理员权限"""
-        try:
-            permissions = self._load_json(self.PERMISSION_FILE)
-            admin_perms = self._load_json(self.ADMIN_PERM_FILE)
-            
-            # 根据权限名称找到权限ID
-            permission_ids = []
-            for perm_id, perm_data in permissions.items():
-                if perm_data.get('name') in permission_names:
-                    permission_ids.append(int(perm_id))
-            
-            admin_perms[str(admin_id)] = permission_ids
-            return self._save_json(self.ADMIN_PERM_FILE, admin_perms)
-            
-        except Exception as e:
-            logger.error(f"设置管理员权限失败 {admin_id}: {e}")
-            return False
-    
-    def get_all_permissions(self) -> List[Dict[str, Any]]:
-        """获取所有权限"""
-        try:
-            permissions = self._load_json(self.PERMISSION_FILE)
-            result = []
-            
-            for perm_id, perm_data in permissions.items():
-                perm_data = perm_data.copy()
-                perm_data['id'] = int(perm_id)
-                result.append(perm_data)
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"获取所有权限失败: {e}")
-            return []
-    
-    def has_permission(self, admin_id: int, permission_name: str) -> bool:
-        """检查管理员是否有指定权限"""
-        try:
-            # 检查是否为超级管理员
-            admin = self.get_admin_by_id(admin_id)
-            if admin and admin.get('is_super_admin'):
-                return True
-            
-            # 检查具体权限
-            admin_permissions = self.get_admin_permissions(admin_id)
-            return permission_name in admin_permissions
-            
-        except Exception as e:
-            logger.error(f"检查权限失败 {admin_id} {permission_name}: {e}")
-            return False
 
 
 # 全局实例和初始化同步机制

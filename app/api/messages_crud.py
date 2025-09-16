@@ -50,53 +50,6 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
         raise HTTPException(status_code=401, detail="未授权访问")
     return user
 
-def check_permission(permission_name: str):
-    """检查权限装饰器 - 真正的权限验证"""
-    def decorator(func):
-        import functools
-        
-        # 获取函数签名，找到用户参数
-        import inspect
-        sig = inspect.signature(func)
-        
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            # 获取用户参数
-            user = None
-            
-            # 首先尝试从kwargs获取
-            if 'user' in kwargs:
-                user = kwargs.get('user')
-            
-            # 如果kwargs中没有，尝试从args中根据参数位置获取
-            if not user and args:
-                # 获取所有参数名的列表
-                param_names = list(sig.parameters.keys())
-                # 查找user参数的位置
-                if 'user' in param_names:
-                    user_index = param_names.index('user')
-                    # 如果args有足够的参数
-                    if len(args) > user_index:
-                        user = args[user_index]
-            
-            if not user:
-                # 添加调试信息
-                logger.error(f"权限检查失败: 无法获取用户信息. 函数: {func.__name__}, args数量: {len(args)}, kwargs: {kwargs.keys()}")
-                raise HTTPException(status_code=401, detail="用户认证信息缺失")
-            
-            try:
-                auth_service = get_auth_service()
-                # 登录用户拥有所有权限
-                return await func(*args, **kwargs)
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.error(f"权限检查失败: {e}")
-                raise HTTPException(status_code=500, detail="权限检查系统错误")
-        
-        return wrapper
-    return decorator
 
 @router.get(ROUTES.messages.list)
 async def get_messages(
@@ -539,7 +492,6 @@ async def get_message(
 
 
 @router.post(ROUTES.messages.approve)
-@check_permission("message.approve")
 async def approve_message(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth)
@@ -579,7 +531,6 @@ async def approve_message(
         raise HTTPException(status_code=500, detail=f"发布消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.reject)
-@check_permission("message.reject")
 async def reject_message(
     message_id: str,
     reason: str = Query(..., description="拒绝原因"),
@@ -619,7 +570,6 @@ async def reject_message(
         raise HTTPException(status_code=500, detail=f"拒绝消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.restore)
-@check_permission("message.restore")
 async def restore_message(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth)
@@ -663,7 +613,6 @@ async def restore_message(
 
 
 @router.put(ROUTES.messages.update)
-@check_permission("message.update")
 async def update_message(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth),
@@ -727,7 +676,6 @@ async def update_message(
 
 
 @router.post(ROUTES.messages.edit_publish)
-@check_permission("message.edit_publish")
 async def edit_and_publish_message(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth),
@@ -765,7 +713,6 @@ async def edit_and_publish_message(
         raise HTTPException(status_code=500, detail=f"编辑消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.resend)
-@check_permission("message.resend")
 async def resend_message(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth)
@@ -805,7 +752,6 @@ async def resend_message(
         raise HTTPException(status_code=500, detail=f"重新发布消息失败: {str(e)}")
 
 @router.delete(ROUTES.messages.delete_review)
-@check_permission("message.delete_review")
 async def delete_review_message(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth)
@@ -966,7 +912,6 @@ async def _redis_websocket_notify(event_type: str, message_id: str, message: str
         logger.error(f"发送Redis WebSocket通知失败: {e}")
 
 @router.post(ROUTES.messages.publish_direct)
-@check_permission("message.publish")
 async def publish_message_direct(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth)

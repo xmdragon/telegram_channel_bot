@@ -45,19 +45,8 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
         raise HTTPException(status_code=401, detail="未授权访问")
     return user
 
-def check_permission(permission_name: str):
-    """检查权限装饰器"""
-    def decorator(func):
-        import functools
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            # 这里可以添加具体的权限检查逻辑
-            return await func(*args, **kwargs)
-        return wrapper
-    return decorator
 
 @router.post(ROUTES.messages.filter_content)
-@check_permission("filter.execute")
 async def filter_message_content(
     message_id: str,
     user: Dict[str, Any] = Depends(require_auth),
@@ -158,7 +147,6 @@ async def filter_message_content(
 
 
 @router.post(ROUTES.messages.train_tail)
-@check_permission("filter.train")
 async def train_message_tail(
     message_id: str,
     tail_content: str = Query(..., description="要训练的尾部内容"),
@@ -230,7 +218,6 @@ async def train_message_tail(
         raise HTTPException(status_code=500, detail=f"保存训练数据失败: {str(e)}")
 
 @router.post(ROUTES.messages.not_ad)
-@check_permission("filter.train")
 async def mark_not_ad(
     message_id: str,  # 参数名必须与路由定义中的{message_id}匹配
     user: Dict[str, Any] = Depends(require_auth),
@@ -316,7 +303,6 @@ async def mark_not_ad(
         raise HTTPException(status_code=500, detail=f"标记失败: {str(e)}")
 
 @router.post(ROUTES.messages.feedback)
-@check_permission("filter.feedback")
 async def submit_filter_feedback(
     message_id: str,
     feedback_type: str = Query(..., description="反馈类型"),

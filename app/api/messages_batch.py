@@ -45,16 +45,6 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
         raise HTTPException(status_code=401, detail="未授权访问")
     return user
 
-def check_permission(permission_name: str):
-    """检查权限装饰器"""
-    def decorator(func):
-        import functools
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            # 这里可以添加具体的权限检查逻辑
-            return await func(*args, **kwargs)
-        return wrapper
-    return decorator
 
 async def parse_and_collect_messages(message_ids: List[str], status_filter: str = 'pending'):
     """
@@ -112,7 +102,6 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
     return message_tuples, valid_messages
 
 @router.post(ROUTES.messages.batch_approve)
-@check_permission("messages.approve")
 async def batch_approve_messages(
     request: dict = Body({}),
     user: Dict[str, Any] = Depends(require_auth),
@@ -247,7 +236,6 @@ async def batch_approve_messages(
         raise HTTPException(status_code=500, detail=f"批量批准消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.batch_reject)
-@check_permission("messages.reject")
 async def batch_reject_messages(
     request: dict = Body({}),
     user: Dict[str, Any] = Depends(require_auth),
@@ -324,7 +312,6 @@ async def batch_reject_messages(
         raise HTTPException(status_code=500, detail=f"批量拒绝消息失败: {str(e)}")
 
 @router.post(ROUTES.messages.batch_delete)
-@check_permission("messages.delete")
 async def batch_delete_messages(
     request: dict = Body({}),
     user: Dict[str, Any] = Depends(require_auth),
