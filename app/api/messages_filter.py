@@ -232,7 +232,7 @@ async def train_message_tail(
 @router.post(ROUTES.messages.not_ad)
 @check_permission("filter.train")
 async def mark_not_ad(
-    message_id: str,
+    message_id: str,  # 参数名必须与路由定义中的{message_id}匹配
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
@@ -293,8 +293,8 @@ async def mark_not_ad(
             raise HTTPException(status_code=500, detail="更新消息状态失败")
         
         # 更新统计数据
-        from app.storage.linus_stats_store import get_linus_stats_store
-        stats_store = get_linus_stats_store()
+        from app.storage.message_stats_store import get_message_stats_store
+        stats_store = get_message_stats_store()
         stats_store.increment_pending()
         if message.get('status') == 'rejected':
             stats_store.decrement_rejected()

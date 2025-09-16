@@ -1,6 +1,6 @@
 """
-Linus式消息统计存储
-彻底简化的统计系统 - 遵循"好品味"原则
+消息统计存储模块
+简化的统计系统，提供高性能消息状态跟踪
 
 核心原则：
 1. 只有3种状态：pending, approved, rejected（没有更多）
@@ -43,10 +43,10 @@ class MessageStats:
 
 
 
-class LinusStatsStore:
+class MessageStatsStore:
     """
-    Linus式统计存储
-    
+    消息统计存储系统
+
     设计原则：
     1. 数据结构决定一切
     2. 消除所有特殊情况
@@ -147,14 +147,14 @@ class LinusStatsStore:
         直接从索引计算，消除数据不一致问题
         """
         try:
-            # 🔥 Linus方式：索引就是唯一真相源
+            # 基于索引的统计：索引就是唯一真相源
             pending = self.redis.zcard("index:msg:pending")      # O(1)
             approved = self.redis.zcard("index:msg:approved")    # O(1)
             rejected = self.redis.zcard("index:msg:rejected")    # O(1)
             
             logger.debug(f"📊 从索引计算统计: pending={pending}, approved={approved}, rejected={rejected}")
             
-            # 🚀 Linus式修复：total就是三者之和，消除特殊情况
+            # 计算总数：total就是三者之和，消除特殊情况
             total = pending + approved + rejected
             
             return MessageStats(
@@ -289,17 +289,17 @@ class LinusStatsStore:
 
 
 # 全局实例
-linus_stats_store = None
+message_stats_store = None
 
-def get_linus_stats_store() -> LinusStatsStore:
-    """获取Linus式统计存储实例"""
-    global linus_stats_store
-    if linus_stats_store is None:
-        linus_stats_store = LinusStatsStore()
-    return linus_stats_store
+def get_message_stats_store() -> MessageStatsStore:
+    """获取消息统计存储实例"""
+    global message_stats_store
+    if message_stats_store is None:
+        message_stats_store = MessageStatsStore()
+    return message_stats_store
 
-def init_linus_stats_store(redis_url: str = None):
-    """初始化Linus式统计存储"""
-    global linus_stats_store
-    linus_stats_store = LinusStatsStore(redis_url)
-    return linus_stats_store
+def init_message_stats_store(redis_url: str = None):
+    """初始化消息统计存储"""
+    global message_stats_store
+    message_stats_store = MessageStatsStore(redis_url)
+    return message_stats_store

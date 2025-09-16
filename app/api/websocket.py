@@ -54,7 +54,7 @@ class WebSocketManager:
             self.disconnect(websocket)
             
     async def broadcast(self, message: str):
-        """广播消息给所有连接 - Linus式：发送即忘，不阻塞"""
+        """广播消息给所有连接 - ：发送即忘，不阻塞"""
         if not self.active_connections:
             return
             
@@ -210,9 +210,9 @@ class WebSocketManager:
 websocket_manager = WebSocketManager()
 
 async def handle_websocket_message(websocket: WebSocket, message: str):
-    """处理WebSocket消息 - Linus式双向通信"""
+    """处理WebSocket消息 - 双向通信"""
     try:
-        # Linus式错误处理：垃圾输入优雅丢弃，不报错
+        # 错误处理：垃圾输入优雅丢弃，不报错
         if not isinstance(message, str):
             return  # 直接忽略非字符串消息
             
@@ -236,17 +236,17 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
         elif msg_type == "request_stats":
             # 请求统计数据 - 使用真正的统计功能
             try:
-                from app.storage.linus_stats_store import linus_stats_store
-                
-                if linus_stats_store is None:
+                from app.storage.message_stats_store import message_stats_store
+
+                if message_stats_store is None:
                     raise RuntimeError("统计存储未初始化")
                 
-                # 按Linus原则：直接获取所需的统计数据
+                # 按设计原则：直接获取所需的统计数据
                 stats_data = {
-                    "total_messages": linus_stats_store.get_total_messages(),
-                    "pending_count": linus_stats_store.get_pending_count(),
-                    "approved_count": linus_stats_store.get_approved_count(),
-                    "rejected_count": linus_stats_store.get_rejected_count(),
+                    "total_messages": message_stats_store.get_total_messages(),
+                    "pending_count": message_stats_store.get_pending_count(),
+                    "approved_count": message_stats_store.get_approved_count(),
+                    "rejected_count": message_stats_store.get_rejected_count(),
                     "timestamp": datetime.utcnow().isoformat()
                 }
                 

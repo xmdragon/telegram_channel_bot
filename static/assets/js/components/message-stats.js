@@ -1,14 +1,14 @@
 /**
- * Linus式统计组件 - 极简版本
- * 
- * Linus原则：
+ * 消息统计组件 - 极简版本
+ *
+ * 设计原则：
  * - 消除特殊情况，只有一种数据获取方式
  * - 不破坏用户空间，保持相同接口
  * - 实用主义，解决真实的性能问题
  * - 简洁执念，最少的代码做最多的事
  */
 
-const LinusStatsComponent = {
+const MessageStatsComponent = {
     data() {
         return {
             loading: false,
@@ -36,7 +36,7 @@ const LinusStatsComponent = {
     
     methods: {
         /**
-         * 加载统计数据 - Linus式极简实现
+         * 加载统计数据 - 极简实现
          * 消除所有特殊情况：只有HTTP请求 + localStorage缓存
          */
         async loadStats() {
@@ -79,7 +79,7 @@ const LinusStatsComponent = {
          * 从API获取统计数据 - 单一数据源
          */
         async fetchStatsFromAPI() {
-            const response = await axios.get('/api/stats/linus-overview', {
+            const response = await axios.get('/api/stats/overview', {
                 headers: window.authManager?.getAuthHeaders?.() || {}
             });
             
@@ -112,7 +112,7 @@ const LinusStatsComponent = {
          */
         getCachedStats(allowExpired = false) {
             try {
-                const cached = localStorage.getItem('linus_stats');
+                const cached = localStorage.getItem('message_stats');
                 if (!cached) return null;
                 
                 const { data, timestamp } = JSON.parse(cached);
@@ -124,7 +124,7 @@ const LinusStatsComponent = {
                 }
                 
                 // 过期时清理
-                localStorage.removeItem('linus_stats');
+                localStorage.removeItem('message_stats');
                 return null;
             } catch {
                 return null;
@@ -136,7 +136,7 @@ const LinusStatsComponent = {
          */
         setCachedStats(data) {
             try {
-                localStorage.setItem('linus_stats', JSON.stringify({
+                localStorage.setItem('message_stats', JSON.stringify({
                     data,
                     timestamp: Date.now()
                 }));
@@ -154,7 +154,7 @@ const LinusStatsComponent = {
             this.isRefreshing = true;
             try {
                 // 清除缓存，强制重新请求
-                localStorage.removeItem('linus_stats');
+                localStorage.removeItem('message_stats');
                 await this.loadStats();
             } finally {
                 this.isRefreshing = false;
@@ -187,7 +187,7 @@ const LinusStatsComponent = {
     },
     
     template: `
-        <div class="linus-stats-container">
+        <div class="message-stats-container">
             <!-- 错误提示 -->
             <div v-if="error" class="error-alert">
                 <span class="error-icon">⚠️</span>
@@ -222,4 +222,4 @@ const LinusStatsComponent = {
 };
 
 // 全局注册 - 保持向后兼容
-window.LinusStatsComponent = LinusStatsComponent;
+window.MessageStatsComponent = MessageStatsComponent;

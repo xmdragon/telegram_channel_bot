@@ -1,4 +1,4 @@
-/* Linus式统一统计标签 - 消除样式特殊情况 */
+/* 统一统计标签 - 消除样式特殊情况 */
 
 /* 统计网格布局 */
 .stats-grid {
@@ -175,7 +175,7 @@
     }
 }
 
-/* Linus Stats 组件专用样式 */
+/* Stats 组件专用样式 */
 
 /* 错误提示样式 */
 .error-alert {
@@ -247,6 +247,6 @@
 }
 
 /* 统计容器 */
-.linus-stats-container {
+.message-stats-container {
     padding: 8px 0;
 }

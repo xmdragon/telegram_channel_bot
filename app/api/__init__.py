@@ -6,7 +6,7 @@ from .messages_crud import router as messages_crud_router
 from .messages_batch import router as messages_batch_router
 from .messages_filter import router as messages_filter_router
 from .messages_stats import router as messages_stats_router
-from .linus_stats_api import router as linus_stats_router
+from .message_stats_api import router as message_stats_router
 from .admin import router as admin_router
 from .config import router as config_router
 from .telegram_dual_auth import router as dual_auth_router
@@ -29,7 +29,7 @@ api_router.include_router(messages_crud_router, tags=["messages-crud"])
 api_router.include_router(messages_batch_router, tags=["messages-batch"])  
 api_router.include_router(messages_filter_router, tags=["messages-filter"])
 api_router.include_router(messages_stats_router, tags=["messages-stats"])
-api_router.include_router(linus_stats_router, tags=["linus-stats"])
+api_router.include_router(message_stats_router, tags=["message-stats"])
 
 # 其他API路由
 api_router.include_router(admin_router, tags=["admin"])

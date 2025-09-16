@@ -91,13 +91,13 @@ class MessageProcessor:
             logger.error(f"获取自动转发消息失败: {e}")
             return []
     
-    # Linus式重构：删除不必要的HTTP API调用层
+    # ：删除不必要的HTTP API调用层
     # 自动转发功能已移至collector服务中，直接使用Telegram客户端
     
     
     async def process_new_message(self, message_data: dict) -> Optional[Dict[str, Any]]:
         """
-        处理新消息，包括智能去重检测 - Linus式优化版本
+        处理新消息，包括智能去重检测 - 优化版本
 
         Args:
             message_data: 消息数据字典
@@ -171,7 +171,7 @@ class MessageProcessor:
                     if saved_message:
                         logger.info(f"💾 message_processor: 新消息 {channel_id}:{message_id} 成功保存到Redis [状态: {saved_message.get('status', 'unknown')}]")
                         
-                        # 🚀 Linus式优化：同时更新视觉哈希专门索引
+                        # 🚀 优化：同时更新视觉哈希专门索引
                         message_time = self._extract_message_time(saved_message)
                         await self._update_visual_index(channel_id, int(message_id), message_data, message_time)
                         
@@ -217,7 +217,7 @@ class MessageProcessor:
                 logger.debug(f"消息无视觉哈希数据，跳过索引更新: {channel_id}:{message_id}")
                 return
             
-            # 🚀 Linus式健壮解析：支持多种数据格式
+            # 🚀 健壮解析：支持多种数据格式
             visual_hashes = None
             if isinstance(visual_hash_str, str):
                 try:
@@ -257,7 +257,7 @@ class MessageProcessor:
                 logger.warning(f"⚠️ 视觉哈希索引更新失败: {channel_id}:{message_id}")
                 
         except Exception as e:
-            # 🚀 Linus式错误处理：视觉索引是辅助功能，不能影响核心流程
+            # 🚀 错误处理：视觉索引是辅助功能，不能影响核心流程
             logger.warning(f"⚠️ 视觉哈希索引更新异常 {channel_id}:{message_id}: {e} (不影响消息存储)")
             # 添加详细的错误信息用于调试
             import traceback
@@ -302,16 +302,16 @@ class MessageProcessor:
             # 不抛出异常，避免影响消息保存流程
     
     async def get_message_stats(self) -> dict:
-        """获取消息统计信息 - 使用Linus O(1)计数器"""
+        """获取消息统计信息 - 使用O(1)计数器"""
         try:
-            from app.storage.linus_stats_store import get_linus_stats_store
-            stats_store = get_linus_stats_store()
+            from app.storage.message_stats_store import get_message_stats_store
+            stats_store = get_message_stats_store()
             
-            # 获取Linus统计数据
+            # 获取消息统计数据
             message_stats = stats_store.get_global_stats()
             rejection_stats = stats_store.get_rejection_stats()
             
-            # Linus式纯净统计：只有4个核心字段，消除所有特殊情况
+            # 纯净统计：只有4个核心字段，消除所有特殊情况
             return {
                 "total": message_stats.total,
                 "pending": message_stats.pending,

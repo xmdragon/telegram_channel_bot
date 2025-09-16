@@ -52,7 +52,7 @@ function initializeGlobals() {
 // 主应用协调器 - 纯协调层，不包含具体业务逻辑
 const MainApp = {
     data() {
-        // Linus式"好品味"：确保状态初始化完整且可靠
+        // "好品味"：确保状态初始化完整且可靠
         const baseState = {
             // 加载状态
             loading: false,
@@ -161,7 +161,7 @@ const MainApp = {
     },
     
     computed: {
-        // Linus式"好品味"：简单直接的频道去重逻辑
+        // "好品味"：简单直接的频道去重逻辑
         uniqueChannels() {
             if (!this.channelInfo) return {};
             
@@ -178,7 +178,7 @@ const MainApp = {
             return uniqueChannels;
         },
         
-        // Linus式"好品味"：可靠的消息过滤，不依赖外部模块
+        // "好品味"：可靠的消息过滤，不依赖外部模块
         filteredMessages() {
             if (!this.messages || !Array.isArray(this.messages)) {
                 return [];
@@ -234,7 +234,7 @@ const MainApp = {
     },
     
     created() {
-        // Linus式"好品味"：确保所有响应式数据正确初始化
+        // "好品味"：确保所有响应式数据正确初始化
         
         // 确保关键对象存在
         if (!this.mediaPreview) {
@@ -424,7 +424,7 @@ const MainApp = {
     },
     
     methods: {
-        // Linus式工具函数：确保消息ID包含-100前缀 - 消除特殊情况
+        // 工具函数：确保消息ID包含-100前缀 - 消除特殊情况
         ensureChannelIdPrefix(messageId) {
             if (!messageId || !messageId.includes(':')) {
                 return messageId;
@@ -758,9 +758,9 @@ const MainApp = {
         },
         
         refreshStats() {
-            // 调用Linus统计组件的刷新方法
-            if (this.$refs.linusStats) {
-                this.$refs.linusStats.refreshStats();
+            // 调用统计组件的刷新方法
+            if (this.$refs.messageStats) {
+                this.$refs.messageStats.refreshStats();
             }
         },
 
@@ -926,7 +926,12 @@ const MainApp = {
         },
         
         // 发布消息
-        async approveMessage(messageId) {
+        async approveMessage(event, messageId) {
+            // 处理参数兼容性
+            if (typeof event === 'string') {
+                messageId = event;
+                event = null;
+            }
             // 防止重复点击
             if (this.publishingMessages.has(messageId)) {
                 return;
@@ -1004,7 +1009,12 @@ const MainApp = {
         },
         
         // 拒绝消息
-        async rejectMessage(messageId) {
+        async rejectMessage(event, messageId) {
+            // 处理参数兼容性
+            if (typeof event === 'string') {
+                messageId = event;
+                event = null;
+            }
             try {
                 // 保存当前滚动位置
                 const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
@@ -1080,7 +1090,12 @@ const MainApp = {
         },
         
         // 恢复被拒绝的消息
-        async restoreMessage(messageId) {
+        async restoreMessage(event, messageId) {
+            // 处理参数兼容性
+            if (typeof event === 'string') {
+                messageId = event;
+                event = null;
+            }
             // 添加确认对话框
             if (!confirm('确定要恢复此消息为待审核状态吗？\n\n这将仅修改消息状态，不会影响训练数据。')) {
                 return;
@@ -1562,7 +1577,7 @@ const MainApp = {
             try {
                 let data;
                 
-                // Linus式：消除特殊情况，智能检测参数类型
+                // ：消除特殊情况，智能检测参数类型
                 if (eventOrData && typeof eventOrData.data === 'string') {
                     // WebSocket原生event格式：{data: "json字符串"}
                     try {
@@ -2133,7 +2148,12 @@ const MainApp = {
         },
 
         // 标记为广告 - 新流程：提取关键词 -> 选择权重 -> 保存
-        async markAsAd(messageId) {
+        async markAsAd(event, messageId) {
+            // 处理参数兼容性
+            if (typeof event === 'string') {
+                messageId = event;
+                event = null;
+            }
             // 直接使用messageId查找消息（已包含-100前缀）
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
@@ -2430,19 +2450,34 @@ const MainApp = {
         },
         
         // 标记为"不是广告" - 纠正AI误判
-        async markAsNotAd(event, message) {
+        async markAsNotAd(event, messageId) {
+            // 处理参数兼容性
+            let message = null;
+
+            // 如果第一个参数是字符串，说明是旧的调用方式
+            if (typeof event === 'string') {
+                messageId = event;
+                event = null;
+            }
+            // 如果第二个参数是对象，说明是message对象
+            else if (typeof messageId === 'object' && messageId !== null) {
+                message = messageId;
+                messageId = message.id;
+            }
+
             // 强制阻止事件传播
-            if (event) {
+            if (event && event.preventDefault) {
                 event.preventDefault();
                 event.stopPropagation();
                 event.stopImmediatePropagation();
             }
-            
-            // 如果message在event中，提取出来
-            if (!message && event && event.target && event.target.dataset) {
-                message = {
-                    id: event.target.dataset.messageId
-                };
+
+            // 如果没有message对象，从消息列表查找
+            if (!message && messageId) {
+                message = this.messages.find(msg => msg.id === messageId);
+                if (!message) {
+                    message = { id: messageId };
+                }
             }
             try {
                 if (!confirm('确定要将此广告标记为"不是广告"吗？\n\n这将执行以下操作：\n• 降低相关关键词的权重\n• 取消广告标记\n• 恢复为待审核状态\n\n这有助于提高AI广告识别的准确性。')) {
@@ -2466,7 +2501,12 @@ const MainApp = {
         },
         
         // 训练尾部
-        trainTail(messageId) {
+        trainTail(event, messageId) {
+            // 处理参数兼容性
+            if (typeof event === 'string') {
+                messageId = event;
+                event = null;
+            }
             // 直接使用messageId查找消息（已包含-100前缀）
             const message = this.messages.find(msg => msg.id === messageId);
 
@@ -2485,7 +2525,12 @@ const MainApp = {
         },
         
         // 手动执行内容过滤 - Linus风格：消除重复点击的特殊情况
-        async filterContent(messageId) {
+        async filterContent(event, messageId) {
+            // 处理参数兼容性
+            if (typeof event === 'string') {
+                messageId = event;
+                event = null;
+            }
             // 防重复点击保护 - 没有if分支，直接返回
             if (this.filteringMessages.has(messageId)) {
                 return;
@@ -2802,9 +2847,9 @@ function initializeVueApp() {
         } else {
         }
 
-        // 注册Linus统计组件
-        if (window.LinusStatsComponent) {
-            app.component('linus-stats', window.LinusStatsComponent);
+        // 注册统计组件
+        if (window.MessageStatsComponent) {
+            app.component('message-stats', window.MessageStatsComponent);
         } else {
         }
         

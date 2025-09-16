@@ -17,7 +17,7 @@ const API_ENDPOINTS = {
         list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
         stats: '/api/messages/stats/overview',                      // GET - 获取消息统计信息（修复：使用正确的端点）
         statsOverview: '/api/messages/stats/overview',              // GET - 获取消息统计概览
-        linusStatsOverview: '/api/stats/linus-overview',            // GET - Linus式统计概览（新增）
+        messageStatsOverview: '/api/stats/overview',               // GET - 消息统计概览
         testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
         getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
@@ -168,10 +168,7 @@ const API_ENDPOINTS = {
         // 配置管理
         config: '/api/admin/config',                               // GET - 获取管理配置
         configForwarding: '/api/admin/config/forwarding',          // POST - 配置转发
-        configBatch: '/api/admin/config/batch',                    // POST - 批量配置
-        
-        // 过滤器管理
-        reloadFilters: '/api/admin/reload-filters'                 // POST - 重新加载过滤器配置
+        configBatch: '/api/admin/config/batch'                     // POST - 批量配置
     },
 
 
