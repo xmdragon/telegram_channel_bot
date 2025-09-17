@@ -211,7 +211,7 @@ async def get_messages(
                     # 使用第一个媒体的类型作为整体类型
                     message['media_type'] = media_group_display[0].get('media_type')
             
-            # 兼容处理：如果已有media_group_display，更新其display_url
+            # 兼容处理：如果已有media_group_display，更新其display_url和thumbnail_url
             elif message.get('media_group_display'):
                 for media in message['media_group_display']:
                     if media.get('media_path'):
@@ -222,6 +222,14 @@ async def get_messages(
                             media['display_url'] = media_paths.get_temp_media_url(
                                 os.path.basename(media['media_path'])
                             )
+
+                    # 处理视频缩略图URL - 保持与上面media_group转换相同的逻辑
+                    if media.get('media_type') == 'video' and media.get('thumbnail_url'):
+                        thumbnail_url = media['thumbnail_url']
+                        if not thumbnail_url.startswith('/'):
+                            media['thumbnail_display_url'] = '/' + thumbnail_url
+                        else:
+                            media['thumbnail_display_url'] = thumbnail_url
             
             # 🚀 性能优化：单独消息已清理，重复消息处理大幅简化
             if message.get('duplicate_original_id'):
@@ -277,7 +285,7 @@ async def get_messages(
                             if not original_message.get('media_type') and media_group_display:
                                 original_message['media_type'] = media_group_display[0].get('media_type')
                         
-                        # 兼容处理：如果已有media_group_display，更新其display_url
+                        # 兼容处理：如果已有media_group_display，更新其display_url和thumbnail_url
                         elif original_message.get('media_group_display'):
                             for media in original_message['media_group_display']:
                                 if media.get('media_path'):
@@ -288,6 +296,14 @@ async def get_messages(
                                         media['display_url'] = media_paths.get_temp_media_url(
                                             os.path.basename(media['media_path'])
                                         )
+
+                                # 处理视频缩略图URL - 保持与上面media_group转换相同的逻辑
+                                if media.get('media_type') == 'video' and media.get('thumbnail_url'):
+                                    thumbnail_url = media['thumbnail_url']
+                                    if not thumbnail_url.startswith('/'):
+                                        media['thumbnail_display_url'] = '/' + thumbnail_url
+                                    else:
+                                        media['thumbnail_display_url'] = thumbnail_url
                         
                         # 为原始消息添加id字段
                         if 'source_channel' in original_message and 'message_id' in original_message:
@@ -475,7 +491,7 @@ async def get_message(
             
             # 不需要清理单个消息的内容，因为这里是处理单个媒体显示URL
         
-        # 兼容处理：如果已有media_group_display，更新其display_url
+        # 兼容处理：如果已有media_group_display，更新其display_url和thumbnail_url
         elif message.get('media_group_display'):
             for media in message['media_group_display']:
                 if media.get('media_path'):
@@ -486,6 +502,14 @@ async def get_message(
                         media['display_url'] = media_paths.get_temp_media_url(
                             os.path.basename(media['media_path'])
                         )
+
+                # 处理视频缩略图URL - 保持与上面media_group转换相同的逻辑
+                if media.get('media_type') == 'video' and media.get('thumbnail_url'):
+                    thumbnail_url = media['thumbnail_url']
+                    if not thumbnail_url.startswith('/'):
+                        media['thumbnail_display_url'] = '/' + thumbnail_url
+                    else:
+                        media['thumbnail_display_url'] = thumbnail_url
         
         return {
             "success": True,

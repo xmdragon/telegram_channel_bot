@@ -288,7 +288,10 @@ const MessageContentRenderer = {
                     width: this.message.media_width || 640,
                     height: this.message.media_height || 640,
                     url: this.message.media_display_url,
-                    display_url: this.message.media_display_url
+                    display_url: this.message.media_display_url,
+                    // 添加缩略图URL（如果是视频）
+                    thumbnail_url: this.message.thumbnail_url,
+                    thumbnail_display_url: this.message.thumbnail_display_url
                 }];
             }
             

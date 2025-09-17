@@ -248,6 +248,20 @@ const TelegramAlbum = {
                 sticker: '🎭'
             };
             return icons[mediaType] || '❓';
+        },
+
+        // 获取视频缩略图URL
+        getThumbnailUrl(mediaItem) {
+            // 优先使用thumbnail_display_url（已处理路径）
+            if (mediaItem.thumbnail_display_url) return mediaItem.thumbnail_display_url;
+            // 然后使用thumbnail_url
+            if (mediaItem.thumbnail_url) {
+                // 确保路径格式正确
+                return mediaItem.thumbnail_url.startsWith('/') ?
+                       mediaItem.thumbnail_url :
+                       `/${mediaItem.thumbnail_url}`;
+            }
+            return '';
         }
     },
 
@@ -272,9 +286,10 @@ const TelegramAlbum = {
                 />
                 
                 <!-- 视频媒体 -->
-                <video 
+                <video
                     v-else-if="isVideo(mediaItem) && getMediaUrl(mediaItem)"
                     :src="getMediaUrl(mediaItem)"
+                    :poster="getThumbnailUrl(mediaItem)"
                     :style="getMediaContentStyle()"
                     preload="none"
                     controls
