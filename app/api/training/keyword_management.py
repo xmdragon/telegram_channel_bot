@@ -188,10 +188,10 @@ async def update_threshold(
     try:
         if threshold < 0.1 or threshold > 20.0:
             raise HTTPException(status_code=400, detail="阈值必须在0.1-20.0之间")
-        
+
         detector = get_ad_detector()
         success = detector.set_threshold(threshold)
-        
+
         if success:
             return {
                 "success": True,

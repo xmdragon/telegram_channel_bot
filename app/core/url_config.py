@@ -59,7 +59,7 @@ class URLConfig:
     
     def get_admin_url(self) -> str:
         """获取管理页面URL"""
-        return self.get_static_url("admin.html")
+        return self.get_static_url("admin-manage.html")
     
     def get_status_url(self) -> str:
         """获取状态页面URL"""
@@ -67,7 +67,7 @@ class URLConfig:
     
     def get_train_url(self) -> str:
         """获取训练页面URL"""
-        return self.get_static_url("train.html")
+        return self.get_static_url("tail-filter-manager.html")
     
     # API URL生成方法
     def get_api_url(self, path: str) -> str:
@@ -90,11 +90,6 @@ class URLConfig:
     def get_temp_media_url(self, filename: str) -> str:
         """获取临时媒体文件URL"""
         return f"{self._base_url}/temp_media/{filename}"
-    
-    def get_training_media_url(self, filename: str) -> str:
-        """获取训练数据媒体文件URL"""
-        return f"{self._base_url}/media/ad_training_data/{filename}"
-    
     # 环境检测方法
     def is_production(self) -> bool:
         """检查是否为生产环境"""

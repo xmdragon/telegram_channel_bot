@@ -201,7 +201,6 @@ class MessageStorageProcessor(MessageProcessor):
             'qr_codes': qr_codes,
             'ocr_ad_score': ocr_ad_score,
             'ocr_processed': ocr_processed,
-            'entities': context.entities,
             'removed_hidden_links': context.removed_hidden_links,
             'visual_hash': visual_hash,
             'grouped_id': str(getattr(message, 'grouped_id', None)) if getattr(message, 'grouped_id', None) else None,

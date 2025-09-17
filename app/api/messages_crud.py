@@ -784,6 +784,77 @@ async def resend_message(
         logger.error(f"重新发布消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"重新发布消息失败: {str(e)}")
 
+@router.delete(ROUTES.messages.delete)
+async def delete_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    删除消息及其相关的媒体文件
+    """
+    try:
+        # 获取消息
+        message = redis_manager.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="消息不存在")
+
+        # 删除媒体文件和缩略图
+        if message.get('media_path'):
+            try:
+                media_file = message.get('media_path')
+                if media_file and os.path.exists(media_file):
+                    os.remove(media_file)
+                    logger.info(f"已删除媒体文件: {media_file}")
+            except Exception as e:
+                logger.error(f"删除媒体文件失败: {e}")
+
+        # 删除缩略图
+        if message.get('thumb_path'):
+            try:
+                thumb_file = message.get('thumb_path')
+                if thumb_file and os.path.exists(thumb_file):
+                    os.remove(thumb_file)
+                    logger.info(f"已删除缩略图文件: {thumb_file}")
+            except Exception as e:
+                logger.error(f"删除缩略图文件失败: {e}")
+
+        # 如果是组合消息，删除相关的组合消息
+        if message.get('is_combined') and message.get('combined_message_ids'):
+            for combined_id in message.get('combined_message_ids', []):
+                try:
+                    combined_msg = redis_manager.get_message_by_id(combined_id)
+                    if combined_msg:
+                        # 删除组合消息的媒体文件
+                        if combined_msg.get('media_path'):
+                            media_file = combined_msg.get('media_path')
+                            if media_file and os.path.exists(media_file):
+                                os.remove(media_file)
+                        if combined_msg.get('thumb_path'):
+                            thumb_file = combined_msg.get('thumb_path')
+                            if thumb_file and os.path.exists(thumb_file):
+                                os.remove(thumb_file)
+                        # 删除组合消息记录
+                        redis_manager.delete_message(combined_id)
+                        logger.info(f"已删除组合消息: {combined_id}")
+                except Exception as e:
+                    logger.error(f"删除组合消息失败 {combined_id}: {e}")
+
+        # 从Redis删除消息
+        redis_manager.delete_message(message_id)
+        logger.info(f"已删除消息: {message_id}")
+
+        return {
+            "success": True,
+            "message": "消息及相关文件已删除",
+            "timestamp": format_for_api(get_current_time())
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"删除消息失败: {str(e)}")
+
 @router.delete(ROUTES.messages.delete_review)
 async def delete_review_message(
     message_id: str,
@@ -797,11 +868,11 @@ async def delete_review_message(
         message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
-        
+
         review_message_id = message.get('review_message_id')
         if not review_message_id:
             raise HTTPException(status_code=400, detail="消息没有审核消息ID")
-        
+
         # 删除审核群中的消息
         try:
             from app.telegram.bot import telegram_bot
@@ -815,13 +886,13 @@ async def delete_review_message(
         except Exception as e:
             logger.error(f"删除审核消息失败: {e}")
             raise HTTPException(status_code=500, detail=f"删除审核消息失败: {str(e)}")
-        
+
         return {
             "success": True,
             "message": "审核消息已删除",
             "timestamp": format_for_api(get_current_time())
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

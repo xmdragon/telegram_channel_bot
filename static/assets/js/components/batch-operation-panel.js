@@ -329,40 +329,40 @@ const BatchOperationPanel = {
             <!-- 批量操作区 -->
             <div class="batch-operations" v-if="hasSelection">
                 <div class="button-group">
-                    <button 
+                    <button
                         v-if="shouldShowApprove"
-                        class="btn btn-success" 
-                        :disabled="isProcessing || !buttonVisibility.approve"
+                        class="btn btn-success"
+                        :disabled="isProcessing"
                         @click="batchApprove($event)"
                     >
                         <span v-if="isProcessing && operationProgress.status.includes('发布')" class="spinner"></span>
                         📤 发布 ({{ selectedMessageDetails.pending }})
                     </button>
-                    
-                    <button 
+
+                    <button
                         v-if="shouldShowReject"
-                        class="btn btn-warning" 
-                        :disabled="isProcessing || !buttonVisibility.reject"
+                        class="btn btn-warning"
+                        :disabled="isProcessing"
                         @click="batchReject"
                     >
                         <span v-if="isProcessing && operationProgress.status.includes('拒绝')" class="spinner"></span>
                         ❌ 拒绝 ({{ selectedMessageDetails.pending }})
                     </button>
-                    
-                    <button 
+
+                    <button
                         v-if="shouldShowDelete"
-                        class="btn btn-danger" 
-                        :disabled="isProcessing || !buttonVisibility.delete"
+                        class="btn btn-danger"
+                        :disabled="isProcessing"
                         @click="batchDelete"
                     >
                         <span v-if="isProcessing && operationProgress.status.includes('删除')" class="spinner"></span>
                         🗑️ 删除 ({{ selectedMessageDetails.approved + selectedMessageDetails.rejected }})
                     </button>
                     
-                    <button 
+                    <button
                         class="btn btn-secondary"
-                        @click="clearSelection" 
-                        :disabled="!hasSelection"
+                        @click="clearSelection"
+                        :disabled="isProcessing"
                     >
                         🗑️ 清空
                     </button>

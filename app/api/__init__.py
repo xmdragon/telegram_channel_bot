@@ -13,10 +13,8 @@ from .telegram_dual_auth import router as dual_auth_router
 from .system_health import router as system_health_router
 from .system_monitor import router as system_monitor_router
 from .system_maintenance import router as system_maintenance_router
-from .system_admin import router as system_admin_router
 from .system_lock import router as system_lock_router
 from .admin_auth import router as admin_auth_router
-from .training_base import router as training_base_router
 from .training import router as training_router
 from .telegram_tools import router as telegram_tools_router
 
@@ -38,11 +36,9 @@ api_router.include_router(admin_auth_router, tags=["admin-auth"])  # 管理员�
 api_router.include_router(system_health_router, tags=["system-health"])
 api_router.include_router(system_monitor_router, tags=["system-monitor"])
 api_router.include_router(system_maintenance_router, tags=["system-maintenance"])
-api_router.include_router(system_admin_router, tags=["system-admin"])
 api_router.include_router(system_lock_router, tags=["system-lock"])
 # 注意：AI相关路由注册已移除
 # 使用重构后的训练路由
-api_router.include_router(training_base_router, tags=["training-base"])
 api_router.include_router(training_router, tags=["training"])
 # Telegram工具路由
 api_router.include_router(telegram_tools_router, tags=["telegram-tools"])

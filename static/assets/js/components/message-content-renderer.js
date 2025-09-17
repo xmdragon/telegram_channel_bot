@@ -37,6 +37,15 @@ const MessageContentRenderer = {
     },
     
     computed: {
+        // 检查是否被选中
+        isSelected() {
+            // 通过父组件的isSelected方法来判断
+            if (this.$parent && this.$parent.isSelected) {
+                return this.$parent.isSelected(this.messageId);
+            }
+            return false;
+        },
+
         // 格式化的消息内容
         formattedContent() {
             if (this.message.status === 'rejected' && this.message.filter_reason && this.message.content) {
@@ -514,8 +523,8 @@ const MessageContentRenderer = {
             <div class="message-header">
                 <div class="message-info">
                     <!-- 选择框 -->
-                    <input type="checkbox" 
-                           :checked="$emit('is-selected', messageId)"
+                    <input type="checkbox"
+                           :checked="isSelected"
                            @click.stop
                            @change="toggleSelect">
                     
@@ -738,18 +747,24 @@ const MessageContentRenderer = {
             <!-- 已拒绝消息的差异化按钮 -->
             <div v-else-if="message.status === 'rejected'" class="message-actions">
                 <!-- 广告消息：显示"不是广告"按钮 -->
-                <button v-if="isMessageAd(message)" 
-                        data-action="markAsNotAd" 
-                        :data-message-id="computedMessageId" 
+                <button v-if="isMessageAd(message)"
+                        data-action="markAsNotAd"
+                        :data-message-id="computedMessageId"
                         class="btn btn-sm btn-warning">
                     ❌ 不是广告
                 </button>
                 <!-- 非广告消息：显示"恢复"按钮 -->
-                <button v-else 
-                        data-action="restoreMessage" 
-                        :data-message-id="computedMessageId" 
+                <button v-else
+                        data-action="restoreMessage"
+                        :data-message-id="computedMessageId"
                         class="btn btn-sm btn-warning">
                     🔄 恢复
+                </button>
+                <!-- 删除按钮 -->
+                <button data-action="deleteMessage"
+                        :data-message-id="computedMessageId"
+                        class="btn btn-sm btn-danger">
+                    🗑️ 删除
                 </button>
             </div>
             

@@ -114,15 +114,6 @@ class WebSocketManager:
         }
         await self.broadcast(json.dumps(payload, ensure_ascii=False))
         
-    async def broadcast_log_message(self, log_data: Dict):
-        """广播日志消息"""
-        payload = {
-            "type": "log_message",
-            "data": log_data,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        await self.broadcast(json.dumps(payload, ensure_ascii=False))
-        
     async def broadcast_progress(self, operation: str, progress: int, message: str, details: Dict = None):
         """广播操作进度"""
         payload = {

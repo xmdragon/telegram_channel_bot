@@ -106,7 +106,14 @@ const MainApp = {
             virtualScrollThreshold: 100,
             messageItemHeight: 200,
             virtualListHeight: 600,
-            
+
+            // 批量操作按钮可见性控制
+            buttonVisibility: {
+                approve: true,
+                reject: true,
+                delete: true
+            }
+
         };
         
         // 如果StateManager可用，验证并使用其初始状态
@@ -694,7 +701,7 @@ const MainApp = {
                 if (action === 'restoreMessage') {
                     event.preventDefault();
                     event.stopPropagation();
-                    
+
                     const messageId = event.target.getAttribute('data-message-id');
                     if (messageId) {
                         this.restoreMessage(messageId);
@@ -702,15 +709,23 @@ const MainApp = {
                 } else if (action === 'markAsNotAd') {
                     event.preventDefault();
                     event.stopPropagation();
-                    
+
                     const messageId = event.target.getAttribute('data-message-id');
                     if (messageId) {
                         // 找到对应的消息对象
-                        const message = this.messages.find(msg => 
+                        const message = this.messages.find(msg =>
                             `${msg.source_channel}:${msg.message_id}` === messageId);
                         if (message) {
                             this.markAsNotAd(event, message);
                         }
+                    }
+                } else if (action === 'deleteMessage') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.deleteSingleMessage(messageId);
                     }
                 }
             });
@@ -1005,30 +1020,62 @@ const MainApp = {
                 this.isLoadingMore = false;
             }
         },
-        
+
+        // 删除单个消息
+        async deleteSingleMessage(messageId) {
+            // 添加确认对话框
+            if (!confirm('确定要删除此消息吗？\n\n⚠️ 此操作将删除消息及其所有相关媒体文件，且不可恢复！')) {
+                return;
+            }
+
+            try {
+                // 保存当前滚动位置
+                const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+
+                // 临时禁用滚动加载
+                const wasLoadingMore = this.isLoadingMore;
+                this.isLoadingMore = true;
+
+                const response = await axios.delete(window.API.messages.deleteById(messageId));
+                if (response.data.success) {
+                    window.SimpleUI.Message.success('消息已删除');
+
+                    // 从列表中移除该消息
+                    const index = this.messages.findIndex(m =>
+                        `${m.source_channel}:${m.message_id}` === messageId
+                    );
+                    if (index !== -1) {
+                        this.messages.splice(index, 1);
+                    }
+
+                    // 刷新统计
+                    this.refreshStats();
+
+                    // 恢复滚动位置
+                    this.$nextTick(() => {
+                        window.scrollTo(0, scrollPosition);
+                        // 恢复滚动加载状态
+                        this.isLoadingMore = wasLoadingMore;
+                    });
+                } else {
+                    window.SimpleUI.Message.error('删除失败: ' + response.data.message);
+                }
+            } catch (error) {
+                console.error('删除消息失败:', error);
+                window.SimpleUI.Message.error('删除失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                // 确保恢复滚动加载状态
+                this.isLoadingMore = false;
+            }
+        },
+
         // 搜索消息
         searchMessages() {
             // 直接加载消息，不设置最小长度限制
             // 允许空搜索和单字符搜索
             this.loadMessages();
         },
-        
-        // 切换消息选择状态
-        toggleMessageSelection(message) {
-            const messageId = message.id || `${message.source_channel}:${message.message_id}`;
-            const index = this.selectedMessages.indexOf(messageId);
-            if (index > -1) {
-                this.selectedMessages.splice(index, 1);
-            } else {
-                this.selectedMessages.push(messageId);
-            }
-        },
-        
-        // 检查消息是否被选中
-        isMessageSelected(messageId) {
-            return this.selectedMessages.includes(messageId);
-        },
-        
+
         // 批量发布
         async batchApprove(event) {
             // 强制阻止事件传播

@@ -41,6 +41,10 @@
       "description": "过滤本频道付费广告之后内容"
     },
     {
+      "regex": "#付费广告[\\s\\S]*",
+      "description": "过滤#付费广告"
+    },
+    {
       "regex": "➖➖➖    ➖ ➖ ➖    ➖ ➖ ➖[\\s\\S]*",
       "description": "过滤➖广告"
     },
@@ -53,6 +57,6 @@
       "description": "过滤➖➖➖包裹的内容"
     }
   ],
-  "updated_at": "2025-09-17T16:35:13.580136",
-  "total_count": 13
+  "updated_at": "2025-09-17T15:31:37.679976",
+  "total_count": 14
 }

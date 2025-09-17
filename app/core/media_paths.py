@@ -12,27 +12,21 @@ class MediaPathsConfig:
     
     # 媒体路径
     TEMP_MEDIA_PATH = "/temp_media"
-    AD_TRAINING_DATA_PATH = "/media/ad_training_data"
     STATIC_PATH = "/static"
     
     # 页面路径
     INDEX_PAGE = "/static/index.html"
-    ADMIN_PAGE = "/static/admin.html"
+    ADMIN_PAGE = "/static/admin-manage.html"
     CONFIG_PAGE = "/static/config.html"
-    AUTH_PAGE = "/static/auth.html"
+    AUTH_PAGE = "/static/telegram-auth.html"
     STATUS_PAGE = "/static/status.html"
-    TRAIN_PAGE = "/static/train.html"
+    TRAIN_PAGE = "/static/tail-filter-manager.html"
     LOGIN_PAGE = "/static/login.html"
     
     @classmethod
     def get_temp_media_url(cls, filename: str) -> str:
         """获取临时媒体文件URL"""
         return f"{cls.TEMP_MEDIA_PATH}/{filename}"
-    
-    @classmethod
-    def get_training_media_url(cls, filename: str) -> str:
-        """获取训练数据媒体文件URL"""
-        return f"{cls.AD_TRAINING_DATA_PATH}/{filename}"
     
     @classmethod
     def get_static_url(cls, filename: str) -> str:

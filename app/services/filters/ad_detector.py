@@ -119,14 +119,13 @@ class AdDetector:
                 positions = self._find_keyword_positions(content_lower, keyword_lower)
 
                 if positions:
-                    # 优化：重复关键词权重递减策略
+                    # 重复关键词权重累加策略
                     count = len(positions)
-                    if count == 1:
-                        adjusted_weight = weight
-                    elif count <= 3:
-                        adjusted_weight = weight * (1.0 + count * 0.2)  # 轻微加权
+                    if count <= 5:
+                        adjusted_weight = weight * count  # 5次内线性累加
                     else:
-                        adjusted_weight = weight * 1.5  # 防止权重爆炸
+                        # 超过5次后递减增长，防止权重爆炸
+                        adjusted_weight = weight * (5 + (count - 5) * 0.5)
 
                     total_weight += adjusted_weight
                     matched_keywords.append({

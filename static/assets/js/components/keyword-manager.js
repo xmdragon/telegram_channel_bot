@@ -36,7 +36,13 @@ const KeywordManager = {
             
             <div class="keywords-container">
                 <div class="keyword-stats">
-                    共 {{ keywords.length }} 个关键词
+                    <span>共 {{ keywords.length }} 个关键词</span>
+                    <button v-if="keywords.length > 0"
+                            @click="clearAllKeywords"
+                            class="btn btn-danger btn-sm"
+                            style="float: right;">
+                        <i class="fas fa-trash-alt"></i> 清除全部
+                    </button>
                 </div>
                 
                 <div class="keywords-grid">
@@ -220,19 +226,45 @@ const KeywordManager = {
                 window.SimpleUI.Message.warning('阈值必须在0.1-20.0之间');
                 return;
             }
-            
+
             this.loading = true;
             try {
                 const response = await axios.put(
                     window.API.training.updateThreshold,
                     { threshold: this.threshold }
                 );
-                
+
                 if (response.data.success) {
                     window.SimpleUI.Message.success('阈值已更新');
                 }
             } catch (error) {
                 window.SimpleUI.Message.error('更新阈值失败: ' + error.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async clearAllKeywords() {
+            if (!confirm('确定要清除所有关键词吗？此操作将删除全部已保存的关键词。')) {
+                return;
+            }
+
+            this.loading = true;
+            try {
+                // 批量删除所有关键词
+                const deletePromises = this.keywords.map(item =>
+                    axios.delete(window.API.training.deleteKeyword(item.keyword))
+                );
+
+                await Promise.all(deletePromises);
+
+                // 清空前端列表
+                this.keywords = [];
+                window.SimpleUI.Message.success('所有关键词已清除');
+            } catch (error) {
+                window.SimpleUI.Message.error('清除关键词失败: ' + error.message);
+                // 刷新列表以同步状态
+                await this.loadKeywords();
             } finally {
                 this.loading = false;
             }

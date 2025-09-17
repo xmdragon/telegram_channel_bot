@@ -115,13 +115,6 @@ class RouteConfig:
         clear_lock = "/system/clear-lock"
         auto_clear_lock = "/system/auto-clear-lock"
         logs_realtime = "/system/logs/realtime"
-        
-        
-        # 服务管理
-        services = "/system/services"
-        service_status = "/system/services/{service_name}/status"
-        service_start = "/system/services/{service_name}/start"
-        service_stop = "/system/services/{service_name}/stop"
 
         reset = "/system/reset"
     

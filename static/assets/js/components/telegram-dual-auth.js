@@ -127,18 +127,34 @@ const DualAuthApp = {
         
         async checkDualSessionStatus() {
             try {
-                const response = await axios.get(API.dualAuth.dualSessionStatus);
-                
-                if (response.data.success) {
-                    const { listener, sender, config } = response.data;
-                    
-                    // 更新Session状态
-                    this.updateSessionFromStatus('listener', listener);
-                    this.updateSessionFromStatus('sender', sender);
-                    
+                const response = await axios.get(API.admin.config);
+
+                if (response.data) {
+                    const configs = response.data;
+
+                    // 检查SESSION配置是否存在（非空）
+                    const listenerSession = configs['telegram.listener_session'];
+                    const senderSession = configs['telegram.sender_session'];
+
+                    // 根据SESSION配置的存在性来设置状态
+                    if (listenerSession && listenerSession.trim() !== '') {
+                        this.listenerSession.completed = true;
+                        this.listenerSession.currentStep = 3;
+                    } else {
+                        this.listenerSession.completed = false;
+                        this.listenerSession.currentStep = 1;
+                    }
+
+                    if (senderSession && senderSession.trim() !== '') {
+                        this.senderSession.completed = true;
+                        this.senderSession.currentStep = 3;
+                    } else {
+                        this.senderSession.completed = false;
+                        this.senderSession.currentStep = 1;
+                    }
                 }
             } catch (error) {
-                console.error('检查双Session状态失败:', error);
+                console.error('检查Session配置失败:', error);
             }
         },
         
@@ -315,67 +331,27 @@ const DualAuthApp = {
         
         async clearSession(sessionType) {
             const session = sessionType === 'listener' ? this.listenerSession : this.senderSession;
-            
+
             const confirmed = await window.SimpleUI.confirm(
-                `确定要清除${sessionType === 'listener' ? '采集' : '发布'}Session认证吗？`,
-                '确认清除'
+                `确定要重新开始${sessionType === 'listener' ? '采集' : '发布'}Session认证吗？`,
+                '确认重新认证'
             );
-            
+
             if (!confirmed) return;
-            
-            try {
-                const response = await axios.post(API.dualAuth.clearSession, {
-                    session_type: sessionType
-                });
-                
-                if (response.data.success) {
-                    // 重置Session状态
-                    session.currentStep = 1;
-                    session.phone = '';
-                    session.verificationCode = '';
-                    session.password = '';
-                    session.loading = false;
-                    session.completed = false;
-                    session.needsPassword = false;
-                    session.errorMessage = '';
-                    
-                    window.SimpleUI.showMessage(`${sessionType}Session已清除`, 'success');
-                } else {
-                    window.SimpleUI.showMessage('清除失败', 'error');
-                }
-            } catch (error) {
-                console.error(`清除${sessionType}Session失败:`, error);
-                window.SimpleUI.showMessage('清除失败', 'error');
-            }
+
+            // 由于SESSION配置通过系统配置页面管理，这里只重置前端状态
+            session.currentStep = 1;
+            session.phone = '';
+            session.verificationCode = '';
+            session.password = '';
+            session.loading = false;
+            session.completed = false;
+            session.needsPassword = false;
+            session.errorMessage = '';
+
+            window.SimpleUI.showMessage(`${sessionType}认证状态已重置，请重新开始认证流程`, 'info');
         },
-        
-        async resetAllSessions() {
-            const confirmed = await window.SimpleUI.confirm(
-                '确定要重新配置所有Session吗？这将清除所有认证信息。',
-                '确认重置'
-            );
-            
-            if (!confirmed) return;
-            
-            try {
-                // 清除双Session
-                await axios.post(API.dualAuth.clearSession, { session_type: 'listener' });
-                await axios.post(API.dualAuth.clearSession, { session_type: 'sender' });
-                
-                // 重置界面状态
-                this.hasSharedApi = false;
-                
-                // 重置Session状态
-                this.resetSessionState(this.listenerSession);
-                this.resetSessionState(this.senderSession);
-                
-                window.SimpleUI.showMessage('所有Session已重置', 'success');
-            } catch (error) {
-                console.error('重置Session失败:', error);
-                window.SimpleUI.showMessage('重置失败', 'error');
-            }
-        },
-        
+
         resetSessionState(session) {
             session.currentStep = 1;
             session.phone = '';

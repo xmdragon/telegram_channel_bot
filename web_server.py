@@ -178,11 +178,6 @@ async def lifespan(app: FastAPI):
         # 启动后台初始化任务（不阻塞HTTP服务）
         async def background_init():
             try:
-                # 延迟初始化：规则管理器
-                from app.services.rule_manager import rule_manager
-                await rule_manager.initialize()
-                logger.info("✅ 规则管理器初始化完成")
-                
                 # 延迟初始化：频道ID缓存
                 from app.services.channel_cache import channel_cache
                 await channel_cache.init_cache()
@@ -272,7 +267,6 @@ if SERVE_STATIC_FALLBACK:
     PathConfig.TRAINING_DIR.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory="static"), name="static")
     app.mount("/temp_media", StaticFiles(directory=str(PathConfig.TEMP_MEDIA_DIR)), name="temp_media")
-    app.mount("/media/ad_training_data", StaticFiles(directory=str(PathConfig.TRAINING_DIR)), name="training_media")
     logger.info("🧩 已启用本地静态与媒体回退服务（SERVE_STATIC_FALLBACK=true）")
 else:
     logger.info("🚀 生产模式：静态与媒体由外部服务器提供（SERVE_STATIC_FALLBACK=false）")
