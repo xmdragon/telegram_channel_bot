@@ -72,14 +72,57 @@ class FilterRulesChecker:
 
             channel_id, msg_id = message_id.split(':', 1)
 
-            # 构建Redis键
-            redis_key = f"telegram:messages:{channel_id}:{msg_id}"
+            # 构建Redis键 - 尝试多种可能的键格式
+            possible_keys = [
+                f"message:{channel_id}:{msg_id}",
+                f"telegram:messages:{channel_id}:{msg_id}",
+                f"messages:{channel_id}:{msg_id}"
+            ]
 
-            # 获取消息数据
-            message_data = self.redis_client.get(redis_key)
+            # 尝试获取消息数据
+            message_data = None
+            found_key = None
+
+            for redis_key in possible_keys:
+                # 首先检查键是否存在
+                if not self.redis_client.exists(redis_key):
+                    continue
+
+                # 检查键的类型
+                key_type = self.redis_client.type(redis_key)
+                if isinstance(key_type, bytes):
+                    key_type = key_type.decode()
+
+                if key_type == 'hash':
+                    # 尝试作为hash获取
+                    try:
+                        hash_data = self.redis_client.hget(redis_key, 'data')
+                        if hash_data:
+                            message_data = hash_data
+                            found_key = redis_key + " (hash)"
+                            break
+                    except Exception as e:
+                        print(f"Hash获取失败: {e}")
+                        continue
+
+                elif key_type == 'string':
+                    # 尝试作为字符串获取
+                    try:
+                        message_data = self.redis_client.get(redis_key)
+                        if message_data:
+                            found_key = redis_key + " (string)"
+                            break
+                    except Exception as e:
+                        print(f"String获取失败: {e}")
+                        continue
+
             if not message_data:
-                print(f"❌ 在Redis中未找到消息: {redis_key}")
+                print(f"❌ 在Redis中未找到消息，尝试的键:")
+                for key in possible_keys:
+                    print(f"   - {key}")
                 return None
+
+            print(f"✅ 找到消息，键: {found_key}")
 
             # 解析JSON
             message = json.loads(message_data)

@@ -43,12 +43,8 @@
     {
       "regex": "#付费广告[\\s\\S]*",
       "description": "过滤#付费广告"
-    },
-    {
-      "regex": "➖➖➖    ➖ ➖ ➖    ➖ ➖ ➖[\\s\\S]*",
-      "description": "过滤➖广告"
     }
   ],
-  "updated_at": "2025-09-17T11:48:17.405429",
-  "total_count": 12
+  "updated_at": "2025-09-17T11:27:05.918237",
+  "total_count": 11
 }

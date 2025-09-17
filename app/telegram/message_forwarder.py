@@ -11,10 +11,7 @@ from telethon import TelegramClient
 from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.services.telegram_link_resolver import link_resolver
-# 新架构：使用统一过滤引擎的兼容层
-from app.services.unified_filter_engine import filter_engine_compat
-# 保持向后兼容：如果需要旧的ContentFilter
-# from app.services.content_filter import ContentFilter
+# 移除不必要的过滤引擎依赖 - Linus式简化
 from app.services.media_handler import media_handler
 
 logger = logging.getLogger(__name__)
@@ -61,8 +58,14 @@ class MessageForwarder:
     """消息转发器 - 专门处理消息转发逻辑"""
     
     def __init__(self):
-        # 使用新的统一过滤引擎兼容层（替代旧的ContentFilter）
-        self.content_filter = filter_engine_compat
+        # Linus式简化：不需要复杂的过滤引擎依赖
+        pass
+
+    def add_channel_signature(self, text: str, channel_name: str) -> str:
+        """添加频道签名 - 简单直接，无复杂依赖"""
+        if not text or not text.strip():
+            return f"📡 来自：{channel_name}"
+        return f"{text}\n\n📡 来自：{channel_name}"
         
     async def forward_to_review(self, client: TelegramClient, message_data: dict):
         """转发消息到审核群（包含媒体）"""
@@ -100,7 +103,7 @@ class MessageForwarder:
             except Exception as e:
                 logger.debug(f"获取频道名称失败: {e}")
             
-            message_text = self.content_filter.add_channel_signature(message_text, channel_name)
+            message_text = self.add_channel_signature(message_text, channel_name)
             
             # 如果消息被判定为广告且文本被完全过滤，不发送媒体
             if message_data.get('is_ad') and (not message_text or message_text.strip() == ""):

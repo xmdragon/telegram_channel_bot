@@ -205,7 +205,7 @@ const MessageContentRenderer = {
         
         // 确保消息ID包含-100前缀的格式化ID - Linus式修复
         computedMessageId() {
-            const messageId = this.message.id;
+            const messageId = this.messageId;  // 使用正确的messageId计算属性
             if (!messageId || !messageId.includes(':')) {
                 return messageId;
             }
@@ -301,6 +301,31 @@ const MessageContentRenderer = {
         // 检查是否有媒体可以显示（包括单个媒体和组合媒体）
         hasMediaToShow() {
             return this.preparedAlbumMediaItems.length > 0;
+        },
+
+        // 获取正确的消息ID - 解决ID字段不一致问题
+        messageId() {
+            // 如果有id字段，直接使用
+            if (this.message.id) {
+                return this.message.id;
+            }
+
+            // 如果没有id字段，从source_channel和message_id组合生成
+            // 并确保频道ID包含正确的-100前缀
+            const channelId = this.message.source_channel;
+            const msgId = this.message.message_id;
+
+            if (!channelId || !msgId) {
+                return null;
+            }
+
+            // 如果频道ID不包含-100前缀且是纯数字，添加前缀
+            let normalizedChannelId = channelId;
+            if (!channelId.startsWith('-100') && /^\d+$/.test(channelId)) {
+                normalizedChannelId = `-100${channelId}`;
+            }
+
+            return `${normalizedChannelId}:${msgId}`;
         }
     },
     
@@ -311,7 +336,7 @@ const MessageContentRenderer = {
     methods: {
         // 切换消息选择状态
         toggleSelect() {
-            this.$emit('toggle-select', this.message.id);
+            this.$emit('toggle-select', this.messageId);
         },
 
         // 处理视频缩略图点击
@@ -368,12 +393,12 @@ const MessageContentRenderer = {
         
         // 获取原消息链接
         getOriginalMessageLink() {
-            if (!this.message.id) return '#';
-            
+            if (!this.messageId) return '#';
+
             if (this.message.source_channel_link_prefix) {
                 return `${this.message.source_channel_link_prefix}/${this.message.message_id}`;
             }
-            
+
             return '#';
         },
         
@@ -490,7 +515,7 @@ const MessageContentRenderer = {
                 <div class="message-info">
                     <!-- 选择框 -->
                     <input type="checkbox" 
-                           :checked="$emit('is-selected', message.id)"
+                           :checked="$emit('is-selected', messageId)"
                            @click.stop
                            @change="toggleSelect">
                     
@@ -665,7 +690,7 @@ const MessageContentRenderer = {
                     
                     
                     <!-- 原消息链接 -->
-                    <div v-if="message.source_channel_link_prefix && message.id" class="original-message-link-container">
+                    <div v-if="message.source_channel_link_prefix && messageId" class="original-message-link-container">
                         <a :href="getOriginalMessageLink()" 
                            target="_blank" 
                            class="original-message-link"
@@ -678,16 +703,16 @@ const MessageContentRenderer = {
             
             <!-- 操作按钮 -->
             <div v-if="message.status === 'pending'" class="message-actions">
-                <button data-action="editMessage" :data-message-id="message.id" class="btn btn-sm btn-secondary">
+                <button data-action="editMessage" :data-message-id="messageId" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
                 <button 
                     data-action="approveMessage" 
                     :data-message-id="computedMessageId" 
-                    :disabled="$parent.isPublishing && $parent.isPublishing(message.id)"
+                    :disabled="$parent.isPublishing && $parent.isPublishing(messageId)"
                     :class="['btn', 'btn-sm', 'btn-success', 
-                             $parent.isPublishing && $parent.isPublishing(message.id) ? 'disabled' : '']">
-                    {{ $parent.isPublishing && $parent.isPublishing(message.id) ? '⏳ 发布中...' : '📤 发布' }}
+                             $parent.isPublishing && $parent.isPublishing(messageId) ? 'disabled' : '']">
+                    {{ $parent.isPublishing && $parent.isPublishing(messageId) ? '⏳ 发布中...' : '📤 发布' }}
                 </button>
                 <button data-action="rejectMessage" :data-message-id="computedMessageId" class="btn btn-sm btn-danger">
                     ❌ 拒绝
@@ -703,10 +728,10 @@ const MessageContentRenderer = {
                 <button 
                     data-action="filterContent" 
                     :data-message-id="computedMessageId" 
-                    :disabled="$parent.isFiltering && $parent.isFiltering(message.id)"
+                    :disabled="$parent.isFiltering && $parent.isFiltering(messageId)"
                     :class="['btn', 'btn-sm', 'btn-primary', 
-                             $parent.isFiltering && $parent.isFiltering(message.id) ? 'disabled' : '']">
-                    {{ $parent.isFiltering && $parent.isFiltering(message.id) ? '🔄 过滤中...' : '🎯 过滤' }}
+                             $parent.isFiltering && $parent.isFiltering(messageId) ? 'disabled' : '']">
+                    {{ $parent.isFiltering && $parent.isFiltering(messageId) ? '🔄 过滤中...' : '🎯 过滤' }}
                 </button>
             </div>
             

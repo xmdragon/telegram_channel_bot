@@ -14,6 +14,7 @@ import os
 from app.storage.redis_manager import redis_manager
 from app.services.auth_service import get_auth_service
 from app.services.message_processor import MessageProcessor
+from app.services.filters.ad_detector import AdDetector
 from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
@@ -253,9 +254,8 @@ async def mark_not_ad(
             matched_keywords = [kw.get('keyword') for kw in message.get('hit_keywords', []) if kw.get('keyword')]
         
         if matched_keywords:
-            from app.services.filters.ad_detector import AdDetector
             ad_detector = AdDetector()
-            
+
             # 使用AdDetector的负面反馈处理
             success = ad_detector.handle_negative_feedback(matched_keywords)
             if success:

@@ -13,8 +13,10 @@ const DualAuthApp = {
             loadingMessage: '',
             statusMessage: '',
             statusType: 'success',
-            
-            
+
+            // API配置状态
+            hasSharedApi: false,
+
             // 采集Session状态
             listenerSession: {
                 currentStep: 1,
@@ -65,6 +67,8 @@ const DualAuthApp = {
         }
         
         this.connectWebSocket();
+        // 启动时检查API配置
+        await this.checkApiConfig();
         await this.checkDualSessionStatus();
     },
     
@@ -155,7 +159,33 @@ const DualAuthApp = {
                 session.errorMessage = status.error_message;
             }
         },
-        
+
+
+        async checkApiConfig() {
+            try {
+                // 从系统配置检查API是否已配置
+                const response = await axios.get(API.admin.config);
+                if (response.data) {
+                    const configs = response.data;
+                    const hasApiId = configs['telegram.api_id'];
+                    const hasApiHash = configs['telegram.api_hash'];
+
+                    this.hasSharedApi = !!(hasApiId && hasApiHash);
+
+                    if (this.hasSharedApi) {
+                        window.SimpleUI.showMessage('API配置检查完成', 'success');
+                        // 如果有配置，重新检查Session状态
+                        await this.checkDualSessionStatus();
+                    } else {
+                        window.SimpleUI.showMessage('未检测到API配置，请先配置', 'warning');
+                    }
+                }
+            } catch (error) {
+                console.error('检查API配置失败:', error);
+                this.hasSharedApi = false;
+                window.SimpleUI.showMessage('检查配置失败', 'error');
+            }
+        },
 
         goToConfig() {
             // 跳转到系统配置页面的系统设置标签

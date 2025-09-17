@@ -15,6 +15,7 @@ from telethon.errors import FloodWaitError, AuthKeyUnregisteredError, SessionRev
 from dotenv import load_dotenv
 
 from app.services.config_manager import ConfigManager
+from app.core.telegram_config import TelegramConfig
 
 # 加载环境变量
 load_dotenv()
@@ -174,7 +175,7 @@ class TelegramDualSessionManager:
         except (AuthKeyUnregisteredError, SessionRevokedError) as e:
             logger.error(f"采集Session已失效: {e}")
             # 清除失效的Session
-            await self.config_manager.set_config("telegram.listener_session", "")
+            await self.config_manager.set_config(TelegramConfig.LISTENER_SESSION, "")
             return False
             
         except Exception as e:
@@ -252,7 +253,7 @@ class TelegramDualSessionManager:
         except (AuthKeyUnregisteredError, SessionRevokedError) as e:
             logger.error(f"发送Session已失效: {e}")
             # 清除失效的Session
-            await self.config_manager.set_config("telegram.sender_session", "")
+            await self.config_manager.set_config(TelegramConfig.SENDER_SESSION, "")
             return False
             
         except Exception as e:
@@ -382,9 +383,9 @@ class TelegramDualSessionManager:
         api_hash = None
         
         try:
-            session = await self.config_manager.get_config("telegram.listener_session")
-            api_id = await self.config_manager.get_config("telegram.api_id")
-            api_hash = await self.config_manager.get_config("telegram.api_hash")
+            session = await self.config_manager.get_config(TelegramConfig.LISTENER_SESSION)
+            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
+            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
             
             # 检查配置存在性
             if not session:
@@ -421,9 +422,9 @@ class TelegramDualSessionManager:
         api_hash = None
         
         try:
-            session = await self.config_manager.get_config("telegram.sender_session")
-            api_id = await self.config_manager.get_config("telegram.api_id")
-            api_hash = await self.config_manager.get_config("telegram.api_hash")
+            session = await self.config_manager.get_config(TelegramConfig.SENDER_SESSION)
+            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
+            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
             
             # 检查配置存在性
             if not session:

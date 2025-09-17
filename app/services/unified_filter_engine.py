@@ -61,3 +61,38 @@ class UnifiedFilterEngine:
 
 # 全局实例
 unified_filter_engine = UnifiedFilterEngine()
+
+
+class FilterEngineCompat:
+    """兼容层 - 提供旧接口"""
+
+    def __init__(self):
+        self.engine = unified_filter_engine
+
+    def filter_message_sync(self, content: str, channel_id: str = None):
+        """同步版本的消息过滤 - 兼容旧接口"""
+        try:
+            import asyncio
+            # 在同步环境中运行异步方法
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # 如果已在异步环境，创建新任务
+                future = asyncio.ensure_future(
+                    self.engine.detect_advertisement(content, channel_id)
+                )
+                # 等待完成
+                while not future.done():
+                    pass
+                return future.result()
+            else:
+                # 在新的事件循环中运行
+                return loop.run_until_complete(
+                    self.engine.detect_advertisement(content, channel_id)
+                )
+        except Exception as e:
+            logger.error(f"同步过滤失败: {e}")
+            return False, content, ""
+
+
+# 兼容层实例
+filter_engine_compat = FilterEngineCompat()

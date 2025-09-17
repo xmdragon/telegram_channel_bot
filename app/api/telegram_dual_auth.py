@@ -9,6 +9,11 @@ import logging
 
 # 导入统一的Session管理器
 from app.telegram.dual_session_manager import dual_session_manager
+from app.core.telegram_config import TelegramConfig
+
+# Python 3.13兼容性：Telethon类型导入必须在模块顶部
+from telethon import TelegramClient
+from telethon.sessions import StringSession
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +35,6 @@ class VerifyPasswordRequest(BaseModel):
     session_type: Literal["listener", "sender"]
     password: str
 
-class ClearSessionRequest(BaseModel):
-    session_type: Literal["listener", "sender"]
 
 @router.post("/init-session")
 async def init_session_auth(request: SessionInitRequest):
@@ -143,55 +146,3 @@ async def get_session_status(session_type: Literal["listener", "sender"]):
         logger.error(f"获取{session_type}Session状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/dual-session-status")
-async def get_dual_session_status():
-    """获取双Session状态"""
-    try:
-        session_manager = dual_session_manager
-
-        listener_connected = await session_manager.is_listener_connected()
-        sender_connected = await session_manager.is_sender_connected()
-
-        listener_status = {
-            "session_type": "listener",
-            "state": "authorized" if listener_connected else "idle",
-            "error_message": None if listener_connected else "未连接或需要重新认证",
-            "has_client": listener_connected
-        }
-
-        sender_status = {
-            "session_type": "sender",
-            "state": "authorized" if sender_connected else "idle",
-            "error_message": None if sender_connected else "未连接或需要重新认证",
-            "has_client": sender_connected
-        }
-
-        return {
-            "success": True,
-            "listener": listener_status,
-            "sender": sender_status,
-            "config": {
-                "listener_configured": listener_connected,
-                "sender_configured": sender_connected
-            }
-        }
-
-    except Exception as e:
-        logger.error(f"获取双Session状态失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/clear-session")
-async def clear_session_auth(request: ClearSessionRequest):
-    """清除Session认证 - 暂不支持，避免影响业务系统"""
-    return {
-        "success": False,
-        "error": "为避免影响系统运行，请通过系统配置页面管理Session认证"
-    }
-
-@router.post("/disconnect-all")
-async def disconnect_all_sessions():
-    """断开所有Session连接 - 暂不支持，避免影响业务系统"""
-    return {
-        "success": False,
-        "error": "为避免影响系统运行，请通过系统配置页面管理Session连接"
-    }

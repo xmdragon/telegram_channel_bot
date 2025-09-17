@@ -330,6 +330,110 @@ class AdDetector:
             logger.error(f"设置阈值失败: {e}")
             return False
 
+    def handle_positive_feedback(self, new_keywords: Dict[str, float]) -> bool:
+        """处理"广告"反馈：添加新关键词
+
+        Args:
+            new_keywords: 新关键词及其权重 {'关键词': 权重}
+
+        Returns:
+            是否成功
+        """
+        try:
+            if not new_keywords:
+                return True
+
+            # 加载最新配置
+            self.reload_if_needed()
+
+            # 批量添加关键词
+            added_count = 0
+            for keyword, weight in new_keywords.items():
+                if keyword and weight > 0:
+                    self.keywords[keyword] = float(weight)
+                    added_count += 1
+
+            if added_count > 0:
+                # 保存配置
+                data = {
+                    'keywords': self.keywords,
+                    'threshold': self.threshold,
+                    'updated_at': time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    'version': '1.0.0'
+                }
+
+                with open(self.keywords_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+
+                self._file_mtime = self.keywords_file.stat().st_mtime
+                logger.info(f"正面反馈处理完成: 添加了 {added_count} 个关键词")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"处理正面反馈失败: {e}")
+            return False
+
+    def handle_negative_feedback(self, matched_keywords: List[str]) -> bool:
+        """处理"不是广告"反馈：降低关键词权重，权重1.0删除
+
+        Args:
+            matched_keywords: 匹配的关键词列表
+
+        Returns:
+            是否成功
+        """
+        try:
+            if not matched_keywords:
+                return True
+
+            # 加载最新配置
+            self.reload_if_needed()
+
+            decreased_keywords = []
+            deleted_keywords = []
+
+            for keyword in matched_keywords:
+                if keyword in self.keywords:
+                    current_weight = self.keywords[keyword]
+
+                    # 权重减少策略：高权重减少更多
+                    if current_weight > 5.0:
+                        new_weight = current_weight - 2.0
+                    elif current_weight > 2.0:
+                        new_weight = current_weight - 1.0
+                    else:
+                        new_weight = current_weight - 0.5
+
+                    # 如果权重降到1.0或以下，删除关键词
+                    if new_weight <= 1.0:
+                        del self.keywords[keyword]
+                        deleted_keywords.append(keyword)
+                    else:
+                        self.keywords[keyword] = new_weight
+                        decreased_keywords.append(f"{keyword}({current_weight:.1f}→{new_weight:.1f})")
+
+            if decreased_keywords or deleted_keywords:
+                # 保存配置
+                data = {
+                    'keywords': self.keywords,
+                    'threshold': self.threshold,
+                    'updated_at': time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    'version': '1.0.0'
+                }
+
+                with open(self.keywords_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+
+                self._file_mtime = self.keywords_file.stat().st_mtime
+                logger.info(f"负面反馈处理完成: 降权={decreased_keywords}, 删除={deleted_keywords}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"处理负面反馈失败: {e}")
+            return False
+
 
 # 全局实例
 _ad_detector_instance = None
@@ -345,108 +449,3 @@ def get_ad_detector() -> AdDetector:
     if _ad_detector_instance is None:
         _ad_detector_instance = AdDetector()
     return _ad_detector_instance
-
-    def handle_positive_feedback(self, new_keywords: Dict[str, float]) -> bool:
-        """处理"广告"反馈：添加新关键词
-        
-        Args:
-            new_keywords: 新关键词及其权重 {'关键词': 权重}
-            
-        Returns:
-            是否成功
-        """
-        try:
-            if not new_keywords:
-                return True
-            
-            # 加载最新配置
-            self.reload_if_needed()
-            
-            # 批量添加关键词
-            added_count = 0
-            for keyword, weight in new_keywords.items():
-                if keyword and weight > 0:
-                    self.keywords[keyword] = float(weight)
-                    added_count += 1
-            
-            if added_count > 0:
-                # 保存配置
-                data = {
-                    'keywords': self.keywords,
-                    'threshold': self.threshold,
-                    'updated_at': time.strftime("%Y-%m-%dT%H:%M:%S"),
-                    'version': '1.0.0'
-                }
-                
-                with open(self.keywords_file, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                
-                self._file_mtime = self.keywords_file.stat().st_mtime
-                logger.info(f"正面反馈处理完成: 添加了 {added_count} 个关键词")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"处理正面反馈失败: {e}")
-            return False
-
-    def handle_negative_feedback(self, matched_keywords: List[str]) -> bool:
-        """处理"不是广告"反馈：降低关键词权重，权重1.0删除
-        
-        Args:
-            matched_keywords: 匹配的关键词列表
-            
-        Returns:
-            是否成功
-        """
-        try:
-            if not matched_keywords:
-                return True
-            
-            # 加载最新配置
-            self.reload_if_needed()
-            
-            decreased_keywords = []
-            deleted_keywords = []
-            
-            for keyword in matched_keywords:
-                if keyword in self.keywords:
-                    current_weight = self.keywords[keyword]
-                    
-                    # 权重减少策略：高权重减少更多
-                    if current_weight > 5.0:
-                        new_weight = current_weight - 2.0
-                    elif current_weight > 2.0:
-                        new_weight = current_weight - 1.0
-                    else:
-                        new_weight = current_weight - 0.5
-                    
-                    # 如果权重降到1.0或以下，删除关键词
-                    if new_weight <= 1.0:
-                        del self.keywords[keyword]
-                        deleted_keywords.append(keyword)
-                    else:
-                        self.keywords[keyword] = new_weight
-                        decreased_keywords.append(f"{keyword}({current_weight:.1f}→{new_weight:.1f})")
-            
-            if decreased_keywords or deleted_keywords:
-                # 保存配置
-                data = {
-                    'keywords': self.keywords,
-                    'threshold': self.threshold,
-                    'updated_at': time.strftime("%Y-%m-%dT%H:%M:%S"),
-                    'version': '1.0.0'
-                }
-                
-                with open(self.keywords_file, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                
-                self._file_mtime = self.keywords_file.stat().st_mtime
-                logger.info(f"负面反馈处理完成: 降权={decreased_keywords}, 删除={deleted_keywords}")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"处理负面反馈失败: {e}")
-            return False
-

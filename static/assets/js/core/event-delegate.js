@@ -20,11 +20,21 @@ class EventDelegate {
     
     handleClick(e) {
         const target = e.target;
-        
+
         // 处理消息操作按钮
         const action = target.dataset.action;
         const messageId = target.dataset.messageId;
-        
+
+        // 调试输出
+        if (action === 'editMessage') {
+            console.log('编辑按钮被点击:', {
+                action,
+                messageId,
+                dataset: target.dataset,
+                vmHasMethod: !!this.vm[action]
+            });
+        }
+
         if (action && messageId) {
             // 立即停止事件传播
             e.preventDefault();
@@ -32,7 +42,7 @@ class EventDelegate {
 
             // 执行对应的操作
             if (this.vm[action]) {
-                this.vm[action](e, messageId);
+                this.vm[action](messageId);  // 移除多余的e参数
             }
             return;
         }

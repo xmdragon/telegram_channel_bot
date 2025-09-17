@@ -97,37 +97,9 @@ const MainApp = {
             isBatchPublishing: false, // 批量发布状态
             componentRefreshKey: 0, // 用于强制组件重新渲染
             
-            // 对话框状态
-            mediaPreview: {
-                show: false,
-                url: null
-            },
-            fileDetailsDialog: {
-                visible: false,
-                details: {
-                    fileName: '',
-                    originalFileName: '',
-                    path: '',
-                    type: '',
-                    size: '',
-                    hash: '',
-                    createTime: '',
-                    tags: []
-                }
-            },
-            editDialog: {
-                visible: false,
-                messageId: null,
-                filteredContent: '',
-                originalMessage: null
-            },
-            originalMessageDialog: {
-                visible: false,
-                messageId: null,
-                message: null,
-                loading: false,
-                error: null
-            },
+            // 对话框状态现在由DialogStateManager管理
+            // 这里只保留一个标记用于触发Vue更新
+            dialogUpdateTrigger: 0,
             
             // 虚拟滚动配置
             useVirtualScroll: true,
@@ -151,6 +123,24 @@ const MainApp = {
     },
     
     computed: {
+        // 弹窗状态代理 - 从独立的DialogStateManager获取
+        editDialog() {
+            this.dialogUpdateTrigger; // 依赖触发器以响应更新
+            return window.DialogStateManager.getState('editDialog');
+        },
+        originalMessageDialog() {
+            this.dialogUpdateTrigger;
+            return window.DialogStateManager.getState('originalMessageDialog');
+        },
+        fileDetailsDialog() {
+            this.dialogUpdateTrigger;
+            return window.DialogStateManager.getState('fileDetailsDialog');
+        },
+        mediaPreview() {
+            this.dialogUpdateTrigger;
+            return window.DialogStateManager.getState('mediaPreview');
+        },
+
         // "好品味"：简单直接的频道去重逻辑
         uniqueChannels() {
             if (!this.channelInfo) return {};
@@ -225,29 +215,11 @@ const MainApp = {
     
     created() {
         // "好品味"：确保所有响应式数据正确初始化
-        
-        // 确保关键对象存在
-        if (!this.mediaPreview) {
-            this.mediaPreview = { show: false, url: null };
-        }
-        if (!this.fileDetailsDialog) {
-            this.fileDetailsDialog = {
-                visible: false,
-                details: {
-                    fileName: '',
-                    originalFileName: '',
-                    path: '',
-                    type: '',
-                    size: '',
-                    hash: '',
-                    createTime: '',
-                    tags: []
-                }
-            };
-        }
-        if (!this.editDialog) {
-            this.editDialog = { visible: false, messageId: null, filteredContent: '', originalMessage: null };
-        }
+
+        // 注册DialogStateManager监听器以触发Vue更新
+        window.DialogStateManager.addListener(() => {
+            this.dialogUpdateTrigger++;
+        });
         
         // 确保loadMessages方法存在
         if (typeof this.loadMessages !== 'function') {
@@ -264,8 +236,11 @@ const MainApp = {
             }
         },
         'filters.source_channel': function(newVal, oldVal) {
-            // 频道变化时自动加载消息
-            this.loadMessages();
+            // 如果有弹窗打开，不自动刷新
+            if (!window.DialogStateManager.hasOpenDialog()) {
+                // 频道变化时自动加载消息
+                this.loadMessages();
+            }
         }
     },
     
@@ -677,20 +652,25 @@ const MainApp = {
         
         // 显示原消息详情弹窗
         async showOriginalMessage(messageId) {
-            this.originalMessageDialog.visible = true;
-            this.originalMessageDialog.messageId = messageId;
-            this.originalMessageDialog.loading = true;
-            this.originalMessageDialog.error = null;
-            this.originalMessageDialog.message = null;
-            
+            window.DialogStateManager.show('originalMessageDialog', {
+                messageId: messageId,
+                loading: true,
+                error: null,
+                message: null
+            });
+
             try {
                 const response = await axios.get(window.API.messages.getById(encodeURIComponent(messageId)));
-                this.originalMessageDialog.message = response.data;
-                this.originalMessageDialog.loading = false;
+                window.DialogStateManager.setState('originalMessageDialog', {
+                    message: response.data,
+                    loading: false
+                });
             } catch (error) {
                 console.error('获取原消息失败:', error);
-                this.originalMessageDialog.error = '获取原消息失败: ' + (error.response?.data?.detail || error.message);
-                this.originalMessageDialog.loading = false;
+                window.DialogStateManager.setState('originalMessageDialog', {
+                    error: '获取原消息失败: ' + (error.response?.data?.detail || error.message),
+                    loading: false
+                });
             }
         },
         
@@ -1109,14 +1089,12 @@ const MainApp = {
         
         // 预览媒体
         previewMedia(url) {
-            this.mediaPreview.url = url;
-            this.mediaPreview.show = true;
+            window.DialogStateManager.show('mediaPreview', { url });
         },
-        
+
         // 关闭媒体预览
         closeMediaPreview() {
-            this.mediaPreview.show = false;
-            this.mediaPreview.url = null;
+            window.DialogStateManager.hide('mediaPreview');
         },
         
         // 获取消息对比状态的CSS类
@@ -1187,8 +1165,7 @@ const MainApp = {
             if (window.UIHandlers?.openMediaPreview) {
                 window.UIHandlers.openMediaPreview(url);
             } else {
-                this.mediaPreview.url = url;
-                this.mediaPreview.show = true;
+                window.DialogStateManager.show('mediaPreview', { url });
             }
         },
         
@@ -1299,9 +1276,10 @@ const MainApp = {
                 };
             }
             
-            // Vue 3响应式更新：直接修改属性
-            this.fileDetailsDialog.visible = true;
-            this.fileDetailsDialog.details = { ...details };
+            // 使用DialogStateManager管理弹窗状态
+            window.DialogStateManager.show('fileDetailsDialog', {
+                details: { ...details }
+            });
             
             
             // 强制Vue重新渲染以确保UI更新
@@ -1317,15 +1295,18 @@ const MainApp = {
             try {
                 const response = await fetch(url, { method: 'HEAD' });
                 const size = response.headers.get('content-length');
-                if (size && this.fileDetailsDialog && this.fileDetailsDialog.details) {
+                if (size) {
                     const sizeInBytes = parseInt(size);
-                    // Vue 3响应式更新：直接修改属性
-                    this.fileDetailsDialog.details.size = this.formatFileSize(sizeInBytes);
+                    const currentDetails = window.DialogStateManager.getState('fileDetailsDialog').details;
+                    window.DialogStateManager.setState('fileDetailsDialog', {
+                        details: { ...currentDetails, size: this.formatFileSize(sizeInBytes) }
+                    });
                 }
             } catch (error) {
-                if (this.fileDetailsDialog && this.fileDetailsDialog.details) {
-                    this.fileDetailsDialog.details.size = '未知';
-                }
+                const currentDetails = window.DialogStateManager.getState('fileDetailsDialog').details;
+                window.DialogStateManager.setState('fileDetailsDialog', {
+                    details: { ...currentDetails, size: '未知' }
+                });
             }
         },
         
@@ -1624,15 +1605,37 @@ const MainApp = {
         
         // 编辑消息
         editMessage(messageId) {
-            const message = this.messages.find(msg => msg.id === messageId);
+            console.log('editMessage called with:', messageId);
+            console.log('Available messages:', this.messages.map(msg => ({
+                id: msg.id,
+                message_id: msg.message_id,
+                source_channel: msg.source_channel,
+                computed: msg.id || `${msg.source_channel}:${msg.message_id}`
+            })));
+
+            const message = this.messages.find(msg => {
+                // 规范化消息ID以确保匹配
+                let msgId = msg.id;
+                if (!msgId && msg.source_channel && msg.message_id) {
+                    // 如果频道ID不包含-100前缀且是纯数字，添加前缀
+                    let normalizedChannelId = msg.source_channel;
+                    if (!msg.source_channel.startsWith('-100') && /^\d+$/.test(msg.source_channel)) {
+                        normalizedChannelId = `-100${msg.source_channel}`;
+                    }
+                    msgId = `${normalizedChannelId}:${msg.message_id}`;
+                }
+                return msgId === messageId;
+            });
             if (!message) {
-                window.SimpleUI.Message.error('未找到消息');
+                window.SimpleUI.Message.error(`未找到消息: ${messageId}`);
                 return;
             }
-            this.editDialog.messageId = message.id;
-            this.editDialog.filteredContent = message.filtered_content || '';
-            this.editDialog.originalMessage = message;
-            this.editDialog.visible = true;
+            const realMessageId = message.id || `${message.source_channel}:${message.message_id}`;
+            window.DialogStateManager.show('editDialog', {
+                messageId: realMessageId,
+                filteredContent: message.filtered_content || '',
+                originalMessage: message
+            });
         },
         
         // 保存编辑的消息
@@ -1644,13 +1647,16 @@ const MainApp = {
                 event.stopImmediatePropagation();
             }
             
+            // 从DialogStateManager获取当前编辑状态
+            const editState = window.DialogStateManager.getState('editDialog');
+
             // 验证必要的数据
-            if (!this.editDialog.messageId) {
+            if (!editState.messageId) {
                 window.SimpleUI.Message.error('编辑失败: 消息ID不存在');
                 return;
             }
-            
-            if (!this.editDialog.filteredContent && this.editDialog.filteredContent !== '') {
+
+            if (!editState.filteredContent && editState.filteredContent !== '') {
                 window.SimpleUI.Message.error('编辑失败: 内容不能为空');
                 return;
             }
@@ -1659,18 +1665,18 @@ const MainApp = {
             
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
-                const response = await axios.post(window.API.messages.editPublish(this.ensureChannelIdPrefix(this.editDialog.messageId)), {
-                    filtered_content: this.editDialog.filteredContent
+                const response = await axios.post(window.API.messages.editPublish(this.ensureChannelIdPrefix(editState.messageId)), {
+                    filtered_content: editState.filteredContent
                 });
-                
-                
+
+
                 if (response.data.success) {
                     window.SimpleUI.Message.success('消息已编辑并保存');
-                    this.editDialog.visible = false;
-                    
+                    window.DialogStateManager.hide('editDialog');
+
                     // 🚀 性能优化：使用局部更新，避免整个列表重新渲染
-                    this.updateSingleMessage(this.editDialog.messageId, {
-                        filtered_content: this.editDialog.filteredContent,
+                    this.updateSingleMessage(editState.messageId, {
+                        filtered_content: editState.filteredContent,
                         updated_at: new Date().toISOString()
                     });
                 } else {
@@ -1996,10 +2002,11 @@ const MainApp = {
                     filtered_content: event.target.dataset.filteredContent || ''
                 };
             }
-            this.editDialog.messageId = message.id;
-            this.editDialog.filteredContent = message.filtered_content || '';
-            this.editDialog.originalMessage = message;
-            this.editDialog.visible = true;
+            window.DialogStateManager.show('editDialog', {
+                messageId: message.id,
+                filteredContent: message.filtered_content || '',
+                originalMessage: message
+            });
         },
         
         // 保存编辑

@@ -9,6 +9,7 @@ import logging
 
 from app.core.route_config import ROUTES
 from app.services.config_manager import config_manager
+from app.core.telegram_config import TelegramConfig
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -85,8 +86,8 @@ async def get_system_config():
         "source.history_limit": await db_settings.get_history_message_limit(),
         "target.signature": await config_manager.get_config('target.signature', ''),
         "collection.enabled": await config_manager.get_config('collection.enabled', False),
-        "telegram.api_id": await config_manager.get_config('telegram.api_id', ''),
-        "telegram.api_hash": await config_manager.get_config('telegram.api_hash', ''),
+        TelegramConfig.API_ID: await config_manager.get_config(TelegramConfig.API_ID, ''),
+        TelegramConfig.API_HASH: await config_manager.get_config(TelegramConfig.API_HASH, ''),
         "filter.enabled": await config_manager.get_config('filter.enabled', True),
         "filter.tail_filter_enabled": await config_manager.get_config('filter.tail_filter_enabled', True),
         "review.require_approval": await config_manager.get_config('review.require_approval', True),
@@ -100,9 +101,10 @@ async def get_system_config():
         "filter.footer_promo": await config_manager.get_config('filter.footer_promo', True),
         "filter.markdown": await config_manager.get_config('filter.markdown', True),
         "filter.promo_vector": await config_manager.get_config('filter.promo_vector', True),
-        
-        # 源频道列表
-        "source_channels": await db_settings.get_source_channels()
+
+        # Telegram Session配置
+        TelegramConfig.LISTENER_SESSION: await config_manager.get_config(TelegramConfig.LISTENER_SESSION, ''),
+        TelegramConfig.SENDER_SESSION: await config_manager.get_config(TelegramConfig.SENDER_SESSION, '')
     }
 
 # === 配置更新方法 ===
