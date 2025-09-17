@@ -9,9 +9,8 @@ from typing import Tuple, Optional
 
 from app.services.processors.base import MessageProcessor, ProcessorResult, MessageContext
 from app.services.filters.base import FilterContext
-# 延迟导入rule_manager和rule_learner，避免模块导入时阻塞
+# 延迟导入rule_manager，避免模块导入时阻塞
 # from app.services.rule_manager import rule_manager
-# from app.services.rule_learner import rule_learner
 
 logger = logging.getLogger(__name__)
 

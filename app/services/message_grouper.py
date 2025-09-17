@@ -643,7 +643,6 @@ class MessageGrouper:
                     'mime_type': media_info.get('mime_type'),
                     'download_failed': media_info.get('download_failed', False),
                     'error': media_info.get('error'),
-                    'visual_hashes': media_info.get('visual_hashes')  # 保留视觉哈希
                 })
                 # 只有成功下载的媒体才计入类型统计
                 if not media_info.get('download_failed'):
@@ -864,16 +863,7 @@ class MessageGrouper:
             clean_combined_messages = serialize_for_json(combined_message.get('combined_messages'))
             clean_media_group = serialize_for_json(combined_message.get('media_group'))
             
-            # 提取组合消息的视觉哈希
-            combined_visual_hashes = []
-            if clean_media_group:
-                for media_item in clean_media_group:
-                    if media_item.get('visual_hashes'):
-                        combined_visual_hashes.append(media_item['visual_hashes'])
-            
-            # 如果有视觉哈希，存储为JSON字符串
-            import json
-            visual_hash = json.dumps(combined_visual_hashes) if combined_visual_hashes else None
+            visual_hash = None
             
             # 计算组合媒体哈希
             combined_media_hash = None

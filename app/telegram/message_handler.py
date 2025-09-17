@@ -340,17 +340,11 @@ class MessageHandler:
             media_hash = await media_handler._calculate_file_hash(message_data['media_url'])
             logger.info(f"📊 单个媒体哈希计算完成: {media_hash}")
             
-            # 处理视觉哈希
-            if original_media_info and original_media_info.get('visual_hashes'):
-                import json
-                visual_hash = json.dumps(original_media_info['visual_hashes'])
-                logger.info(f"📊 使用已计算的视觉哈希")
         
         # 组合媒体哈希
         if message_data.get('is_combined'):
             combined_media_list = []
-            combined_visual_hashes = []
-            
+
             if message_data.get('media_group'):
                 logger.info(f"📊 处理媒体组: {len(message_data['media_group'])} 个文件")
                 for i, media_item in enumerate(message_data['media_group']):
@@ -362,18 +356,10 @@ class MessageHandler:
                                 'hash': file_hash,
                                 'message_id': media_item.get('message_id', 0)
                             })
-                        
-                        if media_item.get('visual_hashes'):
-                            combined_visual_hashes.append(media_item['visual_hashes'])
-            
+
             if combined_media_list:
                 combined_media_hash = await media_handler.process_media_group(combined_media_list)
                 logger.info(f"📊 组合媒体哈希计算完成: {combined_media_hash}")
-            
-            if combined_visual_hashes:
-                import json
-                visual_hash = json.dumps(combined_visual_hashes)
-                logger.info(f"📊 组合媒体包含 {len(combined_visual_hashes)} 个视觉哈希")
         
         return media_hash, combined_media_hash, visual_hash
     

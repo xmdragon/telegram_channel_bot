@@ -175,7 +175,6 @@ class RouteConfig:
         media_files = "/training/media-files"
         media_files_by_hash = "/training/media-files/{file_hash}"
         media_files_clean_orphaned = "/training/media-files/clean-orphaned"
-        media_files_rebuild_visual_hashes = "/training/media-files/rebuild-visual-hashes"
         media_files_export = "/training/media-files/export"
         
         

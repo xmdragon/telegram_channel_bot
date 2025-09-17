@@ -113,26 +113,6 @@ class MediaProcessor:
             logger.error(f"计算文件哈希失败: {e}")
             return None
     
-    async def calculate_visual_hash(self, file_path: str, media_type: str) -> Optional[Dict]:
-        """计算视觉哈希（仅对图片）"""
-        try:
-            if media_type not in ['photo', 'animation']:
-                return None
-            
-            from app.services.visual_similarity import visual_detector
-            if not visual_detector or not os.path.exists(file_path):
-                return None
-            
-            with open(file_path, 'rb') as f:
-                image_data = f.read()
-            
-            visual_hashes = visual_detector.calculate_perceptual_hashes(image_data)
-            logger.info(f"📊 视觉哈希计算完成")
-            return visual_hashes
-            
-        except Exception as e:
-            logger.debug(f"计算视觉哈希失败: {e}")
-            return None
     
     async def process_media_group(self, media_list: list) -> Optional[str]:
         """处理媒体组哈希"""

@@ -7,30 +7,19 @@
 from .base import MessageContext, ProcessorResult, MessageProcessor, MessagePipeline
 
 # 具体处理器
-from .message_receiver import MessageReceiver, MediaMetadataProcessor
+from .message_receiver import MessageReceiver
 from .message_filter_processor import MessageFilterProcessor
 from .message_storage_processor import MessageStorageProcessor
-from .message_forwarder_processor import MessageForwarderProcessor, ReviewForwarder, WebSocketBroadcaster
 
 __all__ = [
     # 基础架构
     'MessageContext',
-    'ProcessorResult', 
+    'ProcessorResult',
     'MessageProcessor',
     'MessagePipeline',
-    
-    # 接收处理器
-    'MessageReceiver',
-    'MediaMetadataProcessor',
-    
-    # 过滤处理器
-    'MessageFilterProcessor',
 
-    # 存储处理器
+    # 核心处理器
+    'MessageReceiver',
+    'MessageFilterProcessor',
     'MessageStorageProcessor',
-    
-    # 转发处理器
-    'MessageForwarderProcessor',
-    'ReviewForwarder', 
-    'WebSocketBroadcaster',
 ]
