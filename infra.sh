@@ -14,6 +14,11 @@ fi
 NGINX_PORT=${NGINX_PORT:-8080}
 REDIS_PORT=${REDIS_PORT:-6379}
 
+# 域名配置（从环境变量读取）
+DOMAIN_NAME=${DOMAIN_NAME:-""}
+ENABLE_SSL=${ENABLE_SSL:-false}
+BASE_URL=${BASE_URL:-""}
+
 # 显示帮助信息
 show_help() {
     echo "🏗️  基础设施服务管理器"
@@ -247,7 +252,24 @@ show_status() {
     echo "🌐 Nginx服务 (端口: $NGINX_PORT):"
     if check_nginx_status; then
         echo "   ✅ 运行中"
-        echo "   • Web界面: http://localhost:$NGINX_PORT"
+
+        # 根据配置显示正确的访问地址
+        if [ -n "$BASE_URL" ]; then
+            echo "   • Web界面: $BASE_URL"
+        elif [ -n "$DOMAIN_NAME" ]; then
+            if [ "$ENABLE_SSL" = "true" ]; then
+                echo "   • Web界面: https://$DOMAIN_NAME"
+            else
+                if [ "$NGINX_PORT" = "80" ]; then
+                    echo "   • Web界面: http://$DOMAIN_NAME"
+                else
+                    echo "   • Web界面: http://$DOMAIN_NAME:$NGINX_PORT"
+                fi
+            fi
+        else
+            echo "   • Web界面: http://localhost:$NGINX_PORT"
+        fi
+
         if [ "$VERBOSE" = true ]; then
             echo "   详细状态:"
             get_nginx_status | sed 's/^/      /'
@@ -271,6 +293,7 @@ show_status() {
 
         # Nginx连接测试
         echo -n "   • Nginx静态文件: "
+        # 使用localhost进行本地连接测试（避免DNS问题）
         if curl -s http://localhost:$NGINX_PORT/static/favicon.svg >/dev/null 2>&1; then
             echo "✅ 正常"
         else
