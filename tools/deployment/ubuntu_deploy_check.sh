@@ -1017,31 +1017,47 @@ ensure_venv_installed() {
     PYTHON_VERSION=$(python3 --version | grep -oE '[0-9]+\.[0-9]+')
     log_info "检测到Python版本: $PYTHON_VERSION"
 
-    # 尝试安装多个可能的包名
-    local packages="python3-venv python${PYTHON_VERSION}-venv python3-full"
-
     log_info "更新包列表..."
     if ! sudo apt update; then
         log_error "apt update失败"
         return 1
     fi
 
-    log_info "安装Python venv相关包..."
-    if sudo apt install -y $packages 2>/dev/null; then
-        log_success "Python venv包安装成功"
+    # 尝试分别安装每个包，以便看到具体错误
+    local packages_to_try=("python3-venv" "python${PYTHON_VERSION}-venv" "python3.12-venv")
+    local installed=false
 
-        # 再次验证安装
-        if python3 -m venv --help &>/dev/null; then
-            return 0
+    for package in "${packages_to_try[@]}"; do
+        log_info "尝试安装 $package..."
+
+        # 不隐藏错误输出，这样可以看到具体问题
+        if sudo apt install -y $package; then
+            log_success "$package 安装成功"
+
+            # 验证是否可用
+            if python3 -m venv --help &>/dev/null; then
+                log_success "venv模块已可用"
+                installed=true
+                break
+            else
+                log_warning "$package 已安装但venv仍不可用，继续尝试..."
+            fi
         else
-            log_error "venv包安装后仍无法使用，可能需要重新安装Python"
-            return 1
+            log_warning "$package 安装失败或已安装，继续尝试下一个包..."
         fi
+    done
+
+    if [ "$installed" = true ]; then
+        return 0
     else
-        log_error "python3-venv安装失败"
-        log_error "请手动运行:"
+        log_error "无法安装python3-venv"
+        log_error "请手动运行以下命令："
         log_error "  sudo apt update"
-        log_error "  sudo apt install python3-venv python${PYTHON_VERSION}-venv"
+        log_error "  sudo apt install -y python3-venv python3.12-venv"
+        log_error ""
+        log_error "如果仍然失败，可能需要："
+        log_error "  sudo apt install -y python3-pip python3-dev"
+        log_error "  sudo apt install -y build-essential"
         return 1
     fi
 }
