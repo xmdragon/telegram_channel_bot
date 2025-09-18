@@ -297,9 +297,71 @@ REDIS_URL=redis://localhost:6379
 WEB_PORT=8008
 NGINX_PORT=8080
 
+# 🌐 域名配置 (可选 - 用于生产部署)
+# 如果配置了域名，系统会自动使用域名而非localhost
+DOMAIN_NAME=your.domain.com          # 你的域名
+ENABLE_SSL=true                       # 是否启用SSL (true/false)
+BASE_URL=https://your.domain.com      # 完整前端URL (可选，会自动生成)
+API_URL=https://your.domain.com       # 完整API URL (可选，会自动生成)
+
 # 系统配置
 DEBUG=false
 LOG_LEVEL=INFO
+```
+
+### 🚀 域名部署配置
+
+#### 快速配置示例
+
+**HTTP域名部署：**
+```bash
+# .env 文件
+DOMAIN_NAME=bot.example.com
+ENABLE_SSL=false
+NGINX_PORT=8080
+```
+
+**HTTPS域名部署：**
+```bash
+# .env 文件
+DOMAIN_NAME=bot.example.com
+ENABLE_SSL=true
+```
+
+#### 自动配置逻辑
+
+系统会根据环境变量自动生成正确的URL：
+
+1. **有域名 + SSL**：`https://your.domain.com`
+2. **有域名 + 无SSL**：`http://your.domain.com:8080`
+3. **无域名**：`http://localhost:8080` (开发模式)
+
+#### 部署检查脚本
+
+使用Ubuntu部署检查脚本配置域名和SSL：
+
+```bash
+# 交互式配置
+./tools/deployment/ubuntu_deploy_check.sh
+
+# 命令行配置
+./tools/deployment/ubuntu_deploy_check.sh \
+  --domain bot.example.com \
+  --ssl \
+  --email admin@example.com \
+  --install-deps
+```
+
+#### 手动启动方式
+
+```bash
+# 设置环境变量并启动
+export DOMAIN_NAME=bot.example.com
+export ENABLE_SSL=true
+./start.sh
+
+# 或者一行命令
+DOMAIN_NAME=bot.example.com ENABLE_SSL=true ./start.sh
 ```
 
 ### 系统配置 (data/config/system.json)
