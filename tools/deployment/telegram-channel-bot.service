@@ -1,0 +1,53 @@
+[Unit]
+Description=Telegram Channel Bot - Message Collection and Review System
+Documentation=https://github.com/xmdragon/telegram_channel_bot
+After=network.target redis.service nginx.service
+Wants=redis.service nginx.service
+Requires=network.target
+
+[Service]
+Type=exec
+User=telegram-bot
+Group=telegram-bot
+WorkingDirectory=/opt/telegram-channel-bot
+Environment=PYTHONPATH=/opt/telegram-channel-bot
+Environment=HF_HUB_OFFLINE=1
+Environment=PYTORCH_ENABLE_MPS_FALLBACK=1
+Environment=PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
+ExecStartPre=/bin/bash -c 'mkdir -p logs data temp_media logs/pids'
+ExecStart=/opt/telegram-channel-bot/start.sh --daemon --skip-deps --check-infra
+ExecStop=/opt/telegram-channel-bot/stop.sh --quiet
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=3
+
+# 安全设置
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryHigh=2G
+MemoryMax=4G
+
+# 日志设置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=telegram-channel-bot
+
+# 进程管理
+TimeoutStartSec=60
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target
