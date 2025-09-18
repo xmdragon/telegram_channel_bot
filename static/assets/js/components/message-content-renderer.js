@@ -712,7 +712,7 @@ const MessageContentRenderer = {
             
             <!-- 操作按钮 -->
             <div v-if="message.status === 'pending'" class="message-actions">
-                <button data-action="editMessage" :data-message-id="computedMessageId" class="btn btn-sm btn-secondary">
+                <button data-action="editMessage" :data-message-id="messageId" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
                 <button 

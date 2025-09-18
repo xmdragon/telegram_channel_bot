@@ -1006,6 +1006,37 @@ check_project_deps() {
         return 1
     fi
 
+    # 创建必要的项目目录
+    log_info "创建必要的项目目录..."
+    mkdir -p "$PROJECT_ROOT/logs"
+    mkdir -p "$PROJECT_ROOT/data"
+    mkdir -p "$PROJECT_ROOT/temp_media"
+    mkdir -p "$PROJECT_ROOT/logs/pids"
+    log_success "项目目录已创建"
+
+    # 检查Python venv模块
+    if ! python3 -m venv --help &>/dev/null; then
+        log_warning "Python venv模块未安装"
+        if [ "$INSTALL_DEPS" = true ]; then
+            log_info "安装python3-venv包..."
+
+            # 检测Python版本
+            PYTHON_VERSION=$(python3 --version | grep -oE '[0-9]+\.[0-9]+')
+            log_info "检测到Python版本: $PYTHON_VERSION"
+
+            # 根据Python版本安装对应的venv包
+            if sudo apt update && sudo apt install -y python3-venv python${PYTHON_VERSION}-venv 2>/dev/null; then
+                log_success "python3-venv安装成功"
+            else
+                log_error "python3-venv安装失败，请手动运行: sudo apt install python3-venv"
+                return 1
+            fi
+        else
+            log_error "请先安装python3-venv: sudo apt install python3-venv"
+            return 1
+        fi
+    fi
+
     # 检查虚拟环境
     if [ -d "$PROJECT_ROOT/venv" ]; then
         log_success "虚拟环境目录存在"
@@ -1023,18 +1054,34 @@ check_project_deps() {
             fi
         else
             log_error "虚拟环境损坏"
-            return 1
+            if [ "$INSTALL_DEPS" = true ]; then
+                log_info "删除损坏的虚拟环境..."
+                rm -rf "$PROJECT_ROOT/venv"
+                log_info "重新创建虚拟环境..."
+                python3 -m venv "$PROJECT_ROOT/venv"
+                source "$PROJECT_ROOT/venv/bin/activate"
+                pip install --upgrade pip
+                pip install -r "$PROJECT_ROOT/requirements.txt"
+                deactivate
+                log_success "虚拟环境重建完成"
+            else
+                return 1
+            fi
         fi
     else
         log_warning "虚拟环境不存在"
         if [ "$INSTALL_DEPS" = true ]; then
             log_info "创建虚拟环境..."
-            python3 -m venv "$PROJECT_ROOT/venv"
-            source "$PROJECT_ROOT/venv/bin/activate"
-            pip install --upgrade pip
-            pip install -r "$PROJECT_ROOT/requirements.txt"
-            deactivate
-            log_success "虚拟环境创建完成"
+            if python3 -m venv "$PROJECT_ROOT/venv"; then
+                source "$PROJECT_ROOT/venv/bin/activate"
+                pip install --upgrade pip
+                pip install -r "$PROJECT_ROOT/requirements.txt"
+                deactivate
+                log_success "虚拟环境创建完成"
+            else
+                log_error "虚拟环境创建失败"
+                return 1
+            fi
         fi
     fi
 
