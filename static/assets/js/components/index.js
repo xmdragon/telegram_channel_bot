@@ -520,15 +520,16 @@ const MainApp = {
                     // 检查是否还有更多数据
                     this.hasMore = newMessages.length === this.pageSize;
                     
-                    // 计算真正的新消息
-                    const currentMessageIds = new Set(newMessages.map(msg => msg.message_id));
-                    const reallyNewMessages = newMessages.filter(msg => !this.previousMessageIds.has(msg.message_id));
+                    // 计算真正的新消息 - 使用完整ID避免冲突
+                    const getFullId = (msg) => msg.id || `${msg.source_channel}:${msg.message_id}`;
+                    const currentMessageIds = new Set(newMessages.map(msg => getFullId(msg)));
+                    const reallyNewMessages = newMessages.filter(msg => !this.previousMessageIds.has(getFullId(msg)));
                     
                     // 更新消息列表
                     if (append) {
-                        // 追加到现有列表，避免重复
-                        const existingIds = new Set(this.messages.map(m => m.message_id));
-                        const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.message_id));
+                        // 追加到现有列表，避免重复 - 使用完整ID
+                        const existingIds = new Set(this.messages.map(m => getFullId(m)));
+                        const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(getFullId(msg)));
                         this.messages = [...this.messages, ...uniqueNewMessages];
                         
                         // 如果没有新的唯一消息，说明已经到底了

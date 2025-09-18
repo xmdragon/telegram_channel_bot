@@ -224,21 +224,27 @@ class ContentProcessor:
                     logger.info(f"消息 {message.channel_id}:{message.message_id} 检测为广告: 权重={total_weight:.1f}, 命中关键词: {keyword_names}")
 
                     # 根据配置决定是否自动拒绝
+                    auto_reject = True  # 默认自动拒绝广告（安全优先）
+
                     if config_manager:
                         try:
                             auto_reject = await config_manager.get_auto_reject_ads()
                             logger.debug(f"自动拒绝广告配置: {auto_reject}")
-
-                            if auto_reject:
-                                # 记录状态变更前的信息
-                                old_status = message.status
-                                message.status = "rejected"
-                                message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
-                                logger.warning(f"🚫 消息 {message.channel_id}:{message.message_id} 被自动拒绝（广告）- 状态从 '{old_status}' 改为 'rejected'")
-                            else:
-                                logger.debug(f"消息 {message.channel_id}:{message.message_id} 检测为广告但未启用自动拒绝")
                         except Exception as e:
-                            logger.error(f"获取自动拒绝配置失败: {e}")
+                            logger.error(f"获取自动拒绝配置失败，使用默认值(True): {e}")
+                            auto_reject = True  # 配置失败时默认拒绝
+                    else:
+                        logger.debug("未提供config_manager，默认自动拒绝广告")
+                        auto_reject = True  # 无配置时默认拒绝
+
+                    if auto_reject:
+                        # 记录状态变更前的信息
+                        old_status = message.status
+                        message.status = "rejected"
+                        message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
+                        logger.warning(f"🚫 消息 {message.channel_id}:{message.message_id} 被自动拒绝（广告）- 状态从 '{old_status}' 改为 'rejected'")
+                    else:
+                        logger.info(f"消息 {message.channel_id}:{message.message_id} 检测为广告但自动拒绝已禁用")
 
             # 更新消息
             message.filtered_content = current_content
