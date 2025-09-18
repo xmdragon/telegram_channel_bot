@@ -998,76 +998,50 @@ configure_firewall() {
 
 # 确保Python venv模块已安装
 ensure_venv_installed() {
-    if python3 -m venv --help &>/dev/null; then
-        log_success "Python venv模块已可用"
-        return 0  # venv已安装
-    fi
-
-    log_warning "Python venv模块未安装"
-
-    # 无论INSTALL_DEPS是否为true，都必须安装venv模块
-    log_info "必须安装python3-venv包才能继续..."
+    log_info "确保python3-venv模块已安装..."
 
     # 检测Python版本
     PYTHON_VERSION=$(python3 --version | grep -oE '[0-9]+\.[0-9]+')
     log_info "检测到Python版本: $PYTHON_VERSION"
 
+    # 无条件尝试安装python3.12-venv（apt会自动处理已安装的情况）
+    log_info "安装/更新python3-venv包..."
+
+    # 更新包列表
     log_info "更新包列表..."
     if ! sudo apt update; then
         log_error "apt update失败"
         return 1
     fi
 
-    # 尝试分别安装每个包，以便看到具体错误
-    local packages_to_try=("python3.12-venv" "python${PYTHON_VERSION}-venv" "python3-venv")
-    local installed=false
+    # 直接安装所需的包（Ubuntu 24.04需要python3.12-venv）
+    log_info "安装python3.12-venv和相关依赖..."
+    if ! sudo apt install -y python3.12-venv python3-venv python3-pip python3-dev; then
+        log_warning "部分包安装失败，尝试单独安装..."
 
-    # 首先确保python3.12-venv被安装（Ubuntu 24.04最关键的包）
-    for package in "${packages_to_try[@]}"; do
-        log_info "尝试安装 $package..."
-
-        # 不隐藏错误输出，这样可以看到具体问题
-        if sudo apt install -y $package; then
-            log_success "$package 安装成功"
-
-            # 验证是否可用
-            if python3 -m venv --help &>/dev/null; then
-                log_success "venv模块已可用"
-                installed=true
-                break
-            else
-                log_warning "$package 已安装但venv仍不可用，继续尝试..."
-            fi
-        else
-            log_warning "$package 安装失败或已安装，继续尝试下一个包..."
-        fi
-    done
-
-    # 如果还是失败，尝试安装额外的依赖包
-    if [ "$installed" = false ]; then
-        log_info "尝试安装额外的Python开发依赖..."
-        sudo apt install -y python3-pip python3-dev build-essential
-
-        # 再次尝试安装venv
-        if sudo apt install -y python3.12-venv; then
-            if python3 -m venv --help &>/dev/null; then
-                log_success "venv模块现在已可用"
-                installed=true
-            fi
-        fi
+        # 尝试单独安装关键包
+        sudo apt install -y python3.12-venv || true
+        sudo apt install -y python3-venv || true
+        sudo apt install -y python3-pip || true
+        sudo apt install -y python3-dev || true
     fi
 
-    if [ "$installed" = true ]; then
+    # 验证安装结果 - 尝试实际创建测试虚拟环境
+    log_info "验证venv功能..."
+    local test_venv="/tmp/test_venv_$$"
+    if python3 -m venv "$test_venv" 2>/dev/null; then
+        rm -rf "$test_venv"
+        log_success "venv模块已正确安装并可用"
         return 0
     else
-        log_error "无法自动安装python3-venv"
+        log_error "venv模块安装后仍无法使用"
         log_error "请手动运行以下命令："
         log_error "  sudo apt update"
-        log_error "  sudo apt install -y python3.12-venv"
+        log_error "  sudo apt install -y python3.12-venv python3-full"
         log_error ""
         log_error "如果仍然失败，可能需要："
-        log_error "  sudo apt install -y python3-pip python3-dev"
         log_error "  sudo apt install -y build-essential"
+        log_error "  sudo apt --fix-broken install"
         return 1
     fi
 }
