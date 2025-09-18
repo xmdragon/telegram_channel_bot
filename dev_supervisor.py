@@ -11,7 +11,7 @@ import time
 import logging
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -47,6 +47,8 @@ class ServiceConfig:
     enabled: bool = True
     auto_restart: bool = True
     restart_delay: int = 5  # 重启延迟秒数
+    max_restarts: int = 3  # 最大重启次数
+    restart_window: int = 300  # 重启次数统计窗口（秒）
 
 class ServiceProcess:
     """服务进程管理"""
@@ -58,6 +60,7 @@ class ServiceProcess:
         self.start_time: Optional[datetime] = None
         self.restart_count = 0
         self.last_restart_time: Optional[datetime] = None
+        self.restart_history: List[datetime] = []  # 重启历史
         
     @property
     def uptime(self) -> Optional[str]:
@@ -203,17 +206,140 @@ class ServiceProcess:
         """检查服务健康状态"""
         if not self.process:
             return False
-            
+
         # 检查进程是否还在运行
         poll_result = self.process.poll()
         if poll_result is None:
-            # 进程仍在运行
-            return True
+            # 进程仍在运行，进行深度健康检查
+            return self._deep_health_check()
         else:
             # 进程已退出
             logger.warning(f"服务 {self.config.name} 意外退出 (退出码: {poll_result})")
             self.status = ServiceStatus.FAILED
             return False
+
+    def _deep_health_check(self) -> bool:
+        """深度健康检查"""
+        try:
+            import psutil
+
+            # 获取进程信息
+            try:
+                proc = psutil.Process(self.process.pid)
+
+                # 检查进程状态
+                if proc.status() == psutil.STATUS_ZOMBIE:
+                    logger.warning(f"服务 {self.config.name} 进程状态异常: ZOMBIE")
+                    return False
+
+                # 检查CPU和内存使用
+                cpu_percent = proc.cpu_percent(interval=0.1)
+                memory_info = proc.memory_info()
+                memory_mb = memory_info.rss / 1024 / 1024  # 转换为MB
+
+                # 检查异常高CPU使用率（持续超过90%视为异常）
+                if hasattr(self, '_high_cpu_count'):
+                    if cpu_percent > 90:
+                        self._high_cpu_count += 1
+                        if self._high_cpu_count > 3:  # 连续3次检查都高CPU
+                            logger.warning(f"服务 {self.config.name} CPU使用率异常: {cpu_percent:.1f}%")
+                            return False
+                    else:
+                        self._high_cpu_count = 0
+                else:
+                    self._high_cpu_count = 0
+
+                # 检查内存使用（超过1GB视为异常）
+                if memory_mb > 1024:
+                    logger.warning(f"服务 {self.config.name} 内存使用异常: {memory_mb:.1f}MB")
+                    return False
+
+                # 应用级健康检查
+                return self._app_health_check()
+
+            except psutil.NoSuchProcess:
+                logger.warning(f"服务 {self.config.name} 进程不存在")
+                return False
+
+        except ImportError:
+            # psutil未安装，降级为基础检查
+            return True
+        except Exception as e:
+            logger.error(f"深度健康检查失败 {self.config.name}: {e}")
+            return True  # 检查失败时假设健康，避免误杀
+
+    def _app_health_check(self) -> bool:
+        """应用级健康检查"""
+        try:
+            if self.config.name == "web":
+                # Web服务健康检查 - HTTP请求
+                import requests
+                import time
+
+                # 限制检查频率（每30秒检查一次）
+                if not hasattr(self, '_last_web_check'):
+                    self._last_web_check = 0
+
+                current_time = time.time()
+                if current_time - self._last_web_check < 30:
+                    return True  # 跳过本次检查
+
+                self._last_web_check = current_time
+
+                try:
+                    response = requests.get(
+                        f"http://localhost:{url_config.WEB_PORT}/api/health",
+                        timeout=5
+                    )
+                    return response.status_code == 200
+                except:
+                    logger.warning(f"Web服务健康检查失败 - API无响应")
+                    return False
+
+            elif self.config.name == "collector":
+                # Collector服务检查 - 检查进程活跃度
+                return self._check_activity_timestamp("collector")
+
+            elif self.config.name == "scheduler":
+                # Scheduler服务检查 - 检查任务执行时间戳
+                return self._check_activity_timestamp("scheduler")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"应用级健康检查失败 {self.config.name}: {e}")
+            return True  # 检查失败时假设健康
+
+    def _check_activity_timestamp(self, service_name: str) -> bool:
+        """检查服务活跃时间戳"""
+        try:
+            import redis
+            from datetime import datetime, timedelta
+
+            # 连接Redis检查活跃时间戳
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+            # 获取最后活跃时间戳
+            last_activity = r.get(f"service:{service_name}:last_activity")
+
+            if not last_activity:
+                # 如果没有时间戳，可能服务刚启动
+                return True
+
+            # 解析时间戳
+            last_time = datetime.fromisoformat(last_activity)
+            now = datetime.now()
+
+            # 如果超过5分钟没有活动，认为服务可能卡住
+            if now - last_time > timedelta(minutes=5):
+                logger.warning(f"服务 {service_name} 超过5分钟无活动")
+                return False
+
+            return True
+
+        except Exception as e:
+            logger.debug(f"活跃时间戳检查失败 {service_name}: {e}")
+            return True  # 检查失败时假设健康
 
 class DevSupervisor:
     """开发环境进程管理器"""
@@ -341,20 +467,72 @@ class DevSupervisor:
                         if not service.check_health():
                             # 服务异常，检查是否需要重启
                             if service.config.auto_restart:
-                                service.restart_count += 1
-                                service.last_restart_time = datetime.now()
-                                logger.warning(f"服务 {service.config.name} 异常退出，尝试重启 (第{service.restart_count}次)")
-                                
-                                await asyncio.sleep(service.config.restart_delay)
-                                await service.start()
-                
+                                if await self._should_restart_service(service):
+                                    await self._restart_service_with_strategy(service)
+                                else:
+                                    logger.error(f"服务 {service.config.name} 达到最大重启次数，标记为失败")
+                                    service.status = ServiceStatus.FAILED
+
                 # 更新状态文件
                 await self.update_status_file()
-                
+
             except Exception as e:
                 logger.error(f"健康检查出错: {e}")
-            
+
             await asyncio.sleep(5)  # 每5秒检查一次
+
+    async def _should_restart_service(self, service: ServiceProcess) -> bool:
+        """判断是否应该重启服务"""
+        now = datetime.now()
+
+        # 清理过期的重启历史（超出时间窗口的记录）
+        window_start = now - timedelta(seconds=service.config.restart_window)
+        service.restart_history = [
+            restart_time for restart_time in service.restart_history
+            if restart_time > window_start
+        ]
+
+        # 检查在时间窗口内的重启次数
+        recent_restarts = len(service.restart_history)
+
+        if recent_restarts >= service.config.max_restarts:
+            logger.warning(f"服务 {service.config.name} 在 {service.config.restart_window}秒内已重启 {recent_restarts} 次，超过限制")
+            return False
+
+        return True
+
+    async def _restart_service_with_strategy(self, service: ServiceProcess) -> None:
+        """使用智能策略重启服务"""
+        now = datetime.now()
+
+        # 记录重启历史
+        service.restart_history.append(now)
+        service.restart_count += 1
+        service.last_restart_time = now
+
+        # 计算智能延迟（递增延迟策略）
+        recent_restarts = len(service.restart_history)
+        if recent_restarts == 1:
+            delay = service.config.restart_delay  # 第一次：5秒
+        elif recent_restarts == 2:
+            delay = service.config.restart_delay * 6  # 第二次：30秒
+        else:
+            delay = service.config.restart_delay * 12  # 第三次：60秒
+
+        logger.warning(f"服务 {service.config.name} 异常退出，{delay}秒后重启 (第{service.restart_count}次)")
+
+        # 先停止服务
+        await service.stop(timeout=5)
+
+        # 等待重启延迟
+        await asyncio.sleep(delay)
+
+        # 重新启动
+        success = await service.start()
+        if success:
+            logger.info(f"✅ 服务 {service.config.name} 重启成功")
+        else:
+            logger.error(f"❌ 服务 {service.config.name} 重启失败")
     
     async def update_status_file(self) -> None:
         """更新状态文件"""

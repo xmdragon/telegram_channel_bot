@@ -240,32 +240,85 @@ echo "✅ Redis分布式锁系统就绪"
 # 启动进程管理器（生产模式）
 echo "🌟 启动应用进程管理器..."
 
+# 创建必要目录
+mkdir -p logs/pids
+
 # 创建PID文件记录
 if [[ $(type -t create_pid_file) == function ]]; then
-    # 在后台启动进程管理器，获取PID
-    python3 dev_supervisor.py all &
-    SUPERVISOR_PID=$!
-    
-    # 创建PID文件
-    create_pid_file "dev_supervisor" "$SUPERVISOR_PID"
-    
-    # 设置退出陷阱，确保清理PID文件
-    trap 'cleanup_pid_file "dev_supervisor"; kill -TERM $SUPERVISOR_PID 2>/dev/null || true' EXIT INT TERM
-    
-    # 报告启动状态
-    sleep 2
-    if kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
-        print_success "进程管理器启动成功 (PID: $SUPERVISOR_PID)"
-        [ "$VERBOSE" = true ] && echo "📄 PID文件: ./logs/pids/dev_supervisor.pid"
+    if [ "$DAEMON_MODE" = true ]; then
+        # 后台运行模式
+        echo "🌟 启动后台服务模式..."
+
+        # 使用nohup后台启动
+        nohup python3 dev_supervisor.py all > logs/supervisor.log 2>&1 &
+        SUPERVISOR_PID=$!
+
+        # 创建PID文件
+        create_pid_file "dev_supervisor" "$SUPERVISOR_PID"
+
+        # 等待服务启动
+        sleep 3
+        if kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
+            echo "✅ 服务已启动并后台运行 (PID: $SUPERVISOR_PID)"
+            echo "📄 PID文件: ./logs/pids/dev_supervisor.pid"
+            echo "📋 日志文件: ./logs/supervisor.log"
+            echo "🔍 查看状态: ./dev.sh --status"
+            echo "🛑 停止服务: ./stop.sh"
+            echo ""
+            echo "Web界面: ${API_URL}"
+        else
+            echo "❌ 服务启动失败"
+            cleanup_pid_file "dev_supervisor"
+            exit 1
+        fi
     else
-        print_error "进程管理器启动失败"
-        cleanup_pid_file "dev_supervisor"
-        exit 1
+        # 前台运行模式（原有逻辑）
+        echo "🌟 启动前台服务模式..."
+
+        # 在后台启动进程管理器，获取PID
+        python3 dev_supervisor.py all &
+        SUPERVISOR_PID=$!
+
+        # 创建PID文件
+        create_pid_file "dev_supervisor" "$SUPERVISOR_PID"
+
+        # 设置退出陷阱，确保清理PID文件
+        trap 'cleanup_pid_file "dev_supervisor"; kill -TERM $SUPERVISOR_PID 2>/dev/null || true' EXIT INT TERM
+
+        # 报告启动状态
+        sleep 2
+        if kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
+            print_success "进程管理器启动成功 (PID: $SUPERVISOR_PID)"
+            [ "$VERBOSE" = true ] && echo "📄 PID文件: ./logs/pids/dev_supervisor.pid"
+        else
+            print_error "进程管理器启动失败"
+            cleanup_pid_file "dev_supervisor"
+            exit 1
+        fi
+
+        # 等待进程管理器
+        wait $SUPERVISOR_PID
     fi
-    
-    # 等待进程管理器
-    wait $SUPERVISOR_PID
 else
     # 降级为直接启动
-    exec python3 dev_supervisor.py all
+    if [ "$DAEMON_MODE" = true ]; then
+        echo "🌟 后台启动模式（简化版）..."
+        nohup python3 dev_supervisor.py all > logs/supervisor.log 2>&1 &
+        SUPERVISOR_PID=$!
+        echo "$SUPERVISOR_PID" > logs/pids/dev_supervisor.pid
+
+        sleep 3
+        if kill -0 "$SUPERVISOR_PID" 2>/dev/null; then
+            echo "✅ 服务已启动并后台运行 (PID: $SUPERVISOR_PID)"
+            echo "📄 PID文件: ./logs/pids/dev_supervisor.pid"
+            echo "📋 日志文件: ./logs/supervisor.log"
+            echo "Web界面: ${API_URL}"
+        else
+            echo "❌ 服务启动失败"
+            rm -f logs/pids/dev_supervisor.pid
+            exit 1
+        fi
+    else
+        exec python3 dev_supervisor.py all
+    fi
 fi
