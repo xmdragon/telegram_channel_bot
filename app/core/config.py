@@ -13,9 +13,9 @@ class AppSettings:
         self.WEB_PORT: int = int(os.getenv("WEB_PORT", "8008"))
         self.NGINX_PORT: int = int(os.getenv("NGINX_PORT", "8080"))
         
-        # URL配置
-        self.BASE_URL: str = os.getenv("BASE_URL", f"http://localhost:{self.NGINX_PORT}")
-        self.API_URL: str = os.getenv("API_URL", f"http://localhost:{self.WEB_PORT}")
+        # URL配置 - 支持域名部署
+        self.BASE_URL: str = self._get_base_url()
+        self.API_URL: str = self._get_api_url()
         
         # 环境变量配置
         self.REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -25,10 +25,43 @@ class AppSettings:
         
         # 兼容性属性
         self.redis_url = self.REDIS_URL
-        
+
         # 配置管理器（延迟初始化）
         self._config_manager = None
         self._initialized = False
+
+    def _get_base_url(self) -> str:
+        """智能获取BASE_URL，支持域名部署"""
+        # 优先使用环境变量
+        if base_url := os.getenv("BASE_URL"):
+            return base_url
+
+        # 检查是否有域名配置
+        domain = os.getenv("DOMAIN_NAME")
+        if domain:
+            # 检查是否启用SSL
+            if os.getenv("ENABLE_SSL", "false").lower() == "true":
+                return f"https://{domain}"
+            else:
+                return f"http://{domain}:{self.NGINX_PORT}"
+
+        # 默认使用localhost
+        return f"http://localhost:{self.NGINX_PORT}"
+
+    def _get_api_url(self) -> str:
+        """智能获取API_URL，支持域名部署"""
+        # 优先使用环境变量
+        if api_url := os.getenv("API_URL"):
+            return api_url
+
+        # 检查是否有域名配置
+        domain = os.getenv("DOMAIN_NAME")
+        if domain:
+            # 生产环境域名通常API通过Nginx代理，使用BASE_URL
+            return self.BASE_URL
+
+        # 默认使用localhost的直接API端口
+        return f"http://localhost:{self.WEB_PORT}"
     
     async def _ensure_initialized(self):
         """确保配置管理器已初始化"""

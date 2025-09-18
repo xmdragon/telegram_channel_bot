@@ -19,7 +19,7 @@ class URLConfig:
     
     def __init__(self):
         # 基础URL配置，支持环境变量覆盖
-        self._base_url = os.getenv('BASE_URL', f'http://localhost:{settings.WEB_PORT}')
+        self._base_url = os.getenv('BASE_URL', f'http://localhost:{settings.NGINX_PORT}')
         
         # 确保URL末尾没有斜杠
         self._base_url = self._base_url.rstrip('/')
@@ -104,7 +104,7 @@ class URLConfig:
         """获取当前URL配置信息（用于调试）"""
         return {
             'base_url': self._base_url,
-            'api_url': self._api_url,
+            'api_url': self.api_url,
             'environment': 'production' if self.is_production() else 'development',
             'auth_url': self.get_auth_url(),
             'health_url': self.get_health_url(),

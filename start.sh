@@ -16,11 +16,25 @@ export HF_HUB_OFFLINE=1
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
-# 🌐 URL配置: 环境变量支持，消除硬编码
+# 🌐 URL配置: 智能域名支持，消除硬编码
 WEB_PORT=${WEB_PORT:-8008}
 NGINX_PORT=${NGINX_PORT:-8080}
-export BASE_URL=${BASE_URL:-"http://localhost:${NGINX_PORT}"}
-export API_URL=${API_URL:-"http://localhost:${WEB_PORT}"}
+
+# 智能域名配置
+if [ -n "$DOMAIN_NAME" ]; then
+    # 有域名配置时，根据SSL设置自动生成URL
+    if [ "$ENABLE_SSL" = "true" ]; then
+        export BASE_URL=${BASE_URL:-"https://${DOMAIN_NAME}"}
+        export API_URL=${API_URL:-"https://${DOMAIN_NAME}"}
+    else
+        export BASE_URL=${BASE_URL:-"http://${DOMAIN_NAME}:${NGINX_PORT}"}
+        export API_URL=${API_URL:-"http://${DOMAIN_NAME}:${NGINX_PORT}"}
+    fi
+else
+    # 默认localhost配置
+    export BASE_URL=${BASE_URL:-"http://localhost:${NGINX_PORT}"}
+    export API_URL=${API_URL:-"http://localhost:${WEB_PORT}"}
+fi
 
 # 显示帮助信息
 show_help() {

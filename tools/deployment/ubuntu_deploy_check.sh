@@ -529,16 +529,6 @@ configure_nginx() {
     local site_config="/etc/nginx/sites-available/$PROJECT_NAME"
     local site_enabled="/etc/nginx/sites-enabled/$PROJECT_NAME"
 
-    # 确定server_name配置
-    local server_name="localhost"
-    if [ -n "$DOMAIN_NAME" ]; then
-        # 同时支持域名和localhost
-        server_name="$DOMAIN_NAME localhost"
-        log_info "配置域名: $DOMAIN_NAME (同时支持 localhost)"
-    else
-        log_info "仅使用 localhost"
-    fi
-
     # 检查sudo权限
     if ! sudo -n true 2>/dev/null; then
         log_error "需要sudo权限配置Nginx"
@@ -547,13 +537,17 @@ configure_nginx() {
 
     # 创建站点配置
     log_info "创建Nginx站点配置: $site_config"
-    sudo tee "$site_config" > /dev/null << EOF
+    if [ -n "$DOMAIN_NAME" ]; then
+        log_info "配置域名: $DOMAIN_NAME (同时支持 localhost)"
+        # 为域名和localhost创建分离的server块，便于SSL配置
+        sudo tee "$site_config" > /dev/null << EOF
 # Telegram Channel Bot Nginx配置
 # 生成时间: $(date)
 
+# 域名服务器配置 (用于SSL)
 server {
     listen $NGINX_PORT;
-    server_name $server_name;
+    server_name $DOMAIN_NAME;
 
     # 安全头设置
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -566,7 +560,103 @@ server {
 
     # 静态文件服务
     location /static/ {
-        alias $(pwd)/static/;
+        alias $PROJECT_ROOT/static/;
+        expires 1h;
+        add_header Cache-Control "public, immutable";
+
+        # 静态文件类型
+        location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # API代理
+    location /api/ {
+        proxy_pass http://127.0.0.1:$WEB_PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # 超时设置
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+
+    # WebSocket代理
+    location /ws {
+        proxy_pass http://127.0.0.1:$WEB_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # WebSocket特定设置
+        proxy_read_timeout 86400;
+    }
+
+    # 健康检查
+    location /health {
+        proxy_pass http://127.0.0.1:$WEB_PORT/api/health;
+        access_log off;
+    }
+
+    # 默认首页
+    location = / {
+        return 302 /static/login.html;
+    }
+
+    # 安全：隐藏敏感文件
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~ \.(py|sh|log|conf)$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+
+# localhost服务器配置
+server {
+    listen $NGINX_PORT;
+    server_name localhost;
+EOF
+    else
+        log_info "仅使用 localhost"
+        sudo tee "$site_config" > /dev/null << EOF
+# Telegram Channel Bot Nginx配置
+# 生成时间: $(date)
+
+server {
+    listen $NGINX_PORT;
+    server_name localhost;
+EOF
+    fi
+
+    # 为localhost添加通用配置部分
+    sudo tee -a "$site_config" > /dev/null << EOF
+
+    # 安全头设置
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # 日志配置
+    access_log /var/log/nginx/${PROJECT_NAME}_access.log;
+    error_log /var/log/nginx/${PROJECT_NAME}_error.log;
+
+    # 静态文件服务
+    location /static/ {
+        alias $PROJECT_ROOT/static/;
         expires 1h;
         add_header Cache-Control "public, immutable";
 
