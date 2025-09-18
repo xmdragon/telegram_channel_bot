@@ -135,19 +135,26 @@ const MainApp = {
             this.dialogUpdateTrigger; // 依赖触发器以响应更新
             const state = window.DialogStateManager.getState('editDialog');
             console.log(`[Vue Computed] editDialog accessed, visible: ${state.visible}, trigger: ${this.dialogUpdateTrigger}`);
-            return state;
+            // 返回新对象确保Vue检测到变化
+            return { ...state };
         },
         originalMessageDialog() {
             this.dialogUpdateTrigger;
-            return window.DialogStateManager.getState('originalMessageDialog');
+            const state = window.DialogStateManager.getState('originalMessageDialog');
+            // 返回新对象确保Vue检测到变化
+            return { ...state };
         },
         fileDetailsDialog() {
             this.dialogUpdateTrigger;
-            return window.DialogStateManager.getState('fileDetailsDialog');
+            const state = window.DialogStateManager.getState('fileDetailsDialog');
+            // 返回新对象确保Vue检测到变化
+            return { ...state };
         },
         mediaPreview() {
             this.dialogUpdateTrigger;
-            return window.DialogStateManager.getState('mediaPreview');
+            const state = window.DialogStateManager.getState('mediaPreview');
+            // 返回新对象确保Vue检测到变化
+            return { ...state };
         },
 
         // "好品味"：简单直接的频道去重逻辑
