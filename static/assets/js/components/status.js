@@ -190,7 +190,7 @@ const app = createApp({
         // WebSocket相关方法
         connectWebSocket() {
             try {
-                // Linus风格：使用统一的WebSocket工厂，消除重复代码
+                // 使用统一的WebSocket工厂，消除重复代码
                 this.ws = WebSocketFactory.create('main');
                 
                 this.ws.onopen = () => {

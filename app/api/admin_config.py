@@ -14,57 +14,8 @@ from app.core.telegram_config import TelegramConfig
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-async def _trigger_history_collection():
-    """触发历史消息采集"""
-    try:
-        # 检查是否需要触发采集（只有采集点为0时才触发）
-        from app.storage.redis_manager import redis_manager
-        message_store = redis_manager
-        
-        if not message_store:
-            logger.error("无法获取Redis存储，跳过历史采集触发")
-            return
-        
-        # 获取所有监听频道的消息计数
-        from app.services.unified_channel_service import unified_channel_service
-        channels = await unified_channel_service.get_all_channels()
-        
-        should_collect = False
-        for channel in channels:
-            channel_id = channel.get('channel_id')
-            if channel_id:
-                count = message_store.get_message_count(channel_id)
-                if count == 0:
-                    should_collect = True
-                    logger.info(f"频道 {channel_id} 消息数为0，需要触发历史采集")
-                    break
-        
-        if not should_collect:
-            logger.info("所有频道都有消息数据，跳过历史采集")
-            return
-        
-        # 重置bot_manager的采集标志并触发采集
-        from app.telegram.bot_manager import bot_manager
-        if hasattr(bot_manager, 'auto_collection_done'):
-            bot_manager.auto_collection_done = False
-            logger.info("已重置auto_collection_done标志")
-        
-        # 确保TelegramBot已初始化以设置消息处理器
-        from app.telegram.history_collector_simple import simple_history_collector
-        from app.telegram.client_manager import client_manager
-        
-        # 简化版本不需要复杂的消息处理器设置
-        
-        client = await client_manager.get_client()
-        if client and client.is_connected():
-            await simple_history_collector.collect_channel_history(client)
-            logger.info("已触发历史消息采集")
-        else:
-            logger.warning("Telegram客户端未连接，无法触发历史采集")
-            
-    except Exception as e:
-        logger.error(f"触发历史采集失败: {e}")
-        raise
+# 已删除未使用的_trigger_history_collection函数
+# 历史消息采集已由message_collector.py统一处理
 
 # === 配置读取方法 === 
 @router.get(ROUTES.admin.config)
@@ -74,7 +25,7 @@ async def get_system_config():
     
     return {
         # 转发配置 - 使用点分格式字段名
-        "target.auto_forward_enabled": await config_manager.get_config('target.auto_forward_enabled', False),
+        "review.auto_forward_enabled": await config_manager.get_config('review.auto_forward_enabled', False),
         "target.channel_link": await config_manager.get_config('target.channel_link', ''),
         "target.channel_id": await config_manager.get_config('target.channel_id', ''),
         "review.group_link": await config_manager.get_config('review.group_link', ''),
@@ -213,7 +164,7 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
         # 保存用户输入的用户名/链接格式
         await config_manager.set_config('target.channel_link', request.target_channel, config_type="string")
         await config_manager.set_config('review.group_link', request.review_group, config_type="string")
-        await config_manager.set_config('target.auto_forward_enabled', request.auto_forward_enabled, config_type="boolean")
+        await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled, config_type="boolean")
         await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay, config_type="integer")
         await config_manager.set_config('review.auto_reject_ads', request.auto_reject_ads, config_type="boolean")
         

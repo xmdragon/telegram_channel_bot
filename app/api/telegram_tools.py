@@ -9,7 +9,7 @@ from datetime import datetime
 import re
 
 from app.api.admin_auth import get_current_admin
-from app.telegram.client_manager import client_manager
+from app.telegram.dual_session_manager import dual_session_manager
 # 响应格式化函数
 def success_response(data):
     return {"success": True, "data": data}
@@ -49,8 +49,8 @@ async def get_message_structure(
             raise HTTPException(status_code=400, detail="无效的消息URL格式")
         
         # 获取Telegram客户端
-        client = await client_manager.get_client()
-        if not client or not client.is_connected():
+        client = await dual_session_manager.get_listener_client()
+        if not client:
             raise HTTPException(status_code=503, detail="Telegram发布客户端未连接")
         
         # 获取消息数据

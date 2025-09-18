@@ -490,15 +490,10 @@ class MessageGrouper:
                 if saved_message:
                     logger.info(f"✅ 组合消息已保存到Redis: {channel_id}:{processed_data['message_id']}")
                     
-                    # 如果组合消息已自动批准（人工审核关闭），自动提交发布任务
+                    # 如果组合消息已自动批准（人工审核关闭），等待scheduler自动转发
                     if saved_message.get('status') == 'approved':
-                        try:
-                            from app.services.message_forward_queue import forward_queue
-                            message_id_str = f"{channel_id}:{processed_data['message_id']}"
-                            await forward_queue.submit_forward_task(message_id_str, "forward_to_target")
-                            logger.info(f"人工审核已关闭，组合消息 {message_id_str} 已自动提交发布任务")
-                        except Exception as e:
-                            logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
+                        message_id_str = f"{channel_id}:{processed_data['message_id']}"
+                        logger.info(f"人工审核已关闭，组合消息 {message_id_str} 保持approved状态，等待自动转发")
                     
                     # 通知前端组合消息已创建
                     await self._notify_combined_message_created(saved_message)

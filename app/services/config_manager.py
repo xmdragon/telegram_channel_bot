@@ -167,7 +167,7 @@ class ConfigManager:
             logger.error(f"设置配置失败: {key} = {value}, 错误: {e}")
             return False
     
-    # === Linus风格的类型安全便捷方法 ===
+    # === 类型安全便捷方法 ===
     async def set_boolean(self, key: str, value: bool, description: str = "") -> bool:
         """设置布尔配置 - 类型安全，无需指定config_type"""
         return await self.set_config(key, value, description, config_type="boolean")
@@ -558,7 +558,7 @@ class ConfigManager:
     
     def _determine_config_type(self, key: str, value: Any, explicit_type: str = None) -> str:
         """
-        Linus风格类型推断：消除手动指定config_type的特殊情况
+        类型推断：消除手动指定config_type的特殊情况
         优先级：
         1. 如果提供了explicit_type，使用它（向后兼容）
         2. 如果key在DEFAULT_CONFIGS中，使用定义的类型

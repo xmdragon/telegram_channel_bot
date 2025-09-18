@@ -875,14 +875,15 @@ async def delete_review_message(
 
         # 删除审核群中的消息
         try:
-            from app.telegram.bot import telegram_bot
-            if telegram_bot and telegram_bot.client:
-                await telegram_bot.delete_review_message(review_message_id)
+            from app.telegram.message_forwarder import message_forwarder
+            from app.telegram.dual_session_manager import dual_session_manager
+
+            client = await dual_session_manager.get_sender_client()
+            if client:
+                await message_forwarder.delete_review_message(client, review_message_id)
                 logger.info(f"已删除审核群消息: {review_message_id}")
             else:
-                raise HTTPException(status_code=503, detail="Telegram bot服务不可用")
-        except ImportError:
-            raise HTTPException(status_code=503, detail="Telegram bot模块不可用")
+                raise HTTPException(status_code=503, detail="Telegram客户端未连接")
         except Exception as e:
             logger.error(f"删除审核消息失败: {e}")
             raise HTTPException(status_code=500, detail=f"删除审核消息失败: {str(e)}")

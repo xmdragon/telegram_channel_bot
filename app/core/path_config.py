@@ -28,10 +28,6 @@ class PathConfig:
     TAIL_FILTER_SAMPLES_FILE = TRAINING_DIR / "tail_filter_samples.json"  # 尾部过滤样本
     SEPARATOR_PATTERNS_FILE = TRAINING_DIR / "separator_patterns.json"  # 分隔符模式
     
-    # 其他训练数据
-    OTHER_TRAINING_DIR = TRAINING_DIR / "other"
-    LEARNED_PATTERNS_FILE = OTHER_TRAINING_DIR / "learned_patterns.json"
-    
     # 日志文件
     APP_LOG_FILE = LOGS_DIR / "app.log"
     ERROR_LOG_FILE = LOGS_DIR / "error.log"
@@ -50,8 +46,7 @@ class PathConfig:
             cls.LOGS_DIR.mkdir(exist_ok=True)
             cls.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
 
-            # 创建训练数据目录
-            cls.OTHER_TRAINING_DIR.mkdir(exist_ok=True)   # 用于其他训练数据
+            # 训练数据目录已在上面创建
 
             logger.info("所有系统目录结构初始化完成")
             return True

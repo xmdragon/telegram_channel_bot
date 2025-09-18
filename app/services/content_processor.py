@@ -120,7 +120,7 @@ class ContentProcessor:
             if not message.content:
                 return message
 
-            # Linus优化1: 缓存检查（基于内容哈希）
+            # 优化1: 缓存检查（基于内容哈希）
             import hashlib
             content_hash = hashlib.md5(message.content.encode()).hexdigest()
 
@@ -144,7 +144,7 @@ class ContentProcessor:
             current_content = original_content
             filter_reasons = []
 
-            # Linus优化2: 快速预筛选 - 跳过明显正常的短内容
+            # 优化2: 快速预筛选 - 跳过明显正常的短内容
             if len(current_content.strip()) < 50 and not any(char in current_content for char in ['@', 'http', 't.me', '订阅', '频道']):
                 logger.debug(f"快速预筛选: 消息 {message.message_id} 内容过短且无推广特征，跳过过滤")
                 message.filtered_content = current_content
@@ -176,7 +176,7 @@ class ContentProcessor:
                 filter_reasons.append(f"尾部过滤: 删除{len(removed_tail)}字符")
                 logger.debug(f"消息 {message.message_id} 尾部过滤: {len(original_content)} -> {len(current_content)} 字符")
 
-                # Linus优化3: 尾部过滤后如果内容太短，可能不需要后续处理
+                # 优化3: 尾部过滤后如果内容太短，可能不需要后续处理
                 if len(current_content.strip()) < 20:
                     message.filtered_content = current_content
                     message.filter_reason = "; ".join(filter_reasons)
@@ -235,7 +235,7 @@ class ContentProcessor:
             if filter_reasons:
                 message.filter_reason = "; ".join(filter_reasons)
 
-            # Linus优化4: 缓存处理结果
+            # 优化4: 缓存处理结果
             self._cache_result(content_hash, message, detect_ad)
 
             return message

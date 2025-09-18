@@ -117,13 +117,13 @@ class MessageProcessor:
                 logger.error("消息数据缺少必要字段: source_channel 或 message_id")
                 return None
 
-            # Linus优化1: 快速检查Redis中是否已存在（O(1)操作）
+            # 优化1: 快速检查Redis中是否已存在（O(1)操作）
             existing_message = self.redis_store.get_message(channel_id, int(message_id), silent=True)
             if existing_message:
                 logger.info(f"📋 快速去重: 消息已存在 {channel_id}:{message_id}")
                 return existing_message
 
-            # Linus优化2: 智能去重检测（仅对新消息）
+            # 优化2: 智能去重检测（仅对新消息）
             from app.services.filters.deduplication_engine import get_deduplication_engine
             dedup_engine = get_deduplication_engine()
 
@@ -213,29 +213,9 @@ class MessageProcessor:
                 logger.debug("采集后自动转发已禁用")
                 return
             
-            # 添加转发任务到队列
-            from app.services.message_forward_queue import forward_queue
-            
+            # 消息已保存为pending状态，scheduler + auto_forwarder会自动处理转发
             message_id_str = f"{saved_message.get('source_channel')}:{saved_message.get('message_id')}"
-            task_id = f"auto_forward_review_{message_id_str}_{int(time.time())}"
-            
-            # 创建转发到审核群的任务
-            task = forward_queue.create_task(
-                task_id=task_id,
-                action="forward_to_review", 
-                message_id=message_id_str,
-                priority=5,  # 中等优先级
-                max_retries=3,
-                data={
-                    "source": "auto_forward_after_collect",
-                    "message_data": saved_message
-                }
-            )
-            
-            if forward_queue.add_task(task):
-                logger.info(f"📤 已添加采集后自动转发任务: {message_id_str}")
-            else:
-                logger.warning(f"添加自动转发任务失败: {message_id_str}")
+            logger.info(f"📤 消息已保存为pending状态，等待自动转发: {message_id_str}")
                 
         except Exception as e:
             logger.error(f"检查采集后自动转发时出错: {e}")
@@ -260,7 +240,7 @@ class MessageProcessor:
             }
             
         except Exception as e:
-            logger.error(f"获取Linus统计失败: {e}")
+            logger.error(f"获取统计失败: {e}")
             # 返回默认统计
             return {
                 "total": 0, 

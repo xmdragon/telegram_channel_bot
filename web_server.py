@@ -140,8 +140,6 @@ async def lifespan(app: FastAPI):
         storage_time = time.time() - storage_start
         logger.info(f"✅ 存储层初始化和验证完成 ({storage_time:.2f}s)")
         
-        # 版本管理已废除 - 使用客户端动态时间戳
-        
         # 阶段2：配置和认证初始化（并行处理）
         config_start = time.time()
         
@@ -243,11 +241,6 @@ app.add_middleware(
 
 # 注册API路由
 app.include_router(api_router, prefix="/api")
-
-# 直接注册WebSocket路由（避免prefix问题）
-# from app.api.telegram_auth import websocket_auth  # 已删除
-# from app.core.route_config import ROUTES
-# app.add_websocket_route(f"/api/telegram-auth{ROUTES.auth.websocket}", websocket_auth)
 
 # 注册实时消息推送WebSocket路由
 from app.api.websocket import websocket_endpoint

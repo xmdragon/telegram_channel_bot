@@ -1,12 +1,10 @@
 /**
- * WebSocket工厂类 - Linus风格"好品味"实现
- * 
+ * WebSocket工厂类
+ *
  * 核心原则：
  * 1. 消除所有重复的WebSocket URL构造逻辑
  * 2. 统一的连接管理，不再有特殊情况
  * 3. 一个地方定义，到处使用
- * 
- * "Bad programmers worry about the code. Good programmers worry about data structures"
  */
 
 class WebSocketFactory {

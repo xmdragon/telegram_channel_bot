@@ -169,21 +169,12 @@ const API_ENDPOINTS = {
     },
 
 
-    // WebSocket端点 - Linus式统一管理：所有WebSocket连接必须使用WebSocketFactory.create()
+    // WebSocket端点 - 统一管理：所有WebSocket连接必须使用WebSocketFactory.create()
     // 禁止直接构造WebSocket，统一使用：WebSocketFactory.create('main')
     websocket: {
         main: '/ws',                                               // WebSocket - 主要连接（通过WebSocketFactory使用）
     },
 
-    // AI配置模块 - /api/ai-config
-    aiConfig: {
-        status: '/api/ai-config/status',                           // GET - 获取AI功能状态
-        globalConfig: '/api/ai-config/global-config',              // POST - 更新全局AI配置
-        moduleConfig: '/api/ai-config/module-config',              // POST - 更新单个模块配置
-        cacheClear: '/api/ai-config/cache/clear',                  // POST - 清理模型缓存
-        lightweightTrain: '/api/ai-config/lightweight/train',      // POST - 训练轻量级模型
-        recommendations: '/api/ai-config/recommendations'          // GET - 获取AI配置建议
-    },
 
     // 媒体和静态文件路径
     media: {
@@ -205,7 +196,8 @@ const API_ENDPOINTS = {
         tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
         tailFilterTraining: '/static/tail-filter-training.html',   // 尾部过滤训练独立页面
         adVectorManager: '/static/ad-training-samples.html',       // 关键词管理页面
-        separatorConfig: '/static/separator-config.html'          // 分隔符配置页面
+        separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
+        telegramMessage: '/static/telegram-message.html'           // Telegram消息工具页面
     }
 };
 

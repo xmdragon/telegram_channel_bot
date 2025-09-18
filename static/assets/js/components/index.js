@@ -1,5 +1,5 @@
 /**
- * 主页面协调器 - Linus式"好品味"重构版本
+ * 主页面协调器
  * 
  * 核心理念：
  * 1. 数据结构驱动程序设计 - "Bad programmers worry about the code. Good programmers worry about data structures"
@@ -93,7 +93,7 @@ const MainApp = {
             // 操作状态
             processingMessages: new Set(),
             publishingMessages: new Set(), // 正在发布的消息ID集合
-            filteringMessages: new Set(), // 正在过滤的消息ID集合 - Linus风格状态管理
+            filteringMessages: new Set(), // 正在过滤的消息ID集合
             isBatchPublishing: false, // 批量发布状态
             componentRefreshKey: 0, // 用于强制组件重新渲染
             
@@ -253,7 +253,7 @@ const MainApp = {
     
     async mounted() {
         try {
-            // 🔥 Linus风格：初始化事件委托系统
+            // 🔥 初始化事件委托系统
             if (window.EventDelegate) {
                 this.eventDelegate = new window.EventDelegate(this);
             }
@@ -292,7 +292,7 @@ const MainApp = {
                     window.SimpleUI.Message.error('加载消息失败，请刷新页面重试');
                     return { error: err }; // 返回错误对象，不抛出异常，让WebSocket能正常初始化
                 }),
-                // 统计数据由linus-stats组件自动加载
+                // 统计数据由stats组件自动加载
                 this.loadChannelInfo().catch(err => {
                     console.error('❌ 加载频道信息失败:', err);
                     return { error: err }; // 返回错误对象，不抛出异常，让WebSocket能正常初始化
@@ -345,7 +345,7 @@ const MainApp = {
                 }
             }, 10000);
             
-            // 🔥 Linus原则：删除过于主动的焦点刷新
+            // 🔥 删除过于主动的焦点刷新
             // 用户切换窗口不应该触发自动加载，让用户自己控制何时刷新
             
             // 添加滚动监听
@@ -357,7 +357,7 @@ const MainApp = {
     },
     
     beforeUnmount() {
-        // 🔥 Linus风格：销毁事件委托系统
+        // 🔥 销毁事件委托系统
         if (this.eventDelegate && typeof this.eventDelegate.destroy === 'function') {
             this.eventDelegate.destroy();
         }
@@ -415,7 +415,7 @@ const MainApp = {
             return this.publishingMessages.has(messageId);
         },
         
-        // 过滤状态检查方法 - Linus风格：与isPublishing保持一致
+        // 过滤状态检查方法 - 与isPublishing保持一致
         isFiltering(messageId) {
             return this.filteringMessages.has(messageId);
         },
@@ -736,7 +736,7 @@ const MainApp = {
             return window.DataUtils ? window.DataUtils.getOriginalMessageLink(message) : '#';
         },
         
-        // Linus风格统计面板点击 - 没有特殊情况
+        // 统计面板点击 - 没有特殊情况
         handleStatClick(statKey) {
             
             // 数据驱动，直接设置状态
@@ -1401,7 +1401,7 @@ const MainApp = {
                     this.websocket.close();
                 }
                 
-                // Linus风格：使用统一的WebSocket工厂，消除重复代码
+                // 使用统一的WebSocket工厂，消除重复代码
                 this.websocket = WebSocketFactory.create('main');
                 
                 // 设置超时检测
@@ -2455,7 +2455,7 @@ const MainApp = {
             window.location.href = API.pages.tailFilterTraining + '?' + params.toString();
         },
         
-        // 手动执行内容过滤 - Linus风格：消除重复点击的特殊情况
+        // 手动执行内容过滤 - 消除重复点击的特殊情况
         async filterContent(event, messageId) {
             // 处理参数兼容性
             if (typeof event === 'string') {
@@ -2477,7 +2477,7 @@ const MainApp = {
             this.filteringMessages.add(messageId);
             
             try {
-                // 🚀 Linus风格：依赖axios拦截器自动处理认证（消除特殊情况）
+                // 🚀 依赖axios拦截器自动处理认证（消除特殊情况）
                 const response = await axios.post(
                     window.API.messages.filterContent(this.ensureChannelIdPrefix(message.id)),
                     {} // 让拦截器自动添加认证头，避免手动覆盖

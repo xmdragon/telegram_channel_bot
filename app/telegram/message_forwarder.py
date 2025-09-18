@@ -1,5 +1,5 @@
 """
-Telegram消息转发器 - Linus标准修复版本
+Telegram消息转发器
 专门负责消息转发相关的所有功能
 """
 import logging
@@ -10,8 +10,6 @@ from telethon import TelegramClient
 
 from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
-from app.services.telegram_link_resolver import link_resolver
-# 移除不必要的过滤引擎依赖 - Linus式简化
 from app.services.media_handler import media_handler
 
 logger = logging.getLogger(__name__)
@@ -58,7 +56,7 @@ class MessageForwarder:
     """消息转发器 - 专门处理消息转发逻辑"""
     
     def __init__(self):
-        # Linus式简化：不需要复杂的过滤引擎依赖
+        # 简化：不需要复杂的过滤引擎依赖
         pass
 
     def add_channel_signature(self, text: str, channel_name: str) -> str:
@@ -188,7 +186,7 @@ class MessageForwarder:
     async def forward_to_target(self, client: TelegramClient, message):
         """重新发布到目标频道"""
         try:
-            # ✅ Linus修复：使用统一消息类，消除运行时类定义
+            # ✅ 优化：使用统一消息类，消除运行时类定义
             message = StandardMessage(message)
             
             # 获取目标频道ID（从Redis缓存）
@@ -220,7 +218,7 @@ class MessageForwarder:
             media_url = getattr(message, 'media_url', None) or message.get('media_url', None)
             grouped_id = getattr(message, 'grouped_id', None) or message.get('grouped_id', None)
             
-            # 🚀 Linus修复：消除特殊情况，消息在采集时就应该正确组合
+            # 🚀 优化：消除特殊情况，消息在采集时就应该正确组合
             
             if is_combined and media_group:
                 # 发送组合消息（媒体组）
@@ -257,7 +255,7 @@ class MessageForwarder:
                             message_id = message.get('message_id')
                             grouped_id = message.get('grouped_id')
                             
-                            # 🚀 Linus修复：只更新主消息，子消息已删除无需更新
+                            # 🚀 优化：只更新主消息，子消息已删除无需更新
                             if channel_id and message_id:
                                 # 单个消息更新
                                 redis_manager.update_message_field(
@@ -280,113 +278,6 @@ class MessageForwarder:
             logger.error(f"重新发布到目标频道时出错: {e}")
             # 不清理媒体文件 - 交给scheduler定期清理，保留文件用于重试
             raise  # 重新抛出异常，让队列处理器知道失败
-    
-    async def update_review_message(self, client: TelegramClient, message):
-        """更新审核群中的消息内容"""
-        try:
-            if not message.review_message_id:
-                logger.warning("消息没有审核群消息ID，无法更新")
-                return
-            
-            # 获取审核群ID（从Redis缓存）
-            from app.services.channel_cache import channel_cache
-            review_group_id = await channel_cache.get_review_group_id()
-            
-            if not review_group_id:
-                logger.error("未配置审核群ID或无法解析审核群链接")
-                return
-            
-            # 准备更新后的消息内容
-            updated_content = message.filtered_content or message.content
-            
-            # 检查消息是否包含媒体
-            has_media = (message.media_type and message.media_url) or (message.is_combined and message.media_group_display)
-            
-            # 尝试直接编辑消息（适用于纯文本或带caption的媒体）
-            try:
-                # 尝试编辑消息
-                edited = await client.edit_message(
-                    entity=int(review_group_id),
-                    message=message.review_message_id,
-                    text=updated_content
-                )
-                
-                if edited:
-                    logger.info(f"成功编辑审核群消息 {message.review_message_id}")
-                    return
-            except Exception as edit_error:
-                logger.debug(f"无法直接编辑消息（可能是媒体组合消息）: {edit_error}")
-            
-            if has_media:
-                # 对于无法编辑的媒体消息，需要删除旧消息并重新发送
-                logger.info(f"消息包含媒体且无法编辑，需要重新发送到审核群")
-                
-                # 1. 删除旧的审核群消息
-                await self.delete_review_message(client, message.review_message_id)
-                
-                # 2. 重新发送到审核群
-                sent_message = None
-                
-                # 检查是否为组合消息
-                if message.is_combined and message.media_group_display:
-                    # 发送组合消息到审核群
-                    sent_message = await self._send_combined_message_to_review(client, review_group_id, message, updated_content)
-                elif message.media_type and message.media_url and os.path.exists(message.media_url):
-                    # 发送单个媒体消息到审核群
-                    sent_message = await self._send_single_media_to_review(client, review_group_id, message, updated_content)
-                else:
-                    # 媒体文件不存在，只发送文本
-                    logger.warning(f"媒体文件不存在: {message.media_url}")
-                    sent_message = await client.send_message(
-                        entity=int(review_group_id),
-                        message=updated_content
-                    )
-                
-                # 3. 更新Redis中的review_message_id和filtered_content
-                if sent_message:
-                    try:
-                        message_store = redis_manager
-                        if not message_store:
-                            logger.error("无法获取Redis消息存储")
-                            return
-                        
-                        review_message_id = None
-                        if isinstance(sent_message, list):
-                            # 组合消息返回列表，保存第一个消息的ID
-                            review_message_id = sent_message[0].id
-                        else:
-                            review_message_id = sent_message.id
-                        
-                        # 更新消息的review_message_id和filtered_content
-                        await message_store.update_message_review_id(
-                            message.get('channel_id') or message.source_channel, 
-                            message.get('message_id') or message.message_id, 
-                            review_message_id
-                        )
-                        
-                        # 更新filtered_content
-                        await message_store.update_message_field(
-                            message.get('channel_id') or message.source_channel,
-                            message.get('message_id') or message.message_id,
-                            'filtered_content',
-                            updated_content
-                        )
-                        
-                        logger.info(f"已更新审核群消息ID和内容: {message.get('id') or message.message_id} -> {review_message_id}")
-                    except Exception as e:
-                        logger.error(f"更新Redis记录失败: {e}")
-            else:
-                # 纯文本消息，直接编辑
-                await client.edit_message(
-                    entity=int(review_group_id),
-                    message=message.review_message_id,
-                    text=updated_content
-                )
-                logger.info(f"已更新审核群消息: {message.review_message_id}")
-            
-        except Exception as e:
-            logger.error(f"更新审核群消息失败: {e}")
-    
     async def delete_review_message(self, client: TelegramClient, review_message_id: int):
         """删除审核群的消息"""
         try:
@@ -626,26 +517,6 @@ class MessageForwarder:
             logger.error(f"发送媒体消息失败: {e}")
             # 不降级，直接抛出异常让上层处理
             raise
-    
-    async def _cleanup_message_files(self, message):
-        """清理消息相关的媒体文件"""
-        try:
-            # 🔧 修复：兼容字典和对象两种类型
-            is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False) if hasattr(message, 'get') else False
-            media_group = getattr(message, 'media_group_display', None) or message.get('media_group_display', None) if hasattr(message, 'get') else None
-            media_url = getattr(message, 'media_url', None) or message.get('media_url', None) if hasattr(message, 'get') else None
-            
-            if is_combined and media_group:
-                # 清理组合消息的所有媒体文件
-                for media_item in media_group:
-                    file_path = media_item.get('file_path') if isinstance(media_item, dict) else media_item['file_path']
-                    if file_path and os.path.exists(file_path):
-                        await media_handler.cleanup_file(file_path)
-            elif media_url and os.path.exists(media_url):
-                # 清理单个媒体文件
-                await media_handler.cleanup_file(media_url)
-        except Exception as e:
-            logger.error(f"清理消息文件时出错: {e}")
 
     async def forward_to_target_with_sender_session(self, message):
         """使用发送Session转发到目标频道（无锁设计）"""
@@ -665,26 +536,6 @@ class MessageForwarder:
                 
         except Exception as e:
             logger.error(f"使用发送Session转发失败: {e}")
-            raise
-    
-    async def forward_to_review_with_sender_session(self, message_data: dict):
-        """使用发送Session转发到审核群（无锁设计）"""
-        from app.telegram.dual_session_manager import dual_session_manager
-        
-        try:
-            # 确保发送Session已连接
-            if await dual_session_manager.ensure_sender_connected():
-                sender_client = await dual_session_manager.get_sender_client()
-                if sender_client:
-                    # 执行转发
-                    await self.forward_to_review(sender_client, message_data)
-                else:
-                    raise RuntimeError("发送Session客户端未可用")
-            else:
-                raise RuntimeError("无法连接发送Session")
-                
-        except Exception as e:
-            logger.error(f"使用发送Session转发到审核群失败: {e}")
             raise
 
 # 全局转发器实例

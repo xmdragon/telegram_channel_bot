@@ -212,7 +212,7 @@ const MessageContentRenderer = {
             return statusMap[this.message.status] || { text: this.message.status, type: 'default' };
         },
         
-        // 确保消息ID包含-100前缀的格式化ID - Linus式修复
+        // 确保消息ID包含-100前缀的格式化ID
         computedMessageId() {
             const messageId = this.messageId;  // 使用正确的messageId计算属性
             if (!messageId || !messageId.includes(':')) {
@@ -426,7 +426,7 @@ const MessageContentRenderer = {
         },
         
         
-        // 🔥 Linus风格：操作方法被事件委托取代，不再需要Vue事件
+        // 操作方法被事件委托取代，不再需要Vue事件
         
         // 频道过滤方法
         filterByChannel(channelId, channelName) {

@@ -564,23 +564,6 @@ class MediaHandler:
         except Exception as e:
             logger.error(f"清理文件失败: {file_path}, 错误: {e}")
             
-    async def cleanup_message_files(self, message_id: int):
-        """
-        清理指定消息的所有媒体文件
-        
-        Args:
-            message_id: 消息ID
-        """
-        try:
-            # 查找以message_id开头的文件
-            pattern = f"{message_id}_*"
-            for file_path in self.temp_dir.glob(pattern):
-                await self.cleanup_file(str(file_path))
-                
-            logger.info(f"已清理消息 {message_id} 的所有媒体文件")
-            
-        except Exception as e:
-            logger.error(f"清理消息媒体文件失败: {message_id}, 错误: {e}")
             
     async def _cleanup_loop(self):
         """定期清理过期文件"""

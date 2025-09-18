@@ -144,11 +144,11 @@ git status && git log --oneline -1
 #### 允许的核心文件：
 ✅ CLAUDE.md, README.md, requirements.txt, .gitignore
 ✅ dev.sh, start.sh, stop.sh, restart.sh
-✅ app/, data/, docs/, logs/, static/, tools/, temp_media/, venv/
+✅ app/, data/, logs/, static/, tools/, temp_media/, venv/
 
 #### 📚 文档管理规范：
 - **根目录只保留**：`CLAUDE.md` 和 `README.md`
-- **所有其他md文档必须放在docs/目录**
+- **所有重要信息已整合在CLAUDE.md中**
 - **禁止在根目录创建新的md文件**（除非是CLAUDE.md或README.md的更新）
 
 ### tools/目录分类
@@ -558,7 +558,7 @@ app/
 - 测试完成后评估是否保留
 - 使用描述性的测试文件名
 
-详细的命名规范请查看：`docs/NAMING_CONVENTIONS.md`
+命名规范已整合在上方速查表中
 
 ## 📐 命名规范速查
 
@@ -617,7 +617,7 @@ app/
 
 3. **备份和恢复**
    - 清理前自动创建备份
-   - 备份保存在`backups/`目录
+   - 备份保存在`data/backups/`目录
    - 可通过备份恢复误删文件
 
 ### 清理优先级
@@ -751,12 +751,9 @@ python3 tools/testing/fetch_telegram_message.py TELEGRAM_URL    # 抓取原始�
 - Telegram消息抓取：`tools/testing/fetch_telegram_message.py`
 - 清理工具：`tools/maintenance/cleanup_redundant_files.py`
 
-### 📚 文档速查（docs/目录）
-- 系统架构文档：`docs/SYSTEM_ARCHITECTURE.md`
-- 命名规范文档：`docs/NAMING_CONVENTIONS.md`
-- 部署文档：`docs/DEPLOYMENT.md`
-- API响应格式：`docs/API_RESPONSE_FORMAT.md`
-- Colima优化指南：`docs/COLIMA_OPTIMIZATION_SUMMARY.md`
+### 📚 文档统一在CLAUDE.md
+- 所有重要信息已整合在本文档中
+- 消除文档分散，符合Linus简化原则
 
 ### 故障排查步骤
 1. 检查服务状态：`./dev.sh --status`

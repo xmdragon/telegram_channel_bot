@@ -96,7 +96,7 @@ class RedisManager:
     def is_healthy(self) -> bool:
         """检查Redis连接健康状态"""
         try:
-            # 🚀 Linus修复：通过self.client触发lazy初始化
+            # 🚀 优化：通过self.client触发lazy初始化
             client = self.client
             if client is None:
                 return False
@@ -296,7 +296,7 @@ class RedisManager:
             
             # 更新索引（仅当状态变更时）
             if old_status != new_status:
-                # 从所有状态索引中移除（Linus式：消除特殊情况，彻底清理）
+                # 从所有状态索引中移除（消除特殊情况，彻底清理）
                 for status in ['pending', 'approved', 'rejected']:
                     pipeline.zrem(f"index:msg:{status}", message_id)
                 

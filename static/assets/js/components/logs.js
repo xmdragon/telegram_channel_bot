@@ -158,14 +158,14 @@ const app = createApp({
             return labels[this.selectedLogType] || 'Telegram采集';
         },
 
-        // WebSocket连接管理 - Linus式推送替代轮询
+        // WebSocket连接管理 - 推送替代轮询
         connectWebSocket() {
             if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
                 return; // 已连接，无需重复连接
             }
 
             try {
-                // Linus风格：使用统一的WebSocket工厂，消除重复代码和硬编码备用URL
+                // 使用统一的WebSocket工厂，消除重复代码和硬编码备用URL
                 this.websocket = WebSocketFactory.create('main');
 
                 this.websocket.onopen = () => {

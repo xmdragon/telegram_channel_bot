@@ -98,7 +98,7 @@ async def get_message_stats_overview(
         }
         
     except Exception as e:
-        logger.error(f"获取Linus统计概览失败: {e}")
+        logger.error(f"获取统计概览失败: {e}")
         # 返回空数据而不是抛异常，保证前端不崩溃
         return {
             "success": False,

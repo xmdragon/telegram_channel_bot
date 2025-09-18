@@ -405,7 +405,7 @@ class StartupChecker:
                     result['error'] = "未配置目标频道"
                     logger.error("  - 未配置目标频道")
             else:
-                # 🔧 Linus风格修复：如果已有有效ID，无需重新解析
+                # 🔧 优化：如果已有有效ID，无需重新解析
                 if target_channel_id.startswith('-100'):
                     # 已有有效的频道ID，直接使用
                     result['channel_id'] = target_channel_id

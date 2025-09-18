@@ -77,7 +77,7 @@ const app = createApp({
                     return timeB - timeA;
                 });
                 
-                // 使用统一的统计API数据（Linus式单一数据源）
+                // 使用统一的统计API数据（单一数据源）
                 if (statsResponse.data.success) {
                     this.totalSamples = statsResponse.data.total_samples || this.totalCount;
                 } else {

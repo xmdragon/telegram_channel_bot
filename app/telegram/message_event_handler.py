@@ -1,31 +1,22 @@
 """
 Telegram消息事件处理器
-专门负责事件注册、消息接收和初步处理
+负责事件注册和消息接收分发
 """
 import logging
 from typing import Optional, Callable
 from telethon import events
-from telethon.tl.types import Message as TLMessage
 
 from app.core.config import db_settings
-from app.services.telegram_link_resolver import link_resolver
 
 logger = logging.getLogger(__name__)
 
 class MessageEventHandler:
-    """消息事件处理器 - 只负责事件处理和消息分发"""
-    
+    """消息事件处理器 - 处理Telegram事件"""
+
     def __init__(self):
         self._message_processor: Optional[Callable] = None
         self._callback_processor: Optional[Callable] = None
         
-    def set_message_processor(self, processor: Callable):
-        """设置消息处理器回调"""
-        self._message_processor = processor
-        
-    def set_callback_processor(self, processor: Callable):
-        """设置回调处理器回调"""
-        self._callback_processor = processor
     
     async def register_event_handlers(self, client):
         """注册事件处理器到客户端"""
@@ -127,7 +118,8 @@ class MessageEventHandler:
         if self._callback_processor:
             await self._callback_processor(event)
         else:
-            logger.warning("未设置回调处理器，忽略回调")
+            # 使用内置的回调处理器
+            await self.handle_callback(event)
     
     async def _parse_chat_info(self, chat) -> dict:
         """解析聊天信息，统一ID格式"""
@@ -171,6 +163,70 @@ class MessageEventHandler:
         # 其他类型
         else:
             return "other"
+
+
+    async def handle_callback(self, event):
+        """处理回调按钮"""
+        try:
+            data = event.data.decode()
+            action, message_id = data.split('_', 1)
+            message_id = int(message_id)
+
+            logger.info(f"处理回调: {action} for message {message_id}")
+
+            if action == "approve":
+                await self.approve_message(message_id, event.sender.username)
+            elif action == "reject":
+                await self.reject_message(message_id, event.sender.username)
+            else:
+                logger.warning(f"未知的回调动作: {action}")
+
+        except Exception as e:
+            logger.error(f"处理回调时出错: {e}")
+
+
+    async def approve_message(self, message_id: int, reviewer: str):
+        """批准消息"""
+        try:
+            logger.info(f"批准消息 {message_id} by {reviewer}")
+
+            from app.storage.redis_manager import redis_manager
+
+            # 获取消息
+            message = await redis_manager.get_message(message_id)
+            if message:
+                # 更新状态
+                message['status'] = 'approved'
+                message['reviewer'] = reviewer
+                await redis_manager.update_message(message_id, message)
+                logger.info(f"✅ 消息 {message_id} 已批准")
+            else:
+                logger.error(f"❌ 找不到消息 {message_id}")
+
+        except Exception as e:
+            logger.error(f"批准消息失败: {e}")
+
+    async def reject_message(self, message_id: int, reviewer: str):
+        """拒绝消息"""
+        try:
+            logger.info(f"拒绝消息 {message_id} by {reviewer}")
+
+            from app.storage.redis_manager import redis_manager
+
+            # 获取消息
+            message = await redis_manager.get_message(message_id)
+            if message:
+                # 更新状态
+                message['status'] = 'rejected'
+                message['reviewer'] = reviewer
+                await redis_manager.update_message(message_id, message)
+                logger.info(f"✅ 消息 {message_id} 已拒绝")
+            else:
+                logger.error(f"❌ 找不到消息 {message_id}")
+
+        except Exception as e:
+            logger.error(f"拒绝消息失败: {e}")
+
 
 # 全局事件处理器实例
 message_event_handler = MessageEventHandler()

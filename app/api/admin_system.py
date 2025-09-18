@@ -25,12 +25,13 @@ async def backup_data():
     """备份数据"""
     try:
         # 创建备份目录
-        backup_dir = "backups"
-        os.makedirs(backup_dir, exist_ok=True)
+        from app.core.path_config import PathConfig
+        backup_dir = PathConfig.BACKUP_DIR
+        backup_dir.mkdir(exist_ok=True)
         
         # 生成备份文件名
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_file = f"{backup_dir}/backup_{timestamp}.tar.gz"
+        backup_file = backup_dir / f"backup_{timestamp}.tar.gz"
         
         # 创建备份文件
         with tarfile.open(backup_file, "w:gz") as tar:
@@ -38,7 +39,7 @@ async def backup_data():
             # 注意：PostgreSQL数据库备份应该使用pg_dump命令
             backup_info = "PostgreSQL数据库备份需要使用pg_dump命令\n"
             backup_info += "示例：pg_dump -h postgres -U postgres telegram_system > backup.sql\n"
-            info_file = f"{backup_dir}/database_backup_info.txt"
+            info_file = backup_dir / "database_backup_info.txt"
             with open(info_file, "w") as f:
                 f.write(backup_info)
             tar.add(info_file, arcname="database/backup_info.txt")

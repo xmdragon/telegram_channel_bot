@@ -137,13 +137,9 @@ class MessageStorageProcessor(MessageProcessor):
             
             # 如果消息已自动批准（人工审核关闭），自动提交发布任务
             if context.save_data and context.save_data.get('status') == 'approved':
-                try:
-                    from app.services.message_forward_queue import forward_queue
-                    message_id_str = f"{context.channel_id}:{context.save_data.get('message_id')}"
-                    await forward_queue.submit_forward_task(message_id_str, "forward_to_target")
-                    self.logger.info(f"人工审核已关闭，消息 {message_id_str} 已自动提交发布任务")
-                except Exception as e:
-                    self.logger.error(f"自动提交发布任务失败 {message_id_str}: {e}")
+                # 人工审核已关闭，消息保持pending状态，scheduler + auto_forwarder会自动处理
+                message_id_str = f"{context.channel_id}:{context.save_data.get('message_id')}"
+                self.logger.info(f"人工审核已关闭，消息 {message_id_str} 保持pending状态，等待自动转发")
             
             # 发送WebSocket通知更新统计数据（异步，不等待）
             asyncio.create_task(self._notify_stats_update())

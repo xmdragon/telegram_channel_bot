@@ -383,17 +383,17 @@ async def extract_ad_keywords(
         from app.services.keyword_extractor import get_keyword_extractor
         extractor = get_keyword_extractor()
         
-        # 提取建议的关键词及权重
-        suggested_keywords = extractor.suggest_keywords_with_weight(content)
+        # 提取建议的关键词（简化版本）
+        suggested_keywords = extractor.suggest_keywords(content)
         
         # 格式化返回数据
         keywords = [
             {
                 "keyword": keyword,
-                "weight": weight,
+                "weight": 1.0,  # 简化版本：统一权重
                 "is_new": True  # 标记为新关键词
             }
-            for keyword, weight in suggested_keywords
+            for keyword in suggested_keywords
         ]
         
         return {

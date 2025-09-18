@@ -179,8 +179,7 @@ telegram_channel_bot/
 ├── static/                 # Web前端文件
 ├── tools/                  # 工具脚本
 ├── logs/                   # 日志文件
-├── docs/                   # 项目文档
-│   └── service_architecture.md  # 架构文档
+├── CLAUDE.md               # 项目开发指南（统一文档）
 ├── temp_media/             # 临时媒体文件
 ├── web_server.py           # Web服务器（独立）
 ├── message_collector.py   # Telegram采集服务（独立）

@@ -3,18 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram消息结构查看器 - 系统工具</title>
-    <link rel="stylesheet" href="/static/assets/css/common.css">
-    <link rel="stylesheet" href="/static/assets/css/components.css">
-    <link rel="stylesheet" href="/static/assets/css/tools.css">
+    <title>Telegram消息 - 训练中心</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-common.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/tools.css?v=' + RESOURCE_VERSION + '">');
+    </script>
 </head>
 <body>
     <div id="app">
         <!-- 导航栏 -->
-        <nav-bar page-title="🔍 Telegram消息结构查看器" page-subtitle="查看消息的完整结构体数据"></nav-bar>
+        <nav-bar page-title="🤖 训练中心"></nav-bar>
 
-        <!-- 主容器 -->
         <div class="container">
+            <!-- 子导航 -->
+            <training-nav active-tab="telegram"></training-nav>
             <!-- 页面标题 -->
             <div class="page-header">
                 <h1>
@@ -181,13 +190,17 @@
         </div>
     </div>
 
-    <!-- JavaScript依赖 -->
-    <script src="/static/assets/js/vue.js"></script>
-    <script src="/static/assets/js/axios.js"></script>
-    <script src="/static/assets/js/config/api-endpoints.js"></script>
-    <script src="/static/assets/js/core/simple-ui.js"></script>
-    <script src="/static/assets/js/utils/auth-manager.js"></script>
-    <script src="/static/assets/js/components/navbar.js"></script>
-    <script src="/static/assets/js/components/message-structure.js"></script>
+    <!-- 动态加载JavaScript文件 -->
+    <script>
+        document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/message-structure.js?v=' + RESOURCE_VERSION + '"><\/script>');
+    </script>
 </body>
 </html>

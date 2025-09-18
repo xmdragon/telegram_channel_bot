@@ -1,7 +1,0 @@
-{
-  "ai_enabled": true,
-  "mode": "lightweight",
-  "startup_mode": "lazy", 
-  "description": "轻量级文本处理系统 - 使用高效算法，无外部依赖",
-  "updated_at": "2025-08-27T10:30:00"
-}

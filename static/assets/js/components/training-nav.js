@@ -13,6 +13,7 @@ const TrainingNav = {
                 { key: 'tail', label: '尾部过滤训练', url: API.pages.tailFilterManager },
                 { key: 'separator', label: '分隔符配置', url: API.pages.separatorConfig },
                 { key: 'ad', label: '关键词管理', url: API.pages.adVectorManager },
+                { key: 'telegram', label: 'Telegram消息', url: API.pages.telegramMessage },
             ]
         };
     },

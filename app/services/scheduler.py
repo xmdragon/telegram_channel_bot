@@ -9,18 +9,19 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.services.message_processor import MessageProcessor
 from app.core.media_paths import media_paths
+from app.services.auto_forwarder import auto_forwarder
 
 logger = logging.getLogger(__name__)
 
 class MessageScheduler:
     """消息调度器"""
-    
+
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
         self.message_processor = MessageProcessor()
-    
+
     def start(self):
-        """启动调度器 - 只负责数据清理，转发功能已移至collector"""
+        """启动调度器 - 包含数据清理和自动转发"""
         # 每小时清理过期数据
         self.scheduler.add_job(
             self.cleanup_old_data,
@@ -28,10 +29,10 @@ class MessageScheduler:
             hours=1,
             id='cleanup_data'
         )
-        
+
         # 删除独立的媒体清理任务，统一由cleanup_old_data处理
         # 避免消息和媒体文件不同步的问题
-        
+
         # 每小时清理日志文件（保留1天的日志，error.log除外）
         self.scheduler.add_job(
             self.cleanup_old_logs,
@@ -39,10 +40,19 @@ class MessageScheduler:
             hours=1,
             id='cleanup_logs'
         )
-        
-        
+
+        # 新增：自动转发任务 - 每30秒执行一次
+        self.scheduler.add_job(
+            auto_forwarder.check_and_forward,
+            'interval',
+            seconds=30,
+            id='auto_forward',
+            max_instances=1,  # 防止任务重叠
+            misfire_grace_time=10  # 错过执行时间10秒内仍会执行
+        )
+
         self.scheduler.start()
-        logger.info("消息调度器已启动")
+        logger.info("消息调度器已启动 (包含自动转发)")
     
     def shutdown(self):
         """关闭调度器"""

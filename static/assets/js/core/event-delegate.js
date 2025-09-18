@@ -1,7 +1,7 @@
 /**
- * Linus风格的事件委托管理器
- * 
- * 核心哲学：
+ * 事件委托管理器
+ *
+ * 核心原则：
  * 1. 一个监听器处理所有事件 - 没有特殊情况
  * 2. 数据属性驱动 - 不用复杂的选择器
  * 3. 捕获阶段拦截 - 从根本上解决冒泡问题
@@ -61,10 +61,10 @@ class EventDelegate {
     }
     
     /**
-     * 获取统计键值 - Linus风格修复版
+     * 获取统计键值
      */
     getStatKey(target) {
-        // 🔥 Linus原则：首先检查是否是交互元素，如果是则直接返回null
+        // 首先检查是否是交互元素，如果是则直接返回null
         if (target.closest('button, .btn, a, input, select, textarea, [role="button"], .message-actions')) {
             return null;
         }

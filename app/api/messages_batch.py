@@ -101,41 +101,39 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
     
     return message_tuples, valid_messages
 
-@router.post(ROUTES.messages.batch_approve)
-async def batch_approve_messages(
-    request: dict = Body({}),
-    user: Dict[str, Any] = Depends(require_auth),
-    message_processor: MessageProcessor = Depends(get_message_processor)
-):
+
+async def process_batch_approve(message_ids: List[str], user_id: str = None) -> Dict:
     """
-    批量批准消息
-    支持组合消息的完整处理
+    批量发布消息的核心逻辑
+    可供内部调用（如自动转发）或HTTP API调用
+
+    注意：这个函数内部会自动过滤广告消息
     """
-    message_ids = request.get("message_ids", [])
-    if not message_ids:
-        return {"success": False, "message": "未提供消息ID列表"}
-    
     try:
-        reviewer_name = user.get('username', 'Web用户')
-        
+        message_processor = MessageProcessor()
+        reviewer_name = user_id or 'auto_forward'
+
         # 解析消息ID并收集相关的组合消息
         message_tuples, valid_messages = await parse_and_collect_messages(message_ids, 'pending')
-        
+
         if not valid_messages:
-            return {"success": False, "message": "没有找到可批准的消息"}
-        
+            return {
+                "success": True,
+                "message": "没有找到可批准的消息",
+                "approved_count": 0,
+                "failed_count": 0
+            }
+
         # 批量更新状态
         update_results = await message_processor.batch_update_status(
             message_tuples, "approved", reviewer_name
         )
-        
+
         approved_count = sum(1 for success in update_results.values() if success)
-        
-        # 注意：已移除媒体训练数据保存功能
 
         # 直接同步执行消息转发，确保立即发送到目标频道
         forwarded_count = 0
-        forward_results = []
+        failed_count = 0
 
         try:
             from app.telegram.message_forwarder import MessageForwarder
@@ -147,71 +145,117 @@ async def batch_approve_messages(
             for msg_data in valid_messages:
                 msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
                 try:
+                    # 检查是否为广告（批量发送会自动过滤）
+                    is_ad = msg_data.get('is_ad', False)
+                    if isinstance(is_ad, str):
+                        is_ad = is_ad.lower() == 'true'
+
+                    if is_ad:
+                        logger.debug(f"跳过广告消息: {msg_key}")
+                        continue
+
                     # 直接调用转发方法
                     await forwarder.forward_to_target_with_sender_session(msg_data)
-
-                    # 如果没有抛出异常，说明转发成功
                     forwarded_count += 1
-                    forward_results.append({
-                        "message_id": msg_key,
-                        "status": "success"
-                    })
                     logger.debug(f"转发成功: {msg_key}")
 
                 except Exception as e:
-                    error_msg = str(e)
-                    forward_results.append({
-                        "message_id": msg_key,
-                        "status": "failed",
-                        "error": error_msg
-                    })
-                    logger.error(f"转发消息失败 {msg_key}: {error_msg}")
+                    failed_count += 1
+                    logger.error(f"转发消息失败 {msg_key}: {e}")
 
                 # 短暂延迟避免过载
                 await asyncio.sleep(0.1)
 
         except ImportError as e:
             logger.error(f"无法导入消息转发器: {e}")
+            failed_count = len(valid_messages) - forwarded_count
         except Exception as e:
             logger.error(f"批量转发过程中发生错误: {e}")
-        
-        failed_count = len([r for r in forward_results if r.get('status') == 'failed'])
-
-        # 构建响应消息
-        if approved_count > 0:
-            if forwarded_count == approved_count:
-                primary_message = f"成功发布 {approved_count} 条消息到目标频道"
-            elif forwarded_count > 0:
-                primary_message = f"已批准 {approved_count} 条消息，成功转发 {forwarded_count} 条"
-            else:
-                primary_message = f"已批准 {approved_count} 条消息，但转发失败"
-        else:
-            primary_message = "没有消息需要处理"
-
-        # 构建状态详情
-        status_details = []
-        if failed_count > 0:
-            status_details.append(f"{failed_count} 条转发失败")
-
-        detail_message = f"（{', '.join(status_details)}）" if status_details else ""
+            failed_count = len(valid_messages) - forwarded_count
 
         # 发送统计更新通知
         await _notify_stats_update()
 
         return {
             "success": True,
-            "message": f"{primary_message}{detail_message}",
-            "data": {
-                "approved_count": approved_count,
-                "forwarded_count": forwarded_count,
-                "failed_count": failed_count,
-                "total_processed": len(valid_messages),
-                "status": "completed",  # 同步处理完成
-                "forward_results": forward_results  # 详细结果供前端显示
-            },
-            "timestamp": format_for_api(get_current_time())
+            "approved_count": approved_count,
+            "forwarded_count": forwarded_count,
+            "failed_count": failed_count,
+            "total": len(valid_messages),
+            "message": f"批量发布完成: 成功{forwarded_count}, 失败{failed_count}"
         }
-        
+
+    except Exception as e:
+        logger.error(f"批量发布处理失败: {e}")
+        return {
+            "success": False,
+            "message": str(e),
+            "approved_count": 0,
+            "failed_count": len(message_ids)
+        }
+
+
+@router.post(ROUTES.messages.batch_approve)
+async def batch_approve_messages(
+    request: dict = Body({}),
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    批量批准消息 - HTTP API端点
+    调用核心批量发送逻辑
+    """
+    message_ids = request.get("message_ids", [])
+    if not message_ids:
+        return {"success": False, "message": "未提供消息ID列表"}
+
+    try:
+        reviewer_name = user.get('username', 'Web用户')
+
+        # 调用核心批量发送函数
+        result = await process_batch_approve(
+            message_ids=message_ids,
+            user_id=reviewer_name
+        )
+
+        # 构建响应
+        if result.get('success'):
+            approved_count = result.get('approved_count', 0)
+            forwarded_count = result.get('forwarded_count', 0)
+            failed_count = result.get('failed_count', 0)
+
+            # 构建响应消息
+            if forwarded_count > 0:
+                if forwarded_count == approved_count:
+                    primary_message = f"成功发布 {approved_count} 条消息到目标频道"
+                else:
+                    primary_message = f"已批准 {approved_count} 条消息，成功转发 {forwarded_count} 条"
+            else:
+                primary_message = "没有消息需要处理"
+
+            # 构建状态详情
+            status_details = []
+            if failed_count > 0:
+                status_details.append(f"{failed_count} 条转发失败")
+
+            detail_message = f"（{', '.join(status_details)}）" if status_details else ""
+
+            return {
+                "success": True,
+                "message": f"{primary_message}{detail_message}",
+                "data": {
+                    "approved_count": approved_count,
+                    "forwarded_count": forwarded_count,
+                    "failed_count": failed_count,
+                    "total_processed": result.get('total', len(message_ids)),
+                    "status": "completed"
+                },
+                "timestamp": format_for_api(get_current_time())
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('message', '批量批准失败'))
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"批量批准消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量批准消息失败: {str(e)}")
@@ -244,24 +288,30 @@ async def batch_reject_messages(
         # 从审核群删除消息和清理媒体文件
         deleted_count = 0
         try:
-            from app.telegram.bot import telegram_bot
-            if telegram_bot and telegram_bot.client:
+            from app.telegram.message_forwarder import message_forwarder
+            from app.telegram.dual_session_manager import dual_session_manager
+
+            client = await dual_session_manager.get_sender_client()
+            if client:
                 for msg_data in valid_messages:
                     review_message_id = msg_data.get('review_message_id')
                     if review_message_id:
                         try:
-                            await telegram_bot.delete_review_message(review_message_id)
+                            await message_forwarder.delete_review_message(client, review_message_id)
                             deleted_count += 1
                         except Exception as e:
                             logger.debug(f"删除审核群消息失败: {e}")
-                    
+
                     # 清理媒体文件
-                    try:
-                        await telegram_bot._cleanup_message_files(msg_data)
-                    except Exception as e:
-                        logger.debug(f"清理媒体文件失败: {e}")
+                    from app.services.media_handler import media_handler
+                    media_url = msg_data.get('media_url')
+                    if media_url:
+                        try:
+                            await media_handler.cleanup_file(media_url)
+                        except Exception as e:
+                            logger.debug(f"清理媒体文件失败: {e}")
         except ImportError:
-            logger.warning("Telegram bot模块不可用，跳过消息删除")
+            logger.warning("消息组件模块不可用，跳过消息删除")
         except Exception as e:
             logger.error(f"删除审核群消息失败: {e}")
         
@@ -315,27 +365,33 @@ async def batch_delete_messages(
         # 先清理媒体文件，再删除消息数据
         media_cleanup_count = 0
         try:
-            from app.telegram.bot import telegram_bot
-            if telegram_bot and telegram_bot.client:
+            from app.telegram.message_forwarder import message_forwarder
+            from app.telegram.dual_session_manager import dual_session_manager
+
+            client = await dual_session_manager.get_sender_client()
+            if client:
                 for msg_data in valid_messages:
                     # 删除审核群消息（如果存在）
                     review_message_id = msg_data.get('review_message_id')
                     if review_message_id:
                         try:
-                            await telegram_bot.delete_review_message(review_message_id)
+                            await message_forwarder.delete_review_message(client, review_message_id)
                             logger.debug(f"已删除审核群消息: {review_message_id}")
                         except Exception as e:
                             logger.debug(f"删除审核群消息失败: {e}")
-                    
+
                     # 清理媒体文件
-                    try:
-                        await telegram_bot._cleanup_message_files(msg_data)
-                        media_cleanup_count += 1
-                        logger.debug(f"已清理媒体文件: {msg_data.get('source_channel')}:{msg_data.get('message_id')}")
-                    except Exception as e:
-                        logger.debug(f"清理媒体文件失败: {e}")
+                    from app.services.media_handler import media_handler
+                    media_url = msg_data.get('media_url')
+                    if media_url:
+                        try:
+                            await media_handler.cleanup_file(media_url)
+                            media_cleanup_count += 1
+                            logger.debug(f"已清理媒体文件: {msg_data.get('source_channel')}:{msg_data.get('message_id')}")
+                        except Exception as e:
+                            logger.debug(f"清理媒体文件失败: {e}")
         except ImportError:
-            logger.warning("Telegram bot模块不可用，跳过媒体清理")
+            logger.warning("消息组件模块不可用，跳过媒体清理")
         except Exception as e:
             logger.error(f"清理媒体文件失败: {e}")
 
