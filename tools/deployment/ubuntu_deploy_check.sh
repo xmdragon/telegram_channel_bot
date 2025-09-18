@@ -678,6 +678,27 @@ EOF
         fi
     fi
 
+    # 检查并修复nginx主配置的include设置
+    if ! sudo grep -q "sites-enabled" /etc/nginx/nginx.conf; then
+        log_info "修复Nginx主配置的sites-enabled包含设置..."
+
+        # 在http块中添加include语句
+        sudo sed -i '/http {/a\\t# Include site configurations' /etc/nginx/nginx.conf
+        sudo sed -i '/# Include site configurations/a\\tinclude /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf
+
+        log_success "已添加sites-enabled包含设置到nginx.conf"
+    fi
+
+    # 验证配置被正确加载
+    log_info "验证站点配置是否被正确加载..."
+    if sudo nginx -T 2>/dev/null | grep -q "$server_name"; then
+        log_success "站点配置已被Nginx正确加载"
+    else
+        log_error "站点配置未被Nginx加载，请检查配置"
+        log_info "手动检查命令: sudo nginx -T | grep '$server_name'"
+        return 1
+    fi
+
     # 测试配置并重新加载
     if sudo nginx -t >/dev/null 2>&1; then
         sudo systemctl reload nginx
@@ -753,12 +774,35 @@ configure_ssl() {
         else
             log_error "SSL证书申请失败"
 
-            # 如果失败，检查是否是因为Nginx配置问题
-            log_info "检查Nginx配置..."
-            if sudo nginx -t; then
-                log_info "Nginx配置正常，可能需要检查域名DNS解析"
+            # 如果失败，进行详细诊断
+            log_info "进行SSL配置失败诊断..."
+
+            # 检查Nginx配置
+            if sudo nginx -t >/dev/null 2>&1; then
+                log_info "✓ Nginx配置语法正确"
+
+                # 检查域名配置是否被加载
+                if sudo nginx -T 2>/dev/null | grep -q "$DOMAIN_NAME"; then
+                    log_info "✓ 域名配置已被Nginx加载"
+                    log_info "可能原因：域名DNS解析问题"
+                    log_info "检查命令：dig +short $DOMAIN_NAME"
+                else
+                    log_error "✗ 域名配置未被Nginx加载"
+                    log_info "手动检查：sudo nginx -T | grep '$DOMAIN_NAME'"
+                fi
+
+                # 测试Certbot配置识别
+                log_info "测试Certbot是否能识别配置..."
+                if sudo certbot certificates 2>/dev/null | grep -q "$DOMAIN_NAME"; then
+                    log_info "Certbot可识别现有证书，尝试手动安装："
+                    log_info "sudo certbot install --cert-name $DOMAIN_NAME --nginx"
+                else
+                    log_info "Certbot未识别到配置，尝试详细诊断："
+                    log_info "sudo certbot certonly --nginx --dry-run -d $DOMAIN_NAME -v"
+                fi
             else
-                log_error "Nginx配置有误，请检查配置文件"
+                log_error "✗ Nginx配置语法错误"
+                sudo nginx -t
             fi
             return 1
         fi
