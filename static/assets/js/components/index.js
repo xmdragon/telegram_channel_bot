@@ -133,7 +133,9 @@ const MainApp = {
         // 弹窗状态代理 - 从独立的DialogStateManager获取
         editDialog() {
             this.dialogUpdateTrigger; // 依赖触发器以响应更新
-            return window.DialogStateManager.getState('editDialog');
+            const state = window.DialogStateManager.getState('editDialog');
+            console.log(`[Vue Computed] editDialog accessed, visible: ${state.visible}, trigger: ${this.dialogUpdateTrigger}`);
+            return state;
         },
         originalMessageDialog() {
             this.dialogUpdateTrigger;
@@ -224,8 +226,10 @@ const MainApp = {
         // "好品味"：确保所有响应式数据正确初始化
 
         // 注册DialogStateManager监听器以触发Vue更新
-        window.DialogStateManager.addListener(() => {
+        window.DialogStateManager.addListener((dialogName, state) => {
+            console.log(`[Vue] Dialog state changed: ${dialogName}, trigger: ${this.dialogUpdateTrigger}`);
             this.dialogUpdateTrigger++;
+            console.log(`[Vue] New trigger value: ${this.dialogUpdateTrigger}`);
         });
         
         // 确保loadMessages方法存在
