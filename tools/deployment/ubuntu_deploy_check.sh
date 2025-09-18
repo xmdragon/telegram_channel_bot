@@ -695,13 +695,9 @@ configure_ssl() {
     # 检查Certbot是否安装
     if ! command -v certbot &> /dev/null; then
         log_info "安装Certbot..."
-        if command -v snap &> /dev/null; then
-            sudo snap install --classic certbot
-            sudo ln -s /snap/bin/certbot /usr/bin/certbot 2>/dev/null || true
-        else
-            sudo apt-get update
-            sudo apt-get install -y certbot python3-certbot-nginx
-        fi
+        sudo apt update
+        sudo apt install -y certbot python3-certbot-nginx
+        log_success "Certbot安装完成"
     fi
 
     # 申请SSL证书
