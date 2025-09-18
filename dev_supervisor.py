@@ -254,8 +254,8 @@ class ServiceProcess:
                 else:
                     self._high_cpu_count = 0
 
-                # 检查内存使用（超过1GB视为异常）
-                if memory_mb > 1024:
+                # 检查内存使用（超过1.5GB视为异常，适配2G内存VPS）
+                if memory_mb > 1536:
                     logger.warning(f"服务 {self.config.name} 内存使用异常: {memory_mb:.1f}MB")
                     return False
 
@@ -286,11 +286,11 @@ class ServiceProcess:
                     logger.warning("requests 模块未安装，跳过Web健康检查")
                     return True  # 没有 requests 模块时假设健康，避免误重启
 
-                # 对刚启动的服务给予宽限期（启动后60秒内更宽容）
+                # 对刚启动的服务给予宽限期（启动后90秒内更宽容，适配2G内存VPS）
                 if hasattr(self, '_service_just_started') and self._service_just_started:
                     if hasattr(self, '_startup_time'):
                         elapsed = asyncio.get_event_loop().time() - self._startup_time
-                        if elapsed < 60:  # 60秒宽限期
+                        if elapsed < 90:  # 90秒宽限期，给低配VPS更多初始化时间
                             # 在宽限期内，健康检查失败不算失败，给予重试机会
                             try:
                                 response = requests.get(
@@ -401,13 +401,13 @@ class DevSupervisor:
                 command=[
                     "venv/bin/gunicorn", "web_server:app",
                     "--bind", "0.0.0.0:8008",
-                    "--workers", "1",
+                    "--workers", "1",  # 强制单worker，适配2G内存VPS
                     "--worker-class", "uvicorn.workers.UvicornWorker",
-                    "--max-requests", "500",
-                    "--max-requests-jitter", "50",
-                    "--timeout", "1800",
+                    "--max-requests", "1000",  # 增加到1000，减少重启频率
+                    "--max-requests-jitter", "100",
+                    "--timeout", "300",  # 减少超时时间到5分钟
                     "--graceful-timeout", "30",
-                    "--worker-connections", "100",
+                    "--worker-connections", "500",  # 与gunicorn.conf.py保持一致
                     "--preload",
                     "--access-logfile", "logs/gunicorn_access.log",
                     "--error-logfile", "logs/gunicorn_error.log",

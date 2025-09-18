@@ -11,11 +11,12 @@ load_dotenv()
 # 获取端口配置
 WEB_PORT = int(os.getenv("WEB_PORT", "8008"))
 
-# 进程管理
+# 进程管理（优化为2G内存VPS）
 bind = f"0.0.0.0:{WEB_PORT}"
-workers = int(os.getenv("WORKERS", multiprocessing.cpu_count()))
+# 强制单worker模式，适配低内存VPS（2G内存）
+workers = int(os.getenv("WORKERS", "1"))  # 默认1个worker而非CPU核心数
 worker_class = "uvicorn.workers.UvicornWorker"
-worker_connections = 1000
+worker_connections = 500  # 减少连接数，节省内存
 
 # 超时配置 - 保守但实用的值
 timeout = 300           # 请求处理超时（5分钟，应对大量消息处理）

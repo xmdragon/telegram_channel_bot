@@ -32,11 +32,11 @@ ProtectControlGroups=yes
 RestrictRealtime=yes
 RestrictNamespaces=yes
 
-# 资源限制
+# 资源限制（优化为2G内存VPS）
 LimitNOFILE=65536
 LimitNPROC=4096
-MemoryHigh=2G
-MemoryMax=4G
+MemoryHigh=1.5G
+MemoryMax=1.8G
 
 # 日志设置
 StandardOutput=journal
