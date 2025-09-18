@@ -1533,9 +1533,10 @@ const MainApp = {
             //     is_ad: messageData.is_ad,
             //     content_preview: messageData.content ? messageData.content.substring(0, 50) + '...' : '无内容'
             // });
-            
-            // 检查消息是否已存在
-            const existingIndex = this.messages.findIndex(msg => msg.message_id === messageData.message_id);
+
+            // 使用完整ID判断消息是否已存在，避免不同频道消息ID冲突
+            const getFullId = (msg) => msg.id || `${msg.source_channel}:${msg.message_id}`;
+            const existingIndex = this.messages.findIndex(msg => getFullId(msg) === getFullId(messageData));
             
             if (existingIndex === -1) {
                 // 检查新消息是否符合当前筛选条件
