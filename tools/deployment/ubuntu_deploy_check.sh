@@ -621,6 +621,24 @@ configure_nginx() {
         log_info "使用通配符配置，接受任何主机名/IP访问"
     fi
 
+    # 解决Nginx权限问题：将www-data加入当前用户组
+    log_info "配置Nginx访问权限..."
+    local current_user=$(whoami)
+    local current_group=$(id -gn)
+
+    # 将www-data用户加入当前用户组
+    if sudo usermod -aG "$current_group" www-data 2>/dev/null; then
+        log_success "已将www-data用户加入$current_group组"
+    else
+        log_warning "无法将www-data加入$current_group组，可能会有权限问题"
+    fi
+
+    # 确保项目目录权限正确
+    chmod 755 "$PROJECT_ROOT" 2>/dev/null || true
+    chmod -R 755 "$PROJECT_ROOT/static" 2>/dev/null || true
+    chmod -R 755 "$PROJECT_ROOT/temp_media" 2>/dev/null || true
+    log_success "项目目录权限已配置"
+
     # 创建站点配置
     log_info "创建Nginx站点配置: $site_config"
     sudo tee "$site_config" > /dev/null << EOF
@@ -784,8 +802,9 @@ EOF
 
     # 测试配置并重新加载
     if sudo nginx -t >/dev/null 2>&1; then
-        sudo systemctl reload nginx
-        log_success "Nginx配置已重新加载"
+        # 使用restart而不是reload，确保用户组变更生效
+        sudo systemctl restart nginx
+        log_success "Nginx服务已重启，配置已应用"
     else
         log_error "Nginx配置测试失败"
         sudo nginx -t
