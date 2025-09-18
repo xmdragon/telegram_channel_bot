@@ -613,12 +613,12 @@ configure_nginx() {
     fi
 
     # 确定server_name配置
-    local server_name="localhost"
+    local server_name="_"  # 使用通配符，接受任何主机名/IP访问
     if [ -n "$DOMAIN_NAME" ]; then
         server_name="$DOMAIN_NAME"
         log_info "配置域名: $DOMAIN_NAME"
     else
-        log_info "使用默认: localhost"
+        log_info "使用通配符配置，接受任何主机名/IP访问"
     fi
 
     # 创建站点配置
