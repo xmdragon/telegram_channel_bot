@@ -716,21 +716,58 @@ configure_ssl() {
     fi
 
     log_info "申请SSL证书 for $DOMAIN_NAME..."
-    if sudo certbot --nginx -d "$DOMAIN_NAME" \
-        --non-interactive \
-        --agree-tos \
-        $email_param \
-        --redirect; then
-        log_success "SSL证书配置成功"
 
-        # 设置自动续期
-        if ! sudo crontab -l 2>/dev/null | grep -q "certbot renew"; then
-            (sudo crontab -l 2>/dev/null; echo "0 0,12 * * * /usr/bin/certbot renew --quiet") | sudo crontab -
-            log_success "已设置SSL证书自动续期"
+    # 检查证书是否已存在
+    if sudo certbot certificates 2>/dev/null | grep -q "$DOMAIN_NAME"; then
+        log_info "检测到现有证书，尝试安装..."
+
+        # 尝试安装现有证书
+        if sudo certbot install --cert-name "$DOMAIN_NAME" --nginx --non-interactive; then
+            log_success "现有证书安装成功"
+        else
+            log_warning "现有证书安装失败，删除并重新申请..."
+
+            # 删除现有证书和配置
+            sudo certbot delete --cert-name "$DOMAIN_NAME" --non-interactive 2>/dev/null || true
+
+            # 重新申请证书
+            if sudo certbot --nginx -d "$DOMAIN_NAME" \
+                --non-interactive \
+                --agree-tos \
+                $email_param \
+                --redirect; then
+                log_success "SSL证书重新申请成功"
+            else
+                log_error "SSL证书重新申请失败"
+                return 1
+            fi
         fi
     else
-        log_error "SSL证书申请失败"
-        return 1
+        # 首次申请证书
+        if sudo certbot --nginx -d "$DOMAIN_NAME" \
+            --non-interactive \
+            --agree-tos \
+            $email_param \
+            --redirect; then
+            log_success "SSL证书申请成功"
+        else
+            log_error "SSL证书申请失败"
+
+            # 如果失败，检查是否是因为Nginx配置问题
+            log_info "检查Nginx配置..."
+            if sudo nginx -t; then
+                log_info "Nginx配置正常，可能需要检查域名DNS解析"
+            else
+                log_error "Nginx配置有误，请检查配置文件"
+            fi
+            return 1
+        fi
+    fi
+
+    # 设置自动续期
+    if ! sudo crontab -l 2>/dev/null | grep -q "certbot renew"; then
+        (sudo crontab -l 2>/dev/null; echo "0 0,12 * * * /usr/bin/certbot renew --quiet") | sudo crontab -
+        log_success "已设置SSL证书自动续期"
     fi
 
     return 0
