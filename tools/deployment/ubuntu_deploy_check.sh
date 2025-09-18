@@ -1066,6 +1066,12 @@ ensure_venv_installed() {
 check_project_deps() {
     log_info "检查项目Python依赖..."
 
+    # 首先确保python3-venv模块已安装
+    if ! ensure_venv_installed; then
+        log_error "无法安装python3-venv，虚拟环境功能不可用"
+        return 1
+    fi
+
     # 检查requirements.txt
     if [ ! -f "$PROJECT_ROOT/requirements.txt" ]; then
         log_error "requirements.txt文件不存在于: $PROJECT_ROOT"
@@ -1101,12 +1107,6 @@ check_project_deps() {
                 log_info "删除损坏的虚拟环境..."
                 rm -rf "$PROJECT_ROOT/venv"
 
-                # 确保venv模块已安装
-                if ! ensure_venv_installed; then
-                    log_error "无法安装python3-venv，虚拟环境创建失败"
-                    return 1
-                fi
-
                 log_info "重新创建虚拟环境..."
                 if python3 -m venv "$PROJECT_ROOT/venv"; then
                     source "$PROJECT_ROOT/venv/bin/activate"
@@ -1126,12 +1126,6 @@ check_project_deps() {
     else
         log_warning "虚拟环境不存在"
         if [ "$INSTALL_DEPS" = true ]; then
-            # 确保venv模块已安装
-            if ! ensure_venv_installed; then
-                log_error "无法安装python3-venv，虚拟环境创建失败"
-                return 1
-            fi
-
             log_info "创建虚拟环境..."
             if python3 -m venv "$PROJECT_ROOT/venv"; then
                 source "$PROJECT_ROOT/venv/bin/activate"
