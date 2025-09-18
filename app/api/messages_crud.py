@@ -666,10 +666,31 @@ async def update_message(
             update_data["content"] = request["content"]
         if "filtered_content" in request:
             update_data["filtered_content"] = request["filtered_content"]
-        
+
         # 添加更新时间和操作者
         update_data["updated_at"] = get_current_time().isoformat()
         update_data["updated_by"] = user.get('user_id')
+
+        # 编辑后清除自动转发失败标记，允许重新尝试自动转发
+        # 删除auto_forwarder_status和auto_forward_error字段
+        if message.get('auto_forwarder_status') is not None:
+            logger.info(f"清除消息 {message_id} 的自动转发失败标记")
+            # 通过设置为None来删除字段
+            update_data["auto_forwarder_status"] = None
+            update_data["auto_forward_error"] = None
+
+            # 同时清理可能添加的提示文字
+            if "filtered_content" in update_data:
+                content = update_data["filtered_content"]
+                # 移除可能添加的提示前缀
+                prefixes_to_remove = [
+                    "⚠️ 消息内容超过1024字符，请手动编辑消息后发送\n\n",
+                    "疑似广告，请审核\n\n"
+                ]
+                for prefix in prefixes_to_remove:
+                    if content.startswith(prefix):
+                        content = content[len(prefix):]
+                update_data["filtered_content"] = content
         
         # 解析message_id获取channel_id  
         try:

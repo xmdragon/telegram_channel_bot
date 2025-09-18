@@ -266,9 +266,15 @@ class RedisManager:
             
             # 获取旧状态用于索引更新
             old_status = existing_data.get('status', 'pending')
-            
-            # 合并更新数据
-            existing_data.update(update_data)
+
+            # 合并更新数据，处理None值（删除字段）
+            for key, value in update_data.items():
+                if value is None:
+                    # None值表示删除该字段
+                    existing_data.pop(key, None)
+                else:
+                    existing_data[key] = value
+
             existing_data['updated_at'] = get_current_time().isoformat()
             
             if user_id:

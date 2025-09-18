@@ -349,72 +349,11 @@ async def submit_filter_feedback(
         logger.error(f"提交反馈失败: {e}")
         raise HTTPException(status_code=500, detail=f"提交反馈失败: {str(e)}")
 
-@router.post(ROUTES.messages.extract_ad_keywords)
-async def extract_ad_keywords(
-    id: str,
-    user: Dict[str, Any] = Depends(require_auth)
-):
-    """
-    从消息中提取广告关键词
-    """
-    try:
-        # 解析消息ID
-        if ':' in id:
-            channel_id, msg_id = id.split(':', 1)
-        else:
-            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
-        
-        # 获取消息内容
-        message = redis_manager.get_message(channel_id, int(msg_id))
-        if not message:
-            raise HTTPException(status_code=404, detail="消息不存在")
-        
-        content = message.get('content', '')
-        if not content:
-            return {
-                "success": True,
-                "data": {
-                    "keywords": [],
-                    "message": "消息内容为空"
-                }
-            }
-        
-        # 使用关键词提取器
-        from app.services.keyword_extractor import get_keyword_extractor
-        extractor = get_keyword_extractor()
-        
-        # 提取建议的关键词（简化版本）
-        suggested_keywords = extractor.suggest_keywords(content)
-        
-        # 格式化返回数据
-        keywords = [
-            {
-                "keyword": keyword,
-                "weight": 1.0,  # 简化版本：统一权重
-                "is_new": True  # 标记为新关键词
-            }
-            for keyword in suggested_keywords
-        ]
-        
-        return {
-            "success": True,
-            "data": {
-                "keywords": keywords,
-                "total": len(keywords)
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"提取关键词失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"提取关键词失败: {str(e)}")
 
 @router.post(ROUTES.messages.mark_as_ad)
 async def mark_as_ad(
     id: str,
-    keywords: Dict[str, float] = Body(..., embed=True),
+    request_data: dict = Body(...),
     user: Dict[str, Any] = Depends(require_auth),
     message_processor: MessageProcessor = Depends(get_message_processor)
 ):
@@ -422,6 +361,9 @@ async def mark_as_ad(
     标记消息为广告并保存关键词
     """
     try:
+        # 提取关键词数据
+        keywords = request_data.get('keywords', {})
+
         # 解析消息ID
         if ':' in id:
             channel_id, msg_id = id.split(':', 1)

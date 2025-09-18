@@ -37,7 +37,6 @@ class RouteConfig:
         refilter = "/messages/refilter/{message_id}"
         feedback = "/messages/feedback/{message_id}"
         delete_review = "/messages/delete-review/{message_id}"
-        extract_ad_keywords = "/messages/extract-ad-keywords/{id}"
         mark_as_ad = "/messages/mark-as-ad/{id}"
         
         # 批量操作

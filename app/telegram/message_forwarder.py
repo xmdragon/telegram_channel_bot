@@ -456,7 +456,8 @@ class MessageForwarder:
             is_valid, excess = await self._check_caption_length(caption_text, with_footer=True)
             if not is_valid:
                 error_msg = f"组合消息发布失败：内容加落款后超过1024字符限制（超出{excess}字符）"
-                logger.error(error_msg)
+                logger.warning(error_msg)
+                # 不直接抛出异常，而是让上层处理
                 raise ValueError(error_msg)
             
             # 添加频道落款
@@ -499,12 +500,13 @@ class MessageForwarder:
         try:
             # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
             caption_text = message.filtered_content or message.content
-            
+
             # 🔍 检查加上落款后的caption长度
             is_valid, excess = await self._check_caption_length(caption_text, with_footer=True)
             if not is_valid:
                 error_msg = f"媒体消息发布失败：内容加落款后超过1024字符限制（超出{excess}字符）"
-                logger.error(error_msg)
+                logger.warning(error_msg)
+                # 不直接抛出异常，而是让上层处理
                 raise ValueError(error_msg)
             
             caption_with_footer = await self._add_channel_footer(caption_text)

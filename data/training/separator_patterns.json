@@ -51,8 +51,12 @@
     {
       "regex": "➖➖➖➖➖➖➖➖➖➖➖➖➖➖[\\s\\S]*",
       "description": "过滤➖➖➖包裹的内容"
+    },
+    {
+      "regex": "😈👿👹👺🤡💩",
+      "description": "过滤推广emoji残留内容"
     }
   ],
-  "updated_at": "2025-09-17T16:35:13.580136",
-  "total_count": 13
+  "updated_at": "2025-09-18T11:32:30.297979",
+  "total_count": 14
 }

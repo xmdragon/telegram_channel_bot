@@ -18,8 +18,6 @@ class AutoForwarder:
 
     async def check_and_forward(self):
         """检查并转发符合条件的消息 - 30秒执行一次"""
-        start_time = time.time()
-
         try:
             # 1. 检查是否启用自动转发
             enabled = await config_manager.get_config('review.auto_forward_enabled', False)
@@ -46,18 +44,23 @@ class AutoForwarder:
 
             for msg in pending_messages:
                 try:
+                    # 检查是否有自动转发失败标记，如果有则跳过
+                    if msg.get('auto_forwarder_status') is not None:
+                        logger.debug(f"跳过已标记失败的消息: {msg.get('source_channel')}:{msg.get('message_id')}")
+                        continue
+
                     # 检查创建时间
                     created_at_str = msg.get('created_at')
                     if not created_at_str:
                         continue
 
-                    # 解析时间
-                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                    if created_at.tzinfo:
-                        created_at = created_at.replace(tzinfo=None)
+                    # 使用统一的时区处理
+                    from app.utils.timezone import to_utc
+                    created_at = to_utc(datetime.fromisoformat(created_at_str.replace('Z', '+00:00')))
 
                     # 时间符合条件就加入
                     if created_at <= cutoff_time:
+                        # 使用rsplit确保正确解析包含冒号的channel_id
                         message_id = f"{msg.get('source_channel')}:{msg.get('message_id')}"
                         eligible_ids.append(message_id)
 
@@ -86,16 +89,12 @@ class AutoForwarder:
             else:
                 logger.error(f"自动转发失败: {result.get('message', 'Unknown error')}")
 
+        except asyncio.CancelledError:
+            # 服务关闭时的正常中断，不记录错误
+            logger.debug("自动转发任务被取消（服务关闭）")
+            raise  # 重新抛出让调度器正确处理
         except Exception as e:
             logger.error(f"自动转发异常: {e}")
-
-        finally:
-            # 6. 确保任务间隔为30秒
-            elapsed = time.time() - start_time
-            if elapsed < 30:
-                sleep_time = 30 - elapsed
-                logger.debug(f"任务耗时 {elapsed:.2f} 秒，等待 {sleep_time:.2f} 秒")
-                await asyncio.sleep(sleep_time)
 
 # 全局实例
 auto_forwarder = AutoForwarder()

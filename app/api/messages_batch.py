@@ -60,7 +60,8 @@ async def parse_and_collect_messages(message_ids: List[str], status_filter: str 
         try:
             if ':' in str(msg_id):
                 # 新格式: "channel_id:message_id"
-                channel_id, message_id = str(msg_id).split(':', 1)
+                # 使用rsplit确保正确处理包含冒号的channel_id
+                channel_id, message_id = str(msg_id).rsplit(':', 1)
                 message_tuples.append((channel_id, int(message_id)))
             else:
                 # 老格式: 纯数字ID（需要从其他地方获取channel_id）
@@ -144,6 +145,9 @@ async def process_batch_approve(message_ids: List[str], user_id: str = None) -> 
             # 直接转发每条消息
             for msg_data in valid_messages:
                 msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
+                channel_id = msg_data.get('source_channel')
+                message_id = msg_data.get('message_id')
+
                 try:
                     # 检查是否为广告（批量发送会自动过滤）
                     is_ad = msg_data.get('is_ad', False)
@@ -151,15 +155,62 @@ async def process_batch_approve(message_ids: List[str], user_id: str = None) -> 
                         is_ad = is_ad.lower() == 'true'
 
                     if is_ad:
-                        logger.debug(f"跳过广告消息: {msg_key}")
-                        continue
+                        # 如果是自动转发且检测到广告，标记失败并添加提示
+                        if reviewer_name == 'auto_forward':
+                            logger.info(f"自动转发检测到广告消息，标记为需人工审核: {msg_key}")
+                            # 在消息前添加提示
+                            original_content = msg_data.get('filtered_content') or msg_data.get('content', '')
+                            updated_content = "疑似广告，请审核\n\n" + original_content
+                            # 更新消息并标记自动转发失败
+                            redis_manager.update_message(channel_id, message_id, {
+                                'filtered_content': updated_content,
+                                'auto_forwarder_status': False,
+                                'auto_forward_error': '广告消息需人工审核'
+                            })
+                            failed_count += 1
+                            continue
+                        else:
+                            # 手动批准的广告消息仍然跳过
+                            logger.debug(f"跳过广告消息: {msg_key}")
+                            continue
 
                     # 直接调用转发方法
                     await forwarder.forward_to_target_with_sender_session(msg_data)
                     forwarded_count += 1
                     logger.debug(f"转发成功: {msg_key}")
 
+                except ValueError as ve:
+                    # 字符限制错误
+                    if "超过1024字符限制" in str(ve):
+                        if reviewer_name == 'auto_forward':
+                            logger.info(f"自动转发检测到字符超限，标记为需人工编辑: {msg_key}")
+                            # 在消息前添加提示
+                            original_content = msg_data.get('filtered_content') or msg_data.get('content', '')
+                            updated_content = "⚠️ 消息内容超过1024字符，请手动编辑消息后发送\n\n" + original_content
+                            # 更新消息并标记自动转发失败
+                            redis_manager.update_message(channel_id, message_id, {
+                                'filtered_content': updated_content,
+                                'auto_forwarder_status': False,
+                                'auto_forward_error': str(ve)
+                            })
+                        failed_count += 1
+                    else:
+                        # 其他ValueError
+                        if reviewer_name == 'auto_forward':
+                            redis_manager.update_message(channel_id, message_id, {
+                                'auto_forwarder_status': False,
+                                'auto_forward_error': str(ve)
+                            })
+                        failed_count += 1
+                        logger.error(f"转发消息失败 {msg_key}: {ve}")
                 except Exception as e:
+                    # 其他转发失败
+                    if reviewer_name == 'auto_forward':
+                        # 标记自动转发失败
+                        redis_manager.update_message(channel_id, message_id, {
+                            'auto_forwarder_status': False,
+                            'auto_forward_error': str(e)
+                        })
                     failed_count += 1
                     logger.error(f"转发消息失败 {msg_key}: {e}")
 

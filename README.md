@@ -1,299 +1,360 @@
-# Telegram 消息采集审核系统 v4.0
+# 🤖 Telegram消息采集审核系统
 
-基于服务分离架构的高性能Telegram消息采集、过滤和审核系统。
+一个现代化的Telegram频道消息采集、智能过滤和自动化转发系统。通过AI驱动的内容过滤和人工审核流程，实现高质量内容的自动化筛选和分发。
 
-> **🚀 v4.0重大重构**: 服务分离架构，解决开发体验痛点，状态查看性能提升100倍！
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3-brightgreen.svg)](https://vuejs.org)
+[![Redis](https://img.shields.io/badge/Redis-5.0+-red.svg)](https://redis.io)
 
-## ✨ 功能特性
+## ✨ 核心特性
 
-### 🎯 核心功能
-- 🔄 多频道采集：同时监控多个Telegram频道
-- 🛡️ 智能过滤：自动识别和过滤广告消息
-- 🖼️ 图像分析：基于OpenCV的广告检测和二维码识别
-- 👥 人工审核：转发到审核群进行确认
-- ⏰ 自动转发：30分钟无人审核自动转发
+### 🔄 智能消息处理
+- **实时监听**：多频道同时监听，毫秒级消息捕获
+- **智能过滤**：AI驱动的广告检测、关键词过滤、内容清理
+- **批量处理**：支持历史消息批量采集和处理
+- **媒体支持**：图片、视频、文档等多媒体内容完整保留
 
-### 🌐 管理界面
-- 🌐 Web管理：现代化Vue3界面
-- 📊 数据统计：详细的消息处理统计
-- 🚀 批量操作：支持批量审核和管理
-- 🔐 登录认证：JWT令牌认证 (默认: admin/admin123)
-- 📱 响应式设计：适配各种设备
+### 🎯 高效审核流程
+- **可视化审核**：直观的Web界面，支持消息预览和批量操作
+- **智能分类**：自动识别广告、推广、垃圾内容
+- **审核队列**：支持多人协作审核，状态实时同步
+- **一键操作**：批量审批、拒绝、删除等快捷操作
 
-### 🚀 架构优势 (v4.0)
-- 🔄 **服务分离**：Web、采集、调度服务完全独立
-- ⚡ **开发体验**：修改代码不再导致全系统重启
-- 🎯 **灵活部署**：支持选择性启动和独立调试
-- 📊 **实时监控**：状态查看从5秒优化到0.05秒
-- 🛡️ **高可用性**：服务自动重启和健康监控
-- 🔧 **易于维护**：智能进程管理和状态追踪
+### 🚀 自动化转发
+- **规则引擎**：灵活的转发规则配置
+- **定时发布**：支持延迟发布和定时转发
+- **格式优化**：自动清理冗余信息，保持内容简洁
+- **失败重试**：智能重试机制，确保消息可靠投递
 
-## 🏗️ 系统架构
-
-### v4.0 服务分离架构
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web服务器     │    │  Telegram采集   │    │   消息调度      │
-│  web_server.py  │    │ collector.py    │    │ scheduler.py    │
-│  端口:8000      │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │   进程管理器    │
-                    │ supervisor.py   │
-                    │ + 健康监控      │
-                    └─────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │  Redis + JSON   │
-                    │   数据存储      │
-                    └─────────────────┘
-```
-
-### 业务流程
-```
-源频道 → 消息采集 → 内容过滤 → 审核群 → Web管理界面 → 目标频道
-```
-
-## 🛠️ 技术栈
-
-### 存储架构
-- **主存储**: Redis (消息数据、会话管理)
-- **配置存储**: JSON文件 (系统配置、管理员数据)
-- **性能**: 亚毫秒级查询，内存+磁盘双重保护
-
-### 应用技术
-- **后端**: Python 3.11 + FastAPI + Redis + Telethon
-- **前端**: Vue.js 3 + SimpleUI系统 + Axios
-- **认证**: JWT + Redis会话管理
+### 🎛️ 管理控制台
+- **实时监控**：系统状态、消息统计、性能指标
+- **配置管理**：频道配置、过滤规则、系统参数
+- **用户管理**：管理员权限控制和操作日志
+- **数据分析**：详细的统计报表和趋势分析
 
 ## 🚀 快速开始
 
 ### 环境要求
-- Python 3.11+
-- Redis 7.0+
-- Nginx 1.18+
+
+- **Python**: 3.11+
+- **Redis**: 5.0+
+- **系统**: Linux/macOS/Windows
+- **内存**: 建议2GB+
 
 ### 安装部署
 
-#### 1. 获取代码
+1. **克隆项目**
 ```bash
-git clone <repository-url>
+git clone https://github.com/your-repo/telegram_channel_bot.git
 cd telegram_channel_bot
 ```
 
-#### 2. 开发环境（推荐）
+2. **安装依赖**
 ```bash
-# v4.0 灵活启动选项
-./dev.sh                    # 启动所有服务
-./dev.sh web               # 仅启动Web服务（前端开发）
-./dev.sh web scheduler     # 启动指定服务组合
-./dev.sh --status          # 超快状态查看（0.05秒）
-./dev.sh --legacy          # 传统模式（兼容v3.0）
-```
-
-#### 3. 生产环境
-```bash
-# 安装依赖
+# 创建虚拟环境
 python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
+source venv/bin/activate  # Linux/macOS
+# venv\\Scripts\\activate  # Windows
+
+# 安装依赖
 pip install -r requirements.txt
-
-# 启动应用
-./start.sh
 ```
 
-### 访问系统
-- **主界面**: http://localhost:8000/static/index.html
-- **管理员登录**: http://localhost:8000/static/login.html (admin/admin123)
-- **系统配置**: http://localhost:8000/static/config.html
-- **Telegram认证**: http://localhost:8000/static/telegram-auth.html
-
-## ⚙️ 配置说明
-
-### 1. Telegram认证
-访问认证页面，输入API凭据：
-- API ID：从 https://my.telegram.org 获取
-- API Hash：从 https://my.telegram.org 获取
-- 手机号：用于接收验证码
-
-### 2. 频道配置
-在配置页面设置：
-- **源频道**：需要采集的频道列表
-- **目标频道**：转发消息的目标频道
-- **审核群**：人工审核的群组
-
-### 3. 过滤规则
-配置关键词过滤：
-- **广告关键词**：自动过滤的关键词
-- **白名单关键词**：不过滤的关键词
-- **过滤策略**：选择过滤模式
-
-## 📊 系统管理
-
-### 启停控制
-
-#### v4.0 开发模式（推荐）
+3. **配置系统**
 ```bash
-# 灵活的服务管理
-./dev.sh                    # 启动所有服务
-./dev.sh web               # 仅启动Web服务
-./dev.sh collector         # 仅启动采集服务
-./dev.sh --status          # 快速状态查看
+# 复制环境配置
+cp .env.example .env
+
+# 编辑配置文件
+nano .env
 ```
 
-#### 生产模式
+4. **启动Redis**
 ```bash
-./start.sh     # 启动完整系统（进程管理器）
-./stop.sh      # 智能停止（优雅关闭+强制清理）
-./restart.sh   # 4步骤完整重启（状态检查）
+# macOS (Homebrew)
+brew services start redis
+
+# Linux (Docker)
+docker run -d -p 6379:6379 redis:5-alpine
+
+# 或使用系统包管理器安装
 ```
 
-#### 状态监控
+5. **初始化系统**
 ```bash
-./dev.sh --status                    # 命令行状态
-curl localhost:8000/api/health      # API健康检查
+# 创建目录和配置文件
+python3 tools/init/init_system.py
+
+# 启动开发环境
+./dev.sh
 ```
 
-### 数据管理
-- **Web界面**：通过配置页面进行系统配置
-- **自动备份**：系统自动备份重要数据
-- **紧急恢复**：`python3 tools/data/recover_training_data.py --check`
+6. **访问系统**
+- **管理控制台**: http://localhost:8080/static/index.html
+- **登录页面**: http://localhost:8080/static/login.html (admin/admin123)
+- **API文档**: http://localhost:8008/docs
 
-### 日志查看
-- 完整日志：`./logs/app.log`
-- 错误日志：`./logs/error.log`
-- Web查看：http://localhost:8000/static/admin.html
+## 🏗️ 系统架构
+
+### 服务分离设计
+
+```mermaid
+graph TB
+    A[用户界面<br/>localhost:8080] --> B[API网关<br/>localhost:8008]
+
+    B --> C[Web服务<br/>web_server.py]
+    B --> D[消息采集<br/>message_collector.py]
+    B --> E[消息调度<br/>message_scheduler.py]
+
+    C --> F[Redis<br/>消息数据]
+    C --> G[JSON<br/>配置文件]
+
+    D --> H[Telegram API<br/>实时监听]
+    D --> F
+
+    E --> F
+    E --> I[自动转发<br/>目标频道]
+
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#e8f5e8
+    style D fill:#fff3e0
+    style E fill:#fce4ec
+```
+
+### 数据流向
+
+```
+Telegram频道 → 消息采集 → 智能过滤 → 人工审核 → 自动转发 → 目标频道
+     ↓              ↓           ↓          ↓           ↓
+   实时监听      AI检测      可视化界面   批量操作    定时发布
+```
+
+## 📦 功能模块
+
+### 🔍 消息采集模块
+- **多频道监听**: 同时监听多个Telegram频道
+- **历史采集**: 支持指定时间范围的历史消息采集
+- **增量同步**: 智能检测新消息，避免重复采集
+- **媒体处理**: 自动下载和管理图片、视频等媒体文件
+
+### 🧠 智能过滤模块
+- **广告检测**: 基于关键词和模式识别的广告过滤
+- **内容清理**: 自动移除推广信息、联系方式等冗余内容
+- **格式优化**: 清理特殊字符、多余空行、表情符号
+- **尾部过滤**: 智能识别和移除消息尾部的推广内容
+
+### 👥 审核管理模块
+- **消息列表**: 分页展示待审核消息，支持搜索和过滤
+- **批量操作**: 多选批量审批、拒绝、删除操作
+- **审核历史**: 完整的操作记录和审核轨迹
+- **权限控制**: 多级管理员权限和操作日志
+
+### ⚙️ 配置管理模块
+- **频道配置**: 源频道和目标频道的添加、编辑、删除
+- **过滤规则**: 关键词黑白名单、正则表达式规则
+- **系统参数**: 转发延迟、批量大小、重试策略
+- **用户管理**: 管理员账户和权限配置
+
+### 📊 监控统计模块
+- **实时监控**: 系统状态、服务健康度、性能指标
+- **数据统计**: 消息处理量、审核通过率、错误统计
+- **可视化图表**: 时间趋势、分类统计、性能分析
+- **告警通知**: 异常情况的自动告警和通知
+
+## 🛠️ 技术栈
+
+### 后端技术
+- **Web框架**: FastAPI + Uvicorn
+- **异步处理**: asyncio + aiofiles
+- **Telegram**: Telethon (官方API)
+- **数据库**: Redis (消息数据) + JSON (配置)
+- **任务调度**: APScheduler
+- **进程管理**: 自研进程管理器
+
+### 前端技术
+- **框架**: Vue.js 3 + Composition API
+- **HTTP客户端**: Axios
+- **UI组件**: 自研SimpleUI组件库
+- **实时通信**: WebSocket
+- **构建工具**: 原生ES6模块
+
+### 基础设施
+- **缓存**: Redis
+- **日志**: Python logging
+- **配置**: Pydantic + python-dotenv
+- **部署**: 本地Python服务
+- **监控**: 自研健康检查系统
+
+## 📂 项目结构
+
+```
+telegram_channel_bot/
+├── app/                   # 应用代码
+│   ├── api/              # API路由层
+│   │   ├── messages_*.py # 消息管理API
+│   │   ├── admin_*.py    # 管理功能API
+│   │   └── training/     # 训练数据API
+│   ├── core/             # 核心配置
+│   │   ├── config.py     # 系统配置
+│   │   └── path_config.py # 路径管理
+│   ├── services/         # 业务逻辑层
+│   │   ├── filters/      # 过滤器模块
+│   │   └── processors/   # 消息处理器
+│   ├── storage/          # 存储层
+│   │   ├── redis_manager.py # Redis管理
+│   │   └── json_store.py # JSON存储
+│   └── telegram/         # Telegram集成
+│       ├── bot_manager.py # Bot管理
+│       └── dual_session_manager.py # 会话管理
+├── static/               # 前端文件
+│   ├── *.html           # 页面文件
+│   └── assets/          # 静态资源
+│       ├── css/         # 样式文件
+│       └── js/          # JavaScript
+├── data/                 # 数据存储
+│   ├── config/          # 配置文件
+│   ├── training/        # 训练数据
+│   └── backups/         # 备份文件
+├── tools/                # 工具脚本
+│   └── git/             # Git工具
+├── logs/                 # 日志文件
+├── web_server.py         # Web服务器
+├── message_collector.py  # 消息采集服务
+├── message_scheduler.py  # 消息调度服务
+└── dev_supervisor.py     # 进程管理器
+```
 
 ## 🔧 开发指南
 
-### 目录结构（v4.0）
-```
-telegram_channel_bot/
-├── app/                    # 核心应用代码
-│   └── services/
-│       └── health_monitor.py  # 健康监控系统
-├── data/                   # 数据存储
-├── static/                 # Web前端文件
-├── tools/                  # 工具脚本
-├── logs/                   # 日志文件
-├── CLAUDE.md               # 项目开发指南（统一文档）
-├── temp_media/             # 临时媒体文件
-├── web_server.py           # Web服务器（独立）
-├── message_collector.py   # Telegram采集服务（独立）
-├── message_scheduler.py    # 消息调度服务（独立）
-├── dev_supervisor.py       # 进程管理器
-└── dev.sh                  # 开发启动脚本
+### 本地开发
+
+```bash
+# 启动开发环境
+./dev.sh
+
+# 查看服务状态
+./dev.sh --status
+
+# 启动特定服务
+./dev.sh web               # 仅Web服务
+./dev.sh collector         # 仅采集服务
+./dev.sh scheduler         # 仅调度服务
 ```
 
-### 开发规范
-- 使用Python虚拟环境
-- 遵循项目结构管理规范
-- 工具脚本放在`tools/`对应子目录
-- 禁止硬编码文件路径，使用PathConfig
-- **API端点管理**：严格禁止硬编码API路径，必须使用`static/assets/js/config/api-endpoints.js`配置
+### API开发
 
-### API端点管理
-为避免API端点冗余和硬编码问题，项目采用集中配置管理：
+所有API端点必须在配置文件中定义：
 
 ```javascript
-// 正确方式 - 从配置文件引用API端点
-import API from './config/api-endpoints.js';
-const response = await axios.get(API.messages.list);
-
-// 错误方式 - 禁止硬编码
-const response = await axios.get('/api/messages/');
+// static/assets/js/config/api-endpoints.js
+const API_ENDPOINTS = {
+    messages: {
+        list: '/api/messages/',
+        approve: '/api/messages/batch/approve'
+    }
+};
 ```
 
-**核心原则**：
-- 所有API端点都必须在`api-endpoints.js`中定义
-- 开发时先检查配置文件，避免重复端点
-- 前端代码严禁硬编码API路径
-- 新增端点需同步更新配置文件
+### 代码规范
 
-### Git提交
-使用自动提交工具：
+- **Python**: 遵循PEP 8，使用snake_case命名
+- **JavaScript**: 使用camelCase变量，kebab-case CSS类
+- **API**: 路径使用kebab-case，JSON字段使用snake_case
+- **文件**: 超过500行立即重构拆分
+
+### 测试与部署
+
 ```bash
-# 智能分析提交
-python3 tools/git/auto_commit.py
+# 运行测试
+python -m pytest tests/
 
-# 快速提交
-./tools/git/commit.sh fix "修复问题"
-./tools/git/commit.sh feat "新功能"
+# 生产部署
+./start.sh
+
+# 停止服务
+./stop.sh
+
+# 重启服务
+./restart.sh
 ```
 
-## 🐛 故障排除
+## 📋 配置说明
 
-### 常见问题
+### 环境变量 (.env)
 
-1. **Redis连接失败**
-   ```bash
-   # 本地安装启动Redis
-   brew services start redis  # macOS
-   sudo systemctl start redis  # Linux
-   ```
+```bash
+# Telegram配置
+API_ID=your_api_id
+API_HASH=your_api_hash
+BOT_TOKEN=your_bot_token
 
-2. **Telegram认证失败**
-   - 检查API凭据是否正确
-   - 确认手机号格式（+86xxxxxxxxxx）
+# Redis配置
+REDIS_URL=redis://localhost:6379
 
-3. **消息不转发**
-   - 检查频道配置是否正确
-   - 确认机器人有管理员权限
+# 服务端口
+WEB_PORT=8008
+NGINX_PORT=8080
 
-4. **Web界面无法访问**
-   - 确认应用已启动（http://localhost:8000）
-   - 检查防火墙设置
+# 系统配置
+DEBUG=false
+LOG_LEVEL=INFO
+```
 
-### 获取支持
-- 查看日志：`./logs/error.log`
-- 系统状态：http://localhost:8000/static/status.html
-- 管理界面：http://localhost:8000/static/admin.html
+### 系统配置 (data/config/system.json)
 
-## 📝 更新日志
+```json
+{
+  "collection.enabled": {
+    "value": "true",
+    "description": "启用消息采集"
+  },
+  "filter.enabled": {
+    "value": "true",
+    "description": "启用内容过滤"
+  },
+  "review.auto_forward_delay": {
+    "value": "1800",
+    "description": "自动转发延迟(秒)"
+  }
+}
+```
 
-### v4.0 (2025-08-16) - 🚀 服务分离架构重大重构
-#### 核心突破
-- 🚀 **服务分离架构**：Web、采集、调度服务完全独立
-- ⚡ **开发体验革命**：修改代码不再导致全系统重启
-- 📊 **性能飞跃**：状态查看从5秒优化到0.05秒（100倍提升）
-- 🎯 **灵活部署**：支持选择性启动和独立调试
+## 🤝 贡献指南
 
-#### 新增功能
-- 🔧 **进程管理器**：`dev_supervisor.py` 智能进程管理
-- 💚 **健康监控**：Redis存储的实时服务状态监控
-- 🛠️ **脚本增强**：`stop.sh`/`restart.sh` 智能进程控制
-- 📖 **完整文档**：详细的架构文档和使用指南
+1. **Fork** 项目到你的GitHub账户
+2. **创建** 功能分支 (`git checkout -b feature/amazing-feature`)
+3. **提交** 你的修改 (`git commit -m 'Add amazing feature'`)
+4. **推送** 到分支 (`git push origin feature/amazing-feature`)
+5. **创建** Pull Request
 
-#### 使用体验
-- 🎮 **开发模式**：`./dev.sh web` 仅启动Web服务进行前端开发
-- 🏭 **生产模式**：`./start.sh` 启动完整系统和进程管理
-- 📈 **状态监控**：`./dev.sh --status` 超快状态查看
-- 🔄 **向后兼容**：完全兼容v3.0传统模式
+### 开发规范
 
-### v3.0 (2025-08-14) - Redis+JSON存储架构
-- 🚀 完全迁移至Redis+JSON存储架构
-- ⚡ 性能提升300%+，毫秒级消息查询
-- 🔥 系统启动速度提升5倍+
-- 🛡️ 双层存储+文件锁数据保护
-- 🤖 智能Git提交工具系统
-
-### v2.0 (2025-08-09) - 数据保护机制
-- 🔐 训练数据保护机制
-- 🔧 多级备份策略
-- 📊 数据完整性验证
-
-### v1.x - 基础功能
-- 🎯 基础消息采集和转发功能
-- 🛡️ 内容过滤和人工审核
-- 🌐 Web管理界面
+- 所有代码必须通过现有的代码检查
+- 新功能需要添加相应的测试用例
+- 提交信息遵循约定式提交规范
+- 确保文档同步更新
 
 ## 📄 许可证
 
-本项目仅供学习和研究使用。
+本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
 
-## 🤝 贡献
+## 🙏 致谢
 
-欢迎提交Issue和Pull Request！
+- [Telethon](https://github.com/LonamiWebs/Telethon) - 优秀的Telegram客户端库
+- [FastAPI](https://github.com/tiangolo/fastapi) - 现代化的Python Web框架
+- [Vue.js](https://github.com/vuejs/vue) - 渐进式JavaScript框架
+- [Redis](https://github.com/redis/redis) - 高性能内存数据库
+
+## 📞 支持与反馈
+
+- **文档**: 详细的开发指南请参阅 [CLAUDE.md](CLAUDE.md)
+- **问题反馈**: 请使用GitHub Issues报告问题
+- **功能建议**: 欢迎提交Feature Request
+- **安全问题**: 请通过私有渠道报告安全漏洞
+
+---
+
+**开发理念**: 简洁、高效、可维护
+**最后更新**: 2025-09-18

@@ -116,6 +116,7 @@ class ContentProcessor:
         Returns:
             处理后的消息对象
         """
+        logger.info(f"🔧 ContentProcessor.process开始: message_id={message.message_id}, detect_ad={detect_ad}, filter_config={filter_config}")
         try:
             if not message.content:
                 return message
@@ -206,8 +207,11 @@ class ContentProcessor:
                     logger.debug(f"消息 {message.message_id} Markdown过滤: 移除{links_removed}个链接")
 
             # 4. 广告检测（最慢，放最后，支持早期退出）
+            logger.info(f"📢 广告检测条件: detect_ad={detect_ad}, ad_detector_enabled={filter_config.get('ad_detector', False)}, content_len={len(current_content.strip()) if current_content else 0}")
             if detect_ad and filter_config.get('ad_detector', False) and current_content and len(current_content.strip()) > 10:
+                logger.info(f"📢 开始广告检测: content='{current_content}', length={len(current_content)}")
                 is_ad, total_weight, matched_keywords = self.ad_detector.detect(current_content)
+                logger.info(f"📢 广告检测结果: is_ad={is_ad}, weight={total_weight}, keywords={matched_keywords[:3] if matched_keywords else []}")
 
                 if is_ad:
                     message.is_ad = True
@@ -217,16 +221,22 @@ class ContentProcessor:
                     # 准备日志
                     keyword_names = [item['keyword'] for item in matched_keywords[:3]]
                     filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(keyword_names)}")
-                    logger.info(f"消息 {message.message_id} 检测为广告: 权重={total_weight:.1f}")
+                    logger.info(f"消息 {message.channel_id}:{message.message_id} 检测为广告: 权重={total_weight:.1f}, 命中关键词: {keyword_names}")
 
                     # 根据配置决定是否自动拒绝
                     if config_manager:
                         try:
                             auto_reject = await config_manager.get_auto_reject_ads()
+                            logger.debug(f"自动拒绝广告配置: {auto_reject}")
+
                             if auto_reject:
+                                # 记录状态变更前的信息
+                                old_status = message.status
                                 message.status = "rejected"
                                 message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
-                                logger.info(f"消息 {message.message_id} 被自动拒绝（广告）")
+                                logger.warning(f"🚫 消息 {message.channel_id}:{message.message_id} 被自动拒绝（广告）- 状态从 '{old_status}' 改为 'rejected'")
+                            else:
+                                logger.debug(f"消息 {message.channel_id}:{message.message_id} 检测为广告但未启用自动拒绝")
                         except Exception as e:
                             logger.error(f"获取自动拒绝配置失败: {e}")
 

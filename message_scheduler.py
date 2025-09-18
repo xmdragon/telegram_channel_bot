@@ -5,7 +5,6 @@ Telegram消息采集审核系统 - 消息调度服务
 """
 import warnings
 # 抑制pkg_resources弃用警告
-warnings.filterwarnings("ignore", category=UserWarning, module="jieba._compat")
 warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 
 import asyncio
@@ -143,24 +142,12 @@ class MessageSchedulerService:
 scheduler_service = None
 
 def signal_handler(signum, frame):
-    """信号处理器 - 修复：避免创建新事件循环"""
+    """信号处理器 - 优雅关闭服务"""
     logger.info(f"收到信号 {signum}，正在关闭服务...")
     if scheduler_service:
-        try:
-            # 尝试获取当前事件循环
-            loop = asyncio.get_running_loop()
-            # 在当前循环中调度停止任务
-            loop.create_task(scheduler_service.stop())
-        except RuntimeError:
-            # 如果没有运行中的循环，创建新的（最后的选择）
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(scheduler_service.stop())
-                loop.close()
-            except Exception as e:
-                logger.error(f"停止服务失败: {e}")
-    sys.exit(0)
+        # 设置停止标志，让主循环自然退出
+        scheduler_service.is_running = False
+        logger.info("已设置停止标志，等待服务自然关闭...")
 
 async def main():
     """主函数"""
@@ -182,12 +169,20 @@ async def main():
         except:
             pass
         signal_handler(signum, frame)
-    
+
     signal.signal(signal.SIGINT, cleanup_handler)
     signal.signal(signal.SIGTERM, cleanup_handler)
-    
+
     scheduler_service = MessageSchedulerService()
-    await scheduler_service.start()
+    try:
+        await scheduler_service.start()
+    finally:
+        # 确保PID文件被清理
+        try:
+            os.remove('/tmp/scheduler.pid')
+            logger.info("PID文件已清理")
+        except:
+            pass
 
 if __name__ == "__main__":
     logger.info("⏰ 启动独立消息调度服务...")

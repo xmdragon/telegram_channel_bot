@@ -42,7 +42,6 @@ const API_ENDPOINTS = {
         trainTail: (id) => `/api/messages/train-tail/${id}`,       // POST - 训练尾部过滤
         refilter: (id) => `/api/messages/refilter/${id}`,          // POST - 重新过滤消息
         feedback: (id) => `/api/messages/feedback/${id}`,          // POST - 提交过滤反馈
-        extractAdKeywords: (id) => `/api/messages/extract-ad-keywords/${id}`, // POST - 提取广告关键词
         markAsAd: (id) => `/api/messages/mark-as-ad/${id}`         // POST - 标记为广告并保存关键词
     },
 

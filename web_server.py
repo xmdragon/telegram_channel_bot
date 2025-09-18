@@ -5,7 +5,6 @@ Telegram消息采集审核系统 - Web服务器
 """
 import warnings
 # 抑制pkg_resources弃用警告
-warnings.filterwarnings("ignore", category=UserWarning, module="jieba._compat")
 warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 
 import asyncio

@@ -621,7 +621,7 @@ class TelegramMessageCollector:
                 thumbnail_url=media_info.get('thumbnail_url') if media_info else None,
                 is_combined=False,  # 单条消息不是组合消息
                 timestamp=message.date,
-                status="pending",
+                # status="pending" - 移除硬编码，使用LocalMessage的默认值
                 source_channel=channel_id,
                 source_channel_title=channel.get('channel_name', channel.get('channel_title')),
                 source_channel_username=channel.get('channel_username'),
@@ -660,7 +660,7 @@ class TelegramMessageCollector:
             
             # 组合媒体信息 - 使用简化逻辑
             
-            # 创建LocalMessage
+            # 创建LocalMessage - 移除硬编码status，让内容处理器决定状态
             return LocalMessage(
                 channel_id=channel_id,
                 message_id=primary_msg.id,
@@ -676,7 +676,7 @@ class TelegramMessageCollector:
                     'display_text': f"{len(media_files)}个媒体文件"
                 } if media_files else None,
                 timestamp=primary_msg.date,
-                status="pending",
+                # status="pending" - 移除硬编码，使用LocalMessage的默认值
                 source_channel=channel_id,
                 source_channel_title=channel.get('channel_name', channel.get('channel_title')),
                 source_channel_username=channel.get('channel_username'),

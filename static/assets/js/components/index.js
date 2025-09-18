@@ -2078,7 +2078,7 @@ const MainApp = {
             return statusMap[status] || { text: status, type: 'default' };
         },
 
-        // 标记为广告 - 新流程：提取关键词 -> 选择权重 -> 保存
+        // 标记为广告 - 手动添加关键词
         async markAsAd(event, messageId) {
             // 处理参数兼容性
             if (typeof event === 'string') {
@@ -2091,71 +2091,9 @@ const MainApp = {
                 window.SimpleUI.Message.error('未找到消息');
                 return;
             }
-            
-            try {
-                // 第一步：提取关键词
-                // 安全检查：确保Loading组件可用
-                if (window.SimpleUI && window.SimpleUI.Loading && typeof window.SimpleUI.Loading.show === 'function') {
 
-                    window.SimpleUI.Loading.show('正在提取广告关键词...');
-                } else {
-                    // 可选：显示一个简单的加载提示
-                    const tempLoading = document.createElement('div');
-                    tempLoading.id = 'temp-loading-indicator';
-                    tempLoading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999';
-                    tempLoading.textContent = '正在提取广告关键词...';
-                    document.body.appendChild(tempLoading);
-                }
-                
-                const extractResponse = await axios.post(
-                    window.API.messages.extractAdKeywords(this.ensureChannelIdPrefix(message.id))
-                );
-                
-                // 隐藏加载提示
-                if (window.SimpleUI && window.SimpleUI.Loading && typeof window.SimpleUI.Loading.hide === 'function') {
-                    window.SimpleUI.Loading.hide();
-                } else {
-                    // 移除临时加载提示
-                    const tempLoading = document.getElementById('temp-loading-indicator');
-                    if (tempLoading) {
-                        tempLoading.remove();
-                    }
-                }
-
-                if (!extractResponse.data.success) {
-                    if (window.SimpleUI && window.SimpleUI.Message) {
-                        window.SimpleUI.Message.error('提取关键词失败');
-                    } else {
-                        alert('提取关键词失败');
-                    }
-                    return;
-                }
-                
-                const extractedKeywords = extractResponse.data.data.keywords || [];
-                
-                // 第二步：显示广告标记弹窗
-                this.showAdMarkingDialog(message, extractedKeywords);
-                
-            } catch (error) {
-                // 隐藏加载提示
-                if (window.SimpleUI && window.SimpleUI.Loading && typeof window.SimpleUI.Loading.hide === 'function') {
-                    window.SimpleUI.Loading.hide();
-                } else {
-                    // 移除临时加载提示
-                    const tempLoading = document.getElementById('temp-loading-indicator');
-                    if (tempLoading) {
-                        tempLoading.remove();
-                    }
-                }
-                
-                // 显示错误消息
-                const errorMsg = '操作失败: ' + (error.response?.data?.detail || error.message);
-                if (window.SimpleUI && window.SimpleUI.Message) {
-                    window.SimpleUI.Message.error(errorMsg);
-                } else {
-                    alert(errorMsg);
-                }
-            }
+            // 直接显示手动添加关键词的对话框
+            this.showAdMarkingDialog(message, []);
         },
         
         // 显示广告标记弹窗
@@ -2169,39 +2107,18 @@ const MainApp = {
                     </div>
                     
                     <div class="keywords-section">
-                        <h4>识别到的新广告关键词</h4>
+                        <h4>添加广告关键词</h4>
                         <div class="keywords-list" id="keywords-list">
-                            ${extractedKeywords.length > 0 ? 
-                                extractedKeywords.map((item, index) => `
-                                    <div class="keyword-item" data-keyword-id="keyword-${index}" style="display:flex;align-items:center;margin-bottom:8px;padding:8px;background:#f5f7fa;border-radius:4px">
-                                        <input type="text" 
-                                               class="keyword-text" 
-                                               value="${this.escapeHtml(item.keyword)}"
-                                               style="flex:1;margin-right:10px;padding:6px;border:1px solid #dcdfe6;border-radius:4px;background:white">
-                                        <input type="number" 
-                                               class="keyword-weight" 
-                                               value="${item.weight || 1.0}"
-                                               min="1.0"
-                                               max="10.0"
-                                               step="0.1"
-                                               style="width:60px;padding:6px;border:1px solid #dcdfe6;border-radius:4px;margin-right:10px">
-                                        <button onclick="app.removeKeywordFromList('keyword-${index}')" 
-                                                style="background:#f56c6c;color:white;border:none;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:14px"
-                                                onmouseover="this.style.background='#f78989'"
-                                                onmouseout="this.style.background='#f56c6c'">×</button>
-                                    </div>
-                                `).join('') : 
-                                '<p class="no-keywords">未识别到新的广告关键词</p>'
-                            }
+                            <p class="no-keywords">请手动添加广告关键词</p>
                         </div>
-                        
+
                         <div class="add-keyword-section" style="margin-top:15px;padding-top:15px;border-top:1px solid #e4e7ed">
                             <div style="display:flex;align-items:center;gap:10px">
-                                <input type="text" 
-                                       id="new-keyword-input" 
-                                       placeholder="手动添加关键词"
+                                <input type="text"
+                                       id="new-keyword-input"
+                                       placeholder="输入广告关键词"
                                        style="flex:1;padding:8px;border:1px solid #dcdfe6;border-radius:4px">
-                                <input type="number" 
+                                <input type="number"
                                        id="new-keyword-weight"
                                        value="1.0"
                                        min="1.0"
@@ -2209,7 +2126,7 @@ const MainApp = {
                                        step="0.1"
                                        placeholder="权重"
                                        style="width:80px;padding:8px;border:1px solid #dcdfe6;border-radius:4px">
-                                <button onclick="app.addKeywordToList()" 
+                                <button onclick="app.addKeywordToList()"
                                         class="btn-add"
                                         style="padding:8px 16px;background:#67c23a;color:white;border:none;border-radius:4px;cursor:pointer">添加</button>
                             </div>
