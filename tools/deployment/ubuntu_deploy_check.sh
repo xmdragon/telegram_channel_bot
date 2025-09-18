@@ -999,19 +999,14 @@ configure_firewall() {
 # 确保Python venv模块已安装
 ensure_venv_installed() {
     if python3 -m venv --help &>/dev/null; then
+        log_success "Python venv模块已可用"
         return 0  # venv已安装
     fi
 
     log_warning "Python venv模块未安装"
 
-    if [ "$INSTALL_DEPS" != true ]; then
-        log_error "请先安装python3-venv包:"
-        log_error "  sudo apt update"
-        log_error "  sudo apt install python3-venv python3.12-venv"
-        return 1
-    fi
-
-    log_info "安装python3-venv包..."
+    # 无论INSTALL_DEPS是否为true，都必须安装venv模块
+    log_info "必须安装python3-venv包才能继续..."
 
     # 检测Python版本
     PYTHON_VERSION=$(python3 --version | grep -oE '[0-9]+\.[0-9]+')
@@ -1024,9 +1019,10 @@ ensure_venv_installed() {
     fi
 
     # 尝试分别安装每个包，以便看到具体错误
-    local packages_to_try=("python3-venv" "python${PYTHON_VERSION}-venv" "python3.12-venv")
+    local packages_to_try=("python3.12-venv" "python${PYTHON_VERSION}-venv" "python3-venv")
     local installed=false
 
+    # 首先确保python3.12-venv被安装（Ubuntu 24.04最关键的包）
     for package in "${packages_to_try[@]}"; do
         log_info "尝试安装 $package..."
 
@@ -1047,13 +1043,27 @@ ensure_venv_installed() {
         fi
     done
 
+    # 如果还是失败，尝试安装额外的依赖包
+    if [ "$installed" = false ]; then
+        log_info "尝试安装额外的Python开发依赖..."
+        sudo apt install -y python3-pip python3-dev build-essential
+
+        # 再次尝试安装venv
+        if sudo apt install -y python3.12-venv; then
+            if python3 -m venv --help &>/dev/null; then
+                log_success "venv模块现在已可用"
+                installed=true
+            fi
+        fi
+    fi
+
     if [ "$installed" = true ]; then
         return 0
     else
-        log_error "无法安装python3-venv"
+        log_error "无法自动安装python3-venv"
         log_error "请手动运行以下命令："
         log_error "  sudo apt update"
-        log_error "  sudo apt install -y python3-venv python3.12-venv"
+        log_error "  sudo apt install -y python3.12-venv"
         log_error ""
         log_error "如果仍然失败，可能需要："
         log_error "  sudo apt install -y python3-pip python3-dev"
