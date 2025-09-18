@@ -14,6 +14,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # 项目配置
@@ -54,6 +56,9 @@ show_help() {
     echo "  --check-only        仅检查依赖，不安装或配置"
     echo "  --install-deps      自动安装缺失的依赖"
     echo "  --config-nginx      配置Nginx站点"
+    echo "  --domain <域名>     配置域名 (如: bot.example.com)"
+    echo "  --ssl              启用SSL证书 (使用Let's Encrypt)"
+    echo "  --email <邮箱>      SSL证书通知邮箱"
     echo "  --skip-firewall     跳过防火墙配置"
     echo "  --verbose, -v       显示详细信息"
     echo "  --help, -h          显示此帮助信息"
@@ -69,7 +74,50 @@ show_help() {
     echo "  $0                          # 完整检查和配置"
     echo "  $0 --check-only             # 仅检查当前状态"
     echo "  $0 --install-deps           # 检查并自动安装缺失依赖"
+    echo "  $0 --domain bot.example.com --ssl --email admin@example.com  # 配置域名和SSL"
     echo ""
+}
+
+# 交互式输入函数
+prompt_for_input() {
+    local prompt=$1
+    local default=$2
+    local var_name=$3
+
+    if [ -n "$default" ]; then
+        echo -ne "${CYAN}$prompt ${NC}[${GREEN}$default${NC}]: "
+    else
+        echo -ne "${CYAN}$prompt${NC}: "
+    fi
+
+    read user_input
+
+    if [ -z "$user_input" ] && [ -n "$default" ]; then
+        eval "$var_name='$default'"
+    else
+        eval "$var_name='$user_input'"
+    fi
+}
+
+# 交互式确认函数
+confirm() {
+    local prompt=$1
+    local default=${2:-n}
+
+    if [ "$default" = "y" ]; then
+        echo -ne "${CYAN}$prompt ${NC}[${GREEN}Y${NC}/n]: "
+    else
+        echo -ne "${CYAN}$prompt ${NC}[y/${GREEN}N${NC}]: "
+    fi
+
+    read -r response
+    response=${response,,}  # 转小写
+
+    if [ -z "$response" ]; then
+        response=$default
+    fi
+
+    [ "$response" = "y" ] || [ "$response" = "yes" ]
 }
 
 # 解析参数
@@ -78,6 +126,10 @@ INSTALL_DEPS=false
 CONFIG_NGINX=true
 SKIP_FIREWALL=false
 VERBOSE=false
+DOMAIN_NAME=""
+ENABLE_SSL=false
+ADMIN_EMAIL=""
+INTERACTIVE_MODE=true
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -85,18 +137,41 @@ while [[ $# -gt 0 ]]; do
             CHECK_ONLY=true
             INSTALL_DEPS=false
             CONFIG_NGINX=false
+            INTERACTIVE_MODE=false
             shift
             ;;
         --install-deps)
             INSTALL_DEPS=true
+            INTERACTIVE_MODE=false
             shift
             ;;
         --config-nginx)
             CONFIG_NGINX=true
+            INTERACTIVE_MODE=false
             shift
+            ;;
+        --domain)
+            DOMAIN_NAME="$2"
+            CONFIG_NGINX=true
+            INTERACTIVE_MODE=false
+            shift 2
+            ;;
+        --ssl)
+            ENABLE_SSL=true
+            INTERACTIVE_MODE=false
+            shift
+            ;;
+        --email)
+            ADMIN_EMAIL="$2"
+            INTERACTIVE_MODE=false
+            shift 2
             ;;
         --skip-firewall)
             SKIP_FIREWALL=true
+            shift
+            ;;
+        --non-interactive)
+            INTERACTIVE_MODE=false
             shift
             ;;
         --verbose|-v)
@@ -114,6 +189,92 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# 交互式配置收集
+if [ "$INTERACTIVE_MODE" = true ]; then
+    echo ""
+    echo -e "${PURPLE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${PURPLE}     Telegram Channel Bot 部署配置向导      ${NC}"
+    echo -e "${PURPLE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    # 询问Web端口
+    prompt_for_input "请输入Web API服务端口" "$WEB_PORT" "WEB_PORT"
+
+    # 询问Nginx端口
+    prompt_for_input "请输入Nginx前端访问端口" "$NGINX_PORT" "NGINX_PORT"
+
+    # 询问域名
+    echo ""
+    echo -e "${CYAN}域名配置（支持多个域名）：${NC}"
+    echo -e "${YELLOW}  - 留空则只使用 localhost${NC}"
+    echo -e "${YELLOW}  - 输入域名将同时支持域名和 localhost 访问${NC}"
+    prompt_for_input "请输入您的域名（如: bot.example.com）" "" "DOMAIN_NAME"
+
+    # 如果有域名，询问是否配置SSL
+    if [ -n "$DOMAIN_NAME" ]; then
+        echo ""
+        if confirm "是否为域名 $DOMAIN_NAME 配置SSL证书？" "y"; then
+            ENABLE_SSL=true
+            echo ""
+            echo -e "${CYAN}SSL证书配置：${NC}"
+            echo -e "${YELLOW}  - 留空将使用 --register-unsafely-without-email${NC}"
+            echo -e "${YELLOW}  - 建议提供邮箱以接收证书过期提醒${NC}"
+            prompt_for_input "请输入管理员邮箱（用于SSL证书通知）" "" "ADMIN_EMAIL"
+        fi
+    fi
+
+    # 询问是否自动安装依赖
+    echo ""
+    if confirm "是否自动安装缺失的依赖？" "y"; then
+        INSTALL_DEPS=true
+    fi
+
+    # 询问是否配置Nginx
+    echo ""
+    if confirm "是否配置Nginx站点？" "y"; then
+        CONFIG_NGINX=true
+    fi
+
+    # 询问是否配置防火墙
+    echo ""
+    if confirm "是否配置防火墙规则？" "n"; then
+        SKIP_FIREWALL=false
+    else
+        SKIP_FIREWALL=true
+    fi
+
+    # 显示配置摘要
+    echo ""
+    echo -e "${PURPLE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}配置摘要：${NC}"
+    echo -e "  ${CYAN}Web API端口：${NC}$WEB_PORT"
+    echo -e "  ${CYAN}Nginx端口：${NC}$NGINX_PORT"
+    if [ -n "$DOMAIN_NAME" ]; then
+        echo -e "  ${CYAN}域名：${NC}$DOMAIN_NAME (同时支持 localhost)"
+    else
+        echo -e "  ${CYAN}域名：${NC}仅使用 localhost"
+    fi
+    if [ "$ENABLE_SSL" = true ]; then
+        echo -e "  ${CYAN}SSL证书：${NC}${GREEN}启用${NC}"
+        if [ -n "$ADMIN_EMAIL" ]; then
+            echo -e "  ${CYAN}管理员邮箱：${NC}$ADMIN_EMAIL"
+        fi
+    else
+        echo -e "  ${CYAN}SSL证书：${NC}不配置"
+    fi
+    echo -e "  ${CYAN}自动安装依赖：${NC}$([ "$INSTALL_DEPS" = true ] && echo "${GREEN}是${NC}" || echo "${YELLOW}否${NC}")"
+    echo -e "  ${CYAN}配置Nginx：${NC}$([ "$CONFIG_NGINX" = true ] && echo "${GREEN}是${NC}" || echo "${YELLOW}否${NC}")"
+    echo -e "  ${CYAN}配置防火墙：${NC}$([ "$SKIP_FIREWALL" = true ] && echo "${YELLOW}跳过${NC}" || echo "${GREEN}配置${NC}")"
+    echo -e "${PURPLE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    if ! confirm "确认以上配置并开始部署？" "y"; then
+        echo -e "${YELLOW}部署已取消${NC}"
+        exit 0
+    fi
+    echo ""
+fi
 
 # 版本比较函数
 version_compare() {
@@ -343,6 +504,16 @@ configure_nginx() {
     local site_config="/etc/nginx/sites-available/$PROJECT_NAME"
     local site_enabled="/etc/nginx/sites-enabled/$PROJECT_NAME"
 
+    # 确定server_name配置
+    local server_name="localhost"
+    if [ -n "$DOMAIN_NAME" ]; then
+        # 同时支持域名和localhost
+        server_name="$DOMAIN_NAME localhost"
+        log_info "配置域名: $DOMAIN_NAME (同时支持 localhost)"
+    else
+        log_info "仅使用 localhost"
+    fi
+
     # 创建站点配置
     sudo tee "$site_config" > /dev/null << EOF
 # Telegram Channel Bot Nginx配置
@@ -350,7 +521,7 @@ configure_nginx() {
 
 server {
     listen $NGINX_PORT;
-    server_name localhost;
+    server_name $server_name;
 
     # 安全头设置
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -450,6 +621,55 @@ EOF
     else
         log_error "Nginx配置测试失败"
         sudo nginx -t
+        return 1
+    fi
+
+    return 0
+}
+
+# 配置SSL证书
+configure_ssl() {
+    if [ "$ENABLE_SSL" != true ] || [ -z "$DOMAIN_NAME" ]; then
+        return 0
+    fi
+
+    log_info "配置SSL证书..."
+
+    # 检查Certbot是否安装
+    if ! command -v certbot &> /dev/null; then
+        log_info "安装Certbot..."
+        if command -v snap &> /dev/null; then
+            sudo snap install --classic certbot
+            sudo ln -s /snap/bin/certbot /usr/bin/certbot 2>/dev/null || true
+        else
+            sudo apt-get update
+            sudo apt-get install -y certbot python3-certbot-nginx
+        fi
+    fi
+
+    # 申请SSL证书
+    local email_param=""
+    if [ -n "$ADMIN_EMAIL" ]; then
+        email_param="--email $ADMIN_EMAIL"
+    else
+        email_param="--register-unsafely-without-email"
+    fi
+
+    log_info "申请SSL证书 for $DOMAIN_NAME..."
+    if sudo certbot --nginx -d "$DOMAIN_NAME" \
+        --non-interactive \
+        --agree-tos \
+        $email_param \
+        --redirect; then
+        log_success "SSL证书配置成功"
+
+        # 设置自动续期
+        if ! sudo crontab -l 2>/dev/null | grep -q "certbot renew"; then
+            (sudo crontab -l 2>/dev/null; echo "0 0,12 * * * /usr/bin/certbot renew --quiet") | sudo crontab -
+            log_success "已设置SSL证书自动续期"
+        fi
+    else
+        log_error "SSL证书申请失败"
         return 1
     fi
 
@@ -629,6 +849,9 @@ main() {
     # 配置阶段
     if [ "$CHECK_ONLY" != true ]; then
         configure_nginx || exit_code=1
+        echo ""
+
+        configure_ssl || exit_code=1
         echo ""
 
         configure_firewall || exit_code=1
