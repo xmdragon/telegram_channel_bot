@@ -1000,6 +1000,13 @@ configure_firewall() {
 ensure_venv_installed() {
     log_info "确保python3-venv模块已安装..."
 
+    # 先删除可能存在的虚拟环境目录，避免损坏的环境影响安装
+    if [ -d "$PROJECT_ROOT/venv" ]; then
+        log_info "删除现有虚拟环境目录..."
+        rm -rf "$PROJECT_ROOT/venv"
+        log_success "已删除旧的虚拟环境"
+    fi
+
     # 检测Python版本
     PYTHON_VERSION=$(python3 --version | grep -oE '[0-9]+\.[0-9]+')
     log_info "检测到Python版本: $PYTHON_VERSION"
@@ -1070,61 +1077,41 @@ check_project_deps() {
     mkdir -p "$PROJECT_ROOT/logs/pids"
     log_success "项目目录已创建"
 
-    # 检查虚拟环境
-    if [ -d "$PROJECT_ROOT/venv" ]; then
-        log_success "虚拟环境目录存在"
+    # 虚拟环境应该已经被ensure_venv_installed删除了，现在需要创建新的
+    log_info "创建新的虚拟环境..."
+    if [ "$INSTALL_DEPS" = true ]; then
+        if python3 -m venv "$PROJECT_ROOT/venv"; then
+            log_success "虚拟环境创建成功"
 
-        # 检查虚拟环境是否可用
-        if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
-            log_success "虚拟环境配置正常"
+            # 激活虚拟环境并安装依赖
+            log_info "安装Python依赖包..."
+            source "$PROJECT_ROOT/venv/bin/activate"
+            pip install --upgrade pip
+            pip install -r "$PROJECT_ROOT/requirements.txt"
 
-            # 检查已安装的包
             if [ "$VERBOSE" = true ]; then
-                source "$PROJECT_ROOT/venv/bin/activate"
                 local installed_count=$(pip list --format=freeze | wc -l)
                 log_info "已安装Python包数量: $installed_count"
-                deactivate
             fi
-        else
-            log_error "虚拟环境损坏"
-            if [ "$INSTALL_DEPS" = true ]; then
-                log_info "删除损坏的虚拟环境..."
-                rm -rf "$PROJECT_ROOT/venv"
 
-                log_info "重新创建虚拟环境..."
-                if python3 -m venv "$PROJECT_ROOT/venv"; then
-                    source "$PROJECT_ROOT/venv/bin/activate"
-                    pip install --upgrade pip
-                    pip install -r "$PROJECT_ROOT/requirements.txt"
-                    deactivate
-                    log_success "虚拟环境重建完成"
-                else
-                    log_error "虚拟环境创建失败"
-                    log_error "请检查Python安装是否完整"
-                    return 1
-                fi
-            else
-                return 1
-            fi
+            deactivate
+            log_success "虚拟环境和依赖安装完成"
+        else
+            log_error "虚拟环境创建失败"
+            log_error "请检查Python安装是否完整"
+            return 1
         fi
     else
-        log_warning "虚拟环境不存在"
-        if [ "$INSTALL_DEPS" = true ]; then
-            log_info "创建虚拟环境..."
+        log_warning "跳过依赖安装（未指定 --install-deps）"
+        # 即使不安装依赖，也要尝试创建虚拟环境
+        if ! [ -d "$PROJECT_ROOT/venv" ]; then
+            log_info "创建空虚拟环境..."
             if python3 -m venv "$PROJECT_ROOT/venv"; then
-                source "$PROJECT_ROOT/venv/bin/activate"
-                pip install --upgrade pip
-                pip install -r "$PROJECT_ROOT/requirements.txt"
-                deactivate
-                log_success "虚拟环境创建完成"
+                log_success "空虚拟环境创建成功"
             else
                 log_error "虚拟环境创建失败"
-                log_error "请检查Python安装是否完整"
                 return 1
             fi
-        else
-            log_error "虚拟环境不存在，请使用 --install-deps 选项创建"
-            return 1
         fi
     fi
 
