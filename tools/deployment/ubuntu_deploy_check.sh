@@ -653,6 +653,20 @@ server {
         }
     }
 
+    # 临时媒体文件
+    location /temp_media/ {
+        alias $PROJECT_ROOT/temp_media/;
+        expires 1h;
+        add_header Cache-Control "public";
+        add_header X-Served-By "nginx-temp";
+
+        # 媒体文件类型
+        location ~* \.(jpg|jpeg|png|gif|webp|mp4|webm|pdf)$ {
+            expires 7d;
+            add_header Cache-Control "public";
+        }
+    }
+
     # API代理
     location /api/ {
         proxy_pass http://127.0.0.1:$WEB_PORT;
