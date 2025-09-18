@@ -501,6 +501,31 @@ configure_nginx() {
 
     log_info "配置Nginx站点..."
 
+    # 检查Nginx是否安装
+    if ! command -v nginx &> /dev/null; then
+        log_error "Nginx未安装，无法配置站点"
+        return 1
+    fi
+
+    # 检查并创建Nginx配置目录
+    if [ ! -d "/etc/nginx" ]; then
+        log_error "Nginx配置目录不存在，请确保Nginx正确安装"
+        return 1
+    fi
+
+    # 创建sites-available和sites-enabled目录（如果不存在）
+    sudo mkdir -p /etc/nginx/sites-available
+    sudo mkdir -p /etc/nginx/sites-enabled
+
+    # 检查Nginx主配置文件是否包含sites-enabled
+    local nginx_conf="/etc/nginx/nginx.conf"
+    if [ -f "$nginx_conf" ]; then
+        if ! sudo grep -q "sites-enabled" "$nginx_conf"; then
+            log_warning "Nginx主配置可能不包含sites-enabled目录"
+            log_info "请确保 $nginx_conf 中有: include /etc/nginx/sites-enabled/*;"
+        fi
+    fi
+
     local site_config="/etc/nginx/sites-available/$PROJECT_NAME"
     local site_enabled="/etc/nginx/sites-enabled/$PROJECT_NAME"
 
@@ -514,7 +539,14 @@ configure_nginx() {
         log_info "仅使用 localhost"
     fi
 
+    # 检查sudo权限
+    if ! sudo -n true 2>/dev/null; then
+        log_error "需要sudo权限配置Nginx"
+        return 1
+    fi
+
     # 创建站点配置
+    log_info "创建Nginx站点配置: $site_config"
     sudo tee "$site_config" > /dev/null << EOF
 # Telegram Channel Bot Nginx配置
 # 生成时间: $(date)
@@ -600,18 +632,43 @@ server {
 }
 EOF
 
+    # 验证配置文件创建成功
+    if [ ! -f "$site_config" ]; then
+        log_error "站点配置文件创建失败: $site_config"
+        return 1
+    fi
+
+    log_success "Nginx站点配置文件已创建"
+
     # 启用站点
     if [ ! -e "$site_enabled" ]; then
-        sudo ln -s "$site_config" "$site_enabled"
-        log_success "Nginx站点配置已启用"
+        log_info "启用站点配置..."
+        if sudo ln -s "$site_config" "$site_enabled" 2>/dev/null; then
+            log_success "Nginx站点配置已启用"
+        else
+            log_error "启用站点配置失败"
+            return 1
+        fi
     else
-        log_info "Nginx站点配置已存在，已更新"
+        # 如果链接已存在，先删除再重新创建
+        log_info "更新现有站点配置..."
+        sudo rm "$site_enabled" 2>/dev/null || true
+        if sudo ln -s "$site_config" "$site_enabled" 2>/dev/null; then
+            log_success "Nginx站点配置已更新"
+        else
+            log_error "更新站点配置失败"
+            return 1
+        fi
     fi
 
     # 禁用默认站点（避免冲突）
     if [ -e "/etc/nginx/sites-enabled/default" ]; then
-        sudo rm "/etc/nginx/sites-enabled/default"
-        log_info "已禁用Nginx默认站点"
+        log_info "禁用默认站点以避免端口冲突..."
+        if sudo rm "/etc/nginx/sites-enabled/default" 2>/dev/null; then
+            log_success "已禁用Nginx默认站点"
+        else
+            log_warning "无法禁用默认站点，可能会有端口冲突"
+        fi
     fi
 
     # 测试配置并重新加载
