@@ -2165,9 +2165,25 @@ const MainApp = {
                 document.body.removeChild(dialog);
             };
             
-            document.getElementById('dialog-confirm').onclick = () => {
+            document.getElementById('dialog-confirm').onclick = async () => {
+                // 先收集关键词（在移除对话框之前）
+                const keywords = {};
+                const keywordItems = dialog.querySelectorAll('.keyword-item');
+
+                keywordItems.forEach(item => {
+                    const keywordText = item.querySelector('.keyword-text').value.trim();
+                    const weight = parseFloat(item.querySelector('.keyword-weight').value) || 1.0;
+                    // 只添加非空的关键词
+                    if (keywordText) {
+                        keywords[keywordText] = weight;
+                    }
+                });
+
+                // 然后移除对话框
                 document.body.removeChild(dialog);
-                this.submitAdMarking(message.id);
+
+                // 最后提交（传入收集的关键词）
+                await this.submitAdMarking(message.id, keywords);
             };
             
             // 点击遮罩关闭
@@ -2253,20 +2269,25 @@ const MainApp = {
         },
         
         // 提交广告标记
-        async submitAdMarking(messageId) {
+        async submitAdMarking(messageId, preCollectedKeywords = null) {
             try {
-                // 收集所有关键词和权重
-                const keywords = {};
-                const keywordItems = document.querySelectorAll('.keyword-item');
-                
-                keywordItems.forEach(item => {
-                    const keywordText = item.querySelector('.keyword-text').value.trim();
-                    const weight = parseFloat(item.querySelector('.keyword-weight').value) || 1.0;
-                    // 只添加非空的关键词
-                    if (keywordText) {
-                        keywords[keywordText] = weight;
-                    }
-                });
+                // 使用传入的关键词，或者从DOM中收集（向后兼容）
+                let keywords = preCollectedKeywords;
+
+                if (!keywords) {
+                    // 如果没有传入关键词，尝试从DOM收集（向后兼容）
+                    keywords = {};
+                    const keywordItems = document.querySelectorAll('.keyword-item');
+
+                    keywordItems.forEach(item => {
+                        const keywordText = item.querySelector('.keyword-text').value.trim();
+                        const weight = parseFloat(item.querySelector('.keyword-weight').value) || 1.0;
+                        // 只添加非空的关键词
+                        if (keywordText) {
+                            keywords[keywordText] = weight;
+                        }
+                    });
+                }
                 
                 // 发送请求
                 window.SimpleUI.Loading.show('正在保存...');

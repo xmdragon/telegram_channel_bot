@@ -76,7 +76,7 @@ class MarkdownFilter:
             for entity in entities:
                 # 处理 Telethon 实体对象
                 entity_class_name = entity.__class__.__name__
-                if entity_class_name in ['MessageEntityUrl', 'MessageEntityTextUrl'] or hasattr(entity, 'url'):
+                if entity_class_name in ['MessageEntityUrl', 'MessageEntityTextUrl', 'MessageEntityBlockquote'] or hasattr(entity, 'url'):
                     link_entities.append({
                         'offset': entity.offset,
                         'length': entity.length

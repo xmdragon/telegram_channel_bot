@@ -15,6 +15,12 @@ const app = createApp({
         };
     },
 
+    computed: {
+        showResults() {
+            return this.messageStructures.length > 0 || this.errorMessage;
+        }
+    },
+
     async mounted() {
         // 初始化权限检查（不阻塞组件加载）
         try {
@@ -27,56 +33,62 @@ const app = createApp({
 
     methods: {
         async fetchMessageStructure() {
-            if (!this.messageUrl.trim()) {
-                this.errorMessage = '请输入有效的Telegram消息链接';
+            // 清空之前的错误消息
+            this.errorMessage = '';
+
+            // 检查URL是否为空
+            if (!this.messageUrl || !this.messageUrl.trim()) {
+                this.errorMessage = '消息URL不能为空';
+                // 清空之前的结果
+                this.messageData = null;
+                this.messageInfo = null;
+                this.messageStructures = [];
                 return;
             }
 
+            const trimmedUrl = this.messageUrl.trim();
+
             this.loading = true;
-            this.errorMessage = '';
             this.messageData = null;
             this.messageInfo = null;
             this.messageStructures = [];
 
             try {
                 const response = await axios.post(API.telegram.messageStructure, {
-                    url: this.messageUrl.trim()
+                    message_url: trimmedUrl
                 });
 
-                this.messageData = response.data;
+                // 处理包装的响应格式
+                const responseData = response.data.success ? response.data.data : response.data;
+                this.messageData = responseData;
+
+                // 使用返回的info信息
+                if (responseData.info) {
+                    this.messageInfo = responseData.info;
+                }
 
                 // 处理返回的数据结构
-                if (response.data.structures && Array.isArray(response.data.structures)) {
-                    this.messageStructures = response.data.structures;
-                    this.isGroupMessage = this.messageStructures.length > 1;
+                if (responseData.structures && Array.isArray(responseData.structures)) {
+                    this.messageStructures = responseData.structures;
+                    this.isGroupMessage = responseData.info?.is_group_message || this.messageStructures.length > 1;
                     this.expandedStates = new Array(this.messageStructures.length).fill(false);
-
-                    // 设置消息基础信息（使用第一条消息的信息）
-                    if (this.messageStructures.length > 0) {
-                        const firstMessage = this.messageStructures[0];
-                        this.messageInfo = {
-                            message_id: firstMessage.id,
-                            channel_name: response.data.channel_name || '未知频道',
-                            channel_id: firstMessage.peer_id?.channel_id || '未知',
-                            date: firstMessage.date,
-                            views: firstMessage.views,
-                            forwards: firstMessage.forwards
-                        };
-                    }
                 } else {
-                    // 单条消息或旧格式
-                    this.messageStructures = [response.data];
+                    // 兼容旧格式
+                    this.messageStructures = [responseData];
                     this.isGroupMessage = false;
                     this.expandedStates = [false];
 
-                    this.messageInfo = {
-                        message_id: response.data.id,
-                        channel_name: response.data.channel_name || '未知频道',
-                        channel_id: response.data.peer_id?.channel_id || '未知',
-                        date: response.data.date,
-                        views: response.data.views,
-                        forwards: response.data.forwards
-                    };
+                    // 如果没有info，从第一条消息构建
+                    if (!this.messageInfo) {
+                        this.messageInfo = {
+                            message_id: responseData.id,
+                            channel_name: responseData.channel_name || '未知频道',
+                            channel_id: responseData.peer_id?.channel_id || '未知',
+                            date: responseData.date,
+                            views: responseData.views,
+                            forwards: responseData.forwards
+                        };
+                    }
                 }
             } catch (error) {
                 this.errorMessage = error.response?.data?.detail || '获取消息结构失败';
@@ -100,9 +112,30 @@ const app = createApp({
             }
         },
 
-        formatDate(timestamp) {
-            if (!timestamp) return '未知';
-            const date = new Date(timestamp * 1000);
+        formatJSON(obj) {
+            return JSON.stringify(obj, null, 2);
+        },
+
+        formatDate(dateValue) {
+            if (!dateValue) return '未知';
+
+            // 处理不同的日期格式
+            let date;
+            if (typeof dateValue === 'number') {
+                // Unix时间戳
+                date = new Date(dateValue * 1000);
+            } else if (typeof dateValue === 'string') {
+                // ISO 8601格式或其他字符串格式
+                date = new Date(dateValue);
+            } else {
+                return '未知';
+            }
+
+            // 检查日期是否有效
+            if (isNaN(date.getTime())) {
+                return dateValue; // 如果解析失败，返回原始值
+            }
+
             return date.toLocaleString('zh-CN');
         },
 

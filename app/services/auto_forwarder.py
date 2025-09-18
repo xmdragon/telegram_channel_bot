@@ -72,11 +72,19 @@ class AutoForwarder:
                 logger.debug(f"检查了 {len(pending_messages)} 条消息，没有符合时间条件的")
                 return
 
-            # 5. 直接调用现有的批量发送逻辑
-            logger.info(f"🔄 自动转发: 发现 {len(eligible_ids)} 条符合条件的消息")
+            # 5. 限制每次处理的消息数量，避免超时
+            MAX_BATCH_SIZE = 50  # 每次最多处理50条消息
+
+            if len(eligible_ids) > MAX_BATCH_SIZE:
+                logger.info(f"🔄 自动转发: 发现 {len(eligible_ids)} 条符合条件的消息，本次处理前 {MAX_BATCH_SIZE} 条")
+                eligible_ids = eligible_ids[:MAX_BATCH_SIZE]
+            else:
+                logger.info(f"🔄 自动转发: 发现 {len(eligible_ids)} 条符合条件的消息")
 
             # 直接导入并调用批量发送的内部逻辑
             from app.api.messages_batch import process_batch_approve
+
+            logger.info(f"开始处理 {len(eligible_ids)} 条消息的自动转发...")
 
             # 调用内部批量发送函数（跳过HTTP和认证）
             result = await process_batch_approve(
