@@ -1,0 +1,26 @@
+Ubuntu 24.04 Telegram Channel Bot 部署报告
+=============================================
+生成时间: Thu Sep 18 15:28:44 CST 2025
+主机名: Grom
+系统: Ubuntu 24.04.3 LTS
+用户: grom
+
+检查结果:
+---------
+Python: Python 3.12.3
+Redis: 7.0.15
+Nginx: 1.24.0
+
+服务状态:
+Redis: failed
+未知
+Nginx: active
+
+网络配置:
+Web端口: 8080
+API端口: 8008
+Redis端口: 6379
+
+访问地址:
+Web界面: http://192.168.1.5:8080
+API文档: http://192.168.1.5:8080/api/docs

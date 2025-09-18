@@ -5,6 +5,10 @@
 
 set -e
 
+# 获取脚本所在目录和项目根目录
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." &> /dev/null && pwd )"
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -511,22 +515,22 @@ check_project_deps() {
     log_info "检查项目Python依赖..."
 
     # 检查requirements.txt
-    if [ ! -f "requirements.txt" ]; then
-        log_error "requirements.txt文件不存在"
+    if [ ! -f "$PROJECT_ROOT/requirements.txt" ]; then
+        log_error "requirements.txt文件不存在于: $PROJECT_ROOT"
         return 1
     fi
 
     # 检查虚拟环境
-    if [ -d "venv" ]; then
+    if [ -d "$PROJECT_ROOT/venv" ]; then
         log_success "虚拟环境目录存在"
 
         # 检查虚拟环境是否可用
-        if [ -f "venv/bin/activate" ]; then
+        if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
             log_success "虚拟环境配置正常"
 
             # 检查已安装的包
             if [ "$VERBOSE" = true ]; then
-                source venv/bin/activate
+                source "$PROJECT_ROOT/venv/bin/activate"
                 local installed_count=$(pip list --format=freeze | wc -l)
                 log_info "已安装Python包数量: $installed_count"
                 deactivate
@@ -539,10 +543,10 @@ check_project_deps() {
         log_warning "虚拟环境不存在"
         if [ "$INSTALL_DEPS" = true ]; then
             log_info "创建虚拟环境..."
-            python3 -m venv venv
-            source venv/bin/activate
+            python3 -m venv "$PROJECT_ROOT/venv"
+            source "$PROJECT_ROOT/venv/bin/activate"
             pip install --upgrade pip
-            pip install -r requirements.txt
+            pip install -r "$PROJECT_ROOT/requirements.txt"
             deactivate
             log_success "虚拟环境创建完成"
         fi
@@ -599,6 +603,13 @@ main() {
     echo "=================================================="
     echo ""
 
+    # 切换到项目根目录
+    log_info "项目根目录: $PROJECT_ROOT"
+    cd "$PROJECT_ROOT" || {
+        log_error "无法切换到项目目录: $PROJECT_ROOT"
+        exit 1
+    }
+
     local exit_code=0
 
     # 系统检查
@@ -640,9 +651,9 @@ main() {
         log_success "🎉 部署检查完成！所有依赖和配置正常"
         echo ""
         echo "后续步骤:"
-        echo "1. 启动服务: ./start.sh"
+        echo "1. 启动服务: cd $PROJECT_ROOT && ./start.sh"
         echo "2. 访问Web界面: http://localhost:$NGINX_PORT"
-        echo "3. 查看日志: tail -f logs/app.log"
+        echo "3. 查看日志: tail -f $PROJECT_ROOT/logs/app.log"
     else
         log_error "❌ 部署检查发现问题，请检查上述错误信息"
         echo ""
