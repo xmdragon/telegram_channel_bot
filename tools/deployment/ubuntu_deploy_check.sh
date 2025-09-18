@@ -1062,10 +1062,38 @@ main() {
     if [ $exit_code -eq 0 ]; then
         log_success "🎉 部署检查完成！所有依赖和配置正常"
         echo ""
+
+        # 动态生成访问地址
+        local web_url
+        if [ -n "$DOMAIN_NAME" ]; then
+            if [ "$ENABLE_SSL" = true ]; then
+                web_url="https://$DOMAIN_NAME"
+            else
+                if [ "$NGINX_PORT" = "80" ]; then
+                    web_url="http://$DOMAIN_NAME"
+                else
+                    web_url="http://$DOMAIN_NAME:$NGINX_PORT"
+                fi
+            fi
+        else
+            if [ "$NGINX_PORT" = "80" ]; then
+                web_url="http://localhost"
+            else
+                web_url="http://localhost:$NGINX_PORT"
+            fi
+        fi
+
         echo "后续步骤:"
         echo "1. 启动服务: cd $PROJECT_ROOT && ./start.sh"
-        echo "2. 访问Web界面: http://localhost:$NGINX_PORT"
+        echo "2. 访问Web界面: $web_url"
         echo "3. 查看日志: tail -f $PROJECT_ROOT/logs/app.log"
+
+        if [ -n "$DOMAIN_NAME" ]; then
+            echo ""
+            echo "📌 访问方式:"
+            echo "   - 域名访问: $web_url"
+            echo "   - 本地访问: http://localhost:$NGINX_PORT"
+        fi
     else
         log_error "❌ 部署检查发现问题，请检查上述错误信息"
         echo ""
