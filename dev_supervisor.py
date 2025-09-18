@@ -273,8 +273,12 @@ class ServiceProcess:
         try:
             if self.config.name == "web":
                 # Web服务健康检查 - HTTP请求
-                import requests
-                import time
+                try:
+                    import requests
+                    import time
+                except ImportError:
+                    logger.warning("requests 模块未安装，跳过Web健康检查")
+                    return True  # 没有 requests 模块时假设健康，避免误重启
 
                 # 限制检查频率（每30秒检查一次）
                 if not hasattr(self, '_last_web_check'):

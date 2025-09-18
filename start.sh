@@ -49,7 +49,7 @@ show_help() {
     echo "  --force-reinstall  强制重新安装依赖"
     echo "  --verbose, -v      显示详细启动信息"
     echo "  --quick, -q        快速启动模式（跳过等待）"
-    echo "  --daemon, -d       后台运行模式（SSH断开后继续运行）"
+    echo "  --foreground, -f   前台运行模式（默认后台运行）"
     echo ""
     echo "功能:"
     echo "  • 自动检查并创建虚拟环境"
@@ -100,7 +100,7 @@ SKIP_DEPS=false
 FORCE_REINSTALL=false
 VERBOSE=false
 QUICK_MODE=false
-DAEMON_MODE=false
+DAEMON_MODE=true  # 默认后台运行
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -130,6 +130,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --daemon|-d)
             DAEMON_MODE=true
+            shift
+            ;;
+        --foreground|-f)
+            DAEMON_MODE=false  # 前台运行选项
             shift
             ;;
         *)

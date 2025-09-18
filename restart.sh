@@ -39,6 +39,7 @@ show_help() {
     echo "  --restart-infra  同时重启基础设施服务（Redis/Nginx）"
     echo "  --skip-logs    跳过日志统计显示"
     echo "  --verbose, -v  显示详细重启信息"
+    echo "  --foreground   前台运行模式（默认后台运行）"
     echo ""
     echo "功能:"
     echo "  • 安全停止所有服务"
@@ -88,6 +89,7 @@ FORCE_RESTART=false
 RESTART_INFRA=false
 SKIP_LOGS=false
 VERBOSE=false
+FOREGROUND_MODE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -113,6 +115,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --verbose|-v)
             VERBOSE=true
+            shift
+            ;;
+        --foreground)
+            FOREGROUND_MODE=true
             shift
             ;;
         *)
@@ -268,10 +274,11 @@ echo
 echo "5️⃣ 启动所有服务..."
 echo
 
-# 构建启动参数
+# 构建启动参数（start.sh已默认后台运行）
 START_ARGS=""
 [ "$QUICK_MODE" = true ] && START_ARGS="$START_ARGS --quick"
 [ "$VERBOSE" = true ] && START_ARGS="$START_ARGS --verbose"
+[ "$FOREGROUND_MODE" = true ] && START_ARGS="$START_ARGS --foreground"
 
-# 静默启动，避免重复信息
+# 静默启动，避免重复信息（默认后台运行，除非指定--foreground）
 exec ./start.sh $START_ARGS
