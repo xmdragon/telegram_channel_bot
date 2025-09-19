@@ -107,11 +107,11 @@ async def process_batch_approve(message_ids: List[str], user_id: str = None) -> 
     """
     批量发布消息的核心逻辑
     可供内部调用（如自动转发）或HTTP API调用
-
-    注意：这个函数内部会自动过滤广告消息
+    使用核心发布方法处理每条消息
     """
     try:
-        message_processor = MessageProcessor()
+        # 判断是否为自动转发
+        is_auto = (user_id == 'auto_forward')
         reviewer_name = user_id or 'auto_forward'
 
         # 解析消息ID并收集相关的组合消息
@@ -125,104 +125,62 @@ async def process_batch_approve(message_ids: List[str], user_id: str = None) -> 
                 "failed_count": 0
             }
 
-        # 批量更新状态
-        update_results = await message_processor.batch_update_status(
-            message_tuples, "approved", reviewer_name
-        )
+        # 导入核心发布方法
+        from app.api.messages_crud import publish_single_message
 
-        approved_count = sum(1 for success in update_results.values() if success)
-
-        # 直接同步执行消息转发，确保立即发送到目标频道
-        forwarded_count = 0
+        approved_count = 0
         failed_count = 0
+        ad_count = 0
+        length_exceeded_count = 0
+        failed_details = []
 
-        try:
-            from app.telegram.message_forwarder import MessageForwarder
-            forwarder = MessageForwarder()
+        logger.info(f"开始批量处理 {len(valid_messages)} 条消息")
 
-            logger.info(f"开始批量转发 {len(valid_messages)} 条消息")
+        # 使用核心方法逐个发布
+        for msg_data in valid_messages:
+            msg_id = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
 
-            # 直接转发每条消息
-            for msg_data in valid_messages:
-                msg_key = f"{msg_data.get('source_channel')}:{msg_data.get('message_id')}"
-                channel_id = msg_data.get('source_channel')
-                message_id = msg_data.get('message_id')
+            try:
+                # 调用核心发布方法
+                result = await publish_single_message(
+                    msg_id,
+                    reviewer_name,
+                    skip_validation=False,
+                    is_auto_forward=is_auto
+                )
 
-                try:
-                    # 检查是否为广告（批量发送会自动过滤）
-                    is_ad = msg_data.get('is_ad', False)
-                    if isinstance(is_ad, str):
-                        is_ad = is_ad.lower() == 'true'
-
-                    if is_ad:
-                        # 如果是自动转发且检测到广告，标记失败并添加提示
-                        if reviewer_name == 'auto_forward':
-                            logger.info(f"自动转发检测到广告消息，标记为需人工审核: {msg_key}")
-                            # 在消息前添加提示
-                            original_content = msg_data.get('filtered_content') or msg_data.get('content', '')
-                            updated_content = "疑似广告，请审核\n\n" + original_content
-                            # 更新消息并标记自动转发失败
-                            redis_manager.update_message(channel_id, message_id, {
-                                'filtered_content': updated_content,
-                                'auto_forwarder_status': False,
-                                'auto_forward_error': '广告消息需人工审核'
-                            })
-                            failed_count += 1
-                            continue
-                        else:
-                            # 手动批准的广告消息仍然跳过
-                            logger.debug(f"跳过广告消息: {msg_key}")
-                            continue
-
-                    # 直接调用转发方法
-                    await forwarder.forward_to_target_with_sender_session(msg_data)
-                    forwarded_count += 1
-                    logger.debug(f"转发成功: {msg_key}")
-
-                except ValueError as ve:
-                    # 字符限制错误
-                    if "超过1024字符限制" in str(ve):
-                        if reviewer_name == 'auto_forward':
-                            logger.info(f"自动转发检测到字符超限，标记为需人工编辑: {msg_key}")
-                            # 在消息前添加提示
-                            original_content = msg_data.get('filtered_content') or msg_data.get('content', '')
-                            updated_content = "⚠️ 消息内容超过1024字符，请手动编辑消息后发送\n\n" + original_content
-                            # 更新消息并标记自动转发失败
-                            redis_manager.update_message(channel_id, message_id, {
-                                'filtered_content': updated_content,
-                                'auto_forwarder_status': False,
-                                'auto_forward_error': str(ve)
-                            })
-                        failed_count += 1
-                    else:
-                        # 其他ValueError
-                        if reviewer_name == 'auto_forward':
-                            redis_manager.update_message(channel_id, message_id, {
-                                'auto_forwarder_status': False,
-                                'auto_forward_error': str(ve)
-                            })
-                        failed_count += 1
-                        logger.error(f"转发消息失败 {msg_key}: {ve}")
-                except Exception as e:
-                    # 其他转发失败
-                    if reviewer_name == 'auto_forward':
-                        # 标记自动转发失败
-                        redis_manager.update_message(channel_id, message_id, {
-                            'auto_forwarder_status': False,
-                            'auto_forward_error': str(e)
-                        })
+                if result['success']:
+                    approved_count += 1
+                    logger.debug(f"发布成功: {msg_id}")
+                else:
                     failed_count += 1
-                    logger.error(f"转发消息失败 {msg_key}: {e}")
+                    # 统计失败原因
+                    if result.get('error') == 'ad_detected':
+                        ad_count += 1
+                    elif result.get('error') == 'content_too_long':
+                        length_exceeded_count += 1
 
-                # 短暂延迟避免过载
-                await asyncio.sleep(0.1)
+                    # 记录失败详情
+                    failed_details.append({
+                        'message_id': msg_id,
+                        'error': result.get('error'),
+                        'message': result.get('message')
+                    })
 
-        except ImportError as e:
-            logger.error(f"无法导入消息转发器: {e}")
-            failed_count = len(valid_messages) - forwarded_count
-        except Exception as e:
-            logger.error(f"批量转发过程中发生错误: {e}")
-            failed_count = len(valid_messages) - forwarded_count
+                    logger.debug(f"发布失败: {msg_id}, 原因: {result.get('message')}")
+
+            except Exception as e:
+                # 处理意外错误
+                failed_count += 1
+                logger.error(f"处理消息失败 {msg_id}: {e}")
+                failed_details.append({
+                    'message_id': msg_id,
+                    'error': 'unexpected_error',
+                    'message': str(e)
+                })
+
+            # 短暂延迟避免过载
+            await asyncio.sleep(0.1)
 
         # 发送统计更新通知
         await _notify_stats_update()

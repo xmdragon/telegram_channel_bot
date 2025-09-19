@@ -925,36 +925,233 @@ async def delete_review_message(
 
 
 
-# ========== 新增：直接发布API（解决采集开关依赖问题） ==========
+# ========== 新增：核心发布方法与直接发布API ==========
 
-async def _direct_forward_message(message_id: str, user_id: str = None) -> dict:
+async def publish_single_message(
+    message_id: str,
+    user_id: str = None,
+    skip_validation: bool = False,
+    is_auto_forward: bool = False
+) -> dict:
     """
-    直接转发消息到目标频道（不经过队列）
-    用于文本消息的同步处理
+    核心单消息发布方法
+    所有发布操作的统一入口
+
+    Args:
+        message_id: 消息ID (格式: "channel_id:message_id")
+        user_id: 操作用户ID，用于记录
+        skip_validation: 是否跳过验证（仅限特殊场景）
+        is_auto_forward: 是否为自动转发调用（影响错误处理方式）
+
+    Returns:
+        dict: 包含 success, message, error 等字段的结果
     """
     try:
-        # 获取消息数据
+        # 1. 获取消息
         message = redis_manager.get_message_by_id(message_id)
         if not message:
-            raise HTTPException(status_code=404, detail="消息不存在")
-        
-        # 直接调用转发器
+            return {
+                "success": False,
+                "error": "not_found",
+                "message": "消息不存在",
+                "message_id": message_id
+            }
+
+        channel_id = message.get('source_channel')
+        msg_id = message.get('message_id')
+
+        # 2. 验证消息（除非明确跳过）
+        if not skip_validation:
+            # 2.1 检查是否为广告
+            is_ad = message.get('is_ad', False)
+            if isinstance(is_ad, str):
+                is_ad = is_ad.lower() == 'true'
+
+            if is_ad:
+                ad_weight = message.get('ad_weight', 0)
+                hit_keywords = message.get('hit_keywords', [])
+                keyword_names = [k.get('keyword', '') for k in hit_keywords[:3]] if hit_keywords else []
+                error_msg = f"广告消息（权重:{ad_weight:.1f}, 关键词:{','.join(keyword_names)}）"
+
+                if is_auto_forward:
+                    # 自动转发：在消息头部添加提示，并更新到Redis
+                    original_content = message.get('filtered_content') or message.get('content', '')
+                    updated_content = f"🚫 疑似广告，请人工审核\n{error_msg}\n\n{original_content}"
+
+                    redis_manager.update_message(channel_id, msg_id, {
+                        'filtered_content': updated_content,
+                        'auto_forwarder_status': False,
+                        'auto_forward_error': error_msg
+                    })
+
+                    logger.info(f"自动转发检测到广告消息，已标记: {message_id}")
+                    return {
+                        "success": False,
+                        "error": "ad_detected",
+                        "message": error_msg,
+                        "message_id": message_id
+                    }
+                else:
+                    # 手动发布：直接返回错误
+                    return {
+                        "success": False,
+                        "error": "ad_detected",
+                        "message": f"广告消息不能发布，{error_msg}",
+                        "message_id": message_id
+                    }
+
+            # 2.2 检查内容长度（包含频道落款）
+            content = message.get('filtered_content') or message.get('content', '')
+
+            # 获取字符限制配置（支持会员等级）
+            from app.services.config_manager import config_manager
+            max_message_length = await config_manager.get_config('telegram.max_message_length', 1024)
+
+            # 获取频道落款
+            from app.telegram.message_forwarder import MessageForwarder
+            forwarder = MessageForwarder()
+            content_with_footer = await forwarder._add_channel_footer(content)
+
+            # 检查加上落款后的总长度
+            final_length = len(content_with_footer)
+            if final_length > max_message_length:
+                # 计算原文长度和落款长度
+                footer_length = len(content_with_footer) - len(content)
+                max_content_length = max_message_length - footer_length
+
+                error_msg = f"超过{max_message_length}字符限制（内容{len(content)}字+落款{footer_length}字={final_length}字）"
+                detail_msg = f"请将内容缩减至{max_content_length}字以内"
+
+                if is_auto_forward:
+                    # 自动转发：在消息头部添加提示
+                    truncated_content = content[:500] + "..."  # 截断显示
+                    updated_content = f"⚠️ 消息内容超长，请手动编辑\n{error_msg}\n{detail_msg}\n\n{truncated_content}"
+
+                    redis_manager.update_message(channel_id, msg_id, {
+                        'filtered_content': updated_content,
+                        'auto_forwarder_status': False,
+                        'auto_forward_error': f"{error_msg}，{detail_msg}"
+                    })
+
+                    logger.info(f"自动转发检测到超长消息，已标记: {message_id}")
+                    return {
+                        "success": False,
+                        "error": "content_too_long",
+                        "message": error_msg,
+                        "detail": detail_msg,
+                        "message_id": message_id,
+                        "content_length": len(content),
+                        "footer_length": footer_length,
+                        "total_length": final_length,
+                        "max_allowed": max_content_length,
+                        "limit": max_message_length
+                    }
+                else:
+                    # 手动发布：返回详细错误
+                    return {
+                        "success": False,
+                        "error": "content_too_long",
+                        "message": f"消息{error_msg}",
+                        "detail": detail_msg,
+                        "message_id": message_id,
+                        "content_length": len(content),
+                        "footer_length": footer_length,
+                        "total_length": final_length,
+                        "max_allowed": max_content_length,
+                        "limit": max_message_length
+                    }
+
+            # 2.3 检查内容是否为空
+            if not content.strip():
+                error_msg = "消息内容为空"
+
+                if is_auto_forward:
+                    # 自动转发：标记错误但不修改内容
+                    redis_manager.update_message(channel_id, msg_id, {
+                        'auto_forwarder_status': False,
+                        'auto_forward_error': error_msg
+                    })
+
+                return {
+                    "success": False,
+                    "error": "content_empty",
+                    "message": f"{error_msg}，无法发布",
+                    "message_id": message_id
+                }
+
+        # 3. 执行实际转发
         from app.telegram.message_forwarder import message_forwarder
         await message_forwarder.forward_to_target_with_sender_session(message)
-        
-        # 更新消息状态为已发布
-        redis_manager.update_message_status(message_id, "approved", user_id)
 
-        logger.info(f"直接转发成功: {message_id}")
+        # 4. 更新状态为已发布
+        redis_manager.update_message_status(message_id, "approved", user_id or "system")
+
+        # 5. 如果是自动转发成功，清除错误标记
+        if is_auto_forward:
+            redis_manager.update_message(channel_id, msg_id, {
+                'auto_forwarder_status': True,
+                'auto_forward_error': None
+            })
+
+        logger.info(f"✅ 消息发布成功: {message_id} (user: {user_id}, auto: {is_auto_forward})")
         return {
             "success": True,
             "message": "消息已成功发布到目标频道",
+            "message_id": message_id,
             "timestamp": format_for_api(get_current_time())
         }
-        
+
+    except ValueError as ve:
+        # 处理转发过程中的特定错误
+        error_msg = str(ve)
+
+        if is_auto_forward:
+            # 自动转发：更新错误信息到消息
+            try:
+                original_content = message.get('filtered_content') or message.get('content', '')
+                updated_content = f"❌ 转发失败\n{error_msg}\n\n{original_content}"
+
+                redis_manager.update_message(channel_id, msg_id, {
+                    'filtered_content': updated_content,
+                    'auto_forwarder_status': False,
+                    'auto_forward_error': error_msg
+                })
+            except:
+                pass
+
+        return {
+            "success": False,
+            "error": "forward_error",
+            "message": error_msg,
+            "message_id": message_id
+        }
+
     except Exception as e:
-        logger.error(f"直接转发失败: {message_id}, 错误: {e}")
-        raise
+        logger.error(f"发布消息失败: {message_id}, 错误: {e}")
+
+        if is_auto_forward:
+            # 自动转发：记录未知错误
+            try:
+                redis_manager.update_message(channel_id, msg_id, {
+                    'auto_forwarder_status': False,
+                    'auto_forward_error': f"系统错误: {str(e)}"
+                })
+            except:
+                pass
+
+        return {
+            "success": False,
+            "error": "unknown_error",
+            "message": str(e),
+            "message_id": message_id
+        }
+
+async def _direct_forward_message(message_id: str, user_id: str = None) -> dict:
+    """
+    直接转发消息到目标频道（内部使用）
+    调用核心发布方法
+    """
+    return await publish_single_message(message_id, user_id, is_auto_forward=False)
 
 async def _async_forward_with_redis_notify(message_id: str, user_id: str = None):
     """
@@ -962,44 +1159,40 @@ async def _async_forward_with_redis_notify(message_id: str, user_id: str = None)
     """
     try:
         # 通知开始处理
-        await _redis_websocket_notify("publish_started", message_id, 
+        await _redis_websocket_notify("publish_started", message_id,
                                     "开始处理媒体消息发布...")
-        
-        # 获取消息数据
-        message = redis_manager.get_message_by_id(message_id)
-        if not message:
-            await _redis_websocket_notify("publish_failed", message_id, 
-                                        "消息不存在", is_final=True)
-            return
-        
-        # 执行转发
-        from app.telegram.message_forwarder import message_forwarder
-        await message_forwarder.forward_to_target_with_sender_session(message)
-        
-        # 更新消息状态
-        redis_manager.update_message_status(message_id, "approved", user_id)
 
-        # 通知成功
-        await _redis_websocket_notify("publish_success", message_id, 
-                                    "媒体消息发布成功")
-        
-        logger.info(f"异步转发成功: {message_id}")
-        
+        # 调用核心发布方法
+        result = await publish_single_message(message_id, user_id, is_auto_forward=False)
+
+        if result['success']:
+            # 通知成功
+            await _redis_websocket_notify("publish_success", message_id,
+                                        result.get('message', "媒体消息发布成功"))
+            logger.info(f"异步转发成功: {message_id}")
+        else:
+            # 通知失败，包含详细错误信息
+            error_msg = result.get('message', '发布失败')
+            if result.get('detail'):
+                error_msg += f" - {result['detail']}"
+            await _redis_websocket_notify("publish_failed", message_id,
+                                        error_msg, is_final=True)
+
+            # 将消息状态回退到待审核
+            try:
+                redis_manager.update_message_status(message_id, "pending", user_id)
+                redis_manager.update_message_field(
+                    message_id.split(':')[0], int(message_id.split(':')[1]),
+                    'forward_failure_reason', error_msg
+                )
+            except Exception as status_error:
+                logger.error(f"回退消息状态失败: {status_error}")
+
     except Exception as e:
         logger.error(f"异步转发失败: {message_id}, 错误: {e}")
         # 通知失败
-        await _redis_websocket_notify("publish_failed", message_id, 
+        await _redis_websocket_notify("publish_failed", message_id,
                                     str(e), is_final=True)
-        
-        # 将消息状态回退到待审核
-        try:
-            redis_manager.update_message_status(message_id, "pending", user_id)
-            redis_manager.update_message_field(
-                message_id.split(':')[0], int(message_id.split(':')[1]),
-                'forward_failure_reason', f'直接转发失败: {str(e)}'
-            )
-        except Exception as status_error:
-            logger.error(f"回退消息状态失败: {status_error}")
 
 async def _redis_websocket_notify(event_type: str, message_id: str, message: str, is_final: bool = False):
     """
