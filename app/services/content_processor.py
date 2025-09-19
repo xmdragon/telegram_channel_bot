@@ -145,13 +145,6 @@ class ContentProcessor:
             current_content = original_content
             filter_reasons = []
 
-            # 优化2: 快速预筛选 - 跳过明显正常的短内容
-            if len(current_content.strip()) < 50 and not any(char in current_content for char in ['@', 'http', 't.me', '订阅', '频道']):
-                logger.debug(f"快速预筛选: 消息 {message.message_id} 内容过短且无推广特征，跳过过滤")
-                message.filtered_content = current_content
-                return message
-
-            # 重新排序处理步骤，按性能优化顺序
             # 获取过滤器配置
             if filter_config is None:
                 filter_config = {
@@ -176,13 +169,6 @@ class ContentProcessor:
                 current_content = filtered_content
                 filter_reasons.append(f"尾部过滤: 删除{len(removed_tail)}字符")
                 logger.debug(f"消息 {message.message_id} 尾部过滤: {len(original_content)} -> {len(current_content)} 字符")
-
-                # 优化3: 尾部过滤后如果内容太短，可能不需要后续处理
-                if len(current_content.strip()) < 20:
-                    message.filtered_content = current_content
-                    message.filter_reason = "; ".join(filter_reasons)
-                    self._cache_result(content_hash, message, detect_ad)
-                    return message
 
             # 2. 分隔符过滤（较快，处理结构化内容）
             if filter_config.get('separator_filter', True):

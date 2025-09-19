@@ -30,9 +30,6 @@ class MessageScheduler:
             id='cleanup_data'
         )
 
-        # 删除独立的媒体清理任务，统一由cleanup_old_data处理
-        # 避免消息和媒体文件不同步的问题
-
         # 每小时清理日志文件（保留1天的日志，error.log除外）
         self.scheduler.add_job(
             self.cleanup_old_logs,
