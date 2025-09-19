@@ -401,10 +401,8 @@ class DevSupervisor:
                 command=[
                     "venv/bin/gunicorn", "web_server:app",
                     "--bind", "0.0.0.0:8008",
-                    "--workers", "1",  # 强制单worker，适配2G内存VPS
+                    "--workers", "2", 
                     "--worker-class", "uvicorn.workers.UvicornWorker",
-                    "--max-requests", "1000",  # 增加到1000，减少重启频率
-                    "--max-requests-jitter", "100",
                     "--timeout", "300",  # 减少超时时间到5分钟
                     "--graceful-timeout", "30",
                     "--worker-connections", "500",  # 与gunicorn.conf.py保持一致
@@ -524,7 +522,7 @@ class DevSupervisor:
             except Exception as e:
                 logger.error(f"健康检查出错: {e}")
 
-            await asyncio.sleep(5)  # 每5秒检查一次
+            await asyncio.sleep(30)  # 每30秒检查一次
 
     async def _should_restart_service(self, service: ServiceProcess) -> bool:
         """判断是否应该重启服务"""

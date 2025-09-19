@@ -701,7 +701,7 @@ server {
 
     # WebSocket代理
     location /ws {
-        proxy_pass http://127.0.0.1:$WEB_PORT;
+        proxy_pass http://0.0.0.0:$WEB_PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -716,7 +716,7 @@ server {
 
     # 健康检查
     location /health {
-        proxy_pass http://127.0.0.1:$WEB_PORT/api/health;
+        proxy_pass http://0.0.0.0:$WEB_PORT/api/health;
         access_log off;
     }
 
