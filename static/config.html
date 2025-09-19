@@ -288,13 +288,6 @@
                                         v-model="configs['target.channel_id']" 
                                         placeholder="自动解析后显示ID"
                                         readonly>
-                                    <button 
-                                        type="button"
-                                        class="btn btn-primary" 
-                                        @click="manualResolveTargetChannel"
-                                        :disabled="!configs['target.channel_link']">
-                                        手动解析
-                                    </button>
                                 </div>
                             </div>
                             
@@ -321,13 +314,6 @@
                                         v-model="configs['review.group_id']" 
                                         placeholder="自动解析后显示ID"
                                         readonly>
-                                    <button 
-                                        type="button"
-                                        class="btn btn-primary" 
-                                        @click="manualResolveReviewGroup"
-                                        :disabled="!configs['review.group_link']">
-                                        手动解析
-                                    </button>
                                 </div>
                             </div>
                             

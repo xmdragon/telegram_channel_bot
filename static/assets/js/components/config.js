@@ -558,62 +558,6 @@ const ConfigApp = {
         },
         
         
-        // 手动解析目标频道
-        async manualResolveTargetChannel() {
-            if (!this.configs['target.channel_link']) {
-                MessageManager.warning('请先输入目标频道');
-                return;
-            }
-            
-            try {
-                const response = await axios.post(API.admin.resolveChannelId, {
-                    channel_name: this.configs['target.channel_link']
-                });
-                
-                if (response.data.success) {
-                    this.configs['target.channel_id'] = response.data.resolved_id;
-                    MessageManager.success(`目标频道已解析: ${response.data.resolved_id}`);
-                    
-                    // 保存解析结果到系统配置
-                    await this.saveConfigs(['target.channel_id']);
-                } else {
-                    MessageManager.error('解析失败: ' + response.data.message);
-                }
-            } catch (error) {
-                MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                // 操作完成
-            }
-        },
-        
-        // 手动解析审核群
-        async manualResolveReviewGroup() {
-            if (!this.configs['review.group_link']) {
-                MessageManager.warning('请先输入审核群');
-                return;
-            }
-            
-            try {
-                const response = await axios.post(API.admin.resolveReviewGroup, {
-                    review_group_config: this.configs['review.group_link']
-                });
-                
-                if (response.data.success) {
-                    this.configs['review.group_id'] = response.data.resolved_id;
-                    MessageManager.success(`审核群已解析: ${response.data.resolved_id}`);
-                    
-                    // 保存解析结果到系统配置
-                    await this.saveConfigs(['review.group_id']);
-                } else {
-                    MessageManager.error('解析失败: ' + response.data.message);
-                }
-            } catch (error) {
-                MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                // 操作完成
-            }
-        },
-        
         // 批量解析所有频道
         async resolveAllChannels() {
             try {

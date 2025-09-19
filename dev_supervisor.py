@@ -15,7 +15,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
-from app.core.url_config import url_config
 from app.core.config import settings
 from dotenv import load_dotenv
 
@@ -95,16 +94,11 @@ class ServiceProcess:
         """等待服务真正就绪"""
         import asyncio
 
-        # Web服务需要更多时间来启动和初始化（Redis、JSON存储、配置等）
+        # 统一的服务启动等待时间
         if self.config.name == "web":
-            logger.info(f"等待 Web 服务初始化...")
-            await asyncio.sleep(8.0)  # 给Web服务更充足的启动时间
-
-            # 标记服务刚启动，健康检查应更宽容
-            self._service_just_started = True
-            self._startup_time = asyncio.get_event_loop().time()
+            await asyncio.sleep(8.0)  # Web服务需要更多启动时间
         else:
-            await asyncio.sleep(0.5)  # 其他服务保持原有时间
+            await asyncio.sleep(0.5)  # 其他服务短暂等待
 
         return self.process.poll() is None
     
@@ -259,8 +253,8 @@ class ServiceProcess:
                     logger.warning(f"服务 {self.config.name} 内存使用异常: {memory_mb:.1f}MB")
                     return False
 
-                # 应用级健康检查
-                return self._app_health_check()
+                # 基础进程检查已完成，返回健康状态
+                return True
 
             except psutil.NoSuchProcess:
                 logger.warning(f"服务 {self.config.name} 进程不存在")
@@ -273,118 +267,7 @@ class ServiceProcess:
             logger.error(f"深度健康检查失败 {self.config.name}: {e}")
             return True  # 检查失败时假设健康，避免误杀
 
-    def _app_health_check(self) -> bool:
-        """应用级健康检查"""
-        try:
-            if self.config.name == "web":
-                # Web服务健康检查 - HTTP请求
-                try:
-                    import requests
-                    import time
-                    import asyncio
-                except ImportError:
-                    logger.warning("requests 模块未安装，跳过Web健康检查")
-                    return True  # 没有 requests 模块时假设健康，避免误重启
 
-                # 对刚启动的服务给予宽限期（启动后90秒内更宽容，适配2G内存VPS）
-                if hasattr(self, '_service_just_started') and self._service_just_started:
-                    if hasattr(self, '_startup_time'):
-                        elapsed = asyncio.get_event_loop().time() - self._startup_time
-                        if elapsed < 90:  # 90秒宽限期，给低配VPS更多初始化时间
-                            # 在宽限期内，健康检查失败不算失败，给予重试机会
-                            try:
-                                response = requests.get(
-                                    f"http://localhost:{url_config.WEB_PORT}/api/health",
-                                    timeout=3
-                                )
-                                if response.status_code == 200:
-                                    # 服务已就绪，清除启动标记
-                                    self._service_just_started = False
-                                    logger.info(f"✅ Web 服务健康检查通过，初始化完成")
-                                    return True
-                                else:
-                                    logger.debug(f"Web服务还在初始化中 (启动后 {elapsed:.1f}秒)")
-                                    return True  # 宽限期内返回健康
-                            except:
-                                logger.debug(f"Web服务还在初始化中 (启动后 {elapsed:.1f}秒)")
-                                return True  # 宽限期内返回健康
-                        else:
-                            # 宽限期结束，清除标记
-                            self._service_just_started = False
-
-                # 限制检查频率（每30秒检查一次）
-                if not hasattr(self, '_last_web_check'):
-                    self._last_web_check = 0
-
-                current_time = time.time()
-                if current_time - self._last_web_check < 30:
-                    return True  # 跳过本次检查
-
-                self._last_web_check = current_time
-
-                # 健康检查重试机制
-                max_retries = 2
-                for attempt in range(max_retries):
-                    try:
-                        response = requests.get(
-                            f"http://localhost:{url_config.WEB_PORT}/api/health",
-                            timeout=5
-                        )
-                        if response.status_code == 200:
-                            return True
-                    except Exception as e:
-                        if attempt < max_retries - 1:
-                            time.sleep(2)  # 等待2秒后重试
-                        else:
-                            logger.warning(f"Web服务健康检查失败 - API无响应 (重试{max_retries}次后)")
-                            return False
-
-                return False
-
-            elif self.config.name == "collector":
-                # Collector服务检查 - 检查进程活跃度
-                return self._check_activity_timestamp("collector")
-
-            elif self.config.name == "scheduler":
-                # Scheduler服务检查 - 检查任务执行时间戳
-                return self._check_activity_timestamp("scheduler")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"应用级健康检查失败 {self.config.name}: {e}")
-            return True  # 检查失败时假设健康
-
-    def _check_activity_timestamp(self, service_name: str) -> bool:
-        """检查服务活跃时间戳"""
-        try:
-            import redis
-            from datetime import datetime, timedelta
-
-            # 连接Redis检查活跃时间戳
-            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-
-            # 获取最后活跃时间戳
-            last_activity = r.get(f"service:{service_name}:last_activity")
-
-            if not last_activity:
-                # 如果没有时间戳，可能服务刚启动
-                return True
-
-            # 解析时间戳
-            last_time = datetime.fromisoformat(last_activity)
-            now = datetime.now()
-
-            # 如果超过5分钟没有活动，认为服务可能卡住
-            if now - last_time > timedelta(minutes=5):
-                logger.warning(f"服务 {service_name} 超过5分钟无活动")
-                return False
-
-            return True
-
-        except Exception as e:
-            logger.debug(f"活跃时间戳检查失败 {service_name}: {e}")
-            return True  # 检查失败时假设健康
 
 class DevSupervisor:
     """开发环境进程管理器"""
