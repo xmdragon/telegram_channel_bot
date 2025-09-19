@@ -68,16 +68,13 @@ const ConfigApp = {
                 'filter.markdown': true,
                 'filter.ad_detector': false,
                 // 审核设置
-                'review.require_approval': true,
-                'review.auto_reject_ads': false,
-                'review.auto_forward_after_collect': false,
-                'review.auto_forward_enabled': false,
-                'review.auto_forward_delay': '1800',
+                'target.require_approval': true,
+                'target.auto_reject_ads': false,
+                'target.auto_forward_enabled': false,
+                'target.auto_forward_delay': '1800',
                 // 转发设置
                 'target.channel_link': '',
                 'target.channel_id': '',
-                'review.group_link': '',
-                'review.group_id': '',
                 // 系统设置
                 'scheduler.enabled': true,
                 'scheduler.data_cleanup_interval_hours': '24'
@@ -95,15 +92,12 @@ const ConfigApp = {
                 'filter.separator': 'boolean',
                 'filter.markdown': 'boolean',
                 'filter.ad_detector': 'boolean',
-                'review.require_approval': 'boolean',
-                'review.auto_reject_ads': 'boolean',
-                'review.auto_forward_after_collect': 'boolean',
-                'review.auto_forward_enabled': 'boolean',
-                'review.auto_forward_delay': 'integer',
+                'target.require_approval': 'boolean',
+                'target.auto_reject_ads': 'boolean',
+                'target.auto_forward_enabled': 'boolean',
+                'target.auto_forward_delay': 'integer',
                 'target.channel_link': 'string',
                 'target.channel_id': 'string',
-                'review.group_link': 'string',
-                'review.group_id': 'string',
                 'scheduler.enabled': 'boolean',
                 'scheduler.data_cleanup_interval_hours': 'integer'
             }
@@ -418,20 +412,27 @@ const ConfigApp = {
         // 保存转发配置 - 使用统一方法
         async saveForwardingConfig() {
             try {
-                // 保存转发相关配置（直接从configs读取）
-                const forwardingKeys = [
-                    'review.auto_forward_enabled',
-                    'target.channel_link', 
-                    'review.group_link',
-                    'review.auto_forward_delay',
-                    'review.auto_reject_ads',
-                    'review.auto_forward_after_collect',
-                    'target.channel_id',
-                    'review.group_id'
-                ];
-                
-                await this.saveConfigs(forwardingKeys);
-                
+                // 调用专门的转发配置API，会自动解析频道/群组ID
+                const response = await axios.post(API.admin.configForwarding, {
+                    target_channel: this.configs['target.channel_link'],
+                    target_channel_id: this.configs['target.channel_id'],  // 传递前端的ID值
+                    auto_forward_enabled: this.configs['target.auto_forward_enabled'],
+                    auto_forward_delay: parseInt(this.configs['target.auto_forward_delay']) || 1800,
+                    auto_reject_ads: this.configs['target.auto_reject_ads'],
+                    require_approval: this.configs['target.require_approval']
+                });
+
+                if (response.data.success) {
+                    // 更新显示的ID值
+                    if (response.data.target_channel_id) {
+                        this.configs['target.channel_id'] = response.data.target_channel_id;
+                    }
+
+                    MessageManager.success(response.data.message || '转发配置保存成功');
+                } else {
+                    throw new Error(response.data.message || '转发配置保存失败');
+                }
+
             } catch (error) {
                 console.error('保存配置错误:', error);
                 MessageManager.error('转发配置保存失败: ' + (error.response?.data?.detail || error.message));
@@ -449,7 +450,7 @@ const ConfigApp = {
                     'telegram.api_id',
                     'telegram.api_hash',
                     'filter.enabled',
-                    'review.require_approval',
+                    'target.require_approval',
                     'scheduler.enabled',
                     'scheduler.data_cleanup_interval_hours'
                 ];
@@ -475,9 +476,7 @@ const ConfigApp = {
                 auto_forward_enabled: false,
                 'target.channel_link': '',
                 'target.channel_id': '',
-                'review.group_link': '',
-                'review.group_id': '',
-                'review.auto_forward_delay': 1800,
+                'target.auto_forward_delay': 1800,
                 // 系统设置
                 scheduler_enabled: true,
                 data_cleanup_interval_hours: 24

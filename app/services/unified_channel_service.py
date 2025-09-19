@@ -6,7 +6,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from app.storage.json_store import get_json_channel_store
-from app.services.channel_id_resolver import channel_id_resolver
+from app.services.telegram_resolver import telegram_resolver
 from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class UnifiedChannelService:
             resolved_id = channel_id
             if not channel_id and channel_name:
                 logger.info(f"解析频道ID: {channel_name}")
-                resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
+                resolved_id = await telegram_resolver.resolve(channel_name)
                 if not resolved_id:
                     return {"success": False, "message": f"无法解析频道ID: {channel_name}", "data": None}
             

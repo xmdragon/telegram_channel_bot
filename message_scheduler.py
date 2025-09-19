@@ -66,10 +66,8 @@ class MessageSchedulerService:
                 raise RuntimeError("初始化失败")
             logger.info("认证服务已初始化")
             
-            # 初始化频道ID缓存
-            from app.services.channel_cache import channel_cache
-            await channel_cache.init_cache()
-            logger.debug("频道ID缓存检查完成")
+            # 频道缓存功能已移除
+            logger.debug("配置管理器已就绪")
             
             # 初始化训练数据目录和配置
             PathConfig.ensure_directories()

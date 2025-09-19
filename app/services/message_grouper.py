@@ -459,7 +459,7 @@ class MessageGrouper:
             
             # 检查是否需要人工审核
             from app.services.config_manager import config_manager
-            require_approval = await config_manager.get_config('review.require_approval', True)
+            require_approval = await config_manager.get_config('target.require_approval', True)
             
             # 准备保存数据
             save_data = {

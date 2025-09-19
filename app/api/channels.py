@@ -12,7 +12,7 @@ import re
 
 from app.services.config_manager import config_manager
 from app.services.auth_service import get_auth_service
-from app.services.channel_id_resolver import channel_id_resolver
+from app.services.telegram_resolver import telegram_resolver
 from app.core.route_config import ROUTES
 
 router = APIRouter()
@@ -306,7 +306,7 @@ async def resolve_channel(request: ChannelResolveRequest, user: Dict[str, Any] =
             return {"success": False, "message": "Telegram客户端未连接，请先完成认证"}
 
         # 解析频道ID
-        resolved_id = await channel_id_resolver.resolve_channel_id(channel_input)
+        resolved_id = await telegram_resolver.resolve(channel_input)
 
         if not resolved_id:
             return {

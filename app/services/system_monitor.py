@@ -166,14 +166,9 @@ class SystemMonitor:
             # 获取目标频道和审核群配置（从系统配置表）
             from app.services.config_manager import config_manager
             
-            # 优先使用缓存的ID（针对私有链接）
-            target_channel_id = await config_manager.get_config('channels.target_channel_id_cached')
-            if not target_channel_id:
-                target_channel_id = await config_manager.get_config('target.channel_id')
-            
-            review_group_id = await config_manager.get_config('channels.review_group_id_cached')
-            if not review_group_id:
-                review_group_id = await config_manager.get_config('review.group_id')
+            # 直接从system.json获取解析后的ID
+            target_channel_id = await config_manager.get_config('target.channel_id')
+            review_group_id = await config_manager.get_config('review.group_id')
             
             # 获取显示用的原始配置
             target_channel = await config_manager.get_config('target.channel_link')

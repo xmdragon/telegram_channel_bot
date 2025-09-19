@@ -20,13 +20,13 @@ class AutoForwarder:
         """检查并转发符合条件的消息 - 30秒执行一次"""
         try:
             # 1. 检查是否启用自动转发
-            enabled = await config_manager.get_config('review.auto_forward_enabled', False)
+            enabled = await config_manager.get_config('target.auto_forward_enabled', False)
             if not enabled:
                 logger.debug("自动转发未启用")
                 return
 
             # 2. 获取延迟配置（默认1800秒 = 30分钟）
-            delay_seconds = await config_manager.get_config('review.auto_forward_delay', 1800)
+            delay_seconds = await config_manager.get_config('target.auto_forward_delay', 1800)
             delay_seconds = int(delay_seconds)
             cutoff_time = datetime.utcnow() - timedelta(seconds=delay_seconds)
 

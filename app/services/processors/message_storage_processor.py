@@ -208,7 +208,7 @@ class MessageStorageProcessor(MessageProcessor):
         
         # 检查是否需要人工审核
         from app.services.config_manager import config_manager
-        require_approval = await config_manager.get_config('review.require_approval', True)
+        require_approval = await config_manager.get_config('target.require_approval', True)
         
         if require_approval:
             # 需要人工审核，保持待审核状态

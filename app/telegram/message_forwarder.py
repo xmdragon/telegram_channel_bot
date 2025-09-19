@@ -66,17 +66,9 @@ class MessageForwarder:
         return f"{text}\n\n📡 来自：{channel_name}"
         
     async def forward_to_review(self, client: TelegramClient, message_data: dict):
-        """转发消息到审核群（包含媒体）"""
-        try:
-            # 获取审核群ID（从Redis缓存）
-            from app.services.channel_cache import channel_cache
-            review_group_id = await channel_cache.get_review_group_id()
-            
-            if not review_group_id:
-                logger.info("ℹ️ 审核群未配置，跳过审核群转发（不影响目标频道转发）")
-                return
-            
-            sent_message = None
+        """转发消息到审核群（功能已废弃）"""
+        # 审核群功能已删除，直接返回
+        return
             
             # 准备消息内容（使用过滤后的内容）
             message_text = message_data.get('filtered_content') or message_data.get('content')
@@ -189,9 +181,9 @@ class MessageForwarder:
             # ✅ 优化：使用统一消息类，消除运行时类定义
             message = StandardMessage(message)
             
-            # 获取目标频道ID（从Redis缓存）
-            from app.services.channel_cache import channel_cache
-            target_channel_id = await channel_cache.get_target_channel_id()
+            # 获取目标频道ID（从配置）
+            from app.services.config_manager import config_manager
+            target_channel_id = await config_manager.get_config('target.channel_id')
             
             if not target_channel_id:
                 logger.error("未配置目标频道ID")
@@ -281,12 +273,8 @@ class MessageForwarder:
     async def delete_review_message(self, client: TelegramClient, review_message_id: int):
         """删除审核群的消息"""
         try:
-            # 获取审核群ID（从Redis缓存）
-            from app.services.channel_cache import channel_cache
-            review_group_id = await channel_cache.get_review_group_id()
-            
-            if not review_group_id:
-                return
+            # 审核群功能已删除，直接返回
+            return
             
             # 删除消息
             await client.delete_messages(

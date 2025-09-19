@@ -255,7 +255,7 @@
                             <button class="btn btn-primary" @click="resolveAllChannels">
                                 🔄 批量解析所有频道ID
                             </button>
-                            <small class="help-text">包括源频道、目标频道、审核群</small>
+                            <small class="help-text">包括源频道、目标频道</small>
                         </div>
                     </div>
                 </div>
@@ -282,50 +282,22 @@
                             <div class="form-group">
                                 <label class="form-label">目标频道ID</label>
                                 <div class="input-with-button">
-                                    <input 
+                                    <input
                                         class="form-input"
                                         type="text"
-                                        v-model="configs['target.channel_id']" 
-                                        placeholder="自动解析后显示ID"
-                                        readonly>
+                                        v-model="configs['target.channel_id']"
+                                        placeholder="自动解析后显示ID，也可手动输入或清空">
                                 </div>
                             </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">审核群</label>
-                                <div class="input-line">
-                                    <input 
-                                        class="form-input"
-                                        type="text"
-                                        v-model="configs['review.group_link']" 
-                                        placeholder="输入群组链接（如：https://t.me/+HPbDzWj3ID01OTJl）">
-                                    <div class="form-hint">
-                                        💡 输入私有群组链接，系统会自动解析为数字ID用于消息发送
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">审核群ID</label>
-                                <div class="input-with-button">
-                                    <input 
-                                        class="form-input"
-                                        type="text"
-                                        v-model="configs['review.group_id']" 
-                                        placeholder="自动解析后显示ID"
-                                        readonly>
-                                </div>
-                            </div>
-                            
                             <div class="form-group">
                                 <label class="form-label">启用自动转发</label>
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="configs['review.auto_forward_enabled']">
+                                            <input type="checkbox" v-model="configs['target.auto_forward_enabled']">
                                             <span class="slider"></span>
                                         </label>
-                                        <span class="switch-label">{{ configs['review.auto_forward_enabled'] ? '启用' : '禁用' }}</span>
+                                        <span class="switch-label">{{ configs['target.auto_forward_enabled'] ? '启用' : '禁用' }}</span>
                                     </div>
                                     <div class="form-hint">
                                         启用后，消息会在指定延迟时间后自动转发到目标频道
@@ -339,7 +311,7 @@
                                     <input 
                                         class="form-input number-input"
                                         type="number"
-                                        v-model.number="configs['review.auto_forward_delay']" 
+                                        v-model.number="configs['target.auto_forward_delay']" 
                                         min="0" 
                                         max="3600">
                                     <div class="form-hint">
@@ -347,28 +319,12 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">采集后自动转发审核群</label>
-                                <div class="input-line">
-                                    <div class="switch-container">
-                                        <label class="switch">
-                                            <input type="checkbox" v-model="configs['review.auto_forward_after_collect']">
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="form-hint">
-                                        消息采集后立即转发到审核群，供人工审核
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <div class="form-group">
                                 <label class="form-label">自动拒绝广告</label>
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="configs['review.auto_reject_ads']">
+                                            <input type="checkbox" v-model="configs['target.auto_reject_ads']">
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -599,7 +555,7 @@
                                 <div class="input-line">
                                     <div class="switch-container">
                                         <label class="switch">
-                                            <input type="checkbox" v-model="configs['review.require_approval']">
+                                            <input type="checkbox" v-model="configs['target.require_approval']">
                                             <span class="slider"></span>
                                         </label>
                                         <span class="switch-label">{{ configs['review.require_approval'] ? '启用' : '禁用' }}</span>

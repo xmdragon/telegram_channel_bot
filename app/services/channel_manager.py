@@ -73,17 +73,17 @@ class ChannelManager:
             channels = await unified_channel_service.get_all_channels()
             resolved_count = 0
             
-            from app.services.channel_id_resolver import channel_id_resolver
-            
+            from app.services.telegram_resolver import telegram_resolver
+
             for channel in channels:
                 channel_id = channel.get('channel_id')
                 channel_name = channel.get('channel_name')
-                
+
                 # 如果没有ID或ID无效，尝试解析
                 if not channel_id or not channel_id.startswith('-100'):
                     if channel_name:
                         try:
-                            resolved_id = await channel_id_resolver.resolve_channel_id(channel_name)
+                            resolved_id = await telegram_resolver.resolve(channel_name)
                             if resolved_id and resolved_id.startswith('-100'):
                                 # 更新频道ID
                                 update_result = await unified_channel_service.update_channel(

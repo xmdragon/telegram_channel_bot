@@ -26,27 +26,18 @@ async def resolve_telegram_entity(entity_link: str, entity_type: str = "entity")
         (resolved_id, link_type) - 解析后的ID和链接类型
     """
     try:
-        from app.services.telegram_link_resolver import link_resolver
-        from app.services.channel_id_resolver import channel_id_resolver
+        from app.services.telegram_resolver import telegram_resolver
 
-        # 判断是私有链接还是公开链接
-        is_private_link = 'https://t.me/+' in entity_link or 't.me/+' in entity_link
-
-        if is_private_link:
-            # 私有链接使用link_resolver
-            resolved_id = await link_resolver.resolve_group_id(entity_link)
-            link_type = "私有链接"
-        else:
-            # 公开链接使用channel_id_resolver
-            resolved_id = await channel_id_resolver.resolve_channel_id(entity_link)
-            link_type = "公开链接"
+        # 使用统一解析器
+        resolved_id = await telegram_resolver.resolve(entity_link)
 
         if resolved_id:
-            logger.info(f"{entity_type}{link_type}已解析: {entity_link} -> {resolved_id}")
+            logger.info(f"{entity_type}已解析: {entity_link} -> {resolved_id}")
         else:
-            logger.warning(f"{entity_type}{link_type}解析失败: {entity_link}")
+            logger.warning(f"{entity_type}解析失败: {entity_link}")
 
-        return resolved_id, link_type
+        # 不再区分链接类型，统一返回
+        return resolved_id, "链接" if resolved_id else ""
 
     except Exception as e:
         logger.error(f"解析{entity_type}时出错: {e}")
@@ -63,13 +54,11 @@ async def get_system_config():
     
     return {
         # 转发配置 - 使用点分格式字段名
-        "review.auto_forward_enabled": await config_manager.get_config('review.auto_forward_enabled', False),
+        "target.auto_forward_enabled": await config_manager.get_config('target.auto_forward_enabled', False),
         "target.channel_link": await config_manager.get_config('target.channel_link', ''),
         "target.channel_id": await config_manager.get_config('target.channel_id', ''),
-        "review.group_link": await config_manager.get_config('review.group_link', ''),
-        "review.group_id": await config_manager.get_config('review.group_id', ''),
-        "review.auto_forward_delay": await db_settings.get_auto_forward_delay(),
-        "review.auto_reject_ads": await config_manager.get_config('review.auto_reject_ads', False),
+        "target.auto_forward_delay": await db_settings.get_auto_forward_delay(),
+        "target.auto_reject_ads": await config_manager.get_config('target.auto_reject_ads', False),
         
         # 系统配置 - 使用点分格式字段名
         "source.history_limit": await db_settings.get_history_message_limit(),
@@ -79,8 +68,7 @@ async def get_system_config():
         TelegramConfig.API_HASH: await config_manager.get_config(TelegramConfig.API_HASH, ''),
         "filter.enabled": await config_manager.get_config('filter.enabled', True),
         "filter.tail_filter_enabled": await config_manager.get_config('filter.tail_filter_enabled', True),
-        "review.require_approval": await config_manager.get_config('review.require_approval', True),
-        "review.auto_forward_after_collect": await config_manager.get_config('review.auto_forward_after_collect', True),
+        "target.require_approval": await config_manager.get_config('target.require_approval', True),
         "scheduler.enabled": await config_manager.get_config('scheduler.enabled', True),
         "storage.delete_single_messages": await config_manager.get_config('storage.delete_single_messages', True),
         
@@ -190,100 +178,59 @@ async def update_config_batch(configs: Dict[str, Any]):
 
 class ForwardingConfigRequest(BaseModel):
     target_channel: str
-    review_group: str
+    target_channel_id: str = ""  # 前端可以传入或清空ID
     auto_forward_enabled: bool = False
     auto_forward_delay: int = 1800
     auto_reject_ads: bool = False
+    require_approval: bool = True
 
 @router.post(ROUTES.admin.config_forwarding)
 async def update_forwarding_config(request: ForwardingConfigRequest):
-    """更新转发配置并刷新缓存"""
+    """更新转发配置"""
     try:
-        # 保存用户输入的用户名/链接格式
+        # 保存配置（使用新的target.*命名）
         await config_manager.set_config('target.channel_link', request.target_channel, config_type="string")
-        await config_manager.set_config('review.group_link', request.review_group, config_type="string")
-        await config_manager.set_config('review.auto_forward_enabled', request.auto_forward_enabled, config_type="boolean")
-        await config_manager.set_config('review.auto_forward_delay', request.auto_forward_delay, config_type="integer")
-        await config_manager.set_config('review.auto_reject_ads', request.auto_reject_ads, config_type="boolean")
-        
-        # 尝试解析并缓存私有链接的ID
+        await config_manager.set_config('target.auto_forward_enabled', request.auto_forward_enabled, config_type="boolean")
+        await config_manager.set_config('target.auto_forward_delay', request.auto_forward_delay, config_type="integer")
+        await config_manager.set_config('target.auto_reject_ads', request.auto_reject_ads, config_type="boolean")
+        await config_manager.set_config('target.require_approval', request.require_approval, config_type="boolean")
+
         target_resolved_id = None
-        review_resolved_id = None
-        
-        # 处理审核群链接（包括公开和私有链接）
-        if request.review_group:
-            resolved_id, link_type = await resolve_telegram_entity(request.review_group, "审核群")
+
+        # 如果前端传入了ID，直接保存；如果没有ID或ID被清空，则需要解析
+        if request.target_channel_id:
+            # 前端传入了ID，直接使用
+            await config_manager.set_config('target.channel_id', request.target_channel_id)
+            target_resolved_id = request.target_channel_id
+        elif request.target_channel:
+            # ID为空但有链接，需要解析
+            resolved_id, _ = await resolve_telegram_entity(request.target_channel, "目标频道")
             if resolved_id:
-                # 保存解析后的ID到专门的缓存字段
-                await config_manager.set_config('channels.review_group_id_cached', str(resolved_id))
-                review_resolved_id = str(resolved_id)
-        
-        # 处理目标频道链接（包括公开和私有链接）
-        if request.target_channel:
-            resolved_id, link_type = await resolve_telegram_entity(request.target_channel, "目标频道")
-            if resolved_id:
-                await config_manager.set_config('channels.target_channel_id_cached', str(resolved_id))
+                await config_manager.set_config('target.channel_id', str(resolved_id))
                 target_resolved_id = str(resolved_id)
-        
-        # 🔄 强制刷新配置缓存确保立即生效
+
+        # 强制刷新配置缓存确保立即生效
         await config_manager.reload_cache()
-        logger.info("配置缓存已刷新，新配置立即生效")
-        
-        # 刷新Redis缓存并获取解析结果
-        from app.services.channel_cache import channel_cache
-        target_result = await channel_cache.refresh_target_channel_cache()
-        review_result = await channel_cache.refresh_review_group_cache()
-        
-        # 构建详细的返回消息
+        logger.info("配置已保存，新配置立即生效")
+
+        # 构建返回消息
         messages = ["转发配置已保存"]
-        
         if target_resolved_id:
-            messages.append(f"目标频道私有链接已解析: {target_resolved_id}")
-        elif target_result:
-            messages.append(f"目标频道解析成功: {target_result}")
+            messages.append(f"目标频道已解析: {target_resolved_id}")
         else:
             messages.append("目标频道暂未解析（需要Telegram连接）")
-            
-        if review_resolved_id:
-            messages.append(f"审核群私有链接已解析: {review_resolved_id}")
-        elif review_result:
-            messages.append(f"审核群解析成功: {review_result}")
-        else:
-            messages.append("审核群暂未解析（需要Telegram连接）")
-        
+
         return {
             "success": True,
             "message": "，".join(messages),
-            "target_resolved": target_result or target_resolved_id,
-            "review_resolved": review_result or review_resolved_id,
-            "private_links_resolved": {
-                "target_channel": target_resolved_id,
-                "review_group": review_resolved_id
-            }
+            "target_channel_id": target_resolved_id  # 返回解析后的目标频道ID
         }
         
     except Exception as e:
         logger.error(f"更新转发配置失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"更新转发配置失败: {str(e)}")
 
-class ReviewGroupResolveRequest(BaseModel):
-    review_group_config: str
-
-@router.post(ROUTES.admin.resolve_review_group)
-async def resolve_review_group(request: ReviewGroupResolveRequest):
-    """解析审核群链接并缓存ID"""
-    try:
-        from app.services.telegram_link_resolver import link_resolver
-        
-        resolved_id = await link_resolver.resolve_and_cache_group_id(request.review_group_config)
-        
-        if resolved_id:
-            return {
-                "success": True,
-                "original_config": request.review_group_config,
-                "resolved_id": resolved_id,
-                "message": f"审核群链接解析成功，ID: {resolved_id}"
-            }
+# 删除审核群解析相关的API端点
         else:
             return {
                 "success": False,
@@ -297,18 +244,14 @@ async def resolve_review_group(request: ReviewGroupResolveRequest):
 async def get_review_group_status():
     """获取审核群状态信息"""
     try:
-        from app.services.telegram_link_resolver import link_resolver
-        
         # 获取配置的审核群
         review_group_config = await config_manager.get_config('review.group_id', '')
-        cached_id = await link_resolver.get_cached_group_id()
-        effective_id = await link_resolver.get_effective_group_id()
-        
+
         return {
             "review_group_config": review_group_config,
-            "cached_id": cached_id,
-            "effective_id": effective_id,
-            "is_link": link_resolver.is_telegram_link(review_group_config) if review_group_config else False
+            "cached_id": review_group_config,  # 现在直接存储解析后的ID
+            "effective_id": review_group_config,
+            "is_link": review_group_config and ('t.me' in review_group_config or review_group_config.startswith('@'))
         }
         
     except Exception as e:

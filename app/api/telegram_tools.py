@@ -49,9 +49,9 @@ async def get_message_structure(
             raise HTTPException(status_code=400, detail="无效的消息URL格式")
         
         # 获取Telegram客户端
-        client = await dual_session_manager.get_listener_client()
+        client = await dual_session_manager.get_sender_client()
         if not client:
-            raise HTTPException(status_code=503, detail="Telegram发布客户端未连接")
+            raise HTTPException(status_code=503, detail="Telegram客户端未连接")
         
         # 获取消息数据
         message_data = await fetch_message_structure(

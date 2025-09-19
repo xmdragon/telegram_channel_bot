@@ -249,7 +249,7 @@ class TelegramLinkResolver:
         """缓存解析的群组ID"""
         try:
             # 将解析的ID缓存到专门的缓存字段
-            await config_manager.set_config('channels.review_group_id_cached', str(resolved_id))
+            await config_manager.set_config('review.group_id', str(resolved_id))
             logger.info(f"已缓存审核群ID: {original_config} -> {resolved_id}")
             
             # 同时更新Redis缓存
@@ -266,7 +266,7 @@ class TelegramLinkResolver:
     async def get_cached_group_id(self) -> Optional[int]:
         """获取缓存的群组ID"""
         try:
-            cached_id = await config_manager.get_config('channels.review_group_id_cached')
+            cached_id = await config_manager.get_config('review.group_id')
             if cached_id and cached_id.lstrip('-').isdigit():
                 return int(cached_id)
             return None

@@ -175,10 +175,8 @@ async def lifespan(app: FastAPI):
         # 启动后台初始化任务（不阻塞HTTP服务）
         async def background_init():
             try:
-                # 延迟初始化：频道ID缓存
-                from app.services.channel_cache import channel_cache
-                await channel_cache.init_cache()
-                logger.info("✅ 频道缓存初始化完成")
+                # 频道缓存功能已移除，直接使用配置管理器
+                logger.info("✅ 配置管理器已就绪")
                 
                 # 双Session管理器无需额外初始化，按需创建连接
                 logger.info("✅ Telegram双Session管理器就绪（按需连接）")
