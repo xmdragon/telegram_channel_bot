@@ -3,7 +3,7 @@
 包括：配置更新、转发配置、审核群解析
 """
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 import logging
 
@@ -13,6 +13,44 @@ from app.core.telegram_config import TelegramConfig
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+async def resolve_telegram_entity(entity_link: str, entity_type: str = "entity") -> Tuple[Optional[str], str]:
+    """
+    通用的Telegram实体（频道/群组）解析方法
+
+    Args:
+        entity_link: Telegram链接或用户名
+        entity_type: 实体类型（用于日志记录）："channel"/"group"/"entity"
+
+    Returns:
+        (resolved_id, link_type) - 解析后的ID和链接类型
+    """
+    try:
+        from app.services.telegram_link_resolver import link_resolver
+        from app.services.channel_id_resolver import channel_id_resolver
+
+        # 判断是私有链接还是公开链接
+        is_private_link = 'https://t.me/+' in entity_link or 't.me/+' in entity_link
+
+        if is_private_link:
+            # 私有链接使用link_resolver
+            resolved_id = await link_resolver.resolve_group_id(entity_link)
+            link_type = "私有链接"
+        else:
+            # 公开链接使用channel_id_resolver
+            resolved_id = await channel_id_resolver.resolve_channel_id(entity_link)
+            link_type = "公开链接"
+
+        if resolved_id:
+            logger.info(f"{entity_type}{link_type}已解析: {entity_link} -> {resolved_id}")
+        else:
+            logger.warning(f"{entity_type}{link_type}解析失败: {entity_link}")
+
+        return resolved_id, link_type
+
+    except Exception as e:
+        logger.error(f"解析{entity_type}时出错: {e}")
+        return None, ""
 
 # 已删除未使用的_trigger_history_collection函数
 # 历史消息采集已由message_collector.py统一处理
@@ -172,34 +210,20 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
         target_resolved_id = None
         review_resolved_id = None
         
-        # 处理审核群私有链接
-        if request.review_group and ('https://t.me/+' in request.review_group or 't.me/+' in request.review_group):
-            try:
-                from app.services.telegram_link_resolver import link_resolver
-                resolved_id = await link_resolver.resolve_group_id(request.review_group)
-                if resolved_id:
-                    # 保存解析后的ID到专门的缓存字段
-                    await config_manager.set_config('channels.review_group_id_cached', str(resolved_id))
-                    review_resolved_id = str(resolved_id)
-                    logger.info(f"审核群私有链接已解析: {request.review_group} -> {resolved_id}")
-                else:
-                    logger.warning(f"审核群私有链接解析失败: {request.review_group}")
-            except Exception as e:
-                logger.error(f"解析审核群私有链接时出错: {e}")
+        # 处理审核群链接（包括公开和私有链接）
+        if request.review_group:
+            resolved_id, link_type = await resolve_telegram_entity(request.review_group, "审核群")
+            if resolved_id:
+                # 保存解析后的ID到专门的缓存字段
+                await config_manager.set_config('channels.review_group_id_cached', str(resolved_id))
+                review_resolved_id = str(resolved_id)
         
-        # 处理目标频道私有链接
-        if request.target_channel and ('https://t.me/+' in request.target_channel or 't.me/+' in request.target_channel):
-            try:
-                from app.services.telegram_link_resolver import link_resolver
-                resolved_id = await link_resolver.resolve_group_id(request.target_channel)
-                if resolved_id:
-                    await config_manager.set_config('channels.target_channel_id_cached', str(resolved_id))
-                    target_resolved_id = str(resolved_id)
-                    logger.info(f"目标频道私有链接已解析: {request.target_channel} -> {resolved_id}")
-                else:
-                    logger.warning(f"目标频道私有链接解析失败: {request.target_channel}")
-            except Exception as e:
-                logger.error(f"解析目标频道私有链接时出错: {e}")
+        # 处理目标频道链接（包括公开和私有链接）
+        if request.target_channel:
+            resolved_id, link_type = await resolve_telegram_entity(request.target_channel, "目标频道")
+            if resolved_id:
+                await config_manager.set_config('channels.target_channel_id_cached', str(resolved_id))
+                target_resolved_id = str(resolved_id)
         
         # 🔄 强制刷新配置缓存确保立即生效
         await config_manager.reload_cache()
