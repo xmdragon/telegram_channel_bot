@@ -134,7 +134,6 @@ const MainApp = {
         editDialog() {
             this.dialogUpdateTrigger; // 依赖触发器以响应更新
             const state = window.DialogStateManager.getState('editDialog');
-            console.log(`[Vue Computed] editDialog accessed, visible: ${state.visible}, trigger: ${this.dialogUpdateTrigger}`);
             // 返回新对象确保Vue检测到变化
             return { ...state };
         },
@@ -234,9 +233,7 @@ const MainApp = {
 
         // 注册DialogStateManager监听器以触发Vue更新
         window.DialogStateManager.addListener((dialogName, state) => {
-            console.log(`[Vue] Dialog state changed: ${dialogName}, trigger: ${this.dialogUpdateTrigger}`);
             this.dialogUpdateTrigger++;
-            console.log(`[Vue] New trigger value: ${this.dialogUpdateTrigger}`);
         });
         
         // 确保loadMessages方法存在
@@ -405,6 +402,16 @@ const MainApp = {
     },
     
     methods: {
+        // 更新编辑内容
+        updateEditContent(event) {
+            const newContent = event.target.value;
+            const currentState = window.DialogStateManager.getState('editDialog');
+            window.DialogStateManager.setState('editDialog', {
+                ...currentState,
+                filteredContent: newContent
+            });
+        },
+
         // 工具函数：确保消息ID包含-100前缀 - 消除特殊情况
         ensureChannelIdPrefix(messageId) {
             if (!messageId || !messageId.includes(':')) {
@@ -1665,13 +1672,6 @@ const MainApp = {
         
         // 编辑消息
         editMessage(messageId) {
-            console.log('editMessage called with:', messageId);
-            console.log('Available messages:', this.messages.map(msg => ({
-                id: msg.id,
-                message_id: msg.message_id,
-                source_channel: msg.source_channel,
-                computed: msg.id || `${msg.source_channel}:${msg.message_id}`
-            })));
 
             const message = this.messages.find(msg => {
                 // 规范化消息ID以确保匹配

@@ -186,7 +186,7 @@
                     <div class="form-group">
                         <label class="form-label">消息内容</label>
                         <textarea :value="editDialog.filteredContent"
-                                  @input="e => window.DialogStateManager.setState('editDialog', { ...editDialog, filteredContent: e.target.value })"
+                                  @input="updateEditContent"
                                   class="form-textarea edit-message-textarea"
                                   rows="15">
                         </textarea>

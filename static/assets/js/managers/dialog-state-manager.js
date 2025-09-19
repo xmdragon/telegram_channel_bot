@@ -75,14 +75,12 @@ class DialogStateManager {
      * 显示弹窗
      */
     show(dialogName, data = {}) {
-        console.log(`[DialogStateManager] Showing dialog: ${dialogName}`, data);
         this.setState(dialogName, {
             ...this.states[dialogName],
             ...data,
             visible: dialogName === 'mediaPreview' ? undefined : true,
             show: dialogName === 'mediaPreview' ? true : undefined
         });
-        console.log(`[DialogStateManager] Dialog state after show:`, this.states[dialogName]);
     }
 
     /**
@@ -137,7 +135,6 @@ class DialogStateManager {
      * 通知所有监听器
      */
     notifyListeners(dialogName, state) {
-        console.log(`[DialogStateManager] Notifying ${this.listeners.size} listeners for ${dialogName}`);
         for (const listener of this.listeners) {
             try {
                 listener(dialogName, state);
