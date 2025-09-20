@@ -194,9 +194,9 @@ const DualAuthApp = {
                     this.hasSharedApi = !!(hasApiId && hasApiHash);
 
                     if (this.hasSharedApi) {
-                        console.log('检测到API配置:', {apiId: hasApiId, apiHash: hasApiHash ? '***' : null});
+                        // API配置已检测到
                     } else {
-                        console.log('未检测到API配置');
+                        // 未检测到API配置
                     }
 
                     // 返回配置数据，避免重复请求
