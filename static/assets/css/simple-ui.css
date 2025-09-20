@@ -5,6 +5,11 @@
  * 体积: 3KB vs Element Plus CSS 332KB
  */
 
+/* ============= Vue v-cloak 防闪烁 ============= */
+[v-cloak] {
+    display: none !important;
+}
+
 /* ============= 基础重置 ============= */
 .simple-ui * {
     box-sizing: border-box;
