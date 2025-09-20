@@ -147,14 +147,14 @@
     "created_at": "2025-08-28T11:59:03.809428"
   },
   "telegram.sender_session": {
-    "value": "1BVtsOHIBu3H13roL4kGsYqWS5ZCtJBralmtaDnZGpSWHBIPSfARd4EXkMvvHsRABYaIz27rvbxGqGFcl4-9l5cfKmHCyLFsoOpGdUVCS2d-jpj_t_1NQBHRWJqKr0Vq_n80CiO1R7gFKC0WrvGY8butms5Bo2pf4TiNm39gyaV_2SIJoVBaDHJJ2Fo6o3y6BkJRpNYKMvMnlMka8CcJzzROHFGVJAXjZWNEj79RqvgJLFWTWqeUE5c7mNJ-m1Lbl31hIEGNt65Z4ezsnOvC5b-pDT3dhozkhxqqrqoSXYF2CVKOU_OirQIqpwdSbdFnJbbCXQBtugoGFtv3NWfL5tO-JThPOJWA=",
+    "value": "",
     "config_type": "string",
     "description": "Telegram Sender Session",
     "is_active": true,
     "created_at": "2025-08-29T08:32:50.806683"
   },
   "telegram.listener_session": {
-    "value": "1BVtsOHIBuyWw98qawmSotE4dTBMlLwzD1psgTxf_E-Wqx5MkorC594hHI54JmA8ykEWto1OtVa1gml1HimEAcmEM6nqzKWWWdy94i512ckw5eDS9XCsp2ZDLFT3Cy7y-tP7nZ59MfX6FZufwJwoDGPhVOfEg5rBX8FiHJy9vLNasvpo_bWA2p-MLJTo1z_uAnLCIe2JVOhaxpJkyNfx5PTB7XwB3-81tuQ3Qz9xd66fFbcVUzZ4_OcxojRF-NAqDb0c-MVvvovKMl-O8Uu3pWq6g0hLGCz5LQQFKUGtjf9v9Bob7Sw8ZZkveDbIXOhdakiaCKxHaKq5Mdu0xWGbW4o3TUhoG_As=",
+    "value": "",
     "config_type": "string",
     "description": "Telegram Listener Session",
     "is_active": true,
