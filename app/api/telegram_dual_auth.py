@@ -38,9 +38,6 @@ class VerifyPasswordRequest(BaseModel):
     session_type: Literal["listener", "sender"]
     password: str
 
-class ClearSessionRequest(BaseModel):
-    session_type: Literal["listener", "sender"]
-
 
 @router.post(ROUTES.dual_auth.init_session)
 async def init_session_auth(request: SessionInitRequest):
@@ -109,6 +106,12 @@ async def send_verification_code(request: SendCodeRequest):
         )
 
         if result["success"]:
+            # 保存认证信息供后续步骤使用
+            dual_session_manager._auth_info[request.session_type] = {
+                "client": auth_client,
+                "phone": request.phone,
+                "phone_code_hash": result["phone_code_hash"]
+            }
             return result
         else:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -138,9 +141,12 @@ async def verify_verification_code(request: VerifyCodeRequest):
         )
 
         if result["success"]:
+            # 认证成功，清理临时信息
+            if request.session_type in dual_session_manager._auth_info:
+                del dual_session_manager._auth_info[request.session_type]
             return result
-        elif result.get("next_step") == "password":
-            # 需要两步验证密码
+        elif result.get("password_required"):
+            # 需要两步验证密码，保持client等信息
             return {
                 "success": True,
                 "next_step": "password",
@@ -164,15 +170,17 @@ async def verify_two_step_password(request: VerifyPasswordRequest):
         if not auth_info or not auth_info.get("client"):
             raise HTTPException(status_code=400, detail="请先发送验证码")
 
-        # 验证密码
+        # 验证密码（只传3个参数）
         result = await dual_session_manager.verify_auth_password(
             request.session_type,
             request.password,
-            auth_info.get("password_hint"),
             auth_info["client"]
         )
 
         if result["success"]:
+            # 认证成功，清理临时信息
+            if request.session_type in dual_session_manager._auth_info:
+                del dual_session_manager._auth_info[request.session_type]
             return result
         else:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -237,22 +245,5 @@ async def get_session_status(session_type: Literal["listener", "sender"]):
 
     except Exception as e:
         logger.error(f"获取{session_type}Session状态失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post(ROUTES.dual_auth.clear_session)
-async def clear_session(request: ClearSessionRequest):
-    """清除Session认证状态"""
-    try:
-        result = await dual_session_manager.clear_session(request.session_type)
-
-        if result["success"]:
-            return result
-        else:
-            raise HTTPException(status_code=400, detail=result["error"])
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"清除{request.session_type}Session失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

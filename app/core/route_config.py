@@ -24,20 +24,14 @@ class RouteConfig:
         delete = "/messages/delete/{message_id}"
         update = "/messages/update/{message_id}"
 
-        # 高级操作
-        edit_publish = "/messages/edit-publish/{message_id}"
-        publish = "/messages/publish/{message_id}"
-        publish_direct = "/messages/publish-direct/{message_id}"
-        resend = "/messages/resend/{message_id}"
-
         # 过滤器操作
         filter_content = "/messages/filter-content/{message_id}"
         train_tail = "/messages/train-tail/{message_id}"
+        mark_as_ad = "/messages/mark-as-ad/{id}"
         not_ad = "/messages/not-ad/{message_id}"
         refilter = "/messages/refilter/{message_id}"
         feedback = "/messages/feedback/{message_id}"
         delete_review = "/messages/delete-review/{message_id}"
-        mark_as_ad = "/messages/mark-as-ad/{id}"
 
         # 批量操作
         batch_approve = "/messages/batch/approve"
@@ -75,7 +69,6 @@ class RouteConfig:
         verify_code = "/verify-code"
         verify_password = "/verify-password"
         session_status = "/session-status/{session_type}"
-        clear_session = "/clear-session"
     
     class System:
         """系统相关路由"""
@@ -84,9 +77,6 @@ class RouteConfig:
         health_service = "/health/{service_name}"    # 服务健康检查 - 映射到 /api/health/{service_name}
         status = "/system/status"
         status_detailed = "/system/status-detailed"
-        lock_status = "/system/lock-status"
-        clear_lock = "/system/clear-lock"
-        auto_clear_lock = "/system/auto-clear-lock"
         logs_realtime = "/system/logs/realtime"
         reset = "/system/reset"
     

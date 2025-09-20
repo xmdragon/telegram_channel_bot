@@ -112,6 +112,21 @@ class TelegramDualSessionManager:
     async def _connect_listener(self) -> bool:
         """连接采集Session - 用于长期监听，增强依赖检查"""
         try:
+            # Early stop: 快速检查必要配置
+            session = await self.config_manager.get_config(TelegramConfig.LISTENER_SESSION)
+            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
+            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+
+            if not session or session.strip() == "":
+                logger.info("监听Session未配置，跳过连接")
+                self.listener_connected = False
+                return False
+
+            if not api_id or not api_hash:
+                logger.info("API ID或API Hash未配置，跳过连接")
+                self.listener_connected = False
+                return False
+
             # 增强配置依赖检查
             config_validation = await self._validate_listener_config()
             if not config_validation["valid"]:
@@ -190,6 +205,21 @@ class TelegramDualSessionManager:
     async def _connect_sender(self) -> bool:
         """连接发送Session - 用于API调用，增强依赖检查"""
         try:
+            # Early stop: 快速检查必要配置
+            session = await self.config_manager.get_config(TelegramConfig.SENDER_SESSION)
+            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
+            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+
+            if not session or session.strip() == "":
+                logger.info("发送Session未配置，跳过连接")
+                self.sender_connected = False
+                return False
+
+            if not api_id or not api_hash:
+                logger.info("API ID或API Hash未配置，跳过连接")
+                self.sender_connected = False
+                return False
+
             # 增强配置依赖检查
             config_validation = await self._validate_sender_config()
             if not config_validation["valid"]:
@@ -391,7 +421,7 @@ class TelegramDualSessionManager:
             api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
             
             # 检查配置存在性
-            if not session:
+            if not session or session.strip() == "":
                 errors.append("listener_session配置缺失或为空")
             elif len(session) < 100:
                 errors.append("listener_session格式无效（长度不足）")
@@ -430,7 +460,7 @@ class TelegramDualSessionManager:
             api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
             
             # 检查配置存在性
-            if not session:
+            if not session or session.strip() == "":
                 errors.append("sender_session配置缺失或为空")
             elif len(session) < 100:
                 errors.append("sender_session格式无效（长度不足）")

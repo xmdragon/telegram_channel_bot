@@ -191,8 +191,7 @@ class MessageProcessor:
             
             # 获取消息统计数据
             message_stats = stats_store.get_global_stats()
-            rejection_stats = stats_store.get_rejection_stats()
-            
+
             # 纯净统计：只有4个核心字段，消除所有特殊情况
             return {
                 "total": message_stats.total,

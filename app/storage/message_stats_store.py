@@ -131,8 +131,6 @@ class MessageStatsStore:
                 pipe.hincrby(channel_key, old_state.value, -1)
                 pipe.hincrby(channel_key, new_state.value, 1)
             
-# 不再处理拒绝原因统计
-            
             pipe.execute()
             logger.debug(f"状态已更新: {old_state.value} -> {new_state.value}")
             

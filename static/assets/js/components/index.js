@@ -1913,38 +1913,6 @@ const MainApp = {
             }
         },
         
-        // 重新发布消息到目标频道
-        async resendMessage(event, message) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果message在event中，提取出来
-            if (!message && event && event.target && event.target.dataset) {
-                message = {
-                    id: event.target.dataset.messageId
-                };
-            }
-            try {
-                window.SimpleUI.Message.info('正在重新发布消息到目标频道...');
-                
-                const response = await axios.post(window.API.messages.resendById(this.ensureChannelIdPrefix(message.id)));
-                
-                if (response.data.success) {
-                    window.SimpleUI.Message.success('消息已重新发布到目标频道');
-                    this.loadMessages(); // 刷新消息列表
-                } else {
-                    window.SimpleUI.Message.error('重新发布失败: ' + response.data.message);
-                }
-            } catch (error) {
-                const errorMsg = error.response?.data?.detail || error.message || '重新发布失败';
-                window.SimpleUI.Message.error('重新发布失败: ' + errorMsg);
-                console.error('重新发布消息错误:', error);
-            }
-        },
 
         // 批量删除消息
         async deleteMessages(event) {

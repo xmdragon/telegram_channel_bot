@@ -24,7 +24,6 @@ const API_ENDPOINTS = {
         rejectById: (id) => `/api/messages/reject/${id}`,          // POST - 拒绝单个消息
         restoreById: (id) => `/api/messages/restore/${id}`,        // POST - 恢复被拒绝的消息到未审核状态
         deleteReviewById: (id) => `/api/messages/delete-review/${id}`, // DELETE - 删除审核消息
-        resendById: (id) => `/api/messages/resend/${id}`,          // POST - 重新发布已发布消息到目标频道
         batchApprove: '/api/messages/batch/approve',               // POST - 批量审核通过消息
         batchReject: '/api/messages/batch/reject',                 // POST - 批量拒绝消息
         batchDelete: '/api/messages/batch/delete',                 // POST - 批量删除消息
@@ -32,9 +31,6 @@ const API_ENDPOINTS = {
         // 消息操作端点
         notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
         filterContent: (id) => `/api/messages/filter-content/${id}`, // POST - 执行内容过滤
-        publish: (id) => `/api/messages/publish/${id}`,            // POST - 发布消息（队列版本）
-        publishDirect: (id) => `/api/messages/publish-direct/${id}`, // POST - 直接发布消息（新版本，不依赖采集开关）
-        editPublish: (id) => `/api/messages/edit-publish/${id}`,   // POST - 编辑并发布
         trainTail: (id) => `/api/messages/train-tail/${id}`,       // POST - 训练尾部过滤
         refilter: (id) => `/api/messages/refilter/${id}`,          // POST - 重新过滤消息
         feedback: (id) => `/api/messages/feedback/${id}`,          // POST - 提交过滤反馈
@@ -63,8 +59,7 @@ const API_ENDPOINTS = {
         sendCode: '/api/dual-auth/send-code',                          // POST - 发送验证码
         verifyCode: '/api/dual-auth/verify-code',                      // POST - 验证验证码
         verifyPassword: '/api/dual-auth/verify-password',              // POST - 验证两步验证密码
-        sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}`, // GET - 获取Session状态
-        clearSession: '/api/dual-auth/clear-session'                  // POST - 清除Session
+        sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}` // GET - 获取Session状态
     },
 
     // 训练数据模块 - /api/training
@@ -115,11 +110,6 @@ const API_ENDPOINTS = {
         detailedStatus: '/api/system/status-detailed',             // GET - 详细系统状态
 
         reset: '/api/system/reset',                                // POST - 重置系统
-
-        // 锁状态管理（保留实际使用的端点）
-        lockStatus: '/api/system/lock-status',                     // GET - 获取Telegram锁状态
-        clearLock: '/api/system/clear-lock',                       // POST - 清理锁
-        autoClearLock: '/api/system/auto-clear-lock',              // POST - 智能清理过期锁
     },
 
     // 管理功能模块 - /api/admin
