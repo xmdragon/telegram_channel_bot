@@ -22,7 +22,6 @@ class RejectionReason(Enum):
     AD = "ad"                # 广告内容
     MANUAL = "manual"        # 手动拒绝
 
-
 def is_valid_status(status: str) -> bool:
     """检查状态是否有效"""
     try:
@@ -30,7 +29,6 @@ def is_valid_status(status: str) -> bool:
         return True
     except ValueError:
         return False
-
 
 def is_valid_rejection_reason(reason: str) -> bool:
     """检查拒绝原因是否有效"""

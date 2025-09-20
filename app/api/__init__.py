@@ -10,7 +10,6 @@ from .admin import router as admin_router
 from .channels import router as channels_router
 from .telegram_dual_auth import router as dual_auth_router
 from .system_health import router as system_health_router
-from .system_monitor import router as system_monitor_router
 from .system_maintenance import router as system_maintenance_router
 from .admin_auth import router as admin_auth_router
 from .training import router as training_router
@@ -31,7 +30,6 @@ api_router.include_router(dual_auth_router, prefix="/dual-auth", tags=["telegram
 api_router.include_router(admin_auth_router, tags=["admin-auth"])  # 管理员认证，使用不同路径
 # 注册重构后的系统模块路由
 api_router.include_router(system_health_router, tags=["system-health"])
-api_router.include_router(system_monitor_router, tags=["system-monitor"])
 api_router.include_router(system_maintenance_router, tags=["system-maintenance"])
 # 使用重构后的训练路由
 api_router.include_router(training_router, tags=["training"])

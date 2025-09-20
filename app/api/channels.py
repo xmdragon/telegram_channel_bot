@@ -363,30 +363,18 @@ async def resolve_channel(request: ChannelResolveRequest, user: Dict[str, Any] =
 @router.post(ROUTES.channels.resolve_all)
 async def resolve_all_channels(user: Dict[str, Any] = Depends(require_auth)):
     """
-    批量解析所有源频道的ID
-    检查源频道列表中是否有未解析的频道名，批量解析为ID
+    批量解析所有源频道的缺失ID
     """
     try:
-        # 使用双Session系统获取客户端
-        from app.telegram.dual_session_manager import dual_session_manager
-        client = await dual_session_manager.get_listener_client()
+        from app.services.channel_manager import channel_manager
 
-        if not client:
-            return {"success": False, "message": "Telegram客户端未连接，请先完成认证"}
-
-        from app.services.startup_checker import startup_checker
-
-        # 执行完整的源频道检查和解析
-        results = await startup_checker.check_and_resolve_all_channels(client)
+        # 解析缺失的频道ID
+        resolved_count = await channel_manager.resolve_missing_channel_ids()
 
         return {
-            "success": results['success'],
-            "source_channels": results['source_channels'],
-            "resolved": results['resolved'],
-            "duplicates_removed": results.get('duplicates_removed', []),
-            "errors": results['errors'],
-            "warnings": results['warnings'],
-            "message": f"批量解析完成，共处理 {len(results['source_channels'])} 个源频道"
+            "success": True,
+            "resolved_count": resolved_count,
+            "message": f"批量解析完成，共解析 {resolved_count} 个频道ID"
         }
 
     except Exception as e:

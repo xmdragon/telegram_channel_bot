@@ -77,38 +77,15 @@ class AppSettings:
         from app.services.channel_manager import channel_manager
         return await channel_manager.get_source_channels()
     
-    
-    
     async def get_target_channel_id(self) -> str:
         """获取目标频道ID配置（用户名格式，如@channelname）"""
         await self._ensure_initialized()
         return await self._config_manager.get_config("target.channel_id", "")
     
     async def get_target_channel_resolved_id(self) -> str:
-        """获取解析后的目标频道ID（数字格式，优先使用cached值，否则尝试解析）"""
+        """获取目标频道ID（系统配置API已处理解析，直接返回即可）"""
         await self._ensure_initialized()
-
-        # 直接获取target.channel_id字段（已包含解析后的ID）
-        main_id = await self.get_target_channel_id()
-        if main_id and main_id.startswith("-100"):
-            return main_id
-
-        # 如果主配置是用户名格式，需要解析为数字ID
-        if main_id and (main_id.startswith("@") or not main_id.startswith("-")):
-            try:
-                from app.services.telegram_resolver import telegram_resolver
-                resolved_id = await telegram_resolver.resolve(main_id)
-                if resolved_id and resolved_id.startswith("-100"):
-                    # 保存解析结果到target.channel_id
-                    await self._config_manager.set_config("target.channel_id", resolved_id)
-                    return resolved_id
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"解析目标频道ID失败 {main_id}: {e}")
-
-        # 如果解析失败，返回原始配置
-        return main_id
+        return await self.get_target_channel_id()
     
     async def get_history_message_limit(self) -> int:
         await self._ensure_initialized()

@@ -215,8 +215,9 @@ telegram_channel_bot/
 │   │   ├── redis_manager.py # Redis管理
 │   │   └── json_store.py # JSON存储
 │   └── telegram/         # Telegram集成
-│       ├── bot_manager.py # Bot管理
-│       └── dual_session_manager.py # 会话管理
+│       ├── dual_session_manager.py # 会话管理
+│       ├── message_event_handler.py # 消息事件处理
+│       └── message_forwarder.py # 消息转发
 ├── static/               # 前端文件
 │   ├── *.html           # 页面文件
 │   └── assets/          # 静态资源

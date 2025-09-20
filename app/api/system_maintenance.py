@@ -203,40 +203,9 @@ async def reset_system() -> Dict[str, Any]:
                     else:
                         logger.warning(f"⚠️ 第 {retry + 1} 次清理checkpoint失败: {checkpoint_error}，将重试...")
                         await asyncio.sleep(1)  # 等待1秒后重试
-            
-            # 清理采集相关队列 (60%)
-            await websocket_manager.broadcast_progress(operation, 60, "清理采集队列...")
-            try:
-                collection_queue_patterns = [
-                    "collector:queue:*",
-                    "collector:group:*",     # 组消息缓冲
-                    "queue:stats",          # 队列统计
-                    "processor:working:*",  # 处理中状态
-                    "processor:failed",     # 失败队列
-                    "processor:completed",  # 完成队列
-                    "media:download:queue",
-                    "processor:queue:*",
-                    "message_forward:*"
-                ]
-                
-                total_deleted = 0
-                for pattern in collection_queue_patterns:
-                    try:
-                        keys = redis_manager.client.keys(pattern)
-                        if keys:
-                            deleted = redis_manager.client.delete(*keys)
-                            total_deleted += deleted
-                            logger.info(f"清理队列 {pattern}: {deleted} 条")
-                    except Exception as pattern_error:
-                        logger.error(f"清理队列模式 {pattern} 失败: {pattern_error}")
-                
-                logger.info(f"✅ 采集队列清理完成，共清理 {total_deleted} 个队列项")
-                
-            except Exception as queue_error:
-                logger.error(f"❌ 清理采集队列失败: {queue_error}")
-        
-        # 步骤5：清空临时媒体目录 (65%)
-        await websocket_manager.broadcast_progress(operation, 65, "清空临时媒体目录...")
+
+        # 步骤4：清空临时媒体目录 (60%)
+        await websocket_manager.broadcast_progress(operation, 60, "清空临时媒体目录...")
         try:
             temp_media_dir = Path(PathConfig.TEMP_MEDIA_DIR)
             if temp_media_dir.exists():
@@ -291,8 +260,8 @@ async def reset_system() -> Dict[str, Any]:
             }
             logger.error(f"❌ 清理临时媒体目录失败: {media_error}")
         
-        # 步骤6：重置频道采集点 (85%)
-        await websocket_manager.broadcast_progress(operation, 85, "重置频道采集点...")
+        # 步骤5：重置频道采集点 (75%)
+        await websocket_manager.broadcast_progress(operation, 75, "重置频道采集点...")
         try:
             all_channels = channel_store.get_all_channels()
             source_channels = [ch for ch in all_channels if ch.get('channel_type') == 'source']
@@ -307,7 +276,7 @@ async def reset_system() -> Dict[str, Any]:
                     reset_count += 1
                     
                     # 更新进度
-                    progress = 85 + (10 * (i + 1) / len(source_channels))
+                    progress = 75 + (20 * (i + 1) / len(source_channels))
                     channel_name = channel.get('channel_title', channel.get('channel_name', channel['channel_id']))
                     await websocket_manager.broadcast_progress(
                         operation, 
@@ -337,21 +306,7 @@ async def reset_system() -> Dict[str, Any]:
             }
             logger.error(f"❌ 重置频道采集点失败: {channel_reset_error}")
         
-        # 步骤7：重置采集标志 (95%)
-        await websocket_manager.broadcast_progress(operation, 95, "重置采集标志...")
-        try:
-            # 重置bot_manager的采集标志以便重新采集历史消息
-            from app.telegram.bot_manager import bot_manager
-            if hasattr(bot_manager, 'auto_collection_done'):
-                bot_manager.auto_collection_done = False
-                logger.info("已重置auto_collection_done标志，下次连接将自动采集历史消息")
-            
-            logger.info("采集标志已重置，采集开关由用户手动控制")
-                
-        except Exception as e:
-            logger.error(f"重置采集标志失败: {e}")
-        
-        # 步骤8：完成 (100%)
+        # 步骤7：完成 (100%)
         await websocket_manager.broadcast_progress(operation, 100, "系统重置完成")
         
         # 计算总体成功状态
@@ -366,7 +321,6 @@ async def reset_system() -> Dict[str, Any]:
                 "cleared_messages": cleanup_status["redis_messages"]["count"],
                 "reset_channels": cleanup_status["channel_reset"]["count"],
                 "temp_media_cleared": cleanup_status["temp_media"]["success"],
-                "auto_collection_ready": True,
                 "cleanup_status": cleanup_status
             }
         }

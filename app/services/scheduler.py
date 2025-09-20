@@ -48,8 +48,18 @@ class MessageScheduler:
             misfire_grace_time=10  # 错过执行时间10秒内仍会执行
         )
 
+        # 新增：频道信息同步任务 - 每小时执行一次
+        self.scheduler.add_job(
+            self.sync_channel_info,
+            'interval',
+            hours=1,
+            id='channel_sync',
+            max_instances=1,  # 防止任务重叠
+            misfire_grace_time=300  # 错过执行时间5分钟内仍会执行
+        )
+
         self.scheduler.start()
-        logger.info("消息调度器已启动 (包含自动转发)")
+        logger.info("消息调度器已启动 (包含自动转发和频道同步)")
     
     def shutdown(self):
         """关闭调度器"""
@@ -190,4 +200,30 @@ class MessageScheduler:
                 
         except Exception as e:
             logger.error(f"清理日志文件失败: {e}")
-    
+
+    async def sync_channel_info(self):
+        """同步频道信息 - 检查名称和标题变化"""
+        try:
+            logger.info("开始同步频道信息...")
+
+            # 导入频道同步服务
+            from app.services.channel_info_sync import channel_info_sync
+
+            # 执行同步
+            result = await channel_info_sync.sync_all_channels()
+
+            if result["success"]:
+                if result["updated_count"] > 0:
+                    logger.info(f"频道信息同步完成: 更新了 {result['updated_count']} 个频道")
+
+                    # 记录具体的更新信息
+                    for update in result["updates"]:
+                        logger.info(f"频道 {update['channel_name']} 发生变化: {', '.join(update['changes'])}")
+                else:
+                    logger.debug("频道信息同步完成: 没有发现变化")
+            else:
+                logger.error(f"频道信息同步失败: {result.get('errors', [])}")
+
+        except Exception as e:
+            logger.error(f"频道信息同步异常: {e}")
+

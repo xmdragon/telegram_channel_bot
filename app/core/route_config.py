@@ -77,7 +77,6 @@ class RouteConfig:
         health_service = "/health/{service_name}"    # 服务健康检查 - 映射到 /api/health/{service_name}
         status = "/system/status"
         status_detailed = "/system/status-detailed"
-        logs_realtime = "/system/logs/realtime"
         reset = "/system/reset"
     
     

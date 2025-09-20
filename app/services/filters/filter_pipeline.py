@@ -150,13 +150,6 @@ class FilterPipeline:
         start_time = time.perf_counter()
         pipeline_result = PipelineResult(final_content=content)
         
-        # 导入性能监控模块
-        try:
-            from app.services.performance_monitor import PerformanceTimer
-            pipeline_timer = PerformanceTimer("filter_pipeline").start()
-        except ImportError:
-            pipeline_timer = None
-        
         try:
             logger.info(f"开始管道处理: message_id={context.message_id}, "
                        f"filters={len(self.filters)}, content_length={len(content)}")
@@ -169,11 +162,6 @@ class FilterPipeline:
                     logger.debug(f"跳过已禁用的过滤器: {self._get_filter_name(filter_instance)}")
                     continue
                 
-                # 为每个过滤器创建计时器
-                filter_timer = None
-                if pipeline_timer:
-                    filter_timer = pipeline_timer.add_child(self._get_filter_name(filter_instance)).start()
-                
                 filter_start = time.perf_counter()
                 
                 try:
@@ -181,15 +169,6 @@ class FilterPipeline:
                     filter_result = await filter_instance.process_with_timing(
                         current_content, context
                     )
-                    
-                    # 停止过滤器计时器并记录指标
-                    if filter_timer:
-                        filter_timer.stop()
-                        filter_timer.set_metric('content_length', len(current_content))
-                        filter_timer.set_metric('passed', filter_result.passed)
-                        filter_timer.set_metric('confidence', filter_result.confidence)
-                        if filter_result.reason:
-                            filter_timer.set_metric('reason', filter_result.reason)
                     
                     # 记录过滤器结果
                     filter_name = self._get_filter_name(filter_instance)
