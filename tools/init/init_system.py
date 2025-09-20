@@ -162,14 +162,6 @@ class SystemInitializer:
                 "category": "target"
             },
 
-            # 审核群配置
-            "review.group_link": {
-                "value": "https://t.me/+TfGC_XoQ5gllZWY1",
-                "config_type": "string",
-                "description": "审核群链接（用户配置）",
-                "category": "review"
-            },
-
             # Telegram API配置
             "telegram.api_id": {
                 "value": "24382238",

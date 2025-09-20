@@ -55,7 +55,7 @@ class ChannelResolveRequest(BaseModel):
     save_to_list: bool = False  # 是否保存到源频道列表
 
 # 频道基础管理
-@router.get("/")
+@router.get(ROUTES.channels.list)
 async def get_channels(user: Dict[str, Any] = Depends(require_auth)):
     """获取所有源频道"""
     try:
@@ -71,7 +71,7 @@ async def get_channels(user: Dict[str, Any] = Depends(require_auth)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取频道列表失败: {str(e)}")
 
-@router.post("/")
+@router.post(ROUTES.channels.add)
 async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends(require_auth)):
     """添加源频道"""
     try:
@@ -93,7 +93,7 @@ async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"添加频道失败: {str(e)}")
 
-@router.delete("/{channel_id}")
+@router.delete(ROUTES.channels.delete)
 async def remove_channel(channel_id: str, user: Dict[str, Any] = Depends(require_auth)):
     """移除源频道"""
     try:
@@ -111,7 +111,7 @@ async def remove_channel(channel_id: str, user: Dict[str, Any] = Depends(require
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"移除频道失败: {str(e)}")
 
-@router.get("/{channel_id}")
+@router.get(ROUTES.channels.get)
 async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(require_auth)):
     """获取单个频道信息"""
     try:
@@ -133,7 +133,7 @@ async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(require_au
         raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
 
 # 批量操作
-@router.post("/batch-add")
+@router.post(ROUTES.channels.batch_add)
 async def batch_add_channels(request: ChannelBatchAddRequest, user: Dict[str, Any] = Depends(require_auth)):
     """批量添加频道"""
     try:
@@ -247,7 +247,7 @@ async def batch_add_channels(request: ChannelBatchAddRequest, user: Dict[str, An
         raise HTTPException(status_code=500, detail=f"批量添加频道失败: {str(e)}")
 
 # 搜索功能
-@router.get("/search")
+@router.get(ROUTES.channels.search)
 async def search_channels(
     q: str = "",
     limit: int = 20,
@@ -287,7 +287,7 @@ async def search_channels(
         raise HTTPException(status_code=500, detail=f"搜索频道失败: {str(e)}")
 
 # 频道解析功能
-@router.post("/resolve")
+@router.post(ROUTES.channels.resolve)
 async def resolve_channel(request: ChannelResolveRequest, user: Dict[str, Any] = Depends(require_auth)):
     """
     解析频道ID
@@ -360,7 +360,7 @@ async def resolve_channel(request: ChannelResolveRequest, user: Dict[str, Any] =
             "message": f"解析失败: {str(e)}"
         }
 
-@router.post("/resolve-all")
+@router.post(ROUTES.channels.resolve_all)
 async def resolve_all_channels(user: Dict[str, Any] = Depends(require_auth)):
     """
     批量解析所有源频道的ID

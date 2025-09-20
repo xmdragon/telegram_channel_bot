@@ -7,7 +7,10 @@ from pydantic import BaseModel
 from typing import Dict, Any, Literal
 import logging
 
-# 导入统一的Session管理器
+# 导入路由常量
+from app.core.route_config import ROUTES
+
+# 导入统一的Session管理器（已集成认证功能）
 from app.telegram.dual_session_manager import dual_session_manager
 from app.core.telegram_config import TelegramConfig
 
@@ -17,7 +20,7 @@ from telethon.sessions import StringSession
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter()  # 前缀已在app/api/__init__.py中配置
 
 # 请求模型定义
 class SessionInitRequest(BaseModel):
@@ -35,8 +38,11 @@ class VerifyPasswordRequest(BaseModel):
     session_type: Literal["listener", "sender"]
     password: str
 
+class ClearSessionRequest(BaseModel):
+    session_type: Literal["listener", "sender"]
 
-@router.post("/init-session")
+
+@router.post(ROUTES.dual_auth.init_session)
 async def init_session_auth(request: SessionInitRequest):
     """初始化Session认证 - 基于现有连接"""
     try:
@@ -86,34 +92,121 @@ async def init_session_auth(request: SessionInitRequest):
         logger.error(f"初始化{request.session_type}Session失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/send-code")
+@router.post(ROUTES.dual_auth.send_code)
 async def send_verification_code(request: SendCodeRequest):
-    """发送验证码 - 暂不支持，需要通过系统配置页面完成认证"""
-    return {
-        "success": False,
-        "error": "请通过系统配置页面完成Telegram认证，此界面仅显示当前认证状态"
-    }
+    """发送验证码"""
+    try:
+        # 创建临时认证客户端
+        auth_client = await dual_session_manager.create_auth_client(request.session_type)
+        if not auth_client:
+            raise HTTPException(status_code=500, detail="无法初始化认证客户端")
 
-@router.post("/verify-code")
+        # 发送验证码
+        result = await dual_session_manager.send_auth_code(
+            request.session_type,
+            request.phone,
+            auth_client
+        )
+
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"发送{request.session_type}Session验证码失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post(ROUTES.dual_auth.verify_code)
 async def verify_verification_code(request: VerifyCodeRequest):
-    """验证验证码 - 暂不支持，需要通过系统配置页面完成认证"""
-    return {
-        "success": False,
-        "error": "请通过系统配置页面完成Telegram认证，此界面仅显示当前认证状态"
-    }
+    """验证验证码"""
+    try:
+        # 从session管理器获取认证信息
+        auth_info = dual_session_manager._auth_info.get(request.session_type)
+        if not auth_info or not auth_info.get("client"):
+            raise HTTPException(status_code=400, detail="请先发送验证码")
 
-@router.post("/verify-password")
+        # 验证验证码
+        result = await dual_session_manager.verify_auth_code(
+            request.session_type,
+            auth_info["phone"],
+            request.code,
+            auth_info["phone_code_hash"],
+            auth_info["client"]
+        )
+
+        if result["success"]:
+            return result
+        elif result.get("next_step") == "password":
+            # 需要两步验证密码
+            return {
+                "success": True,
+                "next_step": "password",
+                "message": "需要输入两步验证密码"
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"验证{request.session_type}Session验证码失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post(ROUTES.dual_auth.verify_password)
 async def verify_two_step_password(request: VerifyPasswordRequest):
-    """验证两步验证密码 - 暂不支持，需要通过系统配置页面完成认证"""
-    return {
-        "success": False,
-        "error": "请通过系统配置页面完成Telegram认证，此界面仅显示当前认证状态"
-    }
+    """验证两步验证密码"""
+    try:
+        # 从session管理器获取认证信息
+        auth_info = dual_session_manager._auth_info.get(request.session_type)
+        if not auth_info or not auth_info.get("client"):
+            raise HTTPException(status_code=400, detail="请先发送验证码")
 
-@router.get("/session-status/{session_type}")
+        # 验证密码
+        result = await dual_session_manager.verify_auth_password(
+            request.session_type,
+            request.password,
+            auth_info.get("password_hint"),
+            auth_info["client"]
+        )
+
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"验证{request.session_type}Session密码失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get(ROUTES.dual_auth.session_status)
 async def get_session_status(session_type: Literal["listener", "sender"]):
     """获取Session状态"""
     try:
+        # 检查是否有正在进行的认证
+        auth_info = dual_session_manager._auth_info.get(session_type)
+        if auth_info:
+            state = "phone_needed"
+            if auth_info.get("phone_code_hash"):
+                state = "code_sent"
+            if auth_info.get("password_hint") is not None:
+                state = "password_needed"
+
+            return {
+                "success": True,
+                "status": {
+                    "session_type": session_type,
+                    "state": state,
+                    "error_message": None,
+                    "has_client": True
+                }
+            }
+
+        # 检查连接管理器状态
         session_manager = dual_session_manager
 
         if session_type == "listener":
@@ -144,5 +237,22 @@ async def get_session_status(session_type: Literal["listener", "sender"]):
 
     except Exception as e:
         logger.error(f"获取{session_type}Session状态失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post(ROUTES.dual_auth.clear_session)
+async def clear_session(request: ClearSessionRequest):
+    """清除Session认证状态"""
+    try:
+        result = await dual_session_manager.clear_session(request.session_type)
+
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"清除{request.session_type}Session失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

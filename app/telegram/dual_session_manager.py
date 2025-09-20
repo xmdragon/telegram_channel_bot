@@ -36,7 +36,10 @@ class TelegramDualSessionManager:
         self._listener_last_check = 0
         self._sender_last_check = 0
         self._check_interval = 30  # 30秒内不重复检查连接状态
-        
+
+        # 认证信息缓存
+        self._auth_info: Dict[str, Any] = {}
+
         self.config_manager = ConfigManager()
         
         # 连接回调
@@ -475,15 +478,171 @@ class TelegramDualSessionManager:
             "sender_config": await self._validate_sender_config(),
             "config_manager_healthy": self.config_manager.is_storage_healthy()
         }
-        
+
         diagnostics["overall_config_valid"] = (
-            diagnostics["listener_config"]["valid"] and 
+            diagnostics["listener_config"]["valid"] and
             diagnostics["sender_config"]["valid"] and
             diagnostics["config_manager_healthy"]
         )
-        
+
         return diagnostics
-    
+
+    # ============== 认证相关功能 ==============
+    # 用于新的session认证流程
+
+    async def create_auth_client(self, session_type: str) -> Optional[TelegramClient]:
+        """创建用于认证的临时客户端"""
+        try:
+            # 获取API配置
+            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
+            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+
+            if not api_id or not api_hash:
+                logger.error("API ID或API Hash未配置")
+                return None
+
+            # 创建临时认证客户端（空session）
+            auth_client = TelegramClient(
+                StringSession(),  # 使用空的StringSession进行新认证
+                int(api_id),
+                api_hash,
+                proxy=self._proxy_config  # 使用代理配置
+            )
+
+            await auth_client.connect()
+            logger.info(f"✅ 创建{session_type}认证客户端成功")
+            return auth_client
+
+        except Exception as e:
+            logger.error(f"❌ 创建{session_type}认证客户端失败: {e}")
+            return None
+
+    async def send_auth_code(self, session_type: str, phone: str, client: TelegramClient) -> Dict[str, Any]:
+        """发送验证码"""
+        try:
+            result = await client.send_code_request(phone)
+            logger.info(f"✅ {session_type}验证码已发送到 {phone}")
+            return {
+                "success": True,
+                "phone_code_hash": result.phone_code_hash,
+                "phone": phone
+            }
+        except FloodWaitError as e:
+            error_msg = f"请求过于频繁，请等待 {e.seconds} 秒后重试"
+            logger.warning(f"⚠️ {session_type}发送验证码频率限制: {error_msg}")
+            return {"success": False, "error": error_msg}
+        except Exception as e:
+            error_msg = f"发送验证码失败: {str(e)}"
+            logger.error(f"❌ {session_type}发送验证码失败: {e}")
+            return {"success": False, "error": error_msg}
+
+    async def verify_auth_code(self, session_type: str, phone: str, code: str,
+                               phone_code_hash: str, client: TelegramClient) -> Dict[str, Any]:
+        """验证验证码"""
+        try:
+            from telethon.errors import PhoneCodeInvalidError, SessionPasswordNeededError
+
+            result = await client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
+
+            # 保存session
+            session_string = client.session.save()
+            if session_type == "listener":
+                await self.config_manager.set_config(TelegramConfig.LISTENER_SESSION, session_string)
+            else:
+                await self.config_manager.set_config(TelegramConfig.SENDER_SESSION, session_string)
+
+            # 获取用户信息
+            me = await client.get_me()
+            user_info = {
+                "id": me.id,
+                "username": me.username,
+                "first_name": me.first_name,
+                "last_name": me.last_name,
+                "phone": me.phone
+            }
+
+            logger.info(f"✅ {session_type}认证成功: {me.username or me.first_name}")
+
+            return {
+                "success": True,
+                "user": user_info
+            }
+
+        except SessionPasswordNeededError:
+            logger.info(f"⚠️ {session_type}需要两步验证密码")
+            return {
+                "success": False,
+                "password_required": True,
+                "error": "需要输入两步验证密码"
+            }
+        except PhoneCodeInvalidError:
+            return {"success": False, "error": "验证码无效或已过期"}
+        except Exception as e:
+            return {"success": False, "error": f"验证失败: {str(e)}"}
+
+    async def verify_auth_password(self, session_type: str, password: str,
+                                   client: TelegramClient) -> Dict[str, Any]:
+        """验证两步验证密码"""
+        try:
+            result = await client.sign_in(password=password)
+
+            # 保存session
+            session_string = client.session.save()
+            if session_type == "listener":
+                await self.config_manager.set_config(TelegramConfig.LISTENER_SESSION, session_string)
+            else:
+                await self.config_manager.set_config(TelegramConfig.SENDER_SESSION, session_string)
+
+            # 获取用户信息
+            me = await client.get_me()
+            user_info = {
+                "id": me.id,
+                "username": me.username,
+                "first_name": me.first_name,
+                "last_name": me.last_name,
+                "phone": me.phone
+            }
+
+            logger.info(f"✅ {session_type}两步验证成功: {me.username or me.first_name}")
+
+            return {
+                "success": True,
+                "user": user_info
+            }
+        except Exception as e:
+            return {"success": False, "error": f"密码验证失败: {str(e)}"}
+
+    async def clear_session(self, session_type: str) -> Dict[str, Any]:
+        """清除指定的session"""
+        try:
+            if session_type == "listener":
+                # 断开连接
+                if self.listener_client:
+                    await self.listener_client.disconnect()
+                    self.listener_client = None
+                    self.listener_connected = False
+
+                # 删除配置
+                await self.config_manager.delete_config(TelegramConfig.LISTENER_SESSION)
+
+            else:  # sender
+                # 断开连接
+                if self.sender_client:
+                    await self.sender_client.disconnect()
+                    self.sender_client = None
+                    self.sender_connected = False
+
+                # 删除配置
+                await self.config_manager.delete_config(TelegramConfig.SENDER_SESSION)
+
+            logger.info(f"✅ {session_type}Session已清除")
+            return {"success": True, "message": f"{session_type}Session已清除"}
+
+        except Exception as e:
+            error_msg = f"清除Session失败: {str(e)}"
+            logger.error(f"❌ 清除{session_type}Session失败: {e}")
+            return {"success": False, "error": error_msg}
+
 
 # 全局双Session管理器实例
 dual_session_manager = TelegramDualSessionManager()

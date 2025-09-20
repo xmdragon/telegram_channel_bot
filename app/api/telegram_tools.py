@@ -10,6 +10,7 @@ import re
 
 from app.api.admin_auth import get_current_admin
 from app.telegram.dual_session_manager import dual_session_manager
+from app.core.route_config import ROUTES
 # 响应格式化函数
 def success_response(data):
     return {"success": True, "data": data}
@@ -27,7 +28,7 @@ class MessageStructureRequest:
         self.message_url = message_url
 
 
-@router.post("/message-structure")
+@router.post(ROUTES.telegram_tools.message_structure)
 async def get_message_structure(
     request: Dict[str, str],
     current_admin: Dict = Depends(get_current_admin)

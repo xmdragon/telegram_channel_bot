@@ -16,20 +16,20 @@ class RouteConfig:
         list = "/messages/"
         channel_info = "/messages/channel-info"
         detail = "/messages/detail/{message_id}"
-        
+
         # 核心操作 - action-first模式
         approve = "/messages/approve/{message_id}"
         reject = "/messages/reject/{message_id}"
         restore = "/messages/restore/{message_id}"
         delete = "/messages/delete/{message_id}"
         update = "/messages/update/{message_id}"
-        
+
         # 高级操作
         edit_publish = "/messages/edit-publish/{message_id}"
         publish = "/messages/publish/{message_id}"
         publish_direct = "/messages/publish-direct/{message_id}"
         resend = "/messages/resend/{message_id}"
-        
+
         # 过滤器操作
         filter_content = "/messages/filter-content/{message_id}"
         train_tail = "/messages/train-tail/{message_id}"
@@ -38,13 +38,13 @@ class RouteConfig:
         feedback = "/messages/feedback/{message_id}"
         delete_review = "/messages/delete-review/{message_id}"
         mark_as_ad = "/messages/mark-as-ad/{id}"
-        
+
         # 批量操作
         batch_approve = "/messages/batch/approve"
         batch_reject = "/messages/batch/reject"
         batch_delete = "/messages/batch/delete"
-        
-        
+
+
         # 统计相关
         stats_overview = "/messages/stats/overview"
     
@@ -53,14 +53,6 @@ class RouteConfig:
         config = "/admin/config"
         config_batch = "/admin/config/batch"
         config_forwarding = "/admin/config/forwarding"
-        backup = "/admin/backup"
-        clear_cache = "/admin/clear-cache"
-        export_logs = "/admin/export-logs"
-        health = "/admin/health"
-        resolve_review_group = "/admin/resolve-review-group"
-        review_group_status = "/admin/review-group-status"
-        resolve_channel_ids = "/admin/resolve-channel-ids"
-        resolve_channel_id = "/admin/resolve-channel-id"
     
     class AdminAuth:
         """管理员认证路由"""
@@ -75,46 +67,26 @@ class RouteConfig:
         sessions = "/admin/auth/sessions"
         session_by_token = "/admin/auth/sessions/{token}"
         me = "/admin/auth/me"
-    
-    class Auth:
-        """Telegram认证路由"""
-        init = "/telegram-auth/init"
-        send_code = "/telegram-auth/send-code"
-        verify_code = "/telegram-auth/verify-code"
-        verify_password = "/telegram-auth/verify-password"
-        resend_code = "/telegram-auth/resend-code"
-        status = "/telegram-auth/status"
-        disconnect = "/telegram-auth/disconnect"
-        clear = "/telegram-auth/clear"
-        info = "/telegram-auth/info"
-        websocket = "/telegram-auth/ws/auth"  # WebSocket认证连接
-    
-    class Config:
-        """配置管理路由"""
-        base = "/config/"
-        by_key = "/config/{config_key}"
-        reload = "/config/reload"
-        resolve_group_id = "/config/resolve-group-id"
-        resolve_target_channel = "/config/resolve-target-channel"
-        categories_telegram = "/config/categories/telegram"
-        categories_channels = "/config/categories/channels"
-        categories_filter = "/config/categories/filter"
-        categories_review = "/config/categories/review"
-        batch = "/config/batch"
-        batch_update = "/config/batch-update"
-        reset_defaults = "/config/reset-defaults"
-    
+
+    class DualAuth:
+        """双Session认证路由"""
+        init_session = "/init-session"
+        send_code = "/send-code"
+        verify_code = "/verify-code"
+        verify_password = "/verify-password"
+        session_status = "/session-status/{session_type}"
+        clear_session = "/clear-session"
     class System:
         """系统相关路由"""
         # 健康检查（保留实际使用的端点）
+        health = "/health"                           # 主健康检查端点 - 映射到 /api/health
+        health_service = "/health/{service_name}"    # 服务健康检查 - 映射到 /api/health/{service_name}
         status = "/system/status"
         status_detailed = "/system/status-detailed"
-        health = "/system/health"
         lock_status = "/system/lock-status"
         clear_lock = "/system/clear-lock"
         auto_clear_lock = "/system/auto-clear-lock"
         logs_realtime = "/system/logs/realtime"
-
         reset = "/system/reset"
     
     
@@ -135,6 +107,10 @@ class RouteConfig:
         resolve = "/resolve"
         resolve_all = "/resolve-all"
     
+    class TelegramTools:
+        """Telegram工具路由"""
+        message_structure = "/message-structure"
+
     class Training:
         """训练数据管理路由"""
         # 广告向量
@@ -180,10 +156,10 @@ class RouteConfig:
         self.messages = self.Messages()
         self.admin = self.Admin()
         self.admin_auth = self.AdminAuth()
-        self.auth = self.Auth()
-        self.config = self.Config()
+        self.dual_auth = self.DualAuth()
         self.system = self.System()
         self.channels = self.Channels()
+        self.telegram_tools = self.TelegramTools()
         self.training = self.Training()
 
 # 全局路由配置实例

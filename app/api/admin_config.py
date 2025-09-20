@@ -209,9 +209,7 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
                 await config_manager.set_config('target.channel_id', str(resolved_id))
                 target_resolved_id = str(resolved_id)
 
-        # 强制刷新配置缓存确保立即生效
-        await config_manager.reload_cache()
-        logger.info("配置已保存，新配置立即生效")
+        logger.info("配置已保存并立即生效")
 
         # 构建返回消息
         messages = ["转发配置已保存"]
@@ -229,31 +227,4 @@ async def update_forwarding_config(request: ForwardingConfigRequest):
     except Exception as e:
         logger.error(f"更新转发配置失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"更新转发配置失败: {str(e)}")
-
-# 删除审核群解析相关的API端点
-        else:
-            return {
-                "success": False,
-                "message": "无法解析审核群链接，请检查链接是否正确或机器人是否已加入该群"
-            }
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"解析审核群链接失败: {str(e)}")
-
-@router.get(ROUTES.admin.review_group_status)
-async def get_review_group_status():
-    """获取审核群状态信息"""
-    try:
-        # 获取配置的审核群
-        review_group_config = await config_manager.get_config('review.group_id', '')
-
-        return {
-            "review_group_config": review_group_config,
-            "cached_id": review_group_config,  # 现在直接存储解析后的ID
-            "effective_id": review_group_config,
-            "is_link": review_group_config and ('t.me' in review_group_config or review_group_config.startswith('@'))
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取审核群状态失败: {str(e)}")
 

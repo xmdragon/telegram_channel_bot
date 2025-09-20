@@ -1945,60 +1945,7 @@ const MainApp = {
                 console.error('重新发布消息错误:', error);
             }
         },
-        
-        // 重置消息状态 - 用于误判恢复
-        async resetMessage(event, message) {
-            // 强制阻止事件传播
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-            }
-            
-            // 如果message在event中，提取出来
-            if (!message && event && event.target && event.target.dataset) {
-                message = {
-                    id: event.target.dataset.messageId,
-                    is_ad: event.target.dataset.isAd === 'true'
-                };
-            }
-            try {
-                // 解析消息ID
-                const idParts = message.id.split(':');
-                if (idParts.length !== 2) {
-                    window.SimpleUI.Message.error('消息ID格式错误');
-                    return;
-                }
-                
-                const [sourceChannel, messageId] = idParts;
-                
-                // 确认操作 - 使用统一的广告判断函数
-                const confirmText = MessageUtils.isMessageAd(message) 
-                    ? '确定要重置此广告消息吗？这将从训练样本中移除并重置为待审核状态。'
-                    : '确定要重置此消息为待审核状态吗？';
-                    
-                if (!confirm(confirmText)) {
-                    return;
-                }
-                
-                const response = await axios.post(window.API.messages.reset, {
-                    source_channel: sourceChannel,
-                    message_id: parseInt(messageId),
-                    is_ad: MessageUtils.getRawAdValue(message)
-                });
-                
-                if (response.data.success) {
-                    window.SimpleUI.Message.success('消息已重置为待审核状态');
-                    this.loadMessages();
-                    this.refreshStats();
-                } else {
-                    window.SimpleUI.Message.error('重置失败: ' + response.data.message);
-                }
-            } catch (error) {
-                window.SimpleUI.Message.error('重置失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
+
         // 批量删除消息
         async deleteMessages(event) {
             // 强制阻止事件传播

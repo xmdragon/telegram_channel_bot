@@ -20,7 +20,7 @@ const MessageManager = {
                 }
             }
 
-            const response = await axios.get(`/api/messages/?${params}`);
+            const response = await axios.get(`${API.messages.list}?${params}`);
             
             if (response.data.success) {
                 return {
@@ -51,7 +51,7 @@ const MessageManager = {
             // 添加到处理中的消息集合
             messageIds.forEach(id => this.processingMessages.add(id));
 
-            const response = await axios.post('/api/messages/batch/approve', {
+            const response = await axios.post(API.messages.batchApprove, {
                 message_ids: messageIds
             });
 
@@ -84,7 +84,7 @@ const MessageManager = {
         try {
             messageIds.forEach(id => this.processingMessages.add(id));
 
-            const response = await axios.post('/api/messages/batch/reject', {
+            const response = await axios.post(API.messages.batchReject, {
                 message_ids: messageIds
             });
 
@@ -159,7 +159,7 @@ const MessageManager = {
         try {
             this.processingMessages.add(messageId);
 
-            const response = await axios.post(`/api/messages/${messageId}/approve`);
+            const response = await axios.post(API.messages.approveById(messageId));
             
             if (response.data.success) {
                 return {
@@ -189,7 +189,7 @@ const MessageManager = {
         try {
             this.processingMessages.add(messageId);
 
-            const response = await axios.post(`/api/messages/${messageId}/reject`);
+            const response = await axios.post(API.messages.rejectById(messageId));
             
             if (response.data.success) {
                 return {
@@ -219,7 +219,7 @@ const MessageManager = {
         try {
             messageIds.forEach(id => this.processingMessages.add(id));
 
-            const response = await axios.post('/api/messages/batch/delete', {
+            const response = await axios.post(API.messages.batchDelete, {
                 message_ids: messageIds
             });
 

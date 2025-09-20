@@ -376,18 +376,6 @@ const app = createApp({
             }
         },
         
-        
-        // 同步向量
-        async syncVectors() {
-            try {
-                const response = await axios.post('/api/training/promo-sync-vectors');
-                SimpleUI.showMessage(response.data.message || '向量同步完成', 'success');
-            } catch (error) {
-                // 不显示错误消息，axios拦截器已经处理
-                console.error('同步向量失败:', error);
-            }
-        },
-        
         // 获取分隔符类型标签
         getSeparatorTypeLabel(type) {
             return this.separatorTypeLabels[type] || type;

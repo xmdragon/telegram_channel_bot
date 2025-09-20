@@ -24,7 +24,6 @@ class SystemStatus:
     telegram_connected: bool
     source_channels: List[str]
     target_channel: str
-    review_group: Optional[str]
     errors: List[str]
     warnings: List[str]
     last_message_time: Optional[datetime]
@@ -91,7 +90,6 @@ class SystemMonitor:
                 telegram_connected=auth_status['connected'],
                 source_channels=channel_status['source_channels'],
                 target_channel=channel_status['target_channel'],
-                review_group=channel_status['review_group'],
                 errors=auth_status['errors'] + channel_status['errors'],
                 warnings=auth_status['warnings'] + channel_status['warnings'],
                 last_message_time=last_message
@@ -151,7 +149,6 @@ class SystemMonitor:
         warnings = []
         source_channels = []
         target_channel = None
-        review_group = None
         
         try:
             # 获取频道配置（源频道从channels表）
@@ -168,11 +165,9 @@ class SystemMonitor:
             
             # 直接从system.json获取解析后的ID
             target_channel_id = await config_manager.get_config('target.channel_id')
-            review_group_id = await config_manager.get_config('review.group_id')
-            
+
             # 获取显示用的原始配置
             target_channel = await config_manager.get_config('target.channel_link')
-            review_group = await config_manager.get_config('review.group_link')
                     
             # 验证必要配置
             if not source_channels:
@@ -182,11 +177,6 @@ class SystemMonitor:
                     errors.append(f"目标频道 {target_channel} 未解析ID，请重启应用")
                 else:
                     errors.append("未配置目标频道")
-            if not review_group_id:
-                if review_group:
-                    warnings.append(f"审核群 {review_group} 未解析ID")
-                else:
-                    warnings.append("未配置审核群")
                 
             # 验证频道可访问性（只验证ID，不验证私有链接）
             # 使用双Session管理器检查连接状态
@@ -198,8 +188,6 @@ class SystemMonitor:
                 # 只添加已解析的ID进行验证
                 if target_channel_id and target_channel_id.startswith('-100'):
                     channels_to_verify.append(target_channel_id)
-                if review_group_id and review_group_id.startswith('-100'):
-                    channels_to_verify.append(review_group_id)
                 
                 await self._verify_channel_access(channels_to_verify)
                 
@@ -209,7 +197,6 @@ class SystemMonitor:
         return {
             'source_channels': source_channels,
             'target_channel': target_channel,
-            'review_group': review_group,
             'errors': errors,
             'warnings': warnings
         }
@@ -374,7 +361,6 @@ class SystemMonitor:
                 "telegram_connected": status.telegram_connected,
                 "source_channels": status.source_channels,
                 "target_channel": status.target_channel,
-                "review_group": status.review_group,
                 "errors": status.errors,
                 "warnings": status.warnings,
                 "last_message_time": status.last_message_time.isoformat() if status.last_message_time else None,
@@ -388,7 +374,6 @@ class SystemMonitor:
                 "telegram_connected": status.telegram_connected,
                 "source_channels": status.source_channels,
                 "target_channel": status.target_channel,
-                "review_group": status.review_group,
                 "errors": status.errors,
                 "warnings": status.warnings,
                 "last_message_time": status.last_message_time.isoformat() if status.last_message_time else None

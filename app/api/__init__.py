@@ -6,7 +6,6 @@ from .messages_crud import router as messages_crud_router
 from .messages_batch import router as messages_batch_router
 from .messages_filter import router as messages_filter_router
 from .messages_stats import router as messages_stats_router
-from .message_stats_api import router as message_stats_router
 from .admin import router as admin_router
 from .channels import router as channels_router
 from .telegram_dual_auth import router as dual_auth_router
@@ -22,10 +21,9 @@ api_router = APIRouter()
 
 # 主要消息API路由（确保基础路径正确）
 api_router.include_router(messages_crud_router, tags=["messages-crud"])
-api_router.include_router(messages_batch_router, tags=["messages-batch"])  
+api_router.include_router(messages_batch_router, tags=["messages-batch"])
 api_router.include_router(messages_filter_router, tags=["messages-filter"])
 api_router.include_router(messages_stats_router, tags=["messages-stats"])
-api_router.include_router(message_stats_router, tags=["message-stats"])
 
 # 其他API路由
 api_router.include_router(admin_router, tags=["admin"])
@@ -37,7 +35,6 @@ api_router.include_router(system_health_router, tags=["system-health"])
 api_router.include_router(system_monitor_router, tags=["system-monitor"])
 api_router.include_router(system_maintenance_router, tags=["system-maintenance"])
 api_router.include_router(system_lock_router, tags=["system-lock"])
-# 注意：AI相关路由注册已移除
 # 使用重构后的训练路由
 api_router.include_router(training_router, tags=["training"])
 # Telegram工具路由

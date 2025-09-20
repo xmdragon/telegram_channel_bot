@@ -35,7 +35,7 @@
     "created_at": "2025-08-29T19:32:07.310363"
   },
   "collection.enabled": {
-    "value": "true",
+    "value": "false",
     "config_type": "boolean",
     "description": "系统重置时自动禁用采集",
     "is_active": true,
@@ -84,7 +84,7 @@
     "created_at": "2025-08-28T11:59:03.811456"
   },
   "target.channel_id": {
-    "value": "-1002696592354",
+    "value": "-1002705755618",
     "config_type": "string",
     "description": "目标频道ID（系统解析缓存）",
     "is_active": true,

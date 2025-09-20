@@ -2,10 +2,6 @@
  * 导航栏组件
  */
 
-// 延迟获取API配置，避免加载时错误
-function getAPI() {
-    return window.API || {};
-}
 
 const NavBar = {
     props: {
@@ -59,7 +55,7 @@ const NavBar = {
                 
                 if (token) {
                     // 携带认证头发送登出请求
-                    await axios.post(getAPI().adminAuth?.logout || '/api/admin/auth/logout', {}, {
+                    await axios.post(API.adminAuth.logout, {}, {
                         headers: {
                             'Authorization': `Bearer ${token}`
                         }

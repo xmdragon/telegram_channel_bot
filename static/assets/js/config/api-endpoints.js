@@ -15,10 +15,7 @@ const API_ENDPOINTS = {
     // 消息管理模块 - /api/messages
     messages: {
         list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
-        stats: '/api/messages/stats/overview',                      // GET - 获取消息统计信息（修复：使用正确的端点）
-        statsOverview: '/api/messages/stats/overview',              // GET - 获取消息统计概览
-        messageStatsOverview: '/api/stats/overview',               // GET - 消息统计概览
-        testMessageFeedback: '/api/messages/test-message/feedback', // POST - 测试消息反馈
+        stats: '/api/messages/stats/overview',                      // GET - 获取消息统计信息
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
         getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
         updateById: (id) => `/api/messages/update/${id}`,          // PUT - 更新消息内容
@@ -31,8 +28,7 @@ const API_ENDPOINTS = {
         batchApprove: '/api/messages/batch/approve',               // POST - 批量审核通过消息
         batchReject: '/api/messages/batch/reject',                 // POST - 批量拒绝消息
         batchDelete: '/api/messages/batch/delete',                 // POST - 批量删除消息
-        reset: '/api/messages/reset',                              // POST - 重置消息
-        
+
         // 消息操作端点
         notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
         filterContent: (id) => `/api/messages/filter-content/${id}`, // POST - 执行内容过滤
@@ -56,35 +52,19 @@ const API_ENDPOINTS = {
         adminById: (id) => `/api/admin/auth/admins/${id}`           // PUT/DELETE - 更新/删除管理员
     },
 
-    // Telegram认证模块 - /api/dual-auth (已统一到双Session系统)
-    telegramAuth: {
-        init: '/api/dual-auth/init-session',                        // POST - 初始化认证 (重定向到dual-auth)
-        sendCode: '/api/dual-auth/send-code',                       // POST - 发送验证码
-        verifyCode: '/api/dual-auth/verify-code',                   // POST - 验证验证码
-        verifyPassword: '/api/dual-auth/verify-password',           // POST - 验证密码
-        status: '/api/dual-auth/dual-session-status',               // GET - 获取认证状态
-        info: '/api/dual-auth/dual-session-status',                 // GET - 获取认证信息 (使用统一状态接口)
-        clear: '/api/dual-auth/clear-session',                      // POST - 清理认证
-        disconnect: '/api/dual-auth/disconnect-all',                // POST - 断开连接
-        logout: '/api/dual-auth/disconnect-all'                     // POST - 登出Telegram (使用断开所有连接)
-    },
-
-    // Telegram工具模块 - /api/telegram
+// Telegram工具模块 - /api/telegram
     telegram: {
         messageStructure: '/api/telegram/message-structure'         // POST - 获取消息结构体
     },
 
     // 双Session认证模块 - /api/dual-auth
     dualAuth: {
-        sharedApiConfig: '/api/dual-auth/shared-api-config',           // POST - 设置共享API配置
         initSession: '/api/dual-auth/init-session',                    // POST - 初始化Session认证
         sendCode: '/api/dual-auth/send-code',                          // POST - 发送验证码
         verifyCode: '/api/dual-auth/verify-code',                      // POST - 验证验证码
         verifyPassword: '/api/dual-auth/verify-password',              // POST - 验证两步验证密码
         sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}`, // GET - 获取Session状态
-        dualSessionStatus: '/api/dual-auth/dual-session-status',       // GET - 获取双Session状态
-        clearSession: '/api/dual-auth/clear-session',                  // POST - 清除Session
-        disconnectAll: '/api/dual-auth/disconnect-all'                 // POST - 断开所有连接
+        clearSession: '/api/dual-auth/clear-session'                  // POST - 清除Session
     },
 
     // 训练数据模块 - /api/training
@@ -110,17 +90,7 @@ const API_ENDPOINTS = {
 
     },
 
-    // 配置管理模块 - /api/config
-    config: {
-        list: '/api/config/',                                     // GET - 获取所有配置
-        channelConfig: '/api/config/channel-config',               // GET/POST - 频道配置
-        systemConfig: '/api/config/system-config',                // GET/POST - 系统配置
-        filterConfig: '/api/config/filter-config',                // GET/POST - 过滤器配置
-        export: '/api/config/export',                             // GET - 导出配置
-        import: '/api/config/import'                              // POST - 导入配置
-    },
-
-    // 统一频道管理模块 - /api/channels
+// 统一频道管理模块 - /api/channels
     channels: {
         // 基础管理
         list: '/api/channels/',                                   // GET - 获取所有源频道
@@ -154,13 +124,6 @@ const API_ENDPOINTS = {
 
     // 管理功能模块 - /api/admin
     admin: {
-        collect: '/api/admin/collect',                             // POST - 开始采集
-        test: '/api/admin/test',                                   // POST - 测试功能
-        stopCollection: '/api/admin/stop-collection',             // POST - 停止采集
-        
-        // 目标频道和审核群解析（保留在admin配置中）
-        resolveReviewGroup: '/api/admin/resolve-review-group',     // POST - 解析审核群组
-        
         // 配置管理
         config: '/api/admin/config',                               // GET - 获取管理配置
         configForwarding: '/api/admin/config/forwarding',          // POST - 配置转发

@@ -39,7 +39,7 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
         raise HTTPException(status_code=401, detail="未授权访问")
     return user
 
-@router.get("/system/lock-status")
+@router.get(ROUTES.system.lock_status)
 async def get_lock_status(user: Dict[str, Any] = Depends(require_auth)):
     """
     获取Telegram锁状态
@@ -67,7 +67,7 @@ async def get_lock_status(user: Dict[str, Any] = Depends(require_auth)):
         logger.error(f"获取锁状态失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取锁状态失败: {str(e)}")
 
-@router.post("/system/clear-lock")
+@router.post(ROUTES.system.clear_lock)
 async def clear_lock(
     request: Dict[str, Any] = {},
     user: Dict[str, Any] = Depends(require_auth)
@@ -97,7 +97,7 @@ async def clear_lock(
         logger.error(f"清理锁失败: {e}")
         raise HTTPException(status_code=500, detail=f"清理锁失败: {str(e)}")
 
-@router.post("/system/auto-clear-lock")  
+@router.post(ROUTES.system.auto_clear_lock)  
 async def auto_clear_lock(user: Dict[str, Any] = Depends(require_auth)):
     """
     智能清理过期锁

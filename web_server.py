@@ -298,30 +298,6 @@ async def train():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=media_paths.TRAIN_PAGE)
 
-# 健康检查API端点
-@app.get("/api/health")
-async def health_check():
-    """获取系统健康状态"""
-    from app.services.health_monitor import HealthCheckService
-    from fastapi.responses import JSONResponse
-
-    data = await HealthCheckService.get_system_summary()
-    response = JSONResponse(data)
-    response.headers["Connection"] = "close"  # 强制关闭连接，防止CLOSE-WAIT
-    return response
-
-
-@app.get("/api/health/{service_name}")
-async def service_health_check(service_name: str):
-    """获取指定服务的健康状态"""
-    from app.services.health_monitor import HealthCheckService
-    health = await HealthCheckService.get_service_health(service_name)
-    if health:
-        return health.to_dict()
-    else:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="服务未找到")
-
 if __name__ == "__main__":
     # 改进：检测运行环境，选择最佳启动方式
     import uvicorn

@@ -266,3 +266,12 @@ async def health_check() -> Dict[str, Any]:
             "version": "2.0.0"
         }
 
+@router.get(ROUTES.system.health_service)
+async def service_health_check(service_name: str) -> Dict[str, Any]:
+    """获取指定服务的健康状态"""
+    from app.services.health_monitor import HealthCheckService
+    health = await HealthCheckService.get_service_health(service_name)
+    if health:
+        return health.to_dict()
+    else:
+        raise HTTPException(status_code=404, detail="服务未找到")

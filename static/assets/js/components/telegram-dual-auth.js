@@ -67,9 +67,11 @@ const DualAuthApp = {
         }
         
         this.connectWebSocket();
-        // 启动时检查API配置
-        await this.checkApiConfig();
-        await this.checkDualSessionStatus();
+        // 启动时检查API配置，并传递配置数据避免重复请求
+        const configs = await this.checkApiConfig();
+        if (this.hasSharedApi && configs) {
+            await this.checkDualSessionStatus(configs);
+        }
     },
     
     beforeUnmount() {
@@ -125,12 +127,15 @@ const DualAuthApp = {
             }
         },
         
-        async checkDualSessionStatus() {
+        async checkDualSessionStatus(configs = null) {
             try {
-                const response = await axios.get(API.admin.config);
+                // 如果没有传入配置，才去获取
+                if (!configs) {
+                    const response = await axios.get(API.admin.config);
+                    configs = response.data;
+                }
 
-                if (response.data) {
-                    const configs = response.data;
+                if (configs) {
 
                     // 检查SESSION配置是否存在（非空）
                     const listenerSession = configs['telegram.listener_session'];
@@ -179,7 +184,7 @@ const DualAuthApp = {
 
         async checkApiConfig() {
             try {
-                // 从系统配置检查API是否已配置
+                // 直接从管理配置获取API配置
                 const response = await axios.get(API.admin.config);
                 if (response.data) {
                     const configs = response.data;
@@ -189,17 +194,18 @@ const DualAuthApp = {
                     this.hasSharedApi = !!(hasApiId && hasApiHash);
 
                     if (this.hasSharedApi) {
-                        window.SimpleUI.showMessage('API配置检查完成', 'success');
-                        // 如果有配置，重新检查Session状态
-                        await this.checkDualSessionStatus();
+                        console.log('检测到API配置:', {apiId: hasApiId, apiHash: hasApiHash ? '***' : null});
                     } else {
-                        window.SimpleUI.showMessage('未检测到API配置，请先配置', 'warning');
+                        console.log('未检测到API配置');
                     }
+
+                    // 返回配置数据，避免重复请求
+                    return configs;
                 }
             } catch (error) {
                 console.error('检查API配置失败:', error);
                 this.hasSharedApi = false;
-                window.SimpleUI.showMessage('检查配置失败', 'error');
+                return null;
             }
         },
 

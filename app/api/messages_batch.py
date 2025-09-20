@@ -188,10 +188,10 @@ async def process_batch_approve(message_ids: List[str], user_id: str = None) -> 
         return {
             "success": True,
             "approved_count": approved_count,
-            "forwarded_count": forwarded_count,
+            "forwarded_count": approved_count,  # 发布成功的数量
             "failed_count": failed_count,
             "total": len(valid_messages),
-            "message": f"批量发布完成: 成功{forwarded_count}, 失败{failed_count}"
+            "message": f"批量发布完成: 成功{approved_count}, 失败{failed_count}"
         }
 
     except Exception as e:

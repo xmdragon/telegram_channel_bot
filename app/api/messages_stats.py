@@ -58,23 +58,41 @@ async def get_message_stats(
     """
     try:
         stats = await message_processor.get_message_stats()
-        
+
+        # 添加 message_status 包装和 labels，保持与前端兼容
         return {
             "success": True,
-            "data": stats,
+            "data": {
+                "message_status": {
+                    "pending": stats.get("pending", 0),
+                    "approved": stats.get("approved", 0),
+                    "rejected": stats.get("rejected", 0),
+                    "labels": {
+                        "pending": "待审核",
+                        "approved": "已发布",
+                        "rejected": "已拒绝"
+                    }
+                }
+            },
             "timestamp": format_for_api(get_current_time())
         }
-        
+
     except Exception as e:
         logger.error(f"获取消息统计失败: {e}")
         # 返回默认统计数据，确保前端不会出错
         return {
             "success": True,
             "data": {
-                "total": 0,
-                "pending": 0,
-                "approved": 0,
-                "rejected": 0,
+                "message_status": {
+                    "pending": 0,
+                    "approved": 0,
+                    "rejected": 0,
+                    "labels": {
+                        "pending": "待审核",
+                        "approved": "已发布",
+                        "rejected": "已拒绝"
+                    }
+                }
             },
             "timestamp": format_for_api(get_current_time())
         }

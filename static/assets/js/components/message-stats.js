@@ -79,14 +79,16 @@ const MessageStatsComponent = {
          * 从API获取统计数据 - 单一数据源
          */
         async fetchStatsFromAPI() {
-            const response = await axios.get('/api/stats/overview', {
+            // 使用统一的消息统计API
+            const apiUrl = window.API?.messages?.stats;
+            const response = await axios.get(apiUrl, {
                 headers: window.authManager?.getAuthHeaders?.() || {}
             });
-            
+
             if (!response.data?.success) {
                 throw new Error('API响应失败');
             }
-            
+
             return response.data.data;
         },
         

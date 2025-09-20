@@ -2,10 +2,6 @@
  * 管理员认证工具
  */
 
-// 延迟获取API配置，避免加载时错误
-function getAPI() {
-    return window.API || {};
-}
 
 class AuthManager {
     constructor() {
@@ -85,7 +81,7 @@ class AuthManager {
         // 缓存过期或不存在，发送API请求
         try {
             const response = await axios.get(
-                getAPI().adminAuth?.current || '/api/admin/auth/current',
+                API.adminAuth.current,
                 { headers: this.getAuthHeaders() }
             );
             
@@ -116,7 +112,7 @@ class AuthManager {
         if (this.token) {
             try {
                 // 携带认证头发送登出请求
-                await axios.post(getAPI().adminAuth?.logout || '/api/admin/auth/logout', {}, {
+                await axios.post(API.adminAuth.logout, {}, {
                     headers: {
                         'Authorization': `Bearer ${this.token}`
                     }
@@ -220,7 +216,7 @@ class AuthManager {
         
         try {
             const response = await axios.get(
-                getAPI().adminAuth?.current || '/api/admin/auth/current',
+                API.adminAuth.current,
                 { headers: this.getAuthHeaders() }
             );
             

@@ -81,7 +81,6 @@ class CollectorConfigManager:
     
     def __init__(self):
         self.target_channel_id: Optional[str] = None
-        self.review_group_id: Optional[str] = None  
         self.history_limit: int = 10
         self.collection_enabled: bool = False
         self.auto_reject_ads: bool = True  # 是否自动拒绝广告
@@ -95,13 +94,12 @@ class CollectorConfigManager:
             with open(PathConfig.SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
                 system_config = json.load(f)
             self.target_channel_id = system_config["target.channel_id"]["value"]
-            self.review_group_id = system_config["review.group_id"]["value"]
             self.history_limit = int(system_config["source.history_limit"]["value"])
             collection_value = system_config.get("collection.enabled", {}).get("value", "false")
             self.collection_enabled = collection_value.lower() == "true" if isinstance(collection_value, str) else bool(collection_value)
             
             # 加载自动拒绝广告配置
-            auto_reject_value = system_config.get("review.auto_reject_ads", {}).get("value", "true")
+            auto_reject_value = system_config.get("target.auto_reject_ads", {}).get("value", "true")
             self.auto_reject_ads = auto_reject_value.lower() == "true" if isinstance(auto_reject_value, str) else bool(auto_reject_value)
 
             # 加载过滤器配置
@@ -112,7 +110,7 @@ class CollectorConfigManager:
             self.ad_detector = self._parse_bool_config(system_config.get("filter.ad_detector", {}).get("value", "false"))
 
             self._system_mtime = system_mtime
-            logger.debug(f"系统配置已更新: 目标频道={self.target_channel_id}, 审核群={self.review_group_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}, 自动拒绝广告={self.auto_reject_ads}")
+            logger.debug(f"系统配置已更新: 目标频道={self.target_channel_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}, 自动拒绝广告={self.auto_reject_ads}")
             logger.debug(f"过滤器配置: 主开关={self.filter_enabled}, 尾部={self.tail_filter}, 分隔符={self.separator_filter}, Markdown={self.markdown_filter}, 广告检测={self.ad_detector}")
     
     async def get_target_channel_id(self) -> Optional[str]:
@@ -120,10 +118,6 @@ class CollectorConfigManager:
         await self.load_config()
         return self.target_channel_id
     
-    async def get_review_group_id(self) -> Optional[str]:
-        """获取审核群ID"""
-        await self.load_config()
-        return self.review_group_id
     
     async def get_history_limit(self) -> int:
         """获取历史消息采集数配置"""
@@ -288,9 +282,8 @@ class TelegramMessageCollector:
             
             source_channels = await self.channel_manager.get_all_source_channels()
             target_channel = await self.config_manager.get_target_channel_id()
-            review_group = await self.config_manager.get_review_group_id()
-            
-            logger.info(f"配置初始化完成: {len(source_channels)}个源频道, 目标频道={target_channel}, 审核群={review_group}")
+
+            logger.info(f"配置初始化完成: {len(source_channels)}个源频道, 目标频道={target_channel}")
             
             self._initialized = True
             logger.info("TelegramMessageCollector初始化完成")
