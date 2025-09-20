@@ -50,24 +50,26 @@ git clone https://github.com/your-repo/telegram_channel_bot.git
 cd telegram_channel_bot
 ```
 
-2. **安装依赖**
+2. **初始化部署**
 ```bash
-# 创建虚拟环境
-python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
-# venv\\Scripts\\activate  # Windows
+# 运行部署脚本（自动创建配置文件和目录结构）
+./deploy.sh
 
-# 安装依赖
-pip install -r requirements.txt
+# 脚本会自动：
+# - 创建必要的目录结构
+# - 从模板创建 system.json
+# - 创建默认管理员账号
+# - 安装Python依赖
 ```
 
-3. **配置系统**
+3. **配置Telegram API**
 ```bash
-# 复制环境配置
-cp .env.example .env
+# 编辑系统配置文件
+nano data/config/system.json
 
-# 编辑配置文件
-nano .env
+# 填入从 https://my.telegram.org 获取的：
+# - telegram.api_id: 你的API ID
+# - telegram.api_hash: 你的API Hash
 ```
 
 4. **启动Redis**
@@ -81,19 +83,26 @@ docker run -d -p 6379:6379 redis:5-alpine
 # 或使用系统包管理器安装
 ```
 
-5. **初始化系统**
+5. **启动系统**
 ```bash
-# 创建目录和配置文件
-python3 tools/init/init_system.py
-
-# 启动开发环境
+# 开发环境
 ./dev.sh
+
+# 生产环境
+./start.sh
 ```
 
 6. **访问系统**
-- **管理控制台**: http://localhost:8080/static/index.html
-- **登录页面**: http://localhost:8080/static/login.html (admin/admin123)
+- **管理控制台**: http://localhost:8080
+- **默认账号**: admin / admin123
 - **API文档**: http://localhost:8008/docs
+- **首次使用**: 需要进行Telegram双Session认证
+
+### ⚠️ 重要说明
+
+- **配置隔离**: `system.json`包含敏感信息（Telegram session等），已加入`.gitignore`
+- **多环境支持**: 每个部署环境独立配置，避免session冲突
+- **自动初始化**: 首次部署自动从`system.json.example`创建配置文件
 
 ## 🏗️ 系统架构
 

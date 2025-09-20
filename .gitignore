@@ -62,6 +62,9 @@ temp_media/
 .env.local
 .env.*.local
 
+# System configuration (contains sensitive data like Telegram sessions)
+data/config/system.json
+
 # OS
 .DS_Store
 Thumbs.db
