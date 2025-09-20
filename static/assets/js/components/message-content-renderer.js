@@ -213,21 +213,6 @@ const MessageContentRenderer = {
         },
         
         // 确保消息ID包含-100前缀的格式化ID
-        computedMessageId() {
-            const messageId = this.messageId;  // 使用正确的messageId计算属性
-            if (!messageId || !messageId.includes(':')) {
-                return messageId;
-            }
-            
-            // 如果ID已经包含-100前缀，直接返回
-            if (messageId.startsWith('-100')) {
-                return messageId;
-            }
-            
-            // 分解ID并添加-100前缀
-            const [channelPart, messagePart] = messageId.split(':');
-            return `-100${channelPart}:${messagePart}`;
-        },
         
         // 是否为组合消息
         isCombinedMessage() {
@@ -712,31 +697,31 @@ const MessageContentRenderer = {
             
             <!-- 操作按钮 -->
             <div v-if="message.status === 'pending'" class="message-actions">
-                <button data-action="editMessage" :data-message-id="messageId" class="btn btn-sm btn-secondary">
+                <button data-action="editMessage" :data-message-id="message.id" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
                 <button 
                     data-action="approveMessage" 
-                    :data-message-id="computedMessageId" 
+                    :data-message-id="message.id" 
                     :disabled="$parent.isPublishing && $parent.isPublishing(messageId)"
                     :class="['btn', 'btn-sm', 'btn-success', 
                              $parent.isPublishing && $parent.isPublishing(messageId) ? 'disabled' : '']">
                     {{ $parent.isPublishing && $parent.isPublishing(messageId) ? '⏳ 发布中...' : '📤 发布' }}
                 </button>
-                <button data-action="rejectMessage" :data-message-id="computedMessageId" class="btn btn-sm btn-danger">
+                <button data-action="rejectMessage" :data-message-id="message.id" class="btn btn-sm btn-danger">
                     ❌ 拒绝
                 </button>
                 <button :data-action="isMessageAd(message) ? 'markAsNotAd' : 'markAsAd'" 
-                        :data-message-id="computedMessageId" 
+                        :data-message-id="message.id" 
                         class="btn btn-sm btn-warning">
                     {{ isMessageAd(message) ? '✅ 不是广告' : '🚫 广告' }}
                 </button>
-                <button data-action="trainTail" :data-message-id="computedMessageId" class="btn btn-sm btn-info">
+                <button data-action="trainTail" :data-message-id="message.id" class="btn btn-sm btn-info">
                     ✂️ 尾部
                 </button>
                 <button 
                     data-action="filterContent" 
-                    :data-message-id="computedMessageId" 
+                    :data-message-id="message.id" 
                     :disabled="$parent.isFiltering && $parent.isFiltering(messageId)"
                     :class="['btn', 'btn-sm', 'btn-primary', 
                              $parent.isFiltering && $parent.isFiltering(messageId) ? 'disabled' : '']">
@@ -749,20 +734,20 @@ const MessageContentRenderer = {
                 <!-- 广告消息：显示"不是广告"按钮 -->
                 <button v-if="isMessageAd(message)"
                         data-action="markAsNotAd"
-                        :data-message-id="computedMessageId"
+                        :data-message-id="message.id"
                         class="btn btn-sm btn-warning">
                     ❌ 不是广告
                 </button>
                 <!-- 非广告消息：显示"恢复"按钮 -->
                 <button v-else
                         data-action="restoreMessage"
-                        :data-message-id="computedMessageId"
+                        :data-message-id="message.id"
                         class="btn btn-sm btn-warning">
                     🔄 恢复
                 </button>
                 <!-- 删除按钮 -->
                 <button data-action="deleteMessage"
-                        :data-message-id="computedMessageId"
+                        :data-message-id="message.id"
                         class="btn btn-sm btn-danger">
                     🗑️ 删除
                 </button>
@@ -770,7 +755,7 @@ const MessageContentRenderer = {
             
             <!-- 已发送消息的恢复按钮 -->
             <div v-else-if="message.status === 'approved'" class="message-actions">
-                <button data-action="restoreMessage" :data-message-id="computedMessageId" class="btn btn-sm btn-warning">
+                <button data-action="restoreMessage" :data-message-id="message.id" class="btn btn-sm btn-warning">
                     🔄 恢复
                 </button>
             </div>

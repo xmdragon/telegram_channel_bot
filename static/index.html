@@ -177,7 +177,7 @@
         </div>
 
         <!-- 编辑对话框 -->
-        <div v-if="editDialog.visible" class="modal-overlay" @click.self="() => window.DialogStateManager.hide('editDialog')">
+        <div v-if="editDialog.visible" class="modal-overlay" @click.self="() => safeHideDialog('editDialog')">
             <div class="modal">
                 <div class="modal-header">
                     <h3 class="modal-title">编辑消息</h3>
@@ -193,7 +193,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button @click="() => window.DialogStateManager.hide('editDialog')" class="btn btn-secondary">
+                    <button @click="() => safeHideDialog('editDialog')" class="btn btn-secondary">
                         取消
                     </button>
                     <button @click="saveEdit" class="btn btn-primary">
@@ -204,11 +204,11 @@
         </div>
 
         <!-- 原消息详情弹窗 -->
-        <div v-if="originalMessageDialog.visible" class="modal-overlay" @click.self="() => window.DialogStateManager.hide('originalMessageDialog')">
+        <div v-if="originalMessageDialog.visible" class="modal-overlay" @click.self="() => safeHideDialog('originalMessageDialog')">
             <div class="modal">
                 <div class="modal-header">
                     <h3 class="modal-title">原消息详情 #{{ originalMessageDialog.messageId }}</h3>
-                    <button class="close-btn" @click="() => window.DialogStateManager.hide('originalMessageDialog')">×</button>
+                    <button class="close-btn" @click="() => safeHideDialog('originalMessageDialog')">×</button>
                 </div>
                 <div class="modal-body">
                     <div v-if="originalMessageDialog.loading" class="loading">
@@ -308,7 +308,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button @click="() => window.DialogStateManager.hide('originalMessageDialog')" class="btn btn-secondary">
+                    <button @click="() => safeHideDialog('originalMessageDialog')" class="btn btn-secondary">
                         关闭
                     </button>
                 </div>
@@ -318,18 +318,18 @@
         <!-- 媒体预览（如需要） -->
         <div v-if="mediaPreview && mediaPreview.show"
              class="modal-overlay"
-             @click="() => window.DialogStateManager.hide('mediaPreview')">
+             @click="() => safeHideDialog('mediaPreview')">
             <img :src="mediaPreview.url" class="media-preview-image">
         </div>
         
         <!-- 文件详情对话框 -->
         <div v-if="fileDetailsDialog && fileDetailsDialog.visible && fileDetailsDialog.details"
              class="modal-overlay"
-             @click.self="() => window.DialogStateManager.hide('fileDetailsDialog')">
+             @click.self="() => safeHideDialog('fileDetailsDialog')">
             <div class="file-details-modal">
                 <div class="modal-header">
                     <h3 class="modal-title">文件详情</h3>
-                    <button class="close-btn" @click="() => window.DialogStateManager.hide('fileDetailsDialog')">×</button>
+                    <button class="close-btn" @click="() => safeHideDialog('fileDetailsDialog')">×</button>
                 </div>
                 <!-- 临时调试信息 -->
                 <div class="modal-body file-details-body">
@@ -371,7 +371,7 @@
                     </table>
                 </div>
                 <div class="modal-footer">
-                    <button @click="() => window.DialogStateManager.hide('fileDetailsDialog')" class="btn btn-secondary">
+                    <button @click="() => safeHideDialog('fileDetailsDialog')" class="btn btn-secondary">
                         关闭
                     </button>
                     <a v-if="fileDetailsDialog.details.path" :href="fileDetailsDialog.details.path" download class="btn btn-primary">
@@ -400,7 +400,6 @@
         document.write('<script src="assets/js/modules/ui-handlers.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/modules/event-handlers.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/core/state-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
-        document.write('<script src="assets/js/core/request-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/managers/dialog-state-manager.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         // 🚀 Telegram官方媒体布局算法

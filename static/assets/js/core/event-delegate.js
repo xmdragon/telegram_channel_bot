@@ -25,15 +25,6 @@ class EventDelegate {
         const action = target.dataset.action;
         const messageId = target.dataset.messageId;
 
-        // 调试输出
-        if (action === 'editMessage') {
-            console.log('编辑按钮被点击:', {
-                action,
-                messageId,
-                dataset: target.dataset,
-                vmHasMethod: !!this.vm[action]
-            });
-        }
 
         if (action && messageId) {
             // 立即停止事件传播

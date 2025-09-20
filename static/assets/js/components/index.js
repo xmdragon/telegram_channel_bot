@@ -267,7 +267,7 @@ const MainApp = {
             }
             
             // 初始化原消息链接点击事件委托
-            this.initOriginalMessageEventDelegate();
+            this.initMessageActionEventDelegate();
             
             
             // 初始化权限检查
@@ -412,21 +412,27 @@ const MainApp = {
             });
         },
 
-        // 工具函数：确保消息ID包含-100前缀 - 消除特殊情况
-        ensureChannelIdPrefix(messageId) {
-            if (!messageId || !messageId.includes(':')) {
-                return messageId;
+        // 安全的对话框管理方法
+        safeHideDialog(dialogName) {
+            if (window.DialogStateManager && typeof window.DialogStateManager.hide === 'function') {
+                window.DialogStateManager.hide(dialogName);
+            } else {
+                console.warn('DialogStateManager not available, using fallback');
+                // 降级方案：直接修改Vue数据
+                if (dialogName === 'editDialog' && this.editDialog) {
+                    this.editDialog.visible = false;
+                } else if (dialogName === 'originalMessageDialog' && this.originalMessageDialog) {
+                    this.originalMessageDialog.visible = false;
+                } else if (dialogName === 'mediaPreview' && this.mediaPreview) {
+                    this.mediaPreview.show = false;
+                    this.mediaPreview.url = null;
+                } else if (dialogName === 'fileDetailsDialog' && this.fileDetailsDialog) {
+                    this.fileDetailsDialog.visible = false;
+                }
             }
-            
-            // 如果ID已经包含-100前缀，直接返回
-            if (messageId.startsWith('-100')) {
-                return messageId;
-            }
-            
-            // 分解ID并添加-100前缀
-            const [channelPart, messagePart] = messageId.split(':');
-            return `-100${channelPart}:${messagePart}`;
         },
+
+        // 工具函数：确保消息ID包含-100前缀 - 消除特殊情况
         
         // 发布状态检查方法
         isPublishing(messageId) {
@@ -676,44 +682,17 @@ const MainApp = {
             return window.DataUtils ? window.DataUtils.formatTime(timeStr) : timeStr;
         },
         
-        // 显示原消息详情弹窗
-        async showOriginalMessage(messageId) {
-            window.DialogStateManager.show('originalMessageDialog', {
-                messageId: messageId,
-                loading: true,
-                error: null,
-                message: null
-            });
-
-            try {
-                const response = await axios.get(window.API.messages.getById(encodeURIComponent(messageId)));
-                window.DialogStateManager.setState('originalMessageDialog', {
-                    message: response.data,
-                    loading: false
-                });
-            } catch (error) {
-                console.error('获取原消息失败:', error);
-                window.DialogStateManager.setState('originalMessageDialog', {
-                    error: '获取原消息失败: ' + (error.response?.data?.detail || error.message),
-                    loading: false
-                });
-            }
-        },
         
-        // 初始化原消息链接事件委托
-        initOriginalMessageEventDelegate() {
+        // 初始化消息操作事件委托
+        initMessageActionEventDelegate() {
+            // 防止重复绑定 - 确保事件委托只初始化一次
+            if (window._messageActionDelegateInitialized) {
+                return;
+            }
+            window._messageActionDelegateInitialized = true;
+
             // 使用事件委托在document级别监听点击事件
             document.addEventListener('click', (event) => {
-                // 检查是否点击了原消息链接
-                if (event.target.classList.contains('duplicate-message-link')) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    
-                    const messageId = event.target.getAttribute('data-message-id');
-                    if (messageId) {
-                        this.showOriginalMessage(messageId);
-                    }
-                }
                 
                 // 检查是否点击了带有data-action的按钮
                 const action = event.target.getAttribute('data-action');
@@ -723,7 +702,7 @@ const MainApp = {
 
                     const messageId = event.target.getAttribute('data-message-id');
                     if (messageId) {
-                        this.restoreMessage(messageId);
+                        this.restoreMessage(event, messageId);
                     }
                 } else if (action === 'markAsNotAd') {
                     event.preventDefault();
@@ -732,8 +711,7 @@ const MainApp = {
                     const messageId = event.target.getAttribute('data-message-id');
                     if (messageId) {
                         // 找到对应的消息对象
-                        const message = this.messages.find(msg =>
-                            `${msg.source_channel}:${msg.message_id}` === messageId);
+                        const message = this.messages.find(msg => msg.id === messageId);
                         if (message) {
                             this.markAsNotAd(event, message);
                         }
@@ -745,6 +723,54 @@ const MainApp = {
                     const messageId = event.target.getAttribute('data-message-id');
                     if (messageId) {
                         this.deleteSingleMessage(messageId);
+                    }
+                } else if (action === 'editMessage') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.editMessage(messageId);
+                    }
+                } else if (action === 'approveMessage') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.approveMessage(event, messageId);
+                    }
+                } else if (action === 'rejectMessage') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.rejectMessage(event, messageId);
+                    }
+                } else if (action === 'markAsAd') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.markAsAd(event, messageId);
+                    }
+                } else if (action === 'trainTail') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.trainTail(event, messageId);
+                    }
+                } else if (action === 'filterContent') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.filterContent(event, messageId);
                     }
                 }
             });
@@ -840,7 +866,7 @@ const MainApp = {
                 const wasLoadingMore = this.isLoadingMore;
                 this.isLoadingMore = true;
                 
-                const response = await axios.post(window.API.messages.publishDirect(messageId));
+                const response = await axios.post(window.API.messages.approveById(messageId));
                 if (response.data.success) {
                     window.SimpleUI.Message.success('消息已发布');
                     
@@ -1060,9 +1086,7 @@ const MainApp = {
                     window.SimpleUI.Message.success('消息已删除');
 
                     // 从列表中移除该消息
-                    const index = this.messages.findIndex(m =>
-                        `${m.source_channel}:${m.message_id}` === messageId
-                    );
+                    const index = this.messages.findIndex(m => m.id === messageId);
                     if (index !== -1) {
                         this.messages.splice(index, 1);
                     }
@@ -1086,6 +1110,11 @@ const MainApp = {
                 // 确保恢复滚动加载状态
                 this.isLoadingMore = false;
             }
+        },
+
+        // 删除消息方法（事件委托调用）
+        deleteMessage(messageId) {
+            this.deleteSingleMessage(messageId);
         },
 
         // 搜索消息
@@ -1672,20 +1701,7 @@ const MainApp = {
         
         // 编辑消息
         editMessage(messageId) {
-
-            const message = this.messages.find(msg => {
-                // 规范化消息ID以确保匹配
-                let msgId = msg.id;
-                if (!msgId && msg.source_channel && msg.message_id) {
-                    // 如果频道ID不包含-100前缀且是纯数字，添加前缀
-                    let normalizedChannelId = msg.source_channel;
-                    if (!msg.source_channel.startsWith('-100') && /^\d+$/.test(msg.source_channel)) {
-                        normalizedChannelId = `-100${msg.source_channel}`;
-                    }
-                    msgId = `${normalizedChannelId}:${msg.message_id}`;
-                }
-                return msgId === messageId;
-            });
+            const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
                 window.SimpleUI.Message.error(`未找到消息: ${messageId}`);
                 return;
@@ -1725,7 +1741,7 @@ const MainApp = {
             
             try {
                 // axios拦截器会自动添加认证头，无需手动设置
-                const response = await axios.post(window.API.messages.editPublish(this.ensureChannelIdPrefix(editState.messageId)), {
+                const response = await axios.put(window.API.messages.updateById(editState.messageId), {
                     filtered_content: editState.filteredContent
                 });
 
@@ -2013,6 +2029,7 @@ const MainApp = {
                 messageId = event;
                 event = null;
             }
+
             // 直接使用messageId查找消息（已包含-100前缀）
             const message = this.messages.find(msg => msg.id === messageId);
             if (!message) {
@@ -2220,7 +2237,7 @@ const MainApp = {
                 // 发送请求
                 window.SimpleUI.Loading.show('正在保存...');
                 const response = await axios.post(
-                    window.API.messages.markAsAd(this.ensureChannelIdPrefix(messageId)),
+                    window.API.messages.markAsAd(messageId),
                     { keywords }
                 );
                 window.SimpleUI.Loading.hide();
@@ -2281,7 +2298,7 @@ const MainApp = {
                     return;
                 }
                 
-                const response = await axios.post(window.API.messages.notAd(this.ensureChannelIdPrefix(message.id)));
+                const response = await axios.post(window.API.messages.notAd(message.id));
                 
                 if (response.data.success) {
                     window.SimpleUI.Message.success('已标记为"不是广告"，消息状态已改为待审核');
@@ -2304,6 +2321,7 @@ const MainApp = {
                 messageId = event;
                 event = null;
             }
+
             // 直接使用messageId查找消息（已包含-100前缀）
             const message = this.messages.find(msg => msg.id === messageId);
 
@@ -2311,11 +2329,10 @@ const MainApp = {
                 window.SimpleUI.Message.error('未找到消息');
                 return;
             }
-            const processedId = this.ensureChannelIdPrefix(message.id);
-            
+
             // 只传递message_id，让训练页面自己获取消息详情
             const params = new URLSearchParams({
-                message_id: processedId
+                message_id: message.id
             });
             // 使用新的独立尾部过滤训练页面
             window.location.href = API.pages.tailFilterTraining + '?' + params.toString();
@@ -2345,7 +2362,7 @@ const MainApp = {
             try {
                 // 🚀 依赖axios拦截器自动处理认证（消除特殊情况）
                 const response = await axios.post(
-                    window.API.messages.filterContent(this.ensureChannelIdPrefix(message.id)),
+                    window.API.messages.filterContent(message.id),
                     {} // 让拦截器自动添加认证头，避免手动覆盖
                 );
                 

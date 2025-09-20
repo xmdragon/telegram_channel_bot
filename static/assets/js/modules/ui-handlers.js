@@ -131,20 +131,6 @@ const UIHandlers = {
         }
     },
 
-    // 下载文件
-    downloadFile(url, filename) {
-        try {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename || 'download';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } catch (error) {
-            console.error('下载失败:', error);
-            this.showError('下载失败');
-        }
-    },
 
     // 滚动到顶部
     scrollToTop(smooth = true) {
@@ -162,127 +148,12 @@ const UIHandlers = {
         });
     },
 
-    // 检查元素是否在视口中
-    isElementInViewport(element) {
-        const rect = element.getBoundingClientRect();
-        return (
-            rect.top >= 0 &&
-            rect.left >= 0 &&
-            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-        );
-    },
 
-    // 平滑滚动到元素
-    scrollToElement(element, offset = 0) {
-        if (!element) return;
-        
-        const elementPosition = element.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - offset;
 
-        window.scrollTo({
-            top: offsetPosition,
-            behavior: 'smooth'
-        });
-    },
 
-    // 设置页面标题
-    setPageTitle(title) {
-        document.title = title;
-    },
 
-    // 更新浏览器历史
-    updateUrl(path, title = null) {
-        if (title) {
-            this.setPageTitle(title);
-        }
-        window.history.pushState(null, title, path);
-    },
 
-    // 防抖处理的搜索输入
-    createDebouncedSearch(callback, delay = 300) {
-        let timeoutId;
-        return function(searchTerm) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                callback(searchTerm);
-            }, delay);
-        };
-    },
 
-    // 处理表单验证错误
-    handleValidationErrors(errors) {
-        if (Array.isArray(errors)) {
-            errors.forEach(error => this.showError(error));
-        } else if (typeof errors === 'object') {
-            Object.values(errors).forEach(error => {
-                if (Array.isArray(error)) {
-                    error.forEach(msg => this.showError(msg));
-                } else {
-                    this.showError(error);
-                }
-            });
-        } else {
-            this.showError(errors || '表单验证失败');
-        }
-    },
-
-    // 格式化数字显示
-    formatNumber(number) {
-        if (number >= 1000000) {
-            return (number / 1000000).toFixed(1) + 'M';
-        } else if (number >= 1000) {
-            return (number / 1000).toFixed(1) + 'K';
-        }
-        return number.toString();
-    },
-
-    // 创建加载指示器
-    createLoadingIndicator(container, text = '加载中...') {
-        const loading = document.createElement('div');
-        loading.className = 'loading-indicator';
-        loading.innerHTML = `
-            <div class="spinner"></div>
-            <span>${text}</span>
-        `;
-        loading.style.cssText = `
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            color: #666;
-        `;
-        
-        if (container) {
-            container.appendChild(loading);
-        }
-        
-        return loading;
-    },
-
-    // 移除加载指示器
-    removeLoadingIndicator(container) {
-        if (!container) return;
-        const loading = container.querySelector('.loading-indicator');
-        if (loading) {
-            container.removeChild(loading);
-        }
-    },
-
-    // 滚动工具函数
-    scrollToTop(smooth = true) {
-        window.scrollTo({
-            top: 0,
-            behavior: smooth ? 'smooth' : 'auto'
-        });
-    },
-
-    scrollToBottom(smooth = true) {
-        window.scrollTo({
-            top: document.body.scrollHeight,
-            behavior: smooth ? 'smooth' : 'auto'
-        });
-    },
 
     // 获取滚动信息
     getScrollInfo() {
@@ -344,36 +215,6 @@ const UIHandlers = {
         return 'unknown';
     },
 
-    // 创建滚动处理器
-    createScrollHandler(onScroll, options = {}) {
-        const {
-            threshold = 100,
-            throttleMs = 200,
-            minInterval = 2000
-        } = options;
-        
-        let lastLoadTime = 0;
-        let isThrottling = false;
-        
-        return () => {
-            // 节流处理
-            if (isThrottling) return;
-            isThrottling = true;
-            setTimeout(() => isThrottling = false, throttleMs);
-            
-            // 检查最小间隔
-            const now = Date.now();
-            if (now - lastLoadTime < minInterval) {
-                return;
-            }
-            
-            // 检查是否接近底部
-            if (this.isNearBottom(threshold)) {
-                lastLoadTime = now;
-                onScroll();
-            }
-        };
-    }
 };
 
 // 导出模块

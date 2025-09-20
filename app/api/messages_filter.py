@@ -288,7 +288,7 @@ async def mark_not_ad(
         
         return {
             "success": True,
-            "message": "消息已标记为非广告，关键词已降权",
+            "message": "消息已标记为非广告，相关关键词权重已降低",
             "data": {
                 "matched_keywords": matched_keywords,
                 "feedback_processed": len(matched_keywords) > 0
@@ -387,11 +387,15 @@ async def mark_as_ad(
         else:
             logger.info("无新关键词需要添加")
         
-        # 更新消息状态为拒绝
-        success = await message_processor.update_message_status(
-            channel_id, int(msg_id), 'rejected', user.get('username')
-        )
-        
+        # 更新消息状态和广告标记
+        update_data = {
+            'is_ad': 'True',     # 🎯 关键：设置广告标记
+            'status': 'rejected',
+            'reviewed_by': user.get('username'),
+            'updated_at': get_current_time().isoformat()
+        }
+        success = redis_manager.update_message(channel_id, int(msg_id), update_data)
+
         if not success:
             raise HTTPException(status_code=500, detail="更新消息状态失败")
         

@@ -1161,30 +1161,6 @@ h4 { font-size: 1.125rem; }
     }
 }
 
-/* ===========================
-   Original Message Link Styles
-   =========================== */
-
-/* 重复消息链接样式 */
-.duplicate-message-link {
-    color: var(--primary-color);
-    cursor: pointer;
-    text-decoration: underline;
-    font-weight: 500;
-    transition: var(--transition);
-    padding: 2px 4px;
-    border-radius: 4px;
-}
-
-.duplicate-message-link:hover {
-    color: var(--primary-hover);
-    background-color: var(--primary-light);
-    text-decoration: none;
-}
-
-.duplicate-message-link:active {
-    transform: translateY(1px);
-}
 
 /* 原消息详情弹窗样式 */
 .original-message-content {
@@ -1312,27 +1288,6 @@ h4 { font-size: 1.125rem; }
     border-radius: 2px 0 0 2px;
 }
 
-/* 重复消息标签内的链接样式 */
-.duplicate-tag .duplicate-message-link {
-    color: var(--primary-color) !important;
-    font-weight: 700;
-    text-decoration: none;
-    padding: 2px 4px;
-    border-radius: 3px;
-    margin: 0 2px;
-    transition: var(--transition);
-    display: inline-block;
-}
-
-.duplicate-tag .duplicate-message-link:hover {
-    background-color: rgba(91, 99, 211, 0.1);
-    text-decoration: underline;
-    transform: translateY(-1px);
-}
-
-.duplicate-tag .duplicate-message-link:active {
-    transform: translateY(0);
-}
 
 /* 确保重复标签在标签列表中突出显示 */
 .message-tags .duplicate-tag {

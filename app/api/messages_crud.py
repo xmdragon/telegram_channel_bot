@@ -123,7 +123,11 @@ async def get_messages(
         for message in filtered_messages:
             # 为前端添加统一的id字段（用于API调用）
             if 'source_channel' in message and 'message_id' in message:
-                message['id'] = f"{message['source_channel']}:{message['message_id']}"
+                source_channel = message['source_channel']
+                # 确保source_channel包含-100前缀
+                if not source_channel.startswith('-100') and source_channel.isdigit():
+                    source_channel = f"-100{source_channel}"
+                message['id'] = f"{source_channel}:{message['message_id']}"
             
             # 确保消息有链接前缀
             if not message.get('source_channel_link_prefix') and message.get('source_channel'):
