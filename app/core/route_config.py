@@ -76,6 +76,7 @@ class RouteConfig:
         verify_password = "/verify-password"
         session_status = "/session-status/{session_type}"
         clear_session = "/clear-session"
+    
     class System:
         """系统相关路由"""
         # 健康检查（保留实际使用的端点）
@@ -123,13 +124,13 @@ class RouteConfig:
         ad_vector_test_detection = "/training/ad-vectors/test-detection"
         ad_vector_add_from_text = "/training/ad-vectors/add-from-text"
         ad_vector_stats = "/training/ad-vector-stats"
-        
+
         # 基础训练（保留实际使用的端点）
         separator_patterns = "/training/separator-patterns"
         test_separator = "/training/test-separator"
-        
-        
-        
+
+
+
         # 尾部过滤器
         tail_filter_statistics = "/training/tail-filter-statistics"
         tail_filter_history = "/training/tail-filter-history"
@@ -137,20 +138,29 @@ class RouteConfig:
         tail_filter_samples_by_id = "/training/tail-filter-samples/{sample_id}"
         tail_filter_detect_duplicates = "/training/tail-filter-samples/detect-duplicates"
         tail_filter_deduplicate = "/training/tail-filter-samples/deduplicate"
-        
-        
+
+
         # 媒体文件（保留实际使用的端点）
         media_files = "/training/media-files"
         media_files_by_hash = "/training/media-files/{file_hash}"
         media_files_clean_orphaned = "/training/media-files/clean-orphaned"
         media_files_export = "/training/media-files/export"
-        
-        
+
+
         # 关键词管理
         ad_keywords = "/training/ad-keywords"
         ad_keywords_by_keyword = "/training/ad-keywords/{keyword}"
         ad_keywords_threshold = "/training/ad-keywords/threshold"
         ad_keywords_stats = "/training/ad-keywords/stats"
+
+    class WebRoutes:
+        """Web页面重定向路由"""
+        root = "/"
+        admin = "/admin"
+        config = "/config"
+        auth = "/auth"
+        status = "/status"
+        train = "/train"
     
     def __init__(self):
         self.messages = self.Messages()
@@ -161,6 +171,7 @@ class RouteConfig:
         self.channels = self.Channels()
         self.telegram_tools = self.TelegramTools()
         self.training = self.Training()
+        self.web = self.WebRoutes()
 
 # 全局路由配置实例
 ROUTES = RouteConfig()

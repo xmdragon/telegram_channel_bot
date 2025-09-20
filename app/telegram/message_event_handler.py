@@ -24,9 +24,7 @@ class MessageEventHandler:
         
         # 获取需要监听的频道ID列表
         source_channels = await db_settings.get_source_channels()
-        from app.services.channel_cache import channel_cache
-        review_group_id = await channel_cache.get_review_group_id()
-        
+
         # 构建监听列表（转换为整数格式）
         chats_to_monitor = []
         for channel_data in source_channels:
@@ -45,13 +43,6 @@ class MessageEventHandler:
                     chats_to_monitor.append(int(channel_data))
             except (ValueError, TypeError):
                 logger.warning(f"无法转换频道ID，跳过异常数据: {channel_data}")
-        
-        # 添加审核群
-        if review_group_id:
-            try:
-                chats_to_monitor.append(int(review_group_id))
-            except (ValueError, TypeError):
-                logger.warning(f"无法转换审核群ID: {review_group_id}")
         
         logger.info(f"将监听以下频道/群组: {chats_to_monitor}")
         
@@ -149,17 +140,11 @@ class MessageEventHandler:
         """判断消息来源类型"""
         # 获取配置
         source_channels = await db_settings.get_source_channels()
-        from app.services.channel_cache import channel_cache
-        review_group_id = await channel_cache.get_review_group_id()
-        
+
         # 检查是否来自源频道
         if chat_id in source_channels:
             return "source_channel"
-        
-        # 检查是否来自审核群
-        elif review_group_id and chat_id == review_group_id:
-            return "review_group"
-        
+
         # 其他类型
         else:
             return "other"

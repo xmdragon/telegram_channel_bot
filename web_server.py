@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.media_paths import media_paths
 from app.core.path_config import PathConfig
+from app.core.route_config import ROUTES
 from app.api import api_router
 from dotenv import load_dotenv
 
@@ -262,37 +263,37 @@ else:
     logger.info("🚀 生产模式：静态与媒体由外部服务器提供（SERVE_STATIC_FALLBACK=false）")
 
 # 添加根路径重定向
-@app.get("/")
+@app.get(ROUTES.web.root)
 async def root():
     """根路径重定向到主界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=media_paths.INDEX_PAGE)
 
-@app.get("/admin")
+@app.get(ROUTES.web.admin)
 async def admin():
     """管理界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=media_paths.ADMIN_PAGE)
 
-@app.get("/config")
+@app.get(ROUTES.web.config)
 async def config():
     """配置管理界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=media_paths.CONFIG_PAGE)
 
-@app.get("/auth")
+@app.get(ROUTES.web.auth)
 async def auth():
     """Telegram 登录界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=media_paths.AUTH_PAGE)
 
-@app.get("/status")
+@app.get(ROUTES.web.status)
 async def status():
     """系统状态检查界面"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=media_paths.STATUS_PAGE)
 
-@app.get("/train")
+@app.get(ROUTES.web.train)
 async def train():
     """规则管理界面"""
     from fastapi.responses import RedirectResponse
