@@ -164,67 +164,6 @@
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* 输入框样式 - 与整站保持一致 */
-.el-input {
-    width: 100% !important;
-}
-
-.el-input .el-input__wrapper {
-    background: var(--bg-primary) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: var(--border-radius-sm) !important;
-    min-height: 48px !important;
-    padding: 12px 16px !important;
-    box-shadow: none !important;
-    transition: var(--transition) !important;
-}
-
-.el-input .el-input__wrapper:hover {
-    border-color: var(--primary-color) !important;
-    box-shadow: var(--shadow-sm) !important;
-}
-
-.el-input .el-input__wrapper.is-focus {
-    border-color: var(--primary-color) !important;
-    box-shadow: 0 0 0 3px rgba(91, 99, 211, 0.1) !important;
-}
-
-.el-input .el-input__inner,
-.el-input input {
-    color: var(--text-primary) !important;
-    background: transparent !important;
-    border: none !important;
-    font-family: inherit !important;
-    font-weight: 500 !important;
-    font-size: 16px !important;
-    height: auto !important;
-    line-height: 1.5 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.el-input .el-input__inner::placeholder,
-.el-input input::placeholder {
-    color: var(--text-tertiary) !important;
-    opacity: 0.8 !important;
-}
-
-.el-input .el-input__inner:focus,
-.el-input input:focus {
-    color: var(--text-primary) !important;
-    background: transparent !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-/* 密码输入框特殊处理 */
-.el-input input[type="password"] {
-    color: var(--text-primary) !important;
-    background: transparent !important;
-    font-family: inherit !important;
-}
 
 /* 调试信息 */
 .debug-info {
@@ -322,16 +261,4 @@
     word-break: break-all;
 }
 
-/* 确认对话框样式 */
-.starcraft-confirm .el-message-box {
-    background: rgba(26, 26, 46, 0.95) !important;
-    border: 2px solid #00ff41 !important;
-}
-
-.starcraft-confirm .el-message-box__title {
-    color: #00ff41 !important;
-}
-
-.starcraft-confirm .el-message-box__content {
-    color: #7fdbff !important;
-} 
+ 

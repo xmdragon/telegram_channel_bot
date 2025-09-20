@@ -41,13 +41,6 @@
     display: inline-block;
 }
 
-.stats-bar .el-divider--vertical {
-    height: 30px;
-    margin: 0 10px;
-    background-color: rgba(255, 255, 255, 0.3);
-    display: inline-block;
-    vertical-align: middle;
-}
 
 .toolbar-card {
     margin-bottom: 10px;
@@ -196,10 +189,6 @@
         width: 100%;
     }
     
-    .button-bar .el-button {
-        width: 100%;
-        margin: 0 !important;
-    }
     
     /* 兼容旧的类名 */
     .toolbar {
@@ -218,9 +207,6 @@
         width: 100%;
     }
     
-    .btn-group .el-button {
-        width: 100%;
-    }
 }
 
 /* =========================== 新增样式：原生HTML组件支持 =========================== */

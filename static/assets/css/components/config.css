@@ -475,62 +475,6 @@
 
 /* 表单提示样式 - 已移至文件末尾统一管理 */
 
-/* 配置表单输入框宽度限制 */
-.config-section .el-form-item .el-input {
-    max-width: 400px;
-}
-
-.config-section .el-form-item .el-input-number {
-    max-width: 200px;
-}
-
-/* 表单行对齐样式 */
-.form-item-flex {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.form-item-flex .el-input {
-    flex: 1;
-    max-width: 400px;
-}
-
-.form-item-flex .el-button {
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-/* ID显示行样式 */
-.channel-id-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.channel-id-row .el-input {
-    flex: 1;
-}
-
-.channel-id-row .el-button {
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-/* 修复转发设置标签垂直居中对齐 */
-.config-section .el-form-item__label {
-    display: flex;
-    align-items: center;
-    min-height: 48px;
-    line-height: 1.2;
-}
-
-/* 确保开关控件与标签对齐 */
-.config-section .el-form-item .el-switch {
-    margin-top: 0;
-    margin-bottom: 0;
-}
 
 /* 表单提示样式 - 优化为行内显示 */
 .form-hint {

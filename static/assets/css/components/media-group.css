@@ -235,18 +235,4 @@
 }
 
 /* 图片预览弹窗样式 */
-.el-dialog__body.media-preview-body {
-    padding: 0;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    max-height: 90vh;
-    overflow-y: auto;
-}
 
-.el-dialog__body.media-preview-body img {
-    max-width: 100%;
-    height: auto;
-    display: block;
-}

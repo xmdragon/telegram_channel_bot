@@ -133,11 +133,6 @@
     border: 1px dashed #cbd5e0;
 }
 
-.quick-select-area .el-button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
 
 /* 批量操作区 */
 .batch-operations {
@@ -379,9 +374,6 @@
         align-items: stretch;
     }
     
-    .quick-select-area .el-button-group {
-        justify-content: center;
-    }
     
     .batch-delete-modal .modal-content {
         width: 95%;
