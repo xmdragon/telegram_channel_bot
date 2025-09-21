@@ -937,16 +937,17 @@ async def publish_single_message(
             from app.services.config_manager import config_manager
             max_message_length = await config_manager.get_config('telegram.max_message_length', 1024)
 
-            # 获取频道落款
-            from app.telegram.message_forwarder import MessageForwarder
-            forwarder = MessageForwarder()
-            content_with_footer = await forwarder._add_channel_footer(content)
+            # 计算落款长度（不实际添加footer，避免重复日志）
+            footer_config = await config_manager.get_config("target.signature", "")
+            footer_length = 0
+            if footer_config:
+                # 计算落款长度：\n\n + 处理换行符后的落款
+                footer_text = "\n\n" + footer_config.replace("\\n", "\n")
+                footer_length = len(footer_text)
 
             # 检查加上落款后的总长度
-            final_length = len(content_with_footer)
+            final_length = len(content) + footer_length
             if final_length > max_message_length:
-                # 计算原文长度和落款长度
-                footer_length = len(content_with_footer) - len(content)
                 max_content_length = max_message_length - footer_length
 
                 error_msg = f"超过{max_message_length}字符限制（内容{len(content)}字+落款{footer_length}字={final_length}字）"
