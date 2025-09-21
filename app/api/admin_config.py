@@ -2,7 +2,8 @@
 管理员配置管理API
 包括：配置更新、转发配置、审核群解析
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 import logging
@@ -10,9 +11,41 @@ import logging
 from app.core.route_config import ROUTES
 from app.services.config_manager import config_manager
 from app.core.telegram_config import TelegramConfig
+from app.services.auth_service import get_auth_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+security = HTTPBearer(auto_error=False)
+
+# 认证中间件
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> Optional[Dict[str, Any]]:
+    """获取当前用户"""
+    if not credentials:
+        return None
+
+    try:
+        auth_service = get_auth_service()
+        return await auth_service.get_current_user(credentials.credentials)
+    except Exception as e:
+        logger.error(f"获取当前用户失败: {e}")
+        return None
+
+async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user)) -> Dict[str, Any]:
+    """要求用户认证"""
+    if not user:
+        raise HTTPException(status_code=401, detail="未授权访问")
+    return user
+
+def mask_session_string(session_value: str) -> str:
+    """脱敏Session字符串，保护敏感信息"""
+    if not session_value or session_value.strip() == "":
+        return "未配置"
+    # 只显示前4位和后4位，中间用*代替
+    if len(session_value) <= 8:
+        return "****已配置"
+    return f"{session_value[:4]}****{session_value[-4:]}"
 
 async def resolve_telegram_entity(entity_link: str, entity_type: str = "entity") -> Tuple[Optional[str], str]:
     """
@@ -46,9 +79,9 @@ async def resolve_telegram_entity(entity_link: str, entity_type: str = "entity")
 # 已删除未使用的_trigger_history_collection函数
 # 历史消息采集已由message_collector.py统一处理
 
-# === 配置读取方法 === 
+# === 配置读取方法 ===
 @router.get(ROUTES.admin.config)
-async def get_system_config():
+async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
     """获取系统配置 - 字段名与前端完全一致"""
     from app.core.config import db_settings
     
@@ -79,9 +112,9 @@ async def get_system_config():
         "filter.markdown": await config_manager.get_config('filter.markdown', True),
         "filter.promo_vector": await config_manager.get_config('filter.promo_vector', True),
 
-        # Telegram Session配置
-        TelegramConfig.LISTENER_SESSION: await config_manager.get_config(TelegramConfig.LISTENER_SESSION, ''),
-        TelegramConfig.SENDER_SESSION: await config_manager.get_config(TelegramConfig.SENDER_SESSION, '')
+        # Telegram Session配置（脱敏显示）
+        TelegramConfig.LISTENER_SESSION: mask_session_string(await config_manager.get_config(TelegramConfig.LISTENER_SESSION, '')),
+        TelegramConfig.SENDER_SESSION: mask_session_string(await config_manager.get_config(TelegramConfig.SENDER_SESSION, ''))
     }
 
 # === 配置更新方法 ===
@@ -92,7 +125,7 @@ class ConfigUpdateRequest(BaseModel):
     config_type: str = "string"
 
 @router.post(ROUTES.admin.config)
-async def update_config(request: ConfigUpdateRequest):
+async def update_config(request: ConfigUpdateRequest, user: Dict[str, Any] = Depends(require_auth)):
     """更新单个配置项"""
     try:
         success = await config_manager.set_config(
@@ -110,7 +143,7 @@ async def update_config(request: ConfigUpdateRequest):
         raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
 
 @router.post(ROUTES.admin.config_batch)
-async def update_config_batch(configs: Dict[str, Any]):
+async def update_config_batch(configs: Dict[str, Any], user: Dict[str, Any] = Depends(require_auth)):
     """批量更新配置项"""
     try:
         success_count = 0
@@ -185,7 +218,7 @@ class ForwardingConfigRequest(BaseModel):
     require_approval: bool = True
 
 @router.post(ROUTES.admin.config_forwarding)
-async def update_forwarding_config(request: ForwardingConfigRequest):
+async def update_forwarding_config(request: ForwardingConfigRequest, user: Dict[str, Any] = Depends(require_auth)):
     """更新转发配置"""
     try:
         # 保存配置（使用新的target.*命名）
