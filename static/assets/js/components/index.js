@@ -2065,7 +2065,7 @@ const MainApp = {
                                        style="flex:1;padding:8px;border:1px solid #dcdfe6;border-radius:4px">
                                 <input type="number"
                                        id="new-keyword-weight"
-                                       value="1.0"
+                                       value="3.0"
                                        min="1.0"
                                        max="10.0"
                                        step="0.1"
@@ -2180,7 +2180,7 @@ const MainApp = {
                        style="flex:1;margin-right:10px;padding:6px;border:1px solid #dcdfe6;border-radius:4px;background:white">
                 <input type="number" 
                        class="keyword-weight" 
-                       value="${parseFloat(weight) || 1.0}"
+                       value="${parseFloat(weight) || 3.0}"
                        min="1.0"
                        max="10.0"
                        step="0.1"
@@ -2194,7 +2194,7 @@ const MainApp = {
             
             // 清空输入
             input.value = '';
-            document.getElementById('new-keyword-weight').value = '1.0';
+            document.getElementById('new-keyword-weight').value = '3.0';
             window.SimpleUI.Message.success('已添加关键词');
         },
         

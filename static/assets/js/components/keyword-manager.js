@@ -78,7 +78,7 @@ const KeywordManager = {
             keywords: [],
             threshold: 3,
             newKeyword: '',
-            newWeight: 1.0,
+            newWeight: 3.0,
             loading: false
         };
     },
@@ -147,7 +147,7 @@ const KeywordManager = {
                         weight: parseFloat(this.newWeight)
                     });
                     this.newKeyword = '';
-                    this.newWeight = 1.0;
+                    this.newWeight = 3.0;
                     window.SimpleUI.Message.success('关键词已添加');
                 }
             } catch (error) {

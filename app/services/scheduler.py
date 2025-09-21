@@ -39,14 +39,14 @@ class MessageScheduler:
             id='cleanup_logs'
         )
 
-        # 新增：自动转发任务 - 每30秒执行一次
+        # 自动转发任务 - 改为持续运行模式
+        from datetime import datetime
         self.scheduler.add_job(
-            auto_forwarder.check_and_forward,
-            'interval',
-            seconds=30,
-            id='auto_forward',
-            max_instances=1,  # 防止任务重叠
-            misfire_grace_time=10  # 错过执行时间10秒内仍会执行
+            auto_forwarder.run_continuous,
+            'date',  # 只运行一次，内部会持续循环
+            run_date=datetime.now(),
+            id='auto_forward_continuous',
+            max_instances=1  # 确保只有一个实例
         )
 
         # 新增：频道信息同步任务 - 每小时执行一次

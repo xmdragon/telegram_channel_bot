@@ -4,6 +4,7 @@ Telegram消息转发器
 """
 import logging
 import os
+import asyncio
 from typing import Optional, Union, Dict, Any
 from datetime import datetime
 from telethon import TelegramClient
@@ -118,10 +119,14 @@ class MessageForwarder:
                 text_content = filtered_content or content
                 
                 content_with_footer = await self._add_channel_footer(text_content)
-                sent_message = await client.send_message(
-                    entity=int(target_channel_id),
-                    message=content_with_footer,
-                    formatting_entities=clean_entities  # 传递空实体列表，移除隐藏链接
+                # 添加超时保护：文本消息30秒
+                sent_message = await asyncio.wait_for(
+                    client.send_message(
+                        entity=int(target_channel_id),
+                        message=content_with_footer,
+                        formatting_entities=clean_entities  # 传递空实体列表，移除隐藏链接
+                    ),
+                    timeout=30
                 )
             
             # 更新数据库（如果是字典类型，需要更新Redis存储）
@@ -271,23 +276,37 @@ class MessageForwarder:
             
             if not media_files:
                 logger.warning("组合消息中没有可用的媒体文件，发送纯文本")
-                return await client.send_message(
-                    entity=int(target_channel_id),
-                    message=caption_text
+                # 添加超时保护：文本消息30秒
+                return await asyncio.wait_for(
+                    client.send_message(
+                        entity=int(target_channel_id),
+                        message=caption_text
+                    ),
+                    timeout=30
                 )
             
             # 发送媒体组
             if len(media_files) == 1:
-                return await client.send_file(
-                    entity=int(target_channel_id),
-                    file=media_files[0],
-                    caption=caption_text
+                # 根据文件类型设置超时时间
+                timeout = self._get_file_timeout(media_files[0])
+                return await asyncio.wait_for(
+                    client.send_file(
+                        entity=int(target_channel_id),
+                        file=media_files[0],
+                        caption=caption_text
+                    ),
+                    timeout=timeout
                 )
             else:
-                return await client.send_file(
-                    entity=int(target_channel_id),
-                    file=media_files,
-                    caption=caption_text
+                # 多个文件，使用最长的超时时间
+                timeout = max(self._get_file_timeout(f) for f in media_files)
+                return await asyncio.wait_for(
+                    client.send_file(
+                        entity=int(target_channel_id),
+                        file=media_files,
+                        caption=caption_text
+                    ),
+                    timeout=timeout
                 )
                 
         except Exception as e:
@@ -310,15 +329,51 @@ class MessageForwarder:
                 raise ValueError(error_msg)
             
             caption_with_footer = await self._add_channel_footer(caption_text)
-            return await client.send_file(
-                entity=int(target_channel_id),
-                file=message.media_url,
-                caption=caption_with_footer
+            # 根据文件类型设置超时时间
+            timeout = self._get_file_timeout(message.media_url)
+            return await asyncio.wait_for(
+                client.send_file(
+                    entity=int(target_channel_id),
+                    file=message.media_url,
+                    caption=caption_with_footer
+                ),
+                timeout=timeout
             )
         except Exception as e:
             logger.error(f"发送媒体消息失败: {e}")
             # 不降级，直接抛出异常让上层处理
             raise
+
+    def _get_file_timeout(self, file_path: str) -> int:
+        """
+        根据文件类型返回合适的超时时间
+
+        Args:
+            file_path: 文件路径
+
+        Returns:
+            超时时间（秒）
+        """
+        if not file_path:
+            return 30  # 默认30秒
+
+        file_path_lower = file_path.lower()
+
+        # 视频文件：180秒
+        if any(file_path_lower.endswith(ext) for ext in ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv']):
+            return 180
+        # 图片文件：60秒
+        elif any(file_path_lower.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']):
+            return 60
+        # 音频文件：90秒
+        elif any(file_path_lower.endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.m4a', '.flac']):
+            return 90
+        # 文档文件：60秒
+        elif any(file_path_lower.endswith(ext) for ext in ['.pdf', '.doc', '.docx', '.txt', '.zip', '.rar']):
+            return 60
+        # 其他文件：90秒
+        else:
+            return 90
 
     async def forward_to_target_with_sender_session(self, message):
         """使用发送Session转发到目标频道（无锁设计），返回目标消息链接"""
