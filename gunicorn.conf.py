@@ -18,14 +18,14 @@ workers = int(os.getenv("WORKERS", "1"))  # 默认1个worker而非CPU核心数
 worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 500  # 减少连接数，节省内存
 
-# 超时配置 - 保守但实用的值
-timeout = 300           # 请求处理超时（5分钟，应对大量消息处理）
+# 超时配置 - 针对空闲超时优化
+timeout = 1800          # 请求处理超时（30分钟，避免空闲worker被杀）
 graceful_timeout = 30   # 优雅关闭超时
 keepalive = 5          # HTTP keep-alive
 
-# 进程重启策略
-max_requests = 1000         # 处理1000个请求后重启worker，防止内存泄露
-max_requests_jitter = 50    # 随机化重启时间，避免同时重启
+# 进程重启策略 - 禁用自动重启
+max_requests = 0            # 禁用请求计数重启，让worker稳定运行
+max_requests_jitter = 0     # 禁用随机重启
 
 # 预处理和热重载
 preload_app = True      # 预加载应用，节省内存

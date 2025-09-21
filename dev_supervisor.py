@@ -44,7 +44,7 @@ class ServiceConfig:
     command: List[str]
     description: str
     enabled: bool = True
-    auto_restart: bool = True
+    auto_restart: bool = False
     restart_delay: int = 5  # 重启延迟秒数
     max_restarts: int = 3  # 最大重启次数
     restart_window: int = 300  # 重启次数统计窗口（秒）
@@ -286,7 +286,7 @@ class DevSupervisor:
                     "--bind", "0.0.0.0:8008",
                     "--workers", "2", 
                     "--worker-class", "uvicorn.workers.UvicornWorker",
-                    "--timeout", "300",  # 减少超时时间到5分钟
+                    "--timeout", "1800",  # 30分钟超时，避免空闲worker被杀
                     "--graceful-timeout", "30",
                     "--worker-connections", "500",  # 与gunicorn.conf.py保持一致
                     "--preload",

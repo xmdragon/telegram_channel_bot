@@ -18,9 +18,9 @@ ExecStartPre=/bin/bash -c 'mkdir -p logs data temp_media logs/pids'
 ExecStart=/opt/telegram-channel-bot/start.sh --daemon --skip-deps --check-infra
 ExecStop=/opt/telegram-channel-bot/stop.sh --quiet
 ExecReload=/bin/kill -HUP $MAINPID
-Restart=always
-RestartSec=10
-StartLimitInterval=300
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60
 StartLimitBurst=3
 
 # 安全设置

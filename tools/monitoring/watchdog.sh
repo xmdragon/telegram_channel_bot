@@ -268,15 +268,13 @@ main_loop() {
 
         # 健康检查
         if ! health_check; then
-            log "健康检查失败，准备重启服务"
+            log "健康检查失败，发送告警（不自动重启）"
 
-            if ! restart_service; then
-                local restart_count=$(get_restart_count)
-                if [ "$restart_count" -lt "$MAX_RESTART_ATTEMPTS" ]; then
-                    log "重启失败，将在下次检查时重试"
-                else
-                    log "重启失败且达到最大尝试次数，等待人工介入"
-                fi
+            # 只发送告警，不自动重启（重启由systemd负责）
+            if [ ! -f "$ALERT_SENT_FILE" ]; then
+                log_alert "服务 $SERVICE_NAME 健康检查失败，需要人工检查"
+                send_alert "服务健康检查失败"
+                touch "$ALERT_SENT_FILE"
             fi
         else
             # 健康检查通过，清理过期的告警状态
