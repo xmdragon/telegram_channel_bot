@@ -417,7 +417,7 @@ const ConfigApp = {
                     target_channel: this.configs['target.channel_link'],
                     target_channel_id: this.configs['target.channel_id'],  // 传递前端的ID值
                     auto_forward_enabled: this.configs['target.auto_forward_enabled'],
-                    auto_forward_delay: parseInt(this.configs['target.auto_forward_delay']) || 1800,
+                    auto_forward_delay: Number(this.configs['target.auto_forward_delay']) || 1800,
                     auto_reject_ads: this.configs['target.auto_reject_ads'],
                     require_approval: this.configs['target.require_approval']
                 });
