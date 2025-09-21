@@ -12,6 +12,7 @@ from pathlib import Path
 import time
 
 from telethon import TelegramClient
+from app.utils.timezone import get_current_time
 # Python 3.13兼容性修复：必须在模块顶部导入所有类型
 from telethon.tl.types import (
     MessageMediaPhoto, 
@@ -213,7 +214,7 @@ class MediaHandler:
                 "file_size": 0,
                 "file_name": None,
                 "mime_type": None,
-                "download_time": datetime.utcnow().isoformat()
+                "download_time": get_current_time().isoformat()
             }
             
             if isinstance(message.media, MessageMediaPhoto):

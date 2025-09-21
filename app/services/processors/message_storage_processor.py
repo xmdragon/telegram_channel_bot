@@ -450,7 +450,7 @@ class MessageStorageProcessor(MessageProcessor):
         """发送WebSocket通知更新统计数据"""
         try:
             from app.api.websocket import websocket_manager
-            from datetime import datetime
+            from app.utils.timezone import get_current_time
             import json
             
             # 获取最新统计数据
@@ -459,7 +459,7 @@ class MessageStorageProcessor(MessageProcessor):
             # 构造通知数据
             notification_data = {
                 "type": "stats_update",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": get_current_time().isoformat(),
                 "data": {
                     "total_messages": stats.get("total_messages", 0),
                     "pending_count": stats.get("pending_messages", 0),

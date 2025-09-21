@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from app.storage.redis_manager import redis_manager
+from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class MessageProcessor:
                 return datetime.fromisoformat(message_data['created_at'].replace('Z', '+00:00')).replace(tzinfo=None)
             except:
                 pass
-        return datetime.utcnow()
+        return get_current_time()
     
     async def get_pending_messages(self, limit: int = 100) -> List[Dict[str, Any]]:
         """获取待审核的消息"""
@@ -496,8 +497,8 @@ class MessageProcessor:
                 'status': 'pending',  # 改回待审核状态
                 'is_ad': 'False',     # 标记为非广告
                 'reviewed_by': user_id or 'system',
-                'reviewed_at': datetime.utcnow().isoformat(),
-                'not_ad_marked_at': datetime.utcnow().isoformat()
+                'reviewed_at': get_current_time().isoformat(),
+                'not_ad_marked_at': get_current_time().isoformat()
             }
             
             success = await self.redis_store.update_message(channel_id, message_id, update_data)
@@ -614,8 +615,8 @@ class MessageProcessor:
             # 更新消息的过滤内容
             update_data = {
                 'filtered_content': filtered_content,
-                'updated_at': datetime.utcnow().isoformat(),
-                'refiltered_at': datetime.utcnow().isoformat()
+                'updated_at': get_current_time().isoformat(),
+                'refiltered_at': get_current_time().isoformat()
             }
             
             success = await self.redis_store.update_message(channel_id, message_id, update_data)

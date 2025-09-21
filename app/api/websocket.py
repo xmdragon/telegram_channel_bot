@@ -7,6 +7,7 @@ import logging
 from typing import Dict, Set
 from fastapi import WebSocket, WebSocketDisconnect
 from datetime import datetime
+from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class WebSocketManager:
         payload = {
             "type": "new_message",
             "data": message_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": get_current_time().isoformat()
         }
         message_json = json.dumps(payload, ensure_ascii=False)
         logger.info(f"📡 广播新消息，ID:{message_data.get('id')}, 状态:{message_data.get('status')}, 连接数:{len(self.active_connections)}")
@@ -98,7 +99,7 @@ class WebSocketManager:
         payload = {
             "type": "stats_update", 
             "data": stats,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": get_current_time().isoformat()
         }
         await self.broadcast(json.dumps(payload, ensure_ascii=False))
         
@@ -110,7 +111,7 @@ class WebSocketManager:
                 "message_id": message_id,
                 "status": status
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": get_current_time().isoformat()
         }
         await self.broadcast(json.dumps(payload, ensure_ascii=False))
         
@@ -123,7 +124,7 @@ class WebSocketManager:
                 "progress": progress,        # 0-100 进度百分比
                 "message": message,          # 当前步骤描述
                 "details": details or {},    # 额外详情数据
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": get_current_time().isoformat()
             }
         }
         logger.info(f"📡 广播进度: {operation} - {progress}% - {message}")
@@ -220,7 +221,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
             response = {
                 "type": "pong",
                 "request_id": request_id,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": get_current_time().isoformat()
             }
             await websocket_manager.send_personal_message(json.dumps(response), websocket)
             
@@ -238,7 +239,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                     "pending_count": message_stats_store.get_pending_count(),
                     "approved_count": message_stats_store.get_approved_count(),
                     "rejected_count": message_stats_store.get_rejected_count(),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": get_current_time().isoformat()
                 }
                 
                 response = {
@@ -246,7 +247,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                     "request_id": request_id,
                     "data": stats_data,
                     "success": True,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": get_current_time().isoformat()
                 }
             except Exception as e:
                 response = {
@@ -254,7 +255,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                     "request_id": request_id,
                     "success": False,
                     "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": get_current_time().isoformat()
                 }
             await websocket_manager.send_personal_message(json.dumps(response), websocket)
             
@@ -265,7 +266,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                 status_data = {
                     "status": "running",
                     "web_server": "active",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": get_current_time().isoformat(),
                     "simplified": True
                 }
                 
@@ -274,7 +275,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                     "request_id": request_id,
                     "data": status_data,
                     "success": True,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": get_current_time().isoformat()
                 }
             except Exception as e:
                 response = {
@@ -282,7 +283,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                     "request_id": request_id,
                     "success": False,
                     "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": get_current_time().isoformat()
                 }
             await websocket_manager.send_personal_message(json.dumps(response), websocket)
             
@@ -294,7 +295,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                 "request_id": request_id,
                 "channel": channel,
                 "success": True,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": get_current_time().isoformat()
             }
             await websocket_manager.send_personal_message(json.dumps(response), websocket)
             logger.info(f"客户端订阅频道: {channel}")
@@ -305,7 +306,7 @@ async def handle_websocket_message(websocket: WebSocket, message: str):
                 "type": "error",
                 "request_id": request_id,
                 "error": f"未知消息类型: {msg_type}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": get_current_time().isoformat()
             }
             await websocket_manager.send_personal_message(json.dumps(response), websocket)
             

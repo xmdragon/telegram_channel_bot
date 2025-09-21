@@ -13,6 +13,7 @@ from app.core.config import db_settings
 from app.services.channel_manager import ChannelManager
 from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
+from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class SystemMonitor:
             
             # 构建状态对象
             status = SystemStatus(
-                timestamp=datetime.utcnow(),
+                timestamp=get_current_time(),
                 telegram_auth=auth_status['authorized'],
                 telegram_connected=auth_status['connected'],
                 source_channels=channel_status['source_channels'],
@@ -273,7 +274,7 @@ class SystemMonitor:
         """获取系统统计信息"""
         try:
             # 使用缓存减少Redis查询频率
-            now = datetime.utcnow()
+            now = get_current_time()
             if (self._cache_time is None or 
                 (now - self._cache_time).seconds > 60):  # 1分钟缓存
                 
@@ -311,7 +312,7 @@ class SystemMonitor:
                 'approved_messages': 0, 
                 'rejected_messages': 0,
                 'source_channels_count': 0,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': get_current_time().isoformat()
             }
             
     async def _log_status_changes(self, status: SystemStatus):

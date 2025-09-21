@@ -456,7 +456,7 @@ async def _notify_stats_update():
         # 构造通知数据
         notification_data = {
             "type": "stats_update",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": get_current_time().isoformat(),
             "data": {
                 "total_messages": stats.get("total_messages", 0),
                 "pending_count": stats.get("pending_messages", 0),

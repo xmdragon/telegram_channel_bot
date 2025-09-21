@@ -10,6 +10,7 @@ from typing import List
 
 from app.storage.redis_manager import redis_manager
 from app.services.config_manager import config_manager
+from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +29,12 @@ class AutoForwarder:
             # 2. 获取延迟配置（默认1800秒 = 30分钟）
             delay_seconds = await config_manager.get_config('target.auto_forward_delay', 1800)
             delay_seconds = int(delay_seconds)
-            cutoff_time = datetime.utcnow() - timedelta(seconds=delay_seconds)
+            cutoff_time = get_current_time() - timedelta(seconds=delay_seconds)
 
             logger.debug(f"自动转发检查: 延迟={delay_seconds}秒, 截止时间={cutoff_time}")
 
             # 3. 获取所有待审核消息
-            pending_messages = redis_manager.get_messages_by_status('pending', limit=1000)
+            pending_messages = redis_manager.get_messages_by_status('pending', limit=100)
 
             if not pending_messages:
                 logger.debug("没有待审核消息")

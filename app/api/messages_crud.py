@@ -1137,7 +1137,7 @@ async def _redis_websocket_notify(event_type: str, message_id: str, message: str
             "type": event_type,
             "message_id": message_id,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": get_current_time().isoformat(),
             "is_final": is_final
         }
         
@@ -1145,7 +1145,7 @@ async def _redis_websocket_notify(event_type: str, message_id: str, message: str
         websocket_message = {
             "type": event_type,
             "data": notification_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": get_current_time().isoformat()
         }
         
         # 发布到Redis频道（跨进程通信）

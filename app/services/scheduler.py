@@ -10,6 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.services.message_processor import MessageProcessor
 from app.core.media_paths import media_paths
 from app.services.auto_forwarder import auto_forwarder
+from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class MessageScheduler:
             cleanup_interval_hours = int(cleanup_interval_hours)
             
             # 计算清理时间点
-            cleanup_time_ago = datetime.utcnow() - timedelta(hours=cleanup_interval_hours)
+            cleanup_time_ago = get_current_time() - timedelta(hours=cleanup_interval_hours)
             
             # 使用MessageProcessor获取旧消息（业务逻辑层）
             messages_to_delete = await self.message_processor.get_old_messages_for_cleanup(cleanup_time_ago)
@@ -132,10 +133,7 @@ class MessageScheduler:
             
         except Exception as e:
             logger.error(f"数据清理失败: {e}")
-    
-    # cleanup_temp_media方法已删除
-    # 所有清理逻辑统一由cleanup_old_data处理，避免不一致
-    
+
     async def cleanup_old_logs(self):
         """清理旧日志文件（保留1天的日志，error.log除外）"""
         try:
