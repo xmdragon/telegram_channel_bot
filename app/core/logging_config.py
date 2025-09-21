@@ -52,9 +52,10 @@ def setup_logging(
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    # 1. 主日志文件处理器（INFO及以上）
+    # 1. 主日志文件处理器（按服务名分离）
+    log_file = LOGS_DIR / f"{service_name}.log" if service_name != "app" else APP_LOG_FILE
     file_handler = TimedRotatingFileHandler(
-        filename=str(APP_LOG_FILE),
+        filename=str(log_file),
         when='H',
         interval=1,
         backupCount=24 * 7,  # 保留7天

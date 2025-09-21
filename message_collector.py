@@ -5,22 +5,16 @@ import signal
 from pathlib import Path
 import sys
 
-# 导入PathConfig获取正确的日志文件路径
+# 使用统一的日志配置
+from app.core.logging_config import setup_logging, get_logger
 from app.core.path_config import PathConfig
 
 # 确保日志目录存在
 PathConfig.ensure_directories()
 
-# 设置日志配置，只输出到文件
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
-    handlers=[
-        logging.FileHandler(PathConfig.APP_LOG_FILE, mode='a')  # 只输出到文件
-    ]
-)
-
-logger = logging.getLogger(__name__)
+# 初始化日志系统
+setup_logging(service_name="collector", log_level="INFO", console_output=True)
+logger = get_logger(__name__)
 
 from app.services.message_collector import message_collector
 
