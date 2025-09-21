@@ -21,13 +21,12 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-    datefmt='%H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+# 使用统一的日志配置
+from app.core.logging_config import setup_logging, get_logger
+
+# 初始化日志系统
+setup_logging(service_name="supervisor", log_level="INFO", console_output=True)
+logger = get_logger(__name__)
 
 class ServiceStatus(Enum):
     """服务状态"""
