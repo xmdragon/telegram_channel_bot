@@ -67,18 +67,18 @@ class MessageForwarder:
         
     
     async def forward_to_target(self, client: TelegramClient, message):
-        """重新发布到目标频道"""
+        """重新发布到目标频道，返回目标消息链接"""
         try:
             # ✅ 优化：使用统一消息类，消除运行时类定义
             message = StandardMessage(message)
-            
+
             # 获取目标频道ID（从配置）
             from app.services.config_manager import config_manager
             target_channel_id = await config_manager.get_config('target.channel_id')
-            
+
             if not target_channel_id:
                 logger.error("未配置目标频道ID")
-                return
+                return None
             
             # 移除隐藏链接（系统默认策略：始终移除）
             clean_entities = None
@@ -155,8 +155,34 @@ class MessageForwarder:
                     message.target_message_id = target_msg_id
                     message.forwarded_time = datetime.now()
             
-            logger.info(f"消息重新发布成功: {getattr(message, 'id', 'unknown')} -> 目标频道: {target_channel_id}")
-            
+            # 构建目标消息链接
+            target_message_link = None
+            if sent_message:
+                target_msg_id = sent_message[0].id if isinstance(sent_message, list) else sent_message.id
+
+                # 获取目标频道用户名
+                target_channel_username = await config_manager.get_config('target.channel_link')
+
+                if target_channel_username:
+                    # 去掉@符号（如果有的话）
+                    channel_username = target_channel_username.lstrip('@')
+                    target_message_link = f"https://t.me/{channel_username}/{target_msg_id}"
+                else:
+                    # 如果没有用户名，使用私有频道格式
+                    # 需要转换频道ID格式：-100开头的ID需要去掉-100
+                    channel_id_str = str(target_channel_id)
+                    if channel_id_str.startswith('-100'):
+                        channel_numeric_id = channel_id_str[4:]  # 去掉-100前缀
+                    else:
+                        channel_numeric_id = channel_id_str.lstrip('-')
+                    target_message_link = f"https://t.me/c/{channel_numeric_id}/{target_msg_id}"
+
+                logger.info(f"消息重新发布成功: {getattr(message, 'id', 'unknown')} -> 目标频道: {target_channel_id}, 链接: {target_message_link}")
+            else:
+                logger.warning(f"消息发布但未获取到消息ID: {getattr(message, 'id', 'unknown')}")
+
+            return target_message_link
+
         except Exception as e:
             logger.error(f"重新发布到目标频道时出错: {e}")
             # 不清理媒体文件 - 交给scheduler定期清理，保留文件用于重试
@@ -295,21 +321,22 @@ class MessageForwarder:
             raise
 
     async def forward_to_target_with_sender_session(self, message):
-        """使用发送Session转发到目标频道（无锁设计）"""
+        """使用发送Session转发到目标频道（无锁设计），返回目标消息链接"""
         from app.telegram.dual_session_manager import dual_session_manager
-        
+
         try:
             # 确保发送Session已连接
             if await dual_session_manager.ensure_sender_connected():
                 sender_client = await dual_session_manager.get_sender_client()
                 if sender_client:
-                    # 执行转发
-                    await self.forward_to_target(sender_client, message)
+                    # 执行转发，返回目标链接
+                    target_link = await self.forward_to_target(sender_client, message)
+                    return target_link
                 else:
                     raise RuntimeError("发送Session客户端未可用")
             else:
                 raise RuntimeError("无法连接发送Session")
-                
+
         except Exception as e:
             logger.error(f"使用发送Session转发失败: {e}")
             raise

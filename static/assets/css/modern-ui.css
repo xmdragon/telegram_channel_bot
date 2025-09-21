@@ -1295,3 +1295,19 @@ h4 { font-size: 1.125rem; }
     margin-right: 0.5rem;
 }
 
+/* 目标消息链接样式 */
+.target-message-link {
+    color: #0088cc;
+    text-decoration: none;
+    border-bottom: 1px dashed #0088cc;
+    transition: all 0.2s ease;
+}
+
+.target-message-link:hover {
+    color: #0066aa;
+    border-bottom-style: solid;
+    background-color: rgba(0, 136, 204, 0.05);
+    padding: 0 2px;
+    border-radius: 3px;
+}
+

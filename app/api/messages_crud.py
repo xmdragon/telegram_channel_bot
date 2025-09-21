@@ -546,13 +546,13 @@ async def approve_message(
         has_media = message.get('media_type') or message.get('is_combined') == 'True'
 
         if not has_media:
-            # 文本消息：直接转发
-            result = await _direct_forward_message(message_id, user.get('user_id'))
+            # 文本消息：直接调用核心发布方法
+            result = await publish_single_message(message_id, user.get('user_id'), is_auto_forward=False)
             return result
         else:
-            # 媒体消息：异步处理
+            # 媒体消息：异步处理with WebSocket通知
             import asyncio
-            asyncio.create_task(_async_forward_with_redis_notify(message_id, user.get('user_id')))
+            asyncio.create_task(_async_publish_with_notify(message_id, user.get('user_id')))
 
             return {
                 "success": True,
@@ -1012,10 +1012,21 @@ async def publish_single_message(
 
         # 3. 执行实际转发
         from app.telegram.message_forwarder import message_forwarder
-        await message_forwarder.forward_to_target_with_sender_session(message)
+        target_link = await message_forwarder.forward_to_target_with_sender_session(message)
 
         # 4. 更新状态为已发布
         redis_manager.update_message_status(message_id, "approved", user_id or "system")
+
+        # 4.5. 如果成功获取到目标消息链接，追加到消息内容
+        if target_link:
+            original_content = message.get('filtered_content') or message.get('content', '')
+            updated_content = f"{original_content}\n\n✅ 目标消息链接: {target_link}"
+
+            # 更新消息内容，保存带链接的版本
+            redis_manager.update_message(channel_id, msg_id, {
+                'filtered_content': updated_content,
+                'target_message_link': target_link
+            })
 
         # 5. 如果是自动转发成功，清除错误标记
         if is_auto_forward:
@@ -1077,16 +1088,9 @@ async def publish_single_message(
             "message_id": message_id
         }
 
-async def _direct_forward_message(message_id: str, user_id: str = None) -> dict:
+async def _async_publish_with_notify(message_id: str, user_id: str = None):
     """
-    直接转发消息到目标频道（内部使用）
-    调用核心发布方法
-    """
-    return await publish_single_message(message_id, user_id, is_auto_forward=False)
-
-async def _async_forward_with_redis_notify(message_id: str, user_id: str = None):
-    """
-    异步转发媒体消息并通过Redis发送WebSocket通知
+    异步发布消息并发送WebSocket通知
     """
     try:
         # 通知开始处理
@@ -1100,7 +1104,7 @@ async def _async_forward_with_redis_notify(message_id: str, user_id: str = None)
             # 通知成功
             await _redis_websocket_notify("publish_success", message_id,
                                         result.get('message', "媒体消息发布成功"))
-            logger.info(f"异步转发成功: {message_id}")
+            logger.info(f"异步发布成功: {message_id}")
         else:
             # 通知失败，包含详细错误信息
             error_msg = result.get('message', '发布失败')
@@ -1120,7 +1124,7 @@ async def _async_forward_with_redis_notify(message_id: str, user_id: str = None)
                 logger.error(f"回退消息状态失败: {status_error}")
 
     except Exception as e:
-        logger.error(f"异步转发失败: {message_id}, 错误: {e}")
+        logger.error(f"异步发布失败: {message_id}, 错误: {e}")
         # 通知失败
         await _redis_websocket_notify("publish_failed", message_id,
                                     str(e), is_final=True)

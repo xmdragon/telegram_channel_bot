@@ -57,10 +57,10 @@ const MessageContentRenderer = {
         // 高亮命中关键词的过滤后内容
         highlightedFilteredContent() {
             let content = this.message.filtered_content || '';
-            
+
             // 🎯 优先从新字段ad_keywords_detail获取关键词信息
             let keywordsToHighlight = [];
-            
+
             if (this.message.ad_keywords_detail && this.message.ad_keywords_detail.matched_keywords) {
                 // 新格式：使用ad_keywords_detail
                 keywordsToHighlight = this.message.ad_keywords_detail.matched_keywords;
@@ -68,24 +68,29 @@ const MessageContentRenderer = {
                 // 旧格式：使用hit_keywords
                 keywordsToHighlight = this.message.hit_keywords;
             }
-            
+
+            // 转义HTML特殊字符
+            content = this.escapeHtml(content);
+
+            // 如果消息已发布，处理目标消息链接（让它可点击）
+            if (this.message.status === 'approved') {
+                content = this.makeTargetLinkClickable(content);
+            }
+
             if (!content || keywordsToHighlight.length === 0) {
                 return content;
             }
-            
-            // 转义HTML特殊字符
-            content = this.escapeHtml(content);
-            
+
             // 按关键词长度从长到短排序，避免短关键词先匹配
-            const sortedKeywords = [...keywordsToHighlight].sort((a, b) => 
+            const sortedKeywords = [...keywordsToHighlight].sort((a, b) =>
                 b.keyword.length - a.keyword.length
             );
-            
+
             // 高亮每个关键词
             for (const item of sortedKeywords) {
                 const keyword = item.keyword;
                 const weight = item.weight || 1.0;
-                
+
                 // 根据权重选择不同的高亮样式
                 let highlightClass = 'ad-keyword-highlight';
                 if (weight >= 5.0) {
@@ -95,14 +100,14 @@ const MessageContentRenderer = {
                 } else {
                     highlightClass += ' low-weight';      // 黄色背景
                 }
-                
+
                 // 使用正则替换，确保大小写不敏感
                 const regex = new RegExp(this.escapeRegExp(keyword), 'gi');
-                content = content.replace(regex, match => 
+                content = content.replace(regex, match =>
                     `<span class="${highlightClass}" title="权重: ${weight}">${match}</span>`
                 );
             }
-            
+
             return content;
         },
         
@@ -500,6 +505,15 @@ const MessageContentRenderer = {
         // 判断消息是否为广告 - 使用全局统一函数
         isMessageAd(message) {
             return MessageUtils.isMessageAd(message);
+        },
+
+        // 使目标消息链接可点击
+        makeTargetLinkClickable(content) {
+            // 匹配"✅ 目标消息链接: https://t.me/xxx/xxx"格式
+            const linkRegex = /(✅ 目标消息链接: )(https:\/\/t\.me\/[^\s<]+)/g;
+            return content.replace(linkRegex, (match, prefix, url) => {
+                return `${prefix}<a href="${url}" target="_blank" class="target-message-link" title="点击查看目标频道消息">${url}</a>`;
+            });
         }
     },
     template: `

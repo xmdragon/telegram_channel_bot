@@ -82,21 +82,50 @@ class AutoForwarder:
             else:
                 logger.info(f"🔄 自动转发: 发现 {len(eligible_ids)} 条符合条件的消息")
 
-            # 直接导入并调用批量发送的内部逻辑
-            from app.api.messages_batch import process_batch_approve
+            # 6. 直接调用核心发布方法处理每条消息
+            from app.api.messages_crud import publish_single_message
 
             logger.info(f"开始处理 {len(eligible_ids)} 条消息的自动转发...")
 
-            # 调用内部批量发送函数（跳过HTTP和认证）
-            result = await process_batch_approve(
-                message_ids=eligible_ids,
-                user_id="auto_forward"  # 标记为自动转发
-            )
+            approved_count = 0
+            failed_count = 0
+            ad_count = 0
+            length_exceeded_count = 0
 
-            if result.get('success'):
-                logger.info(f"✅ 自动转发完成: 成功 {result.get('approved_count', 0)} 条, 失败 {result.get('failed_count', 0)} 条")
-            else:
-                logger.error(f"自动转发失败: {result.get('message', 'Unknown error')}")
+            for message_id in eligible_ids:
+                try:
+                    # 直接调用核心发布方法
+                    result = await publish_single_message(
+                        message_id,
+                        user_id="auto_forward",
+                        is_auto_forward=True  # 标记为自动转发
+                    )
+
+                    if result['success']:
+                        approved_count += 1
+                        logger.debug(f"自动发布成功: {message_id}")
+                    else:
+                        failed_count += 1
+                        # 统计失败原因
+                        if result.get('error') == 'ad_detected':
+                            ad_count += 1
+                        elif result.get('error') == 'content_too_long':
+                            length_exceeded_count += 1
+                        logger.debug(f"自动发布失败: {message_id}, 原因: {result.get('message')}")
+
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(f"处理消息失败 {message_id}: {e}")
+
+                # 短暂延迟避免过载
+                await asyncio.sleep(0.1)
+
+            # 7. 记录统计
+            logger.info(f"✅ 自动转发完成: 成功 {approved_count} 条, 失败 {failed_count} 条")
+            if ad_count > 0:
+                logger.info(f"  - 广告消息: {ad_count} 条")
+            if length_exceeded_count > 0:
+                logger.info(f"  - 内容超长: {length_exceeded_count} 条")
 
         except asyncio.CancelledError:
             # 服务关闭时的正常中断，不记录错误
