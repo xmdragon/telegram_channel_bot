@@ -992,20 +992,32 @@ async def publish_single_message(
                         "limit": max_message_length
                     }
 
-            # 2.3 检查内容是否为空
-            if not content.strip():
-                error_msg = "消息内容为空"
+            # 2.3 检查内容是否为空（文本和媒体都为空）
+            media_url = message.get('media_url')
+            media_type = message.get('media_type')
+            is_combined = message.get('is_combined', False)
+
+            # 判断消息是否完全为空
+            has_content = content.strip() if content else False
+            has_media = media_url or media_type or is_combined
+
+            if not has_content and not has_media:
+                error_msg = "消息内容为空（无文本无媒体）"
 
                 if is_auto_forward:
-                    # 自动转发：标记错误但不修改内容
-                    redis_manager.update_message(channel_id, msg_id, {
-                        'auto_forwarder_status': False,
-                        'auto_forward_error': error_msg
+                    # 自动转发：直接标记为已处理，避免重试
+                    redis_manager.update_message_atomic(message_id, {
+                        'auto_forward_processed': True,
+                        'auto_forward_process_reason': 'empty_content',
+                        'auto_forward_processed_at': datetime.now().isoformat(),
+                        'status': 'rejected',
+                        'reject_reason': error_msg
                     })
+                    logger.info(f"自动转发检测到空消息，已拒绝: {message_id}")
 
                 return {
                     "success": False,
-                    "error": "content_empty",
+                    "error": "empty_content",
                     "message": f"{error_msg}，无法发布",
                     "message_id": message_id
                 }

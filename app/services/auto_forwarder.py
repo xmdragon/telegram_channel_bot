@@ -49,7 +49,15 @@ class AutoForwarder:
 
                     # 4. 处理单条消息
                     message_id = f"{message.get('source_channel')}:{message.get('message_id')}"
-                    logger.info(f"准备自动转发消息: {message_id}")
+
+                    # 检查重试次数
+                    retry_count = message.get('auto_forward_retry_count', 0)
+                    if retry_count >= 3:
+                        logger.warning(f"消息 {message_id} 已重试 {retry_count} 次，永久跳过")
+                        await self.mark_forward_failed(message_id, f"超过最大重试次数({retry_count}次)")
+                        continue
+
+                    logger.info(f"准备自动转发消息: {message_id} (第{retry_count + 1}次尝试)")
 
                     # 5. 根据消息类型设置超时时间
                     timeout = await self.get_timeout_for_message(message)
@@ -83,10 +91,14 @@ class AutoForwarder:
                                 logger.error(f"自动转发失败: {message_id} - {result.get('message')}")
 
                     except asyncio.TimeoutError:
+                        # 增加重试计数
+                        await self.increment_retry_count(message_id)
                         await self.mark_forward_failed(message_id, f"发送超时({timeout}秒)")
                         logger.error(f"自动转发超时: {message_id} (超时时间: {timeout}秒)")
 
                     except Exception as e:
+                        # 增加重试计数
+                        await self.increment_retry_count(message_id)
                         await self.mark_forward_failed(message_id, str(e))
                         logger.error(f"自动转发异常: {message_id} - {e}")
 
@@ -189,22 +201,45 @@ class AutoForwarder:
         else:
             return 90  # 其他文件90秒
 
+    async def increment_retry_count(self, message_id: str):
+        """
+        增加消息的重试计数
+
+        Args:
+            message_id: 消息ID (格式: "channel_id:message_id")
+        """
+        try:
+            # 获取当前重试次数并增加
+            message = redis_manager.get_message_by_id(message_id)
+            if message:
+                current_count = message.get('auto_forward_retry_count', 0)
+                redis_manager.update_message_atomic(message_id, {
+                    'auto_forward_retry_count': current_count + 1,
+                    'auto_forward_last_retry': get_current_time().isoformat()
+                })
+                logger.debug(f"消息 {message_id} 重试次数增加到 {current_count + 1}")
+        except Exception as e:
+            logger.error(f"增加重试计数时出错: {e}")
+
     async def mark_forward_failed(self, message_id: str, reason: str):
         """
         标记消息自动转发失败
 
         Args:
-            message_id: 消息ID
+            message_id: 消息ID (格式: "channel_id:message_id")
             reason: 失败原因
         """
         try:
-            message = redis_manager.get_message_by_id(message_id)
-            if message:
-                message['auto_forward_failed'] = True
-                message['auto_forward_error'] = reason
-                message['auto_forward_failed_at'] = get_current_time().isoformat()
-                redis_manager.update_message(message_id, message)
-                logger.debug(f"已标记消息转发失败: {message_id}")
+            # 使用原子更新方法，直接更新字段
+            update_data = {
+                'auto_forward_failed': True,
+                'auto_forward_error': reason,
+                'auto_forward_failed_at': get_current_time().isoformat()
+            }
+
+            # 使用 update_message_atomic 方法（接受完整的 message_id）
+            redis_manager.update_message_atomic(message_id, update_data)
+            logger.debug(f"已标记消息转发失败: {message_id} - {reason}")
         except Exception as e:
             logger.error(f"标记消息失败状态时出错: {e}")
 
@@ -213,17 +248,25 @@ class AutoForwarder:
         标记消息已处理（不需要重试的情况）
 
         Args:
-            message_id: 消息ID
-            reason: 处理原因（如 ad_detected, content_too_long）
+            message_id: 消息ID (格式: "channel_id:message_id")
+            reason: 处理原因（如 ad_detected, content_too_long, empty_content）
         """
         try:
-            message = redis_manager.get_message_by_id(message_id)
-            if message:
-                message['auto_forward_processed'] = True
-                message['auto_forward_process_reason'] = reason
-                message['auto_forward_processed_at'] = get_current_time().isoformat()
-                redis_manager.update_message(message_id, message)
-                logger.debug(f"已标记消息为已处理: {message_id} - {reason}")
+            # 使用原子更新方法，直接更新字段
+            update_data = {
+                'auto_forward_processed': True,
+                'auto_forward_process_reason': reason,
+                'auto_forward_processed_at': get_current_time().isoformat()
+            }
+
+            # 如果是空内容，同时更新状态为rejected
+            if reason == 'empty_content':
+                update_data['status'] = 'rejected'
+                update_data['reject_reason'] = '消息内容为空'
+
+            # 使用 update_message_atomic 方法（接受完整的 message_id）
+            redis_manager.update_message_atomic(message_id, update_data)
+            logger.debug(f"已标记消息为已处理: {message_id} - {reason}")
         except Exception as e:
             logger.error(f"标记消息处理状态时出错: {e}")
 
