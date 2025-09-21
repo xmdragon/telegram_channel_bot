@@ -28,9 +28,7 @@ class PathConfig:
     TAIL_FILTER_SAMPLES_FILE = TRAINING_DIR / "tail_filter_samples.json"  # 尾部过滤样本
     SEPARATOR_PATTERNS_FILE = TRAINING_DIR / "separator_patterns.json"  # 分隔符模式
     
-    # 日志文件
-    APP_LOG_FILE = LOGS_DIR / "app.log"
-    ERROR_LOG_FILE = LOGS_DIR / "error.log"
+    # 状态文件
     SUPERVISOR_STATUS_FILE = LOGS_DIR / "supervisor_status.json"
     
     

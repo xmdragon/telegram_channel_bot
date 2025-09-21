@@ -13,8 +13,6 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
-# 延迟导入以避免循环依赖
-from pathlib import Path
 
 # 直接定义路径，避免依赖PathConfig
 LOGS_DIR = Path("./logs")
@@ -139,27 +137,3 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-# 导出便捷函数
-def debug(msg: str, *args, **kwargs):
-    """DEBUG级别日志"""
-    logging.debug(msg, *args, **kwargs)
-
-
-def info(msg: str, *args, **kwargs):
-    """INFO级别日志"""
-    logging.info(msg, *args, **kwargs)
-
-
-def warning(msg: str, *args, **kwargs):
-    """WARNING级别日志"""
-    logging.warning(msg, *args, **kwargs)
-
-
-def error(msg: str, *args, **kwargs):
-    """ERROR级别日志"""
-    logging.error(msg, *args, **kwargs)
-
-
-def critical(msg: str, *args, **kwargs):
-    """CRITICAL级别日志"""
-    logging.critical(msg, *args, **kwargs)
