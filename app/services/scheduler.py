@@ -23,12 +23,16 @@ class MessageScheduler:
 
     def start(self):
         """启动调度器 - 包含数据清理和自动转发"""
+        from datetime import datetime
+
         # 每小时清理过期数据
         self.scheduler.add_job(
             self.cleanup_old_data,
             'interval',
             hours=1,
-            id='cleanup_data'
+            id='cleanup_data',
+            next_run_time=datetime.now(),  # 立即执行一次
+            max_instances=1  # 防止重叠执行
         )
 
         # 每小时清理日志文件（保留1天的日志，error.log除外）
@@ -36,11 +40,12 @@ class MessageScheduler:
             self.cleanup_old_logs,
             'interval',
             hours=1,
-            id='cleanup_logs'
+            id='cleanup_logs',
+            next_run_time=datetime.now(),  # 立即执行一次
+            max_instances=1  # 防止重叠执行
         )
 
         # 自动转发任务 - 改为持续运行模式
-        from datetime import datetime
         self.scheduler.add_job(
             auto_forwarder.run_continuous,
             'date',  # 只运行一次，内部会持续循环
@@ -72,22 +77,26 @@ class MessageScheduler:
         try:
             from datetime import datetime, timedelta
             from app.services.config_manager import config_manager
-            
+
+            logger.info(f"⏰ [清理任务] 开始执行数据清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
             # 从配置文件读取清理时间间隔（小时）
             cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 24)
             cleanup_interval_hours = int(cleanup_interval_hours)
-            
+
+            logger.info(f"[清理任务] 使用配置的清理间隔: {cleanup_interval_hours}小时")
+
             # 计算清理时间点
             cleanup_time_ago = get_current_time() - timedelta(hours=cleanup_interval_hours)
-            
+
             # 使用MessageProcessor获取旧消息（业务逻辑层）
             messages_to_delete = await self.message_processor.get_old_messages_for_cleanup(cleanup_time_ago)
-            
+
             if not messages_to_delete:
-                logger.debug(f"没有需要清理的旧消息（清理间隔: {cleanup_interval_hours}小时）")
+                logger.info(f"[清理任务] 没有需要清理的旧消息（清理间隔: {cleanup_interval_hours}小时）")
                 return
-            
-            logger.info(f"开始清理{cleanup_interval_hours}小时前的数据，找到 {len(messages_to_delete)} 条消息待处理")
+
+            logger.info(f"[清理任务] 找到 {len(messages_to_delete)} 条需要清理的消息")
             
             deleted_count = 0
             deleted_media_count = 0
@@ -128,11 +137,11 @@ class MessageScheduler:
                     logger.debug(f"删除媒体文件: {media_path.name}")
                 except Exception as e:
                     logger.error(f"删除媒体文件失败 {media_path.name}: {e}")
-            
-            logger.info(f"数据清理完成（间隔: {cleanup_interval_hours}小时）: 删除 {deleted_count} 条消息记录, {deleted_media_count} 个媒体文件")
+
+            logger.info(f"✅ [清理任务] 完成 - 清理{deleted_count}条消息，{deleted_media_count}个媒体文件（间隔: {cleanup_interval_hours}小时）")
             
         except Exception as e:
-            logger.error(f"数据清理失败: {e}")
+            logger.error(f"❌ [清理任务] 数据清理失败: {e}")
 
     async def cleanup_old_logs(self):
         """清理旧日志文件（保留1天的日志，error.log除外）"""

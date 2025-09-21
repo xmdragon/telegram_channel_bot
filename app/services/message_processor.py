@@ -383,10 +383,9 @@ class MessageProcessor:
             
             old_messages = []
             
-            # 针对不同状态设置不同的清理时间
-            # pending消息保留更长时间（7天），避免误删待审核消息
-            from datetime import datetime, timedelta, timezone
-            pending_cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
+            # 所有状态的消息都使用统一的配置时间进行清理
+            # 不再硬编码，完全依赖于配置的scheduler.data_cleanup_interval_hours
+            from datetime import datetime
             
             # 获取所有状态的消息
             for status in ['approved', 'rejected', 'pending']:
@@ -423,11 +422,11 @@ class MessageProcessor:
                                 except:
                                     continue
                         
-                        # 根据状态使用不同的清理时间阈值
-                        # pending消息使用7天阈值，其他使用配置的阈值
-                        threshold = pending_cutoff_time if status == 'pending' else cutoff_time
-                        
-                        # 如果任何时间早于对应的阈值，则加入清理列表
+                        # 所有状态都使用统一的配置阈值（不再区分pending）
+                        # 让用户通过配置来控制保留时间
+                        threshold = cutoff_time
+
+                        # 如果任何时间早于阈值，则加入清理列表
                         if times_to_check and any(t < threshold for t in times_to_check):
                             # 构造消息对象以兼容原有清理逻辑
                             message_obj = type('Message', (), {
@@ -449,10 +448,11 @@ class MessageProcessor:
             
             if old_messages:
                 pending_count = sum(1 for msg in old_messages if msg.status == 'pending')
-                other_count = len(old_messages) - pending_count
-                logger.info(f"找到 {len(old_messages)} 条需要清理的旧消息 (待审核7天以上: {pending_count}, 已处理24小时以上: {other_count})")
+                approved_count = sum(1 for msg in old_messages if msg.status == 'approved')
+                rejected_count = sum(1 for msg in old_messages if msg.status == 'rejected')
+                logger.info(f"[清理任务] 检索到 {len(old_messages)} 条需要清理的消息 (pending:{pending_count}, approved:{approved_count}, rejected:{rejected_count})")
             else:
-                logger.debug("没有找到需要清理的旧消息")
+                logger.debug("[清理任务] 没有找到需要清理的旧消息")
             return old_messages
             
         except Exception as e:
