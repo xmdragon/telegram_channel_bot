@@ -97,7 +97,7 @@ class AppSettings:
     
     async def get_auto_forward_delay(self) -> int:
         await self._ensure_initialized()
-        return await self._config_manager.get_config("review.auto_forward_delay", 1800)
+        return await self._config_manager.get_config("target.auto_forward_delay", 1800)
     
     # ============= 端口配置方法 =============
     

@@ -50,7 +50,7 @@ class MessageProcessor:
             
             # 获取自动转发延迟配置
             from app.services.config_manager import config_manager
-            auto_forward_delay = await config_manager.get_config('review.auto_forward_delay', 1800)  # 默认30分钟
+            auto_forward_delay = await config_manager.get_config('target.auto_forward_delay', 1800)  # 默认30分钟
             
             cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=int(auto_forward_delay))
             
