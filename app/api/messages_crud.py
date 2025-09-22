@@ -73,21 +73,24 @@ async def get_messages(
         offset = (page - 1) * page_size
         
         # 🚀 性能优化：根据查询类型选择最优方法
+        reverse_order = (sort_order == "desc")  # desc=新到旧(逆序), asc=旧到新(正序)
+
         if source_channel:
             # 从指定频道获取消息，支持状态筛选
             all_messages = redis_manager.get_messages_by_channel(
-                source_channel, 
+                source_channel,
                 limit=page_size,
                 offset=offset,
-                status=status
+                status=status,
+                reverse=reverse_order
             )
         else:
             # 🚀 统一逻辑：消除特殊情况
             if status in ["pending", "approved", "rejected"]:
-                all_messages = redis_manager.get_messages_by_status(status, limit=page_size, offset=offset)
+                all_messages = redis_manager.get_messages_by_status(status, limit=page_size, offset=offset, reverse=reverse_order)
             else:
                 # 无状态筛选时，默认显示待审核消息
-                all_messages = redis_manager.get_messages_by_status("pending", limit=page_size, offset=offset)
+                all_messages = redis_manager.get_messages_by_status("pending", limit=page_size, offset=offset, reverse=reverse_order)
         
         # 🚀 性能优化：简化过滤逻辑（单独消息已清理，无需去重）
         filtered_messages = []
@@ -108,13 +111,7 @@ async def get_messages(
             
             filtered_messages.append(msg)
         
-        # 排序处理
-        if sort_order == "asc":
-            # 旧到新：反转消息顺序
-            filtered_messages.reverse()
-        # 默认是desc（新到旧），不需要额外处理
-
-        # 分页处理
+        # 分页处理（排序已在Redis层处理）
         total_messages = len(filtered_messages)
         if not source_channel:
             # 对于非频道筛选，取前page_size条

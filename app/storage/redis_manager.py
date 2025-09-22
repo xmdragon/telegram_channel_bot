@@ -473,25 +473,31 @@ class RedisManager:
             logger.error(f"删除消息失败: {e}")
             return False
     
-    def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0, status: str = None) -> List[Dict[str, Any]]:
+    def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0, status: str = None, reverse: bool = True) -> List[Dict[str, Any]]:
         """获取频道消息列表"""
         try:
             if status and status in ['pending', 'approved', 'rejected']:
                 # 当指定状态时，从状态索引中获取该频道的消息
-                status_keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
+                if reverse:
+                    status_keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
+                else:
+                    status_keys = self.client.zrange(f"index:msg:{status}", 0, -1)
                 # 筛选出属于该频道的消息
                 channel_message_ids = []
                 for key in status_keys:
                     if key.startswith(f"{channel_id}:"):
                         msg_id = key.split(':', 1)[1]
                         channel_message_ids.append(int(msg_id))
-                
-                # 按消息ID倒序排列并分页
-                channel_message_ids.sort(reverse=True)
+
+                # 排序并分页
+                channel_message_ids.sort(reverse=reverse)
                 paginated_ids = channel_message_ids[offset:offset + limit]
             else:
                 # 无状态筛选时，使用频道索引
-                message_ids = self.client.zrevrange(f"index:msg:{channel_id}", offset, offset + limit - 1)
+                if reverse:
+                    message_ids = self.client.zrevrange(f"index:msg:{channel_id}", offset, offset + limit - 1)
+                else:
+                    message_ids = self.client.zrange(f"index:msg:{channel_id}", offset, offset + limit - 1)
                 paginated_ids = [int(msg_id) for msg_id in message_ids]
             
             if not paginated_ids:
@@ -525,10 +531,13 @@ class RedisManager:
             logger.error(f"获取频道消息失败: {e}")
             return []
     
-    def get_pending_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_pending_messages(self, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
         """获取待审核消息"""
         try:
-            pending_keys = self.client.zrevrange("index:msg:pending", offset, offset + limit - 1)
+            if reverse:
+                pending_keys = self.client.zrevrange("index:msg:pending", offset, offset + limit - 1)
+            else:
+                pending_keys = self.client.zrange("index:msg:pending", offset, offset + limit - 1)
             
             messages = []
             invalid_keys = []
@@ -564,10 +573,13 @@ class RedisManager:
             logger.error(f"获取待审核消息失败: {e}")
             return []
     
-    def get_approved_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_approved_messages(self, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
         """获取已审核消息"""
         try:
-            approved_keys = self.client.zrevrange("index:msg:approved", offset, offset + limit - 1)
+            if reverse:
+                approved_keys = self.client.zrevrange("index:msg:approved", offset, offset + limit - 1)
+            else:
+                approved_keys = self.client.zrange("index:msg:approved", offset, offset + limit - 1)
             
             messages = []
             invalid_keys = []
@@ -601,10 +613,13 @@ class RedisManager:
             logger.error(f"获取已审核消息失败: {e}")
             return []
     
-    def get_rejected_messages(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_rejected_messages(self, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
         """获取已拒绝消息"""
         try:
-            rejected_keys = self.client.zrevrange("index:msg:rejected", offset, offset + limit - 1)
+            if reverse:
+                rejected_keys = self.client.zrevrange("index:msg:rejected", offset, offset + limit - 1)
+            else:
+                rejected_keys = self.client.zrange("index:msg:rejected", offset, offset + limit - 1)
             
             messages = []
             invalid_keys = []
@@ -638,14 +653,14 @@ class RedisManager:
             logger.error(f"获取已拒绝消息失败: {e}")
             return []
     
-    def get_messages_by_status(self, status: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_messages_by_status(self, status: str, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
         """根据状态获取消息 - 统一接口"""
         if status == "pending":
-            return self.get_pending_messages(limit, offset)
+            return self.get_pending_messages(limit, offset, reverse)
         elif status == "approved":
-            return self.get_approved_messages(limit, offset)
+            return self.get_approved_messages(limit, offset, reverse)
         elif status == "rejected":
-            return self.get_rejected_messages(limit, offset)
+            return self.get_rejected_messages(limit, offset, reverse)
         else:
             return []
     
