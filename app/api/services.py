@@ -7,11 +7,12 @@ from typing import Dict, Any, List, Optional
 import logging
 from app.services.supervisor_manager import supervisor_manager
 from app.core.supervisor_config import SupervisorConfig
+from app.core.route_config import ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/services", tags=["services"])
 
-@router.get("/status")
+@router.get(ROUTES.services.status)
 async def get_services_status() -> Dict[str, Any]:
     """
     获取所有服务状态
@@ -33,33 +34,7 @@ async def get_services_status() -> Dict[str, Any]:
         logger.error(f"获取服务状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/status/{service_name}")
-async def get_service_status(service_name: str) -> Dict[str, Any]:
-    """
-    获取单个服务状态
-
-    Args:
-        service_name: 服务名称（web/collector/scheduler）
-
-    Returns:
-        服务状态信息
-    """
-    try:
-        status = supervisor_manager.get_service_status(service_name)
-        if status is None:
-            raise HTTPException(status_code=404, detail=f"服务{service_name}不存在")
-
-        return {
-            "success": True,
-            "service": status
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取服务{service_name}状态失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/start/{service_name}")
+@router.post(ROUTES.services.start)
 async def start_service(service_name: str) -> Dict[str, Any]:
     """
     启动服务
@@ -86,7 +61,7 @@ async def start_service(service_name: str) -> Dict[str, Any]:
         logger.error(f"启动服务{service_name}失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/stop/{service_name}")
+@router.post(ROUTES.services.stop)
 async def stop_service(service_name: str) -> Dict[str, Any]:
     """
     停止服务
@@ -113,7 +88,7 @@ async def stop_service(service_name: str) -> Dict[str, Any]:
         logger.error(f"停止服务{service_name}失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/restart/{service_name}")
+@router.post(ROUTES.services.restart)
 async def restart_service(service_name: str) -> Dict[str, Any]:
     """
     重启服务
@@ -143,7 +118,7 @@ async def restart_service(service_name: str) -> Dict[str, Any]:
         logger.error(f"重启服务{service_name}失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/logs/{service_name}")
+@router.get(ROUTES.services.logs)
 async def get_service_logs(
     service_name: str,
     log_type: str = Query("stdout", description="日志类型: stdout 或 stderr"),
@@ -186,44 +161,4 @@ async def get_service_logs(
         raise
     except Exception as e:
         logger.error(f"获取服务{service_name}日志失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/reload-config")
-async def reload_config() -> Dict[str, Any]:
-    """
-    重新加载Supervisor配置
-
-    Returns:
-        操作结果
-    """
-    try:
-        success = supervisor_manager.reload_config()
-        return {
-            "success": success,
-            "message": "配置重载成功" if success else "配置重载失败"
-        }
-    except Exception as e:
-        logger.error(f"重载配置失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/info")
-async def get_supervisor_info() -> Dict[str, Any]:
-    """
-    获取Supervisor连接信息
-
-    Returns:
-        Supervisor连接配置信息
-    """
-    try:
-        return {
-            "success": True,
-            "info": {
-                "host": SupervisorConfig.SUPERVISOR_HOST,
-                "port": SupervisorConfig.SUPERVISOR_PORT,
-                "connected": supervisor_manager.is_connected(),
-                "services": list(SupervisorConfig.SERVICE_MAPPING.keys())
-            }
-        }
-    except Exception as e:
-        logger.error(f"获取Supervisor信息失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -26,11 +26,8 @@ class RouteConfig:
 
         # 过滤器操作
         filter_content = "/messages/filter-content/{message_id}"
-        train_tail = "/messages/train-tail/{message_id}"
         mark_as_ad = "/messages/mark-as-ad/{id}"
         not_ad = "/messages/not-ad/{message_id}"
-        refilter = "/messages/refilter/{message_id}"
-        feedback = "/messages/feedback/{message_id}"
         delete_review = "/messages/delete-review/{message_id}"
 
         # 批量操作
@@ -58,9 +55,6 @@ class RouteConfig:
         check_auth = "/admin/auth/check-auth"
         admins = "/admin/auth/admins"
         admin_by_id = "/admin/auth/admins/{admin_id}"
-        sessions = "/admin/auth/sessions"
-        session_by_token = "/admin/auth/sessions/{token}"
-        me = "/admin/auth/me"
 
     class DualAuth:
         """双Session认证路由"""
@@ -68,7 +62,6 @@ class RouteConfig:
         send_code = "/send-code"
         verify_code = "/verify-code"
         verify_password = "/verify-password"
-        session_status = "/session-status/{session_type}"
     
     class System:
         """系统相关路由"""
@@ -76,20 +69,24 @@ class RouteConfig:
         health = "/health"                           # 主健康检查端点 - 映射到 /api/health
         health_service = "/health/{service_name}"    # 服务健康检查 - 映射到 /api/health/{service_name}
         reset = "/system/reset"
-    
-    
-    
+
+    class Services:
+        """服务管理相关路由"""
+        status = "/status"
+        start = "/start/{service_name}"
+        stop = "/stop/{service_name}"
+        restart = "/restart/{service_name}"
+        logs = "/logs/{service_name}"
+
     class Channels:
         """统一的频道管理路由"""
         # 基础管理
         list = "/"
         add = "/"
         delete = "/{channel_id}"
-        get = "/{channel_id}"
 
         # 批量操作
         batch_add = "/batch-add"
-        search = "/search"
 
         # 解析功能（仅源频道）
         resolve = "/resolve"
@@ -155,6 +152,7 @@ class RouteConfig:
         self.admin_auth = self.AdminAuth()
         self.dual_auth = self.DualAuth()
         self.system = self.System()
+        self.services = self.Services()
         self.channels = self.Channels()
         self.telegram_tools = self.TelegramTools()
         self.training = self.Training()

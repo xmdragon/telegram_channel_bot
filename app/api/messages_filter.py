@@ -147,77 +147,6 @@ async def filter_message_content(
 
 
 
-@router.post(ROUTES.messages.train_tail)
-async def train_message_tail(
-    message_id: str,
-    tail_content: str = Query(..., description="要训练的尾部内容"),
-    user: Dict[str, Any] = Depends(require_auth),
-    message_processor: MessageProcessor = Depends(get_message_processor)
-):
-    """
-    手动标注消息尾部用于训练
-    """
-    try:
-        # 标准化消息ID格式 - 与其他API保持一致
-        from app.api.messages_crud import _normalize_message_id
-        message_id = _normalize_message_id(message_id)
-        
-        # 解析消息ID
-        if ':' in message_id:
-            channel_id, msg_id = message_id.split(':', 1)
-        else:
-            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
-        
-        # 获取消息
-        msg_data = await message_processor.get_message(channel_id, int(msg_id))
-        if not msg_data:
-            raise HTTPException(status_code=404, detail="消息不存在")
-        
-        # 保存尾部训练数据
-        from app.core.path_config import PathConfig
-        
-        tail_file = str(PathConfig.TAIL_FILTER_SAMPLES_FILE)
-        try:
-            with open(tail_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                samples = data.get('samples', [])
-        except:
-            samples = []
-        
-        # 添加新的训练样本 - 只保留核心字段
-        new_sample = {
-            "id": len(samples) + 1,
-            "tail_part": tail_content.strip(),
-            "rules": [],  # 规则可以后续生成
-            "created_at": datetime.now().isoformat()
-        }
-        samples.append(new_sample)
-        
-        # 保存数据
-        import os
-        os.makedirs(os.path.dirname(tail_file), exist_ok=True)
-        with open(tail_file, 'w', encoding='utf-8') as f:
-            json.dump({"samples": samples}, f, ensure_ascii=False, indent=2)
-        
-        logger.info(f"尾部训练数据已保存 - 用户: {user.get('username')}, 样本: {len(tail_content)} 字符")
-        
-        return {
-            "success": True,
-            "message": "尾部训练数据已保存",
-            "data": {
-                "sample_id": new_sample["id"],
-                "tail_length": len(tail_content),
-                "total_samples": len(samples)
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"保存训练数据失败: {e}")
-        raise HTTPException(status_code=500, detail=f"保存训练数据失败: {str(e)}")
-
 @router.post(ROUTES.messages.not_ad)
 async def mark_not_ad(
     message_id: str,  # 参数名必须与路由定义中的{message_id}匹配
@@ -301,53 +230,6 @@ async def mark_not_ad(
     except Exception as e:
         logger.error(f"标记非广告失败: {e}")
         raise HTTPException(status_code=500, detail=f"标记失败: {str(e)}")
-
-@router.post(ROUTES.messages.feedback)
-async def submit_filter_feedback(
-    message_id: str,
-    feedback_type: str = Query(..., description="反馈类型"),
-    feedback_content: str = Query(..., description="反馈内容"),
-    user: Dict[str, Any] = Depends(require_auth),
-    message_processor: MessageProcessor = Depends(get_message_processor)
-):
-    """
-    提交过滤反馈（用于改进过滤算法）
-    """
-    try:
-        # 解析消息ID
-        if ':' in message_id:
-            channel_id, msg_id = message_id.split(':', 1)
-        else:
-            raise HTTPException(status_code=400, detail="不支持的消息ID格式")
-        
-        # 保存反馈数据
-        feedback_data = {
-            "message_id": message_id,
-            "feedback_type": feedback_type,
-            "feedback_content": feedback_content,
-            "user_id": user.get('user_id'),
-            "username": user.get('username'),
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        # 这里可以保存到专门的反馈存储系统
-        logger.info(f"收到过滤反馈 - 用户: {user.get('username')}, 类型: {feedback_type}")
-        
-        return {
-            "success": True,
-            "message": "反馈已提交",
-            "data": {
-                "feedback_id": f"{message_id}_{datetime.now().timestamp()}",
-                "feedback_type": feedback_type
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"提交反馈失败: {e}")
-        raise HTTPException(status_code=500, detail=f"提交反馈失败: {str(e)}")
 
 
 @router.post(ROUTES.messages.mark_as_ad)

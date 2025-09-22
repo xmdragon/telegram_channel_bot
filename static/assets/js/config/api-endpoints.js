@@ -15,7 +15,6 @@ const API_ENDPOINTS = {
     // 消息管理模块 - /api/messages
     messages: {
         list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
-        stats: '/api/messages/stats/overview',                      // GET - 获取消息统计信息
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
         getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
         updateById: (id) => `/api/messages/update/${id}`,          // PUT - 更新消息内容
@@ -31,9 +30,6 @@ const API_ENDPOINTS = {
         // 消息操作端点
         notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
         filterContent: (id) => `/api/messages/filter-content/${id}`, // POST - 执行内容过滤
-        trainTail: (id) => `/api/messages/train-tail/${id}`,       // POST - 训练尾部过滤
-        refilter: (id) => `/api/messages/refilter/${id}`,          // POST - 重新过滤消息
-        feedback: (id) => `/api/messages/feedback/${id}`,          // POST - 提交过滤反馈
         markAsAd: (id) => `/api/messages/mark-as-ad/${id}`         // POST - 标记为广告并保存关键词
     },
 
@@ -58,8 +54,7 @@ const API_ENDPOINTS = {
         initSession: '/api/dual-auth/init-session',                    // POST - 初始化Session认证
         sendCode: '/api/dual-auth/send-code',                          // POST - 发送验证码
         verifyCode: '/api/dual-auth/verify-code',                      // POST - 验证验证码
-        verifyPassword: '/api/dual-auth/verify-password',              // POST - 验证两步验证密码
-        sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}` // GET - 获取Session状态
+        verifyPassword: '/api/dual-auth/verify-password'               // POST - 验证两步验证密码
     },
 
     // 训练数据模块 - /api/training
@@ -75,13 +70,15 @@ const API_ENDPOINTS = {
         updateKeyword: (keyword) => `/api/training/ad-keywords/${encodeURIComponent(keyword)}`, // PUT - 更新关键词权重
         deleteKeyword: (keyword) => `/api/training/ad-keywords/${encodeURIComponent(keyword)}`, // DELETE - 删除关键词
         updateThreshold: '/api/training/ad-keywords/threshold',   // PUT - 更新检测阈值
-        keywordStats: '/api/training/ad-keywords/stats',          // GET - 获取关键词检测统计
+
+        // 广告样本管理（向量）
+        adSamples: '/api/training/ad-vectors',                    // GET - 获取广告样本
+        addAdSample: '/api/training/ad-vectors',                  // POST - 添加广告样本
 
         // 尾部过滤样本管理
         tailFilterSamples: '/api/training/tail-filter-samples',  // GET/POST - 获取/添加尾部过滤样本
         tailFilterSampleById: (id) => `/api/training/tail-filter-samples/${id}`, // PUT/DELETE - 更新/删除尾部过滤样本
-        tailFilterStatistics: '/api/training/tail-filter-statistics', // GET - 获取尾部过滤统计
-        tailFilterHistory: '/api/training/tail-filter-history',  // GET - 获取尾部过滤历史
+        tailFilterStatistics: '/api/training/tail-filter-statistics' // GET - 获取尾部过滤统计
 
     },
 
@@ -91,11 +88,9 @@ const API_ENDPOINTS = {
         list: '/api/channels/',                                   // GET - 获取所有源频道
         add: '/api/channels/',                                    // POST - 添加源频道
         delete: (channel_id) => `/api/channels/${channel_id}`,    // DELETE - 删除源频道
-        get: (channel_id) => `/api/channels/${channel_id}`,       // GET - 获取单个频道信息
 
         // 批量操作
         batchAdd: '/api/channels/batch-add',                      // POST - 批量添加源频道
-        search: '/api/channels/search',                           // GET - 搜索源频道
 
         // 解析功能（仅源频道）
         resolve: '/api/channels/resolve',                         // POST - 解析单个源频道ID
@@ -114,20 +109,29 @@ const API_ENDPOINTS = {
         // 配置管理
         config: '/api/admin/config',                               // GET - 获取管理配置
         configForwarding: '/api/admin/config/forwarding',          // POST - 配置转发
-        configBatch: '/api/admin/config/batch'                     // POST - 批量配置
+        configBatch: '/api/admin/config/batch',                    // POST - 批量配置
+        searchChannels: '/api/admin/search-channels'               // GET - 搜索频道（管理功能）
+    },
+
+    // 配置管理模块 - /api/config
+    config: {
+        get: '/api/config',                                        // GET - 获取系统配置
+        update: '/api/config'                                      // POST - 更新系统配置
+    },
+
+    // 统计模块 - /api/stats
+    stats: {
+        get: '/api/stats'                                          // GET - 获取统计数据
     },
 
 
     // 服务管理模块 - /api/services
     services: {
         status: '/api/services/status',                            // GET - 获取所有服务状态
-        statusById: (name) => `/api/services/status/${name}`,      // GET - 获取单个服务状态
         restart: (name) => `/api/services/restart/${name}`,        // POST - 重启服务
         start: (name) => `/api/services/start/${name}`,            // POST - 启动服务
         stop: (name) => `/api/services/stop/${name}`,              // POST - 停止服务
-        logs: (name) => `/api/services/logs/${name}`,              // GET - 获取服务日志
-        reloadConfig: '/api/services/reload-config',               // POST - 重载配置
-        info: '/api/services/info'                                 // GET - 获取Supervisor信息
+        logs: (name) => `/api/services/logs/${name}`              // GET - 获取服务日志
     },
 
     // WebSocket端点 - 统一管理：所有WebSocket连接必须使用WebSocketFactory.create()
