@@ -49,15 +49,19 @@ class SupervisorConfig:
     @classmethod
     def get_service_configs(cls) -> Dict[str, Dict[str, Any]]:
         """动态生成服务配置"""
+        # 确保使用绝对路径
+        root_dir = Path(PathConfig.ROOT_DIR).resolve()
+        logs_dir = Path(PathConfig.LOGS_DIR).resolve()
+
         return {
             'telegram_web': {
-                'command': f'python3 {PathConfig.ROOT_DIR}/web_server.py',
-                'directory': str(PathConfig.ROOT_DIR),
+                'command': f'python3 {root_dir}/web_server.py',
+                'directory': str(root_dir),
                 'autostart': 'true',
                 'autorestart': 'true',
                 'startretries': '3',
-                'stderr_logfile': str(PathConfig.LOG_DIR / 'web_error.log'),
-                'stdout_logfile': str(PathConfig.LOG_DIR / 'web_output.log'),
+                'stderr_logfile': str(logs_dir / 'web_error.log'),
+                'stdout_logfile': str(logs_dir / 'web_output.log'),
                 'stdout_logfile_maxbytes': '10MB',
                 'stdout_logfile_backups': '3',
                 'stderr_logfile_maxbytes': '10MB',
@@ -67,13 +71,13 @@ class SupervisorConfig:
                 'stopwaitsecs': '10'
             },
             'telegram_collector': {
-                'command': f'python3 {PathConfig.ROOT_DIR}/message_collector.py',
-                'directory': str(PathConfig.ROOT_DIR),
+                'command': f'python3 {root_dir}/message_collector.py',
+                'directory': str(root_dir),
                 'autostart': 'true',
                 'autorestart': 'true',
                 'startretries': '3',
-                'stderr_logfile': str(PathConfig.LOG_DIR / 'collector_error.log'),
-                'stdout_logfile': str(PathConfig.LOG_DIR / 'collector_output.log'),
+                'stderr_logfile': str(logs_dir / 'collector_error.log'),
+                'stdout_logfile': str(logs_dir / 'collector_output.log'),
                 'stdout_logfile_maxbytes': '10MB',
                 'stdout_logfile_backups': '3',
                 'stderr_logfile_maxbytes': '10MB',
@@ -83,13 +87,13 @@ class SupervisorConfig:
                 'stopwaitsecs': '10'
             },
             'telegram_scheduler': {
-                'command': f'python3 {PathConfig.ROOT_DIR}/message_scheduler.py',
-                'directory': str(PathConfig.ROOT_DIR),
+                'command': f'python3 {root_dir}/message_scheduler.py',
+                'directory': str(root_dir),
                 'autostart': 'true',
                 'autorestart': 'true',
                 'startretries': '3',
-                'stderr_logfile': str(PathConfig.LOG_DIR / 'scheduler_error.log'),
-                'stdout_logfile': str(PathConfig.LOG_DIR / 'scheduler_output.log'),
+                'stderr_logfile': str(logs_dir / 'scheduler_error.log'),
+                'stdout_logfile': str(logs_dir / 'scheduler_output.log'),
                 'stdout_logfile_maxbytes': '10MB',
                 'stdout_logfile_backups': '3',
                 'stderr_logfile_maxbytes': '10MB',
@@ -119,17 +123,21 @@ class SupervisorConfig:
         """生成完整的Supervisor配置文件内容（包含supervisord主配置）"""
         conf_lines = []
 
+        # 确保使用绝对路径
+        root_dir = Path(PathConfig.ROOT_DIR).resolve()
+        logs_dir = Path(PathConfig.LOGS_DIR).resolve()
+
         # 生成supervisord主配置
         conf_lines.append('[unix_http_server]')
-        conf_lines.append(f'file={PathConfig.ROOT_DIR}/supervisor.sock')
+        conf_lines.append(f'file={root_dir}/supervisor.sock')
         conf_lines.append('')
 
         conf_lines.append('[supervisord]')
-        conf_lines.append(f'logfile={PathConfig.LOGS_DIR}/supervisord.log')
+        conf_lines.append(f'logfile={logs_dir}/supervisord.log')
         conf_lines.append('logfile_maxbytes=50MB')
         conf_lines.append('logfile_backups=10')
         conf_lines.append('loglevel=info')
-        conf_lines.append(f'pidfile={PathConfig.ROOT_DIR}/supervisord.pid')
+        conf_lines.append(f'pidfile={root_dir}/supervisord.pid')
         conf_lines.append('nodaemon=false')
         conf_lines.append('minfds=1024')
         conf_lines.append('minprocs=200')
@@ -140,7 +148,7 @@ class SupervisorConfig:
         conf_lines.append('')
 
         conf_lines.append('[supervisorctl]')
-        conf_lines.append(f'serverurl=unix://{PathConfig.ROOT_DIR}/supervisor.sock')
+        conf_lines.append(f'serverurl=unix://{root_dir}/supervisor.sock')
         conf_lines.append('')
 
         # 生成inet_http_server配置
