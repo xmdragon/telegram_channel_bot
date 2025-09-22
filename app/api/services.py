@@ -171,6 +171,10 @@ async def get_service_logs(
             length=lines * 200  # 假设平均每行200字符
         )
 
+        # 确保logs是字符串
+        if not isinstance(logs, str):
+            logs = str(logs) if logs else ""
+
         # 按行分割并取最后N行
         log_lines = logs.strip().split('\n')
         if len(log_lines) > lines:

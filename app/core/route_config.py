@@ -9,15 +9,15 @@ from app.core.route_config import ROUTES
 
 class RouteConfig:
     """路由配置类"""
-    
+
     class Messages:
-        """消息相关路由 - 统一action-first设计"""
+        """消息相关路由"""
         # 基础查询
         list = "/messages/"
         channel_info = "/messages/channel-info"
         detail = "/messages/detail/{message_id}"
 
-        # 核心操作 - action-first模式
+        # 核心操作
         approve = "/messages/approve/{message_id}"
         reject = "/messages/reject/{message_id}"
         restore = "/messages/restore/{message_id}"
@@ -31,65 +31,18 @@ class RouteConfig:
         delete_review = "/messages/delete-review/{message_id}"
         train_tail = "/messages/train-tail/{message_id}"
         feedback = "/messages/feedback/{message_id}"
+        refilter = "/messages/refilter/{message_id}"
 
         # 批量操作
         batch_approve = "/messages/batch/approve"
         batch_reject = "/messages/batch/reject"
         batch_delete = "/messages/batch/delete"
 
-
         # 统计相关
         stats_overview = "/messages/stats/overview"
-    
-    class Admin:
-        """管理员相关路由"""
-        config = "/admin/config"
-        config_batch = "/admin/config/batch"
-        config_forwarding = "/admin/config/forwarding"
-    
-    class AdminAuth:
-        """管理员认证路由"""
-        # 保持与routes.py的兼容性，同时提供简化路径
-        login = "/admin/auth/login"  # 完整路径
-        logout = "/admin/auth/logout"
-        current = "/admin/auth/current"
-        change_password = "/admin/auth/change-password"
-        check_auth = "/admin/auth/check-auth"
-        admins = "/admin/auth/admins"
-        admin_by_id = "/admin/auth/admins/{admin_id}"
-        sessions = "/admin/auth/sessions"
-        session_by_token = "/admin/auth/sessions/{token}"
-        me = "/admin/auth/me"
-
-    class DualAuth:
-        """双Session认证路由"""
-        init_session = "/init-session"
-        send_code = "/send-code"
-        verify_code = "/verify-code"
-        verify_password = "/verify-password"
-        session_status = "/session-status/{session_type}"
-    
-    class System:
-        """系统相关路由"""
-        # 健康检查（保留实际使用的端点）
-        health = "/health"                           # 主健康检查端点 - 映射到 /api/health
-        health_service = "/health/{service_name}"    # 服务健康检查 - 映射到 /api/health/{service_name}
-        status_detailed = "/system/status-detailed"
-        reset = "/system/reset"
-
-    class Services:
-        """服务管理相关路由"""
-        status = "/status"
-        status_by_service = "/status/{service_name}"
-        start = "/start/{service_name}"
-        stop = "/stop/{service_name}"
-        restart = "/restart/{service_name}"
-        logs = "/logs/{service_name}"
-        reload_config = "/reload-config"
-        info = "/info"
 
     class Channels:
-        """统一的频道管理路由"""
+        """频道管理路由"""
         # 基础管理
         list = "/"
         add = "/"
@@ -102,16 +55,22 @@ class RouteConfig:
         # 搜索功能
         search = "/search"
 
-        # 解析功能（仅源频道）
+        # 解析功能
         resolve = "/resolve"
         resolve_all = "/resolve-all"
-    
-    class TelegramTools:
-        """Telegram工具路由"""
-        message_structure = "/message-structure"
 
     class Training:
         """训练数据管理路由"""
+        # 分隔符模式
+        separator_patterns = "/training/separator-patterns"
+        test_separator = "/training/test-separator"
+
+        # 关键词管理
+        ad_keywords = "/training/ad-keywords"
+        ad_keywords_by_keyword = "/training/ad-keywords/{keyword}"
+        ad_keywords_threshold = "/training/ad-keywords/threshold"
+        ad_keywords_stats = "/training/ad-keywords/stats"
+
         # 广告向量
         ad_vectors = "/training/ad-vectors"
         ad_vector_statistics = "/training/ad-vector-statistics"
@@ -123,33 +82,77 @@ class RouteConfig:
         ad_vector_add_from_text = "/training/ad-vectors/add-from-text"
         ad_vector_stats = "/training/ad-vector-stats"
 
-        # 基础训练（保留实际使用的端点）
-        separator_patterns = "/training/separator-patterns"
-        test_separator = "/training/test-separator"
-
-
-
         # 尾部过滤器
-        tail_filter_statistics = "/training/tail-filter-statistics"
-        tail_filter_history = "/training/tail-filter-history"
         tail_filter_samples = "/training/tail-filter-samples"
         tail_filter_samples_by_id = "/training/tail-filter-samples/{sample_id}"
+        tail_filter_statistics = "/training/tail-filter-statistics"
+        tail_filter_history = "/training/tail-filter-history"
         tail_filter_detect_duplicates = "/training/tail-filter-samples/detect-duplicates"
         tail_filter_deduplicate = "/training/tail-filter-samples/deduplicate"
 
-
-        # 媒体文件（保留实际使用的端点）
+        # 媒体文件
         media_files = "/training/media-files"
         media_files_by_hash = "/training/media-files/{file_hash}"
         media_files_clean_orphaned = "/training/media-files/clean-orphaned"
         media_files_export = "/training/media-files/export"
 
+    class AdminAuth:
+        """管理员认证路由"""
+        login = "/admin/auth/login"
+        logout = "/admin/auth/logout"
+        check_auth = "/admin/auth/check-auth"
+        current = "/admin/auth/current"
+        change_password = "/admin/auth/change-password"
+        admins = "/admin/auth/admins"
+        admin_by_id = "/admin/auth/admins/{admin_id}"
+        sessions = "/admin/auth/sessions"
+        session_by_token = "/admin/auth/sessions/{token}"
+        me = "/admin/auth/me"
 
-        # 关键词管理
-        ad_keywords = "/training/ad-keywords"
-        ad_keywords_by_keyword = "/training/ad-keywords/{keyword}"
-        ad_keywords_threshold = "/training/ad-keywords/threshold"
-        ad_keywords_stats = "/training/ad-keywords/stats"
+    class Admin:
+        """管理功能路由"""
+        config = "/admin/config"
+        config_batch = "/admin/config/batch"
+        config_forwarding = "/admin/config/forwarding"
+
+    class DualAuth:
+        """双Session认证路由"""
+        init_session = "/init-session"
+        send_code = "/send-code"
+        verify_code = "/verify-code"
+        verify_password = "/verify-password"
+        session_status = "/session-status/{session_type}"
+
+    class TelegramTools:
+        """Telegram工具路由"""
+        message_structure = "/message-structure"
+
+    class Services:
+        """服务管理路由"""
+        status = "/status"
+        status_by_service = "/status/{service_name}"
+        start = "/start/{service_name}"
+        stop = "/stop/{service_name}"
+        restart = "/restart/{service_name}"
+        logs = "/logs/{service_name}"
+        reload_config = "/reload-config"
+        info = "/info"
+
+    class System:
+        """系统相关路由"""
+        health = "/health"
+        health_service = "/health/{service_name}"
+        status_detailed = "/system/status-detailed"
+        reset = "/system/reset"
+
+    class Config:
+        """配置管理路由"""
+        get = "/config"
+        update = "/config"
+
+    class Stats:
+        """统计路由"""
+        get = "/stats"
 
     class WebRoutes:
         """Web页面重定向路由"""
@@ -159,17 +162,20 @@ class RouteConfig:
         auth = "/auth"
         status = "/status"
         train = "/train"
-    
+
     def __init__(self):
+        # 按照统一顺序初始化
         self.messages = self.Messages()
-        self.admin = self.Admin()
-        self.admin_auth = self.AdminAuth()
-        self.dual_auth = self.DualAuth()
-        self.system = self.System()
-        self.services = self.Services()
         self.channels = self.Channels()
-        self.telegram_tools = self.TelegramTools()
         self.training = self.Training()
+        self.admin_auth = self.AdminAuth()
+        self.admin = self.Admin()
+        self.dual_auth = self.DualAuth()
+        self.telegram_tools = self.TelegramTools()
+        self.services = self.Services()
+        self.system = self.System()
+        self.config = self.Config()
+        self.stats = self.Stats()
         self.web = self.WebRoutes()
 
 # 全局路由配置实例

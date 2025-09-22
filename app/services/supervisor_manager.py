@@ -178,6 +178,11 @@ class SupervisorManager:
         """获取服务日志"""
         full_name = SupervisorConfig.get_service_name(service_name)
 
+        # 如果服务在组中，需要使用 group:name 格式
+        # telegram组中的服务需要加上组前缀
+        if full_name.startswith('telegram_'):
+            full_name = f'telegram:{full_name}'
+
         if not self.server:
             return "Supervisor未连接"
 
@@ -194,7 +199,12 @@ class SupervisorManager:
                 )
 
             # result是一个元组: (log_text, offset, overflow)
-            return result[0] if isinstance(result, tuple) else result
+            if isinstance(result, tuple):
+                return result[0] if result[0] else ""
+            elif isinstance(result, list) and len(result) >= 1:
+                return result[0] if result[0] else ""
+            else:
+                return str(result) if result else ""
         except Exception as e:
             logger.error(f"获取服务{full_name}日志失败: {e}")
             return f"获取日志失败: {str(e)}"

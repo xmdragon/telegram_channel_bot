@@ -14,23 +14,34 @@
 const API_ENDPOINTS = {
     // 消息管理模块 - /api/messages
     messages: {
-        list: '/api/messages/',                                     // GET - 获取消息列表（支持分页、搜索、过滤）
+        // 基础查询
+        list: '/api/messages/',                                     // GET - 获取消息列表
         channelInfo: '/api/messages/channel-info',                 // GET - 获取频道信息
-        getById: (id) => `/api/messages/detail/${id}`,             // GET - 根据ID获取单个消息
-        updateById: (id) => `/api/messages/update/${id}`,          // PUT - 更新消息内容
-        deleteById: (id) => `/api/messages/delete/${id}`,          // DELETE - 删除单个消息
-        approveById: (id) => `/api/messages/approve/${id}`,        // POST - 审核通过单个消息
-        rejectById: (id) => `/api/messages/reject/${id}`,          // POST - 拒绝单个消息
-        restoreById: (id) => `/api/messages/restore/${id}`,        // POST - 恢复被拒绝的消息到未审核状态
-        deleteReviewById: (id) => `/api/messages/delete-review/${id}`, // DELETE - 删除审核消息
-        batchApprove: '/api/messages/batch/approve',               // POST - 批量审核通过消息
-        batchReject: '/api/messages/batch/reject',                 // POST - 批量拒绝消息
-        batchDelete: '/api/messages/batch/delete',                 // POST - 批量删除消息
+        getById: (id) => `/api/messages/detail/${id}`,             // GET - 获取单个消息
 
-        // 消息操作端点
-        notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记消息为非广告
+        // 核心操作
+        approveById: (id) => `/api/messages/approve/${id}`,        // POST - 审核通过
+        rejectById: (id) => `/api/messages/reject/${id}`,          // POST - 拒绝
+        restoreById: (id) => `/api/messages/restore/${id}`,        // POST - 恢复
+        deleteById: (id) => `/api/messages/delete/${id}`,          // DELETE - 删除
+        updateById: (id) => `/api/messages/update/${id}`,          // PUT - 更新
+
+        // 过滤器操作
         filterContent: (id) => `/api/messages/filter-content/${id}`, // POST - 执行内容过滤
-        markAsAd: (id) => `/api/messages/mark-as-ad/${id}`         // POST - 标记为广告并保存关键词
+        markAsAd: (id) => `/api/messages/mark-as-ad/${id}`,        // POST - 标记为广告
+        notAd: (id) => `/api/messages/not-ad/${id}`,               // POST - 标记非广告
+        deleteReviewById: (id) => `/api/messages/delete-review/${id}`, // DELETE - 删除审核
+        trainTail: (id) => `/api/messages/train-tail/${id}`,       // POST - 训练尾部过滤
+        feedback: (id) => `/api/messages/feedback/${id}`,          // POST - 提交反馈
+        refilter: (id) => `/api/messages/refilter/${id}`,          // POST - 重新过滤
+
+        // 批量操作
+        batchApprove: '/api/messages/batch/approve',               // POST - 批量审核通过
+        batchReject: '/api/messages/batch/reject',                 // POST - 批量拒绝
+        batchDelete: '/api/messages/batch/delete',                 // POST - 批量删除
+
+        // 统计相关
+        stats: '/api/messages/stats/overview'                      // GET - 获取统计概览
     },
 
     // 管理员认证模块 - /api/admin/auth
@@ -54,7 +65,8 @@ const API_ENDPOINTS = {
         initSession: '/api/dual-auth/init-session',                    // POST - 初始化Session认证
         sendCode: '/api/dual-auth/send-code',                          // POST - 发送验证码
         verifyCode: '/api/dual-auth/verify-code',                      // POST - 验证验证码
-        verifyPassword: '/api/dual-auth/verify-password'               // POST - 验证两步验证密码
+        verifyPassword: '/api/dual-auth/verify-password',              // POST - 验证两步验证密码
+        sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}` // GET - 获取Session状态
     },
 
     // 训练数据模块 - /api/training
@@ -70,6 +82,7 @@ const API_ENDPOINTS = {
         updateKeyword: (keyword) => `/api/training/ad-keywords/${encodeURIComponent(keyword)}`, // PUT - 更新关键词权重
         deleteKeyword: (keyword) => `/api/training/ad-keywords/${encodeURIComponent(keyword)}`, // DELETE - 删除关键词
         updateThreshold: '/api/training/ad-keywords/threshold',   // PUT - 更新检测阈值
+        keywordStats: '/api/training/ad-keywords/stats',          // GET - 获取关键词统计
 
         // 广告样本管理（向量）
         adSamples: '/api/training/ad-vectors',                    // GET - 获取广告样本
@@ -78,21 +91,26 @@ const API_ENDPOINTS = {
         // 尾部过滤样本管理
         tailFilterSamples: '/api/training/tail-filter-samples',  // GET/POST - 获取/添加尾部过滤样本
         tailFilterSampleById: (id) => `/api/training/tail-filter-samples/${id}`, // PUT/DELETE - 更新/删除尾部过滤样本
-        tailFilterStatistics: '/api/training/tail-filter-statistics' // GET - 获取尾部过滤统计
+        tailFilterStatistics: '/api/training/tail-filter-statistics', // GET - 获取尾部过滤统计
+        tailFilterHistory: '/api/training/tail-filter-history'    // GET - 获取尾部过滤历史
 
     },
 
-// 统一频道管理模块 - /api/channels
+    // 频道管理模块 - /api/channels
     channels: {
         // 基础管理
         list: '/api/channels/',                                   // GET - 获取所有源频道
         add: '/api/channels/',                                    // POST - 添加源频道
+        get: (channel_id) => `/api/channels/${channel_id}`,       // GET - 获取单个频道
         delete: (channel_id) => `/api/channels/${channel_id}`,    // DELETE - 删除源频道
 
         // 批量操作
         batchAdd: '/api/channels/batch-add',                      // POST - 批量添加源频道
 
-        // 解析功能（仅源频道）
+        // 搜索功能
+        search: '/api/channels/search',                           // GET - 搜索频道
+
+        // 解析功能
         resolve: '/api/channels/resolve',                         // POST - 解析单个源频道ID
         resolveAll: '/api/channels/resolve-all'                   // POST - 批量解析所有源频道
     },
@@ -130,10 +148,13 @@ const API_ENDPOINTS = {
     // 服务管理模块 - /api/services
     services: {
         status: '/api/services/status',                            // GET - 获取所有服务状态
-        restart: (name) => `/api/services/restart/${name}`,        // POST - 重启服务
+        statusById: (name) => `/api/services/status/${name}`,      // GET - 获取单个服务状态
         start: (name) => `/api/services/start/${name}`,            // POST - 启动服务
         stop: (name) => `/api/services/stop/${name}`,              // POST - 停止服务
-        logs: (name) => `/api/services/logs/${name}`              // GET - 获取服务日志
+        restart: (name) => `/api/services/restart/${name}`,        // POST - 重启服务
+        logs: (name) => `/api/services/logs/${name}`,              // GET - 获取服务日志
+        reloadConfig: '/api/services/reload-config',               // POST - 重载配置
+        info: '/api/services/info'                                 // GET - 获取Supervisor信息
     },
 
     // WebSocket端点 - 统一管理：所有WebSocket连接必须使用WebSocketFactory.create()
