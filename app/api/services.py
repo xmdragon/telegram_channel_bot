@@ -9,7 +9,7 @@ from app.services.supervisor_manager import supervisor_manager
 from app.core.supervisor_config import SupervisorConfig
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/services", tags=["services"])
+router = APIRouter(prefix="/services", tags=["services"])
 
 @router.get("/status")
 async def get_services_status() -> Dict[str, Any]:
