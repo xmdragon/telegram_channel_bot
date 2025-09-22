@@ -318,5 +318,39 @@ async def delete_admin(
 
 
 
+# ==================== 会话管理功能 ====================
+
+@router.get(ROUTES.admin_auth.sessions)
+async def get_active_sessions(
+    admin: dict = Depends(require_admin)
+) -> dict:
+    """获取活跃会话列表"""
+    auth = get_auth()
+    sessions = await auth.get_active_sessions()
+    return {"success": True, "sessions": sessions}
+
+
+@router.delete(ROUTES.admin_auth.session_by_token)
+async def revoke_session(
+    token: str,
+    admin: dict = Depends(require_admin)
+) -> dict:
+    """撤销指定会话"""
+    auth = get_auth()
+    success = await auth.revoke_session(token)
+    
+    if success:
+        return {"success": True, "message": "会话已撤销"}
+    else:
+        return {"success": False, "message": "会话不存在或撤销失败"}
+
+
+@router.get(ROUTES.admin_auth.me)
+async def get_me(
+    admin: dict = Depends(require_admin),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """获取当前用户信息（别名接口）"""
+    return await get_current_admin_info(admin, credentials)
 
 

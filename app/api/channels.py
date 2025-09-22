@@ -111,6 +111,26 @@ async def remove_channel(channel_id: str, user: Dict[str, Any] = Depends(require
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"移除频道失败: {str(e)}")
 
+@router.get(ROUTES.channels.get)
+async def get_channel(channel_id: str, user: Dict[str, Any] = Depends(require_auth)):
+    """获取单个频道信息"""
+    try:
+        from app.services.channel_manager import channel_manager
+
+        channel = await channel_manager.get_channel_by_id(channel_id)
+
+        if channel:
+            return {
+                "success": True,
+                "channel": channel
+            }
+        else:
+            raise HTTPException(status_code=404, detail="频道不存在")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取频道信息失败: {str(e)}")
 
 # 批量操作
 @router.post(ROUTES.channels.batch_add)
@@ -226,6 +246,45 @@ async def batch_add_channels(request: ChannelBatchAddRequest, user: Dict[str, An
         logger.error(f"批量添加频道失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量添加频道失败: {str(e)}")
 
+# 搜索功能
+@router.get(ROUTES.channels.search)
+async def search_channels(
+    q: str = "",
+    limit: int = 20,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """搜索频道"""
+    try:
+        from app.services.channel_manager import channel_manager
+
+        all_channels = await channel_manager.get_source_channels()
+
+        if not q:
+            # 没有查询条件，返回所有频道（限制数量）
+            results = all_channels[:limit]
+        else:
+            # 按名称、标题、描述搜索
+            query_lower = q.lower()
+            results = []
+
+            for channel in all_channels:
+                if (query_lower in channel.get('channel_name', '').lower() or
+                    query_lower in channel.get('channel_title', '').lower() or
+                    query_lower in channel.get('description', '').lower()):
+                    results.append(channel)
+
+                if len(results) >= limit:
+                    break
+
+        return {
+            "success": True,
+            "query": q,
+            "total_found": len(results),
+            "channels": results
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"搜索频道失败: {str(e)}")
 
 # 频道解析功能
 @router.post(ROUTES.channels.resolve)

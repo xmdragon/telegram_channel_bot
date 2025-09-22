@@ -191,4 +191,59 @@ async def verify_two_step_password(request: VerifyPasswordRequest):
         logger.error(f"验证{request.session_type}Session密码失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get(ROUTES.dual_auth.session_status)
+async def get_session_status(session_type: Literal["listener", "sender"]):
+    """获取Session状态"""
+    try:
+        # 检查是否有正在进行的认证
+        auth_info = dual_session_manager._auth_info.get(session_type)
+        if auth_info:
+            state = "phone_needed"
+            if auth_info.get("phone_code_hash"):
+                state = "code_sent"
+            if auth_info.get("password_hint") is not None:
+                state = "password_needed"
+
+            return {
+                "success": True,
+                "status": {
+                    "session_type": session_type,
+                    "state": state,
+                    "error_message": None,
+                    "has_client": True
+                }
+            }
+
+        # 检查连接管理器状态
+        session_manager = dual_session_manager
+
+        if session_type == "listener":
+            is_connected = await session_manager.is_listener_connected()
+        else:
+            is_connected = await session_manager.is_sender_connected()
+
+        if is_connected:
+            return {
+                "success": True,
+                "status": {
+                    "session_type": session_type,
+                    "state": "authorized",
+                    "error_message": None,
+                    "has_client": True
+                }
+            }
+        else:
+            return {
+                "success": True,
+                "status": {
+                    "session_type": session_type,
+                    "state": "idle",
+                    "error_message": "未连接或需要重新认证",
+                    "has_client": False
+                }
+            }
+
+    except Exception as e:
+        logger.error(f"获取{session_type}Session状态失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 

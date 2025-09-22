@@ -34,6 +34,32 @@ async def get_services_status() -> Dict[str, Any]:
         logger.error(f"获取服务状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get(ROUTES.services.status_by_service)
+async def get_service_status(service_name: str) -> Dict[str, Any]:
+    """
+    获取单个服务状态
+
+    Args:
+        service_name: 服务名称（web/collector/scheduler）
+
+    Returns:
+        服务状态信息
+    """
+    try:
+        status = supervisor_manager.get_service_status(service_name)
+        if status is None:
+            raise HTTPException(status_code=404, detail=f"服务{service_name}不存在")
+
+        return {
+            "success": True,
+            "service": status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取服务{service_name}状态失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post(ROUTES.services.start)
 async def start_service(service_name: str) -> Dict[str, Any]:
     """
@@ -161,4 +187,44 @@ async def get_service_logs(
         raise
     except Exception as e:
         logger.error(f"获取服务{service_name}日志失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post(ROUTES.services.reload_config)
+async def reload_config() -> Dict[str, Any]:
+    """
+    重新加载Supervisor配置
+
+    Returns:
+        操作结果
+    """
+    try:
+        success = supervisor_manager.reload_config()
+        return {
+            "success": success,
+            "message": "配置重载成功" if success else "配置重载失败"
+        }
+    except Exception as e:
+        logger.error(f"重载配置失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get(ROUTES.services.info)
+async def get_supervisor_info() -> Dict[str, Any]:
+    """
+    获取Supervisor连接信息
+
+    Returns:
+        Supervisor连接配置信息
+    """
+    try:
+        return {
+            "success": True,
+            "info": {
+                "host": SupervisorConfig.SUPERVISOR_HOST,
+                "port": SupervisorConfig.SUPERVISOR_PORT,
+                "connected": supervisor_manager.is_connected(),
+                "services": list(SupervisorConfig.SERVICE_MAPPING.keys())
+            }
+        }
+    except Exception as e:
+        logger.error(f"获取Supervisor信息失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
