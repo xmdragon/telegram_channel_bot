@@ -82,6 +82,9 @@ class SupervisorManager:
     def get_service_status(self, service_name: str) -> Optional[Dict[str, Any]]:
         """获取单个服务状态"""
         full_name = SupervisorConfig.get_service_name(service_name)
+        # 添加group前缀
+        if not full_name.startswith('telegram:'):
+            full_name = f'telegram:{full_name}'
 
         if not self.server:
             return None
@@ -108,6 +111,9 @@ class SupervisorManager:
     def start_service(self, service_name: str) -> bool:
         """启动服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
+        # 添加group前缀
+        if not full_name.startswith('telegram:'):
+            full_name = f'telegram:{full_name}'
 
         if not self.server:
             logger.warning(f"Supervisor未连接，无法启动服务{full_name}")
@@ -130,6 +136,9 @@ class SupervisorManager:
     def stop_service(self, service_name: str) -> bool:
         """停止服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
+        # 添加group前缀
+        if not full_name.startswith('telegram:'):
+            full_name = f'telegram:{full_name}'
 
         if not self.server:
             logger.warning(f"Supervisor未连接，无法停止服务{full_name}")
@@ -152,6 +161,9 @@ class SupervisorManager:
     def restart_service(self, service_name: str) -> bool:
         """重启服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
+        # 添加group前缀
+        if not full_name.startswith('telegram:'):
+            full_name = f'telegram:{full_name}'
 
         if not self.server:
             logger.warning(f"Supervisor未连接，无法重启服务{full_name}")
@@ -177,6 +189,11 @@ class SupervisorManager:
                         offset: int = 0, length: int = 1000) -> str:
         """获取服务日志"""
         full_name = SupervisorConfig.get_service_name(service_name)
+        # 添加group前缀
+        if not full_name.startswith('telegram:'):
+            full_name = f'telegram:{full_name}'
+
+        logger.debug(f"获取日志 - 原始名称: {service_name}, 映射后: {SupervisorConfig.get_service_name(service_name)}, 最终: {full_name}")
 
         if not self.server:
             return "Supervisor未连接"
@@ -193,8 +210,8 @@ class SupervisorManager:
                     full_name, offset, length
                 )
 
-            # result是一个元组: (log_text, offset, overflow)
-            return result[0] if isinstance(result, tuple) else result
+            # result是一个元组或列表: (log_text, offset, overflow)
+            return result[0] if isinstance(result, (tuple, list)) else result
         except Exception as e:
             logger.error(f"获取服务{full_name}日志失败: {e}")
             return f"获取日志失败: {str(e)}"
