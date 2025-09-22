@@ -103,4 +103,5 @@ data/vectors/
 *.onnx
 *.pt
 *.pth
-*.h5 
+*.h5 supervisord.pid
+supervisor.sock

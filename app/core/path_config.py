@@ -10,14 +10,18 @@ logger = logging.getLogger(__name__)
 
 class PathConfig:
     """系统路径统一配置类"""
-    
-    # 基础目录
-    DATA_DIR = Path("data")
+
+    # 项目根目录
+    ROOT_DIR = Path(__file__).parent.parent.parent.resolve()  # telegram_channel_bot目录
+
+    # 基础目录（使用绝对路径）
+    DATA_DIR = ROOT_DIR / "data"
     CONFIG_DIR = DATA_DIR / "config"
     TRAINING_DIR = DATA_DIR / "training"
     BACKUP_DIR = DATA_DIR / "backups"
-    LOGS_DIR = Path("logs")
-    TEMP_MEDIA_DIR = Path("temp_media")
+    LOGS_DIR = ROOT_DIR / "logs"
+    LOG_DIR = LOGS_DIR  # 兼容别名
+    TEMP_MEDIA_DIR = ROOT_DIR / "temp_media"
     
     # 配置文件（统一管理）
     SYSTEM_CONFIG_FILE = CONFIG_DIR / "system.json"

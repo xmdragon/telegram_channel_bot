@@ -27,21 +27,45 @@
                 </div>
                 <div class="card-content">
                     <div class="service-grid">
-                        <div class="service-item" v-for="service in services" :key="service.name" 
+                        <div class="service-item" v-for="service in services" :key="service.id"
                              :class="{ 'service-running': service.status === 'running', 'service-stopped': service.status !== 'running' }">
                             <div class="service-header">
-                                <div class="service-icon" :class="getServiceIcon(service.name)">
+                                <div class="service-icon" :class="getServiceIcon(service.display_name || service.name)">
                                 </div>
                                 <div class="service-info">
-                                    <div class="service-name">{{ service.name }}</div>
+                                    <div class="service-name">{{ service.display_name || service.name }}</div>
                                     <div class="service-description">{{ service.description }}</div>
                                 </div>
                                 <div class="service-status">
-                                    <div class="status-badge" :class="service.status === 'running' ? 'status-success' : 'status-danger'">
-                                        <span class="status-icon" :class="service.status === 'running' ? 'icon-check' : 'icon-close'"></span>
-                                        {{ service.status === 'running' ? '运行中' : '已停止' }}
+                                    <div class="status-badge" :class="getStatusClass(service.status)">
+                                        <span class="status-icon" :class="getStatusIcon(service.status)"></span>
+                                        {{ getStatusText(service.status) }}
                                     </div>
                                 </div>
+                            </div>
+                            <div class="service-controls">
+                                <button @click="restartService(service.id)"
+                                        class="btn-small btn-warning"
+                                        :disabled="!supervisorConnected || service.status === 'starting'"
+                                        title="重启服务">
+                                    <span class="btn-icon">🔄</span>
+                                    重启
+                                </button>
+                                <button @click="toggleService(service)"
+                                        class="btn-small"
+                                        :class="service.status === 'running' ? 'btn-danger' : 'btn-success'"
+                                        :disabled="!supervisorConnected || service.status === 'starting' || service.status === 'stopping'"
+                                        :title="service.status === 'running' ? '停止服务' : '启动服务'">
+                                    <span class="btn-icon">{{ service.status === 'running' ? '⏹️' : '▶️' }}</span>
+                                    {{ service.status === 'running' ? '停止' : '启动' }}
+                                </button>
+                                <button @click="viewLogs(service.id)"
+                                        class="btn-small btn-info"
+                                        :disabled="!supervisorConnected"
+                                        title="查看日志">
+                                    <span class="btn-icon">📄</span>
+                                    日志
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -97,21 +121,29 @@
             </div>
         </div>
         
-        <!-- WebSocket进度遮罩 -->
-        <div v-if="operationProgress.active" class="progress-overlay">
-            <div class="progress-content">
-                <h3 style="margin-bottom: 20px; color: #00ff41; text-align: center;">
-                    {{ getProgressTitle() }}
-                </h3>
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" :style="{width: operationProgress.progress + '%'}"></div>
-                    </div>
-                    <span class="progress-text">{{ operationProgress.progress }}%</span>
+        <!-- 日志查看弹窗 -->
+        <div v-if="logModal.visible" class="modal-overlay" @click.self="closeLogModal">
+            <div class="modal-content" style="width: 80%; max-width: 1000px;">
+                <div class="modal-header">
+                    <h3>{{ logModal.serviceName }} - 日志查看</h3>
+                    <button @click="closeLogModal" class="btn-close">✖</button>
                 </div>
-                <p style="margin-top: 15px; color: #00ff41; text-align: center; font-size: 14px;">
-                    {{ operationProgress.message }}
-                </p>
+                <div class="modal-body">
+                    <div class="log-controls">
+                        <label>
+                            <input type="radio" v-model="logModal.logType" value="stdout" @change="refreshLogs">
+                            标准输出
+                        </label>
+                        <label style="margin-left: 20px;">
+                            <input type="radio" v-model="logModal.logType" value="stderr" @change="refreshLogs">
+                            错误日志
+                        </label>
+                        <button @click="refreshLogs" class="btn btn-small btn-primary" style="float: right;">
+                            刷新
+                        </button>
+                    </div>
+                    <pre class="log-content">{{ logModal.logs || '暂无日志' }}</pre>
+                </div>
             </div>
         </div>
     </div>

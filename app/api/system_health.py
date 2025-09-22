@@ -22,20 +22,6 @@ router = APIRouter(tags=["system-health"])
 # 记录启动时间
 START_TIME = datetime.now()
 
-def check_message_collector_process() -> bool:
-    """检测message_collector.py或telegram_collector.py进程是否运行"""
-    try:
-        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-            try:
-                cmdline = proc.info['cmdline']
-                if cmdline and any(('message_collector.py' in str(arg) or 'telegram_collector.py' in str(arg)) for arg in cmdline):
-                    return True
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-        return False
-    except Exception as e:
-        logger.error(f"检测message_collector进程失败: {e}")
-        return False
 
 @router.get(ROUTES.system.status)
 async def get_system_status() -> Dict[str, Any]:
@@ -51,24 +37,24 @@ async def get_system_status() -> Dict[str, Any]:
         all_channels = channel_store.get_all_channels()
         source_channels = len([ch for ch in all_channels if ch.get('channel_type') == 'source'])
         
-        # 检查服务状态（快速）
-        # 直接检查进程是否运行
-        telegram_connected = check_message_collector_process()
-        web_server_running = True
-        scheduler_running = True
-        
-        # 检查scheduler进程
-        try:
-            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                try:
-                    cmdline = proc.info['cmdline']
-                    if cmdline and any('message_scheduler.py' in str(arg) for arg in cmdline):
-                        scheduler_running = True
-                        break
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-        except Exception as e:
-            logger.warning(f"检查scheduler进程失败: {e}")
+        # 使用Supervisor管理器获取服务状态
+        from app.services.supervisor_manager import supervisor_manager
+
+        # 默认状态
+        telegram_connected = False
+        web_server_running = False
+        scheduler_running = False
+
+        # 获取Supervisor服务状态
+        if supervisor_manager.is_connected():
+            services = supervisor_manager.get_all_services_status()
+            for service in services:
+                if service['id'] == 'collector' and service['status'] == 'running':
+                    telegram_connected = True
+                elif service['id'] == 'web' and service['status'] == 'running':
+                    web_server_running = True
+                elif service['id'] == 'scheduler' and service['status'] == 'running':
+                    scheduler_running = True
         
         result = {
             "services": {
@@ -190,7 +176,7 @@ async def get_detailed_status() -> Dict[str, Any]:
                 },
                 "services": {
                     "web_server": "running",
-                    "telegram_bot": "running" if check_message_collector_process() else "stopped",
+                    "telegram_bot": "running" if telegram_connected else "stopped",
                     "storage": "running",
                     "message_processor": "running",
                     "system_monitor": "running" if current_status else "stopped"

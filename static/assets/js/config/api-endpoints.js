@@ -121,6 +121,18 @@ const API_ENDPOINTS = {
     },
 
 
+    // 服务管理模块 - /api/services
+    services: {
+        status: '/api/services/status',                            // GET - 获取所有服务状态
+        statusById: (name) => `/api/services/status/${name}`,      // GET - 获取单个服务状态
+        restart: (name) => `/api/services/restart/${name}`,        // POST - 重启服务
+        start: (name) => `/api/services/start/${name}`,            // POST - 启动服务
+        stop: (name) => `/api/services/stop/${name}`,              // POST - 停止服务
+        logs: (name) => `/api/services/logs/${name}`,              // GET - 获取服务日志
+        reloadConfig: '/api/services/reload-config',               // POST - 重载配置
+        info: '/api/services/info'                                 // GET - 获取Supervisor信息
+    },
+
     // WebSocket端点 - 统一管理：所有WebSocket连接必须使用WebSocketFactory.create()
     // 禁止直接构造WebSocket，统一使用：WebSocketFactory.create('main')
     websocket: {

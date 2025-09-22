@@ -1,85 +1,117 @@
 """
-消息调度服务
+消息调度服务 - 纯asyncio实现
 """
+import asyncio
 import logging
 import os
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from typing import Dict, Any, Optional
+
 from app.services.message_processor import MessageProcessor
 from app.core.media_paths import media_paths
-from app.services.auto_forwarder import auto_forwarder
 from app.utils.timezone import get_current_time
 
 logger = logging.getLogger(__name__)
 
 class MessageScheduler:
-    """消息调度器"""
+    """消息调度器 - 使用纯asyncio实现"""
 
     def __init__(self):
-        self.scheduler = AsyncIOScheduler()
         self.message_processor = MessageProcessor()
+        self.is_running = False
+        self.tasks: Dict[str, asyncio.Task] = {}
 
-    def start(self):
-        """启动调度器 - 包含数据清理和自动转发"""
-        from datetime import datetime, timedelta
+    async def start(self):
+        """启动所有调度任务"""
+        if self.is_running:
+            logger.warning("调度器已经在运行中")
+            return
 
-        # 每10分钟清理过期数据（改为10分钟）
-        self.scheduler.add_job(
-            self.cleanup_old_data,
-            'interval',
-            minutes=10,  # 从1小时改为10分钟
-            id='cleanup_data',
-            next_run_time=datetime.now(),  # 立即执行一次
-            max_instances=1  # 防止重叠执行
+        self.is_running = True
+
+        # 启动各个调度任务
+        self.tasks['cleanup_data'] = asyncio.create_task(
+            self._run_periodic_task(
+                self.cleanup_old_data,
+                interval_seconds=600,  # 10分钟
+                initial_delay=0,  # 立即执行
+                task_name="cleanup_data"
+            )
         )
 
-        # 每10分钟清理孤儿媒体文件（新增，错开5分钟执行）
-        self.scheduler.add_job(
-            self.cleanup_orphan_media_files,
-            'interval',
-            minutes=10,  # 每10分钟执行
-            id='cleanup_orphan_media',
-            next_run_time=datetime.now() + timedelta(minutes=5),  # 错开5分钟执行
-            max_instances=1  # 防止重叠执行
+        self.tasks['cleanup_orphan_media'] = asyncio.create_task(
+            self._run_periodic_task(
+                self.cleanup_orphan_media_files,
+                interval_seconds=600,  # 10分钟
+                initial_delay=300,  # 延迟5分钟开始，错开执行
+                task_name="cleanup_orphan_media"
+            )
         )
 
-        # 每小时清理日志文件（保留1天的日志，error.log除外）
-        self.scheduler.add_job(
-            self.cleanup_old_logs,
-            'interval',
-            hours=1,
-            id='cleanup_logs',
-            next_run_time=datetime.now(),  # 立即执行一次
-            max_instances=1  # 防止重叠执行
+        self.tasks['cleanup_logs'] = asyncio.create_task(
+            self._run_periodic_task(
+                self.cleanup_old_logs,
+                interval_seconds=3600,  # 1小时
+                initial_delay=0,  # 立即执行
+                task_name="cleanup_logs"
+            )
         )
 
-        # 自动转发任务 - 改为持续运行模式
-        self.scheduler.add_job(
-            auto_forwarder.run_continuous,
-            'date',  # 只运行一次，内部会持续循环
-            run_date=datetime.now(),
-            id='auto_forward_continuous',
-            max_instances=1  # 确保只有一个实例
+        self.tasks['channel_sync'] = asyncio.create_task(
+            self._run_periodic_task(
+                self.sync_channel_info,
+                interval_seconds=3600,  # 1小时
+                initial_delay=60,  # 延迟1分钟开始
+                task_name="channel_sync"
+            )
         )
 
-        # 新增：频道信息同步任务 - 每小时执行一次
-        self.scheduler.add_job(
-            self.sync_channel_info,
-            'interval',
-            hours=1,
-            id='channel_sync',
-            max_instances=1,  # 防止任务重叠
-            misfire_grace_time=300  # 错过执行时间5分钟内仍会执行
-        )
+        logger.info("✅ 消息调度器已启动 (纯asyncio实现)")
 
-        self.scheduler.start()
-        logger.info("消息调度器已启动 (包含自动转发和频道同步)")
-    
-    def shutdown(self):
-        """关闭调度器"""
-        self.scheduler.shutdown()
+    async def _run_periodic_task(self, func, interval_seconds: int, initial_delay: int = 0, task_name: str = ""):
+        """运行周期性任务的通用方法"""
+        try:
+            # 初始延迟
+            if initial_delay > 0:
+                logger.debug(f"任务 {task_name} 将在 {initial_delay} 秒后开始")
+                await asyncio.sleep(initial_delay)
+
+            while self.is_running:
+                try:
+                    logger.debug(f"执行定时任务: {task_name}")
+                    await func()
+                except asyncio.CancelledError:
+                    logger.info(f"任务 {task_name} 被取消")
+                    break
+                except Exception as e:
+                    logger.error(f"任务 {task_name} 执行失败: {e}")
+
+                # 等待下次执行
+                await asyncio.sleep(interval_seconds)
+
+        except asyncio.CancelledError:
+            logger.info(f"周期任务 {task_name} 已停止")
+        except Exception as e:
+            logger.error(f"周期任务 {task_name} 异常退出: {e}")
+
+    async def shutdown(self):
+        """关闭所有调度任务"""
+        logger.info("正在关闭消息调度器...")
+        self.is_running = False
+
+        # 取消所有运行中的任务
+        for task_name, task in self.tasks.items():
+            if task and not task.done():
+                logger.debug(f"取消任务: {task_name}")
+                task.cancel()
+
+        # 等待所有任务完成
+        if self.tasks:
+            await asyncio.gather(*self.tasks.values(), return_exceptions=True)
+
+        self.tasks.clear()
         logger.info("消息调度器已关闭")
     
     async def cleanup_old_data(self):

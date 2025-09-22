@@ -217,33 +217,44 @@ class MessageForwarder:
     
     async def _check_caption_length(self, content: str, with_footer: bool = True) -> tuple[bool, int]:
         """检查caption长度是否超限
-        
+
         Args:
             content: 消息内容
             with_footer: 是否计算加上落款的长度
-            
+
         Returns:
             (是否合法, 超出字符数)
         """
         try:
+            from app.services.config_manager import config_manager
+
             if with_footer:
                 # 获取落款配置
-                from app.services.config_manager import config_manager
                 footer = await config_manager.get_config("target.signature", "")
                 if footer:
                     footer = "\n\n" + footer.replace("\\n", "\n")
                     content = (content or "") + footer
-            
-            max_length = 1024  # Telegram媒体caption限制
+
+            # 检查是否为Premium账号
+            is_premium = await config_manager.get_config('telegram.is_premium', False)
+
+            # 根据Premium状态选择字符限制
+            if is_premium:
+                max_length = await config_manager.get_config('telegram.max_message_length_vip', 2048)
+                logger.debug(f"使用Premium字符限制: {max_length}字")
+            else:
+                max_length = await config_manager.get_config('telegram.max_message_length', 1024)
+                logger.debug(f"使用普通用户字符限制: {max_length}字")
+
             content_length = len(content)
-            
+
             if content_length <= max_length:
                 return True, 0
             else:
                 excess = content_length - max_length
                 logger.warning(f"Caption长度超限: {content_length} > {max_length} (超出{excess}字符)")
                 return False, excess
-                
+
         except Exception as e:
             logger.error(f"检查caption长度失败: {e}")
             # 出错时保守处理，假设超限

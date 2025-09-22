@@ -35,3 +35,7 @@ api_router.include_router(system_maintenance_router, tags=["system-maintenance"]
 api_router.include_router(training_router, tags=["training"])
 # Telegram工具路由
 api_router.include_router(telegram_tools_router, tags=["telegram-tools"])
+
+# 服务管理路由（Supervisor集成）
+from .services import router as services_router
+api_router.include_router(services_router, tags=["services"])
