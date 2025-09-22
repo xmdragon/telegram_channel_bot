@@ -497,7 +497,6 @@ const MainApp = {
         
         
         async loadMessages(append = false) {
-            console.log('🔄 loadMessages被调用, append=', append, 'sortOrder=', this.sortOrder);
 
             if (append) {
                 this.isLoadingMore = true;
@@ -520,8 +519,6 @@ const MainApp = {
                     page_size: this.pageSize,
                     sort_order: this.sortOrder  // 添加排序参数
                 };
-
-                console.log('🔍 请求参数:', params);
                 
                 // 只有当status为null或undefined时才使用默认值，空字符串应该被保留
                 if (this.filters.status === null || this.filters.status === undefined) {

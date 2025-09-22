@@ -108,6 +108,12 @@ async def get_messages(
             
             filtered_messages.append(msg)
         
+        # 排序处理
+        if sort_order == "asc":
+            # 旧到新：反转消息顺序
+            filtered_messages.reverse()
+        # 默认是desc（新到旧），不需要额外处理
+
         # 分页处理
         total_messages = len(filtered_messages)
         if not source_channel:
