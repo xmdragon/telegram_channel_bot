@@ -88,6 +88,9 @@ const MainApp = {
                 source_channel: '',
                 filter_reason: null
             },
+
+            // 排序选项
+            sortOrder: 'desc',  // 默认新到旧
             
             
             // 操作状态
@@ -513,7 +516,8 @@ const MainApp = {
                 const params = {
                     ...this.filters,
                     page: this.currentPage,
-                    page_size: this.pageSize
+                    page_size: this.pageSize,
+                    sort_order: this.sortOrder  // 添加排序参数
                 };
                 
                 // 只有当status为null或undefined时才使用默认值，空字符串应该被保留
