@@ -6,10 +6,12 @@ import logging
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+from telethon.errors import FloodWaitError
 
 from app.storage.redis_manager import redis_manager
 from app.services.config_manager import config_manager
 from app.utils.timezone import get_current_time
+from app.utils.rate_limiter import rate_limiter, MessageType
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +61,18 @@ class AutoForwarder:
 
                     logger.info(f"准备自动转发消息: {message_id} (第{retry_count + 1}次尝试)")
 
-                    # 5. 根据消息类型设置超时时间
+                    # 5. 智能限流控制 - 根据消息类型等待
+                    message_type = self._get_message_type(message)
+                    target_channel_id = await config_manager.get_config('target.channel_id', '')
+
+                    wait_time = await rate_limiter.wait_if_needed(message_type, target_channel_id)
+                    if wait_time > 0:
+                        logger.info(f"限流等待 {wait_time:.1f}秒后发送消息: {message_id}")
+
+                    # 6. 根据消息类型设置超时时间
                     timeout = await self.get_timeout_for_message(message)
 
-                    # 6. 发送消息（带超时保护）
+                    # 7. 发送消息（带FloodWait处理）
                     try:
                         from app.api.messages_crud import publish_single_message
 
@@ -78,7 +88,12 @@ class AutoForwarder:
                         if result['success']:
                             logger.info(f"✅ 自动转发成功: {message_id}")
                             self.last_forward_time = get_current_time()
+                            # 记录成功发送
+                            rate_limiter.record_send_attempt(message_type, target_channel_id, True)
                         else:
+                            # 记录失败发送
+                            rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+
                             # 处理发送失败
                             error_type = result.get('error', 'unknown')
                             if error_type in ['ad_detected', 'content_too_long']:
@@ -90,20 +105,47 @@ class AutoForwarder:
                                 await self.mark_forward_failed(message_id, result.get('message', 'unknown error'))
                                 logger.error(f"自动转发失败: {message_id} - {result.get('message')}")
 
+                    except FloodWaitError as e:
+                        # FloodWait专门处理
+                        wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+                        await rate_limiter.wait_for_flood_wait(wait_seconds)
+
+                        # 增加重试计数
+                        await self.increment_retry_count(message_id)
+                        await self.mark_forward_failed(message_id, f"触发限流，等待{wait_seconds}秒")
+                        logger.warning(f"自动转发触发FloodWait: {message_id} - 等待{wait_seconds}秒")
+
+                        # 记录失败发送
+                        rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+
                     except asyncio.TimeoutError:
                         # 增加重试计数
                         await self.increment_retry_count(message_id)
                         await self.mark_forward_failed(message_id, f"发送超时({timeout}秒)")
                         logger.error(f"自动转发超时: {message_id} (超时时间: {timeout}秒)")
 
+                        # 记录失败发送
+                        rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+
                     except Exception as e:
+                        # 检查是否是FloodWait错误的其他形式
+                        error_str = str(e).lower()
+                        if 'flood' in error_str or 'wait' in error_str:
+                            wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+                            await rate_limiter.wait_for_flood_wait(wait_seconds)
+                            logger.warning(f"检测到FloodWait错误: {message_id} - {e}")
+
                         # 增加重试计数
                         await self.increment_retry_count(message_id)
                         await self.mark_forward_failed(message_id, str(e))
                         logger.error(f"自动转发异常: {message_id} - {e}")
 
-                    # 7. 速率控制：每秒最多发送一条消息
-                    await asyncio.sleep(1)
+                        # 记录失败发送
+                        rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+
+                    # 8. 智能发送间隔 - 移除固定1秒睡眠，由限流管理器控制
+                    # 短暂休眠避免CPU占用过高
+                    await asyncio.sleep(0.1)
 
                 except asyncio.CancelledError:
                     # 服务关闭信号
@@ -200,6 +242,27 @@ class AutoForwarder:
             return 60  # 图片文件60秒
         else:
             return 90  # 其他文件90秒
+
+    def _get_message_type(self, message: Dict[str, Any]) -> MessageType:
+        """
+        根据消息内容判断消息类型
+
+        Args:
+            message: 消息对象
+
+        Returns:
+            消息类型枚举
+        """
+        # 检查是否为组合消息
+        if message.get('is_combined') or message.get('media_group_display'):
+            return MessageType.COMBINED
+
+        # 检查是否有媒体
+        if message.get('media_url') or message.get('media_type'):
+            return MessageType.MEDIA
+
+        # 默认为文本消息
+        return MessageType.TEXT
 
     async def increment_retry_count(self, message_id: str):
         """

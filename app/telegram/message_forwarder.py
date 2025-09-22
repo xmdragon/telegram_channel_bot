@@ -8,10 +8,12 @@ import asyncio
 from typing import Optional, Union, Dict, Any
 from datetime import datetime
 from telethon import TelegramClient
+from telethon.errors import FloodWaitError
 
 from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.services.media_handler import media_handler
+from app.utils.rate_limiter import rate_limiter, MessageType
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,15 @@ class MessageForwarder:
             if not target_channel_id:
                 logger.error("未配置目标频道ID")
                 return None
+
+            # 🚀 智能限流控制 - 根据消息类型等待
+            message_type = self._get_message_type(message)
+            wait_time = await rate_limiter.wait_if_needed(message_type, target_channel_id)
+            if wait_time > 0:
+                logger.info(f"转发前限流等待 {wait_time:.1f}秒")
+
+            # 记录发送尝试的标记
+            send_attempted = False
             
             # 移除隐藏链接（系统默认策略：始终移除）
             clean_entities = None
@@ -104,30 +115,30 @@ class MessageForwarder:
             
             # 🚀 优化：消除特殊情况，消息在采集时就应该正确组合
             
+            # 🚀 发送消息并处理FloodWait
             if is_combined and media_group:
                 # 发送组合消息（媒体组）
-                sent_message = await self._send_combined_message(client, target_channel_id, message)
+                sent_message = await self._send_combined_message_with_retry(client, target_channel_id, message, message_type)
+                send_attempted = True
             elif media_type and media_url and os.path.exists(media_url):
                 # 发送单个媒体消息
-                sent_message = await self._send_single_media_message(client, target_channel_id, message)
+                sent_message = await self._send_single_media_message_with_retry(client, target_channel_id, message, message_type)
+                send_attempted = True
             else:
                 # 发送纯文本消息（不包含隐藏链接实体）
                 filtered_content = getattr(message, 'filtered_content', None) or message.get('filtered_content', None)
                 content = getattr(message, 'content', None) or message.get('content', '')
-                
+
                 # 🗑️ 不再需要清理媒体组标记 - 现在单独存储
                 text_content = filtered_content or content
-                
+
                 content_with_footer = await self._add_channel_footer(text_content)
-                # 添加超时保护：文本消息30秒
-                sent_message = await asyncio.wait_for(
-                    client.send_message(
-                        entity=int(target_channel_id),
-                        message=content_with_footer,
-                        formatting_entities=clean_entities  # 传递空实体列表，移除隐藏链接
-                    ),
-                    timeout=30
+
+                # 发送文本消息（带FloodWait处理）
+                sent_message = await self._send_text_message_with_retry(
+                    client, target_channel_id, content_with_footer, clean_entities, message_type
                 )
+                send_attempted = True
             
             # 更新数据库（如果是字典类型，需要更新Redis存储）
             if sent_message:
@@ -186,10 +197,39 @@ class MessageForwarder:
             else:
                 logger.warning(f"消息发布但未获取到消息ID: {getattr(message, 'id', 'unknown')}")
 
+            # 记录成功发送
+            if send_attempted and sent_message:
+                rate_limiter.record_send_attempt(message_type, target_channel_id, True)
+
             return target_message_link
+
+        except FloodWaitError as e:
+            # FloodWait专门处理
+            wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+            await rate_limiter.wait_for_flood_wait(wait_seconds)
+            logger.warning(f"转发触发FloodWait，等待{wait_seconds}秒: {getattr(message, 'id', 'unknown')}")
+
+            # 记录失败发送
+            if send_attempted:
+                rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+
+            # 重新抛出异常，让上层决定是否重试
+            raise
 
         except Exception as e:
             logger.error(f"重新发布到目标频道时出错: {e}")
+
+            # 检查是否是FloodWait错误的其他形式
+            error_str = str(e).lower()
+            if 'flood' in error_str or 'wait' in error_str:
+                wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+                await rate_limiter.wait_for_flood_wait(wait_seconds)
+                logger.warning(f"检测到FloodWait错误: {getattr(message, 'id', 'unknown')}")
+
+            # 记录失败发送（如果已尝试发送）
+            if send_attempted:
+                rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+
             # 不清理媒体文件 - 交给scheduler定期清理，保留文件用于重试
             raise  # 重新抛出异常，让队列处理器知道失败
     
@@ -385,6 +425,69 @@ class MessageForwarder:
         # 其他文件：90秒
         else:
             return 90
+
+    def _get_message_type(self, message) -> MessageType:
+        """
+        根据消息内容判断消息类型
+
+        Args:
+            message: 消息对象
+
+        Returns:
+            消息类型枚举
+        """
+        # 检查是否为组合消息
+        if getattr(message, 'is_combined', False) or message.get('is_combined', False) or \
+           getattr(message, 'media_group_display', None) or message.get('media_group_display', None):
+            return MessageType.COMBINED
+
+        # 检查是否有媒体
+        if getattr(message, 'media_url', None) or message.get('media_url', None) or \
+           getattr(message, 'media_type', None) or message.get('media_type', None):
+            return MessageType.MEDIA
+
+        # 默认为文本消息
+        return MessageType.TEXT
+
+    async def _send_text_message_with_retry(self, client: TelegramClient, target_channel_id: str,
+                                           content: str, entities, message_type: MessageType) -> any:
+        """发送文本消息（带FloodWait重试）"""
+        try:
+            return await asyncio.wait_for(
+                client.send_message(
+                    entity=int(target_channel_id),
+                    message=content,
+                    formatting_entities=entities
+                ),
+                timeout=30
+            )
+        except FloodWaitError as e:
+            # FloodWait处理并重新抛出，让上层处理
+            wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+            await rate_limiter.wait_for_flood_wait(wait_seconds)
+            raise
+
+    async def _send_combined_message_with_retry(self, client: TelegramClient, target_channel_id: str,
+                                               message, message_type: MessageType) -> any:
+        """发送组合消息（带FloodWait重试）"""
+        try:
+            return await self._send_combined_message(client, target_channel_id, message)
+        except FloodWaitError as e:
+            # FloodWait处理并重新抛出，让上层处理
+            wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+            await rate_limiter.wait_for_flood_wait(wait_seconds)
+            raise
+
+    async def _send_single_media_message_with_retry(self, client: TelegramClient, target_channel_id: str,
+                                                   message, message_type: MessageType) -> any:
+        """发送单个媒体消息（带FloodWait重试）"""
+        try:
+            return await self._send_single_media_message(client, target_channel_id, message)
+        except FloodWaitError as e:
+            # FloodWait处理并重新抛出，让上层处理
+            wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+            await rate_limiter.wait_for_flood_wait(wait_seconds)
+            raise
 
     async def forward_to_target_with_sender_session(self, message):
         """使用发送Session转发到目标频道（无锁设计），返回目标消息链接"""
