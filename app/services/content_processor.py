@@ -195,42 +195,53 @@ class ContentProcessor:
             # 4. 广告检测（最慢，放最后，支持早期退出）
             logger.info(f"📢 广告检测条件: detect_ad={detect_ad}, ad_detector_enabled={filter_config.get('ad_detector', False)}, content_len={len(current_content.strip()) if current_content else 0}")
             if detect_ad and filter_config.get('ad_detector', False) and current_content and len(current_content.strip()) > 10:
-                logger.info(f"📢 开始广告检测: content='{current_content}', length={len(current_content)}")
+                logger.info(f"📢 开始广告检测: message_id={message.message_id}")
                 is_ad, total_weight, matched_keywords = self.ad_detector.detect(current_content)
-                logger.info(f"📢 广告检测结果: is_ad={is_ad}, weight={total_weight}, keywords={matched_keywords[:3] if matched_keywords else []}")
 
-                if is_ad:
-                    message.is_ad = True
+                # 无论是否判定为广告，只要找到了关键词就保存
+                if matched_keywords:
                     message.ad_weight = total_weight
                     message.hit_keywords = matched_keywords[:10]  # 保存前10个关键词
 
-                    # 准备日志
+                    # 详细的调试日志
+                    keyword_details = [f"{k['keyword']}({k['weight']:.1f})" for k in matched_keywords]
+                    logger.info(f"🔍 广告检测详情 - 消息:{message.channel_id}:{message.message_id}")
+                    logger.info(f"  命中关键词: {', '.join(keyword_details)}")
+                    logger.info(f"  总权重: {total_weight:.1f} (阈值: 3.0)")
+                    logger.info(f"  是否为广告: {is_ad}")
+
+                    # 添加到过滤原因
                     keyword_names = [item['keyword'] for item in matched_keywords[:3]]
                     filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(keyword_names)}")
-                    logger.info(f"消息 {message.channel_id}:{message.message_id} 检测为广告: 权重={total_weight:.1f}, 命中关键词: {keyword_names}")
 
-                    # 根据配置决定是否自动拒绝
-                    auto_reject = True  # 默认自动拒绝广告（安全优先）
+                # 只有权重≥阈值才标记为广告
+                if is_ad:
+                    message.is_ad = True
 
+                    # 获取auto_reject配置
+                    auto_reject = True  # 默认值
                     if config_manager:
                         try:
                             auto_reject = await config_manager.get_auto_reject_ads()
-                            logger.debug(f"自动拒绝广告配置: {auto_reject}")
                         except Exception as e:
-                            logger.error(f"获取自动拒绝配置失败，使用默认值(True): {e}")
+                            logger.error(f"获取自动拒绝配置失败: {e}")
                             auto_reject = True  # 配置失败时默认拒绝
                     else:
                         logger.debug("未提供config_manager，默认自动拒绝广告")
                         auto_reject = True  # 无配置时默认拒绝
 
+                    # 记录auto_reject值
+                    logger.warning(f"⚠️ 检测到广告 - 消息:{message.channel_id}:{message.message_id}")
+                    logger.warning(f"  权重: {total_weight:.1f}")
+                    logger.warning(f"  auto_reject配置: {auto_reject}")
+
                     if auto_reject:
-                        # 记录状态变更前的信息
                         old_status = message.status
                         message.status = "rejected"
                         message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
-                        logger.warning(f"🚫 消息 {message.channel_id}:{message.message_id} 被自动拒绝（广告）- 状态从 '{old_status}' 改为 'rejected'")
+                        logger.warning(f"🚫 消息被自动拒绝 - 状态从'{old_status}'改为'rejected'")
                     else:
-                        logger.info(f"消息 {message.channel_id}:{message.message_id} 检测为广告但自动拒绝已禁用")
+                        logger.info(f"⏸️ 广告检测已禁用自动拒绝，消息保持待审核状态")
 
             # 更新消息
             message.filtered_content = current_content
