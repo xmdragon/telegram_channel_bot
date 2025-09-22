@@ -96,27 +96,35 @@
         </div>
         
         <!-- 日志查看弹窗 -->
-        <div v-if="logModal.visible" class="modal-overlay" @click.self="closeLogModal">
-            <div class="modal-content" style="width: 80%; max-width: 1000px;">
-                <div class="modal-header">
-                    <h3>{{ logModal.serviceName }} - 日志查看</h3>
-                    <button @click="closeLogModal" class="btn-close">✖</button>
+        <div v-if="logModal.visible" class="status-log-modal-overlay" @click.self="closeLogModal">
+            <div class="status-log-modal">
+                <div class="status-log-modal-header">
+                    <h3 class="status-log-modal-title">
+                        <span class="status-log-modal-icon">📄</span>
+                        {{ logModal.serviceName }} - 日志查看
+                    </h3>
+                    <button @click="closeLogModal" class="status-log-modal-close">✕</button>
                 </div>
-                <div class="modal-body">
-                    <div class="log-controls">
-                        <label>
-                            <input type="radio" v-model="logModal.logType" value="stdout" @change="refreshLogs">
-                            标准输出
-                        </label>
-                        <label style="margin-left: 20px;">
-                            <input type="radio" v-model="logModal.logType" value="stderr" @change="refreshLogs">
-                            错误日志
-                        </label>
-                        <button @click="refreshLogs" class="btn btn-small btn-primary" style="float: right;">
+                <div class="status-log-modal-body">
+                    <div class="status-log-controls">
+                        <div class="status-log-type-selector">
+                            <label class="status-log-radio-label" :class="{ active: logModal.logType === 'stdout' }">
+                                <input type="radio" v-model="logModal.logType" value="stdout" @change="refreshLogs">
+                                <span>标准输出</span>
+                            </label>
+                            <label class="status-log-radio-label" :class="{ active: logModal.logType === 'stderr' }">
+                                <input type="radio" v-model="logModal.logType" value="stderr" @change="refreshLogs">
+                                <span>错误日志</span>
+                            </label>
+                        </div>
+                        <button @click="refreshLogs" class="btn btn-small btn-primary">
+                            <span class="btn-icon">🔄</span>
                             刷新
                         </button>
                     </div>
-                    <pre class="log-content">{{ logModal.logs || '暂无日志' }}</pre>
+                    <div class="status-log-viewer">
+                        <pre class="status-log-content">{{ logModal.logs || '暂无日志' }}</pre>
+                    </div>
                 </div>
             </div>
         </div>
