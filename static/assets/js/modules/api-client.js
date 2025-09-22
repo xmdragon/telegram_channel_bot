@@ -251,10 +251,6 @@ const ApiClient = {
             return await ApiClient.request('get', window.API.system.health);
         },
         
-        async status() {
-            if (!window.API?.system?.status) throw new Error('API配置未加载');
-            return await ApiClient.request('get', window.API.system.status);
-        }
     },
     
     // 批量操作辅助

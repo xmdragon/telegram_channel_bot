@@ -35,12 +35,6 @@ const app = createApp({
                 logs: ''
             },
             
-            // 系统信息
-            systemInfo: {
-                version: '1.0.0',
-                uptime: '0小时',
-                lastUpdate: new Date().toLocaleString('zh-CN')
-            },
             
         };
     },
@@ -123,24 +117,12 @@ const app = createApp({
                     }
                 }
 
-                // 加载系统信息
-                const systemResponse = await axios.get(API.system.systemStatus);
-                if (systemResponse.data) {
-                    this.updateSystemStatus(systemResponse.data);
-                }
             } catch (error) {
                 console.error('加载服务状态失败:', error);
                 MessageManager.error('加载服务状态失败');
             }
         },
         
-        updateSystemStatus(data) {
-            // 更新系统信息
-            if (data.system) {
-                this.systemInfo.uptime = this.formatUptime(data.system.uptime || 0);
-                this.systemInfo.lastUpdate = new Date().toLocaleString('zh-CN');
-            }
-        },
         
         formatUptime(seconds) {
             const hours = Math.floor(seconds / 3600);

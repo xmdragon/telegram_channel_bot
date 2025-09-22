@@ -75,7 +75,6 @@ class RouteConfig:
         # 健康检查（保留实际使用的端点）
         health = "/health"                           # 主健康检查端点 - 映射到 /api/health
         health_service = "/health/{service_name}"    # 服务健康检查 - 映射到 /api/health/{service_name}
-        status = "/system/status"
         status_detailed = "/system/status-detailed"
         reset = "/system/reset"
     

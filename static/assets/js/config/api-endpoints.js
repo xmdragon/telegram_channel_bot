@@ -106,7 +106,6 @@ const API_ENDPOINTS = {
     system: {
         // 系统健康检查（保留唯一使用的端点）
         health: '/api/health',                                     // GET - 健康检查（主要使用）
-        systemStatus: '/api/system/status',                        // GET - 系统状态
         detailedStatus: '/api/system/status-detailed',             // GET - 详细系统状态
 
         reset: '/api/system/reset',                                // POST - 重置系统
