@@ -583,12 +583,22 @@ class TelegramDualSessionManager:
 
             # 获取用户信息
             me = await client.get_me()
+
+            # 检测Premium状态
+            is_premium = getattr(me, 'premium', False)
+
+            # 如果是Sender账号，保存Premium状态到配置
+            if session_type == "sender":
+                await self.config_manager.set_config('telegram.is_premium', str(is_premium).lower())
+                logger.info(f"检测到Sender账号Premium状态: {'是' if is_premium else '否'}")
+
             user_info = {
                 "id": me.id,
                 "username": me.username,
                 "first_name": me.first_name,
                 "last_name": me.last_name,
-                "phone": me.phone
+                "phone": me.phone,
+                "is_premium": is_premium
             }
 
             logger.info(f"✅ {session_type}认证成功: {me.username or me.first_name}")
@@ -625,12 +635,22 @@ class TelegramDualSessionManager:
 
             # 获取用户信息
             me = await client.get_me()
+
+            # 检测Premium状态
+            is_premium = getattr(me, 'premium', False)
+
+            # 如果是Sender账号，保存Premium状态到配置
+            if session_type == "sender":
+                await self.config_manager.set_config('telegram.is_premium', str(is_premium).lower())
+                logger.info(f"检测到Sender账号Premium状态: {'是' if is_premium else '否'}")
+
             user_info = {
                 "id": me.id,
                 "username": me.username,
                 "first_name": me.first_name,
                 "last_name": me.last_name,
-                "phone": me.phone
+                "phone": me.phone,
+                "is_premium": is_premium
             }
 
             logger.info(f"✅ {session_type}两步验证成功: {me.username or me.first_name}")

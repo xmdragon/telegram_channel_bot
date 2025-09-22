@@ -938,7 +938,17 @@ async def publish_single_message(
 
             # 获取字符限制配置（支持会员等级）
             from app.services.config_manager import config_manager
-            max_message_length = await config_manager.get_config('telegram.max_message_length', 1024)
+
+            # 检查是否为Premium账号
+            is_premium = await config_manager.get_config('telegram.is_premium', False)
+
+            # 根据Premium状态选择字符限制
+            if is_premium:
+                max_message_length = await config_manager.get_config('telegram.max_message_length_vip', 2048)
+                logger.debug(f"使用Premium字符限制: {max_message_length}字")
+            else:
+                max_message_length = await config_manager.get_config('telegram.max_message_length', 1024)
+                logger.debug(f"使用普通用户字符限制: {max_message_length}字")
 
             # 计算落款长度（不实际添加footer，避免重复日志）
             footer_config = await config_manager.get_config("target.signature", "")
