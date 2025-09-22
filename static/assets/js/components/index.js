@@ -497,20 +497,21 @@ const MainApp = {
         
         
         async loadMessages(append = false) {
-            
+            console.log('🔄 loadMessages被调用, append=', append, 'sortOrder=', this.sortOrder);
+
             if (append) {
                 this.isLoadingMore = true;
             } else {
                 // 立即清空消息数据和设置加载状态
-                this.messages = [];  
-                this.selectedMessages = [];  
-                this.previousMessageIds = new Set();  
+                this.messages = [];
+                this.selectedMessages = [];
+                this.previousMessageIds = new Set();
                 this.currentPage = 1;
                 this.hasMore = true;  // 重置hasMore状态
                 this.loading = true;
                 this.loadingMessage = '正在加载消息数据...';
             }
-            
+
             try {
                 // 准备请求参数
                 const params = {
@@ -519,6 +520,8 @@ const MainApp = {
                     page_size: this.pageSize,
                     sort_order: this.sortOrder  // 添加排序参数
                 };
+
+                console.log('🔍 请求参数:', params);
                 
                 // 只有当status为null或undefined时才使用默认值，空字符串应该被保留
                 if (this.filters.status === null || this.filters.status === undefined) {
