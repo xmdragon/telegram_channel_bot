@@ -63,7 +63,7 @@
     "created_at": "2025-08-29T19:32:07.310927"
   },
   "scheduler.data_cleanup_interval_hours": {
-    "value": "24",
+    "value": "8",
     "config_type": "string",
     "description": "数据清理时间间隔（小时）",
     "is_active": true,

@@ -23,15 +23,25 @@ class MessageScheduler:
 
     def start(self):
         """启动调度器 - 包含数据清理和自动转发"""
-        from datetime import datetime
+        from datetime import datetime, timedelta
 
-        # 每小时清理过期数据
+        # 每10分钟清理过期数据（改为10分钟）
         self.scheduler.add_job(
             self.cleanup_old_data,
             'interval',
-            hours=1,
+            minutes=10,  # 从1小时改为10分钟
             id='cleanup_data',
             next_run_time=datetime.now(),  # 立即执行一次
+            max_instances=1  # 防止重叠执行
+        )
+
+        # 每10分钟清理孤儿媒体文件（新增，错开5分钟执行）
+        self.scheduler.add_job(
+            self.cleanup_orphan_media_files,
+            'interval',
+            minutes=10,  # 每10分钟执行
+            id='cleanup_orphan_media',
+            next_run_time=datetime.now() + timedelta(minutes=5),  # 错开5分钟执行
             max_instances=1  # 防止重叠执行
         )
 
@@ -81,7 +91,7 @@ class MessageScheduler:
             logger.info(f"⏰ [清理任务] 开始执行数据清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
             # 从配置文件读取清理时间间隔（小时）
-            cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 24)
+            cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)  # 默认值从24改为8
             cleanup_interval_hours = int(cleanup_interval_hours)
 
             logger.info(f"[清理任务] 使用配置的清理间隔: {cleanup_interval_hours}小时")
@@ -207,6 +217,77 @@ class MessageScheduler:
                 
         except Exception as e:
             logger.error(f"清理日志文件失败: {e}")
+
+    async def cleanup_orphan_media_files(self):
+        """独立清理超时的孤儿媒体文件 - 不依赖Redis消息记录"""
+        try:
+            from datetime import datetime, timedelta
+            from app.services.config_manager import config_manager
+            from app.core.path_config import PathConfig
+
+            logger.info(f"⏰ [媒体清理] 开始执行独立媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+            # 使用同一个配置值
+            cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)
+            cleanup_interval_hours = int(cleanup_interval_hours)
+
+            logger.info(f"[媒体清理] 使用配置的清理间隔: {cleanup_interval_hours}小时")
+
+            # 计算清理时间点
+            current_time = datetime.now()
+            cutoff_time = current_time - timedelta(hours=cleanup_interval_hours)
+
+            # 确保媒体目录存在
+            if not PathConfig.TEMP_MEDIA_DIR.exists():
+                logger.debug("[媒体清理] temp_media目录不存在，跳过清理")
+                return
+
+            deleted_count = 0
+            deleted_size = 0
+            skipped_count = 0
+
+            # 直接扫描temp_media目录
+            for file_path in PathConfig.TEMP_MEDIA_DIR.iterdir():
+                if file_path.is_file():
+                    try:
+                        # 获取文件修改时间
+                        file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+
+                        # 如果文件超过清理时间，删除它
+                        if file_mtime < cutoff_time:
+                            file_size = file_path.stat().st_size
+                            file_name = file_path.name
+
+                            try:
+                                file_path.unlink()
+                                deleted_count += 1
+                                deleted_size += file_size
+                                logger.debug(f"[媒体清理] 删除过期文件: {file_name} (大小: {file_size} bytes)")
+                            except Exception as e:
+                                logger.error(f"[媒体清理] 删除文件失败 {file_name}: {e}")
+                        else:
+                            skipped_count += 1
+
+                    except Exception as e:
+                        logger.error(f"[媒体清理] 处理文件时出错 {file_path.name}: {e}")
+
+            # 格式化文件大小
+            if deleted_size > 1024 * 1024 * 1024:  # GB
+                size_str = f"{deleted_size / (1024 * 1024 * 1024):.2f} GB"
+            elif deleted_size > 1024 * 1024:  # MB
+                size_str = f"{deleted_size / (1024 * 1024):.2f} MB"
+            elif deleted_size > 1024:  # KB
+                size_str = f"{deleted_size / 1024:.2f} KB"
+            else:
+                size_str = f"{deleted_size} bytes"
+
+            if deleted_count > 0:
+                logger.info(f"✅ [媒体清理] 完成 - 删除{deleted_count}个文件，释放{size_str}空间（保留{skipped_count}个新文件）")
+            else:
+                logger.debug(f"[媒体清理] 没有需要清理的文件（{skipped_count}个文件未到期）")
+
+        except Exception as e:
+            logger.error(f"❌ [媒体清理] 独立媒体文件清理失败: {e}")
 
     async def sync_channel_info(self):
         """同步频道信息 - 检查名称和标题变化"""
