@@ -29,6 +29,8 @@ class RouteConfig:
         mark_as_ad = "/messages/mark-as-ad/{id}"
         not_ad = "/messages/not-ad/{message_id}"
         delete_review = "/messages/delete-review/{message_id}"
+        train_tail = "/messages/train-tail/{message_id}"
+        feedback = "/messages/feedback/{message_id}"
 
         # 批量操作
         batch_approve = "/messages/batch/approve"
@@ -55,6 +57,9 @@ class RouteConfig:
         check_auth = "/admin/auth/check-auth"
         admins = "/admin/auth/admins"
         admin_by_id = "/admin/auth/admins/{admin_id}"
+        sessions = "/admin/auth/sessions"
+        session_by_token = "/admin/auth/sessions/{token}"
+        me = "/admin/auth/me"
 
     class DualAuth:
         """双Session认证路由"""
@@ -62,6 +67,7 @@ class RouteConfig:
         send_code = "/send-code"
         verify_code = "/verify-code"
         verify_password = "/verify-password"
+        session_status = "/session-status/{session_type}"
     
     class System:
         """系统相关路由"""
@@ -74,20 +80,27 @@ class RouteConfig:
     class Services:
         """服务管理相关路由"""
         status = "/status"
+        status_by_service = "/status/{service_name}"
         start = "/start/{service_name}"
         stop = "/stop/{service_name}"
         restart = "/restart/{service_name}"
         logs = "/logs/{service_name}"
+        reload_config = "/reload-config"
+        info = "/info"
 
     class Channels:
         """统一的频道管理路由"""
         # 基础管理
         list = "/"
         add = "/"
+        get = "/{channel_id}"
         delete = "/{channel_id}"
 
         # 批量操作
         batch_add = "/batch-add"
+
+        # 搜索功能
+        search = "/search"
 
         # 解析功能（仅源频道）
         resolve = "/resolve"
