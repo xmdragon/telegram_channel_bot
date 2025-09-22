@@ -53,9 +53,21 @@ class SupervisorConfig:
         root_dir = Path(PathConfig.ROOT_DIR).resolve()
         logs_dir = Path(PathConfig.LOGS_DIR).resolve()
 
+        # 检测虚拟环境
+        venv_dir = root_dir / 'venv'
+        venv_alt_dir = root_dir / '.venv'
+
+        if venv_dir.exists():
+            python_exe = str(venv_dir / 'bin' / 'python3')
+        elif venv_alt_dir.exists():
+            python_exe = str(venv_alt_dir / 'bin' / 'python3')
+        else:
+            # 如果没有虚拟环境，使用系统Python
+            python_exe = 'python3'
+
         return {
             'telegram_web': {
-                'command': f'python3 {root_dir}/web_server.py',
+                'command': f'{python_exe} {root_dir}/web_server.py',
                 'directory': str(root_dir),
                 'autostart': 'true',
                 'autorestart': 'true',
@@ -71,7 +83,7 @@ class SupervisorConfig:
                 'stopwaitsecs': '10'
             },
             'telegram_collector': {
-                'command': f'python3 {root_dir}/message_collector.py',
+                'command': f'{python_exe} {root_dir}/message_collector.py',
                 'directory': str(root_dir),
                 'autostart': 'true',
                 'autorestart': 'true',
@@ -87,7 +99,7 @@ class SupervisorConfig:
                 'stopwaitsecs': '10'
             },
             'telegram_scheduler': {
-                'command': f'python3 {root_dir}/message_scheduler.py',
+                'command': f'{python_exe} {root_dir}/message_scheduler.py',
                 'directory': str(root_dir),
                 'autostart': 'true',
                 'autorestart': 'true',
