@@ -1395,3 +1395,188 @@ h4 { font-size: 1.125rem; }
     word-wrap: break-word;
 }
 
+/* 现代化的状态页日志弹窗样式 */
+.status-log-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.status-log-modal {
+    background: #ffffff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease-out;
+}
+
+.status-log-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px 12px 0 0;
+}
+
+.status-log-modal-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-log-modal-icon {
+    font-size: 20px;
+}
+
+.status-log-modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: #ffffff;
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.status-log-modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.status-log-modal-body {
+    padding: 20px 24px;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.status-log-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.status-log-type-selector {
+    display: flex;
+    gap: 0;
+    background: #f3f4f6;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.status-log-radio-label {
+    position: relative;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-log-radio-label input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.status-log-radio-label.active {
+    background: #ffffff;
+    color: #667eea;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.status-log-radio-label:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.status-log-viewer {
+    flex: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+}
+
+.status-log-content {
+    margin: 0;
+    padding: 16px;
+    background: transparent;
+    border: none;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #374151;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    height: 100%;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.status-log-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.status-log-content::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+}
+
+.status-log-content::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.status-log-content::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
