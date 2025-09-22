@@ -103,6 +103,7 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
         "filter.tail_filter_enabled": await config_manager.get_config('filter.tail_filter_enabled', True),
         "target.require_approval": await config_manager.get_config('target.require_approval', True),
         "scheduler.enabled": await config_manager.get_config('scheduler.enabled', True),
+        "scheduler.data_cleanup_interval_hours": await config_manager.get_config('scheduler.data_cleanup_interval_hours', 24),
         "storage.delete_single_messages": await config_manager.get_config('storage.delete_single_messages', True),
         
         # 过滤器配置 - 统一命名格式
