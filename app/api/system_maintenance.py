@@ -61,7 +61,8 @@ async def reset_system() -> Dict[str, Any]:
                 patterns_to_delete = [
                     "message:*",        # 消息数据
                     "index:*",         # 所有索引键
-                    "channel:*:count"  # 频道计数
+                    "channel:*:count",  # 频道计数
+                    "dup:simhash:*"    # 去重SimHash索引
                 ]
                 
                 all_keys = []

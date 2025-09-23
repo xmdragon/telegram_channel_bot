@@ -184,7 +184,24 @@ const ConfigApp = {
             }
             return Boolean(value);
         },
-        
+
+        // 时间格式化方法
+        formatLastSyncTime(lastSyncTime) {
+            if (window.TimeUtils) {
+                return window.TimeUtils.formatTimeAgo(lastSyncTime);
+            }
+            // 降级处理
+            return lastSyncTime ? '有同步记录' : '未同步';
+        },
+
+        getLastSyncClass(lastSyncTime) {
+            if (window.TimeUtils) {
+                return window.TimeUtils.getTimeAgoClass(lastSyncTime);
+            }
+            // 降级处理
+            return lastSyncTime ? 'recent' : 'never-synced';
+        },
+
         // 统一配置加载方法
         async loadConfigs() {
             try {
@@ -554,29 +571,6 @@ const ConfigApp = {
             setTimeout(() => {
                 this.helpMessageShowing = false;
             }, 12000);
-        },
-        
-        
-        // 批量解析所有频道
-        async resolveAllChannels() {
-            try {
-                
-                const response = await axios.post(API.channels.resolveAll);
-                
-                if (response.data.success) {
-                    MessageManager.success(`频道解析完成: ${response.data.message}`);
-                    
-                    // 重新加载配置
-                    await this.loadChannels();
-                    await this.loadConfigs();
-                } else {
-                    MessageManager.error('解析失败: ' + response.data.message);
-                }
-            } catch (error) {
-                MessageManager.error('解析失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                // 操作完成
-            }
         },
         
         

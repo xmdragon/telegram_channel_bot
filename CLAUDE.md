@@ -127,14 +127,19 @@ Claude Code 工作指导文档 - Telegram消息采集审核系统
 ### 启动命令
 
 ```bash
-# 开发模式（推荐）
-./dev.sh                    # 启动所有服务
-./dev.sh web               # 仅启动Web服务
-./dev.sh web scheduler     # 启动指定服务
-./dev.sh --status          # 快速查看状态
+# Supervisor管理（当前使用）
+supervisorctl -c config/supervisord.conf status     # 查看服务状态
+supervisorctl -c config/supervisord.conf start all  # 启动所有服务
+supervisorctl -c config/supervisord.conf stop all   # 停止所有服务
+supervisorctl -c config/supervisord.conf restart all # 重启所有服务
 
-# 系统管理
-./start.sh                 # 生产环境启动
+# 单个服务管理
+supervisorctl -c config/supervisord.conf start telegram_web       # 启动Web服务
+supervisorctl -c config/supervisord.conf start telegram_collector # 启动采集服务
+supervisorctl -c config/supervisord.conf start telegram_scheduler # 启动调度服务
+
+# 系统管理脚本
+./start.sh                 # 启动supervisor和所有服务
 ./stop.sh                  # 停止所有服务
 ./restart.sh               # 完整重启
 ```
@@ -274,22 +279,26 @@ python3 tools/git/auto_commit.py
 
 ```bash
 # 查看状态
-./dev.sh --status          # 0.05秒快速状态查看
-curl localhost:8008/api/health  # API健康检查
+supervisorctl -c config/supervisord.conf status    # 查看所有服务状态
+curl localhost:8008/api/health                     # API健康检查
 
 # 重启特定服务
-./dev.sh web               # 只重启Web服务
-./dev.sh collector         # 只重启采集服务
+supervisorctl -c config/supervisord.conf restart telegram_web       # 重启Web服务
+supervisorctl -c config/supervisord.conf restart telegram_collector # 重启采集服务
+supervisorctl -c config/supervisord.conf restart telegram_scheduler # 重启调度服务
 ```
 
 ### 故障排查
 
 ```bash
 # 1. 检查服务状态
-./dev.sh --status
+supervisorctl -c config/supervisord.conf status
 
 # 2. 查看日志
-tail -n 50 logs/app.log
+tail -n 50 logs/web_output.log      # Web服务日志
+tail -n 50 logs/collector_output.log # 采集服务日志
+tail -n 50 logs/scheduler_output.log # 调度服务日志
+tail -n 50 logs/supervisord.log     # Supervisor日志
 
 # 3. 检查Redis
 redis-cli ping
@@ -308,7 +317,7 @@ cat data/config/system.json
 - **API端点配置**：`static/assets/js/config/api-endpoints.js`
 - **路径配置**：`app/core/path_config.py`
 - **系统配置**：`data/config/system.json`
-- **启动脚本**：`dev.sh`、`start.sh`、`stop.sh`
+- **启动脚本**：`start.sh`、`stop.sh`、`restart.sh`、`config/supervisord.conf`
 - **Git工具**：`tools/git/auto_commit.py`
 
 ### 端口配置

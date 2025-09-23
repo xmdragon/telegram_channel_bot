@@ -360,26 +360,3 @@ async def resolve_channel(request: ChannelResolveRequest, user: Dict[str, Any] =
             "message": f"解析失败: {str(e)}"
         }
 
-@router.post(ROUTES.channels.resolve_all)
-async def resolve_all_channels(user: Dict[str, Any] = Depends(require_auth)):
-    """
-    批量解析所有源频道的缺失ID
-    """
-    try:
-        from app.services.channel_manager import channel_manager
-
-        # 解析缺失的频道ID
-        resolved_count = await channel_manager.resolve_missing_channel_ids()
-
-        return {
-            "success": True,
-            "resolved_count": resolved_count,
-            "message": f"批量解析完成，共解析 {resolved_count} 个频道ID"
-        }
-
-    except Exception as e:
-        logger.error(f"批量解析源频道失败: {e}")
-        return {
-            "success": False,
-            "message": f"批量解析失败: {str(e)}"
-        }

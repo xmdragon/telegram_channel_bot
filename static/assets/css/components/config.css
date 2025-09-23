@@ -173,6 +173,51 @@
     flex: 1;
 }
 
+/* 最后同步时间样式 */
+.last-sync-time {
+    font-size: 12px;
+    font-weight: 400;
+    margin-left: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+/* 最近同步（正常状态） */
+.last-sync-time.recent {
+    color: #059669;
+    background-color: #d1fae5;
+    border: 1px solid #a7f3d0;
+}
+
+/* 一段时间前（提醒状态） */
+.last-sync-time.some-time-ago {
+    color: #d97706;
+    background-color: #fef3c7;
+    border: 1px solid #fbbf24;
+}
+
+/* 很久以前（警告状态） */
+.last-sync-time.long-time-ago {
+    color: #dc2626;
+    background-color: #fee2e2;
+    border: 1px solid #fca5a5;
+}
+
+/* 从未同步（警告状态） */
+.last-sync-time.never-synced {
+    color: #6b7280;
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+}
+
+/* 时间错误（错误状态） */
+.last-sync-time.time-error {
+    color: #dc2626;
+    background-color: #fee2e2;
+    border: 1px solid #fca5a5;
+}
+
 .channel-actions {
     display: flex;
     align-items: center;

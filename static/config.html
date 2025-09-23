@@ -235,6 +235,11 @@
                                     </span>
                                     <span v-if="!channel.channel_id" class="channel-id no-id">[无ID]</span>
                                     <span v-else class="channel-id has-id">[{{ channel.channel_id }}]</span>
+                                    <span class="last-sync-time"
+                                          :class="getLastSyncClass(channel.last_sync_time)"
+                                          :title="channel.last_sync_time ? '最后同步: ' + channel.last_sync_time : '从未同步'">
+                                        - {{ formatLastSyncTime(channel.last_sync_time) }}
+                                    </span>
                                 </div>
                                 <div class="channel-actions">
                                     <button v-if="!channel.channel_id"
@@ -250,12 +255,6 @@
                             </div>
                         </div>
                         
-                        <div class="channel-actions-toolbar">
-                            <button class="btn btn-primary" @click="resolveAllChannels">
-                                🔄 批量解析所有频道ID
-                            </button>
-                            <small class="help-text">包括源频道、目标频道</small>
-                        </div>
                     </div>
                 </div>
 
@@ -628,6 +627,7 @@
         document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/utils/time-utils.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/components/config.js?v=' + RESOURCE_VERSION + '"><\/script>');

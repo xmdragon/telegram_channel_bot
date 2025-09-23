@@ -31,10 +31,15 @@ class RedisChannelStore:
         try:
             # 强制转换为int，确保类型统一
             message_id_int = int(last_message_id)
-            
-            self.redis.hset(f"channel:checkpoint", channel_id, str(message_id_int))
-            self.redis.hset(f"channel:checkpoint:time", channel_id, get_current_time().isoformat())
-            
+
+            # 🔧 临时调试：添加强制ERROR级别日志
+            current_time = get_current_time().isoformat()
+            logger.error(f"[CHECKPOINT_DEBUG] 开始写入: {channel_id} -> {message_id_int}, time: {current_time}")
+
+            result1 = self.redis.hset(f"channel:checkpoint", channel_id, str(message_id_int))
+            result2 = self.redis.hset(f"channel:checkpoint:time", channel_id, current_time)
+
+            logger.error(f"[CHECKPOINT_DEBUG] Redis写入结果: checkpoint={result1}, time={result2}")
             logger.debug(f"采集点已更新: {channel_id} -> {message_id_int}")
             return True
             
@@ -89,10 +94,17 @@ class RedisChannelStore:
         try:
             checkpoint_time = self.redis.hget("channel:checkpoint:time", channel_id)
             if checkpoint_time:
-                # 如果是bytes类型需要decode，如果是字符串直接返回
-                return checkpoint_time.decode() if isinstance(checkpoint_time, bytes) else checkpoint_time
+                # 如果是bytes类型需要decode
+                time_str = checkpoint_time.decode() if isinstance(checkpoint_time, bytes) else checkpoint_time
+
+                # 🕐 时区修复：确保返回的时间字符串包含UTC标识
+                if time_str and not time_str.endswith('Z') and '+' not in time_str and 'UTC' not in time_str:
+                    # 如果没有时区标识，添加Z表示UTC时间
+                    time_str = time_str + 'Z'
+
+                return time_str
             return None
-            
+
         except Exception as e:
             logger.error(f"获取采集点时间失败 {channel_id}: {e}")
             return None

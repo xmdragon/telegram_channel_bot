@@ -57,7 +57,6 @@ class RouteConfig:
 
         # 解析功能
         resolve = "/resolve"
-        resolve_all = "/resolve-all"
 
     class Training:
         """训练数据管理路由"""

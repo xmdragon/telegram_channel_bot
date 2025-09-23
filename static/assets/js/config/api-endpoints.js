@@ -111,8 +111,7 @@ const API_ENDPOINTS = {
         search: '/api/channels/search',                           // GET - 搜索频道
 
         // 解析功能
-        resolve: '/api/channels/resolve',                         // POST - 解析单个源频道ID
-        resolveAll: '/api/channels/resolve-all'                   // POST - 批量解析所有源频道
+        resolve: '/api/channels/resolve'                          // POST - 解析单个源频道ID
     },
 
     // 系统状态模块 - /api/system

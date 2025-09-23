@@ -340,14 +340,6 @@ class DuplicateDetector:
     async def _get_message_content(self, message_id: str) -> Optional[str]:
         """获取消息的规范化内容"""
         try:
-            # 先从内容缓存查找
-            cache_key = f"dup:content:{message_id}"
-            cached_content = self.redis_manager.client.get(cache_key)
-
-            if cached_content:
-                return cached_content
-
-            # 缓存未命中，从消息存储获取
             if ':' not in message_id:
                 return None
 
@@ -357,15 +349,9 @@ class DuplicateDetector:
             if not message:
                 return None
 
-            # 规范化内容并缓存
-            original_content = message.get('content', '')
-            normalized_content = self.normalizer.normalize(original_content)
-
-            if normalized_content:
-                # 缓存规范化结果，TTL 7天
-                self.redis_manager.client.setex(cache_key, 7 * 24 * 3600, normalized_content)
-
-            return normalized_content
+            # 直接使用过滤后内容
+            filtered_content = message.get('filtered_content', '')
+            return self.normalizer.normalize(filtered_content)
 
         except Exception as e:
             logger.error(f"获取消息内容失败 {message_id}: {e}")
@@ -374,14 +360,10 @@ class DuplicateDetector:
     async def _save_fingerprint(self, simhash_value: int, message_id: str, normalized_content: str):
         """保存消息指纹"""
         try:
-            # 保存SimHash索引
+            # 只保存SimHash索引，不保存内容缓存
             simhash_key = f"dup:simhash:{simhash_value}"
             self.redis_manager.client.sadd(simhash_key, message_id)
             self.redis_manager.client.expire(simhash_key, 30 * 24 * 3600)  # 30天TTL
-
-            # 保存内容缓存
-            content_key = f"dup:content:{message_id}"
-            self.redis_manager.client.setex(content_key, 7 * 24 * 3600, normalized_content)
 
         except Exception as e:
             logger.error(f"保存消息指纹失败: {e}")
@@ -515,6 +497,7 @@ class DuplicateDetector:
 
         except Exception as e:
             logger.error(f"阈值调整失败: {e}")
+
 
 # 全局实例
 duplicate_detector = DuplicateDetector()

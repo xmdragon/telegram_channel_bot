@@ -451,10 +451,18 @@ class RedisManager:
             if message_data:
                 status = message_data.get('status', 'pending')
                 pipeline.zrem(f"index:msg:{status}", full_message_id)
-                
+
                 # 4. 清理媒体哈希索引（如果有媒体）
                 if message_data.get('media_hash'):
                     pipeline.srem(f"media:hash:{message_data['media_hash']}", full_message_id)
+
+                # 5. 清理去重SimHash索引
+                # 查找所有包含该消息ID的SimHash索引并删除
+                simhash_keys = self.client.keys("dup:simhash:*")
+                for key in simhash_keys:
+                    if self.client.sismember(key, full_message_id):
+                        pipeline.srem(key, full_message_id)
+                        logger.debug(f"从SimHash索引 {key} 中删除消息: {full_message_id}")
             else:
                 # 如果消息不存在，尝试清理所有可能的状态索引（防止孤儿索引）
                 for status in ['pending', 'approved', 'rejected']:
@@ -923,22 +931,31 @@ class RedisManager:
         try:
             pipeline = self.client.pipeline()
             deleted_count = 0
-            
+
+            # 先获取所有SimHash索引键
+            simhash_keys = self.client.keys("dup:simhash:*")
+
             for channel_id, message_id in message_ids:
                 message_key = f"message:{channel_id}:{message_id}"
-                
+                full_message_id = f"{channel_id}:{message_id}"
+
                 # 删除消息数据
                 pipeline.delete(message_key)
-                
+
                 # 从各种索引中移除
                 pipeline.zrem(f"index:msg:{channel_id}", message_id)
-                pipeline.zrem("index:msg:pending", f"{channel_id}:{message_id}")
-                pipeline.zrem("index:msg:approved", f"{channel_id}:{message_id}")
-                pipeline.zrem("index:msg:rejected", f"{channel_id}:{message_id}")
-                
+                pipeline.zrem("index:msg:pending", full_message_id)
+                pipeline.zrem("index:msg:approved", full_message_id)
+                pipeline.zrem("index:msg:rejected", full_message_id)
+
+                # 清理SimHash索引
+                for key in simhash_keys:
+                    if self.client.sismember(key, full_message_id):
+                        pipeline.srem(key, full_message_id)
+
                 # 更新计数
                 pipeline.decr(f"channel:{channel_id}:count")
-                
+
                 deleted_count += 1
             
             pipeline.execute()

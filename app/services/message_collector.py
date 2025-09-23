@@ -230,15 +230,26 @@ class CheckpointManager:
     async def update_checkpoint(self, channel_id: str, message_id: int):
         """异步更新checkpoint到Redis"""
         try:
-            # 异步更新，避免阻塞消息处理
+            current_time = get_current_time().isoformat()
+
+            # 异步更新checkpoint和时间戳
             await asyncio.get_event_loop().run_in_executor(
-                None, 
-                redis_manager.client.hset, 
-                "channel:checkpoint", 
-                channel_id, 
+                None,
+                redis_manager.client.hset,
+                "channel:checkpoint",
+                channel_id,
                 str(message_id)
             )
-            logger.debug(f"checkpoint已更新: {channel_id} -> {message_id}")
+
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                redis_manager.client.hset,
+                "channel:checkpoint:time",
+                channel_id,
+                current_time
+            )
+
+            logger.debug(f"checkpoint已更新: {channel_id} -> {message_id}, time: {current_time}")
         except Exception as e:
             logger.error(f"更新checkpoint失败 {channel_id}: {e}")
 

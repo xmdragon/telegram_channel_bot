@@ -6,6 +6,8 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from app.storage.json_store import get_json_channel_store
+from app.storage.channel_store import RedisChannelStore
+from app.storage.redis_manager import redis_manager
 from app.services.telegram_resolver import telegram_resolver
 from app.utils.timezone import get_current_time
 
@@ -16,7 +18,8 @@ class UnifiedChannelService:
     
     def __init__(self):
         self._channel_store = None
-    
+        self._redis_channel_store = None
+
     def _get_channel_store(self):
         """延迟获取存储实例"""
         if self._channel_store is None:
@@ -26,6 +29,16 @@ class UnifiedChannelService:
                 logger.error("JSON存储层未初始化")
                 return None
         return self._channel_store
+
+    def _get_redis_channel_store(self):
+        """延迟获取Redis存储实例"""
+        if self._redis_channel_store is None:
+            try:
+                self._redis_channel_store = RedisChannelStore(redis_manager.client)
+            except Exception as e:
+                logger.error(f"Redis存储层初始化失败: {e}")
+                return None
+        return self._redis_channel_store
     
     async def add_channel(self, channel_name: str, channel_id: str = "",
                          description: str = "", resolve_title: bool = True) -> Dict[str, Any]:
@@ -209,16 +222,29 @@ class UnifiedChannelService:
     
     async def get_all_channels(self) -> List[Dict[str, Any]]:
         """
-        获取所有频道 - 统一入口（简化版）
+        获取所有频道 - 统一入口（简化版），包含最后同步时间
         """
         try:
             channel_store = self._get_channel_store()
             if not channel_store:
                 return []
-            
+
             channels = channel_store.get_all_channels()
+
+            # 获取Redis存储实例来获取最后同步时间
+            redis_channel_store = self._get_redis_channel_store()
+            if redis_channel_store:
+                # 为每个频道添加最后同步时间
+                for channel in channels:
+                    channel_id = channel.get('channel_id')
+                    if channel_id:
+                        last_sync_time = redis_channel_store.get_checkpoint_time(str(channel_id))
+                        channel['last_sync_time'] = last_sync_time
+                    else:
+                        channel['last_sync_time'] = None
+
             return channels
-            
+
         except Exception as e:
             logger.error(f"获取频道列表失败: {e}")
             return []

@@ -105,6 +105,9 @@ class MessageStorageProcessor(MessageProcessor):
                 msg_id = saved_message.get('message_id', 'N/A')
                 status = saved_message.get('status', 'unknown')
                 self.logger.info(f"✅ 已合并组消息保存成功: #{message.id} -> Redis {context.channel_id}:{msg_id} [状态: {status}]")
+
+                # ✅ 修复：组合消息也需要更新checkpoint
+                await self._update_checkpoint_after_save(context, saved_message)
                 
             else:
                 # 修复：直接从context获取，消除getattr特殊情况
@@ -478,11 +481,17 @@ class MessageStorageProcessor(MessageProcessor):
     async def _update_checkpoint_after_save(self, context, saved_message):
         """消息保存成功后立即更新checkpoint"""
         try:
+            # 🔧 临时调试：强制ERROR级别日志
+            self.logger.error(f"[CHECKPOINT_DEBUG] _update_checkpoint_after_save被调用")
+
             if not saved_message:
+                self.logger.error(f"[CHECKPOINT_DEBUG] saved_message为空，返回")
                 return
-            
+
             channel_id = context.channel_id
             message_id = saved_message.get('message_id')
+
+            self.logger.error(f"[CHECKPOINT_DEBUG] 准备更新checkpoint: {channel_id} -> {message_id}")
             
             if not channel_id or not message_id:
                 self.logger.warning(f"无法更新checkpoint：channel_id={channel_id}, message_id={message_id}")
