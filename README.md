@@ -50,16 +50,17 @@ git clone https://github.com/your-repo/telegram_channel_bot.git
 cd telegram_channel_bot
 ```
 
-2. **初始化部署**
+2. **自动化部署**
 ```bash
-# 运行部署脚本（自动创建配置文件和目录结构）
-./deploy.sh
+# Ubuntu 24.04 完整部署（推荐）
+bash tools/deployment/ubuntu_deploy_check.sh
 
 # 脚本会自动：
-# - 创建必要的目录结构
-# - 从模板创建 system.json
-# - 创建默认管理员账号
-# - 安装Python依赖
+# - 检查并安装系统依赖（Python、Redis、Nginx）
+# - 创建虚拟环境和安装Python依赖
+# - 配置Nginx反向代理和SSL证书
+# - 创建必要的目录结构和配置文件
+# - 配置防火墙规则（可选）
 ```
 
 3. **配置Telegram API**
@@ -85,11 +86,15 @@ docker run -d -p 6379:6379 redis:5-alpine
 
 5. **启动系统**
 ```bash
-# 开发环境
-./dev.sh
-
-# 生产环境
+# 启动所有服务（Supervisor管理）
 ./start.sh
+
+# 查看服务状态
+supervisorctl -c config/supervisord.conf status
+
+# 查看服务日志
+tail -f logs/web_output.log
+tail -f logs/collector_output.log
 ```
 
 6. **访问系统**
@@ -110,11 +115,16 @@ docker run -d -p 6379:6379 redis:5-alpine
 
 ```mermaid
 graph TB
-    A[用户界面<br/>localhost:8080] --> B[API网关<br/>localhost:8008]
+    A[用户界面<br/>Nginx:8080] --> B[API服务<br/>FastAPI:8008]
 
-    B --> C[Web服务<br/>web_server.py]
-    B --> D[消息采集<br/>message_collector.py]
-    B --> E[消息调度<br/>message_scheduler.py]
+    subgraph "Supervisor进程管理"
+        C[Web服务<br/>web_server.py]
+        D[消息采集<br/>message_collector.py]
+        E[消息调度<br/>message_scheduler.py]
+    end
+
+    B --> C
+    A --> C
 
     C --> F[Redis<br/>消息数据]
     C --> G[JSON<br/>配置文件]
@@ -180,7 +190,7 @@ Telegram频道 → 消息采集 → 智能过滤 → 人工审核 → 自动转�
 - **Telegram**: Telethon (官方API)
 - **数据库**: Redis (消息数据) + JSON (配置)
 - **任务调度**: APScheduler
-- **进程管理**: 自研进程管理器
+- **进程管理**: Supervisor
 
 ### 前端技术
 - **框架**: Vue.js 3 + Composition API

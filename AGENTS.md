@@ -9,9 +9,11 @@
 
 ## 构建、测试与本地开发
 - 环境准备：`python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`
-- 开发模式（推荐）：`./dev.sh` 或 `./dev.sh web|collector|processor|scheduler|--status|--legacy`
-  - 端口：前端/Nginx `8080`，后端/FastAPI `8000`；仅依赖可用 `docker compose up -d redis`。
-- 直接运行 API：`uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
+- 开发模式（推荐）：`./start.sh` 启动所有服务（Supervisor管理）
+  - 端口：前端/Nginx `8080`，后端/FastAPI `8008`；确保Redis服务可用。
+  - 状态查看：`supervisorctl -c config/supervisord.conf status`
+  - 日志查看：`tail -f logs/web_output.log` 或 `logs/collector_output.log`
+- 直接运行 API：`uvicorn main:app --host 0.0.0.0 --port 8008 --reload`
 - 测试：`pytest -q`，或 `pytest tests/test_filter_integration.py -q`（异步与集成示例）。
 
 ## 代码风格与命名
@@ -31,7 +33,8 @@
 
 ## 配置与安全
 - 使用 `.env` 管理 `REDIS_URL`、`BASE_URL`、`API_URL` 等；生产通过 compose 挂载，切勿提交敏感信息。
-- 启动采集/调度前确保 Redis 可用；前端访问 `8080`（Nginx），API 调试 `8000`（FastAPI）。
+- 启动前确保 Redis 可用；前端访问 `8080`（Nginx），API 调试 `8008`（FastAPI）。
+- Supervisor管理所有服务进程，自动重启和监控，无需手动管理。
 
 ## 目录约束与工具脚本
 - 根目录文档最小化：仅保留 `README.md` 与 `CLAUDE.md`；其余 Markdown 放入 `docs/`。
