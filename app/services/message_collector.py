@@ -90,6 +90,7 @@ class CollectorConfigManager:
         self.history_limit: int = 10
         self.collection_enabled: bool = False
         self.auto_reject_ads: bool = True  # 是否自动拒绝广告
+        self.max_media_size_mb: int = 200  # 媒体文件大小限制(MB)
         self._system_mtime = 0
     
     async def load_config(self):
@@ -108,6 +109,10 @@ class CollectorConfigManager:
             auto_reject_value = system_config.get("target.auto_reject_ads", {}).get("value", "true")
             self.auto_reject_ads = auto_reject_value.lower() == "true" if isinstance(auto_reject_value, str) else bool(auto_reject_value)
 
+            # 加载媒体大小限制配置
+            max_media_size_value = system_config.get("collection.max_media_size_mb", {}).get("value", "200")
+            self.max_media_size_mb = int(max_media_size_value)
+
             # 加载过滤器配置
             self.filter_enabled = self._parse_bool_config(system_config.get("filter.enabled", {}).get("value", "false"))
             self.tail_filter = self._parse_bool_config(system_config.get("filter.tail_filter", {}).get("value", "true"))
@@ -116,7 +121,7 @@ class CollectorConfigManager:
             self.ad_detector = self._parse_bool_config(system_config.get("filter.ad_detector", {}).get("value", "false"))
 
             self._system_mtime = system_mtime
-            logger.debug(f"系统配置已更新: 目标频道={self.target_channel_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}, 自动拒绝广告={self.auto_reject_ads}")
+            logger.debug(f"系统配置已更新: 目标频道={self.target_channel_id}, 历史消息数={self.history_limit}, 采集开关={self.collection_enabled}, 自动拒绝广告={self.auto_reject_ads}, 媒体大小限制={self.max_media_size_mb}MB")
             logger.debug(f"过滤器配置: 主开关={self.filter_enabled}, 尾部={self.tail_filter}, 分隔符={self.separator_filter}, Markdown={self.markdown_filter}, 广告检测={self.ad_detector}")
     
     async def get_target_channel_id(self) -> Optional[str]:
@@ -134,6 +139,11 @@ class CollectorConfigManager:
         """获取采集开关配置"""
         await self.load_config()
         return self.collection_enabled
+
+    async def get_max_media_size_mb(self) -> int:
+        """获取媒体文件大小限制(MB)"""
+        await self.load_config()
+        return self.max_media_size_mb
     
     async def get_auto_reject_ads(self) -> bool:
         """获取是否自动拒绝广告配置"""
@@ -567,10 +577,17 @@ class TelegramMessageCollector:
                 break
             
             collected_message = await self._fetch_telegram_messages(entity, message_group, channel)
-            
+
             # 检查是否获取到消息
             if not collected_message:
-                logger.warning(f"消息组 {message_group} 获取失败，跳过")
+                # 可能是因为媒体文件太大被跳过，需要更新checkpoint
+                checkpoint_id = message_group if isinstance(message_group, int) else max(message_group)
+                logger.warning(f"消息组 {message_group} 获取失败或被跳过，直接更新checkpoint到 {checkpoint_id}")
+                try:
+                    await self.checkpoint_manager.update_checkpoint(channel_id, checkpoint_id)
+                    logger.debug(f"checkpoint已更新为: {checkpoint_id} (跳过的消息)")
+                except Exception as e:
+                    logger.error(f"更新checkpoint {checkpoint_id} 失败: {e}")
                 continue
             
             # 3. 处理这个组的消息 - 内容过滤（包含广告检测）
@@ -661,6 +678,30 @@ class TelegramMessageCollector:
     async def _process_single_message(self, message: TLMessage, channel_id: str, channel: dict) -> Optional[LocalMessage]:
         """处理单个消息，包括媒体下载"""
         try:
+            # 检查媒体大小限制
+            if message.media:
+                # 获取媒体大小限制配置
+                max_media_size_mb = await self.config_manager.get_max_media_size_mb()
+                max_media_size_bytes = max_media_size_mb * 1024 * 1024
+
+                # 检查媒体大小
+                from telethon.tl.types import MessageMediaDocument, MessageMediaPhoto
+                if isinstance(message.media, MessageMediaDocument):
+                    document = message.media.document
+                    if document and hasattr(document, 'size'):
+                        if document.size > max_media_size_bytes:
+                            logger.warning(f"消息 {message.id} 媒体文件 {document.size/(1024*1024):.1f}MB 超过限制 {max_media_size_mb}MB，跳过该消息")
+                            return None  # 返回None表示跳过该消息
+                elif isinstance(message.media, MessageMediaPhoto):
+                    # 图片通常不会太大，但也可以检查
+                    photo = message.media.photo
+                    if photo and hasattr(photo, 'sizes') and photo.sizes:
+                        # 获取最大尺寸的图片大小（估算）
+                        largest_size = max(photo.sizes, key=lambda s: getattr(s, 'size', 0) if hasattr(s, 'size') else 0)
+                        if hasattr(largest_size, 'size') and largest_size.size > max_media_size_bytes:
+                            logger.warning(f"消息 {message.id} 图片文件超过限制 {max_media_size_mb}MB，跳过该消息")
+                            return None
+
             # 下载媒体（如果有）
             media_info = None
             if message.media:
@@ -700,19 +741,41 @@ class TelegramMessageCollector:
         try:
             if not group_messages:
                 return None
-            
+
+            # 获取媒体大小限制配置
+            max_media_size_mb = await self.config_manager.get_max_media_size_mb()
+            max_media_size_bytes = max_media_size_mb * 1024 * 1024
+
+            # 检查组内所有消息的媒体大小
+            from telethon.tl.types import MessageMediaDocument, MessageMediaPhoto
+            for msg in group_messages:
+                if msg.media:
+                    if isinstance(msg.media, MessageMediaDocument):
+                        document = msg.media.document
+                        if document and hasattr(document, 'size'):
+                            if document.size > max_media_size_bytes:
+                                logger.warning(f"消息组 {[m.id for m in group_messages]} 中消息 {msg.id} 媒体文件 {document.size/(1024*1024):.1f}MB 超过限制 {max_media_size_mb}MB，跳过整组消息")
+                                return None  # 跳过整组消息
+                    elif isinstance(msg.media, MessageMediaPhoto):
+                        photo = msg.media.photo
+                        if photo and hasattr(photo, 'sizes') and photo.sizes:
+                            largest_size = max(photo.sizes, key=lambda s: getattr(s, 'size', 0) if hasattr(s, 'size') else 0)
+                            if hasattr(largest_size, 'size') and largest_size.size > max_media_size_bytes:
+                                logger.warning(f"消息组 {[m.id for m in group_messages]} 中图片超过限制 {max_media_size_mb}MB，跳过整组消息")
+                                return None
+
             # 确定主消息（第一条有文本的，或第一条）
             primary_msg = next((msg for msg in group_messages if msg.message), group_messages[0])
-            
+
             # 收集所有文本内容
             all_texts = [msg.message for msg in group_messages if msg.message]
             merged_content = '\n'.join(all_texts) if all_texts else ''
-            
+
             # 批量下载所有媒体
             media_files = []
             from app.services.media_handler import MediaHandler
             media_handler = MediaHandler()
-            
+
             for msg in group_messages:
                 if msg.media:
                     media_info = await media_handler.download_media_with_retry(

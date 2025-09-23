@@ -545,6 +545,23 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="form-group">
+                                <label class="form-label">媒体文件大小限制</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model.number="configs['collection.max_media_size_mb']"
+                                        min="1"
+                                        max="10240"
+                                        placeholder="200">
+                                    <span style="margin-left: 10px;">MB</span>
+                                    <div class="form-hint">
+                                        超过此大小的媒体消息将被完全跳过，不会下载媒体也不会保存消息内容
+                                    </div>
+                                </div>
+                            </div>
                             
                             
                             <!-- 审核设置 -->

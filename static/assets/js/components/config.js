@@ -58,6 +58,7 @@ const ConfigApp = {
                 'source.history_limit': '50',
                 'target.signature': '',
                 'collection.enabled': true,
+                'collection.max_media_size_mb': '200',
                 // Telegram API 配置
                 'telegram.api_id': '',
                 'telegram.api_hash': '',
@@ -85,6 +86,7 @@ const ConfigApp = {
                 'source.history_limit': 'integer',
                 'target.signature': 'string',
                 'collection.enabled': 'boolean',
+                'collection.max_media_size_mb': 'integer',
                 'telegram.api_id': 'string',
                 'telegram.api_hash': 'string',
                 'filter.enabled': 'boolean',
@@ -462,8 +464,9 @@ const ConfigApp = {
                 // 保存所有系统相关配置
                 const systemKeys = [
                     'source.history_limit',
-                    'target.signature', 
+                    'target.signature',
                     'collection.enabled',
+                    'collection.max_media_size_mb',
                     'telegram.api_id',
                     'telegram.api_hash',
                     'filter.enabled',
