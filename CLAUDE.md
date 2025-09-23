@@ -99,7 +99,7 @@ Claude Code 工作指导文档 - Telegram消息采集审核系统
                     ▼
 ┌─────────────────────────────────────────┐
 │              Python应用层                │
-│        由dev_supervisor.py管理          │
+│           由Supervisor管理             │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────┐ │
 │  │Web服务      │ │消息采集      │ │调度 │ │
 │  │web_server.py│ │message_     │ │服务 │ │
@@ -185,7 +185,7 @@ telegram_channel_bot/
 ├── web_server.py         # Web服务器
 ├── message_collector.py  # 消息采集服务
 ├── message_scheduler.py  # 消息调度服务
-└── dev_supervisor.py     # 进程管理器
+└── config/supervisord.conf # Supervisor配置
 ```
 
 ## 🌐 API开发规范
