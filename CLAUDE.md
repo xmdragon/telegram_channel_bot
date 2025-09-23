@@ -70,7 +70,12 @@ Claude Code 工作指导文档 - Telegram消息采集审核系统
    ```bash
    # 检查硬编码
    grep -r "localhost:8008" . && echo "❌ 发现硬编码！"
+
+   # 检查前端API硬编码
    grep -r '"/api/' . | grep -v api-endpoints.js && echo "❌ 发现硬编码API！"
+
+   # 检查后端路由硬编码（应该使用ROUTES.xxx而不是硬编码路径）
+   grep -r '@router\.' app/api/ | grep -E '"/' | grep -v 'ROUTES\.' && echo "❌ 发现后端路由硬编码！"
    ```
 
 ### 违规后果：
