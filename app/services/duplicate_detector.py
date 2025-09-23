@@ -182,8 +182,12 @@ class SimilarityCalculator:
                 return 0.0
 
             if self.rapidfuzz:
-                # 使用rapidfuzz进行精确计算
-                return self.rapidfuzz.token_set_ratio(text1, text2) / 100.0
+                # 针对中文优化的相似度计算
+                # 使用ratio代替token_set_ratio，更适合中文连续文本
+                ratio_score = self.rapidfuzz.ratio(text1, text2) / 100.0
+                partial_score = self.rapidfuzz.partial_ratio(text1, text2) / 100.0
+                # 取两者较高值，提高中文检测准确率
+                return max(ratio_score, partial_score)
             else:
                 # 简化算法：基于3-gram Jaccard相似度
                 return self._jaccard_similarity(text1, text2)
@@ -254,17 +258,19 @@ class DuplicateDetector:
             candidates = await self._find_similar_candidates(simhash_value)
 
             if not candidates:
-                # 无候选，保存指纹并返回
+                # 无候选，保存指纹并记录系统检测结果
                 await self._save_fingerprint(simhash_value, message_id, normalized_content)
+                await self._record_system_detection(message_id, False, 0.0)
                 return DuplicateResult(False, detection_reason="no_candidates")
 
-            # 4. 精筛：计算相似度
+            # 4. 精筛：计算相似度（排除自身）
             best_match, best_score = await self._find_best_match(
-                normalized_content, candidates
+                normalized_content, candidates, exclude_message_id=message_id
             )
 
             if best_match and best_score >= await self._get_similarity_threshold():
-                # 找到重复消息
+                # 找到重复消息，记录系统检测结果
+                await self._record_system_detection(message_id, True, best_score)
                 return DuplicateResult(
                     is_duplicate=True,
                     original_message_id=best_match,
@@ -272,8 +278,9 @@ class DuplicateDetector:
                     detection_reason="content_similar"
                 )
             else:
-                # 无重复，保存指纹
+                # 无重复，保存指纹并记录系统检测结果
                 await self._save_fingerprint(simhash_value, message_id, normalized_content)
+                await self._record_system_detection(message_id, False, best_score)
                 return DuplicateResult(
                     False,
                     detection_reason=f"similarity_too_low_{best_score:.3f}" if best_match else "no_similar_match"
@@ -283,42 +290,80 @@ class DuplicateDetector:
             logger.error(f"去重检测失败: {e}")
             return DuplicateResult(False, detection_reason=f"error_{str(e)[:50]}")
 
+    def _get_lsh_buckets(self, simhash_int: int) -> List[str]:
+        """
+        将SimHash分成4个16位段，用于LSH分桶
+        复杂度从O(C(64,3))降到O(4)
+        """
+        buckets = []
+        for i in range(4):
+            segment = (simhash_int >> (i * 16)) & 0xFFFF
+            buckets.append(f"dup:simhash:band:{i}:{segment:04x}")
+        return buckets
+
+    def _calculate_hamming_distance(self, hash1: int, hash2: int) -> int:
+        """计算两个SimHash的汉明距离"""
+        return bin(hash1 ^ hash2).count('1')
+
     async def _find_similar_candidates(self, simhash_value: int) -> List[str]:
-        """根据SimHash查找相似的候选消息"""
+        """使用LSH分桶快速查找候选，避免组合爆炸"""
         try:
-            candidates = []
-            max_distance = await self._get_simhash_threshold()
+            candidates = set()
 
-            # 查找精确匹配和近似匹配
-            for distance in range(max_distance + 1):
-                if distance == 0:
-                    # 精确匹配
-                    key = f"dup:simhash:{simhash_value}"
-                    exact_matches = self.redis_manager.client.smembers(key)
-                    candidates.extend(exact_matches)
-                else:
-                    # 近似匹配（简化处理：只检查翻转少数位的情况）
-                    for bit_pos in range(min(distance * 8, 64)):  # 限制搜索范围
-                        flipped_hash = simhash_value ^ (1 << bit_pos)
-                        key = f"dup:simhash:{flipped_hash}"
-                        matches = self.redis_manager.client.smembers(key)
-                        candidates.extend(matches)
+            # 1. 精确匹配
+            exact_key = f"dup:simhash:{simhash_value}"
+            exact_matches = self.redis_manager.client.smembers(exact_key)
+            candidates.update(exact_matches or [])
 
-            # 去重并限制数量
-            unique_candidates = list(set(candidates))[:20]  # 最多检查20个候选
-            return unique_candidates
+            # 2. LSH分桶查找（只需4次Redis查询）
+            bucket_keys = self._get_lsh_buckets(simhash_value)
+
+            # 使用pipeline批量查询减少round-trip
+            pipeline = self.redis_manager.client.pipeline()
+            for key in bucket_keys:
+                pipeline.smembers(key)
+            bucket_results = pipeline.execute()
+
+            # 合并所有桶的候选
+            for bucket_candidates in bucket_results:
+                candidates.update(bucket_candidates or [])
+
+            # 3. 后过滤：用真正的汉明距离验证
+            threshold = await self._get_simhash_threshold()
+            filtered_candidates = []
+
+            for candidate_id in candidates:
+                # 获取候选的SimHash值进行距离验证
+                candidate_hash_key = f"dup:content:{candidate_id}"
+                candidate_hash_str = self.redis_manager.client.hget(candidate_hash_key, 'simhash')
+
+                if candidate_hash_str:
+                    try:
+                        candidate_hash = int(candidate_hash_str)
+                        distance = self._calculate_hamming_distance(simhash_value, candidate_hash)
+                        if distance <= threshold:
+                            filtered_candidates.append(candidate_id)
+                    except (ValueError, TypeError):
+                        # 处理损坏的哈希值
+                        continue
+
+            return filtered_candidates[:20]  # 限制候选数量
 
         except Exception as e:
             logger.error(f"查找候选消息失败: {e}")
             return []
 
-    async def _find_best_match(self, content: str, candidates: List[str]) -> Tuple[Optional[str], float]:
+    async def _find_best_match(self, content: str, candidates: List[str], exclude_message_id: Optional[str] = None) -> Tuple[Optional[str], float]:
         """在候选消息中找到最佳匹配"""
         best_match = None
         best_score = 0.0
 
         try:
             for candidate_id in candidates:
+                # 排除自身比较
+                if exclude_message_id and candidate_id == exclude_message_id:
+                    continue
+
                 # 获取候选消息内容
                 candidate_content = await self._get_message_content(candidate_id)
                 if not candidate_content:
@@ -358,12 +403,26 @@ class DuplicateDetector:
             return None
 
     async def _save_fingerprint(self, simhash_value: int, message_id: str, normalized_content: str):
-        """保存消息指纹"""
+        """保存消息指纹到精确索引和LSH分桶索引"""
         try:
-            # 只保存SimHash索引，不保存内容缓存
-            simhash_key = f"dup:simhash:{simhash_value}"
-            self.redis_manager.client.sadd(simhash_key, message_id)
-            self.redis_manager.client.expire(simhash_key, 30 * 24 * 3600)  # 30天TTL
+            # 1. 精确索引
+            exact_key = f"dup:simhash:{simhash_value}"
+            self.redis_manager.client.sadd(exact_key, message_id)
+            self.redis_manager.client.expire(exact_key, 30 * 24 * 3600)  # 30天TTL
+
+            # 2. LSH分桶索引
+            bucket_keys = self._get_lsh_buckets(simhash_value)
+            for bucket_key in bucket_keys:
+                self.redis_manager.client.sadd(bucket_key, message_id)
+                self.redis_manager.client.expire(bucket_key, 7 * 24 * 3600)  # 7天TTL
+
+            # 3. 保存SimHash值用于距离验证
+            content_key = f"dup:content:{message_id}"
+            self.redis_manager.client.hset(content_key, mapping={
+                'simhash': str(simhash_value),
+                'timestamp': datetime.now().isoformat()
+            })
+            self.redis_manager.client.expire(content_key, 30 * 24 * 3600)  # 30天TTL
 
         except Exception as e:
             logger.error(f"保存消息指纹失败: {e}")
@@ -436,18 +495,28 @@ class DuplicateDetector:
             logger.error(f"确认重复失败: {e}")
             return False
 
-    async def _record_feedback(self, message_id: str, is_duplicate: bool, user_id: str):
+    async def _record_system_detection(self, message_id: str, detected: bool, similarity_score: float = 0.0):
+        """记录系统检测结果"""
+        try:
+            detection_key = f"dup:detection:{message_id}"
+            self.redis_manager.client.hset(detection_key, mapping={
+                'system_detected': str(detected).lower(),
+                'similarity_score': str(similarity_score),
+                'detection_time': datetime.now().isoformat()
+            })
+            self.redis_manager.client.expire(detection_key, 30 * 24 * 3600)  # 30天过期
+        except Exception as e:
+            logger.error(f"记录系统检测失败: {e}")
+
+    async def _record_user_feedback(self, message_id: str, user_confirmed: bool, user_id: str):
         """记录用户反馈"""
         try:
-            feedback_key = f"dup:feedback:{message_id}"
-            feedback_data = {
-                "is_duplicate": str(is_duplicate).lower(),
-                "user_id": user_id,
-                "timestamp": datetime.now().isoformat()
-            }
-
-            self.redis_manager.client.hmset(feedback_key, feedback_data)
-            self.redis_manager.client.expire(feedback_key, 90 * 24 * 3600)  # 90天TTL
+            detection_key = f"dup:detection:{message_id}"
+            self.redis_manager.client.hset(detection_key, mapping={
+                'user_confirmed': str(user_confirmed).lower(),
+                'user_id': user_id,
+                'feedback_time': datetime.now().isoformat()
+            })
 
             # 添加到反馈历史列表
             history_key = "dup:feedback_history"
@@ -457,8 +526,13 @@ class DuplicateDetector:
         except Exception as e:
             logger.error(f"记录用户反馈失败: {e}")
 
+    # 保持向后兼容的旧方法
+    async def _record_feedback(self, message_id: str, is_duplicate: bool, user_id: str):
+        """记录用户反馈（向后兼容方法）"""
+        await self._record_user_feedback(message_id, is_duplicate, user_id)
+
     async def _adjust_threshold_based_on_feedback(self):
-        """基于用户反馈调整阈值（简化版本）"""
+        """基于用户反馈调整阈值"""
         try:
             # 获取最近100条反馈
             history_key = "dup:feedback_history"
@@ -469,31 +543,47 @@ class DuplicateDetector:
 
             false_positives = 0  # 误报：系统认为重复，用户说不重复
             false_negatives = 0  # 漏报：系统认为不重复，用户说重复
+            total_feedback = 0
 
             for message_id in recent_message_ids:
-                feedback_key = f"dup:feedback:{message_id}"
-                feedback = self.redis_manager.client.hgetall(feedback_key)
+                detection_key = f"dup:detection:{message_id}"
+                detection_data = self.redis_manager.client.hgetall(detection_key)
 
-                if not feedback:
+                if not detection_data:
                     continue
 
-                user_says_duplicate = feedback.get('is_duplicate', 'false').lower() == 'true'
+                # 正确获取系统判断和用户反馈
+                system_detected = detection_data.get('system_detected', 'false').lower() == 'true'
+                user_confirmed = detection_data.get('user_confirmed', 'false').lower() == 'true'
 
-                # 这里需要获取系统的原始判断，简化处理
-                # 实际实现中可以在检测时记录系统判断
-                if not user_says_duplicate:
-                    false_positives += 1
-                # 漏报检测需要更复杂的逻辑，这里先忽略
+                total_feedback += 1
 
-            # 简化调整策略
-            false_positive_rate = false_positives / len(recent_message_ids)
+                # 计算误报和漏报
+                if system_detected and not user_confirmed:
+                    false_positives += 1  # 系统说重复，用户说不重复
+                elif not system_detected and user_confirmed:
+                    false_negatives += 1  # 系统说不重复，用户说重复
 
-            if false_positive_rate > 0.15:  # 误报率超过15%，提高阈值
-                current_threshold = await self._get_similarity_threshold()
-                new_threshold = min(0.98, current_threshold + 0.02)
+            if total_feedback == 0:
+                return
 
-                # 这里应该更新配置，简化处理先记录日志
-                logger.info(f"检测到高误报率({false_positive_rate:.2%})，建议提高阈值至 {new_threshold:.3f}")
+            # 计算准确的误报率和漏报率
+            false_positive_rate = false_positives / total_feedback
+            false_negative_rate = false_negatives / total_feedback
+
+            # 动态调整策略
+            current_threshold = await self._get_similarity_threshold()
+            adjustment = 0
+
+            if false_positive_rate > 0.15:  # 误报率过高，提高阈值
+                adjustment = min(0.02, false_positive_rate * 0.1)
+            elif false_negative_rate > 0.15:  # 漏报率过高，降低阈值
+                adjustment = -min(0.02, false_negative_rate * 0.1)
+
+            if abs(adjustment) > 0.005:  # 只有调整幅度足够大才执行
+                new_threshold = max(0.6, min(0.98, current_threshold + adjustment))
+                logger.info(f"反馈统计: 误报率{false_positive_rate:.2%}, 漏报率{false_negative_rate:.2%}, 调整阈值: {current_threshold:.3f} -> {new_threshold:.3f}")
+                # 这里应该更新配置到system.json
 
         except Exception as e:
             logger.error(f"阈值调整失败: {e}")
