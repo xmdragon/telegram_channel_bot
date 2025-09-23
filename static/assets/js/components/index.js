@@ -106,7 +106,7 @@ const MainApp = {
             
             // 虚拟滚动配置
             useVirtualScroll: true,
-            virtualScrollThreshold: 100,
+            virtualScrollThreshold: 1000,  // 提高阈值，避免小量数据使用div级滚动
             messageItemHeight: 200,
             virtualListHeight: 600,
 

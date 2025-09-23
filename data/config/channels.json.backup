@@ -1,15 +1,5 @@
 [
   {
-    "id": 47,
-    "channel_name": "@huaren_zixun",
-    "channel_id": "-1001173224198",
-    "channel_title": "东南亚新闻|华人资讯曝光|news",
-    "description": "批量添加的频道",
-    "config": {},
-    "created_at": "2025-09-12T07:27:39.124503",
-    "updated_at": "2025-09-12T07:27:39.124900"
-  },
-  {
     "id": 1,
     "channel_id": "-1002557968812",
     "channel_name": "@cn_zhm0",
@@ -437,6 +427,16 @@
     "config": {},
     "created_at": "2025-09-12T07:27:38.823913",
     "updated_at": "2025-09-12T07:27:38.824845"
+  },
+  {
+    "id": 47,
+    "channel_name": "@huaren_zixun",
+    "channel_id": "-1001173224198",
+    "channel_title": "东南亚新闻|华人资讯曝光|news",
+    "description": "批量添加的频道",
+    "config": {},
+    "created_at": "2025-09-12T07:27:39.124503",
+    "updated_at": "2025-09-12T07:27:39.124900"
   },
   {
     "id": 48,

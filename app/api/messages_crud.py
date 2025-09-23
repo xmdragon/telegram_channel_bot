@@ -17,6 +17,7 @@ from app.services.message_processor import MessageProcessor
 from app.services.channel_manager import ChannelManager
 from app.core.media_paths import media_paths
 from app.core.route_config import ROUTES
+from telethon.errors import FloodWaitError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -1067,6 +1068,25 @@ async def publish_single_message(
             "message_id": message_id,
             "timestamp": format_for_api(get_current_time())
         }
+
+    except FloodWaitError as e:
+        # FloodWait异常特殊处理 - 让上层能够处理重试
+        logger.warning(f"发布消息触发FloodWait: {message_id}, 等待时间: {e.seconds}秒")
+
+        if is_auto_forward:
+            # 自动转发：标记需要重试，不是永久失败
+            try:
+                redis_manager.update_message(channel_id, msg_id, {
+                    'auto_forwarder_status': False,
+                    'auto_forward_error': f"限流等待{e.seconds}秒",
+                    'needs_retry': True,
+                    'flood_wait_seconds': e.seconds
+                })
+            except:
+                pass
+
+        # 重新抛出异常，让上层处理重试逻辑
+        raise
 
     except ValueError as ve:
         # 处理转发过程中的特定错误

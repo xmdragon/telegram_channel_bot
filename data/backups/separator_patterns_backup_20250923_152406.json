@@ -55,12 +55,8 @@
     {
       "regex": "😈👿👹👺🤡💩",
       "description": "过滤推广emoji残留内容"
-    },
-    {
-      "regex": "⚡️⚡️⚡️⚡️⚡️⚡️⚡️⚡️⚡️⚡️ [\\s\\S]*",
-      "description": "过滤连续⚡️推广内容"
     }
   ],
-  "updated_at": "2025-09-23T15:24:06.987854",
-  "total_count": 15
+  "updated_at": "2025-09-18T11:32:30.297979",
+  "total_count": 14
 }

@@ -110,8 +110,8 @@
                                  'processing': processingMessages.has(message.id)
                              }">
                             <!-- 消息内容渲染 -->
-                            <message-content-renderer 
-                                :key="'msg-' + message.id + '-' + componentRefreshKey"
+                            <message-content-renderer
+                                :key="'msg-' + (message.id || (message.source_channel + ':' + message.message_id)) + '-' + componentRefreshKey"
                                 :message="message" 
                                 :channel-info="channelInfo"
                                 @toggle-select="toggleMessage"
@@ -150,11 +150,11 @@
                 <!-- 消息列表，使用template标签包裹v-for -->
                 <template v-else>
                     <!-- 传统列表模式现在也使用统一的 MessageContentRenderer 组件 -->
-                    <div v-for="message in filteredMessages" :key="message.id" 
+                    <div v-for="message in filteredMessages" :key="message.id || (message.source_channel + ':' + message.message_id)"
                          class="message-item"
                          :class="{ 'selected': isSelected(message.id) }">
-                        <message-content-renderer 
-                            :key="'msg-' + message.id + '-' + componentRefreshKey"
+                        <message-content-renderer
+                            :key="'msg-' + (message.id || (message.source_channel + ':' + message.message_id)) + '-' + componentRefreshKey"
                             :message="message"
                             :channel-info="channelInfo"
                             @toggle-select="toggleMessage"

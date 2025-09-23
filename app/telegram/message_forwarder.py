@@ -204,21 +204,21 @@ class MessageForwarder:
             else:
                 logger.warning(f"消息发布但未获取到消息ID: {getattr(message, 'id', 'unknown')}")
 
-            # 记录成功发送
+            # 记录成功发送（仅在真正发送成功时记录）
             if send_attempted and sent_message:
                 rate_limiter.record_send_attempt(message_type, target_channel_id, True)
+                logger.debug(f"已记录发送成功: {message_type.value} -> {target_channel_id}")
 
             return target_message_link
 
         except FloodWaitError as e:
-            # FloodWait专门处理
-            wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
-            await rate_limiter.wait_for_flood_wait(wait_seconds)
-            logger.warning(f"转发触发FloodWait，等待{wait_seconds}秒: {getattr(message, 'id', 'unknown')}")
+            # FloodWait专门处理 - 不立即等待，让上层处理
+            logger.warning(f"转发触发FloodWait，需等待{e.seconds if hasattr(e, 'seconds') else '未知'}秒: {getattr(message, 'id', 'unknown')}")
 
-            # 记录失败发送
+            # 记录失败发送（仅在真正尝试发送后）
             if send_attempted:
                 rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+                logger.debug(f"已记录FloodWait失败: {message_type.value} -> {target_channel_id}")
 
             # 重新抛出异常，让上层决定是否重试
             raise
@@ -229,13 +229,26 @@ class MessageForwarder:
             # 检查是否是FloodWait错误的其他形式
             error_str = str(e).lower()
             if 'flood' in error_str or 'wait' in error_str:
-                wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
-                await rate_limiter.wait_for_flood_wait(wait_seconds)
-                logger.warning(f"检测到FloodWait错误: {getattr(message, 'id', 'unknown')}")
+                logger.warning(f"检测到FloodWait错误形式: {getattr(message, 'id', 'unknown')}")
 
-            # 记录失败发送（如果已尝试发送）
+                # 尝试提取等待时间
+                import re
+                match = re.search(r'(\d+)\s*seconds?', error_str)
+                wait_seconds = int(match.group(1)) if match else 60
+
+                # 创建一个真正的FloodWaitError实例
+                # FloodWaitError已经在文件顶部导入，不需要重新导入
+                # FloodWaitError需要request参数，这里传None
+                flood_error = FloodWaitError(request=None, message=f"A wait of {wait_seconds} seconds is required")
+                flood_error.seconds = wait_seconds
+
+                # 抛出真正的FloodWaitError
+                raise flood_error
+
+            # 记录失败发送（仅在真正尝试发送后）
             if send_attempted:
                 rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+                logger.debug(f"已记录发送失败: {message_type.value} -> {target_channel_id}")
 
             # 不清理媒体文件 - 交给scheduler定期清理，保留文件用于重试
             raise  # 重新抛出异常，让队列处理器知道失败

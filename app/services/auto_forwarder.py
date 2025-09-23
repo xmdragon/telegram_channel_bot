@@ -61,13 +61,9 @@ class AutoForwarder:
 
                     logger.info(f"准备自动转发消息: {message_id} (第{retry_count + 1}次尝试)")
 
-                    # 5. 智能限流控制 - 根据消息类型等待
-                    message_type = self._get_message_type(message)
-                    target_channel_id = await config_manager.get_config('target.channel_id', '')
-
-                    wait_time = await rate_limiter.wait_if_needed(message_type, target_channel_id)
-                    if wait_time > 0:
-                        logger.info(f"限流等待 {wait_time:.1f}秒后发送消息: {message_id}")
+                    # 5. 移除重复的限流控制 - 让 MessageForwarder 统一处理
+                    # message_type = self._get_message_type(message)
+                    # target_channel_id = await config_manager.get_config('target.channel_id', '')
 
                     # 6. 根据消息类型设置超时时间
                     timeout = await self.get_timeout_for_message(message)
@@ -88,15 +84,12 @@ class AutoForwarder:
                         if result['success']:
                             logger.info(f"✅ 自动转发成功: {message_id}")
                             self.last_forward_time = get_current_time()
-                            # 记录成功发送
-                            rate_limiter.record_send_attempt(message_type, target_channel_id, True)
+                            # 清除重试标记
+                            await self.clear_retry_flag(message_id)
                         else:
-                            # 记录失败发送
-                            rate_limiter.record_send_attempt(message_type, target_channel_id, False)
-
                             # 处理发送失败
                             error_type = result.get('error', 'unknown')
-                            if error_type in ['ad_detected', 'content_too_long']:
+                            if error_type in ['ad_detected', 'content_too_long', 'empty_content']:
                                 # 这些错误不需要重试，标记为已处理
                                 await self.mark_message_processed(message_id, error_type)
                                 logger.info(f"消息被拒绝: {message_id} - {error_type}")
@@ -106,17 +99,21 @@ class AutoForwarder:
                                 logger.error(f"自动转发失败: {message_id} - {result.get('message')}")
 
                     except FloodWaitError as e:
-                        # FloodWait专门处理
-                        wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
+                        # FloodWait专门处理 - 不标记为永久失败
+                        wait_seconds = e.seconds if hasattr(e, 'seconds') else 60
+                        logger.warning(f"自动转发触发FloodWait: {message_id} - 需等待{wait_seconds}秒")
+
+                        # 增加重试计数但不标记为失败
+                        await self.increment_retry_count(message_id)
+
+                        # 设置全局FloodWait状态（重要：让其他协程感知）
+                        await rate_limiter.handle_flood_wait_error(str(e))
+
+                        # 等待指定时间
                         await rate_limiter.wait_for_flood_wait(wait_seconds)
 
-                        # 增加重试计数
-                        await self.increment_retry_count(message_id)
-                        await self.mark_forward_failed(message_id, f"触发限流，等待{wait_seconds}秒")
-                        logger.warning(f"自动转发触发FloodWait: {message_id} - 等待{wait_seconds}秒")
-
-                        # 记录失败发送
-                        rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+                        # 继续下一轮循环，消息会在下次被重试
+                        logger.info(f"FloodWait等待完成，消息 {message_id} 将在下一轮重试")
 
                     except asyncio.TimeoutError:
                         # 增加重试计数
@@ -124,24 +121,21 @@ class AutoForwarder:
                         await self.mark_forward_failed(message_id, f"发送超时({timeout}秒)")
                         logger.error(f"自动转发超时: {message_id} (超时时间: {timeout}秒)")
 
-                        # 记录失败发送
-                        rate_limiter.record_send_attempt(message_type, target_channel_id, False)
-
                     except Exception as e:
                         # 检查是否是FloodWait错误的其他形式
                         error_str = str(e).lower()
                         if 'flood' in error_str or 'wait' in error_str:
+                            # 设置全局FloodWait状态
                             wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
                             await rate_limiter.wait_for_flood_wait(wait_seconds)
                             logger.warning(f"检测到FloodWait错误: {message_id} - {e}")
-
-                        # 增加重试计数
-                        await self.increment_retry_count(message_id)
-                        await self.mark_forward_failed(message_id, str(e))
-                        logger.error(f"自动转发异常: {message_id} - {e}")
-
-                        # 记录失败发送
-                        rate_limiter.record_send_attempt(message_type, target_channel_id, False)
+                            # 增加重试计数但不标记为失败
+                            await self.increment_retry_count(message_id)
+                        else:
+                            # 其他异常才标记为失败
+                            await self.increment_retry_count(message_id)
+                            await self.mark_forward_failed(message_id, str(e))
+                            logger.error(f"自动转发异常: {message_id} - {e}")
 
                     # 8. 智能发送间隔 - 移除固定1秒睡眠，由限流管理器控制
                     # 短暂休眠避免CPU占用过高
@@ -184,8 +178,8 @@ class AutoForwarder:
             eligible_messages = []
 
             for msg in pending_messages:
-                # 跳过已标记失败的消息
-                if msg.get('auto_forward_failed'):
+                # 跳过已标记失败的消息（除非需要重试）
+                if msg.get('auto_forward_failed') and not msg.get('needs_retry'):
                     continue
 
                 # 跳过已处理的消息（广告、超长等）
@@ -304,7 +298,8 @@ class AutoForwarder:
             update_data = {
                 'auto_forward_failed': True,
                 'auto_forward_error': reason,
-                'auto_forward_failed_at': get_current_time().isoformat()
+                'auto_forward_failed_at': get_current_time().isoformat(),
+                'needs_retry': False  # 永久失败不需要重试
             }
 
             # 使用 update_message_atomic 方法（接受完整的 message_id）
@@ -312,6 +307,27 @@ class AutoForwarder:
             logger.debug(f"已标记消息转发失败: {message_id} - {reason}")
         except Exception as e:
             logger.error(f"标记消息失败状态时出错: {e}")
+
+    async def clear_retry_flag(self, message_id: str):
+        """
+        清除消息的重试标记（转发成功后调用）
+
+        Args:
+            message_id: 消息ID (格式: "channel_id:message_id")
+        """
+        try:
+            update_data = {
+                'auto_forward_failed': False,
+                'auto_forward_error': None,
+                'needs_retry': False,
+                'flood_wait_seconds': None,
+                'auto_forward_retry_count': 0  # 使用正确的字段名
+            }
+
+            redis_manager.update_message_atomic(message_id, update_data)
+            logger.debug(f"已清除消息重试标记: {message_id}")
+        except Exception as e:
+            logger.error(f"清除重试标记时出错: {e}")
 
     async def mark_message_processed(self, message_id: str, reason: str):
         """
