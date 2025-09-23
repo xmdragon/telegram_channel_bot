@@ -179,13 +179,21 @@ telegram_channel_bot/
 │   ├── config/          # 配置文件
 │   ├── training/        # 训练数据
 │   └── backups/         # 备份文件
+├── config/               # 系统配置
+│   └── supervisord.conf # Supervisor配置
 ├── tools/                # 工具脚本
+│   ├── deployment/      # 部署相关
+│   ├── git/             # Git工具
+│   └── utils/           # 工具函数
 ├── logs/                 # 日志文件
 ├── temp_media/           # 临时媒体文件
 ├── web_server.py         # Web服务器
 ├── message_collector.py  # 消息采集服务
 ├── message_scheduler.py  # 消息调度服务
-└── config/supervisord.conf # Supervisor配置
+├── start.sh              # 启动脚本
+├── stop.sh               # 停止脚本
+├── restart.sh            # 重启脚本
+└── infra.sh              # 基础设施管理
 ```
 
 ## 🌐 API开发规范
