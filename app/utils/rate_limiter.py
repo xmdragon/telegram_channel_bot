@@ -32,7 +32,7 @@ class TelegramRateLimiter:
         # 默认配置（可通过配置文件覆盖）
         self.SAFETY_FACTOR = 0.8
         self.TEXT_INTERVAL = 3.75     # 默认文本间隔
-        self.MEDIA_INTERVAL = 15.0    # 默认媒体间隔
+        self.MEDIA_INTERVAL = 12.0    # 默认媒体间隔（从15秒降低到12秒）
         self.PERSONAL_INTERVAL = 1.25 # 默认个人间隔
 
         # 配置是否已加载
@@ -65,7 +65,7 @@ class TelegramRateLimiter:
             # 加载配置参数
             self.SAFETY_FACTOR = float(await config_manager.get_config('telegram.rate_limit_safety_factor', 0.8))
             self.TEXT_INTERVAL = float(await config_manager.get_config('telegram.rate_limit_text_interval', 3.75))
-            self.MEDIA_INTERVAL = float(await config_manager.get_config('telegram.rate_limit_media_interval', 15.0))
+            self.MEDIA_INTERVAL = float(await config_manager.get_config('telegram.rate_limit_media_interval', 12.0))
 
             # 标记配置已加载
             self._config_loaded = True
