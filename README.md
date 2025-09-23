@@ -189,7 +189,7 @@ Telegram频道 → 消息采集 → 智能过滤 → 人工审核 → 自动转�
 - **异步处理**: asyncio + aiofiles
 - **Telegram**: Telethon (官方API)
 - **数据库**: Redis (消息数据) + JSON (配置)
-- **任务调度**: APScheduler
+- **任务调度**: 纯asyncio（轻量级）
 - **进程管理**: Supervisor
 
 ### 前端技术
