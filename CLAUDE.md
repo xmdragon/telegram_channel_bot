@@ -264,6 +264,19 @@ PathConfig.TEMP_MEDIA_DIR          # temp_media/
 
 ## 🔧 常用操作
 
+### 系统部署
+
+```bash
+# Ubuntu 24.04 完整部署（推荐）
+bash tools/deployment/ubuntu_deploy_check.sh
+
+# 交互式配置向导
+bash tools/deployment/ubuntu_deploy_check.sh --install-deps --config-nginx
+
+# 仅检查环境
+bash tools/deployment/ubuntu_deploy_check.sh --check-only
+```
+
 ### Git提交
 
 ```bash

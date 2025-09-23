@@ -244,13 +244,6 @@ if [ "$INTERACTIVE_MODE" = true ]; then
         SKIP_FIREWALL=true
     fi
 
-    # 询问是否安装系统服务
-    echo ""
-    INSTALL_SERVICE=false
-    if confirm "是否安装为系统服务（开机自启动）？" "y"; then
-        INSTALL_SERVICE=true
-    fi
-
     # 显示配置摘要
     echo ""
     echo -e "${PURPLE}═══════════════════════════════════════════════════════════${NC}"
@@ -273,7 +266,7 @@ if [ "$INTERACTIVE_MODE" = true ]; then
     echo -e "  ${CYAN}自动安装依赖：${NC}$([ "$INSTALL_DEPS" = true ] && echo "${GREEN}是${NC}" || echo "${YELLOW}否${NC}")"
     echo -e "  ${CYAN}配置Nginx：${NC}$([ "$CONFIG_NGINX" = true ] && echo "${GREEN}是${NC}" || echo "${YELLOW}否${NC}")"
     echo -e "  ${CYAN}配置防火墙：${NC}$([ "$SKIP_FIREWALL" = true ] && echo "${YELLOW}跳过${NC}" || echo "${GREEN}配置${NC}")"
-    echo -e "  ${CYAN}系统服务：${NC}$([ "$INSTALL_SERVICE" = true ] && echo "${GREEN}安装${NC}" || echo "${YELLOW}不安装${NC}")"
+    echo -e "  ${CYAN}进程管理：${NC}${GREEN}Supervisor${NC} (自动启动和重启)"
     echo -e "${PURPLE}═══════════════════════════════════════════════════════════${NC}"
     echo ""
 
@@ -919,47 +912,6 @@ configure_ssl() {
     return 0
 }
 
-# 安装系统服务
-install_system_service() {
-    log_info "安装系统服务..."
-
-    # 检查服务管理器是否存在
-    local service_manager="$SCRIPT_DIR/service_manager.sh"
-    if [ ! -f "$service_manager" ]; then
-        log_error "服务管理器不存在: $service_manager"
-        return 1
-    fi
-
-    # 检查是否有sudo权限
-    if ! sudo -n true 2>/dev/null; then
-        log_error "安装系统服务需要sudo权限"
-        return 1
-    fi
-
-    # 使用服务管理器安装服务
-    log_info "运行服务安装器..."
-    if sudo "$service_manager" install; then
-        log_success "系统服务安装成功"
-
-        # 启用开机自启动
-        if sudo "$service_manager" enable; then
-            log_success "开机自启动已启用"
-        fi
-
-        log_info "服务管理命令："
-        log_info "  启动服务: sudo systemctl start telegram-channel-bot"
-        log_info "  停止服务: sudo systemctl stop telegram-channel-bot"
-        log_info "  重启服务: sudo systemctl restart telegram-channel-bot"
-        log_info "  查看状态: sudo systemctl status telegram-channel-bot"
-        log_info "  查看日志: sudo journalctl -u telegram-channel-bot -f"
-
-    else
-        log_error "系统服务安装失败"
-        return 1
-    fi
-
-    return 0
-}
 
 # 检查端口占用
 check_ports() {
@@ -1221,12 +1173,6 @@ main() {
 
         check_project_deps || exit_code=1
         echo ""
-
-        # 安装系统服务（如果选择）
-        if [ "$INSTALL_SERVICE" = true ]; then
-            install_system_service || exit_code=1
-            echo ""
-        fi
     fi
 
     # 端口检查
@@ -1265,7 +1211,8 @@ main() {
         echo "后续步骤:"
         echo "1. 启动服务: cd $PROJECT_ROOT && ./start.sh"
         echo "2. 访问Web界面: $web_url"
-        echo "3. 查看日志: tail -f $PROJECT_ROOT/logs/app.log"
+        echo "3. 查看状态: supervisorctl -c $PROJECT_ROOT/config/supervisord.conf status"
+        echo "4. 查看日志: tail -f $PROJECT_ROOT/logs/web_output.log"
 
         if [ -n "$DOMAIN_NAME" ]; then
             echo ""

@@ -49,31 +49,30 @@ class SupervisorConfig:
     @classmethod
     def get_service_configs(cls) -> Dict[str, Dict[str, Any]]:
         """动态生成服务配置"""
-        # 确保使用绝对路径
-        root_dir = Path(PathConfig.ROOT_DIR).resolve()
-        logs_dir = Path(PathConfig.LOGS_DIR).resolve()
+        # 使用相对路径以便跨机器使用
+        root_dir = Path(PathConfig.ROOT_DIR)
 
         # 检测虚拟环境
         venv_dir = root_dir / 'venv'
         venv_alt_dir = root_dir / '.venv'
 
         if venv_dir.exists():
-            python_exe = str(venv_dir / 'bin' / 'python3')
+            python_exe = './venv/bin/python3'
         elif venv_alt_dir.exists():
-            python_exe = str(venv_alt_dir / 'bin' / 'python3')
+            python_exe = './.venv/bin/python3'
         else:
             # 如果没有虚拟环境，使用系统Python
             python_exe = 'python3'
 
         return {
             'telegram_web': {
-                'command': f'{python_exe} {root_dir}/web_server.py',
-                'directory': str(root_dir),
+                'command': f'{python_exe} ./web_server.py',
+                'directory': '.',
                 'autostart': 'true',
                 'autorestart': 'true',
                 'startretries': '3',
-                'stderr_logfile': str(logs_dir / 'web_error.log'),
-                'stdout_logfile': str(logs_dir / 'web_output.log'),
+                'stderr_logfile': './logs/web_error.log',
+                'stdout_logfile': './logs/web_output.log',
                 'stdout_logfile_maxbytes': '10MB',
                 'stdout_logfile_backups': '3',
                 'stderr_logfile_maxbytes': '10MB',
@@ -83,13 +82,13 @@ class SupervisorConfig:
                 'stopwaitsecs': '10'
             },
             'telegram_collector': {
-                'command': f'{python_exe} {root_dir}/message_collector.py',
-                'directory': str(root_dir),
+                'command': f'{python_exe} ./message_collector.py',
+                'directory': '.',
                 'autostart': 'true',
                 'autorestart': 'true',
                 'startretries': '3',
-                'stderr_logfile': str(logs_dir / 'collector_error.log'),
-                'stdout_logfile': str(logs_dir / 'collector_output.log'),
+                'stderr_logfile': './logs/collector_error.log',
+                'stdout_logfile': './logs/collector_output.log',
                 'stdout_logfile_maxbytes': '10MB',
                 'stdout_logfile_backups': '3',
                 'stderr_logfile_maxbytes': '10MB',
@@ -99,13 +98,13 @@ class SupervisorConfig:
                 'stopwaitsecs': '10'
             },
             'telegram_scheduler': {
-                'command': f'{python_exe} {root_dir}/message_scheduler.py',
-                'directory': str(root_dir),
+                'command': f'{python_exe} ./message_scheduler.py',
+                'directory': '.',
                 'autostart': 'true',
                 'autorestart': 'true',
                 'startretries': '3',
-                'stderr_logfile': str(logs_dir / 'scheduler_error.log'),
-                'stdout_logfile': str(logs_dir / 'scheduler_output.log'),
+                'stderr_logfile': './logs/scheduler_error.log',
+                'stdout_logfile': './logs/scheduler_output.log',
                 'stdout_logfile_maxbytes': '10MB',
                 'stdout_logfile_backups': '3',
                 'stderr_logfile_maxbytes': '10MB',
@@ -135,21 +134,17 @@ class SupervisorConfig:
         """生成完整的Supervisor配置文件内容（包含supervisord主配置）"""
         conf_lines = []
 
-        # 确保使用绝对路径
-        root_dir = Path(PathConfig.ROOT_DIR).resolve()
-        logs_dir = Path(PathConfig.LOGS_DIR).resolve()
-
-        # 生成supervisord主配置
+        # 生成supervisord主配置 - 使用相对路径以便跨机器使用
         conf_lines.append('[unix_http_server]')
-        conf_lines.append(f'file={root_dir}/supervisor.sock')
+        conf_lines.append('file=./supervisor.sock')
         conf_lines.append('')
 
         conf_lines.append('[supervisord]')
-        conf_lines.append(f'logfile={logs_dir}/supervisord.log')
+        conf_lines.append('logfile=./logs/supervisord.log')
         conf_lines.append('logfile_maxbytes=50MB')
         conf_lines.append('logfile_backups=10')
         conf_lines.append('loglevel=info')
-        conf_lines.append(f'pidfile={root_dir}/supervisord.pid')
+        conf_lines.append('pidfile=./supervisord.pid')
         conf_lines.append('nodaemon=false')
         conf_lines.append('minfds=1024')
         conf_lines.append('minprocs=200')
@@ -160,7 +155,7 @@ class SupervisorConfig:
         conf_lines.append('')
 
         conf_lines.append('[supervisorctl]')
-        conf_lines.append(f'serverurl=unix://{root_dir}/supervisor.sock')
+        conf_lines.append('serverurl=unix://./supervisor.sock')
         conf_lines.append('')
 
         # 生成inet_http_server配置
