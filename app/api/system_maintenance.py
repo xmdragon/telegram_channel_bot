@@ -166,7 +166,7 @@ async def reset_system() -> Dict[str, Any]:
                     if checkpoint_keys:
                         logger.info(f"🔄 第 {retry + 1} 次尝试清理 {len(checkpoint_keys)} 个checkpoint键")
                         deleted_count = redis_manager.client.delete(*checkpoint_keys)
-                        
+
                         # 验证清理结果
                         remaining_keys = redis_manager.client.keys("channel:checkpoint*")
                         if remaining_keys:
@@ -177,8 +177,8 @@ async def reset_system() -> Dict[str, Any]:
                                 continue
                         else:
                             cleanup_status["redis_checkpoints"] = {
-                                "success": True, 
-                                "error": None, 
+                                "success": True,
+                                "error": None,
                                 "count": deleted_count
                             }
                             logger.info(f"✅ checkpoint清理验证通过 (第 {retry + 1} 次尝试成功)")
@@ -186,8 +186,8 @@ async def reset_system() -> Dict[str, Any]:
                             break
                     else:
                         cleanup_status["redis_checkpoints"] = {
-                            "success": True, 
-                            "error": None, 
+                            "success": True,
+                            "error": None,
                             "count": 0
                         }
                         logger.info("ℹ️ 没有找到checkpoint数据需要清理")
@@ -196,14 +196,24 @@ async def reset_system() -> Dict[str, Any]:
                 except Exception as checkpoint_error:
                     if retry == max_retries - 1:  # 最后一次重试失败
                         cleanup_status["redis_checkpoints"] = {
-                            "success": False, 
-                            "error": str(checkpoint_error), 
+                            "success": False,
+                            "error": str(checkpoint_error),
                             "count": 0
                         }
                         logger.error(f"❌ 清理checkpoint失败（尝试 {max_retries} 次后）: {checkpoint_error}")
                     else:
                         logger.warning(f"⚠️ 第 {retry + 1} 次清理checkpoint失败: {checkpoint_error}，将重试...")
                         await asyncio.sleep(1)  # 等待1秒后重试
+
+            # 清空采集进度记录（断点续传位置）
+            try:
+                if redis_manager.client.exists("collector:current_channel_index"):
+                    redis_manager.client.delete("collector:current_channel_index")
+                    logger.info("✅ 清除采集进度记录，下次采集将从头开始")
+                else:
+                    logger.info("ℹ️ 没有采集进度记录需要清理")
+            except Exception as progress_error:
+                logger.error(f"❌ 清理采集进度记录失败: {progress_error}")
 
         # 步骤4：清空临时媒体目录 (60%)
         await websocket_manager.broadcast_progress(operation, 60, "清空临时媒体目录...")

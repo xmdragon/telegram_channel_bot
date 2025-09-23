@@ -228,8 +228,14 @@ class CheckpointManager:
             return 0
     
     async def update_checkpoint(self, channel_id: str, message_id: int):
-        """异步更新checkpoint到Redis"""
+        """异步更新checkpoint到Redis（保持单调递增）"""
         try:
+            # 🔧 获取当前checkpoint，确保只向前更新
+            current_checkpoint = self.get_checkpoint(channel_id)
+            if message_id <= current_checkpoint:
+                logger.debug(f"跳过checkpoint更新：新值 {message_id} <= 当前值 {current_checkpoint}")
+                return
+
             current_time = get_current_time().isoformat()
 
             # 异步更新checkpoint和时间戳
@@ -341,27 +347,61 @@ class TelegramMessageCollector:
         logger.info("连续采集循环已结束")
     
     async def _do_single_collection_round(self):
-        """执行单轮完整采集"""
+        """执行单轮完整采集（支持断点续传）"""
         # 1. 加载频道列表
         channels = await self.channel_manager.get_all_source_channels()
-        
+
         if not channels:
             logger.debug("没有配置源频道，跳过本轮采集")
             return
-        
-        logger.info(f"开始处理 {len(channels)} 个源频道")
-        
-        # 2. 遍历处理每个频道
-        for i, channel in enumerate(channels, 1):
+
+        # 2. 获取上次中断的位置（断点续传）
+        try:
+            last_index = redis_manager.client.get("collector:current_channel_index")
+            start_index = int(last_index) if last_index else 0
+
+            if start_index > 0 and start_index < len(channels):
+                logger.info(f"检测到上次中断位置，从第 {start_index + 1} 个频道继续采集")
+            else:
+                start_index = 0
+        except Exception as e:
+            logger.warning(f"获取采集进度失败: {e}，从头开始")
+            start_index = 0
+
+        logger.info(f"开始处理 {len(channels)} 个源频道，从位置 {start_index + 1} 开始")
+
+        # 3. 遍历处理每个频道（支持断点续传）
+        for i in range(start_index, len(channels)):
+            channel = channels[i]
             channel_id = channel['channel_id']
             channel_name = channel.get('channel_name', channel.get('channel_title', 'Untitled'))
-            
-            logger.info(f"处理频道 ({i}/{len(channels)}): {channel_name} ({channel_id})")
-            
+
+            logger.info(f"处理频道 ({i + 1}/{len(channels)}): {channel_name} ({channel_id})")
+
             # 检查checkpoint并处理消息
             checkpoint = self.checkpoint_manager.get_checkpoint(channel_id)
             await self._process_channel_messages(channel, checkpoint)
-        
+
+            # 4. 更新当前处理位置到Redis（每个频道完成后保存进度）
+            try:
+                # 保存下一个要处理的频道索引
+                next_index = i + 1
+                if next_index < len(channels):
+                    redis_manager.client.set("collector:current_channel_index", str(next_index))
+                    logger.debug(f"已保存采集进度: 下次从第 {next_index + 1} 个频道开始")
+                else:
+                    # 所有频道处理完成，清除进度记录
+                    redis_manager.client.delete("collector:current_channel_index")
+                    logger.debug("本轮所有频道处理完成，清除进度记录")
+            except Exception as e:
+                logger.error(f"保存采集进度失败: {e}")
+
+        # 5. 确保一轮完成后清除进度（防止遗留）
+        try:
+            redis_manager.client.delete("collector:current_channel_index")
+        except:
+            pass
+
         logger.info("单轮采集完成")
     
     async def _smart_wait(self, start_time: float):
@@ -429,12 +469,17 @@ class TelegramMessageCollector:
             
             # 合并结果：组消息 + 单独消息
             all_groups = list(message_groups.values()) + single_messages
-            
+
+            # 🔧 按每组的最小ID升序排序，确保从旧到新处理，防止checkpoint倒退
+            all_groups.sort(key=lambda group: min(group) if group else 0)
+            logger.debug(f"消息组已排序，共 {len(all_groups)} 个组，将按升序处理")
+
             # 🎯 重要：只返回最近的history_limit个消息组
             if checkpoint == 0:  # 只在首次采集时限制
                 history_limit = await self.config_manager.get_history_limit()
                 if len(all_groups) > history_limit:
-                    result = all_groups[:history_limit]  # 取前history_limit个（最新的）
+                    # 排序后取后面的history_limit个（ID较大的，即较新的消息）
+                    result = all_groups[-history_limit:]
                 else:
                     result = all_groups
             else:
