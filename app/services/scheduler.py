@@ -59,15 +59,6 @@ class MessageScheduler:
             )
         )
 
-        self.tasks['channel_sync'] = asyncio.create_task(
-            self._run_periodic_task(
-                self.sync_channel_info,
-                interval_seconds=3600,  # 1小时
-                initial_delay=60,  # 延迟1分钟开始
-                task_name="channel_sync"
-            )
-        )
-
         logger.info("✅ 消息调度器已启动 (纯asyncio实现)")
 
     async def _run_periodic_task(self, func, interval_seconds: int, initial_delay: int = 0, task_name: str = ""):
@@ -115,7 +106,7 @@ class MessageScheduler:
         logger.info("消息调度器已关闭")
     
     async def cleanup_old_data(self):
-        """清理旧数据 - 删除配置时间前已发布或拒绝的消息"""
+        """清理旧数据 - 删除创建时间超过配置时间的消息"""
         try:
             from datetime import datetime, timedelta
             from app.services.config_manager import config_manager
@@ -321,29 +312,4 @@ class MessageScheduler:
         except Exception as e:
             logger.error(f"❌ [媒体清理] 独立媒体文件清理失败: {e}")
 
-    async def sync_channel_info(self):
-        """同步频道信息 - 检查名称和标题变化"""
-        try:
-            logger.info("开始同步频道信息...")
-
-            # 导入频道同步服务
-            from app.services.channel_info_sync import channel_info_sync
-
-            # 执行同步
-            result = await channel_info_sync.sync_all_channels()
-
-            if result["success"]:
-                if result["updated_count"] > 0:
-                    logger.info(f"频道信息同步完成: 更新了 {result['updated_count']} 个频道")
-
-                    # 记录具体的更新信息
-                    for update in result["updates"]:
-                        logger.info(f"频道 {update['channel_name']} 发生变化: {', '.join(update['changes'])}")
-                else:
-                    logger.debug("频道信息同步完成: 没有发现变化")
-            else:
-                logger.error(f"频道信息同步失败: {result.get('errors', [])}")
-
-        except Exception as e:
-            logger.error(f"频道信息同步异常: {e}")
 

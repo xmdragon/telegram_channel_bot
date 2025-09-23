@@ -163,6 +163,18 @@ class RouteConfig:
         status = "/status"
         train = "/train"
 
+    class WebServer:
+        """Web服务器路径配置"""
+        api_prefix = "/api"
+        static_mount = "/static"
+        temp_media_mount = "/temp_media"
+
+    class WebSocketRoutes:
+        """WebSocket路径配置"""
+        main = "/ws"
+        api_messages = "/api/ws/messages"
+        api_websocket = "/api/websocket"
+
     def __init__(self):
         # 按照统一顺序初始化
         self.messages = self.Messages()
@@ -177,6 +189,8 @@ class RouteConfig:
         self.config = self.Config()
         self.stats = self.Stats()
         self.web = self.WebRoutes()
+        self.web_server = self.WebServer()
+        self.websocket_routes = self.WebSocketRoutes()
 
 # 全局路由配置实例
 ROUTES = RouteConfig()

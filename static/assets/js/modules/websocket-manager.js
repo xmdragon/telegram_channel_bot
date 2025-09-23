@@ -17,17 +17,18 @@ const WebSocketManager = {
 
     // 初始化WebSocket连接
     init(callbacks = {}) {
-        // 获取WebSocket URL
+        // 获取WebSocket URL - 使用API配置
+        const API = window.API;
         const wsUrl = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const url = `${wsUrl}//${window.location.host}/ws`;
-        
+        const url = `${wsUrl}//${window.location.host}${API.websocket.main}`;
+
         // 使用带日志和心跳的连接方法
         this.connectWithOptions(url, {
             enableHeartbeat: true,
             heartbeatInterval: 20000,
             ...callbacks
         });
-        
+
         return this;
     },
 

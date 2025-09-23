@@ -57,7 +57,13 @@ class LocalMessage:
     is_ad: bool = False
     ad_weight: float = 0.0
     hit_keywords: Optional[List[Dict[str, Union[str, float]]]] = None  # 命中的关键词及权重
-    
+
+    # 去重检测字段
+    duplicate_status: str = "none"  # "none", "suspected", "confirmed", "not_duplicate"
+    original_message_id: Optional[str] = None  # 格式："channel_id:message_id"
+    similarity_score: float = 0.0
+    duplicate_reason: Optional[str] = None  # "content_similar", "media_similar", "combined"
+
     # 频道字段
     source_channel: Optional[str] = None
     source_channel_link_prefix: Optional[str] = None
@@ -480,7 +486,10 @@ class TelegramMessageCollector:
         if not entity:
             logger.error(f"无法获取频道 {channel_name} 的实体，跳过")
             return
-        
+
+        # 同步更新频道信息
+        await self._update_channel_info(channel, entity)
+
         # 1. 获取要采集的ID组列表
         message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint)
         if not message_groups:
@@ -541,6 +550,11 @@ class TelegramMessageCollector:
                     'is_ad': 'True' if collected_message.is_ad else 'False',
                     'ad_weight': collected_message.ad_weight,
                     'hit_keywords': collected_message.hit_keywords,  # 命中的关键词详情
+                    # 去重检测字段
+                    'duplicate_status': collected_message.duplicate_status,
+                    'original_message_id': collected_message.original_message_id,
+                    'similarity_score': collected_message.similarity_score,
+                    'duplicate_reason': collected_message.duplicate_reason,
                     'source_channel': collected_message.source_channel,
                     'source_channel_link_prefix': f"https://t.me/{channel.get('channel_name', '').lstrip('@')}",
                     'source_channel_title': channel.get('channel_title'),
@@ -548,11 +562,11 @@ class TelegramMessageCollector:
                     'details': collected_message.details,
                     'entities': collected_message.entities
                 }
-                
+
                 # 保存到Redis
                 success = redis_manager.save_message(
-                    channel_id, 
-                    collected_message.message_id, 
+                    channel_id,
+                    collected_message.message_id,
                     message_data
                 )
                 
@@ -753,6 +767,39 @@ class TelegramMessageCollector:
         # 无文本且只有非实质媒体
         media_type = type(msg.media).__name__
         return True, f"只有非实质媒体: {media_type}"
+
+    async def _update_channel_info(self, channel: dict, entity):
+        """在采集时顺便更新频道信息"""
+        try:
+            # 获取最新的用户名和标题
+            current_username = f"@{entity.username}" if hasattr(entity, 'username') and entity.username else None
+            current_title = entity.title if hasattr(entity, 'title') else None
+
+            changes = []
+
+            # 检查并更新变化
+            if current_username and current_username != channel.get('channel_name'):
+                logger.info(f"频道名称更新: {channel.get('channel_name')} -> {current_username}")
+                channel['channel_name'] = current_username
+                changes.append('name')
+
+            if current_title and current_title != channel.get('channel_title'):
+                logger.info(f"频道标题更新: {channel.get('channel_title')} -> {current_title}")
+                channel['channel_title'] = current_title
+                changes.append('title')
+
+            # 如果有变化，保存到配置
+            if changes:
+                from app.storage.json_store import get_json_channel_store
+                from app.utils.timezone import get_current_time
+                channel_store = get_json_channel_store()
+                channel['updated_at'] = get_current_time().isoformat()
+                channel_store.update_channel(channel)
+                logger.info(f"频道 {current_username or channel['channel_id']} 信息已更新")
+
+        except Exception as e:
+            # 静默处理，不影响主流程
+            logger.debug(f"更新频道信息失败（不影响采集）: {e}")
 
 # 全局实例
 message_collector = TelegramMessageCollector()

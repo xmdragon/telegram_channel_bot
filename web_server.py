@@ -238,13 +238,13 @@ app.add_middleware(
 )
 
 # 注册API路由
-app.include_router(api_router, prefix="/api")
+app.include_router(api_router, prefix=ROUTES.web_server.api_prefix)
 
 # 注册实时消息推送WebSocket路由
 from app.api.websocket import websocket_endpoint
-app.add_websocket_route("/api/ws/messages", websocket_endpoint)
-app.add_websocket_route("/api/websocket", websocket_endpoint)  # 兼容性路由
-app.add_websocket_route("/ws", websocket_endpoint)             # 主控制台WebSocket路由
+app.add_websocket_route(ROUTES.websocket_routes.api_messages, websocket_endpoint)
+app.add_websocket_route(ROUTES.websocket_routes.api_websocket, websocket_endpoint)  # 兼容性路由
+app.add_websocket_route(ROUTES.websocket_routes.main, websocket_endpoint)             # 主控制台WebSocket路由
 
 # 🔥 删除所有静态文件服务 - 专业的事交给Nginx做
 # 静态文件现在由Nginx高性能服务，FastAPI专注API
@@ -256,8 +256,8 @@ if SERVE_STATIC_FALLBACK:
     # 挂载 /static 与 /temp_media 以及训练媒体，便于本地直接预览
     PathConfig.TEMP_MEDIA_DIR.mkdir(exist_ok=True)
     PathConfig.TRAINING_DIR.mkdir(exist_ok=True)
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-    app.mount("/temp_media", StaticFiles(directory=str(PathConfig.TEMP_MEDIA_DIR)), name="temp_media")
+    app.mount(ROUTES.web_server.static_mount, StaticFiles(directory="static"), name="static")
+    app.mount(ROUTES.web_server.temp_media_mount, StaticFiles(directory=str(PathConfig.TEMP_MEDIA_DIR)), name="temp_media")
     logger.info("🧩 已启用本地静态与媒体回退服务（SERVE_STATIC_FALLBACK=true）")
 else:
     logger.info("🚀 生产模式：静态与媒体由外部服务器提供（SERVE_STATIC_FALLBACK=false）")

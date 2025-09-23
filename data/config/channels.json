@@ -50,9 +50,9 @@
     "config": {},
     "description": "手动添加",
     "created_at": "2025-08-14 10:06:40.326947",
-    "channel_title": "东南亚闯荡记",
+    "channel_title": "东南亚闯荡记🪐",
     "last_message_id": 0,
-    "updated_at": "2025-09-09T07:26:40.232903"
+    "updated_at": "2025-09-22T13:24:06.951987"
   },
   {
     "id": 6,
@@ -94,9 +94,9 @@
     "config": {},
     "description": "自动导入的订阅频道 - 2025-08-06 21:31:30",
     "created_at": "2025-08-14 10:06:40.331623",
-    "channel_title": "缅甸大事件|妙瓦底曝光|亚太新闻",
+    "channel_title": "缅甸大事件|缅甸新闻|亚太新闻",
     "last_message_id": 0,
-    "updated_at": "2025-09-09T07:26:40.236277"
+    "updated_at": "2025-09-22T13:24:07.679569"
   },
   {
     "id": 11,
@@ -452,11 +452,11 @@
     "id": 49,
     "channel_name": "@jsj62",
     "channel_id": "-1001931348874",
-    "channel_title": "TG东南亚悬赏曝光吃瓜频道",
+    "channel_title": "东南亚华人大事件",
     "description": "批量添加的频道",
     "config": {},
     "created_at": "2025-09-12T07:27:39.698119",
-    "updated_at": "2025-09-12T07:27:39.698331"
+    "updated_at": "2025-09-22T13:24:13.952910"
   },
   {
     "id": 50,

@@ -211,7 +211,7 @@ const DualAuthApp = {
 
         goToConfig() {
             // 跳转到系统配置页面的系统设置标签
-            window.location.href = '/static/config.html#system';
+            window.location.href = API.pages.config + '#system';
         },
         
         async initSession(sessionType) {
@@ -370,7 +370,7 @@ const DualAuthApp = {
         },
         
         goToMain() {
-            window.location.href = '/static/index.html';
+            window.location.href = API.pages.index;
         }
     }
 };

@@ -114,13 +114,20 @@ class MessageForwarder:
             grouped_id = getattr(message, 'grouped_id', None) or message.get('grouped_id', None)
             
             # 🚀 优化：消除特殊情况，消息在采集时就应该正确组合
-            
+
+            # 处理媒体路径 - 转换相对路径为绝对路径
+            actual_media_path = media_url
+            if media_url and media_url.startswith('/temp_media/'):
+                from app.core.path_config import PathConfig
+                actual_media_path = str(PathConfig.ROOT_DIR / media_url.lstrip('/'))
+                logger.debug(f"媒体路径转换: {media_url} -> {actual_media_path}")
+
             # 🚀 发送消息并处理FloodWait
             if is_combined and media_group:
                 # 发送组合消息（媒体组）
                 sent_message = await self._send_combined_message_with_retry(client, target_channel_id, message, message_type)
                 send_attempted = True
-            elif media_type and media_url and os.path.exists(media_url):
+            elif media_type and actual_media_path and os.path.exists(actual_media_path):
                 # 发送单个媒体消息
                 sent_message = await self._send_single_media_message_with_retry(client, target_channel_id, message, message_type)
                 send_attempted = True
@@ -322,8 +329,16 @@ class MessageForwarder:
             # 准备媒体文件列表
             for media_item in message.media_group_display:
                 file_path = media_item['file_path']
+                # 处理媒体文件路径
+                if file_path and file_path.startswith('/temp_media/'):
+                    from app.core.path_config import PathConfig
+                    file_path = str(PathConfig.ROOT_DIR / file_path.lstrip('/'))
+                    logger.debug(f"组媒体路径转换: {media_item['file_path']} -> {file_path}")
+
                 if os.path.exists(file_path):
                     media_files.append(file_path)
+                else:
+                    logger.warning(f"媒体文件不存在: {file_path}")
             
             if not media_files:
                 logger.warning("组合消息中没有可用的媒体文件，发送纯文本")
@@ -380,12 +395,20 @@ class MessageForwarder:
                 raise ValueError(error_msg)
             
             caption_with_footer = await self._add_channel_footer(caption_text)
+
+            # 处理媒体文件路径
+            file_path = message.media_url
+            if file_path and file_path.startswith('/temp_media/'):
+                from app.core.path_config import PathConfig
+                file_path = str(PathConfig.ROOT_DIR / file_path.lstrip('/'))
+                logger.debug(f"单媒体路径转换: {message.media_url} -> {file_path}")
+
             # 根据文件类型设置超时时间
-            timeout = self._get_file_timeout(message.media_url)
+            timeout = self._get_file_timeout(file_path)
             return await asyncio.wait_for(
                 client.send_file(
                     entity=int(target_channel_id),
-                    file=message.media_url,
+                    file=file_path,
                     caption=caption_with_footer
                 ),
                 timeout=timeout

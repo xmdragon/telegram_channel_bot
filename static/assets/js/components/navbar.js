@@ -73,7 +73,7 @@ const NavBar = {
                 
                 // 延时跳转，让用户看到成功消息
                 setTimeout(() => {
-                    window.location.href = '/static/login.html';
+                    window.location.href = API.pages.login;
                 }, 1000);
                 
             } catch (error) {
@@ -88,7 +88,7 @@ const NavBar = {
                 }
                 
                 setTimeout(() => {
-                    window.location.href = '/static/login.html';
+                    window.location.href = API.pages.login;
                 }, 1000);
             }
         }

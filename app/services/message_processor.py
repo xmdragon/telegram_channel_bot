@@ -124,6 +124,9 @@ class MessageProcessor:
                 logger.info(f"📋 快速去重: 消息已存在 {channel_id}:{message_id}")
                 return existing_message
 
+            # 🎯 新增: 智能去重检测
+            await self._perform_duplicate_detection(message_data, channel_id, message_id)
+
             # 保存新消息到Redis
             try:
                 success = self.redis_store.save_message(channel_id, int(message_id), message_data)
@@ -371,7 +374,7 @@ class MessageProcessor:
             logger.error(f"清理过期数据失败: {e}")
     
     async def get_old_messages_for_cleanup(self, cutoff_time):
-        """获取需要清理的旧消息 - 业务逻辑层实现"""
+        """获取需要清理的旧消息 - 只根据created_at判断"""
         try:
             # 确保redis_store已初始化
             if self.redis_store is None:
@@ -406,28 +409,20 @@ class MessageProcessor:
                             self.redis_store.redis.zrem(f"index:msg:{status}", key)
                             continue
                         
-                        # 检查消息是否足够旧
+                        # 简化：只检查消息创建时间
                         created_at = msg_data.get('created_at')
-                        review_time = msg_data.get('review_time') 
-                        forwarded_time = msg_data.get('forwarded_time')
-                        
-                        # 解析时间字符串
-                        times_to_check = []
-                        for time_str in [created_at, review_time, forwarded_time]:
-                            if time_str:
-                                try:
-                                    from datetime import datetime
-                                    time_obj = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-                                    times_to_check.append(time_obj)
-                                except:
-                                    continue
-                        
-                        # 所有状态都使用统一的配置阈值（不再区分pending）
-                        # 让用户通过配置来控制保留时间
-                        threshold = cutoff_time
+                        if not created_at:
+                            continue
 
-                        # 如果任何时间早于阈值，则加入清理列表
-                        if times_to_check and any(t < threshold for t in times_to_check):
+                        # 解析创建时间
+                        try:
+                            from datetime import datetime
+                            created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        except:
+                            continue
+
+                        # 只根据创建时间判断是否清理
+                        if created_time < cutoff_time:
                             # 构造消息对象以兼容原有清理逻辑
                             message_obj = type('Message', (), {
                                 'channel_id': channel_id,
@@ -436,9 +431,7 @@ class MessageProcessor:
                                 'media_url': msg_data.get('media_url'),
                                 'is_combined': msg_data.get('is_combined', False),
                                 'combined_messages': msg_data.get('combined_messages', []),
-                                'created_at': created_at,
-                                'review_time': review_time,
-                                'forwarded_time': forwarded_time
+                                'created_at': created_at
                             })()
                             old_messages.append(message_obj)
                             
@@ -629,4 +622,176 @@ class MessageProcessor:
                 
         except Exception as e:
             logger.error(f"重新过滤消息失败 {channel_id}:{message_id}: {e}")
+            return False
+
+    async def _perform_duplicate_detection(self, message_data: dict, channel_id: str, message_id: int):
+        """
+        执行智能去重检测
+
+        Args:
+            message_data: 消息数据字典
+            channel_id: 频道ID
+            message_id: 消息ID
+        """
+        try:
+            # 检查是否启用去重检测
+            from app.services.config_manager import config_manager
+            duplicate_detection_enabled = await config_manager.get_config('duplicate_detection.enabled', True)
+
+            if not duplicate_detection_enabled:
+                logger.debug("去重检测已禁用")
+                return
+
+            # 获取消息内容
+            message_content = message_data.get('content', '') or message_data.get('filtered_content', '')
+
+            if not message_content or len(message_content.strip()) < 10:
+                logger.debug(f"消息内容太短，跳过去重检测: {channel_id}:{message_id}")
+                return
+
+            # 执行去重检测
+            from app.services.duplicate_detector import duplicate_detector
+
+            full_message_id = f"{channel_id}:{message_id}"
+            duplicate_result = await duplicate_detector.detect_duplicate(message_content, full_message_id)
+
+            # 根据检测结果更新消息数据
+            if duplicate_result.is_duplicate:
+                # 发现重复消息
+                message_data['duplicate_status'] = 'suspected'
+                message_data['original_message_id'] = duplicate_result.original_message_id
+                message_data['similarity_score'] = duplicate_result.similarity_score
+                message_data['duplicate_reason'] = duplicate_result.detection_reason
+
+                logger.info(
+                    f"🔍 检测到疑似重复消息: {full_message_id} "
+                    f"-> 原消息: {duplicate_result.original_message_id} "
+                    f"(相似度: {duplicate_result.similarity_score:.3f})"
+                )
+            else:
+                # 非重复消息
+                message_data['duplicate_status'] = 'none'
+                message_data['original_message_id'] = None
+                message_data['similarity_score'] = 0.0
+                message_data['duplicate_reason'] = duplicate_result.detection_reason
+
+                logger.debug(f"✅ 消息无重复: {full_message_id} - {duplicate_result.detection_reason}")
+
+        except Exception as e:
+            logger.error(f"去重检测失败 {channel_id}:{message_id}: {e}")
+            # 检测失败时设置默认值，不影响消息保存
+            message_data['duplicate_status'] = 'none'
+            message_data['original_message_id'] = None
+            message_data['similarity_score'] = 0.0
+            message_data['duplicate_reason'] = f"detection_error: {str(e)[:100]}"
+
+    async def mark_not_duplicate(self, channel_id: str, message_id: int, user_id: str = None) -> bool:
+        """
+        标记消息为非重复
+
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID
+            user_id: 操作用户ID
+
+        Returns:
+            bool: 操作是否成功
+        """
+        try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = redis_manager
+                except RuntimeError:
+                    logger.error("Redis连接失败")
+                    return False
+
+            # 获取消息
+            msg_data = await self.get_message(channel_id, message_id)
+            if not msg_data:
+                logger.warning(f"消息不存在: {channel_id}:{message_id}")
+                return False
+
+            # 检查消息是否确实被标记为疑似重复
+            if msg_data.get('duplicate_status') != 'suspected':
+                logger.info(f"消息 {channel_id}:{message_id} 未被标记为疑似重复，无需操作")
+                return True
+
+            # 更新消息状态
+            update_data = {
+                'duplicate_status': 'not_duplicate',  # 标记为非重复
+                'reviewed_by': user_id or 'system',
+                'reviewed_at': get_current_time().isoformat(),
+                'not_duplicate_marked_at': get_current_time().isoformat()
+            }
+
+            success = await self.redis_store.update_message(channel_id, message_id, update_data)
+            if not success:
+                logger.error(f"更新消息状态失败: {channel_id}:{message_id}")
+                return False
+
+            # 记录用户反馈到去重检测器
+            from app.services.duplicate_detector import duplicate_detector
+            full_message_id = f"{channel_id}:{message_id}"
+            await duplicate_detector.mark_not_duplicate(full_message_id, user_id or 'system')
+
+            logger.info(f"消息 {channel_id}:{message_id} 已标记为非重复")
+            return True
+
+        except Exception as e:
+            logger.error(f"标记非重复失败 {channel_id}:{message_id}: {e}")
+            return False
+
+    async def confirm_duplicate(self, channel_id: str, message_id: int, user_id: str = None) -> bool:
+        """
+        确认消息为重复
+
+        Args:
+            channel_id: 频道ID
+            message_id: 消息ID
+            user_id: 操作用户ID
+
+        Returns:
+            bool: 操作是否成功
+        """
+        try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = redis_manager
+                except RuntimeError:
+                    logger.error("Redis连接失败")
+                    return False
+
+            # 获取消息
+            msg_data = await self.get_message(channel_id, message_id)
+            if not msg_data:
+                logger.warning(f"消息不存在: {channel_id}:{message_id}")
+                return False
+
+            # 更新消息状态
+            update_data = {
+                'duplicate_status': 'confirmed',  # 确认为重复
+                'status': 'rejected',  # 同时设置为已拒绝
+                'reject_reason': f"确认为重复消息 (原消息: {msg_data.get('original_message_id', 'unknown')})",
+                'reviewed_by': user_id or 'system',
+                'reviewed_at': get_current_time().isoformat(),
+                'duplicate_confirmed_at': get_current_time().isoformat()
+            }
+
+            success = await self.redis_store.update_message(channel_id, message_id, update_data)
+            if not success:
+                logger.error(f"更新消息状态失败: {channel_id}:{message_id}")
+                return False
+
+            # 记录用户反馈到去重检测器
+            from app.services.duplicate_detector import duplicate_detector
+            full_message_id = f"{channel_id}:{message_id}"
+            await duplicate_detector.confirm_duplicate(full_message_id, user_id or 'system')
+
+            logger.info(f"消息 {channel_id}:{message_id} 已确认为重复")
+            return True
+
+        except Exception as e:
+            logger.error(f"确认重复失败 {channel_id}:{message_id}: {e}")
             return False

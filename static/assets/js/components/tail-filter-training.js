@@ -99,7 +99,7 @@ const app = createApp({
                 
                 // 延迟返回首页
                 setTimeout(() => {
-                    window.location.href = '/static/index.html';
+                    window.location.href = API.pages.index;
                 }, 1500);
             } catch (error) {
                 console.error('提交训练样本失败:', error);

@@ -32,6 +32,11 @@ class LocalMessage:
     ad_weight: float = 0.0
     hit_keywords: Optional[List[Dict]] = None
     entities: Optional[List] = None
+    # 去重检测相关字段
+    duplicate_status: str = "none"  # "none", "suspected", "confirmed", "not_duplicate"
+    original_message_id: Optional[str] = None  # 原消息ID
+    similarity_score: float = 0.0  # 相似度分数
+    duplicate_reason: Optional[str] = None  # 检测原因
 
     def __post_init__(self):
         if self.filtered_content == "":
@@ -63,11 +68,6 @@ class ContentProcessor:
         self._separator_filter = None
         self._ad_detector = None
 
-        # 性能缓存
-        self._content_cache = {}  # 内容处理结果缓存
-        self._cache_hits = 0
-        self._cache_misses = 0
-
         logger.info("ContentProcessor初始化完成（延迟加载架构）")
 
     @property
@@ -98,12 +98,6 @@ class ContentProcessor:
             self._ad_detector = AdDetector()
         return self._ad_detector
 
-    def clear_cache(self):
-        """清空内容缓存"""
-        self._content_cache.clear()
-        self._cache_hits = 0
-        self._cache_misses = 0
-        logger.info("ContentProcessor缓存已清空")
 
     async def process(self, message: LocalMessage, config_manager: Optional[Any] = None, detect_ad: bool = True, filter_config: Optional[dict] = None) -> LocalMessage:
         """处理消息内容 - 性能优化版本
@@ -121,26 +115,6 @@ class ContentProcessor:
             if not message.content:
                 return message
 
-            # 优化1: 缓存检查（基于内容哈希）
-            import hashlib
-            content_hash = hashlib.md5(message.content.encode()).hexdigest()
-
-            if content_hash in self._content_cache:
-                cached_result = self._content_cache[content_hash]
-                self._cache_hits += 1
-                logger.debug(f"缓存命中: 消息 {message.message_id}")
-
-                # 应用缓存结果
-                message.filtered_content = cached_result.get('filtered_content', message.content)
-                message.filter_reason = cached_result.get('filter_reason', '')
-                if detect_ad and cached_result.get('is_ad'):
-                    message.is_ad = cached_result['is_ad']
-                    message.ad_weight = cached_result['ad_weight']
-                    message.hit_keywords = cached_result.get('hit_keywords', [])
-
-                return message
-
-            self._cache_misses += 1
             original_content = message.content
             current_content = original_content
             filter_reasons = []
@@ -243,13 +217,61 @@ class ContentProcessor:
                     else:
                         logger.info(f"⏸️ 广告检测已禁用自动拒绝，消息保持待审核状态")
 
+            # 5. 🔍 去重检测（在广告检测之后）
+            try:
+                from app.services.duplicate_detector import duplicate_detector
+
+                # 检查是否启用去重检测
+                duplicate_detection_enabled = True
+                if config_manager:
+                    try:
+                        from app.services.config_manager import config_manager as cm
+                        duplicate_detection_enabled = await cm.get_config('duplicate_detection.enabled', 'true') == 'true'
+                    except:
+                        pass
+
+                if duplicate_detection_enabled and current_content and len(current_content.strip()) >= 10:
+                    # 构建完整的消息ID
+                    full_message_id = f"{message.channel_id}:{message.message_id}" if message.channel_id else str(message.message_id)
+
+                    # 执行去重检测
+                    duplicate_result = await duplicate_detector.detect_duplicate(
+                        current_content,
+                        full_message_id
+                    )
+
+                    # 更新消息的去重字段
+                    if duplicate_result.is_duplicate:
+                        score = duplicate_result.similarity_score
+                        message.original_message_id = duplicate_result.original_message_id
+                        message.similarity_score = score
+                        message.duplicate_reason = duplicate_result.detection_reason
+
+                        # 95%以上直接拒绝
+                        if score >= 0.95:
+                            message.duplicate_status = 'confirmed'
+                            message.status = 'rejected'
+                            message.reject_reason = f"重复消息(相似度:{score:.1%})"
+                            logger.warning(f"❌ 拒绝重复消息: {full_message_id} -> {duplicate_result.original_message_id} (相似度: {score:.1%})")
+                            filter_reasons.append(f"去重检测: 重复消息({score:.1%})")
+                        else:
+                            # 92-95%标记为疑似
+                            message.duplicate_status = 'suspected'
+                            logger.info(f"🔍 疑似重复消息: {full_message_id} -> {duplicate_result.original_message_id} (相似度: {score:.1%})")
+                            filter_reasons.append(f"去重检测: 疑似重复({score:.1%})")
+                    else:
+                        message.duplicate_status = 'none'
+                        message.similarity_score = 0.0
+
+            except Exception as e:
+                logger.error(f"去重检测失败: {e}")
+                # 去重失败不影响消息处理
+                message.duplicate_status = 'none'
+
             # 更新消息
             message.filtered_content = current_content
             if filter_reasons:
                 message.filter_reason = "; ".join(filter_reasons)
-
-            # 优化4: 缓存处理结果
-            self._cache_result(content_hash, message, detect_ad)
 
             return message
 
@@ -257,49 +279,3 @@ class ContentProcessor:
             logger.error(f"内容处理失败 {message.message_id}: {e}")
             return message
 
-    def _cache_result(self, content_hash: str, message: LocalMessage, detect_ad: bool):
-        """缓存处理结果"""
-        try:
-            # 限制缓存大小，防止内存泄漏
-            if len(self._content_cache) > 1000:
-                # 删除最老的一半缓存条目
-                keys_to_remove = list(self._content_cache.keys())[:500]
-                for key in keys_to_remove:
-                    del self._content_cache[key]
-
-            cached_data = {
-                'filtered_content': message.filtered_content,
-                'filter_reason': message.filter_reason,
-            }
-
-            if detect_ad:
-                cached_data.update({
-                    'is_ad': message.is_ad,
-                    'ad_weight': message.ad_weight,
-                    'hit_keywords': message.hit_keywords
-                })
-
-            self._content_cache[content_hash] = cached_data
-
-        except Exception as e:
-            logger.warning(f"缓存结果失败: {e}")
-
-    def get_performance_stats(self) -> Dict[str, Any]:
-        """获取性能统计信息"""
-        total_requests = self._cache_hits + self._cache_misses
-        cache_hit_rate = (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
-
-        return {
-            'cache_hits': self._cache_hits,
-            'cache_misses': self._cache_misses,
-            'cache_hit_rate': f"{cache_hit_rate:.1f}%",
-            'cache_size': len(self._content_cache),
-            'total_requests': total_requests
-        }
-
-    def clear_cache(self):
-        """清理缓存"""
-        self._content_cache.clear()
-        self._cache_hits = 0
-        self._cache_misses = 0
-        logger.info("ContentProcessor缓存已清理")

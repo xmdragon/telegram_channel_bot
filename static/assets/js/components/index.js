@@ -116,7 +116,6 @@ const MainApp = {
                 reject: true,
                 delete: true
             }
-
         };
         
         // 如果StateManager可用，验证并使用其初始状态
@@ -261,7 +260,8 @@ const MainApp = {
             }
         }
     },
-    
+
+
     async mounted() {
         try {
             // 🔥 初始化事件委托系统
@@ -405,6 +405,13 @@ const MainApp = {
     },
     
     methods: {
+        // ================================
+        // 🎯 智能去重相关方法
+        // ================================
+
+        // Duplicate comparison methods removed - functionality moved to message-content-renderer component
+
+
         // 更新编辑内容
         updateEditContent(event) {
             const newContent = event.target.value;
@@ -2745,7 +2752,7 @@ function initializeVueApp() {
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button onclick="location.reload()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">刷新页面</button>
-                        <button onclick="window.location.href='/static/status.html'" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">系统状态</button>
+                        <button onclick="window.location.href=window.API.pages.status" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">系统状态</button>
                     </div>
                 </div>
             `;

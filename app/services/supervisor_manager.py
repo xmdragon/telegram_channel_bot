@@ -109,6 +109,10 @@ class SupervisorManager:
         """启动服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
 
+        # 如果服务在组中，需要使用 group:name 格式
+        if full_name.startswith('telegram_'):
+            full_name = f'telegram:{full_name}'
+
         if not self.server:
             logger.warning(f"Supervisor未连接，无法启动服务{full_name}")
             return False
@@ -131,6 +135,10 @@ class SupervisorManager:
         """停止服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
 
+        # 如果服务在组中，需要使用 group:name 格式
+        if full_name.startswith('telegram_'):
+            full_name = f'telegram:{full_name}'
+
         if not self.server:
             logger.warning(f"Supervisor未连接，无法停止服务{full_name}")
             return False
@@ -152,6 +160,10 @@ class SupervisorManager:
     def restart_service(self, service_name: str) -> bool:
         """重启服务"""
         full_name = SupervisorConfig.get_service_name(service_name)
+
+        # 如果服务在组中，需要使用 group:name 格式
+        if full_name.startswith('telegram_'):
+            full_name = f'telegram:{full_name}'
 
         if not self.server:
             logger.warning(f"Supervisor未连接，无法重启服务{full_name}")

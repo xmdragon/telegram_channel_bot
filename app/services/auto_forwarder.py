@@ -192,6 +192,13 @@ class AutoForwarder:
                 if msg.get('auto_forward_processed'):
                     continue
 
+                # 🎯 跳过疑似重复消息
+                duplicate_status = msg.get('duplicate_status', 'none')
+                if duplicate_status == 'suspected':
+                    logger.debug(f"跳过疑似重复消息: {msg.get('source_channel')}:{msg.get('message_id')} "
+                                f"(原消息: {msg.get('original_message_id')}, 相似度: {msg.get('similarity_score', 0):.3f})")
+                    continue
+
                 # 检查创建时间
                 created_at_str = msg.get('created_at')
                 if not created_at_str:

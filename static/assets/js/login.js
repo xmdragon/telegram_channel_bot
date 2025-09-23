@@ -111,7 +111,7 @@ const LoginApp = {
         redirectToHome() {
             // 检查是否有返回URL
             const urlParams = new URLSearchParams(window.location.search);
-            const returnUrl = urlParams.get('return') || '/static/index.html';
+            const returnUrl = urlParams.get('return') || API.pages.index;
             
             
             // 使用绝对路径跳转
