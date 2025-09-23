@@ -831,9 +831,23 @@ const MessageContentRenderer = {
                             原频道链接
                         </a>
                         <!-- 疑似重复信息显示在原频道链接后面 -->
+                        <!-- 疑似重复信息 -->
                         <template v-if="message.duplicate_status === 'suspected' && message.original_message_id">
                             <span class="duplicate-inline-info">
                                 🔍 疑似重复于:
+                                <a href="javascript:void(0)"
+                                   class="duplicate-inline-link"
+                                   @click.stop="loadMessageById"
+                                   :title="'相似度: ' + (message.similarity_score * 100).toFixed(1) + '%'">
+                                    #{{ message.original_message_id }}
+                                </a>
+                                ({{ (message.similarity_score * 100).toFixed(1) }}% 相似)
+                            </span>
+                        </template>
+                        <!-- 确认重复信息（用于已拒绝列表） -->
+                        <template v-if="message.duplicate_status === 'confirmed' && message.original_message_id">
+                            <span class="duplicate-inline-info">
+                                ❌ 重复于:
                                 <a href="javascript:void(0)"
                                    class="duplicate-inline-link"
                                    @click.stop="loadMessageById"

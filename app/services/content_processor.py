@@ -226,7 +226,7 @@ class ContentProcessor:
                 if config_manager:
                     try:
                         from app.services.config_manager import config_manager as cm
-                        duplicate_detection_enabled = await cm.get_config('duplicate_detection.enabled', 'true') == 'true'
+                        duplicate_detection_enabled = await cm.get_config('duplicate_detection.enabled', True)
                     except:
                         pass
 
