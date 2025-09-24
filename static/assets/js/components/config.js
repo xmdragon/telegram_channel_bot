@@ -72,6 +72,8 @@ const ConfigApp = {
                 'telegram.max_retry_attempts': '3',
                 'telegram.flood_wait_buffer_min': '1',
                 'telegram.flood_wait_buffer_max': '5',
+                'processor.timeout_seconds': '120',
+                'processor.send_message_timeout': '120',
 
                 // 消息长度限制
                 'telegram.max_message_length': '1000',
@@ -121,6 +123,8 @@ const ConfigApp = {
                 'telegram.flood_wait_buffer_max': 'integer',
                 'telegram.max_message_length': 'integer',
                 'telegram.max_message_length_vip': 'integer',
+                'processor.timeout_seconds': 'integer',
+                'processor.send_message_timeout': 'integer',
 
                 'target.signature': 'string'
             }

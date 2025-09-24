@@ -358,19 +358,20 @@ class MessageForwarder:
             
             if not media_files:
                 logger.warning("组合消息中没有可用的媒体文件，发送纯文本")
-                # 添加超时保护：文本消息60秒
+                # 获取超时配置
+                timeout = await self._get_file_timeout()
                 return await asyncio.wait_for(
                     client.send_message(
                         entity=int(target_channel_id),
                         message=caption_text
                     ),
-                    timeout=120
+                    timeout=timeout
                 )
             
             # 发送媒体组
             if len(media_files) == 1:
-                # 根据文件类型设置超时时间
-                timeout = self._get_file_timeout(media_files[0])
+                # 获取超时配置
+                timeout = await self._get_file_timeout(media_files[0])
                 return await asyncio.wait_for(
                     client.send_file(
                         entity=int(target_channel_id),
@@ -380,8 +381,8 @@ class MessageForwarder:
                     timeout=timeout
                 )
             else:
-                # 多个文件，使用最长的超时时间
-                timeout = max(self._get_file_timeout(f) for f in media_files)
+                # 获取超时配置
+                timeout = await self._get_file_timeout()
                 return await asyncio.wait_for(
                     client.send_file(
                         entity=int(target_channel_id),
@@ -419,8 +420,8 @@ class MessageForwarder:
                 file_path = str(PathConfig.ROOT_DIR / file_path.lstrip('/'))
                 logger.debug(f"单媒体路径转换: {message.media_url} -> {file_path}")
 
-            # 根据文件类型设置超时时间
-            timeout = self._get_file_timeout(file_path)
+            # 获取超时配置
+            timeout = await self._get_file_timeout(file_path)
             return await asyncio.wait_for(
                 client.send_file(
                     entity=int(target_channel_id),
@@ -434,18 +435,24 @@ class MessageForwarder:
             # 不降级，直接抛出异常让上层处理
             raise
 
-    def _get_file_timeout(self, file_path: str) -> int:
+    async def _get_file_timeout(self, file_path: str = None) -> int:
         """
-        根据文件类型返回合适的超时时间
+        获取发送消息超时配置
 
         Args:
-            file_path: 文件路径
+            file_path: 文件路径（保留参数以兼容）
 
         Returns:
             超时时间（秒）
         """
-        # 统一所有媒体文件超时时间为120秒
-        return 120
+        try:
+            from app.services.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            timeout = await config_manager.get_config('processor.send_message_timeout', 120)
+            return int(timeout)
+        except Exception as e:
+            logger.warning(f"获取发送超时配置失败，使用默认值120秒: {e}")
+            return 120
 
     def _get_message_type(self, message) -> MessageType:
         """
@@ -474,13 +481,15 @@ class MessageForwarder:
                                            content: str, entities, message_type: MessageType) -> any:
         """发送文本消息（带FloodWait重试）"""
         try:
+            # 获取超时配置
+            timeout = await self._get_file_timeout()
             return await asyncio.wait_for(
                 client.send_message(
                     entity=int(target_channel_id),
                     message=content,
                     formatting_entities=entities
                 ),
-                timeout=60
+                timeout=timeout
             )
         except FloodWaitError as e:
             # FloodWait处理并重新抛出，让上层处理

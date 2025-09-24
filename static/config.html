@@ -369,6 +369,38 @@
                             </div>
 
                             <div class="form-group">
+                                <label class="form-label">消息处理器超时时间 (秒)</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model="configs['processor.timeout_seconds']"
+                                        min="30"
+                                        max="600"
+                                        placeholder="120">
+                                    <div class="form-hint">
+                                        处理消息的最长等待时间，防止处理器阻塞
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">消息发送超时时间 (秒)</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model="configs['processor.send_message_timeout']"
+                                        min="30"
+                                        max="600"
+                                        placeholder="120">
+                                    <div class="form-hint">
+                                        发送消息到Telegram的最长等待时间，包括媒体文件上传
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <label class="form-label">数据清理间隔 (小时)</label>
                                 <div class="input-line">
                                     <input

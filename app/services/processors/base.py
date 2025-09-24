@@ -110,11 +110,25 @@ class MessageProcessor(ABC):
 
 class MessagePipeline:
     """消息处理管道"""
-    
+
     def __init__(self, processors: list[MessageProcessor] = None):
         self.processors = processors or []
         self.logger = logging.getLogger(__name__)
+        self._timeout = None  # 缓存超时配置
     
+    async def _get_timeout(self) -> int:
+        """获取处理器超时配置"""
+        if self._timeout is None:
+            try:
+                from app.services.config_manager import ConfigManager
+                config_manager = ConfigManager()
+                self._timeout = await config_manager.get_config('processor.timeout_seconds', 120)
+                self.logger.info(f"处理器超时设置为: {self._timeout}秒")
+            except Exception as e:
+                self.logger.warning(f"获取超时配置失败，使用默认值120秒: {e}")
+                self._timeout = 120
+        return self._timeout
+
     def add_processor(self, processor: MessageProcessor):
         """添加处理器到管道"""
         self.processors.append(processor)
@@ -133,18 +147,21 @@ class MessagePipeline:
         self.logger.info(f"开始处理消息 #{context.telegram_message.id} 通过 {len(self.processors)} 个处理器")
         
         try:
+            # 获取超时配置
+            timeout = await self._get_timeout()
+
             for i, processor in enumerate(self.processors):
                 self.logger.debug(f"执行处理器 {i+1}/{len(self.processors)}: {processor.name}")
-                
+
                 # 添加超时保护，防止处理器阻塞
                 try:
                     start_time = asyncio.get_event_loop().time()
-                    result = await asyncio.wait_for(processor.process(context), timeout=30.0)
+                    result = await asyncio.wait_for(processor.process(context), timeout=float(timeout))
                     elapsed = asyncio.get_event_loop().time() - start_time
                     self.logger.debug(f"处理器 {processor.name} 执行完成，耗时: {elapsed:.2f}秒")
                 except asyncio.TimeoutError:
                     error_msg = (
-                        f"🚨 处理器 {processor.name} 执行超时 (30秒)\n"
+                        f"🚨 处理器 {processor.name} 执行超时 ({timeout}秒)\n"
                         f"  消息ID: {context.telegram_message.id}\n"
                         f"  频道ID: {context.channel_id}\n"
                         f"  这可能表明处理器中存在阻塞操作"
