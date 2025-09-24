@@ -268,11 +268,14 @@ class MediaDuplicateDetector:
                         break
 
             # 从所有相关桶中获取候选
-            all_candidates = set()
+            all_candidates = set()  # 使用set自动去重
             for bucket_key in bucket_keys:
                 bucket_candidates = self.redis_manager.client.smembers(bucket_key)
                 if bucket_candidates:
                     all_candidates.update(bucket_candidates)
+                    # 重要：刷新命中桶的TTL，保持活跃的桶不过期
+                    # 这样常用的桶会一直保留，避免查询失效
+                    self.redis_manager.client.expire(bucket_key, 30 * 24 * 3600)
 
             # 处理所有候选
             for candidate in all_candidates:
@@ -310,6 +313,10 @@ class MediaDuplicateDetector:
                         'distance': distance,
                         'hash': stored_hash
                     })
+
+                    # 可选：刷新命中消息的元数据TTL，保持活跃数据不过期
+                    meta_key = f"media:meta:{real_msg_id}"
+                    self.redis_manager.client.expire(meta_key, 30 * 24 * 3600)
 
                     logger.debug(
                         f"发现相似图片: {real_msg_id} (距离: {distance})"

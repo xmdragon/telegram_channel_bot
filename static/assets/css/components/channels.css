@@ -204,36 +204,57 @@
     color: var(--text-secondary);
 }
 
-/* 频道列表 */
-.channel-list {
+/* 频道表格 */
+.channel-table-wrapper {
     margin-top: 16px;
-    border: 1px solid var(--border-color);
+    background: var(--card-bg);
     border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.channel-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.channel-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.channel-table thead {
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.channel-table th {
     padding: 12px 16px;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.channel-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.channel-table th.sortable:hover {
+    background: rgba(var(--primary-rgb), 0.05);
+}
+
+.channel-table tbody tr {
     border-bottom: 1px solid var(--border-color);
     transition: background 0.2s;
 }
 
-.channel-item:last-child {
-    border-bottom: none;
-}
-
-.channel-item:hover {
+.channel-table tbody tr:hover {
     background: var(--bg-hover);
 }
 
-.channel-info {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.channel-table td {
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
 }
 
 .channel-title {
@@ -243,7 +264,8 @@
 
 .channel-name {
     color: var(--text-secondary);
-    font-size: 14px;
+    font-family: var(--font-mono);
+    font-size: 13px;
 }
 
 .channel-id {
@@ -251,6 +273,7 @@
     padding: 2px 6px;
     border-radius: 4px;
     font-family: var(--font-mono);
+    display: inline-block;
 }
 
 .channel-id.has-id {
@@ -263,9 +286,39 @@
     color: var(--warning);
 }
 
-.channel-actions {
-    display: flex;
-    gap: 8px;
+.sync-time {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.empty-row {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* 排序图标 */
+.sort-icon {
+    margin-left: 4px;
+    display: inline-block;
+    font-style: normal;
+    font-size: 10px;
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.sort-icon i {
+    font-style: normal;
+}
+
+.sort-icon.sort-asc i,
+.sort-icon.sort-desc i {
+    color: var(--primary);
+}
+
+.sort-icon.sort-none i {
+    opacity: 0.3;
 }
 
 /* 工具栏 */
@@ -334,6 +387,17 @@
     background: rgba(var(--warning-rgb), 0.1);
     color: var(--warning);
     border: 1px solid rgba(var(--warning-rgb), 0.2);
+}
+
+/* 表格响应式 */
+@media (max-width: 992px) {
+    .channel-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .channel-table {
+        min-width: 700px;
+    }
 }
 
 /* 响应式设计 */
@@ -412,6 +476,17 @@
     background: var(--danger-hover);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(var(--danger-rgb), 0.3);
+}
+
+.btn-danger.btn-sm {
+    background: var(--danger);
+    color: white;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.btn-danger.btn-sm:hover {
+    background: var(--danger-hover);
 }
 
 .btn:disabled {

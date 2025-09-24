@@ -35,7 +35,11 @@ const ChannelApp = {
                 results: null,
                 message: '',
                 success: false
-            }
+            },
+
+            // 排序相关
+            sortField: 'last_sync_time', // 默认按最后更新时间排序
+            sortOrder: 'desc' // 默认降序
         }
     },
 
@@ -51,6 +55,41 @@ const ChannelApp = {
                 const name = (channel.channel_name || '').toLowerCase();
                 const id = (channel.channel_id || '').toLowerCase();
                 return title.includes(filter) || name.includes(filter) || id.includes(filter);
+            });
+        },
+
+        // 排序后的频道列表
+        sortedChannels() {
+            const channels = [...this.filteredChannels];
+            const field = this.sortField;
+            const order = this.sortOrder;
+
+            return channels.sort((a, b) => {
+                let aVal = a[field];
+                let bVal = b[field];
+
+                // 处理空值
+                if (aVal === null || aVal === undefined || aVal === '') {
+                    return order === 'asc' ? 1 : -1;
+                }
+                if (bVal === null || bVal === undefined || bVal === '') {
+                    return order === 'asc' ? -1 : 1;
+                }
+
+                // 字符串比较
+                if (typeof aVal === 'string' && typeof bVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+
+                // 比较
+                if (aVal < bVal) {
+                    return order === 'asc' ? -1 : 1;
+                }
+                if (aVal > bVal) {
+                    return order === 'asc' ? 1 : -1;
+                }
+                return 0;
             });
         }
     },
@@ -196,6 +235,68 @@ const ChannelApp = {
                 }
             } catch (error) {
                 MessageManager.error('频道ID解析失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+
+        // 排序频道列表
+        sortChannels(field) {
+            if (this.sortField === field) {
+                // 如果点击同一个字段，切换排序顺序
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                // 如果点击不同字段，设置新字段并默认降序
+                this.sortField = field;
+                this.sortOrder = field === 'channel_title' || field === 'channel_name' ? 'asc' : 'desc';
+            }
+        },
+
+        // 获取排序图标类
+        getSortIcon(field) {
+            if (this.sortField === field) {
+                return this.sortOrder === 'asc' ? 'sort-asc' : 'sort-desc';
+            }
+            return 'sort-none';
+        },
+
+        // 格式化同步时间
+        formatSyncTime(time) {
+            if (!time) {
+                return '从未同步';
+            }
+
+            try {
+                const date = new Date(time);
+                const now = new Date();
+                const diff = now - date;
+
+                // 小于1分钟
+                if (diff < 60000) {
+                    return '刚刚';
+                }
+                // 小于1小时
+                if (diff < 3600000) {
+                    const minutes = Math.floor(diff / 60000);
+                    return `${minutes}分钟前`;
+                }
+                // 小于1天
+                if (diff < 86400000) {
+                    const hours = Math.floor(diff / 3600000);
+                    return `${hours}小时前`;
+                }
+                // 小于7天
+                if (diff < 604800000) {
+                    const days = Math.floor(diff / 86400000);
+                    return `${days}天前`;
+                }
+
+                // 超过7天，显示日期
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                const hour = date.getHours().toString().padStart(2, '0');
+                const minute = date.getMinutes().toString().padStart(2, '0');
+                return `${month}-${day} ${hour}:${minute}`;
+            } catch (error) {
+                return '时间格式错误';
             }
         }
     },
