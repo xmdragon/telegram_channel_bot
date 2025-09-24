@@ -24,238 +24,12 @@
             <!-- 配置标签页 -->
             <div class="config-tabs">
                 <div class="tabs-header">
-                    <button class="tab-button" :class="{active: activeTab === 'channels'}" @click="activeTab = 'channels'">📡 频道管理</button>
                     <button class="tab-button" :class="{active: activeTab === 'forwarding'}" @click="activeTab = 'forwarding'">📤 转发设置</button>
+                    <button class="tab-button" :class="{active: activeTab === 'dedup'}" @click="activeTab = 'dedup'">🔁 去重检测</button>
+                    <button class="tab-button" :class="{active: activeTab === 'collection'}" @click="activeTab = 'collection'">📥 采集设置</button>
+                    <button class="tab-button" :class="{active: activeTab === 'performance'}" @click="activeTab = 'performance'">⚡ 性能优化</button>
                     <button class="tab-button" :class="{active: activeTab === 'filters'}" @click="activeTab = 'filters'">🔍 过滤器管理</button>
                     <button class="tab-button" :class="{active: activeTab === 'system'}" @click="activeTab = 'system'">🔧 系统设置</button>
-                </div>
-                
-                <!-- 频道管理 -->
-                <div class="tab-content" v-show="activeTab === 'channels'">
-                    <div class="config-section">
-                        <div class="add-channel-form">
-                            <!-- 原生标签页替代el-tabs -->
-                            <div class="native-tabs">
-                                <div class="native-tabs-header">
-                                    <button class="native-tab-button" 
-                                            :class="{active: addChannelTab === 'single'}" 
-                                            @click="addChannelTab = 'single'">
-                                        单个添加
-                                    </button>
-                                    <button class="native-tab-button" 
-                                            :class="{active: addChannelTab === 'batch'}" 
-                                            @click="addChannelTab = 'batch'">
-                                        批量添加
-                                    </button>
-                                </div>
-                                
-                                <!-- 单个添加标签页内容 -->
-                                <div class="native-tab-content" v-show="addChannelTab === 'single'">
-                                    <form class="native-form" @submit.prevent="addChannel">
-                                        <div class="form-group">
-                                            <label class="form-label">频道名称</label>
-                                            <div class="input-line">
-                                                <div class="input-with-button">
-                                                    <input 
-                                                        class="form-input" 
-                                                        type="text"
-                                                        v-model="newChannel.name" 
-                                                        placeholder="输入频道名称（如：@channelname 或 channelname）"
-                                                        @keyup.enter="addChannel">
-                                                    <button 
-                                                        type="button"
-                                                        class="btn btn-primary" 
-                                                        @click="addChannel" 
->
-                                                        ➕
-                                                        添加
-                                                    </button>
-                                                </div>
-                                                <div class="form-hint">
-                                                    <span class="info-icon">ℹ️</span> 
-                                                    频道ID和标题会自动解析，无需手动填写
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-                                
-                                <!-- 批量添加标签页内容 -->
-                                <div class="native-tab-content" v-show="addChannelTab === 'batch'">
-                                    <form class="native-form" @submit.prevent="batchAddChannels">
-                                        <div class="form-group">
-                                            <label class="form-label">频道列表</label>
-                                            <textarea
-                                                class="form-textarea"
-                                                v-model="batchChannel.channels"
-                                                rows="6"
-                                                placeholder="每行输入一个频道名称，支持以下格式：&#10;@channelname&#10;https://t.me/channelname&#10;channelname">
-                                            </textarea>
-                                        </div>
-                                        <div class="form-group">
-                                            <div class="btn-group">
-                                                <button type="button" class="btn btn-primary" @click="batchAddChannels" :disabled="batchChannel.loading">
-                                                    <span v-if="batchChannel.loading">⏳</span>
-                                                    <span v-else>📤</span>
-                                                    批量添加
-                                                </button>
-                                                <button type="button" class="btn btn-secondary" @click="batchChannel.channels = ''">
-                                                    🗑️ 清空
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                    
-                                    <!-- 批量添加结果 -->
-                                    <div v-if="batchChannel.results" class="batch-results mt-3">
-                                        <div class="alert" 
-                                             :class="batchChannel.success ? 'alert-success' : 'alert-warning'">
-                                            {{ batchChannel.message }}
-                                        </div>
-                                        
-                                        <!-- 添加成功的频道 -->
-                                        <div v-if="batchChannel.results.added && batchChannel.results.added.length > 0" class="result-section mt-2">
-                                            <h5>✅ 成功添加的频道：</h5>
-                                            <div class="tag-list">
-                                                <span v-for="channel in batchChannel.results.added" 
-                                                      :key="channel.channel_name" 
-                                                      class="tag tag-success">
-                                                    {{ channel.channel_title }} ({{ channel.channel_name }})
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- 已存在的频道 -->
-                                        <div v-if="batchChannel.results.existed && batchChannel.results.existed.length > 0" class="result-section mt-2">
-                                            <h5>ℹ️ 已存在的频道：</h5>
-                                            <div class="tag-list">
-                                                <span v-for="channel in batchChannel.results.existed" 
-                                                      :key="channel" 
-                                                      class="tag tag-info">
-                                                    {{ channel }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- 自动订阅的频道 -->
-                                        <div v-if="batchChannel.results.subscribed && batchChannel.results.subscribed.length > 0" class="result-section mt-2">
-                                            <h5>🔔 自动订阅的频道：</h5>
-                                            <div class="tag-list">
-                                                <span v-for="channel in batchChannel.results.subscribed" 
-                                                      :key="channel" 
-                                                      class="tag tag-success">
-                                                    {{ channel }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- 添加失败的频道 -->
-                                        <div v-if="batchChannel.results.failed && batchChannel.results.failed.length > 0" class="result-section mt-2">
-                                            <h5>❌ 添加失败的频道：</h5>
-                                            <div v-for="item in batchChannel.results.failed" :key="item.channel_name" class="failed-item">
-                                                <span class="tag tag-danger">{{ item.channel_name }}</span>
-                                                <span class="error-reason">{{ item.reason }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 搜索Telegram频道（暂时隐藏） -->
-                        <div class="search-channel-form" style="display: none;">
-                            <h4>搜索Telegram频道</h4>
-                            <form class="native-form" @submit.prevent="searchChannels">
-                                <div class="form-group">
-                                    <label class="form-label">搜索关键词</label>
-                                    <div class="input-with-button">
-                                        <input 
-                                            class="form-input"
-                                            type="text"
-                                            v-model="searchForm.query" 
-                                            placeholder="输入频道名称或关键词搜索">
-                                        <button 
-                                            type="button"
-                                            class="btn btn-primary" 
-                                            @click="searchChannels" 
-                                            :disabled="searchForm.loading">
-                                            <span v-if="searchForm.loading">⏳</span>
-                                            <span v-else>🔍</span>
-                                            搜索
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
-                            
-                            <!-- 搜索结果 -->
-                            <div v-if="searchForm.results.length > 0" class="search-results mt-3">
-                                <h5>搜索结果：</h5>
-                                <div v-for="result in searchForm.results" :key="result.id" class="search-result-item">
-                                    <div>
-                                        <strong>{{ result.title }}</strong>
-                                        <span class="text-info ml-2">ID: {{ result.id }}</span>
-                                        <span class="tag tag-info tag-sm ml-2">{{ result.participants_count || 'N/A' }} 成员</span>
-                                    </div>
-                                    <div v-if="result.description" class="description">
-                                        {{ result.description }}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 无结果提示 -->
-                            <div v-else-if="searchForm.searched && searchForm.results.length === 0" class="empty-state">
-                                没有找到相关频道
-                            </div>
-                        </div>
-
-                        <h3>监听频道列表</h3>
-                        
-                        <!-- 频道搜索过滤 -->
-                        <div class="toolbar">
-                            <div class="search-box">
-                                <input 
-                                    class="search-input"
-                                    type="text"
-                                    v-model="channelSearchFilter" 
-                                    placeholder="🔍 搜索频道名称或标题...">
-                            </div>
-                            <span class="channel-count">
-                                共 {{ filteredChannels.length }} / {{ channels.length }} 个频道
-                            </span>
-                        </div>
-                        
-                        <div class="channel-list">
-                            <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item">
-                                <div class="channel-info">
-                                    <span class="channel-title">
-                                        {{ channel.channel_title || '未设置标题' }}
-                                    </span>
-                                    <span class="channel-name">
-                                        ({{ channel.channel_name || '未知' }})
-                                    </span>
-                                    <span v-if="!channel.channel_id" class="channel-id no-id">[无ID]</span>
-                                    <span v-else class="channel-id has-id">[{{ channel.channel_id }}]</span>
-                                    <span class="last-sync-time"
-                                          :class="getLastSyncClass(channel.last_sync_time)"
-                                          :title="channel.last_sync_time ? '最后同步: ' + channel.last_sync_time : '从未同步'">
-                                        - {{ formatLastSyncTime(channel.last_sync_time) }}
-                                    </span>
-                                </div>
-                                <div class="channel-actions">
-                                    <button v-if="!channel.channel_id"
-                                            class="btn btn-primary btn-sm"
-                                            @click="resolveChannelId(channel.channel_name)">
-                                        解析ID
-                                    </button>
-                                    <button class="btn btn-danger btn-sm"
-                                            @click="removeChannel(channel.channel_name || channel.channel_id)">
-                                        删除
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                    </div>
                 </div>
 
                 <!-- 转发设置 -->
@@ -336,6 +110,250 @@
                                 <button type="button" class="btn btn-primary" @click="saveForwardingConfig">
                                     💾 保存配置
                                 </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 去重检测 -->
+                <div class="tab-content" v-show="activeTab === 'dedup'">
+                    <div class="config-section">
+                        <div class="page-header">
+                            <h3>🔁 去重检测设置</h3>
+                            <p class="section-description">配置消息去重检测的算法和阈值</p>
+                        </div>
+                        <form class="native-form">
+                            <div class="form-group">
+                                <label class="form-label">启用去重检测</label>
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="configs['duplicate_detection.enabled']">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ configs['duplicate_detection.enabled'] ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        启用后会自动检测并标记重复消息
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">内容相似度阈值</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['duplicate_detection.content_threshold']"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        placeholder="0.85">
+                                    <div class="form-hint">
+                                        内容相似度达到此阈值时认为重复（0-1之间，推荐值: 0.85）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">SimHash 阈值</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['duplicate_detection.simhash_threshold']"
+                                        min="1"
+                                        max="64"
+                                        placeholder="3">
+                                    <div class="form-hint">
+                                        SimHash 汉明距离阈值，值越小要求越严格（推荐值: 3）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">自动调整阈值</label>
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="configs['duplicate_detection.auto_adjust']">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ configs['duplicate_detection.auto_adjust'] ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        根据检测结果自动优化阈值设置
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 采集设置 -->
+                <div class="tab-content" v-show="activeTab === 'collection'">
+                    <div class="config-section">
+                        <div class="page-header">
+                            <h3>📥 采集设置</h3>
+                            <p class="section-description">配置消息采集的各项参数</p>
+                        </div>
+                        <form class="native-form">
+                            <div class="form-group">
+                                <label class="form-label">启用采集服务</label>
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="configs['collection.enabled']">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ configs['collection.enabled'] ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        控制是否启动消息采集服务
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">批次最大消息数</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['collection.max_messages_per_batch']"
+                                        min="1"
+                                        max="100"
+                                        placeholder="10">
+                                    <div class="form-hint">
+                                        每批次处理的最大消息数量（推荐值: 10）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">媒体文件大小限制 (MB)</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['collection.max_media_size_mb']"
+                                        min="1"
+                                        max="1000"
+                                        placeholder="200">
+                                    <div class="form-hint">
+                                        超过此大小的媒体消息将被完全跳过（推荐值: 200MB）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">历史消息采集限制</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['source.history_limit']"
+                                        min="1"
+                                        max="10000"
+                                        placeholder="100">
+                                    <div class="form-hint">
+                                        初次采集时获取的历史消息数量
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 性能优化 -->
+                <div class="tab-content" v-show="activeTab === 'performance'">
+                    <div class="config-section">
+                        <div class="page-header">
+                            <h3>⚡ 性能优化设置</h3>
+                            <p class="section-description">优化系统性能和速率限制</p>
+                        </div>
+                        <form class="native-form">
+                            <div class="form-group">
+                                <label class="form-label">文本消息发送间隔 (秒)</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['telegram.rate_limit_text_interval']"
+                                        min="0.1"
+                                        max="10"
+                                        step="0.1"
+                                        placeholder="1">
+                                    <div class="form-hint">
+                                        连续发送文本消息的最小间隔
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">媒体消息发送间隔 (秒)</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['telegram.rate_limit_media_interval']"
+                                        min="1"
+                                        max="30"
+                                        placeholder="5">
+                                    <div class="form-hint">
+                                        连续发送媒体消息的最小间隔
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">速率限制安全系数</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['telegram.rate_limit_safety_factor']"
+                                        min="1"
+                                        max="5"
+                                        step="0.1"
+                                        placeholder="1.5">
+                                    <div class="form-hint">
+                                        速率限制的安全系数，值越大越安全但越慢
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">最大重试次数</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['telegram.max_retry_attempts']"
+                                        min="1"
+                                        max="10"
+                                        placeholder="3">
+                                    <div class="form-hint">
+                                        发送失败时的最大重试次数
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">数据清理间隔 (小时)</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input"
+                                        type="number"
+                                        v-model="configs['scheduler.data_cleanup_interval_hours']"
+                                        min="1"
+                                        max="168"
+                                        placeholder="24">
+                                    <div class="form-hint">
+                                        自动清理过期数据的间隔时间
+                                    </div>
+                                </div>
                             </div>
                         </form>
                     </div>

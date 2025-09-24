@@ -6,6 +6,7 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
+from pathlib import Path
 from app.storage.redis_manager import redis_manager
 from app.utils.timezone import get_current_time
 
@@ -645,18 +646,55 @@ class MessageProcessor:
             # 获取消息内容
             message_content = message_data.get('content', '') or message_data.get('filtered_content', '')
 
-            if not message_content or len(message_content.strip()) < 10:
-                logger.debug(f"消息内容太短，跳过去重检测: {channel_id}:{message_id}")
-                return
-
-            # 执行去重检测
-            from app.services.duplicate_detector import duplicate_detector
-
             full_message_id = f"{channel_id}:{message_id}"
-            duplicate_result = await duplicate_detector.detect_duplicate(message_content, full_message_id)
+            duplicate_found = False
+            duplicate_result = None
+
+            # Step 1: 文本去重检测（保持原逻辑）
+            if not message_content or len(message_content.strip()) < 10:
+                logger.debug(f"消息内容太短，跳过文本去重检测: {full_message_id}")
+            else:
+                # 执行文本去重检测
+                from app.services.duplicate_detector import duplicate_detector
+
+                text_duplicate_result = await duplicate_detector.detect_duplicate(message_content, full_message_id)
+
+                if text_duplicate_result.is_duplicate:
+                    # 文本检测到重复
+                    duplicate_found = True
+                    duplicate_result = text_duplicate_result
+                    logger.info(
+                        f"📝 文本重复: {full_message_id} "
+                        f"-> {text_duplicate_result.original_message_id} "
+                        f"(相似度: {text_duplicate_result.similarity_score:.3f})"
+                    )
+
+            # Step 2: 如果文本未检测到重复，进行媒体去重
+            if not duplicate_found:
+                media_paths = await self._extract_media_paths(message_data)
+
+                if media_paths:
+                    logger.debug(f"执行媒体去重检测: {full_message_id}, 媒体数: {len(media_paths)}")
+                    from app.services.media_duplicate_detector import media_duplicate_detector
+
+                    # 对组消息：任一媒体重复则整组重复
+                    for idx, media_path in enumerate(media_paths):
+                        media_result = await media_duplicate_detector.detect_duplicate(
+                            media_path, f"{full_message_id}:media{idx}"
+                        )
+
+                        if media_result.is_duplicate:
+                            logger.info(
+                                f"🖼️ 媒体重复: {full_message_id} "
+                                f"-> {media_result.original_message_id} "
+                                f"(相似度: {media_result.similarity_score:.3f})"
+                            )
+                            duplicate_found = True
+                            duplicate_result = media_result
+                            break  # 找到一个重复就停止
 
             # 根据检测结果更新消息数据
-            if duplicate_result.is_duplicate:
+            if duplicate_found and duplicate_result:
                 # 发现重复消息
                 message_data['duplicate_status'] = 'suspected'
                 message_data['original_message_id'] = duplicate_result.original_message_id
@@ -664,18 +702,18 @@ class MessageProcessor:
                 message_data['duplicate_reason'] = duplicate_result.detection_reason
 
                 logger.info(
-                    f"🔍 检测到疑似重复消息: {full_message_id} "
-                    f"-> 原消息: {duplicate_result.original_message_id} "
-                    f"(相似度: {duplicate_result.similarity_score:.3f})"
+                    f"✅ 检测到重复消息: {full_message_id} "
+                    f"-> {duplicate_result.original_message_id} "
+                    f"(方式: {duplicate_result.detection_reason})"
                 )
             else:
                 # 非重复消息
                 message_data['duplicate_status'] = 'none'
                 message_data['original_message_id'] = None
                 message_data['similarity_score'] = 0.0
-                message_data['duplicate_reason'] = duplicate_result.detection_reason
+                message_data['duplicate_reason'] = "no_duplicate_found"
 
-                logger.debug(f"✅ 消息无重复: {full_message_id} - {duplicate_result.detection_reason}")
+                logger.debug(f"✅ 消息无重复: {full_message_id}")
 
         except Exception as e:
             logger.error(f"去重检测失败 {channel_id}:{message_id}: {e}")
@@ -684,6 +722,96 @@ class MessageProcessor:
             message_data['original_message_id'] = None
             message_data['similarity_score'] = 0.0
             message_data['duplicate_reason'] = f"detection_error: {str(e)[:100]}"
+
+    async def _extract_media_paths(self, message_data: Dict) -> List[str]:
+        """
+        提取消息的所有媒体路径
+        支持单消息和组消息
+
+        Args:
+            message_data: 消息数据
+
+        Returns:
+            媒体文件路径列表
+        """
+        media_paths = []
+
+        try:
+            # 检查是否是组消息
+            if message_data.get('is_grouped') and message_data.get('messages'):
+                # 组消息：提取所有子消息的媒体
+                messages = message_data.get('messages', [])
+                for msg in messages:
+                    path = await self._get_single_media_path(msg)
+                    if path:
+                        media_paths.append(path)
+            else:
+                # 单消息
+                path = await self._get_single_media_path(message_data)
+                if path:
+                    media_paths.append(path)
+
+        except Exception as e:
+            logger.error(f"提取媒体路径失败: {e}")
+
+        return media_paths
+
+    async def _get_single_media_path(self, msg_data: Dict) -> Optional[str]:
+        """
+        获取单个消息的媒体路径
+
+        Args:
+            msg_data: 单个消息数据
+
+        Returns:
+            媒体文件路径，如果没有则返回None
+        """
+        try:
+            # 优先使用已下载的路径
+            if msg_data.get('media_path'):
+                path = msg_data['media_path']
+                if Path(path).exists():
+                    return path
+
+            # 从media_info获取
+            media_info = msg_data.get('media_info', {})
+
+            # 检查文件路径
+            if media_info.get('file_path'):
+                path = media_info['file_path']
+                if Path(path).exists():
+                    return path
+
+            # 视频使用缩略图
+            if media_info.get('thumbnail_path'):
+                path = media_info['thumbnail_path']
+                if Path(path).exists():
+                    return path
+
+            # 如果有媒体但没有下载，尝试下载
+            if media_info.get('has_media') or media_info.get('media_id'):
+                # 检查是否有原始消息对象
+                telegram_message = msg_data.get('telegram_message')
+                if not telegram_message:
+                    logger.debug("没有原始消息对象，无法下载媒体")
+                    return None
+
+                try:
+                    from app.services.media_handler import media_handler
+
+                    # 注意：media_handler.download_media 需要 TelegramClient 作为第一个参数
+                    # 这里暂时返回None，避免下载整个媒体文件
+                    # TODO: 实现缩略图提取功能
+                    logger.debug(f"媒体文件未下载，暂不支持动态下载: {msg_data.get('message_id')}")
+                    return None
+
+                except Exception as e:
+                    logger.warning(f"下载媒体失败: {e}")
+
+        except Exception as e:
+            logger.error(f"获取单个媒体路径失败: {e}")
+
+        return None
 
     async def mark_not_duplicate(self, channel_id: str, message_id: int, user_id: str = None) -> bool:
         """

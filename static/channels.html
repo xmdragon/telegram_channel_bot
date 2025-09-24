@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📡 频道管理</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/channels.css?v=' + RESOURCE_VERSION + '">');
+    </script>
+</head>
+<body>
+    <div id="app" v-cloak>
+        <!-- 导航栏 -->
+        <nav-bar page-title="📡 频道管理"></nav-bar>
+
+        <div class="container">
+            <div class="config-section">
+                <div class="add-channel-form">
+                    <!-- 原生标签页替代el-tabs -->
+                    <div class="native-tabs">
+                        <div class="native-tabs-header">
+                            <button class="native-tab-button"
+                                    :class="{active: addChannelTab === 'single'}"
+                                    @click="addChannelTab = 'single'">
+                                单个添加
+                            </button>
+                            <button class="native-tab-button"
+                                    :class="{active: addChannelTab === 'batch'}"
+                                    @click="addChannelTab = 'batch'">
+                                批量添加
+                            </button>
+                        </div>
+
+                        <!-- 单个添加标签页内容 -->
+                        <div class="native-tab-content" v-show="addChannelTab === 'single'">
+                            <form class="native-form" @submit.prevent="addChannel">
+                                <div class="form-group">
+                                    <label class="form-label">频道名称</label>
+                                    <div class="input-line">
+                                        <div class="input-with-button">
+                                            <input
+                                                class="form-input"
+                                                type="text"
+                                                v-model="newChannel.name"
+                                                placeholder="输入频道名称（如：@channelname 或 channelname）"
+                                                @keyup.enter="addChannel">
+                                            <button
+                                                type="button"
+                                                class="btn btn-primary"
+                                                @click="addChannel">
+                                                ➕ 添加
+                                            </button>
+                                        </div>
+                                        <div class="form-hint">
+                                            <span class="info-icon">ℹ️</span>
+                                            频道ID和标题会自动解析，无需手动填写
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- 批量添加标签页内容 -->
+                        <div class="native-tab-content" v-show="addChannelTab === 'batch'">
+                            <form class="native-form" @submit.prevent="batchAddChannels">
+                                <div class="form-group">
+                                    <label class="form-label">频道列表</label>
+                                    <textarea
+                                        class="form-textarea"
+                                        v-model="batchChannel.channels"
+                                        rows="6"
+                                        placeholder="每行输入一个频道名称，支持以下格式：&#10;@channelname&#10;https://t.me/channelname&#10;channelname">
+                                    </textarea>
+                                </div>
+                                <div class="form-group">
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-primary" @click="batchAddChannels" :disabled="batchChannel.loading">
+                                            <span v-if="batchChannel.loading">⏳</span>
+                                            <span v-else>📤</span>
+                                            批量添加
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" @click="batchChannel.channels = ''">
+                                            🗑️ 清空
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <!-- 批量添加结果 -->
+                            <div v-if="batchChannel.results" class="batch-results mt-3">
+                                <div class="alert"
+                                     :class="batchChannel.success ? 'alert-success' : 'alert-warning'">
+                                    {{ batchChannel.message }}
+                                </div>
+
+                                <!-- 添加成功的频道 -->
+                                <div v-if="batchChannel.results.added && batchChannel.results.added.length > 0" class="result-section mt-2">
+                                    <h5>✅ 成功添加的频道：</h5>
+                                    <div class="tag-list">
+                                        <span v-for="channel in batchChannel.results.added"
+                                              :key="channel.channel_name"
+                                              class="tag tag-success">
+                                            {{ channel.channel_title }} ({{ channel.channel_name }})
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- 已存在的频道 -->
+                                <div v-if="batchChannel.results.existed && batchChannel.results.existed.length > 0" class="result-section mt-2">
+                                    <h5>ℹ️ 已存在的频道：</h5>
+                                    <div class="tag-list">
+                                        <span v-for="channel in batchChannel.results.existed"
+                                              :key="channel"
+                                              class="tag tag-info">
+                                            {{ channel }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- 自动订阅的频道 -->
+                                <div v-if="batchChannel.results.subscribed && batchChannel.results.subscribed.length > 0" class="result-section mt-2">
+                                    <h5>🔔 自动订阅的频道：</h5>
+                                    <div class="tag-list">
+                                        <span v-for="channel in batchChannel.results.subscribed"
+                                              :key="channel"
+                                              class="tag tag-success">
+                                            {{ channel }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- 添加失败的频道 -->
+                                <div v-if="batchChannel.results.failed && batchChannel.results.failed.length > 0" class="result-section mt-2">
+                                    <h5>❌ 添加失败的频道：</h5>
+                                    <div v-for="item in batchChannel.results.failed" :key="item.channel_name" class="failed-item">
+                                        <span class="tag tag-danger">{{ item.channel_name }}</span>
+                                        <span class="error-reason">{{ item.reason }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>监听频道列表</h3>
+
+                <!-- 频道搜索过滤 -->
+                <div class="toolbar">
+                    <div class="search-box">
+                        <input
+                            class="search-input"
+                            type="text"
+                            v-model="channelSearchFilter"
+                            placeholder="🔍 搜索频道名称或标题...">
+                    </div>
+                    <span class="channel-count">
+                        共 {{ filteredChannels.length }} / {{ channels.length }} 个频道
+                    </span>
+                </div>
+
+                <div class="channel-list">
+                    <div v-for="channel in filteredChannels" :key="channel.id" class="channel-item">
+                        <div class="channel-info">
+                            <span class="channel-title">
+                                {{ channel.channel_title || '未设置标题' }}
+                            </span>
+                            <span class="channel-name">
+                                {{ channel.channel_name }}
+                            </span>
+                            <span v-if="channel.channel_id" class="channel-id">
+                                ID: {{ channel.channel_id }}
+                            </span>
+                        </div>
+                        <div class="channel-actions">
+                            <button class="btn btn-danger" @click="removeChannel(channel.id)">
+                                🗑️ 删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 空状态 -->
+                <div v-if="channels.length === 0" class="empty-state">
+                    <p>暂无监听频道</p>
+                    <p>请使用上方表单添加频道</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 动态加载JavaScript -->
+    <script>
+        // 动态加载所有需要的JS文件
+        const scripts = [
+            'assets/js/vue.prod.js',
+            'assets/js/axios.js',
+            'assets/js/simple-ui.js',
+            'assets/js/config/api-endpoints.js',
+            'assets/js/components/navbar.js',
+            'assets/js/components/channels.js'
+        ];
+
+        scripts.forEach(src => {
+            document.write('<script src="' + src + '?v=' + RESOURCE_VERSION + '"><\/script>');
+        });
+    </script>
+</body>
+</html>

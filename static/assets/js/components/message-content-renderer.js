@@ -586,6 +586,21 @@ const MessageContentRenderer = {
     },
     template: `
         <div class="message-content-wrapper">
+            <!-- 自动转发失败提示 -->
+            <div v-if="message.auto_forward_failed" class="forward-error-alert">
+                <div class="error-icon">⚠️</div>
+                <div class="error-content">
+                    <div class="error-title">自动转发失败</div>
+                    <div class="error-reason">{{ message.auto_forward_error || '未知错误' }}</div>
+                    <div class="error-meta" v-if="message.auto_forward_retry_count">
+                        已重试 {{ message.auto_forward_retry_count }} 次
+                        <span v-if="message.auto_forward_last_retry" class="error-time">
+                            · {{ formatTime(message.auto_forward_last_retry) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <!-- 消息头部 -->
             <div class="message-header">
                 <div class="message-info">

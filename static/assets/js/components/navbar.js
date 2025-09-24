@@ -22,9 +22,10 @@ const NavBar = {
                     <span class="navbar-subtitle" v-if="pageSubtitle">{{ pageSubtitle }}</span>
                 </div>
                 <div class="navbar-links">
-                    <a href="./index.html" :class="['nav-link', isActive('/index.html') ? 'active' : '']">🏠 主控制台</a>
+                    <a href="./index.html" :class="['nav-link', isActive('/index.html') ? 'active' : '']">📊 消息管理</a>
+                    <a href="./channels.html" :class="['nav-link', isActive('/channels.html') ? 'active' : '']">📡 频道管理</a>
                     <a href="./config.html" :class="['nav-link', isActive('/config.html') ? 'active' : '']">⚙️ 系统配置</a>
-                    <a href="./tail-filter-manager.html" :class="['nav-link', isActive('/tail-filter-manager.html') ? 'active' : '']">🤖 训练中心</a>
+                    <a href="./tail-filter-manager.html" :class="['nav-link', isActive('/tail-filter-manager.html') ? 'active' : '']">🎯 训练数据</a>
                     <a href="./status.html" :class="['nav-link', isActive('/status.html') ? 'active' : '']">📊 系统状态</a>
                     <a href="./admin-manage.html" :class="['nav-link', isActive('/admin-manage.html') ? 'active' : '']">👥 管理员</a>
                     <a href="./telegram-auth.html" :class="['nav-link', isActive('/telegram-auth.html') ? 'active' : '']">📱 Telegram认证</a>

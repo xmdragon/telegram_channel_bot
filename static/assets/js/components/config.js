@@ -22,31 +22,8 @@ const ConfigApp = {
             statusMessage: '',
             statusType: 'success',
             configStatus: '在线',
-            activeTab: 'channels',
+            activeTab: 'forwarding',
             
-            // 频道管理
-            channels: [],
-            channelSearchFilter: '', // 频道列表搜索过滤
-            addChannelTab: 'single', // 添加频道的标签页
-            newChannel: {
-                name: '',
-                title: ''
-            },
-            batchChannel: {
-                channels: '',
-                loading: false,
-                results: null,
-                message: '',
-                success: false
-            },
-            
-            // 频道搜索（添加新频道）
-            searchForm: {
-                query: '',
-                results: [],
-                loading: false,
-                searched: false
-            },
             
             
             // 帮助提示标记
@@ -54,11 +31,17 @@ const ConfigApp = {
             
             // 统一配置对象 - 使用点分隔键名与后端保持一致
             configs: {
-                // 系统设置
-                'source.history_limit': '50',
-                'target.signature': '',
+                // 采集设置
                 'collection.enabled': true,
                 'collection.max_media_size_mb': '200',
+                'collection.max_messages_per_batch': '10',
+                'source.history_limit': '50',
+
+                // 去重检测
+                'duplicate_detection.enabled': true,
+                'duplicate_detection.content_threshold': '0.85',
+                'duplicate_detection.simhash_threshold': '3',
+                'duplicate_detection.auto_adjust': true,
                 // Telegram API 配置
                 'telegram.api_id': '',
                 'telegram.api_hash': '',
@@ -78,15 +61,39 @@ const ConfigApp = {
                 'target.channel_id': '',
                 // 系统设置
                 'scheduler.enabled': true,
-                'scheduler.data_cleanup_interval_hours': '24'
+                'scheduler.data_cleanup_interval_hours': '24',
+                'system.log_level': 'WARNING',
+                'storage.delete_single_messages': false,
+
+                // 性能优化
+                'telegram.rate_limit_text_interval': '1',
+                'telegram.rate_limit_media_interval': '5',
+                'telegram.rate_limit_safety_factor': '1.5',
+                'telegram.max_retry_attempts': '3',
+                'telegram.flood_wait_buffer_min': '1',
+                'telegram.flood_wait_buffer_max': '5',
+
+                // 消息长度限制
+                'telegram.max_message_length': '1000',
+                'telegram.max_message_length_vip': '2000',
+
+                // 其他
+                'target.signature': ''
             },
             
             // 配置类型映射 - 用于自动类型转换
             configTypes: {
-                'source.history_limit': 'integer',
-                'target.signature': 'string',
+                // 采集设置
                 'collection.enabled': 'boolean',
                 'collection.max_media_size_mb': 'integer',
+                'collection.max_messages_per_batch': 'integer',
+                'source.history_limit': 'integer',
+
+                // 去重检测
+                'duplicate_detection.enabled': 'boolean',
+                'duplicate_detection.content_threshold': 'float',
+                'duplicate_detection.simhash_threshold': 'integer',
+                'duplicate_detection.auto_adjust': 'boolean',
                 'telegram.api_id': 'string',
                 'telegram.api_hash': 'string',
                 'filter.enabled': 'boolean',
@@ -101,7 +108,21 @@ const ConfigApp = {
                 'target.channel_link': 'string',
                 'target.channel_id': 'string',
                 'scheduler.enabled': 'boolean',
-                'scheduler.data_cleanup_interval_hours': 'integer'
+                'scheduler.data_cleanup_interval_hours': 'integer',
+                'system.log_level': 'string',
+                'storage.delete_single_messages': 'boolean',
+
+                // 性能优化
+                'telegram.rate_limit_text_interval': 'float',
+                'telegram.rate_limit_media_interval': 'integer',
+                'telegram.rate_limit_safety_factor': 'float',
+                'telegram.max_retry_attempts': 'integer',
+                'telegram.flood_wait_buffer_min': 'integer',
+                'telegram.flood_wait_buffer_max': 'integer',
+                'telegram.max_message_length': 'integer',
+                'telegram.max_message_length_vip': 'integer',
+
+                'target.signature': 'string'
             }
         }
     },
@@ -123,21 +144,7 @@ const ConfigApp = {
     },
     
     computed: {
-        // 过滤后的频道列表
-        filteredChannels() {
-            if (!this.channelSearchFilter) {
-                return this.channels;
-            }
-            
-            const filter = this.channelSearchFilter.toLowerCase();
-            return this.channels.filter(channel => {
-                const name = (channel.channel_name || '').toLowerCase();
-                const title = (channel.channel_title || '').toLowerCase();
-                const channelId = (channel.channel_id || '').toLowerCase();
-                // 搜索时同时匹配标题、名称和ID
-                return name.includes(filter) || title.includes(filter) || channelId.includes(filter);
-            });
-        }
+        // 暂无计算属性
     },
     
     methods: {
@@ -159,7 +166,13 @@ const ConfigApp = {
                 const num = parseInt(value);
                 return isNaN(num) ? 0 : num;
             }
-            
+
+            if (type === 'float') {
+                if (value === undefined || value === null) return 0;
+                const num = parseFloat(value);
+                return isNaN(num) ? 0 : num;
+            }
+
             // string类型或默认
             return value === undefined || value === null ? '' : String(value);
         },
@@ -276,153 +289,11 @@ const ConfigApp = {
         
         async loadConfigData() {
             try {
-                // 加载频道列表
-                await this.loadChannels();
-                
                 // 加载所有配置
                 await this.loadConfigs();
-                
+
             } catch (error) {
                 MessageManager.error('加载配置数据失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        async loadChannels() {
-            try {
-                const response = await axios.get(API.channels.list);
-                if (response.data.success) {
-                    this.channels = response.data.channels;
-                }
-            } catch (error) {
-                console.error('加载频道列表失败:', error);
-                this.channels = [];
-            }
-        },
-        
-        
-        
-        async addChannel() {
-            if (!this.newChannel.name) {
-                MessageManager.warning('请输入频道名称');
-                return;
-            }
-            
-            try {
-                // 处理频道名称，统一格式
-                let channelName = this.newChannel.name.trim();
-                if (!channelName.startsWith('@')) {
-                    channelName = '@' + channelName;
-                }
-                
-                const response = await axios.post(API.channels.add, {
-                    channel_id: "",  // 自动解析
-                    channel_name: channelName,
-                    channel_title: ""  // 自动解析
-                });
-                
-                if (response.data.success) {
-                    const channel = response.data.channel;
-                    MessageManager.success(`频道添加成功: ${channel.channel_title || channel.channel_name}`);
-                    this.newChannel = { name: '', title: '' };
-                    await this.loadChannels();
-                } else {
-                    MessageManager.error('频道添加失败: ' + (response.data.message || '未知错误'));
-                }
-            } catch (error) {
-                MessageManager.error('频道添加失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        async removeChannel(channelId) {
-            try {
-                
-                const response = await axios.delete(API.channels.delete(channelId));
-                
-                
-                if (response.data.success) {
-                    MessageManager.success('频道删除成功');
-                    await this.loadChannels();
-                } else {
-                    MessageManager.error('频道删除失败: ' + (response.data.message || '未知错误'));
-                }
-            } catch (error) {
-                MessageManager.error('频道删除失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        async resolveChannelIds() {
-            try {
-
-                const response = await axios.post(API.channels.resolveAll);
-                
-                if (response.data.success) {
-                    MessageManager.success(`频道ID解析完成：${response.data.message}`);
-                    await this.loadChannels(); // 重新加载频道列表
-                } else {
-                    MessageManager.error('频道ID解析失败');
-                }
-            } catch (error) {
-                MessageManager.error('频道ID解析失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                // 操作完成
-            }
-        },
-        
-        async batchAddChannels() {
-            if (!this.batchChannel.channels.trim()) {
-                MessageManager.warning('请输入要添加的频道列表');
-                return;
-            }
-            
-            this.batchChannel.loading = true;
-            this.batchChannel.results = null;
-            
-            try {
-                const response = await axios.post(API.channels.batchAdd, {
-                    channels: this.batchChannel.channels
-                });
-                
-                if (response.data) {
-                    this.batchChannel.results = response.data.results;
-                    this.batchChannel.message = response.data.message;
-                    this.batchChannel.success = response.data.success;
-                    
-                    if (response.data.success) {
-                        // 如果有成功添加的频道，重新加载频道列表
-                        if (response.data.results?.added?.length > 0) {
-                            await this.loadChannels();
-                            
-                            // 清空输入框
-                            setTimeout(() => {
-                                this.batchChannel.channels = '';
-                            }, 2000);
-                        }
-                    } else {
-                        MessageManager.error(response.data.message);
-                    }
-                }
-            } catch (error) {
-                MessageManager.error('批量添加频道失败: ' + (error.response?.data?.detail || error.message));
-                this.batchChannel.results = null;
-            } finally {
-                this.batchChannel.loading = false;
-            }
-        },
-        
-        async resolveChannelId(channelName) {
-            try {
-                const response = await axios.post(API.channels.resolve, {
-                    channel_input: channelName
-                });
-                
-                if (response.data.success) {
-                    MessageManager.success(`频道 ${channelName} ID解析成功: ${response.data.resolved_id}`);
-                    await this.loadChannels(); // 重新加载频道列表
-                } else {
-                    MessageManager.error(`频道 ${channelName} ID解析失败: ${response.data.message}`);
-                }
-            } catch (error) {
-                MessageManager.error('频道ID解析失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         
