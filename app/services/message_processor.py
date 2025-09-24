@@ -645,16 +645,21 @@ class MessageProcessor:
                 logger.debug("去重检测已禁用")
                 return
 
-            # 获取消息内容
-            message_content = message_data.get('content', '') or message_data.get('filtered_content', '')
+            # 获取消息内容（优先使用过滤后的文本，保持与前端一致）
+            message_content = (
+                message_data.get('filtered_content')
+                or message_data.get('content')
+                or ''
+            )
+            normalized_preview = message_content.strip()
 
             full_message_id = f"{channel_id}:{message_id}"
             duplicate_found = False
             duplicate_result = None
 
             # Step 1: 文本去重检测（保持原逻辑）
-            if not message_content or len(message_content.strip()) < 10:
-                logger.debug(f"消息内容太短，跳过文本去重检测: {full_message_id}")
+            if not normalized_preview:
+                logger.debug(f"消息内容为空，跳过文本去重检测: {full_message_id}")
             else:
                 # 执行文本去重检测
                 from app.services.duplicate_detector import duplicate_detector

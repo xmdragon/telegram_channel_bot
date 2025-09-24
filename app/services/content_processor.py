@@ -200,9 +200,15 @@ class ContentProcessor:
                         logger.debug("未提供config_manager，默认自动拒绝广告")
                         auto_reject = True  # 无配置时默认拒绝
 
-                    # 合并为一条简洁的警告日志
+                    # 合并为一条调试日志，避免在生产日志中刷屏
                     keyword_names = [k['keyword'] for k in matched_keywords[:3]]
-                    logger.info(f"🚫 检测到广告: {message.channel_id}:{message.message_id} (权重:{total_weight:.1f}, 关键词:{','.join(keyword_names)})")
+                    logger.debug(
+                        "🚫 检测到广告: %s:%s (权重:%.1f, 关键词:%s)",
+                        message.channel_id,
+                        message.message_id,
+                        total_weight,
+                        ','.join(keyword_names)
+                    )
 
                     if auto_reject:
                         old_status = message.status
@@ -251,7 +257,7 @@ class ContentProcessor:
                             message.duplicate_status = 'confirmed'
                             message.status = 'rejected'
                             message.reject_reason = f"重复消息(相似度:{score:.1%})"
-                            logger.warning(f"❌ 拒绝重复消息: {full_message_id} -> {duplicate_result.original_message_id} (相似度: {score:.1%})")
+                            logger.info(f"🔁 拒绝重复消息: {full_message_id} -> {duplicate_result.original_message_id} (相似度: {score:.1%})")
                             filter_reasons.append(f"去重检测: 重复消息({score:.1%})")
                         else:
                             # 92-95%标记为疑似
@@ -277,4 +283,3 @@ class ContentProcessor:
         except Exception as e:
             logger.error(f"内容处理失败 {message.message_id}: {e}")
             return message
-

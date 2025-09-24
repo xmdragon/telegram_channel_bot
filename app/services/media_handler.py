@@ -105,14 +105,16 @@ class MediaHandler:
             "last_time": now
         }
         
-        # 首次下载日志
+        # 记录下载开始时间（不输出日志）
         if message_id not in self._download_started:
             self._download_started.add(message_id)
             self._download_start_time[message_id] = now
-            if total > 0:
-                logger.info(f"🚀 开始下载 [{media_type}] 消息 {message_id}: 总大小 {format_file_size(mb_total)}")
+            # 只对超大文件（>50MB）记录开始日志
+            if mb_total > 50:
+                logger.info(f"📥 开始下载大文件 [{media_type}] {message_id}: {format_file_size(mb_total)}")
             else:
-                logger.info(f"🚀 开始下载 [{media_type}] 消息 {message_id}: 大小未知")
+                # 其他文件静默处理
+                logger.debug(f"开始下载 [{media_type}] {message_id}: {format_file_size(mb_total) if mb_total > 0 else '大小未知'}")
         
         # 进度日志
         if total > 0:
@@ -142,16 +144,23 @@ class MediaHandler:
                 total_str = format_file_size(mb_total) if mb_total < 1.0 else f"{mb_total:.1f}MB"
                 logger.debug(f"📥 [{media_type}] {message_id}: {current_str}/{total_str} ({percent:.0f}%)")
             
-            # 完成日志
+            # 完成日志（合并所有信息到一条）
             if percent >= 100 and message_id in self._download_start_time:
                 elapsed = now - self._download_start_time[message_id]
-                
-                # 对于快速下载的情况，使用简化显示
-                if elapsed < 1.0 or mb_total < 1.0:
-                    logger.info(f"✅ 下载完成 [{media_type}] {message_id}: {format_file_size(mb_total)}")
+
+                # 视频文件记录完成日志（包含所有信息）
+                if media_type == "video":
+                    if elapsed > 1.0:
+                        speed = mb_total / elapsed if elapsed > 0 else 0
+                        logger.info(f"✅ [{media_type}] {message_id}: {format_file_size(mb_total)}, {elapsed:.1f}秒, {format_speed(speed)}")
+                    else:
+                        logger.info(f"✅ [{media_type}] {message_id}: {format_file_size(mb_total)}")
+                # 大文件（>10MB）记录简单日志
+                elif mb_total > 10:
+                    logger.info(f"✅ [{media_type}] {message_id}: {format_file_size(mb_total)}")
                 else:
-                    speed = mb_total / elapsed if elapsed > 0 else 0
-                    logger.info(f"✅ 下载完成 [{media_type}] {message_id}: {format_file_size(mb_total)}, 耗时{elapsed:.1f}秒, 速度{format_speed(speed)}")
+                    # 小文件静默处理
+                    logger.debug(f"下载完成 [{media_type}] {message_id}: {format_file_size(mb_total)}")
                 
                 # 清理记录
                 self._download_started.discard(message_id)

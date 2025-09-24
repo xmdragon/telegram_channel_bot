@@ -206,7 +206,14 @@
                         <tbody>
                             <tr v-for="channel in sortedChannels" :key="channel.id">
                                 <td>
-                                    <span class="channel-title">
+                                    <a v-if="channel.channel_name"
+                                       :href="'https://t.me/' + channel.channel_name.replace('@', '')"
+                                       target="_blank"
+                                       class="channel-title-link"
+                                       :title="'打开Telegram频道: ' + channel.channel_name">
+                                        {{ channel.channel_title || '未设置标题' }}
+                                    </a>
+                                    <span v-else class="channel-title">
                                         {{ channel.channel_title || '未设置标题' }}
                                     </span>
                                 </td>

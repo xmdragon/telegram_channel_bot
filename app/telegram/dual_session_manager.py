@@ -12,6 +12,7 @@ from typing import Optional, Callable, List, Dict, Any
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import FloodWaitError, AuthKeyUnregisteredError, SessionRevokedError
+from telethon.network.connection.tcpabridged import ConnectionTcpAbridged
 from dotenv import load_dotenv
 
 from app.services.config_manager import ConfigManager
@@ -154,6 +155,7 @@ class TelegramDualSessionManager:
                 StringSession(session),
                 int(api_id),
                 api_hash,
+                connection=ConnectionTcpAbridged,   # 使用Abridged连接，兼容性更好
                 proxy=self._proxy_config,       # 使用代理配置（如果有）
                 connection_retries=8,          # 增加重试次数 5->8
                 retry_delay=2,                 # 减少重试延迟 3->2
@@ -247,6 +249,7 @@ class TelegramDualSessionManager:
                 StringSession(session),
                 int(api_id),
                 api_hash,
+                connection=ConnectionTcpAbridged,   # 使用Abridged连接，兼容性更好
                 proxy=self._proxy_config,       # 使用代理配置（如果有）
                 connection_retries=8,          # 增加重试次数 5->8
                 retry_delay=2,                 # 减少重试延迟 3->2

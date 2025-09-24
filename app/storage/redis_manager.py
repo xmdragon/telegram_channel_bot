@@ -313,12 +313,6 @@ class RedisManager:
             # 执行原子操作
             pipeline.execute()
             
-            if old_status != new_status:
-                # 删除消息和索引原子更新的确认日志
-                pass
-            else:
-                logger.debug(f"消息已更新: {message_id}")
-            
             return True
             
         except Exception as e:

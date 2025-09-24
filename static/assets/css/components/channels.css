@@ -266,6 +266,33 @@
     color: var(--text-primary);
 }
 
+.channel-title-link {
+    font-weight: 500;
+    color: var(--primary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.channel-title-link:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+.channel-title-link::after {
+    content: '↗';
+    font-size: 12px;
+    opacity: 0.6;
+    transition: transform 0.2s ease;
+}
+
+.channel-title-link:hover::after {
+    transform: translateX(2px) translateY(-2px);
+    opacity: 1;
+}
+
 .channel-name {
     color: var(--text-secondary);
     font-family: var(--font-mono);

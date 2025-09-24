@@ -358,13 +358,13 @@ class MessageForwarder:
             
             if not media_files:
                 logger.warning("组合消息中没有可用的媒体文件，发送纯文本")
-                # 添加超时保护：文本消息30秒
+                # 添加超时保护：文本消息60秒
                 return await asyncio.wait_for(
                     client.send_message(
                         entity=int(target_channel_id),
                         message=caption_text
                     ),
-                    timeout=30
+                    timeout=60
                 )
             
             # 发送媒体组
@@ -445,7 +445,7 @@ class MessageForwarder:
             超时时间（秒）
         """
         if not file_path:
-            return 30  # 默认30秒
+            return 60  # 默认60秒
 
         file_path_lower = file_path.lower()
 
@@ -498,7 +498,7 @@ class MessageForwarder:
                     message=content,
                     formatting_entities=entities
                 ),
-                timeout=30
+                timeout=60
             )
         except FloodWaitError as e:
             # FloodWait处理并重新抛出，让上层处理

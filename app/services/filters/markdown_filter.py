@@ -71,27 +71,50 @@ class MarkdownFilter:
             (过滤后内容, 移除的链接数)
         """
         try:
-            # 1. 先收集所有URL实体的位置范围
+            # 预先计算内容的UTF-16单元长度，用于过滤无效entities
+            def get_utf16_length(s):
+                """计算字符串的UTF-16单元长度"""
+                length = 0
+                for char in s:
+                    code_point = ord(char)
+                    if code_point <= 0xFFFF:
+                        length += 1
+                    else:
+                        length += 2  # 非BMP字符占用2个UTF-16单元
+                return length
+
+            content_utf16_length = get_utf16_length(content)
+
+            # 1. 收集有效范围内的URL实体
             url_ranges = []
             blockquote_entities = []
             link_entities = []
 
             for entity in entities:
+                # 检查entity是否在有效范围内
+                if entity.offset < 0 or entity.offset >= content_utf16_length:
+                    continue  # 静默忽略超出范围的entity
+
+                # 如果entity部分超出，截断到有效范围
+                entity_end = min(entity.offset + entity.length, content_utf16_length)
+                if entity_end <= entity.offset:
+                    continue  # 完全超出范围，忽略
+
                 entity_class_name = entity.__class__.__name__
 
                 # 收集URL实体
                 if entity_class_name in ['MessageEntityUrl', 'MessageEntityTextUrl'] or hasattr(entity, 'url'):
-                    url_ranges.append((entity.offset, entity.offset + entity.length))
+                    url_ranges.append((entity.offset, entity_end))
                     link_entities.append({
                         'offset': entity.offset,
-                        'length': entity.length,
+                        'length': entity_end - entity.offset,
                         'type': 'url'
                     })
                 # 单独收集BlockQuote实体
                 elif entity_class_name == 'MessageEntityBlockquote':
                     blockquote_entities.append({
                         'offset': entity.offset,
-                        'length': entity.length,
+                        'length': entity_end - entity.offset,
                         'type': 'blockquote'
                     })
 
@@ -123,39 +146,69 @@ class MarkdownFilter:
             # 按offset降序排序，从后向前删除避免位置偏移
             link_entities.sort(key=lambda x: x['offset'], reverse=True)
 
-            # 将字符串转为字节处理UTF-16偏移
-            content_utf16 = content.encode('utf-16-le')
+            # 使用字符级别处理，避免UTF-16编码问题
+            # Telegram的offset和length是基于UTF-16代码单元的
             removed_count = 0
+            filtered_content = content
+
+            # 将字符串转换为UTF-16代码单元列表
+            def string_to_utf16_units(s):
+                """将字符串转换为UTF-16代码单元列表"""
+                units = []
+                for char in s:
+                    # 检查是否是代理对（4字节UTF-16字符）
+                    code_point = ord(char)
+                    if code_point <= 0xFFFF:
+                        # BMP字符，1个UTF-16单元
+                        units.append(char)
+                    else:
+                        # 非BMP字符，需要代理对（2个UTF-16单元）
+                        # Python已经处理了这个，但我们需要标记它占用2个单元
+                        units.append(char)
+                        units.append('')  # 占位符，表示这是一个双单元字符
+                return units
+
+            # 将UTF-16单元列表转回字符串
+            def utf16_units_to_string(units):
+                """将UTF-16单元列表转换回字符串"""
+                result = []
+                i = 0
+                while i < len(units):
+                    if units[i] != '':
+                        result.append(units[i])
+                    i += 1
+                return ''.join(result)
+
+            # 转换为UTF-16单元
+            utf16_units = string_to_utf16_units(filtered_content)
 
             for entity in link_entities:
                 try:
-                    # Telegram使用UTF-16偏移
-                    byte_offset = entity['offset'] * 2
-                    byte_length = entity['length'] * 2
+                    offset = entity['offset']
+                    length = entity['length']
 
-                    # 提取要删除的部分
-                    before = content_utf16[:byte_offset]
-                    after = content_utf16[byte_offset + byte_length:]
+                    # 再次检查是否在有效范围内（由于前面已经过滤，这里一般不会触发）
+                    if offset < 0 or offset + length > len(utf16_units):
+                        continue  # 静默忽略
 
-                    # 重新组合
-                    content_utf16 = before + after
+                    # 删除指定范围的单元
+                    # 从后往前处理，所以直接删除不会影响其他实体的位置
+                    del utf16_units[offset:offset + length]
                     removed_count += 1
 
                 except Exception as e:
-                    logger.warning(f"处理entity失败: {e}")
-                    continue
+                    continue  # 静默处理异常
 
             # 转回字符串
-            filtered_content = content_utf16.decode('utf-16-le')
-
-            # 只在有实际删除时记录，并降级为DEBUG级别
             if removed_count > 0:
+                filtered_content = utf16_units_to_string(utf16_units)
                 logger.debug(f"Markdown过滤: 删除了 {removed_count} 个实体")
 
             return filtered_content, removed_count
 
         except Exception as e:
             logger.error(f"基于entities过滤失败: {e}")
+            # 失败时返回原内容，确保处理继续
             return content, 0
 
     def _filter_by_regex(self, content: str) -> Tuple[str, int]:
