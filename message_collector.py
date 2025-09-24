@@ -13,7 +13,7 @@ from app.core.path_config import PathConfig
 PathConfig.ensure_directories()
 
 # 初始化日志系统
-setup_logging(service_name="collector", log_level="INFO", console_output=False)
+setup_logging(service_name="collector", log_level="INFO", console_output=True)
 logger = get_logger(__name__)
 
 from app.services.message_collector import message_collector

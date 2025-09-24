@@ -33,7 +33,7 @@ load_dotenv()
 from app.core.logging_config import setup_logging, get_logger
 
 # 初始化日志系统
-setup_logging(service_name="web", log_level="INFO", console_output=False)
+setup_logging(service_name="web", log_level="INFO", console_output=True)
 logger = get_logger(__name__)
 
 @asynccontextmanager

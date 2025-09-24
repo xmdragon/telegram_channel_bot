@@ -23,15 +23,15 @@ ERROR_LOG_FILE = LOGS_DIR / "error.log"
 def setup_logging(
     service_name: str = "app",
     log_level: str = "INFO",
-    console_output: bool = False
+    console_output: bool = True
 ) -> None:
     """
-    统一的日志配置函数
-    
+    统一的日志配置函数 - 方案C：只使用标准输出
+
     Args:
         service_name: 服务名称，用于日志标识
         log_level: 日志级别 (DEBUG, INFO, WARNING, ERROR)
-        console_output: 是否输出到控制台
+        console_output: 保留兼容性，现在总是输出到控制台
     """
     
     # 确保日志目录存在
@@ -50,39 +50,12 @@ def setup_logging(
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    # 1. 主日志文件处理器（按服务名分离）
-    log_file = LOGS_DIR / f"{service_name}.log" if service_name != "app" else APP_LOG_FILE
-    file_handler = TimedRotatingFileHandler(
-        filename=str(log_file),
-        when='H',
-        interval=1,
-        backupCount=24 * 7,  # 保留7天
-        encoding='utf-8'
-    )
-    file_handler.suffix = "%Y%m%d_%H"
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-    root_logger.addHandler(file_handler)
-    
-    # 2. 错误日志文件处理器（ERROR及以上，避免WARNING写入）
-    error_handler = TimedRotatingFileHandler(
-        filename=str(ERROR_LOG_FILE),
-        when='D',
-        interval=1,
-        backupCount=30,  # 保留30天错误日志
-        encoding='utf-8'
-    )
-    error_handler.suffix = "%Y%m%d"
-    error_handler.setLevel(logging.ERROR)  # 只记录ERROR和CRITICAL级别
-    error_handler.setFormatter(formatter)
-    root_logger.addHandler(error_handler)
-    
-    # 3. 控制台输出（可选）
-    if console_output:
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        root_logger.addHandler(console_handler)
+    # 控制台输出（标准输出，由supervisor捕获）
+    import sys
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
     
     # 4. 调整第三方库日志级别 - 关键优化点
     _configure_third_party_loggers()
