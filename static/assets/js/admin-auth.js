@@ -94,8 +94,9 @@ class AuthManager {
             this.adminInfo = response.data;
             return true;
         } catch (error) {
-            if (error.response && error.response.status === 401) {
-                // Token无效
+            // 401是认证失败，404可能是服务未启动或路径错误
+            if (error.response && (error.response.status === 401 || error.response.status === 404)) {
+                // Token无效或API不可用
                 this.logout();
                 this.redirectToLogin();
                 return false;
@@ -194,6 +195,12 @@ class AuthManager {
                 window.AxiosConfig.clearPageLoadTimeout();
             }
 
+            // 如果是认证相关错误（401或404），直接跳转到登录页
+            if (error.response && (error.response.status === 401 || error.response.status === 404)) {
+                this.redirectToLogin();
+                return false;
+            }
+
             // 显示错误信息并提供重试
             if (typeof window.SimpleUI !== 'undefined' && window.SimpleUI.showMessage) {
                 window.SimpleUI.showMessage('认证检查失败，请刷新页面重试', 'error', 8000);
@@ -228,7 +235,8 @@ class AuthManager {
             this.adminInfo = response.data;
             return true;
         } catch (error) {
-            if (error.response?.status === 401) {
+            // 401是认证失败，404可能是服务未启动或API路径错误
+            if (error.response?.status === 401 || error.response?.status === 404) {
                 this.logout();
                 return false;
             }
