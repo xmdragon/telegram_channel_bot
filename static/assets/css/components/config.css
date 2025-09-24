@@ -655,10 +655,18 @@
 
 /* 数值型输入框 - 限制宽度 */
 .form-input.number-input {
-    max-width: 150px;
-    width: auto;
-    min-width: 100px;
+    max-width: 150px !important;
+    width: auto !important;
+    min-width: 100px !important;
     display: inline-block;
+}
+
+/* 确保在input-line容器中也生效 */
+.input-line .form-input.number-input {
+    max-width: 150px !important;
+    width: auto !important;
+    min-width: 100px !important;
+    flex: 0 0 auto;
 }
 
 .form-input:focus,
