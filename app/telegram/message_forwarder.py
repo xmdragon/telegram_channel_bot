@@ -364,7 +364,7 @@ class MessageForwarder:
                         entity=int(target_channel_id),
                         message=caption_text
                     ),
-                    timeout=60
+                    timeout=120
                 )
             
             # 发送媒体组
@@ -444,26 +444,8 @@ class MessageForwarder:
         Returns:
             超时时间（秒）
         """
-        if not file_path:
-            return 60  # 默认60秒
-
-        file_path_lower = file_path.lower()
-
-        # 视频文件：180秒
-        if any(file_path_lower.endswith(ext) for ext in ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv']):
-            return 180
-        # 图片文件：60秒
-        elif any(file_path_lower.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']):
-            return 60
-        # 音频文件：90秒
-        elif any(file_path_lower.endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.m4a', '.flac']):
-            return 90
-        # 文档文件：60秒
-        elif any(file_path_lower.endswith(ext) for ext in ['.pdf', '.doc', '.docx', '.txt', '.zip', '.rar']):
-            return 60
-        # 其他文件：90秒
-        else:
-            return 90
+        # 统一所有媒体文件超时时间为120秒
+        return 120
 
     def _get_message_type(self, message) -> MessageType:
         """
