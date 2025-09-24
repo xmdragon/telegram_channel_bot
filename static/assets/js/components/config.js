@@ -298,171 +298,47 @@ const ConfigApp = {
         },
         
         
-        
-        // 保存转发配置 - 使用统一方法
-        async saveForwardingConfig() {
+
+        // 统一保存所有配置
+        async saveAllConfigs() {
             try {
-                // 调用专门的转发配置API，会自动解析频道/群组ID
-                const response = await axios.post(API.admin.configForwarding, {
-                    target_channel: this.configs['target.channel_link'],
-                    target_channel_id: this.configs['target.channel_id'],  // 传递前端的ID值
-                    auto_forward_enabled: this.configs['target.auto_forward_enabled'],
-                    auto_forward_delay: Number(this.configs['target.auto_forward_delay']) || 1800,
-                    auto_reject_ads: this.configs['target.auto_reject_ads'],
-                    require_approval: this.configs['target.require_approval']
-                });
+                // 特殊处理：转发配置需要使用专门的API来解析频道ID
+                if (this.activeTab === 'forwarding') {
+                    // 先调用转发配置API获取解析后的频道ID
+                    const forwardResponse = await axios.post(API.admin.configForwarding, {
+                        target_channel: this.configs['target.channel_link'],
+                        target_channel_id: this.configs['target.channel_id'],
+                        auto_forward_enabled: this.configs['target.auto_forward_enabled'],
+                        auto_forward_delay: Number(this.configs['target.auto_forward_delay']) || 1800,
+                        auto_reject_ads: this.configs['target.auto_reject_ads'],
+                        require_approval: this.configs['target.require_approval']
+                    });
+
+                    if (forwardResponse.data.success && forwardResponse.data.target_channel_id) {
+                        this.configs['target.channel_id'] = forwardResponse.data.target_channel_id;
+                    }
+                }
+
+                // 准备所有配置数据，进行类型转换
+                const configData = {};
+                for (const [key, value] of Object.entries(this.configs)) {
+                    configData[key] = this.convertConfigValue(key, value);
+                }
+
+                // 调用批量保存API
+                const response = await axios.post(API.admin.configBatch, configData);
 
                 if (response.data.success) {
-                    // 更新显示的ID值
-                    if (response.data.target_channel_id) {
-                        this.configs['target.channel_id'] = response.data.target_channel_id;
-                    }
-
-                    MessageManager.success(response.data.message || '转发配置保存成功');
+                    MessageManager.success('所有配置已保存成功');
+                    // 重新加载配置以确保同步
+                    await this.loadConfigs();
                 } else {
-                    throw new Error(response.data.message || '转发配置保存失败');
+                    throw new Error(response.data.message || '配置保存失败');
                 }
 
             } catch (error) {
-                console.error('保存配置错误:', error);
-                MessageManager.error('转发配置保存失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        // 保存系统配置 - 使用统一方法
-        async saveSystemConfig() {
-            try {
-                // 保存所有系统相关配置
-                const systemKeys = [
-                    'target.signature',
-                    'collection.enabled',
-                    'collection.max_media_size_mb',
-                    'telegram.api_id',
-                    'telegram.api_hash',
-                    'filter.enabled',
-                    'target.require_approval',
-                    'scheduler.enabled',
-                    'scheduler.data_cleanup_interval_hours'
-                ];
-                
-                await this.saveConfigs(systemKeys);
-                
-            } catch (error) {
-                console.error('保存系统配置失败:', error);
-                MessageManager.error('系统配置保存失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        async resetSystemConfig() {
-            this.systemConfig = {
-                history_message_limit: 50,
-                signature: '',
-                collection_enabled: true,
-                // 过滤设置
-                filter_enabled: true,
-                // 审核设置
-                require_approval: true,
-                // 转发设置
-                auto_forward_enabled: false,
-                'target.channel_link': '',
-                'target.channel_id': '',
-                'target.auto_forward_delay': 1800,
-                // 系统设置
-                scheduler_enabled: true,
-                data_cleanup_interval_hours: 24
-                // 调度和单消息删除默认启用
-            };
-            MessageManager.success('系统配置已重置为默认值');
-        },
-        
-        
-        
-        // 保存过滤器配置 - 使用统一方法
-        async saveFilterSettings() {
-            try {
-                // 保存所有过滤器相关配置
-                const filterKeys = [
-                    'filter.enabled',
-                    'filter.tail_filter',
-                    'filter.separator',
-                    'filter.markdown',
-                    'filter.ad_detector'
-                ];
-                
-                await this.saveConfigs(filterKeys);
-
-                // 直接显示成功消息，配置已保存并会自动生效
-                MessageManager.success('过滤器配置已保存，将在下次处理消息时生效');
-                
-            } catch (error) {
-                console.error('保存过滤器配置失败:', error);
-                MessageManager.error('过滤器配置保存失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-        
-        async resetFilterSettings() {
-            // 重置过滤器配置到默认值
-            this.configs['filter.enabled'] = true;
-            this.configs['filter.tail_filter'] = true;
-            this.configs['filter.separator'] = true;
-            this.configs['filter.markdown'] = true;
-            this.configs['filter.ad_detector'] = false;
-
-            MessageManager.success('过滤器配置已重置为默认值');
-        },
-
-        // 保存去重检测配置
-        async saveDedupConfig() {
-            try {
-                const dedupKeys = [
-                    'duplicate_detection.enabled',
-                    'duplicate_detection.content_threshold',
-                    'duplicate_detection.simhash_threshold',
-                    'duplicate_detection.auto_adjust'
-                ];
-
-                await this.saveConfigs(dedupKeys);
-                MessageManager.success('去重检测配置已保存');
-            } catch (error) {
-                console.error('保存去重检测配置失败:', error);
-                MessageManager.error('去重检测配置保存失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-
-        // 保存采集设置配置
-        async saveCollectionConfig() {
-            try {
-                const collectionKeys = [
-                    'collection.enabled',
-                    'collection.max_messages_per_batch',
-                    'collection.max_media_size_mb',
-                    'source.history_limit'
-                ];
-
-                await this.saveConfigs(collectionKeys);
-                MessageManager.success('采集设置已保存');
-            } catch (error) {
-                console.error('保存采集设置失败:', error);
-                MessageManager.error('采集设置保存失败: ' + (error.response?.data?.detail || error.message));
-            }
-        },
-
-        // 保存性能优化配置
-        async savePerformanceConfig() {
-            try {
-                const performanceKeys = [
-                    'telegram.rate_limit_text_interval',
-                    'telegram.rate_limit_media_interval',
-                    'telegram.rate_limit_safety_factor',
-                    'telegram.max_retry_attempts',
-                    'scheduler.data_cleanup_interval_hours'
-                ];
-
-                await this.saveConfigs(performanceKeys);
-                MessageManager.success('性能优化配置已保存');
-            } catch (error) {
-                console.error('保存性能优化配置失败:', error);
-                MessageManager.error('性能优化配置保存失败: ' + (error.response?.data?.detail || error.message));
+                console.error('保存配置失败:', error);
+                MessageManager.error('配置保存失败: ' + (error.response?.data?.detail || error.message));
             }
         },
         

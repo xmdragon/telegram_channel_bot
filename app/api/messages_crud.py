@@ -1061,11 +1061,13 @@ async def publish_single_message(
                 'auto_forward_error': None
             })
 
-        logger.info(f"✅ 消息发布成功: {message_id} (user: {user_id}, auto: {is_auto_forward})")
+        # 删除消息发布成功的确认日志
         return {
             "success": True,
             "message": "消息已成功发布到目标频道",
             "message_id": message_id,
+            "link": target_link or "",
+            "rate_limit_time": getattr(message_forwarder, '_last_wait_time', 0),
             "timestamp": format_for_api(get_current_time())
         }
 

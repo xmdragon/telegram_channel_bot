@@ -23,7 +23,7 @@ ERROR_LOG_FILE = LOGS_DIR / "error.log"
 def setup_logging(
     service_name: str = "app",
     log_level: str = "INFO",
-    console_output: bool = True
+    console_output: bool = False
 ) -> None:
     """
     统一的日志配置函数

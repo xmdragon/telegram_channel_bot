@@ -174,7 +174,7 @@ class TelegramRateLimiter:
             buffer_time = random.uniform(1.0, 3.0)
             total_wait = wait_seconds + buffer_time
 
-            logger.info(f"限流等待 {total_wait:.1f}秒 (基础:{wait_seconds:.1f}s + 缓冲:{buffer_time:.1f}s)")
+            # 删除限流等待的详细日志，会在最终转发结果中包含
             await asyncio.sleep(total_wait)
             return total_wait
 

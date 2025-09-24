@@ -59,7 +59,7 @@ class AutoForwarder:
                         await self.mark_forward_failed(message_id, f"超过最大重试次数({retry_count}次)")
                         continue
 
-                    logger.info(f"准备自动转发消息: {message_id} (第{retry_count + 1}次尝试)")
+                    # 删除准备自动转发的日志
 
                     # 5. 移除重复的限流控制 - 让 MessageForwarder 统一处理
                     # message_type = self._get_message_type(message)
@@ -82,7 +82,15 @@ class AutoForwarder:
                         )
 
                         if result['success']:
-                            logger.info(f"✅ 自动转发成功: {message_id}")
+                            # 获取转发后的链接信息
+                            link = result.get('link', '')
+                            # 获取限流信息（如果有的话）
+                            rate_limit_info = result.get('rate_limit_time', 0)
+                            if rate_limit_info > 0:
+                                logger.info(f"🚀 转发成功: {message_id} -> {link} (限流{rate_limit_info:.1f}s)")
+                            else:
+                                logger.info(f"🚀 转发成功: {message_id} -> {link}")
+
                             self.last_forward_time = get_current_time()
                             # 清除重试标记
                             await self.clear_retry_flag(message_id)

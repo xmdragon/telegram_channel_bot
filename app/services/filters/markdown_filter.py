@@ -148,9 +148,9 @@ class MarkdownFilter:
             # 转回字符串
             filtered_content = content_utf16.decode('utf-16-le')
 
-            # 记录日志
+            # 只在有实际删除时记录，并降级为DEBUG级别
             if removed_count > 0:
-                logger.info(f"Markdown过滤: 删除了 {removed_count} 个实体（URL或包含URL的BlockQuote）")
+                logger.debug(f"Markdown过滤: 删除了 {removed_count} 个实体")
 
             return filtered_content, removed_count
 

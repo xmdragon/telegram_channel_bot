@@ -314,7 +314,8 @@ class RedisManager:
             pipeline.execute()
             
             if old_status != new_status:
-                logger.info(f"✅ 消息和索引已原子更新: {message_id} ({old_status} -> {new_status})")
+                # 删除消息和索引原子更新的确认日志
+                pass
             else:
                 logger.debug(f"消息已更新: {message_id}")
             

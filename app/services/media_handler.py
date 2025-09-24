@@ -120,24 +120,27 @@ class MediaHandler:
             
             # 根据文件大小决定进度报告频率
             should_log = False
-            if mb_total > 10:  # 大于10MB的文件
-                # 每1MB报告一次
+            if mb_total > 50:  # 大于50MB的文件
+                # 每5MB报告一次
                 last_mb = self._last_mb_logged.get(message_id, -1)
-                if int(mb_current) != int(last_mb):
+                if int(mb_current / 5) != int(last_mb / 5):
                     should_log = True
-                    self._last_mb_logged[message_id] = int(mb_current)
-            else:
-                # 小文件每10%报告一次
+                    self._last_mb_logged[message_id] = mb_current
+            elif mb_total > 10:  # 10-50MB的文件
+                # 每20%报告一次
                 last_percent = self._last_percent_logged.get(message_id, -1)
-                if int(percent / 10) != int(last_percent / 10):
+                if int(percent / 20) != int(last_percent / 20):
                     should_log = True
                     self._last_percent_logged[message_id] = percent
+            else:
+                # 小文件不报告进度，只记录开始和结束
+                should_log = False
             
-            # 输出进度（包括最后1%确保显示100%）
-            if should_log or percent >= 99:
+            # 输出进度（仅大文件）
+            if should_log:
                 current_str = format_file_size(mb_current) if mb_current < 1.0 else f"{mb_current:.1f}MB"
                 total_str = format_file_size(mb_total) if mb_total < 1.0 else f"{mb_total:.1f}MB"
-                logger.info(f"📥 [{media_type}] {message_id}: {current_str}/{total_str} ({percent:.0f}%)")
+                logger.debug(f"📥 [{media_type}] {message_id}: {current_str}/{total_str} ({percent:.0f}%)")
             
             # 完成日志
             if percent >= 100 and message_id in self._download_start_time:
@@ -157,8 +160,8 @@ class MediaHandler:
                 self._download_start_time.pop(message_id, None)
                 self._download_progress.pop(message_id, None)
         else:
-            # 大小未知的情况
-            logger.info(f"📥 [{media_type}] {message_id}: 已下载 {mb_current:.1f}MB (大小未知)")
+            # 大小未知的情况，降级为调试日志
+            logger.debug(f"📥 [{media_type}] {message_id}: 已下载 {mb_current:.1f}MB (大小未知)")
     
     async def download_media_with_retry(self, client: TelegramClient, message, message_id: int, max_retries: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """带重试机制的媒体下载"""
@@ -289,9 +292,7 @@ class MediaHandler:
                             file_size = thumb_path.stat().st_size
                             media_info["thumbnail_path"] = str(thumb_path)
                             media_info["thumbnail_url"] = f"/temp_media/{thumb_file_name}"
-                            logger.info(f"🖼️ 视频缩略图采集成功 - 消息ID: {message_id}, 文件: {thumb_file_name}, 大小: {file_size}字节, thumbnail_url: /temp_media/{thumb_file_name}")
-                        else:
-                            logger.warning(f"视频没有缩略图 - 消息ID: {message_id}")
+                            logger.debug(f"视频缩略图已保存: {thumb_file_name}")
 
                     except Exception as e:
                         logger.warning(f"下载视频缩略图失败 - 消息ID: {message_id}: {e}")

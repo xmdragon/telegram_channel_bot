@@ -386,7 +386,7 @@ class TelegramMessageCollector:
             channel_id = channel['channel_id']
             channel_name = channel.get('channel_name', channel.get('channel_title', 'Untitled'))
 
-            logger.info(f"处理频道 ({i + 1}/{len(channels)}): {channel_name} ({channel_id})")
+            # 删除处理频道的进度日志 - 将在最后汇总
 
             # 检查checkpoint并处理消息
             checkpoint = self.checkpoint_manager.get_checkpoint(channel_id)
@@ -412,7 +412,7 @@ class TelegramMessageCollector:
         except:
             pass
 
-        logger.info("单轮采集完成")
+        # 删除单轮采集完成的日志
     
     async def _smart_wait(self, start_time: float):
         """智能间隔等待，确保不会过频采集，并支持配置热更新"""
@@ -465,7 +465,7 @@ class TelegramMessageCollector:
                 # 高级空消息判断
                 is_empty, reason = self._is_empty_message(msg)
                 if is_empty:
-                    logger.info(f"过滤空消息 {msg.id}：{reason}")
+                    # 删除空消息的日志 - 过于频繁
                     continue
                 
                 if msg.grouped_id:
@@ -523,7 +523,7 @@ class TelegramMessageCollector:
                 if messages[0]:
                     msg = await self._process_single_message(messages[0], channel_id, channel)
                     if msg:
-                        logger.info(f"成功处理1个消息")
+                        # 删除单个消息处理成功的日志
                         return msg
             else:
                 # 组消息 - 过滤掉None并合并处理
@@ -531,7 +531,7 @@ class TelegramMessageCollector:
                 if valid_messages:
                     merged_msg = await self._process_group_messages(valid_messages, channel_id, channel)
                     if merged_msg:
-                        logger.info(f"成功处理消息组(共{len(message_groups)}个子消息)")
+                        # 删除消息组处理成功的日志
                         return merged_msg
             
             return None
@@ -545,7 +545,7 @@ class TelegramMessageCollector:
         channel_id = channel['channel_id']
         channel_name = channel.get('channel_name', channel.get('channel_title', 'Untitled'))
         
-        logger.info(f"处理频道 {channel_name}, checkpoint: {checkpoint}")
+        # 删除处理频道checkpoint的日志
         
         # 获取频道实体
         entity = await self.channel_manager.get_channel_entity(channel, self.telethon_client)
@@ -559,12 +559,11 @@ class TelegramMessageCollector:
         # 1. 获取要采集的ID组列表
         message_groups = await self._get_message_ids_to_collect(entity, channel_id, checkpoint)
         if not message_groups:
-            logger.info(f"频道 {channel_name} 没有新消息需要采集")
+            # 无新消息时不记录日志
             return
         
-        # 统计总消息数
+        # 统计总消息数（不记录日志，将在完成时汇总）
         total_message_count = sum(len(group) for group in message_groups)
-        logger.info(f"频道 {channel_name} 将采集 {total_message_count} 条消息（{len(message_groups)} 个消息组）")
         
         # 2. 循环处理每个消息组
         processed_count = 0
@@ -673,7 +672,20 @@ class TelegramMessageCollector:
                 logger.error(f"处理消息组 {message_group} 时发生错误: {e}")
                 continue
         
-        logger.info(f"频道 {channel_name} 采集完成，成功处理 {processed_count} 条消息（共 {len(message_groups)} 个消息组）")
+        # 计算媒体消息数量
+        media_count = 0
+        for message_group in message_groups:
+            try:
+                messages = await self.telethon_client.get_messages(entity, ids=message_group)
+                for msg in messages:
+                    if msg and msg.media:
+                        media_count += 1
+            except:
+                continue
+
+        # 只记录有处理消息的频道
+        if processed_count > 0:
+            logger.info(f"频道{channel_name}/{channel_id}采集成功（包含{media_count}个媒体）")
     
     async def _process_single_message(self, message: TLMessage, channel_id: str, channel: dict) -> Optional[LocalMessage]:
         """处理单个消息，包括媒体下载"""

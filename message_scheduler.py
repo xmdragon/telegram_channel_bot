@@ -22,7 +22,7 @@ from app.core.path_config import PathConfig
 from app.core.logging_config import setup_logging, get_logger
 
 # 初始化日志系统
-setup_logging(service_name="scheduler", log_level="INFO", console_output=True)
+setup_logging(service_name="scheduler", log_level="INFO", console_output=False)
 logger = get_logger(__name__)
 
 class MessageSchedulerService:
@@ -182,7 +182,7 @@ async def main():
     try:
         with open('/tmp/scheduler.pid', 'w') as f:
             f.write(str(os.getpid()))
-        logger.info(f"PID文件已创建: /tmp/scheduler.pid (PID: {os.getpid()})")
+        logger.debug(f"PID文件已创建: /tmp/scheduler.pid")
     except Exception as e:
         logger.warning(f"创建PID文件失败: {e}")
     
@@ -205,10 +205,10 @@ async def main():
         # 确保PID文件被清理
         try:
             os.remove('/tmp/scheduler.pid')
-            logger.info("PID文件已清理")
+            logger.debug("PID文件已清理")
         except:
             pass
 
 if __name__ == "__main__":
-    logger.info("⏰ 启动独立消息调度服务...")
+    logger.info("⏰ 消息调度服务启动 - PID:%d", os.getpid())
     asyncio.run(main())

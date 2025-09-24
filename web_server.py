@@ -33,7 +33,7 @@ load_dotenv()
 from app.core.logging_config import setup_logging, get_logger
 
 # 初始化日志系统
-setup_logging(service_name="web", log_level="INFO", console_output=True)
+setup_logging(service_name="web", log_level="INFO", console_output=False)
 logger = get_logger(__name__)
 
 @asynccontextmanager
@@ -311,7 +311,7 @@ if __name__ == "__main__":
         logger.warning("🔄 生产模式检测到，建议使用 ./start_web.sh prod 启动")
         logger.warning("   或设置 PRODUCTION=false 使用开发模式")
     
-    logger.info("🌐 启动Web服务器（开发模式）...")
+    logger.info("🌐 Web服务器启动 - PID:%d, 端口:%d", os.getpid(), settings.WEB_PORT)
     
     # 开发模式：使用单worker uvicorn，简单稳定
     uvicorn.run(

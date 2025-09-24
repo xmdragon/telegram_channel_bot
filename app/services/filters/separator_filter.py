@@ -229,9 +229,8 @@ class SeparatorFilter:
         
         if removed_blocks:
             removed_chars = original_length - len(filtered_content)
-            logger.info(f"✅ 分隔符过滤完成: 移除了 {len(removed_blocks)} 个内容块")
-            logger.info(f"   原始长度: {original_length} 字符, 过滤后: {len(filtered_content)} 字符")
-            logger.info(f"   共移除: {removed_chars} 字符")
+            # 合并为一条简洁的调试日志
+            logger.debug(f"分隔符过滤: 移除{len(removed_blocks)}个内容块({removed_chars}字符)")
         
         return filtered_content, stats
     

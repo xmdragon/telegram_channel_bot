@@ -60,7 +60,7 @@ class MessageForwarder:
     
     def __init__(self):
         # 简化：不需要复杂的过滤引擎依赖
-        pass
+        self._last_wait_time = 0
 
     def add_channel_signature(self, text: str, channel_name: str) -> str:
         """添加频道签名 - 简单直接，无复杂依赖"""
@@ -86,15 +86,18 @@ class MessageForwarder:
             # 🚀 智能限流控制 - 根据消息类型等待
             message_type = self._get_message_type(message)
             wait_time = await rate_limiter.wait_if_needed(message_type, target_channel_id)
+            # 存储等待时间供后续调用使用
+            self._last_wait_time = wait_time
             if wait_time > 0:
-                logger.info(f"转发前限流等待 {wait_time:.1f}秒")
+                # 删除转发前限流等待的日志，会在最终结果中包含
+                pass
 
             # 记录发送尝试的标记
             send_attempted = False
-            
+
             # 移除隐藏链接（系统默认策略：始终移除）
             clean_entities = None
-            
+
             # 记录被移除的隐藏链接
             removed_links = getattr(message, 'removed_hidden_links', []) or []
             if removed_links:
@@ -103,9 +106,9 @@ class MessageForwarder:
                     logger.debug(f"  移除: {link.get('text', '')} -> {link.get('url', '')}")
             # 转发时不包含任何MessageEntityTextUrl类型的实体
             clean_entities = []  # 空实体列表，确保不包含隐藏链接
-            
+
             sent_message = None
-            
+
             # 🔧 检查是否为组合消息，支持动态组合检测
             is_combined = getattr(message, 'is_combined', False) or message.get('is_combined', False)
             media_group = getattr(message, 'media_group_display', None) or message.get('media_group_display', None)
@@ -200,7 +203,7 @@ class MessageForwarder:
                         channel_numeric_id = channel_id_str.lstrip('-')
                     target_message_link = f"https://t.me/c/{channel_numeric_id}/{target_msg_id}"
 
-                logger.info(f"消息重新发布成功: {getattr(message, 'id', 'unknown')} -> 目标频道: {target_channel_id}, 链接: {target_message_link}")
+                # 删除消息重新发布成功的日志
             else:
                 logger.warning(f"消息发布但未获取到消息ID: {getattr(message, 'id', 'unknown')}")
 
@@ -265,7 +268,7 @@ class MessageForwarder:
             if footer:
                 # 使用配置的落款，处理换行符
                 footer = "\n\n" + footer.replace("\\n", "\n")
-                logger.info(f"添加频道落款到消息")
+                # 删除添加频道落款的日志
                 return (content or "") + footer
             
             # 如果没有配置落款，直接返回原内容

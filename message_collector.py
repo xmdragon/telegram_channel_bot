@@ -13,7 +13,7 @@ from app.core.path_config import PathConfig
 PathConfig.ensure_directories()
 
 # 初始化日志系统
-setup_logging(service_name="collector", log_level="INFO", console_output=True)
+setup_logging(service_name="collector", log_level="INFO", console_output=False)
 logger = get_logger(__name__)
 
 from app.services.message_collector import message_collector
@@ -25,28 +25,22 @@ def signal_handler(signum, frame):
 
 async def main():
     try:
-        print("🚀 启动消息采集器...")
-        logger.info("🚀 启动消息采集器")
-        
+        logger.info("🚀 消息采集器启动中...")
+
         # 注册信号处理器
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
-        
-        print("📋 初始化中...")
+
         await message_collector.initialize()
-        logger.info("📋 初始化完成")
-        
-        print("🔄 开始采集消息...")
+        logger.info("📋 消息采集器初始化完成")
+
         await message_collector.start_collecting()
-        
+
     except Exception as e:
-        print(f"❌ 错误: {e}")
-        logger.error(f"❌ 错误: {e}")
+        logger.error(f"❌ 消息采集器启动失败: {e}")
         import traceback
         traceback.print_exc()
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("Telegram 消息采集器")
-    print("=" * 50)
+    logger.info("🚀 Telegram消息采集器 - PID:%d", os.getpid())
     asyncio.run(main())

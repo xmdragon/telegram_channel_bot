@@ -110,7 +110,6 @@ class ContentProcessor:
         Returns:
             处理后的消息对象
         """
-        logger.info(f"🔧 ContentProcessor.process开始: message_id={message.message_id}, detect_ad={detect_ad}, filter_config={filter_config}")
         try:
             if not message.content:
                 return message
@@ -167,9 +166,7 @@ class ContentProcessor:
                     logger.debug(f"消息 {message.message_id} Markdown过滤: 移除{links_removed}个链接")
 
             # 4. 广告检测（最慢，放最后，支持早期退出）
-            logger.info(f"📢 广告检测条件: detect_ad={detect_ad}, ad_detector_enabled={filter_config.get('ad_detector', False)}, content_len={len(current_content.strip()) if current_content else 0}")
             if detect_ad and filter_config.get('ad_detector', False) and current_content and len(current_content.strip()) > 10:
-                logger.info(f"📢 开始广告检测: message_id={message.message_id}")
                 is_ad, total_weight, matched_keywords = self.ad_detector.detect(current_content)
 
                 # 无论是否判定为广告，只要找到了关键词就保存
@@ -177,12 +174,11 @@ class ContentProcessor:
                     message.ad_weight = total_weight
                     message.hit_keywords = matched_keywords[:10]  # 保存前10个关键词
 
-                    # 详细的调试日志
+                    # 详细的调试日志仅在DEBUG级别输出
                     keyword_details = [f"{k['keyword']}({k['weight']:.1f})" for k in matched_keywords]
-                    logger.info(f"🔍 广告检测详情 - 消息:{message.channel_id}:{message.message_id}")
-                    logger.info(f"  命中关键词: {', '.join(keyword_details)}")
-                    logger.info(f"  总权重: {total_weight:.1f} (阈值: 3.0)")
-                    logger.info(f"  是否为广告: {is_ad}")
+                    logger.debug(f"广告检测详情 - 消息:{message.channel_id}:{message.message_id}")
+                    logger.debug(f"  命中关键词: {', '.join(keyword_details)}")
+                    logger.debug(f"  总权重: {total_weight:.1f} (阈值: 3.0)")
 
                     # 添加到过滤原因
                     keyword_names = [item['keyword'] for item in matched_keywords[:3]]
@@ -204,18 +200,17 @@ class ContentProcessor:
                         logger.debug("未提供config_manager，默认自动拒绝广告")
                         auto_reject = True  # 无配置时默认拒绝
 
-                    # 记录auto_reject值
-                    logger.warning(f"⚠️ 检测到广告 - 消息:{message.channel_id}:{message.message_id}")
-                    logger.warning(f"  权重: {total_weight:.1f}")
-                    logger.warning(f"  auto_reject配置: {auto_reject}")
+                    # 合并为一条简洁的警告日志
+                    keyword_names = [k['keyword'] for k in matched_keywords[:3]]
+                    logger.info(f"🚫 检测到广告: {message.channel_id}:{message.message_id} (权重:{total_weight:.1f}, 关键词:{','.join(keyword_names)})")
 
                     if auto_reject:
                         old_status = message.status
                         message.status = "rejected"
                         message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
-                        logger.warning(f"🚫 消息被自动拒绝 - 状态从'{old_status}'改为'rejected'")
+                        logger.debug(f"消息被自动拒绝 - 状态从'{old_status}'改为'rejected'")
                     else:
-                        logger.info(f"⏸️ 广告检测已禁用自动拒绝，消息保持待审核状态")
+                        logger.debug(f"广告检测已禁用自动拒绝，消息保持待审核状态")
 
             # 5. 🔍 去重检测（在广告检测之后）
             try:

@@ -283,9 +283,11 @@ class MessageProcessor:
                     logger.error(f"MessageProcessor: redis_store初始化失败（删除操作）: {e}")
                     return False
             
-            logger.info(f"MessageProcessor开始删除: {channel_id}:{message_id}")
             result = self.redis_store.delete_message(channel_id, message_id)
-            logger.info(f"MessageProcessor删除结果: {channel_id}:{message_id} -> {result}")
+            if result:
+                logger.info(f"✅ 删除消息: {channel_id}:{message_id}")
+            else:
+                logger.warning(f"❌ 删除失败: {channel_id}:{message_id}")
             return result
         except Exception as e:
             logger.error(f"删除消息失败 {channel_id}:{message_id}: {e}")
