@@ -310,10 +310,18 @@ class DuplicateDetector:
         try:
             candidates = set()
 
+            # 获取TTL配置（用于保活）
+            from app.services.config_manager import config_manager
+            ttl_hours = await config_manager.get_config('duplicate_detection.ttl_hours', 24)
+            ttl = int(ttl_hours) * 3600
+
             # 1. 精确匹配
             exact_key = f"dup:simhash:{simhash_value}"
             exact_matches = self.redis_manager.client.smembers(exact_key)
-            candidates.update(exact_matches or [])
+            if exact_matches:
+                candidates.update(exact_matches)
+                # 刷新TTL（保活机制）
+                self.redis_manager.client.expire(exact_key, ttl)
 
             # 2. LSH分桶查找（只需4次Redis查询）
             bucket_keys = self._get_lsh_buckets(simhash_value)
@@ -324,9 +332,12 @@ class DuplicateDetector:
                 pipeline.smembers(key)
             bucket_results = pipeline.execute()
 
-            # 合并所有桶的候选
-            for bucket_candidates in bucket_results:
-                candidates.update(bucket_candidates or [])
+            # 合并所有桶的候选，并刷新命中桶的TTL
+            for i, bucket_candidates in enumerate(bucket_results):
+                if bucket_candidates:
+                    candidates.update(bucket_candidates)
+                    # 刷新命中桶的TTL（保活机制）
+                    self.redis_manager.client.expire(bucket_keys[i], ttl)
 
             # 3. 后过滤：用真正的汉明距离验证
             threshold = await self._get_simhash_threshold()
@@ -383,8 +394,21 @@ class DuplicateDetector:
             return None, 0.0
 
     async def _get_message_content(self, message_id: str) -> Optional[str]:
-        """获取消息的规范化内容"""
+        """获取消息的规范化内容（优先从缓存读取）"""
         try:
+            # 优先从去重缓存读取
+            content_key = f"dup:content:{message_id}"
+            cached_content = self.redis_manager.client.hget(content_key, 'text')
+
+            if cached_content:
+                # 刷新TTL（保活机制）
+                from app.services.config_manager import config_manager
+                ttl_hours = await config_manager.get_config('duplicate_detection.ttl_hours', 24)
+                ttl = int(ttl_hours) * 3600
+                self.redis_manager.client.expire(content_key, ttl)
+                return cached_content
+
+            # 如果缓存中没有，尝试从消息本体读取（兼容旧数据）
             if ':' not in message_id:
                 return None
 
@@ -405,24 +429,31 @@ class DuplicateDetector:
     async def _save_fingerprint(self, simhash_value: int, message_id: str, normalized_content: str):
         """保存消息指纹到精确索引和LSH分桶索引"""
         try:
+            # 获取TTL配置
+            from app.services.config_manager import config_manager
+            ttl_hours = await config_manager.get_config('duplicate_detection.ttl_hours', 24)
+            ttl = int(ttl_hours) * 3600
+
             # 1. 精确索引
             exact_key = f"dup:simhash:{simhash_value}"
             self.redis_manager.client.sadd(exact_key, message_id)
-            self.redis_manager.client.expire(exact_key, 30 * 24 * 3600)  # 30天TTL
+            self.redis_manager.client.expire(exact_key, ttl)
 
             # 2. LSH分桶索引
             bucket_keys = self._get_lsh_buckets(simhash_value)
             for bucket_key in bucket_keys:
                 self.redis_manager.client.sadd(bucket_key, message_id)
-                self.redis_manager.client.expire(bucket_key, 7 * 24 * 3600)  # 7天TTL
+                self.redis_manager.client.expire(bucket_key, ttl)
 
-            # 3. 保存SimHash值用于距离验证
+            # 3. 保存完整内容和SimHash值（不依赖消息本体）
             content_key = f"dup:content:{message_id}"
             self.redis_manager.client.hset(content_key, mapping={
+                'text': normalized_content,  # 保存过滤后的文本内容
                 'simhash': str(simhash_value),
+                'length': len(normalized_content),
                 'timestamp': datetime.now().isoformat()
             })
-            self.redis_manager.client.expire(content_key, 30 * 24 * 3600)  # 30天TTL
+            self.redis_manager.client.expire(content_key, ttl)
 
         except Exception as e:
             logger.error(f"保存消息指纹失败: {e}")

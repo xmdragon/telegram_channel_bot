@@ -267,6 +267,18 @@ class MediaDuplicateDetector:
                     if len(bucket_keys) >= 5:
                         break
 
+            # 从系统配置获取TTL（默认24小时）
+            # 注意：这里使用同步方式直接读取JSON，避免异步调用复杂性
+            import json
+            from app.core.path_config import PathConfig
+            try:
+                with open(PathConfig.SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                    ttl_hours = int(config_data.get('duplicate_detection.ttl_hours', {}).get('value', '24'))
+            except:
+                ttl_hours = 24  # 默认24小时
+            ttl = ttl_hours * 3600  # 转换为秒
+
             # 从所有相关桶中获取候选
             all_candidates = set()  # 使用set自动去重
             for bucket_key in bucket_keys:
@@ -275,7 +287,7 @@ class MediaDuplicateDetector:
                     all_candidates.update(bucket_candidates)
                     # 重要：刷新命中桶的TTL，保持活跃的桶不过期
                     # 这样常用的桶会一直保留，避免查询失效
-                    self.redis_manager.client.expire(bucket_key, 30 * 24 * 3600)
+                    self.redis_manager.client.expire(bucket_key, ttl)
 
             # 处理所有候选
             for candidate in all_candidates:
@@ -316,7 +328,7 @@ class MediaDuplicateDetector:
 
                     # 可选：刷新命中消息的元数据TTL，保持活跃数据不过期
                     meta_key = f"media:meta:{real_msg_id}"
-                    self.redis_manager.client.expire(meta_key, 30 * 24 * 3600)
+                    self.redis_manager.client.expire(meta_key, ttl)
 
                     logger.debug(
                         f"发现相似图片: {real_msg_id} (距离: {distance})"
@@ -361,12 +373,19 @@ class MediaDuplicateDetector:
                 # 保存子媒体到主消息的映射
                 mapping_key = f"media:mapping:{message_id}"
                 self.redis_manager.client.set(mapping_key, real_msg_id)
-                self.redis_manager.client.expire(mapping_key, 30 * 24 * 3600)
 
-            # 4. 设置过期时间（30天）
-            ttl = 30 * 24 * 3600
+            # 4. 从系统配置获取TTL（默认24小时）
+            from app.core.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            ttl_hours = int(config_manager.get_config('duplicate_detection.ttl_hours', '24'))
+            ttl = ttl_hours * 3600  # 转换为秒
+
+            # 设置过期时间
             self.redis_manager.client.expire(bucket_key, ttl)
             self.redis_manager.client.expire(meta_key, ttl)
+            if ':media' in message_id:
+                mapping_key = f"media:mapping:{message_id}"
+                self.redis_manager.client.expire(mapping_key, ttl)
 
             logger.debug(f"保存媒体哈希: {real_msg_id} -> bucket:{bucket_prefix}")
 
