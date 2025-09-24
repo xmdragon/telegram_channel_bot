@@ -85,7 +85,6 @@ class HealthMonitor:
         self.error_message = None
         if metadata:
             self.metadata.update(metadata)
-        logger.info(f"[{self.service_name}] 设置为健康状态: {metadata}")
         await self.update_status()
     
     async def set_unhealthy(self, error_message: str, metadata: Dict[str, Any] = None):
