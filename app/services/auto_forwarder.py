@@ -59,16 +59,10 @@ class AutoForwarder:
                         await self.mark_forward_failed(message_id, f"超过最大重试次数({retry_count}次)")
                         continue
 
-                    # 删除准备自动转发的日志
-
-                    # 5. 移除重复的限流控制 - 让 MessageForwarder 统一处理
-                    # message_type = self._get_message_type(message)
-                    # target_channel_id = await config_manager.get_config('target.channel_id', '')
-
-                    # 6. 根据消息类型设置超时时间
+                    # 5. 根据消息类型设置超时时间
                     timeout = await self.get_timeout_for_message(message)
 
-                    # 7. 发送消息（带FloodWait处理）
+                    # 6. 发送消息（带FloodWait处理）
                     try:
                         from app.api.messages_crud import publish_single_message
 
@@ -145,8 +139,7 @@ class AutoForwarder:
                             await self.mark_forward_failed(message_id, str(e))
                             logger.error(f"自动转发异常: {message_id} - {e}")
 
-                    # 8. 智能发送间隔 - 移除固定1秒睡眠，由限流管理器控制
-                    # 短暂休眠避免CPU占用过高
+                    # 8. 智能发送间隔
                     await asyncio.sleep(0.1)
 
                 except asyncio.CancelledError:

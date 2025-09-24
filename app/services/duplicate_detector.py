@@ -6,6 +6,7 @@ Author: Claude
 Created: 2025-09-22
 """
 
+import asyncio
 import re
 import unicodedata
 import hashlib
@@ -222,6 +223,16 @@ class DuplicateDetector:
         # 延迟初始化Redis连接
         self._redis_manager = None
 
+        # LSH配置：8段，每段8位，可大幅降低桶内碰撞数量
+        self._lsh_segment_bits = 8
+        self._lsh_segment_count = 64 // self._lsh_segment_bits
+        self._max_bucket_candidates = 80  # 每个桶最大扫描数量
+        self._bucket_scan_batch_size = 100
+
+        # TTL配置缓存
+        self._retention_ttl_seconds: Optional[int] = None
+        self._retention_ttl_last_fetch: float = 0.0
+
         logger.info("DuplicateDetector初始化完成")
 
     @property
@@ -231,6 +242,48 @@ class DuplicateDetector:
             from app.storage.redis_manager import redis_manager
             self._redis_manager = redis_manager
         return self._redis_manager
+
+    async def _redis_smembers(self, key: str):
+        client = self.redis_manager.client
+        return await asyncio.to_thread(client.smembers, key)
+
+    async def _redis_sscan(self, key: str, cursor: int, count: int):
+        client = self.redis_manager.client
+        def run_scan():
+            return client.sscan(key, cursor=cursor, count=count)
+        return await asyncio.to_thread(run_scan)
+
+    async def _redis_sadd(self, key: str, member: str):
+        client = self.redis_manager.client
+        await asyncio.to_thread(client.sadd, key, member)
+
+    async def _redis_hget(self, key: str, field: str):
+        client = self.redis_manager.client
+        return await asyncio.to_thread(client.hget, key, field)
+
+    async def _redis_hset(self, key: str, mapping: Dict[str, Any]):
+        client = self.redis_manager.client
+        await asyncio.to_thread(client.hset, key, mapping=mapping)
+
+    async def _redis_hgetall(self, key: str):
+        client = self.redis_manager.client
+        return await asyncio.to_thread(client.hgetall, key)
+
+    async def _redis_expire(self, key: str, ttl: int):
+        client = self.redis_manager.client
+        await asyncio.to_thread(client.expire, key, ttl)
+
+    async def _redis_lpush(self, key: str, value: str):
+        client = self.redis_manager.client
+        await asyncio.to_thread(client.lpush, key, value)
+
+    async def _redis_ltrim(self, key: str, start: int, end: int):
+        client = self.redis_manager.client
+        await asyncio.to_thread(client.ltrim, key, start, end)
+
+    async def _redis_lrange(self, key: str, start: int, end: int):
+        client = self.redis_manager.client
+        return await asyncio.to_thread(client.lrange, key, start, end)
 
     async def detect_duplicate(self, message_content: str, message_id: str) -> DuplicateResult:
         """
@@ -291,74 +344,160 @@ class DuplicateDetector:
             return DuplicateResult(False, detection_reason=f"error_{str(e)[:50]}")
 
     def _get_lsh_buckets(self, simhash_int: int) -> List[str]:
-        """
-        将SimHash分成4个16位段，用于LSH分桶
-        复杂度从O(C(64,3))降到O(4)
-        """
+        """按照配置的段长生成LSH桶键"""
         buckets = []
-        for i in range(4):
-            segment = (simhash_int >> (i * 16)) & 0xFFFF
-            buckets.append(f"dup:simhash:band:{i}:{segment:04x}")
+        segment_mask = (1 << self._lsh_segment_bits) - 1
+        hex_width = max(1, self._lsh_segment_bits // 4)
+
+        for i in range(self._lsh_segment_count):
+            shift = i * self._lsh_segment_bits
+            segment = (simhash_int >> shift) & segment_mask
+            buckets.append(f"dup:simhash:band:{i}:{segment:0{hex_width}x}")
+
         return buckets
 
     def _calculate_hamming_distance(self, hash1: int, hash2: int) -> int:
         """计算两个SimHash的汉明距离"""
         return bin(hash1 ^ hash2).count('1')
 
-    async def _find_similar_candidates(self, simhash_value: int) -> List[str]:
-        """使用LSH分桶快速查找候选，避免组合爆炸"""
+    async def _get_retention_ttl(self) -> int:
+        """获取内容与指纹缓存的统一TTL（秒）"""
+        now_ts = datetime.now().timestamp()
+        if self._retention_ttl_seconds and (now_ts - self._retention_ttl_last_fetch) < 300:
+            return self._retention_ttl_seconds
+
         try:
-            candidates = set()
-
-            # 获取TTL配置（用于保活）
             from app.services.config_manager import config_manager
-            ttl_hours = await config_manager.get_config('duplicate_detection.ttl_hours', 24)
-            ttl = int(ttl_hours) * 3600
+            retention_days_str = await config_manager.get_config('duplicate_detection.retention_days', '30')
+            retention_days = float(retention_days_str)
+        except Exception:
+            retention_days = 30.0
 
-            # 1. 精确匹配
+        ttl_seconds = max(1, int(retention_days * 24 * 3600))
+        self._retention_ttl_seconds = ttl_seconds
+        self._retention_ttl_last_fetch = now_ts
+        return ttl_seconds
+
+    async def _store_candidate_content_hash(
+        self,
+        message_id: str,
+        simhash_value: int,
+        normalized_content: Optional[str] = None,
+    ) -> None:
+        ttl = await self._get_retention_ttl()
+        content_key = f"dup:content:{message_id}"
+        payload: Dict[str, Any] = {
+            'simhash': str(simhash_value),
+            'timestamp': datetime.now().isoformat(),
+        }
+
+        if normalized_content is not None:
+            payload['text'] = normalized_content
+            payload['length'] = str(len(normalized_content))
+
+        await self._redis_hset(content_key, mapping=payload)
+        await self._redis_expire(content_key, ttl)
+
+    async def _scan_bucket_candidates(self, bucket_key: str) -> List[str]:
+        """从LSH桶中按批量扫描限定数量的候选"""
+        if self._max_bucket_candidates <= 0:
+            return []
+
+        batch_size = max(1, min(self._bucket_scan_batch_size, self._max_bucket_candidates))
+        collected: set[str] = set()
+        cursor = 0
+
+        while True:
+            cursor, members = await self._redis_sscan(bucket_key, cursor, batch_size)
+            if members:
+                collected.update(members)
+
+            if cursor == 0 or len(collected) >= self._max_bucket_candidates:
+                break
+
+        if not collected:
+            return []
+
+        return list(collected)[: self._max_bucket_candidates]
+
+    async def _get_candidate_simhash(self, candidate_id: str) -> Optional[int]:
+        """读取候选SimHash，缺失时重新计算并回写缓存"""
+        candidate_hash_key = f"dup:content:{candidate_id}"
+        candidate_hash_str = await self._redis_hget(candidate_hash_key, 'simhash')
+
+        if candidate_hash_str:
+            try:
+                return int(candidate_hash_str)
+            except (ValueError, TypeError):
+                logger.warning(f"候选SimHash损坏，重新计算 {candidate_id}")
+
+        candidate_content = await self._get_message_content(candidate_id)
+        if not candidate_content:
+            return None
+
+        recomputed_hash = self.simhash_calculator.calculate(candidate_content)
+        if recomputed_hash:
+            await self._store_candidate_content_hash(
+                candidate_id,
+                recomputed_hash,
+                normalized_content=candidate_content,
+            )
+            return recomputed_hash
+
+        return None
+
+    async def _find_similar_candidates(self, simhash_value: int) -> List[str]:
+        """使用LSH分桶查找候选，控制单次Redis负载"""
+        try:
+            seen: set[str] = set()
+            ordered_candidates: List[str] = []
+
+            def add_candidate(candidate: str):
+                if not candidate or candidate in seen:
+                    return
+                seen.add(candidate)
+                ordered_candidates.append(candidate)
+
+            # 精确匹配优先
             exact_key = f"dup:simhash:{simhash_value}"
-            exact_matches = self.redis_manager.client.smembers(exact_key)
-            if exact_matches:
-                candidates.update(exact_matches)
-                # 刷新TTL（保活机制）
-                self.redis_manager.client.expire(exact_key, ttl)
+            exact_matches = await self._redis_smembers(exact_key)
+            for candidate_id in exact_matches or []:
+                add_candidate(candidate_id)
 
-            # 2. LSH分桶查找（只需4次Redis查询）
+            # LSH桶扫描获取近似候选
             bucket_keys = self._get_lsh_buckets(simhash_value)
+            for bucket_key in bucket_keys:
+                bucket_candidates = await self._scan_bucket_candidates(bucket_key)
+                if not bucket_candidates:
+                    continue
 
-            # 使用pipeline批量查询减少round-trip
-            pipeline = self.redis_manager.client.pipeline()
-            for key in bucket_keys:
-                pipeline.smembers(key)
-            bucket_results = pipeline.execute()
+                for candidate_id in bucket_candidates:
+                    add_candidate(candidate_id)
+                    if len(ordered_candidates) >= self._max_bucket_candidates:
+                        break
 
-            # 合并所有桶的候选，并刷新命中桶的TTL
-            for i, bucket_candidates in enumerate(bucket_results):
-                if bucket_candidates:
-                    candidates.update(bucket_candidates)
-                    # 刷新命中桶的TTL（保活机制）
-                    self.redis_manager.client.expire(bucket_keys[i], ttl)
+                if len(ordered_candidates) >= self._max_bucket_candidates:
+                    break
 
-            # 3. 后过滤：用真正的汉明距离验证
+            if not ordered_candidates:
+                return []
+
             threshold = await self._get_simhash_threshold()
-            filtered_candidates = []
+            filtered_candidates: List[str] = []
 
-            for candidate_id in candidates:
-                # 获取候选的SimHash值进行距离验证
-                candidate_hash_key = f"dup:content:{candidate_id}"
-                candidate_hash_str = self.redis_manager.client.hget(candidate_hash_key, 'simhash')
+            for candidate_id in ordered_candidates:
+                candidate_hash = await self._get_candidate_simhash(candidate_id)
+                if candidate_hash is None:
+                    continue
 
-                if candidate_hash_str:
-                    try:
-                        candidate_hash = int(candidate_hash_str)
-                        distance = self._calculate_hamming_distance(simhash_value, candidate_hash)
-                        if distance <= threshold:
-                            filtered_candidates.append(candidate_id)
-                    except (ValueError, TypeError):
-                        # 处理损坏的哈希值
-                        continue
+                distance = self._calculate_hamming_distance(simhash_value, candidate_hash)
+                if distance <= threshold:
+                    filtered_candidates.append(candidate_id)
 
-            return filtered_candidates[:20]  # 限制候选数量
+                if len(filtered_candidates) >= 20:
+                    break
+
+            return filtered_candidates
 
         except Exception as e:
             logger.error(f"查找候选消息失败: {e}")
@@ -396,16 +535,13 @@ class DuplicateDetector:
     async def _get_message_content(self, message_id: str) -> Optional[str]:
         """获取消息的规范化内容（优先从缓存读取）"""
         try:
-            # 优先从去重缓存读取
+            # 优先从缓存读取
             content_key = f"dup:content:{message_id}"
-            cached_content = self.redis_manager.client.hget(content_key, 'text')
+            cached_content = await self._redis_hget(content_key, 'text')
 
             if cached_content:
-                # 刷新TTL（保活机制）
-                from app.services.config_manager import config_manager
-                ttl_hours = await config_manager.get_config('duplicate_detection.ttl_hours', 24)
-                ttl = int(ttl_hours) * 3600
-                self.redis_manager.client.expire(content_key, ttl)
+                ttl = await self._get_retention_ttl()
+                await self._redis_expire(content_key, ttl)
                 return cached_content
 
             # 如果缓存中没有，尝试从消息本体读取（兼容旧数据）
@@ -413,14 +549,28 @@ class DuplicateDetector:
                 return None
 
             channel_id, msg_id = message_id.split(':', 1)
-            message = self.redis_manager.get_message(channel_id, int(msg_id), silent=True)
+
+            def fetch_message():
+                return self.redis_manager.get_message(channel_id, int(msg_id), silent=True)
+
+            message = await asyncio.to_thread(fetch_message)
 
             if not message:
                 return None
 
             # 直接使用过滤后内容
             filtered_content = message.get('filtered_content', '')
-            return self.normalizer.normalize(filtered_content)
+            normalized = self.normalizer.normalize(filtered_content)
+
+            if normalized:
+                ttl = await self._get_retention_ttl()
+                await self._redis_hset(content_key, mapping={
+                    'text': normalized,
+                    'length': str(len(normalized)),
+                })
+                await self._redis_expire(content_key, ttl)
+
+            return normalized
 
         except Exception as e:
             logger.error(f"获取消息内容失败 {message_id}: {e}")
@@ -429,31 +579,25 @@ class DuplicateDetector:
     async def _save_fingerprint(self, simhash_value: int, message_id: str, normalized_content: str):
         """保存消息指纹到精确索引和LSH分桶索引"""
         try:
-            # 获取TTL配置
-            from app.services.config_manager import config_manager
-            ttl_hours = await config_manager.get_config('duplicate_detection.ttl_hours', 24)
-            ttl = int(ttl_hours) * 3600
+            ttl = await self._get_retention_ttl()
 
             # 1. 精确索引
             exact_key = f"dup:simhash:{simhash_value}"
-            self.redis_manager.client.sadd(exact_key, message_id)
-            self.redis_manager.client.expire(exact_key, ttl)
+            await self._redis_sadd(exact_key, message_id)
+            await self._redis_expire(exact_key, ttl)
 
             # 2. LSH分桶索引
             bucket_keys = self._get_lsh_buckets(simhash_value)
             for bucket_key in bucket_keys:
-                self.redis_manager.client.sadd(bucket_key, message_id)
-                self.redis_manager.client.expire(bucket_key, ttl)
+                await self._redis_sadd(bucket_key, message_id)
+                await self._redis_expire(bucket_key, ttl)
 
             # 3. 保存完整内容和SimHash值（不依赖消息本体）
-            content_key = f"dup:content:{message_id}"
-            self.redis_manager.client.hset(content_key, mapping={
-                'text': normalized_content,  # 保存过滤后的文本内容
-                'simhash': str(simhash_value),
-                'length': len(normalized_content),
-                'timestamp': datetime.now().isoformat()
-            })
-            self.redis_manager.client.expire(content_key, ttl)
+            await self._store_candidate_content_hash(
+                message_id,
+                simhash_value,
+                normalized_content=normalized_content,
+            )
 
         except Exception as e:
             logger.error(f"保存消息指纹失败: {e}")
@@ -530,12 +674,13 @@ class DuplicateDetector:
         """记录系统检测结果"""
         try:
             detection_key = f"dup:detection:{message_id}"
-            self.redis_manager.client.hset(detection_key, mapping={
+            ttl = await self._get_retention_ttl()
+            await self._redis_hset(detection_key, mapping={
                 'system_detected': str(detected).lower(),
                 'similarity_score': str(similarity_score),
                 'detection_time': datetime.now().isoformat()
             })
-            self.redis_manager.client.expire(detection_key, 30 * 24 * 3600)  # 30天过期
+            await self._redis_expire(detection_key, ttl)
         except Exception as e:
             logger.error(f"记录系统检测失败: {e}")
 
@@ -543,16 +688,18 @@ class DuplicateDetector:
         """记录用户反馈"""
         try:
             detection_key = f"dup:detection:{message_id}"
-            self.redis_manager.client.hset(detection_key, mapping={
+            ttl = await self._get_retention_ttl()
+            await self._redis_hset(detection_key, mapping={
                 'user_confirmed': str(user_confirmed).lower(),
                 'user_id': user_id,
                 'feedback_time': datetime.now().isoformat()
             })
+            await self._redis_expire(detection_key, ttl)
 
             # 添加到反馈历史列表
             history_key = "dup:feedback_history"
-            self.redis_manager.client.lpush(history_key, message_id)
-            self.redis_manager.client.ltrim(history_key, 0, 999)  # 保留最近1000条
+            await self._redis_lpush(history_key, message_id)
+            await self._redis_ltrim(history_key, 0, 999)  # 保留最近1000条
 
         except Exception as e:
             logger.error(f"记录用户反馈失败: {e}")
@@ -567,7 +714,7 @@ class DuplicateDetector:
         try:
             # 获取最近100条反馈
             history_key = "dup:feedback_history"
-            recent_message_ids = self.redis_manager.client.lrange(history_key, 0, 99)
+            recent_message_ids = await self._redis_lrange(history_key, 0, 99)
 
             if len(recent_message_ids) < 20:  # 反馈太少，不调整
                 return
@@ -578,7 +725,7 @@ class DuplicateDetector:
 
             for message_id in recent_message_ids:
                 detection_key = f"dup:detection:{message_id}"
-                detection_data = self.redis_manager.client.hgetall(detection_key)
+                detection_data = await self._redis_hgetall(detection_key)
 
                 if not detection_data:
                     continue
