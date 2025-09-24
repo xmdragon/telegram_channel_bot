@@ -475,22 +475,6 @@
                         <h3>系统参数配置</h3>
                         <form class="native-form">
                             <div class="form-group">
-                                <label class="form-label">历史消息采集数</label>
-                                <div class="input-line">
-                                    <input 
-                                        class="form-input number-input"
-                                        type="number"
-                                        v-model.number="configs['source.history_limit']" 
-                                        min="1" 
-                                        max="1000" 
-                                        placeholder="50">
-                                    <div class="form-hint">
-                                        首次采集或重启后从频道获取的历史消息条数
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
                                 <label class="form-label">频道落款</label>
                                 <textarea 
                                     class="form-textarea"
