@@ -187,6 +187,11 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" @click="saveDedupConfig">
+                                    💾 保存去重配置
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -261,6 +266,11 @@
                                         初次采集时获取的历史消息数量
                                     </div>
                                 </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" @click="saveCollectionConfig">
+                                    💾 保存采集配置
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -354,6 +364,11 @@
                                         自动清理过期数据的间隔时间
                                     </div>
                                 </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" @click="savePerformanceConfig">
+                                    💾 保存性能配置
+                                </button>
                             </div>
                         </form>
                     </div>

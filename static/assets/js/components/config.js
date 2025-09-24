@@ -334,7 +334,6 @@ const ConfigApp = {
             try {
                 // 保存所有系统相关配置
                 const systemKeys = [
-                    'source.history_limit',
                     'target.signature',
                     'collection.enabled',
                     'collection.max_media_size_mb',
@@ -408,9 +407,64 @@ const ConfigApp = {
             this.configs['filter.separator'] = true;
             this.configs['filter.markdown'] = true;
             this.configs['filter.ad_detector'] = false;
-            
+
             MessageManager.success('过滤器配置已重置为默认值');
-},
+        },
+
+        // 保存去重检测配置
+        async saveDedupConfig() {
+            try {
+                const dedupKeys = [
+                    'duplicate_detection.enabled',
+                    'duplicate_detection.content_threshold',
+                    'duplicate_detection.simhash_threshold',
+                    'duplicate_detection.auto_adjust'
+                ];
+
+                await this.saveConfigs(dedupKeys);
+                MessageManager.success('去重检测配置已保存');
+            } catch (error) {
+                console.error('保存去重检测配置失败:', error);
+                MessageManager.error('去重检测配置保存失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+
+        // 保存采集设置配置
+        async saveCollectionConfig() {
+            try {
+                const collectionKeys = [
+                    'collection.enabled',
+                    'collection.max_messages_per_batch',
+                    'collection.max_media_size_mb',
+                    'source.history_limit'
+                ];
+
+                await this.saveConfigs(collectionKeys);
+                MessageManager.success('采集设置已保存');
+            } catch (error) {
+                console.error('保存采集设置失败:', error);
+                MessageManager.error('采集设置保存失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
+
+        // 保存性能优化配置
+        async savePerformanceConfig() {
+            try {
+                const performanceKeys = [
+                    'telegram.rate_limit_text_interval',
+                    'telegram.rate_limit_media_interval',
+                    'telegram.rate_limit_safety_factor',
+                    'telegram.max_retry_attempts',
+                    'scheduler.data_cleanup_interval_hours'
+                ];
+
+                await this.saveConfigs(performanceKeys);
+                MessageManager.success('性能优化配置已保存');
+            } catch (error) {
+                console.error('保存性能优化配置失败:', error);
+                MessageManager.error('性能优化配置保存失败: ' + (error.response?.data?.detail || error.message));
+            }
+        },
         
         showReviewGroupHelp() {
             // 如果已经有提示在显示，不再弹出新的
