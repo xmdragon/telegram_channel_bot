@@ -16,15 +16,17 @@
 
 /* 原生标签页 */
 .native-tabs {
-    border: 1px solid var(--border-color);
+    border: 1px solid #dee2e6;
     border-radius: 8px;
     overflow: hidden;
+    background: #ffffff;
 }
 
 .native-tabs-header {
     display: flex;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    position: relative;
 }
 
 .native-tab-button {
@@ -32,7 +34,7 @@
     padding: 12px 20px;
     background: transparent;
     border: none;
-    color: var(--text-secondary);
+    color: #6c757d;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -41,23 +43,25 @@
 }
 
 .native-tab-button:hover {
-    background: rgba(var(--primary-rgb), 0.05);
-    color: var(--text-primary);
+    background: rgba(0, 123, 255, 0.05);
+    color: #495057;
 }
 
 .native-tab-button.active {
-    color: var(--primary);
-    background: var(--card-bg);
+    color: #007bff;
+    background: #ffffff;
+    font-weight: 600;
 }
 
 .native-tab-button.active::after {
     content: '';
     position: absolute;
-    bottom: -1px;
+    bottom: -2px;
     left: 0;
     right: 0;
-    height: 2px;
-    background: var(--primary);
+    height: 3px;
+    background: #007bff;
+    border-radius: 3px 3px 0 0;
 }
 
 .native-tab-content {
