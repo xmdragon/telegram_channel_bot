@@ -202,6 +202,12 @@ const ChannelApp = {
 
     async mounted() {
         try {
+            // 初始化权限检查
+            const isAuthorized = await authManager.initPageAuth();
+            if (!isAuthorized) {
+                return;
+            }
+
             // 加载频道列表
             await this.loadChannels();
         } catch (error) {

@@ -248,19 +248,34 @@ class MediaDuplicateDetector:
         """
         try:
             similar = []
+            candidates_seen = set()  # 避免重复检查
 
-            # 使用更短的前缀进行粗分桶（8位而不是16位）
-            # 这样汉明距离<=5的图片更可能在同一个或相邻的桶中
-            bucket_prefix = phash[:8]
+            # 使用6位前缀（24bit）进行粗分桶，提高召回率
+            bucket_prefix = phash[:6]
 
-            # 查找多个可能的桶（考虑汉明距离的影响）
-            # 为了简化，先只查询完全匹配的桶
-            bucket_key = f"media:phash:bucket:{bucket_prefix}"
+            # 策略1：查询原始桶
+            bucket_keys = [f"media:phash:bucket:{bucket_prefix}"]
 
-            # 获取同一桶内的所有哈希
-            candidates = self.redis_manager.client.smembers(bucket_key)
+            # 策略2：邻桶搜索 - 对前缀最后一位做扰动（提高召回率）
+            # 生成邻近的桶（汉明距离1的变化）
+            last_char = bucket_prefix[-1]
+            for alt_char in '0123456789abcdef':
+                if alt_char != last_char:
+                    neighbor_prefix = bucket_prefix[:-1] + alt_char
+                    bucket_keys.append(f"media:phash:bucket:{neighbor_prefix}")
+                    # 只查询最相近的4个邻桶，避免过多查询
+                    if len(bucket_keys) >= 5:
+                        break
 
-            for candidate in candidates:
+            # 从所有相关桶中获取候选
+            all_candidates = set()
+            for bucket_key in bucket_keys:
+                bucket_candidates = self.redis_manager.client.smembers(bucket_key)
+                if bucket_candidates:
+                    all_candidates.update(bucket_candidates)
+
+            # 处理所有候选
+            for candidate in all_candidates:
                 # 关键修复：解码bytes为字符串
                 if isinstance(candidate, bytes):
                     candidate = candidate.decode('utf-8')
@@ -277,11 +292,11 @@ class MediaDuplicateDetector:
                 stored_hash = parts[0]  # 第一部分是哈希
                 full_msg_id = parts[1]  # 剩余部分是完整消息ID
 
-                # 移除:media{idx}后缀，获取真实的消息ID
-                real_msg_id = full_msg_id.split(':media')[0] if ':media' in full_msg_id else full_msg_id
+                # 获取真实的消息ID
+                real_msg_id = self._get_real_message_id(full_msg_id)
 
                 # 跳过自己（也要考虑:media后缀）
-                current_real_id = current_message_id.split(':media')[0] if ':media' in current_message_id else current_message_id
+                current_real_id = self._get_real_message_id(current_message_id)
                 if real_msg_id == current_real_id:
                     continue
 
@@ -320,24 +335,48 @@ class MediaDuplicateDetector:
         try:
             phash = hash_values['phash']
 
-            # 1. 保存到分桶索引（使用更短的前缀进行粗分桶）
-            bucket_prefix = phash[:8]  # 使用8位前缀而不是16位
-            bucket_key = f"media:phash:bucket:{bucket_prefix}"
-            self.redis_manager.client.sadd(bucket_key, f"{phash}:{message_id}")
+            # 获取真实的消息ID（去掉:media后缀）
+            real_msg_id = self._get_real_message_id(message_id)
 
-            # 2. 保存完整哈希信息
-            meta_key = f"media:meta:{message_id}"
+            # 1. 保存到分桶索引（使用6位前缀进行粗分桶）
+            bucket_prefix = phash[:6]  # 使用6位前缀（24bit）
+            bucket_key = f"media:phash:bucket:{bucket_prefix}"
+            # 存储格式："hash:real_message_id"（不包含:media后缀）
+            self.redis_manager.client.sadd(bucket_key, f"{phash}:{real_msg_id}")
+
+            # 2. 保存完整哈希信息（使用真实消息ID作为key）
+            meta_key = f"media:meta:{real_msg_id}"
+            hash_values['original_id'] = message_id  # 保存原始ID（包含:media后缀）
             self.redis_manager.client.hset(meta_key, mapping=hash_values)
 
-            # 3. 设置过期时间（30天）
+            # 3. 如果有:media后缀，建立映射关系
+            if ':media' in message_id:
+                # 保存子媒体到主消息的映射
+                mapping_key = f"media:mapping:{message_id}"
+                self.redis_manager.client.set(mapping_key, real_msg_id)
+                self.redis_manager.client.expire(mapping_key, 30 * 24 * 3600)
+
+            # 4. 设置过期时间（30天）
             ttl = 30 * 24 * 3600
             self.redis_manager.client.expire(bucket_key, ttl)
             self.redis_manager.client.expire(meta_key, ttl)
 
-            logger.debug(f"保存媒体哈希: {message_id} -> bucket:{bucket_prefix}")
+            logger.debug(f"保存媒体哈希: {real_msg_id} -> bucket:{bucket_prefix}")
 
         except Exception as e:
             logger.error(f"保存图片哈希失败: {e}")
+
+    def _get_real_message_id(self, message_id: str) -> str:
+        """
+        获取真实的消息ID（移除:media后缀）
+
+        Args:
+            message_id: 可能包含:media后缀的消息ID
+
+        Returns:
+            真实的消息ID
+        """
+        return message_id.split(':media')[0] if ':media' in message_id else message_id
 
     def _hamming_distance(self, hash1: str, hash2: str) -> int:
         """
