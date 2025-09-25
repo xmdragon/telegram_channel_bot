@@ -4,12 +4,34 @@
 
 echo "🚀 启动 Telegram 消息审核系统..."
 
-# 检查Redis服务
-if ! redis-cli ping > /dev/null 2>&1; then
-    echo "⚠️  Redis服务未运行，请先启动Redis"
-    echo "   运行: redis-server 或 sudo service redis-server start"
-    exit 1
+# 加载环境配置
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
 fi
+
+# Redis配置
+REDIS_HOST=${REDIS_HOST:-localhost}
+REDIS_PORT=${REDIS_PORT:-6379}
+REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+# 检查Redis服务
+echo "📡 检查Redis连接..."
+if [ -n "$REDIS_PASSWORD" ]; then
+    # 有密码的Redis
+    if ! redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -a "$REDIS_PASSWORD" ping > /dev/null 2>&1; then
+        echo "⚠️  无法连接到Redis: $REDIS_HOST:$REDIS_PORT"
+        echo "   请检查Redis配置和服务状态"
+        exit 1
+    fi
+else
+    # 无密码的Redis
+    if ! redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping > /dev/null 2>&1; then
+        echo "⚠️  无法连接到Redis: $REDIS_HOST:$REDIS_PORT"
+        echo "   请检查Redis配置和服务状态"
+        exit 1
+    fi
+fi
+echo "✅ Redis连接正常: $REDIS_HOST:$REDIS_PORT"
 
 # 检查Supervisor是否安装
 if ! command -v supervisord &> /dev/null; then

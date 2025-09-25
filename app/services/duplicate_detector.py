@@ -61,8 +61,10 @@ class TextNormalizer:
             # 4. 折叠重复标点
             text = self.re_repeated_punct.sub(lambda m: m.group(0)[0], text)
 
-            # 5. 折叠空白字符
-            text = re.sub(r"\s+", " ", text).strip()
+            # 5. 统一处理空白字符 - 关键改进：去除所有空格
+            # 将多个空白字符替换为空（而不是单个空格）
+            # 这样"南京租房地下室"和"南京 租房 地下室"会被识别为相同
+            text = re.sub(r"\s+", "", text).strip()
 
             return text
 

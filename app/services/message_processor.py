@@ -686,8 +686,18 @@ class MessageProcessor:
 
                     # 对组消息：任一媒体重复则整组重复
                     for idx, media_path in enumerate(media_paths):
+                        # 提取媒体文件大小（如果有）
+                        file_size = None
+                        if message_data.get('media_info') and isinstance(message_data['media_info'], dict):
+                            file_size = message_data['media_info'].get('file_size')
+                        elif message_data.get('messages') and idx < len(message_data['messages']):
+                            # 对于组消息，从对应的子消息中获取
+                            sub_msg = message_data['messages'][idx]
+                            if sub_msg.get('media_info') and isinstance(sub_msg['media_info'], dict):
+                                file_size = sub_msg['media_info'].get('file_size')
+
                         media_result = await media_duplicate_detector.detect_duplicate(
-                            media_path, f"{full_message_id}:media{idx}"
+                            media_path, f"{full_message_id}:media{idx}", file_size
                         )
 
                         if media_result.is_duplicate:

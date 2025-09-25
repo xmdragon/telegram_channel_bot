@@ -285,10 +285,23 @@ show_status() {
 
         # Redis连接测试
         echo -n "   • Redis连接: "
-        if redis-cli -p $REDIS_PORT ping >/dev/null 2>&1; then
-            echo "✅ 正常"
+        REDIS_HOST=${REDIS_HOST:-localhost}
+        REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+        if [ -n "$REDIS_PASSWORD" ]; then
+            # 有密码的Redis
+            if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -a "$REDIS_PASSWORD" ping >/dev/null 2>&1; then
+                echo "✅ 正常 ($REDIS_HOST:$REDIS_PORT)"
+            else
+                echo "❌ 失败 ($REDIS_HOST:$REDIS_PORT)"
+            fi
         else
-            echo "❌ 失败"
+            # 无密码的Redis
+            if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping >/dev/null 2>&1; then
+                echo "✅ 正常 ($REDIS_HOST:$REDIS_PORT)"
+            else
+                echo "❌ 失败 ($REDIS_HOST:$REDIS_PORT)"
+            fi
         fi
 
         # Nginx连接测试

@@ -70,7 +70,8 @@ class MediaDuplicateDetector:
     async def detect_duplicate(
         self,
         media_path: str,
-        message_id: str
+        message_id: str,
+        file_size: Optional[int] = None
     ) -> MediaDuplicateResult:
         """
         检测媒体文件是否重复
@@ -78,6 +79,7 @@ class MediaDuplicateDetector:
         Args:
             media_path: 媒体文件路径
             message_id: 消息ID (格式: "channel_id:message_id")
+            file_size: 文件大小（字节），用于快速比对
 
         Returns:
             MediaDuplicateResult对象
@@ -86,7 +88,25 @@ class MediaDuplicateDetector:
             # 确保依赖已加载
             _ensure_dependencies()
 
-            # 验证文件存在
+            # 1. 快速检查：如果提供了文件大小，先进行文件大小比对
+            if file_size:
+                size_duplicates = await self._find_by_file_size(file_size, message_id)
+                if size_duplicates:
+                    logger.info(
+                        f"📏 通过文件大小发现潜在重复: {message_id} "
+                        f"(大小: {file_size} bytes, 匹配数: {len(size_duplicates)})"
+                    )
+                    # 如果文件不存在，仅基于文件大小判断（适用于远程Redis场景）
+                    if not Path(media_path).exists():
+                        # 返回第一个匹配的作为重复
+                        return MediaDuplicateResult(
+                            is_duplicate=True,
+                            original_message_id=size_duplicates[0],
+                            similarity_score=0.95,  # 文件大小相同给高分
+                            detection_reason=f"same_file_size_{file_size}"
+                        )
+
+            # 2. 验证文件存在（如果需要进行哈希计算）
             if not Path(media_path).exists():
                 logger.warning(f"媒体文件不存在: {media_path}")
                 return MediaDuplicateResult(
@@ -94,7 +114,7 @@ class MediaDuplicateDetector:
                     detection_reason="file_not_found"
                 )
 
-            # 1. 计算图片哈希
+            # 3. 计算图片哈希
             hash_values = await self._calculate_hashes(media_path)
             if not hash_values:
                 return MediaDuplicateResult(
@@ -102,7 +122,7 @@ class MediaDuplicateDetector:
                     detection_reason="hash_calculation_failed"
                 )
 
-            # 2. 查找相似图片
+            # 4. 查找相似图片
             similar_images = await self._find_similar_images(
                 hash_values['phash'],
                 message_id
@@ -126,8 +146,8 @@ class MediaDuplicateDetector:
                     detection_reason=f"phash_distance_{best_match['distance']}"
                 )
 
-            # 3. 无相似图片，保存新哈希
-            await self._save_hash(hash_values, message_id)
+            # 5. 无相似图片，保存新哈希和文件大小
+            await self._save_hash(hash_values, message_id, file_size)
 
             logger.debug(f"未发现相似媒体: {message_id}")
             return MediaDuplicateResult(
@@ -148,6 +168,36 @@ class MediaDuplicateDetector:
                 is_duplicate=False,
                 detection_reason=f"error_{str(e)[:50]}"
             )
+
+    async def _find_by_file_size(self, file_size: int, exclude_id: str) -> List[str]:
+        """
+        根据文件大小查找可能重复的消息
+
+        Args:
+            file_size: 文件大小（字节）
+            exclude_id: 要排除的消息ID
+
+        Returns:
+            匹配的消息ID列表
+        """
+        try:
+            size_key = f"media:size:{file_size}"
+            all_ids = self.redis_manager.client.smembers(size_key)
+
+            # 获取真实消息ID用于比较
+            real_exclude_id = self._get_real_message_id(exclude_id)
+
+            # 过滤掉自己
+            matched_ids = [
+                msg_id for msg_id in all_ids
+                if msg_id != real_exclude_id and msg_id != exclude_id
+            ]
+
+            return matched_ids
+
+        except Exception as e:
+            logger.error(f"按文件大小查找失败: {e}")
+            return []
 
     async def detect_duplicate_batch(
         self,
@@ -343,13 +393,14 @@ class MediaDuplicateDetector:
             logger.error(f"查找相似图片失败: {e}")
             return []
 
-    async def _save_hash(self, hash_values: Dict[str, str], message_id: str):
+    async def _save_hash(self, hash_values: Dict[str, str], message_id: str, file_size: Optional[int] = None):
         """
         保存图片哈希到Redis
 
         Args:
             hash_values: 哈希值字典
             message_id: 消息ID
+            file_size: 文件大小（可选）
         """
         try:
             phash = hash_values['phash']
@@ -374,7 +425,13 @@ class MediaDuplicateDetector:
                 mapping_key = f"media:mapping:{message_id}"
                 self.redis_manager.client.set(mapping_key, real_msg_id)
 
-            # 4. 从系统配置获取TTL（默认24小时）
+            # 4. 保存文件大小索引（如果提供）
+            if file_size:
+                size_key = f"media:size:{file_size}"
+                self.redis_manager.client.sadd(size_key, real_msg_id)
+                logger.debug(f"保存文件大小索引: {file_size} -> {real_msg_id}")
+
+            # 5. 从系统配置获取TTL（默认24小时）
             from app.core.config_manager import ConfigManager
             config_manager = ConfigManager()
             ttl_hours = int(config_manager.get_config('duplicate_detection.ttl_hours', '24'))
@@ -383,6 +440,8 @@ class MediaDuplicateDetector:
             # 设置过期时间
             self.redis_manager.client.expire(bucket_key, ttl)
             self.redis_manager.client.expire(meta_key, ttl)
+            if file_size:
+                self.redis_manager.client.expire(f"media:size:{file_size}", ttl)
             if ':media' in message_id:
                 mapping_key = f"media:mapping:{message_id}"
                 self.redis_manager.client.expire(mapping_key, ttl)
