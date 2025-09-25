@@ -66,8 +66,8 @@ const ConfigApp = {
                 'storage.delete_single_messages': false,
 
                 // 性能优化
-                'telegram.rate_limit_text_interval': '1',
-                'telegram.rate_limit_media_interval': '5',
+                'telegram.rate_limit_text_interval': '5',
+                'telegram.rate_limit_media_interval': '12',
                 'telegram.rate_limit_safety_factor': '1.5',
                 'telegram.max_retry_attempts': '3',
                 'telegram.flood_wait_buffer_min': '1',
@@ -116,7 +116,7 @@ const ConfigApp = {
 
                 // 性能优化
                 'telegram.rate_limit_text_interval': 'float',
-                'telegram.rate_limit_media_interval': 'integer',
+                'telegram.rate_limit_media_interval': 'float',
                 'telegram.rate_limit_safety_factor': 'float',
                 'telegram.max_retry_attempts': 'integer',
                 'telegram.flood_wait_buffer_min': 'integer',
