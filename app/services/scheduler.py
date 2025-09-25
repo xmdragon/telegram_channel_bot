@@ -245,6 +245,7 @@ class MessageScheduler:
         """获取最早待审核消息的创建时间"""
         try:
             from datetime import datetime
+            from app.storage.redis_manager import redis_manager
 
             # 获取所有待审核消息
             pending_messages = redis_manager.get_messages_by_status('pending', limit=1000)
