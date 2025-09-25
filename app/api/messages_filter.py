@@ -101,14 +101,9 @@ async def filter_message_content(
         
         filtered_content = processed_message.filtered_content
         
-        # 简单的调试日志
+        # 计算移除长度
         removed_length = len(original_content) - len(filtered_content)
-        logger.info(f"📊 内容过滤结果: 原始{len(original_content)} -> 过滤后{len(filtered_content)} 字符")
-        
-        if removed_length > 0:
-            removed_content = original_content[len(filtered_content):]  # 简单估算移除的内容
-            logger.info(f"   移除内容: {removed_content[:100]}{'...' if len(removed_content) > 100 else ''}")
-        
+
         # 更新过滤后的内容
         content_changed = removed_length > 0
         if content_changed:
@@ -117,9 +112,7 @@ async def filter_message_content(
                 'updated_at': get_current_time().isoformat()
             }
             success = redis_manager.update_message(channel_id, int(msg_id), update_data)
-            if success:
-                logger.info(f"✂️ 内容过滤完成: 移除 {removed_length} 字符")
-            else:
+            if not success:
                 logger.error(f"❌ Redis更新失败: {channel_id}:{msg_id}")
         
         return {
