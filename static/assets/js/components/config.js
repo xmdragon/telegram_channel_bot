@@ -42,6 +42,7 @@ const ConfigApp = {
                 'duplicate_detection.content_threshold': '0.85',
                 'duplicate_detection.simhash_threshold': '3',
                 'duplicate_detection.auto_adjust': true,
+                'duplicate_detection.ttl_hours': '24',
                 // Telegram API 配置
                 'telegram.api_id': '',
                 'telegram.api_hash': '',
@@ -55,7 +56,7 @@ const ConfigApp = {
                 'target.require_approval': true,
                 'target.auto_reject_ads': false,
                 'target.auto_forward_enabled': false,
-                'target.auto_forward_delay': '1800',
+                'target.auto_forward_delay': '300',
                 // 转发设置
                 'target.channel_link': '',
                 'target.channel_id': '',
@@ -96,6 +97,7 @@ const ConfigApp = {
                 'duplicate_detection.content_threshold': 'float',
                 'duplicate_detection.simhash_threshold': 'integer',
                 'duplicate_detection.auto_adjust': 'boolean',
+                'duplicate_detection.ttl_hours': 'integer',
                 'telegram.api_id': 'string',
                 'telegram.api_hash': 'string',
                 'filter.enabled': 'boolean',
@@ -230,9 +232,8 @@ const ConfigApp = {
                     
                     // 使用类型转换加载所有配置
                     for (const [key, value] of Object.entries(serverConfigs)) {
-                        if (this.configs.hasOwnProperty(key)) {
-                            this.configs[key] = this.convertConfigValue(key, value);
-                        }
+                        // 直接加载所有配置，不限制必须预定义
+                        this.configs[key] = this.convertConfigValue(key, value);
                     }
                 }
             } catch (error) {
