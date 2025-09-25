@@ -81,7 +81,7 @@ class TailFilter:
                 self._build_optimized_patterns(valid_rules)
                 self._rule_keywords = keywords
                 self.initialized = True
-                logger.info(f"优化加载了 {len(valid_rules)} 条尾部规则，提取了 {len(keywords)} 个关键词")
+                logger.debug(f"优化加载了 {len(valid_rules)} 条尾部规则，提取了 {len(keywords)} 个关键词")
             else:
                 logger.warning("没有有效的尾部过滤规则")
 

@@ -77,8 +77,7 @@ class SeparatorFilter:
             self.pattern_descriptions = descriptions
             self.initialized = True
             
-            logger.info(f"✅ 分隔符过滤器初始化成功")
-            logger.info(f"   加载了 {len(self.regex_patterns)} 个分隔符模式")
+            logger.debug(f"分隔符过滤器初始化成功，加载了 {len(self.regex_patterns)} 个分隔符模式")
             
         except Exception as e:
             logger.error(f"加载分隔符配置失败: {e}")

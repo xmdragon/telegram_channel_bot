@@ -68,8 +68,6 @@ class ContentProcessor:
         self._separator_filter = None
         self._ad_detector = None
 
-        logger.info("ContentProcessor初始化完成（延迟加载架构）")
-
     @property
     def tail_filter(self):
         """延迟初始化尾部过滤器"""
