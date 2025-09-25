@@ -173,5 +173,54 @@
     "description": "Telegram消息最大字符长度限制（VIP用户）",
     "is_active": true,
     "created_at": "2025-09-19T12:00:00.000000"
+  },
+  "duplicate_detection.enabled": {
+    "value": "true",
+    "config_type": "boolean",
+    "description": "启用去重检测",
+    "is_active": true,
+    "created_at": "2025-09-25T12:00:00.000000"
+  },
+  "duplicate_detection.content_threshold": {
+    "value": "0.86",
+    "config_type": "float",
+    "description": "文本相似度阈值（0-1）",
+    "is_active": true,
+    "created_at": "2025-09-25T12:00:00.000000"
+  },
+  "duplicate_detection.suspected_threshold": {
+    "value": "0.82",
+    "config_type": "float",
+    "description": "疑似重复相似度阈值（0-1）",
+    "is_active": true,
+    "created_at": "2025-09-25T12:00:00.000000"
+  },
+  "duplicate_detection.confirmed_threshold": {
+    "value": "0.95",
+    "config_type": "float",
+    "description": "确认重复相似度阈值（0-1）",
+    "is_active": true,
+    "created_at": "2025-09-25T12:00:00.000000"
+  },
+  "duplicate_detection.simhash_threshold": {
+    "value": "4",
+    "config_type": "integer",
+    "description": "SimHash海明距离阈值",
+    "is_active": true,
+    "created_at": "2025-09-25T12:00:00.000000"
+  },
+  "duplicate_detection.media_threshold": {
+    "value": "0.90",
+    "config_type": "float",
+    "description": "媒体相似度阈值（0-1）",
+    "is_active": true,
+    "created_at": "2025-09-25T12:00:00.000000"
+  },
+  "duplicate_detection.retention_days": {
+    "value": "30",
+    "config_type": "integer",
+    "description": "去重数据保留天数",
+    "is_active": true,
+    "created_at": "2025-09-25T12:00:00.000000"
   }
 }

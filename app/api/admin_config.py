@@ -98,8 +98,12 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
 
         # 去重检测配置
         "duplicate_detection.enabled": await config_manager.get_config('duplicate_detection.enabled', True),
-        "duplicate_detection.content_threshold": await config_manager.get_config('duplicate_detection.content_threshold', 0.85),
-        "duplicate_detection.simhash_threshold": await config_manager.get_config('duplicate_detection.simhash_threshold', 3),
+        "duplicate_detection.content_threshold": await config_manager.get_config('duplicate_detection.content_threshold', 0.86),
+        "duplicate_detection.suspected_threshold": await config_manager.get_config('duplicate_detection.suspected_threshold', 0.82),
+        "duplicate_detection.confirmed_threshold": await config_manager.get_config('duplicate_detection.confirmed_threshold', 0.95),
+        "duplicate_detection.simhash_threshold": await config_manager.get_config('duplicate_detection.simhash_threshold', 4),
+        "duplicate_detection.media_threshold": await config_manager.get_config('duplicate_detection.media_threshold', 0.90),
+        "duplicate_detection.retention_days": await config_manager.get_config('duplicate_detection.retention_days', 30),
         "duplicate_detection.auto_adjust": await config_manager.get_config('duplicate_detection.auto_adjust', True),
         "duplicate_detection.ttl_hours": await config_manager.get_config('duplicate_detection.ttl_hours', 24),
 

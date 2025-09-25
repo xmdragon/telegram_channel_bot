@@ -250,18 +250,32 @@ class ContentProcessor:
                         message.similarity_score = score
                         message.duplicate_reason = duplicate_result.detection_reason
 
-                        # 95%以上直接拒绝
-                        if score >= 0.95:
+                        # 获取配置的阈值
+                        try:
+                            from app.services.config_manager import config_manager as cm
+                            confirmed_threshold = float(await cm.get_config('duplicate_detection.confirmed_threshold', '0.95'))
+                            suspected_threshold = float(await cm.get_config('duplicate_detection.suspected_threshold', '0.82'))
+                        except:
+                            # 使用默认值作为fallback
+                            confirmed_threshold = 0.95
+                            suspected_threshold = 0.82
+
+                        # 根据配置的阈值判断重复状态
+                        if score >= confirmed_threshold:
                             message.duplicate_status = 'confirmed'
                             message.status = 'rejected'
                             message.reject_reason = f"重复消息(相似度:{score:.1%})"
                             logger.info(f"🔁 拒绝重复消息: {full_message_id} -> {duplicate_result.original_message_id} (相似度: {score:.1%})")
                             filter_reasons.append(f"去重检测: 重复消息({score:.1%})")
-                        else:
-                            # 92-95%标记为疑似
+                        elif score >= suspected_threshold:
+                            # 疑似重复范围
                             message.duplicate_status = 'suspected'
                             logger.info(f"🔍 疑似重复消息: {full_message_id} -> {duplicate_result.original_message_id} (相似度: {score:.1%})")
                             filter_reasons.append(f"去重检测: 疑似重复({score:.1%})")
+                        else:
+                            # 相似度过低，标记为无重复
+                            message.duplicate_status = 'none'
+                            message.similarity_score = 0.0
                     else:
                         message.duplicate_status = 'none'
                         message.similarity_score = 0.0

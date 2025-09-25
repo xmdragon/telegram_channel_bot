@@ -165,9 +165,77 @@
                                         v-model="configs['duplicate_detection.simhash_threshold']"
                                         min="1"
                                         max="64"
-                                        placeholder="3">
+                                        placeholder="4">
                                     <div class="form-hint">
-                                        SimHash 汉明距离阈值，值越小要求越严格（推荐值: 3）
+                                        SimHash 汉明距离阈值，值越小要求越严格（推荐值: 4）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">疑似重复阈值</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model="configs['duplicate_detection.suspected_threshold']"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        placeholder="0.82">
+                                    <div class="form-hint">
+                                        相似度达到此阈值标记为疑似重复，需人工确认（推荐值: 0.82）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">确认重复阈值</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model="configs['duplicate_detection.confirmed_threshold']"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        placeholder="0.95">
+                                    <div class="form-hint">
+                                        相似度达到此阈值直接拒绝为重复消息（推荐值: 0.95）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">媒体相似度阈值</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model="configs['duplicate_detection.media_threshold']"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        placeholder="0.90">
+                                    <div class="form-hint">
+                                        媒体文件（图片/视频）相似度阈值（推荐值: 0.90）
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">数据保留天数</label>
+                                <div class="input-line">
+                                    <input
+                                        class="form-input number-input"
+                                        type="number"
+                                        v-model="configs['duplicate_detection.retention_days']"
+                                        min="1"
+                                        max="365"
+                                        placeholder="30">
+                                    <span style="margin-left: 10px; color: #666;">天</span>
+                                    <div class="form-hint">
+                                        去重检测数据保留天数，超期自动清理（推荐值: 30天）
                                     </div>
                                 </div>
                             </div>

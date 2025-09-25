@@ -39,8 +39,12 @@ const ConfigApp = {
 
                 // 去重检测
                 'duplicate_detection.enabled': true,
-                'duplicate_detection.content_threshold': '0.85',
-                'duplicate_detection.simhash_threshold': '3',
+                'duplicate_detection.content_threshold': '0.86',
+                'duplicate_detection.suspected_threshold': '0.82',
+                'duplicate_detection.confirmed_threshold': '0.95',
+                'duplicate_detection.simhash_threshold': '4',
+                'duplicate_detection.media_threshold': '0.90',
+                'duplicate_detection.retention_days': '30',
                 'duplicate_detection.auto_adjust': true,
                 'duplicate_detection.ttl_hours': '24',
                 // Telegram API 配置
@@ -95,7 +99,11 @@ const ConfigApp = {
                 // 去重检测
                 'duplicate_detection.enabled': 'boolean',
                 'duplicate_detection.content_threshold': 'float',
+                'duplicate_detection.suspected_threshold': 'float',
+                'duplicate_detection.confirmed_threshold': 'float',
                 'duplicate_detection.simhash_threshold': 'integer',
+                'duplicate_detection.media_threshold': 'float',
+                'duplicate_detection.retention_days': 'integer',
                 'duplicate_detection.auto_adjust': 'boolean',
                 'duplicate_detection.ttl_hours': 'integer',
                 'telegram.api_id': 'string',

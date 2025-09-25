@@ -9,6 +9,7 @@ from typing import List, Optional, Dict, Any
 from pathlib import Path
 from app.storage.redis_manager import redis_manager
 from app.utils.timezone import get_current_time
+from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
 
@@ -678,33 +679,28 @@ class MessageProcessor:
 
             # Step 2: 如果文本未检测到重复，进行媒体去重
             if not duplicate_found:
-                media_paths = await self._extract_media_paths(message_data)
+                media_entries = await self._extract_media_paths(message_data)
 
-                if media_paths:
-                    logger.debug(f"执行媒体去重检测: {full_message_id}, 媒体数: {len(media_paths)}")
+                if media_entries:
+                    logger.debug(f"执行媒体去重检测: {full_message_id}, 媒体数: {len(media_entries)}")
                     from app.services.media_duplicate_detector import media_duplicate_detector
 
-                    # 对组消息：任一媒体重复则整组重复
-                    for idx, media_path in enumerate(media_paths):
-                        # 提取媒体文件大小（如果有）
-                        file_size = None
-                        if message_data.get('media_info') and isinstance(message_data['media_info'], dict):
-                            file_size = message_data['media_info'].get('file_size')
-                        elif message_data.get('messages') and idx < len(message_data['messages']):
-                            # 对于组消息，从对应的子消息中获取
-                            sub_msg = message_data['messages'][idx]
-                            if sub_msg.get('media_info') and isinstance(sub_msg['media_info'], dict):
-                                file_size = sub_msg['media_info'].get('file_size')
+                    for idx, media_entry in enumerate(media_entries):
+                        media_path = media_entry['path']
+                        file_size = media_entry.get('file_size')
+                        media_source = media_entry.get('source', f'media[{idx}]')
 
                         media_result = await media_duplicate_detector.detect_duplicate(
-                            media_path, f"{full_message_id}:media{idx}", file_size
+                            media_path,
+                            f"{full_message_id}:media{idx}",
+                            file_size
                         )
 
                         if media_result.is_duplicate:
                             logger.info(
                                 f"🖼️ 媒体重复: {full_message_id} "
                                 f"-> {media_result.original_message_id} "
-                                f"(相似度: {media_result.similarity_score:.3f})"
+                                f"(相似度: {media_result.similarity_score:.3f}, 来源: {media_source})"
                             )
                             duplicate_found = True
                             duplicate_result = media_result
@@ -740,93 +736,218 @@ class MessageProcessor:
             message_data['similarity_score'] = 0.0
             message_data['duplicate_reason'] = f"detection_error: {str(e)[:100]}"
 
-    async def _extract_media_paths(self, message_data: Dict) -> List[str]:
+    async def _extract_media_paths(self, message_data: Dict) -> List[Dict[str, Any]]:
         """
-        提取消息的所有媒体路径
-        支持单消息和组消息
+        提取消息关联的媒体文件信息
 
         Args:
             message_data: 消息数据
 
         Returns:
-            媒体文件路径列表
+            包含本地路径与元数据的媒体列表
         """
-        media_paths = []
+        media_entries: List[Dict[str, Any]] = []
+        seen_paths: set[str] = set()
 
         try:
-            # 检查是否是组消息
-            if message_data.get('is_grouped') and message_data.get('messages'):
-                # 组消息：提取所有子消息的媒体
-                messages = message_data.get('messages', [])
-                for msg in messages:
-                    path = await self._get_single_media_path(msg)
-                    if path:
-                        media_paths.append(path)
-            else:
-                # 单消息
-                path = await self._get_single_media_path(message_data)
-                if path:
-                    media_paths.append(path)
+            for candidate in self._iter_media_candidates(message_data):
+                entry = self._resolve_media_entry(candidate)
+                if not entry:
+                    continue
+
+                path_key = entry['path']
+                if path_key in seen_paths:
+                    continue
+
+                seen_paths.add(path_key)
+                media_entries.append(entry)
 
         except Exception as e:
             logger.error(f"提取媒体路径失败: {e}")
 
-        return media_paths
+        return media_entries
 
-    async def _get_single_media_path(self, msg_data: Dict) -> Optional[str]:
-        """
-        获取单个消息的媒体路径
+    def _iter_media_candidates(self, message_data: Dict) -> List[Dict[str, Any]]:
+        candidates: List[Dict[str, Any]] = []
 
-        Args:
-            msg_data: 单个消息数据
+        def push(info: Optional[Dict[str, Any]], source: str, fallback: Optional[Dict[str, Any]] = None):
+            if info and isinstance(info, dict):
+                candidates.append({
+                    'info': info,
+                    'source': source,
+                    'fallback': fallback or {}
+                })
 
-        Returns:
-            媒体文件路径，如果没有则返回None
-        """
-        try:
-            # 优先使用已下载的路径
-            if msg_data.get('media_path'):
-                path = msg_data['media_path']
-                if Path(path).exists():
-                    return path
+        push(message_data.get('media_info'), 'message.media_info', message_data)
 
-            # 从media_info获取
-            media_info = msg_data.get('media_info', {})
+        if isinstance(message_data.get('media_path'), str):
+            push({
+                'file_path': message_data.get('media_path'),
+                'file_size': message_data.get('media_size'),
+                'media_type': message_data.get('media_type'),
+                'message_id': message_data.get('message_id')
+            }, 'message.media_path', message_data)
 
-            # 检查文件路径
-            if media_info.get('file_path'):
-                path = media_info['file_path']
-                if Path(path).exists():
-                    return path
+        if isinstance(message_data.get('media_group'), list):
+            for idx, item in enumerate(message_data['media_group']):
+                if isinstance(item, dict):
+                    push(item, f'media_group[{idx}]', item)
 
-            # 视频使用缩略图
-            if media_info.get('thumbnail_path'):
-                path = media_info['thumbnail_path']
-                if Path(path).exists():
-                    return path
+        if isinstance(message_data.get('media_group_display'), list):
+            for idx, item in enumerate(message_data['media_group_display']):
+                if isinstance(item, dict):
+                    push(item, f'media_group_display[{idx}]', item)
 
-            # 如果有媒体但没有下载，尝试下载
-            if media_info.get('has_media') or media_info.get('media_id'):
-                # 检查是否有原始消息对象
-                telegram_message = msg_data.get('telegram_message')
-                if not telegram_message:
-                    logger.debug("没有原始消息对象，无法下载媒体")
-                    return None
+        if isinstance(message_data.get('combined_messages'), list):
+            for idx, msg in enumerate(message_data['combined_messages']):
+                if not isinstance(msg, dict):
+                    continue
+                push(msg.get('media_info'), f'combined_messages[{idx}].media_info', msg)
+                if isinstance(msg.get('media_path'), str):
+                    push({
+                        'file_path': msg.get('media_path'),
+                        'file_size': msg.get('media_info', {}).get('file_size') if isinstance(msg.get('media_info'), dict) else None,
+                        'media_type': msg.get('media_info', {}).get('media_type') if isinstance(msg.get('media_info'), dict) else None,
+                        'message_id': msg.get('message_id')
+                    }, f'combined_messages[{idx}].media_path', msg)
 
-                try:
-                    from app.services.media_handler import media_handler
+        if isinstance(message_data.get('messages'), list):
+            for idx, sub_msg in enumerate(message_data['messages']):
+                if not isinstance(sub_msg, dict):
+                    continue
+                push(sub_msg.get('media_info'), f'messages[{idx}].media_info', sub_msg)
+                if isinstance(sub_msg.get('media_path'), str):
+                    push({
+                        'file_path': sub_msg.get('media_path'),
+                        'file_size': sub_msg.get('media_info', {}).get('file_size') if isinstance(sub_msg.get('media_info'), dict) else None,
+                        'media_type': sub_msg.get('media_info', {}).get('media_type') if isinstance(sub_msg.get('media_info'), dict) else None,
+                        'message_id': sub_msg.get('message_id')
+                    }, f'messages[{idx}].media_path', sub_msg)
+                if isinstance(sub_msg.get('media_group'), list):
+                    for jdx, item in enumerate(sub_msg['media_group']):
+                        if isinstance(item, dict):
+                            push(item, f'messages[{idx}].media_group[{jdx}]', item)
 
-                    # 注意：media_handler.download_media 需要 TelegramClient 作为第一个参数
-                    # 这里暂时返回None，避免下载整个媒体文件
-                    # TODO: 实现缩略图提取功能
-                    logger.debug(f"媒体文件未下载，暂不支持动态下载: {msg_data.get('message_id')}")
-                    return None
+        return candidates
 
-                except Exception as e:
-                    logger.warning(f"下载媒体失败: {e}")
+    def _resolve_media_entry(self, candidate: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        info = candidate.get('info') or {}
+        if not isinstance(info, dict):
+            return None
 
-        except Exception as e:
-            logger.error(f"获取单个媒体路径失败: {e}")
+        if info.get('download_failed'):
+            return None
+
+        fallback = candidate.get('fallback') or {}
+        message_id = info.get('message_id') or fallback.get('message_id')
+
+        selected_path = self._select_media_path(info)
+        if not selected_path:
+            selected_path = self._select_media_path(fallback)
+
+        if selected_path:
+            path_obj = Path(selected_path)
+        else:
+            path_obj = None
+
+        if not path_obj or not path_obj.exists():
+            fallback_path = self._fallback_search_media_file(info, message_id)
+            if not fallback_path:
+                fallback_path = self._fallback_search_media_file(fallback, message_id)
+            if not fallback_path:
+                return None
+            path_obj = Path(fallback_path)
+
+        if not path_obj.exists():
+            return None
+
+        file_size = info.get('file_size')
+        if file_size is None:
+            file_size = fallback.get('file_size')
+        if file_size is None:
+            try:
+                file_size = path_obj.stat().st_size
+            except OSError:
+                file_size = None
+
+        return {
+            'path': str(path_obj.resolve()),
+            'file_size': file_size,
+            'media_type': info.get('media_type') or fallback.get('media_type'),
+            'message_id': message_id,
+            'source': candidate.get('source')
+        }
+
+    def _select_media_path(self, container: Dict[str, Any]) -> Optional[str]:
+        if not container:
+            return None
+
+        path_fields = [
+            'file_path',
+            'media_path',
+            'local_path',
+            'path',
+            'thumbnail_path',
+            'preview_path'
+        ]
+
+        for field in path_fields:
+            value = container.get(field)
+            normalized = self._normalize_media_path(value)
+            if normalized:
+                return normalized
+
+        return None
+
+    def _normalize_media_path(self, raw_path: Optional[str]) -> Optional[str]:
+        if not raw_path or not isinstance(raw_path, str):
+            return None
+
+        path_str = raw_path.strip()
+        if not path_str:
+            return None
+
+        lowered = path_str.lower()
+        if lowered.startswith('http://') or lowered.startswith('https://') or lowered.startswith('tg://'):
+            return None
+
+        if path_str.startswith('/temp_media/'):
+            return str((PathConfig.ROOT_DIR / path_str.lstrip('/')).resolve())
+
+        if path_str.startswith('./temp_media/'):
+            return str((PathConfig.ROOT_DIR / path_str.lstrip('./')).resolve())
+
+        if path_str.startswith('temp_media/'):
+            return str((PathConfig.ROOT_DIR / path_str).resolve())
+
+        path_obj = Path(path_str)
+        if path_obj.is_absolute():
+            return str(path_obj)
+
+        return str((PathConfig.ROOT_DIR / path_str).resolve())
+
+    def _fallback_search_media_file(self, info: Dict[str, Any], message_id: Optional[Any]) -> Optional[str]:
+        if not info:
+            info = {}
+
+        potential_paths: List[Path] = []
+
+        file_name = info.get('file_name')
+        if isinstance(file_name, str) and file_name:
+            potential_paths.append(PathConfig.TEMP_MEDIA_DIR / file_name)
+
+        if message_id:
+            pattern = f"{message_id}_*"
+            matches = sorted(PathConfig.TEMP_MEDIA_DIR.glob(pattern))
+            if matches:
+                potential_paths.extend(matches)
+
+        for candidate in potential_paths:
+            try:
+                if candidate.exists():
+                    return str(candidate.resolve())
+            except OSError:
+                continue
 
         return None
 
