@@ -127,88 +127,57 @@ class SeparatorFilter:
         matched_patterns = []
         matched_rules_detail = [] if return_matched_rules else None
 
-        # 对每个正则模式进行处理 - 简化：直接应用规则
+        # 对每个正则模式进行处理 - 统一作为尾部过滤的兜底机制
         for pattern_idx, pattern in enumerate(self.regex_patterns):
             pattern_str = pattern.pattern
 
-            # 简单判断：如果规则包含[\s\S]*，说明要删除匹配点之后的所有内容
-            if r'[\s\S]*' in pattern_str:
-                # 查找匹配
-                match = pattern.search(filtered_content)
-                if match:
-                    # 删除匹配位置及之后的所有内容
-                    removed_content = filtered_content[match.start():]
-                    filtered_content = filtered_content[:match.start()]
+            # 确保所有规则都删除匹配点之后的内容
+            # 如果规则没有[\s\S]*，自动添加
+            if not pattern_str.endswith(r'[\s\S]*'):
+                # 重新编译，添加[\s\S]*使其删除匹配点之后的所有内容
+                try:
+                    pattern = re.compile(pattern_str + r'[\s\S]*', pattern.flags)
+                except re.error:
+                    # 如果添加失败，使用原始模式
+                    pass
 
-                    # 记录删除信息
-                    preview = removed_content[:100] + '...' if len(removed_content) > 100 else removed_content
-                    block_info = {
-                        'content_preview': preview,
-                        'content_length': len(removed_content),
-                        'matched_pattern': self.pattern_descriptions[pattern_idx],
-                        'regex': pattern.pattern
-                    }
-                    removed_blocks.append(block_info)
-                    matched_patterns.append(self.pattern_descriptions[pattern_idx])
+            # 查找匹配
+            match = pattern.search(filtered_content)
+            if match:
+                # 删除匹配位置及之后的所有内容
+                removed_content = filtered_content[match.start():]
+                filtered_content = filtered_content[:match.start()]
 
-                    # 记录详细的匹配规则信息
-                    if return_matched_rules:
-                        # 计算匹配位置的行号
-                        lines_before = content[:match.start()].count('\n') + 1
-                        matched_rules_detail.append({
-                            'rule_index': pattern_idx,
-                            'rule_pattern': pattern.pattern,
-                            'rule_description': self.pattern_descriptions[pattern_idx],
-                            'match_start_position': match.start(),
-                            'match_line_number': lines_before,
-                            'matched_text': match.group(0)[:100] + '...' if len(match.group(0)) > 100 else match.group(0),
-                            'removed_chars': len(removed_content),
-                            'match_type': 'delete_after'
-                        })
+                # 记录删除信息
+                preview = removed_content[:100] + '...' if len(removed_content) > 100 else removed_content
+                block_info = {
+                    'content_preview': preview,
+                    'content_length': len(removed_content),
+                    'matched_pattern': self.pattern_descriptions[pattern_idx],
+                    'regex': self.regex_patterns[pattern_idx].pattern  # 使用原始规则
+                }
+                removed_blocks.append(block_info)
+                matched_patterns.append(self.pattern_descriptions[pattern_idx])
 
-                    logger.debug(f"模式 '{self.pattern_descriptions[pattern_idx]}' 删除了 {len(removed_content)} 字符")
+                # 记录详细的匹配规则信息
+                if return_matched_rules:
+                    # 计算匹配位置的行号
+                    lines_before = content[:match.start()].count('\n') + 1
+                    matched_rules_detail.append({
+                        'rule_index': pattern_idx,
+                        'rule_pattern': self.regex_patterns[pattern_idx].pattern,  # 使用原始规则
+                        'rule_description': self.pattern_descriptions[pattern_idx],
+                        'match_start_position': match.start(),
+                        'match_line_number': lines_before,
+                        'matched_text': match.group(0)[:100] + '...' if len(match.group(0)) > 100 else match.group(0),
+                        'removed_chars': len(removed_content),
+                        'match_type': 'delete_after'
+                    })
 
-                    # 找到一个匹配就跳出，避免重复处理
-                    break
-            else:
-                # 普通规则：按行删除匹配的行
-                lines = filtered_content.split('\n')
-                filtered_lines = []
-                removed_lines = []
-                removed_line_numbers = []
+                logger.debug(f"模式 '{self.pattern_descriptions[pattern_idx]}' 删除了 {len(removed_content)} 字符")
 
-                for line_num, line in enumerate(lines, 1):
-                    if pattern.search(line):
-                        # 记录被删除的行
-                        preview = line[:100] + '...' if len(line) > 100 else line
-                        removed_lines.append(line)
-                        removed_line_numbers.append(line_num)
-                        removed_blocks.append({
-                            'content_preview': preview,
-                            'content_length': len(line),
-                            'matched_pattern': self.pattern_descriptions[pattern_idx],
-                            'regex': pattern.pattern
-                        })
-                    else:
-                        filtered_lines.append(line)
-
-                if removed_lines:
-                    filtered_content = '\n'.join(filtered_lines)
-                    matched_patterns.append(self.pattern_descriptions[pattern_idx])
-                    logger.debug(f"模式 '{self.pattern_descriptions[pattern_idx]}' 删除了 {len(removed_lines)} 行")
-
-                    # 记录详细的匹配规则信息
-                    if return_matched_rules:
-                        for i, (line, line_num) in enumerate(zip(removed_lines, removed_line_numbers)):
-                            matched_rules_detail.append({
-                                'rule_index': pattern_idx,
-                                'rule_pattern': pattern.pattern,
-                                'rule_description': self.pattern_descriptions[pattern_idx],
-                                'matched_line': line[:100] + '...' if len(line) > 100 else line,
-                                'match_line_number': line_num,
-                                'removed_chars': len(line),
-                                'match_type': 'line_by_line'
-                            })
+                # 找到一个匹配就跳出，避免重复处理
+                break
 
         # 清理多余的空行（连续3个或更多换行符替换为2个）
         filtered_content = re.sub(r'\n{3,}', '\n\n', filtered_content).strip()

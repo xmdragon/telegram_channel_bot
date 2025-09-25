@@ -879,7 +879,14 @@ const MainApp = {
                 
                 const response = await axios.post(window.API.messages.approveById(messageId));
                 if (response.data.success) {
-                    window.SimpleUI.Message.success('消息已发布');
+                    // 检查是否为异步模式
+                    if (response.data.mode === 'async') {
+                        window.SimpleUI.Message.info('媒体消息正在后台处理，请稍候...');
+                        // 异步模式下保持发布状态，等待WebSocket通知
+                        return;
+                    } else {
+                        // 同步模式，立即显示成功
+                        window.SimpleUI.Message.success('消息已发布');
                     
                     // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
                     if (this.filters.status === 'pending') {
@@ -1568,6 +1575,15 @@ const MainApp = {
                     case 'forward_success':
                         this.handleForwardSuccess(data.data);
                         break;
+                    case 'publish_started':
+                        this.handlePublishStarted(data.data);
+                        break;
+                    case 'publish_success':
+                        this.handlePublishSuccess(data.data);
+                        break;
+                    case 'publish_failed':
+                        this.handlePublishFailed(data.data);
+                        break;
                     case 'forward_retry':
                         this.handleForwardRetry(data.data);
                         break;
@@ -1682,7 +1698,7 @@ const MainApp = {
 
         // 处理转发最终失败
         handleForwardFinalFailure(data) {
-            const messageIndex = this.messages.findIndex(msg => 
+            const messageIndex = this.messages.findIndex(msg =>
                 msg.id === data.message_id || msg.message_id === data.message_id
             );
             if (messageIndex !== -1) {
@@ -1690,6 +1706,79 @@ const MainApp = {
                 this.messages[messageIndex].status = 'pending';
                 // 显示失败通知
                 window.SimpleUI.Message.error(`消息 ${data.message_id} 发布失败，已退回待审核状态。错误：${data.error || '未知错误'}`);
+            }
+        },
+
+        // 处理发布开始通知
+        handlePublishStarted(data) {
+            // 显示发布中提示
+            console.log('发布开始:', data.message_id);
+            // 保持消息的发布状态
+            const messageIndex = this.messages.findIndex(msg =>
+                msg.id === data.message_id || msg.message_id === data.message_id
+            );
+            if (messageIndex !== -1) {
+                // 可以添加视觉反馈，如显示加载动画
+                this.$forceUpdate();
+            }
+        },
+
+        // 处理发布成功通知
+        handlePublishSuccess(data) {
+            const messageId = data.message_id;
+            console.log('发布成功:', messageId);
+
+            // 从正在发布集合中移除
+            this.publishingMessages.delete(messageId);
+
+            // 显示成功提示
+            window.SimpleUI.Message.success(`消息 ${messageId} 发布成功`);
+
+            // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
+            if (this.filters.status === 'pending') {
+                const normalizedMessageId = messageId.startsWith('-100') ? messageId.substring(4) : messageId;
+                const index = this.messages.findIndex(msg => {
+                    const msgId = msg.id || `${msg.source_channel}:${msg.message_id}`;
+                    const normalizedMsgId = msgId.startsWith('-100') ? msgId.substring(4) : msgId;
+                    return normalizedMsgId === normalizedMessageId;
+                });
+
+                if (index !== -1) {
+                    this.messages.splice(index, 1);
+                }
+            } else {
+                // 其他状态下，更新消息状态为已发布
+                const messageIndex = this.messages.findIndex(msg =>
+                    msg.id === messageId || msg.message_id === messageId
+                );
+                if (messageIndex !== -1) {
+                    this.messages[messageIndex].status = 'approved';
+                }
+            }
+
+            // 刷新统计信息
+            this.refreshStats();
+        },
+
+        // 处理发布失败通知
+        handlePublishFailed(data) {
+            const messageId = data.message_id;
+            const error = data.error || '未知错误';
+            console.error('发布失败:', messageId, error);
+
+            // 从正在发布集合中移除
+            this.publishingMessages.delete(messageId);
+
+            // 显示失败提示
+            window.SimpleUI.Message.error(`消息 ${messageId} 发布失败: ${error}`);
+
+            // 恢复消息状态为待审核
+            const messageIndex = this.messages.findIndex(msg =>
+                msg.id === messageId || msg.message_id === messageId
+            );
+            if (messageIndex !== -1) {
+                this.messages[messageIndex].status = 'pending';
+                this.$forceUpdate();
             }
         },
 

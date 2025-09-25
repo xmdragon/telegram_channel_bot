@@ -32,23 +32,36 @@ async def test_separator_filter(request: SeparatorTestRequest) -> SeparatorTestR
     """测试分隔符过滤效果"""
     try:
         if request.pattern:
-            # 测试单个正则模式
+            # 测试单个正则模式 - 使用与实际过滤器相同的逻辑
             try:
                 # 使用与后端相同的标志
+                pattern_str = request.pattern
+                # 确保规则删除匹配点之后的内容（与SeparatorFilter逻辑一致）
+                if not pattern_str.endswith(r'[\s\S]*'):
+                    pattern_str = pattern_str + r'[\s\S]*'
+
                 pattern = re.compile(
-                    request.pattern,
+                    pattern_str,
                     re.IGNORECASE | re.MULTILINE | re.DOTALL
                 )
-                matches = list(pattern.finditer(request.content))
-                filtered = pattern.sub('', request.content).strip()
+
+                # 找到第一个匹配
+                match = pattern.search(request.content)
+                if match:
+                    # 删除匹配位置及之后的所有内容
+                    filtered = request.content[:match.start()].strip()
+                    matches = [{
+                        "text": match.group(),
+                        "index": match.start(),
+                        "length": len(match.group())
+                    }]
+                else:
+                    filtered = request.content
+                    matches = []
 
                 return SeparatorTestResponse(
                     success=True,
-                    matches=[{
-                        "text": m.group(),
-                        "index": m.start(),
-                        "length": len(m.group())
-                    } for m in matches],
+                    matches=matches,
                     filtered_content=filtered,
                     original_length=len(request.content),
                     filtered_length=len(filtered)
