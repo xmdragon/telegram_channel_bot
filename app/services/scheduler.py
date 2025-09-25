@@ -241,24 +241,64 @@ class MessageScheduler:
         except Exception as e:
             logger.error(f"清理日志文件失败: {e}")
 
+    async def get_earliest_pending_message_time(self):
+        """获取最早待审核消息的创建时间"""
+        try:
+            from datetime import datetime
+
+            # 获取所有待审核消息
+            pending_messages = redis_manager.get_messages_by_status('pending', limit=1000)
+
+            if not pending_messages:
+                return None
+
+            # 找出最早的创建时间
+            earliest_time = None
+            for msg in pending_messages:
+                created_at = msg.get('created_at')
+                if created_at:
+                    try:
+                        # 解析时间
+                        msg_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        if earliest_time is None or msg_time < earliest_time:
+                            earliest_time = msg_time
+                    except Exception:
+                        continue
+
+            return earliest_time
+
+        except Exception as e:
+            logger.error(f"获取最早待审核消息时间失败: {e}")
+            return None
+
     async def cleanup_orphan_media_files(self):
-        """独立清理超时的孤儿媒体文件 - 不依赖Redis消息记录"""
+        """独立清理超时的孤儿媒体文件 - 基于最早待审核消息时间的智能清理"""
         try:
             from datetime import datetime, timedelta
             from app.services.config_manager import config_manager
             from app.core.path_config import PathConfig
 
-            logger.debug(f"⏰ [媒体清理] 开始执行独立媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.debug(f"⏰ [媒体清理] 开始执行智能媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-            # 使用同一个配置值
-            cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)
-            cleanup_interval_hours = int(cleanup_interval_hours)
+            # 获取最早待审核消息的创建时间
+            earliest_pending_time = await self.get_earliest_pending_message_time()
 
-            logger.debug(f"[媒体清理] 使用配置的清理间隔: {cleanup_interval_hours}小时")
+            # 根据是否有待审核消息决定清理策略
+            if earliest_pending_time:
+                # 有待审核消息：使用最早待审核时间减10分钟作为清理界限
+                cutoff_time = earliest_pending_time - timedelta(minutes=10)
+                logger.info(f"[媒体清理] 基于最早待审核消息时间 {earliest_pending_time.strftime('%Y-%m-%d %H:%M:%S')} 清理")
+                cleanup_strategy = "pending_based"
+            else:
+                # 没有待审核消息：使用配置的清理间隔
+                cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)
+                cleanup_interval_hours = int(cleanup_interval_hours)
+                current_time = datetime.now()
+                cutoff_time = current_time - timedelta(hours=cleanup_interval_hours)
+                logger.info(f"[媒体清理] 无待审核消息，使用配置间隔 {cleanup_interval_hours}小时 清理")
+                cleanup_strategy = "config_based"
 
-            # 计算清理时间点
-            current_time = datetime.now()
-            cutoff_time = current_time - timedelta(hours=cleanup_interval_hours)
+            logger.debug(f"[媒体清理] 清理界限时间: {cutoff_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
             # 确保媒体目录存在
             if not PathConfig.TEMP_MEDIA_DIR.exists():
@@ -268,6 +308,7 @@ class MessageScheduler:
             deleted_count = 0
             deleted_size = 0
             skipped_count = 0
+            protected_count = 0  # 受保护的文件数量
 
             # 直接扫描temp_media目录
             for file_path in PathConfig.TEMP_MEDIA_DIR.iterdir():
@@ -275,21 +316,25 @@ class MessageScheduler:
                     try:
                         # 获取文件修改时间
                         file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                        file_size = file_path.stat().st_size
+                        file_name = file_path.name
 
                         # 如果文件超过清理时间，删除它
                         if file_mtime < cutoff_time:
-                            file_size = file_path.stat().st_size
-                            file_name = file_path.name
-
                             try:
                                 file_path.unlink()
                                 deleted_count += 1
                                 deleted_size += file_size
-                                logger.debug(f"[媒体清理] 删除过期文件: {file_name} (大小: {file_size} bytes)")
+                                logger.debug(f"[媒体清理] 删除孤立文件: {file_name} (修改时间: {file_mtime.strftime('%Y-%m-%d %H:%M:%S')}, 大小: {file_size} bytes)")
                             except Exception as e:
                                 logger.error(f"[媒体清理] 删除文件失败 {file_name}: {e}")
                         else:
-                            skipped_count += 1
+                            # 文件在清理界限之后，跳过
+                            if cleanup_strategy == "pending_based":
+                                protected_count += 1
+                                logger.debug(f"[媒体清理] 保护文件: {file_name} (可能属于待审核消息)")
+                            else:
+                                skipped_count += 1
 
                     except Exception as e:
                         logger.error(f"[媒体清理] 处理文件时出错 {file_path.name}: {e}")
@@ -304,10 +349,17 @@ class MessageScheduler:
             else:
                 size_str = f"{deleted_size} bytes"
 
+            # 生成详细的清理报告
             if deleted_count > 0:
-                logger.info(f"✅ [媒体清理] 完成 - 删除{deleted_count}个文件，释放{size_str}空间（保留{skipped_count}个新文件）")
+                if cleanup_strategy == "pending_based":
+                    logger.info(f"✅ [媒体清理] 智能清理完成 - 删除{deleted_count}个孤立文件，释放{size_str}空间（保护{protected_count}个可能属于待审核消息的文件）")
+                else:
+                    logger.info(f"✅ [媒体清理] 常规清理完成 - 删除{deleted_count}个过期文件，释放{size_str}空间（保留{skipped_count}个新文件）")
             else:
-                logger.debug(f"[媒体清理] 没有需要清理的文件（{skipped_count}个文件未到期）")
+                if cleanup_strategy == "pending_based":
+                    logger.debug(f"[媒体清理] 没有需要清理的孤立文件（{protected_count}个文件受保护）")
+                else:
+                    logger.debug(f"[媒体清理] 没有需要清理的文件（{skipped_count}个文件未到期）")
 
         except Exception as e:
             logger.error(f"❌ [媒体清理] 独立媒体文件清理失败: {e}")
