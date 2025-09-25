@@ -1733,28 +1733,42 @@ const MainApp = {
             this.publishingMessages.delete(messageId);
 
             // 显示成功提示
-            window.SimpleUI.Message.success(`消息 ${messageId} 发布成功`);
+            window.SimpleUI.Message.success(`消息发布成功`);
 
-            // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
-            if (this.filters.status === 'pending') {
-                const normalizedMessageId = messageId.startsWith('-100') ? messageId.substring(4) : messageId;
-                const index = this.messages.findIndex(msg => {
-                    const msgId = msg.id || `${msg.source_channel}:${msg.message_id}`;
-                    const normalizedMsgId = msgId.startsWith('-100') ? msgId.substring(4) : msgId;
-                    return normalizedMsgId === normalizedMessageId;
-                });
+            // 查找消息 - 使用更精确的匹配逻辑
+            const messageIndex = this.messages.findIndex(msg => {
+                // 尝试多种匹配方式
+                const msgId = msg.id || `${msg.source_channel}:${msg.message_id}`;
 
-                if (index !== -1) {
-                    this.messages.splice(index, 1);
+                // 直接匹配
+                if (msgId === messageId) return true;
+
+                // 如果消息ID是简单数字格式，尝试构造完整格式匹配
+                if (msg.source_channel && msg.message_id) {
+                    const fullId = `${msg.source_channel}:${msg.message_id}`;
+                    if (fullId === messageId) return true;
                 }
-            } else {
-                // 其他状态下，更新消息状态为已发布
-                const messageIndex = this.messages.findIndex(msg =>
-                    msg.id === messageId || msg.message_id === messageId
-                );
-                if (messageIndex !== -1) {
+
+                // 尝试只匹配消息ID部分（处理格式不一致的情况）
+                if (messageId.includes(':')) {
+                    const [channel, msgIdOnly] = messageId.split(':');
+                    if (msg.message_id == msgIdOnly && msg.source_channel == channel) return true;
+                }
+
+                return false;
+            });
+
+            if (messageIndex !== -1) {
+                // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
+                if (this.filters.status === 'pending') {
+                    this.messages.splice(messageIndex, 1);
+                    console.log('已从待审核列表移除消息:', messageId);
+                } else {
+                    // 其他状态下，更新消息状态为已发布
                     this.messages[messageIndex].status = 'approved';
                 }
+            } else {
+                console.warn('未找到要更新的消息:', messageId);
             }
 
             // 刷新统计信息
@@ -1764,22 +1778,44 @@ const MainApp = {
         // 处理发布失败通知
         handlePublishFailed(data) {
             const messageId = data.message_id;
-            const error = data.error || '未知错误';
+            const error = data.message || data.error || '未知错误';
             console.error('发布失败:', messageId, error);
 
             // 从正在发布集合中移除
             this.publishingMessages.delete(messageId);
 
             // 显示失败提示
-            window.SimpleUI.Message.error(`消息 ${messageId} 发布失败: ${error}`);
+            window.SimpleUI.Message.error(`发布失败: ${error}`);
 
-            // 恢复消息状态为待审核
-            const messageIndex = this.messages.findIndex(msg =>
-                msg.id === messageId || msg.message_id === messageId
-            );
+            // 查找消息 - 使用与handlePublishSuccess相同的匹配逻辑
+            const messageIndex = this.messages.findIndex(msg => {
+                const msgId = msg.id || `${msg.source_channel}:${msg.message_id}`;
+
+                // 直接匹配
+                if (msgId === messageId) return true;
+
+                // 构造完整格式匹配
+                if (msg.source_channel && msg.message_id) {
+                    const fullId = `${msg.source_channel}:${msg.message_id}`;
+                    if (fullId === messageId) return true;
+                }
+
+                // 匹配消息ID部分
+                if (messageId.includes(':')) {
+                    const [channel, msgIdOnly] = messageId.split(':');
+                    if (msg.message_id == msgIdOnly && msg.source_channel == channel) return true;
+                }
+
+                return false;
+            });
+
             if (messageIndex !== -1) {
+                // 恢复消息状态为待审核
                 this.messages[messageIndex].status = 'pending';
                 this.$forceUpdate();
+                console.log('消息状态已恢复为待审核:', messageId);
+            } else {
+                console.warn('未找到要恢复状态的消息:', messageId);
             }
         },
 
