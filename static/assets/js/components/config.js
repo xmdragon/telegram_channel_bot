@@ -248,17 +248,32 @@ const ConfigApp = {
                 let configData = {};
                 
                 if (keys === null) {
-                    // 保存所有配置
-                    configData = { ...this.configs };
+                    // 保存所有配置，但排除session
+                    for (const [key, value] of Object.entries(this.configs)) {
+                        // 跳过session配置
+                        if (key.includes('.listener_session') || key.includes('.sender_session')) {
+                            continue;
+                        }
+                        configData[key] = value;
+                    }
                 } else if (Array.isArray(keys)) {
                     // 保存指定的多个配置
                     keys.forEach(key => {
+                        // 跳过session配置
+                        if (key.includes('.listener_session') || key.includes('.sender_session')) {
+                            return;
+                        }
                         if (this.configs.hasOwnProperty(key)) {
                             configData[key] = this.configs[key];
                         }
                     });
                 } else if (typeof keys === 'string') {
                     // 保存单个配置
+                    // 跳过session配置
+                    if (keys.includes('.listener_session') || keys.includes('.sender_session')) {
+                        MessageManager.warning('Session配置不能通过前端修改');
+                        return;
+                    }
                     if (this.configs.hasOwnProperty(keys)) {
                         configData[keys] = this.configs[keys];
                     }
@@ -327,6 +342,10 @@ const ConfigApp = {
                 // 准备所有配置数据，进行类型转换
                 const configData = {};
                 for (const [key, value] of Object.entries(this.configs)) {
+                    // 跳过session配置，避免保存脱敏后的值
+                    if (key.includes('.listener_session') || key.includes('.sender_session')) {
+                        continue;
+                    }
                     configData[key] = this.convertConfigValue(key, value);
                 }
 
