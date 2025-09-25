@@ -887,7 +887,8 @@ const MainApp = {
                     } else {
                         // 同步模式，立即显示成功
                         window.SimpleUI.Message.success('消息已发布');
-                    
+                    }
+
                     // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
                     if (this.filters.status === 'pending') {
                         // 修复ID格式不匹配问题：移除-100前缀进行比较
