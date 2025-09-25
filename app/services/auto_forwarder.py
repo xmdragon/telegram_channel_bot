@@ -22,6 +22,41 @@ class AutoForwarder:
         self.is_running = False
         self.last_forward_time = None
 
+    def is_system_error(self, error_msg: str) -> bool:
+        """
+        判断是否为系统级错误（不应写入消息结构）
+
+        系统级错误包括：
+        - Session连接问题
+        - Telethon连接错误
+        - 网络连接问题
+        - 认证问题
+        """
+        if not error_msg:
+            return False
+
+        error_lower = str(error_msg).lower()
+
+        # 系统级错误关键词
+        system_keywords = [
+            'session',
+            '连接',
+            'connect',
+            'telethon',
+            '网络',
+            'network',
+            '认证',
+            'auth',
+            'client',
+            '无法连接',
+            '客户端',
+            'runtime',
+            '配置验证失败',
+            '格式无效'
+        ]
+
+        return any(keyword in error_lower for keyword in system_keywords)
+
     async def run_continuous(self):
         """持续运行的自动转发主循环"""
         self.is_running = True
@@ -91,14 +126,21 @@ class AutoForwarder:
                         else:
                             # 处理发送失败
                             error_type = result.get('error', 'unknown')
+                            error_msg = result.get('message', 'unknown error')
+
                             if error_type in ['ad_detected', 'content_too_long', 'empty_content']:
                                 # 这些错误不需要重试，标记为已处理
                                 await self.mark_message_processed(message_id, error_type)
                                 logger.info(f"消息被拒绝: {message_id} - {error_type}")
+                            elif self.is_system_error(error_msg):
+                                # 系统错误：不写入消息，只记录日志
+                                logger.error(f"自动转发遇到系统错误: {message_id} - {error_msg}")
+                                # 增加重试计数
+                                await self.increment_retry_count(message_id)
                             else:
-                                # 其他错误标记为失败，可能需要人工处理
-                                await self.mark_forward_failed(message_id, result.get('message', 'unknown error'))
-                                logger.error(f"自动转发失败: {message_id} - {result.get('message')}")
+                                # 其他业务错误标记为失败
+                                await self.mark_forward_failed(message_id, error_msg)
+                                logger.error(f"自动转发失败(业务错误): {message_id} - {error_msg}")
 
                     except FloodWaitError as e:
                         # FloodWait专门处理 - 不标记为永久失败
@@ -124,8 +166,10 @@ class AutoForwarder:
                         logger.error(f"自动转发超时: {message_id} (超时时间: {timeout}秒)")
 
                     except Exception as e:
+                        error_msg = str(e)
+                        error_str = error_msg.lower()
+
                         # 检查是否是FloodWait错误的其他形式
-                        error_str = str(e).lower()
                         if 'flood' in error_str or 'wait' in error_str:
                             # 设置全局FloodWait状态
                             wait_seconds = await rate_limiter.handle_flood_wait_error(str(e))
@@ -133,11 +177,17 @@ class AutoForwarder:
                             logger.warning(f"检测到FloodWait错误: {message_id} - {e}")
                             # 增加重试计数但不标记为失败
                             await self.increment_retry_count(message_id)
-                        else:
-                            # 其他异常才标记为失败
+                        elif self.is_system_error(error_msg):
+                            # 系统级错误：只记录日志和重试计数，不写入消息
+                            logger.error(f"自动转发遇到系统错误: {message_id} - {e}")
                             await self.increment_retry_count(message_id)
-                            await self.mark_forward_failed(message_id, str(e))
-                            logger.error(f"自动转发异常: {message_id} - {e}")
+                            # 系统错误时短暂等待后继续
+                            await asyncio.sleep(10)
+                        else:
+                            # 业务错误：标记失败，写入消息
+                            await self.increment_retry_count(message_id)
+                            await self.mark_forward_failed(message_id, error_msg)
+                            logger.error(f"自动转发失败(业务错误): {message_id} - {e}")
 
                     # 8. 智能发送间隔
                     await asyncio.sleep(0.1)

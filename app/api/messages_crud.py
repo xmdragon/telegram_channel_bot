@@ -1116,22 +1116,33 @@ async def publish_single_message(
         }
 
     except Exception as e:
-        logger.error(f"发布消息失败: {message_id}, 错误: {e}")
+        error_msg = str(e)
+        logger.error(f"发布消息失败: {message_id}, 错误: {error_msg}")
 
-        if is_auto_forward:
-            # 自动转发：记录未知错误
+        # 判断是否为系统级错误
+        is_system_error = any(keyword in error_msg.lower() for keyword in [
+            'session', '连接', 'connect', 'telethon', '网络',
+            'network', '认证', 'auth', 'client', '无法连接',
+            '客户端', 'runtime', '配置验证失败', '格式无效'
+        ])
+
+        if is_auto_forward and not is_system_error:
+            # 自动转发且非系统错误：写入错误信息
             try:
                 redis_manager.update_message(channel_id, msg_id, {
                     'auto_forwarder_status': False,
-                    'auto_forward_error': f"系统错误: {str(e)}"
+                    'auto_forward_error': f"转发错误: {error_msg}"
                 })
             except:
                 pass
+        elif is_auto_forward and is_system_error:
+            # 系统错误：不写入消息，让auto_forwarder重试
+            logger.info(f"自动转发遇到系统错误，不写入消息: {message_id}")
 
         return {
             "success": False,
-            "error": "unknown_error",
-            "message": str(e),
+            "error": "system_error" if is_system_error else "unknown_error",
+            "message": error_msg,
             "message_id": message_id
         }
 
