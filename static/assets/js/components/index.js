@@ -735,6 +735,14 @@ const MainApp = {
                     if (messageId) {
                         this.deleteSingleMessage(messageId);
                     }
+                } else if (action === 'deleteApprovedMessage') {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const messageId = event.target.getAttribute('data-message-id');
+                    if (messageId) {
+                        this.deleteApprovedMessage(messageId);
+                    }
                 } else if (action === 'editMessage') {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1134,6 +1142,69 @@ const MainApp = {
         // 删除消息方法（事件委托调用）
         deleteMessage(messageId) {
             this.deleteSingleMessage(messageId);
+        },
+
+        // 删除已发布消息（同时删除本地和目标频道）
+        async deleteApprovedMessage(messageId) {
+            // 获取消息对象用于确认对话框
+            const message = this.messages.find(m => m.id === messageId);
+            const hasTargetMessage = message && message.target_message_id;
+
+            // 构建确认消息
+            let confirmMessage = '确定要删除此已发布消息吗？';
+            if (hasTargetMessage) {
+                confirmMessage += '\n\n⚠️ 此操作将同时删除：\n• 本地消息和媒体文件\n• 目标频道中的消息\n\n此操作不可恢复！';
+            } else {
+                confirmMessage += '\n\n⚠️ 此操作将删除本地消息和媒体文件，且不可恢复！\n（未找到目标频道消息ID）';
+            }
+
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            try {
+                // 保存当前滚动位置
+                const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+
+                // 临时禁用滚动加载
+                const wasLoadingMore = this.isLoadingMore;
+                this.isLoadingMore = true;
+
+                const response = await axios.delete(window.API.messages.deleteById(messageId));
+                if (response.data.success) {
+                    // 根据返回结果显示不同的成功消息
+                    let successMessage = '已发布消息已删除';
+                    if (response.data.target_delete_result) {
+                        successMessage += `，${response.data.target_delete_result}`;
+                    }
+
+                    window.SimpleUI.Message.success(successMessage);
+
+                    // 从列表中移除该消息
+                    const index = this.messages.findIndex(m => m.id === messageId);
+                    if (index !== -1) {
+                        this.messages.splice(index, 1);
+                    }
+
+                    // 刷新统计
+                    this.refreshStats();
+
+                    // 恢复滚动位置
+                    this.$nextTick(() => {
+                        window.scrollTo(0, scrollPosition);
+                        // 恢复滚动加载状态
+                        this.isLoadingMore = wasLoadingMore;
+                    });
+                } else {
+                    window.SimpleUI.Message.error('删除失败: ' + response.data.message);
+                }
+            } catch (error) {
+                console.error('删除已发布消息失败:', error);
+                window.SimpleUI.Message.error('删除失败: ' + (error.response?.data?.detail || error.message));
+            } finally {
+                // 确保恢复滚动加载状态
+                this.isLoadingMore = false;
+            }
         },
 
         // 搜索消息

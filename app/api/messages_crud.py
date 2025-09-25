@@ -746,12 +746,42 @@ async def delete_message(
 ):
     """
     删除消息及其相关的媒体文件
+    如果是已发布消息，同时删除目标频道中的消息
     """
     try:
         # 获取消息
         message = redis_manager.get_message_by_id(message_id)
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
+
+        # 🚀 新增：如果是已发布消息，尝试删除目标频道中的消息
+        target_delete_result = None
+        if message.get('status') == 'approved' and message.get('target_message_id'):
+            try:
+                from app.telegram.dual_session_manager import dual_session_manager
+                from app.services.config_manager import config_manager
+
+                # 获取目标频道ID
+                target_channel_id = await config_manager.get_config('target.channel_id')
+                if target_channel_id:
+                    # 获取发送端客户端
+                    client = await dual_session_manager.get_sender_client()
+                    if client:
+                        target_msg_id = int(message.get('target_message_id'))
+
+                        # 删除目标频道中的消息
+                        await client.delete_messages(target_channel_id, target_msg_id)
+                        target_delete_result = "已删除目标频道消息"
+                        logger.info(f"已删除目标频道消息: {target_channel_id}:{target_msg_id}")
+                    else:
+                        logger.warning("Telegram客户端未连接，无法删除目标频道消息")
+                        target_delete_result = "Telegram客户端未连接，仅删除本地消息"
+                else:
+                    logger.warning("未配置目标频道ID，无法删除目标频道消息")
+
+            except Exception as e:
+                logger.error(f"删除目标频道消息失败: {e}")
+                target_delete_result = f"删除目标频道消息失败: {str(e)}"
 
         # 删除媒体文件和缩略图
         if message.get('media_path'):
@@ -796,11 +826,17 @@ async def delete_message(
 
         # 从Redis删除消息
         redis_manager.delete_message(message_id)
-        logger.info(f"已删除消息: {message_id}")
+        logger.info(f"已删除本地消息: {message_id}")
+
+        # 构建返回消息
+        result_message = "消息及相关文件已删除"
+        if target_delete_result:
+            result_message += f"，{target_delete_result}"
 
         return {
             "success": True,
-            "message": "消息及相关文件已删除",
+            "message": result_message,
+            "target_delete_result": target_delete_result,
             "timestamp": format_for_api(get_current_time())
         }
 
