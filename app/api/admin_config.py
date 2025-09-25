@@ -86,32 +86,60 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
     from app.core.config import db_settings
     
     return {
-        # 转发配置 - 使用点分格式字段名
-        "target.auto_forward_enabled": await config_manager.get_config('target.auto_forward_enabled', False),
-        "target.channel_link": await config_manager.get_config('target.channel_link', ''),
-        "target.channel_id": await config_manager.get_config('target.channel_id', ''),
-        "target.auto_forward_delay": await db_settings.get_auto_forward_delay(),
-        "target.auto_reject_ads": await config_manager.get_config('target.auto_reject_ads', False),
-        
-        # 系统配置 - 使用点分格式字段名
-        "source.history_limit": await db_settings.get_history_message_limit(),
-        "target.signature": await config_manager.get_config('target.signature', ''),
-        "collection.enabled": await config_manager.get_config('collection.enabled', False),
+        # Telegram API配置
         TelegramConfig.API_ID: await config_manager.get_config(TelegramConfig.API_ID, ''),
         TelegramConfig.API_HASH: await config_manager.get_config(TelegramConfig.API_HASH, ''),
+
+        # 采集配置
+        "collection.enabled": await config_manager.get_config('collection.enabled', True),
+        "collection.max_media_size_mb": await config_manager.get_config('collection.max_media_size_mb', 200),
+        "collection.max_messages_per_batch": await config_manager.get_config('collection.max_messages_per_batch', 10),
+        "source.history_limit": await config_manager.get_config('source.history_limit', 50),
+
+        # 去重检测配置
+        "duplicate_detection.enabled": await config_manager.get_config('duplicate_detection.enabled', True),
+        "duplicate_detection.content_threshold": await config_manager.get_config('duplicate_detection.content_threshold', 0.85),
+        "duplicate_detection.simhash_threshold": await config_manager.get_config('duplicate_detection.simhash_threshold', 3),
+        "duplicate_detection.auto_adjust": await config_manager.get_config('duplicate_detection.auto_adjust', True),
+        "duplicate_detection.ttl_hours": await config_manager.get_config('duplicate_detection.ttl_hours', 24),
+
+        # 过滤配置
         "filter.enabled": await config_manager.get_config('filter.enabled', True),
-        "filter.tail_filter_enabled": await config_manager.get_config('filter.tail_filter_enabled', True),
+        "filter.tail_filter": await config_manager.get_config('filter.tail_filter', True),
+        "filter.separator": await config_manager.get_config('filter.separator', True),
+        "filter.markdown": await config_manager.get_config('filter.markdown', True),
+        "filter.ad_detector": await config_manager.get_config('filter.ad_detector', True),
+
+        # 目标频道配置
         "target.require_approval": await config_manager.get_config('target.require_approval', True),
+        "target.auto_reject_ads": await config_manager.get_config('target.auto_reject_ads', False),
+        "target.auto_forward_enabled": await config_manager.get_config('target.auto_forward_enabled', False),
+        "target.auto_forward_delay": await config_manager.get_config('target.auto_forward_delay', 300),
+        "target.channel_link": await config_manager.get_config('target.channel_link', ''),
+        "target.channel_id": await config_manager.get_config('target.channel_id', ''),
+        "target.signature": await config_manager.get_config('target.signature', ''),
+
+        # 调度器配置
         "scheduler.enabled": await config_manager.get_config('scheduler.enabled', True),
         "scheduler.data_cleanup_interval_hours": await config_manager.get_config('scheduler.data_cleanup_interval_hours', 24),
+
+        # 存储配置
         "storage.delete_single_messages": await config_manager.get_config('storage.delete_single_messages', True),
-        
-        # 过滤器配置 - 统一命名格式
-        "filter.ad_detector": await config_manager.get_config('filter.ad_detector', True),
-        "filter.tail_filter": await config_manager.get_config('filter.tail_filter', True),
-        "filter.footer_promo": await config_manager.get_config('filter.footer_promo', True),
-        "filter.markdown": await config_manager.get_config('filter.markdown', True),
-        "filter.promo_vector": await config_manager.get_config('filter.promo_vector', True),
+
+        # 系统配置
+        "system.log_level": await config_manager.get_config('system.log_level', 'INFO'),
+
+        # 性能优化配置
+        "telegram.rate_limit_text_interval": await config_manager.get_config('telegram.rate_limit_text_interval', 5.0),
+        "telegram.rate_limit_media_interval": await config_manager.get_config('telegram.rate_limit_media_interval', 12.0),
+        "telegram.rate_limit_safety_factor": await config_manager.get_config('telegram.rate_limit_safety_factor', 1.5),
+        "telegram.max_retry_attempts": await config_manager.get_config('telegram.max_retry_attempts', 3),
+        "telegram.flood_wait_buffer_min": await config_manager.get_config('telegram.flood_wait_buffer_min', 1),
+        "telegram.flood_wait_buffer_max": await config_manager.get_config('telegram.flood_wait_buffer_max', 5),
+        "telegram.max_message_length": await config_manager.get_config('telegram.max_message_length', 1000),
+        "telegram.max_message_length_vip": await config_manager.get_config('telegram.max_message_length_vip', 2000),
+        "processor.timeout_seconds": await config_manager.get_config('processor.timeout_seconds', 120),
+        "processor.send_message_timeout": await config_manager.get_config('processor.send_message_timeout', 120),
 
         # Telegram Session配置（脱敏显示）
         TelegramConfig.LISTENER_SESSION: mask_session_string(await config_manager.get_config(TelegramConfig.LISTENER_SESSION, '')),

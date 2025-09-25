@@ -622,7 +622,7 @@
                                             <input type="checkbox" v-model="configs['target.require_approval']">
                                             <span class="slider"></span>
                                         </label>
-                                        <span class="switch-label">{{ configs['review.require_approval'] ? '启用' : '禁用' }}</span>
+                                        <span class="switch-label">{{ configs['target.require_approval'] ? '启用' : '禁用' }}</span>
                                     </div>
                                     <div class="form-hint">
                                         消息需要人工审核通过后才会转发到目标频道
@@ -663,8 +663,23 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            
+
+                            <div class="form-group">
+                                <label class="form-label">存储优化</label>
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="configs['storage.delete_single_messages']">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ configs['storage.delete_single_messages'] ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        组合消息保存后删除单独消息（性能优化，可回滚）
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="form-actions">
                                 <button type="button" class="btn btn-primary" @click="saveAllConfigs">
                                     💾 保存配置

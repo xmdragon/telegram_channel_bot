@@ -231,19 +231,23 @@ class AutoForwarder:
         Returns:
             超时时间（秒）
         """
+        # 从配置获取基础超时时间
+        base_timeout = await config_manager.get_config('processor.send_message_timeout', 120)
+        base_timeout = int(base_timeout)
+
         # 检查是否有媒体
         if not message.get('media_url'):
-            return 30  # 纯文本消息30秒
+            return base_timeout  # 纯文本消息使用配置的超时时间
 
         media_url = message.get('media_url', '')
 
-        # 根据文件扩展名判断类型
+        # 根据文件扩展名判断类型，使用倍数关系
         if any(media_url.lower().endswith(ext) for ext in ['.mp4', '.avi', '.mov', '.mkv']):
-            return 180  # 视频文件180秒
+            return base_timeout * 6  # 视频文件使用6倍超时（720秒）
         elif any(media_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
-            return 60  # 图片文件60秒
+            return base_timeout  # 图片文件使用基础超时
         else:
-            return 90  # 其他文件90秒
+            return int(base_timeout * 1.5)  # 其他文件使用1.5倍超时
 
     def _get_message_type(self, message: Dict[str, Any]) -> MessageType:
         """

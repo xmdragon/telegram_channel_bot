@@ -40,6 +40,9 @@ class StandardMessage:
                 'removed_hidden_links': [],
                 'is_combined': False,
                 'media_group_display': None,
+                'media_url': None,
+                'media_type': None,
+                'media_path': None,
                 'target_message_id': None,
                 'forwarded_time': None,
                 'id': f"{self._data.get('source_channel')}:{self._data.get('message_id')}"
