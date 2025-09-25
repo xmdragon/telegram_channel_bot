@@ -1603,16 +1603,20 @@ const MainApp = {
 
         // 处理新消息
         handleNewMessage(messageData) {
-            //     id: messageData.id,
-            //     status: messageData.status,
-            //     is_ad: messageData.is_ad,
-            //     content_preview: messageData.content ? messageData.content.substring(0, 50) + '...' : '无内容'
-            // });
+            // 如果正在编辑任何消息，延迟处理新消息以避免干扰
+            const editState = window.DialogStateManager.getState('editDialog');
+            if (editState && editState.visible) {
+                console.log('编辑弹窗打开中，延迟处理新消息');
+                setTimeout(() => {
+                    this.handleNewMessage(messageData);
+                }, 1000);
+                return;
+            }
 
             // 使用完整ID判断消息是否已存在，避免不同频道消息ID冲突
             const getFullId = (msg) => msg.id || `${msg.source_channel}:${msg.message_id}`;
             const existingIndex = this.messages.findIndex(msg => getFullId(msg) === getFullId(messageData));
-            
+
             if (existingIndex === -1) {
                 // 检查新消息是否符合当前筛选条件
                 let shouldAddMessage = true;
@@ -1666,10 +1670,17 @@ const MainApp = {
         
         // 处理消息状态更新
         handleMessageStatusUpdate(updateData) {
+            // 如果正在编辑这条消息，忽略状态更新以避免弹窗关闭
+            const editState = window.DialogStateManager.getState('editDialog');
+            if (editState && editState.visible && editState.messageId === updateData.message_id) {
+                console.log('忽略状态更新，正在编辑消息:', updateData.message_id);
+                return;
+            }
+
             const messageIndex = this.messages.findIndex(msg => msg.id === updateData.message_id);
             if (messageIndex !== -1) {
                 // 如果当前过滤器是待审核，且消息状态变为已发布或已拒绝，从列表中移除
-                if (this.filters.status === 'pending' && 
+                if (this.filters.status === 'pending' &&
                     (updateData.status === 'approved' || updateData.status === 'rejected')) {
                     this.messages.splice(messageIndex, 1);
                 } else {
@@ -1728,6 +1739,16 @@ const MainApp = {
         handlePublishSuccess(data) {
             const messageId = data.message_id;
             console.log('发布成功:', messageId);
+
+            // 如果正在编辑这条消息，忽略更新以避免弹窗关闭
+            const editState = window.DialogStateManager.getState('editDialog');
+            if (editState && editState.visible && editState.messageId === messageId) {
+                console.log('忽略发布成功更新，正在编辑消息:', messageId);
+                // 仅更新发布状态，不修改消息列表
+                this.publishingMessages.delete(messageId);
+                window.SimpleUI.Message.success(`消息发布成功`);
+                return;
+            }
 
             // 从正在发布集合中移除
             this.publishingMessages.delete(messageId);
