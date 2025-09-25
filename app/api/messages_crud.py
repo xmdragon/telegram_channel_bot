@@ -798,10 +798,25 @@ async def delete_message(
                         if client:
                             logger.info(f"准备删除目标频道消息: {target_channel_id}:{target_msg_id}")
 
-                            # 删除目标频道中的消息
-                            await client.delete_messages(target_channel_id, target_msg_id)
-                            target_delete_result = "已删除目标频道消息"
-                            logger.info(f"成功删除目标频道消息: {target_channel_id}:{target_msg_id}")
+                            # 转换频道ID为整数格式（Telegram API要求）
+                            channel_id_int = int(target_channel_id)
+
+                            # 获取频道实体（确保API能找到频道）
+                            try:
+                                channel_entity = await client.get_entity(channel_id_int)
+                                logger.info(f"成功获取频道实体: {channel_entity.title}")
+
+                                # 删除目标频道中的消息
+                                await client.delete_messages(channel_entity, target_msg_id)
+                                target_delete_result = "已删除目标频道消息"
+                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{target_msg_id}")
+
+                            except Exception as entity_error:
+                                logger.warning(f"获取频道实体失败，尝试直接使用频道ID: {entity_error}")
+                                # 备用方案：直接使用整数频道ID
+                                await client.delete_messages(channel_id_int, target_msg_id)
+                                target_delete_result = "已删除目标频道消息"
+                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{target_msg_id}")
                         else:
                             logger.warning("Telegram客户端未连接，无法删除目标频道消息")
                             target_delete_result = "Telegram客户端未连接，仅删除本地消息"
