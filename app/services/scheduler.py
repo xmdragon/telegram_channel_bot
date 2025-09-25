@@ -111,13 +111,13 @@ class MessageScheduler:
             from datetime import datetime, timedelta
             from app.services.config_manager import config_manager
 
-            logger.info(f"⏰ [清理任务] 开始执行数据清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.debug(f"⏰ [清理任务] 开始执行数据清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
             # 从配置文件读取清理时间间隔（小时）
             cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)  # 默认值从24改为8
             cleanup_interval_hours = int(cleanup_interval_hours)
 
-            logger.info(f"[清理任务] 使用配置的清理间隔: {cleanup_interval_hours}小时")
+            logger.debug(f"[清理任务] 使用配置的清理间隔: {cleanup_interval_hours}小时")
 
             # 计算清理时间点
             cleanup_time_ago = get_current_time() - timedelta(hours=cleanup_interval_hours)
@@ -248,13 +248,13 @@ class MessageScheduler:
             from app.services.config_manager import config_manager
             from app.core.path_config import PathConfig
 
-            logger.info(f"⏰ [媒体清理] 开始执行独立媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.debug(f"⏰ [媒体清理] 开始执行独立媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
             # 使用同一个配置值
             cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)
             cleanup_interval_hours = int(cleanup_interval_hours)
 
-            logger.info(f"[媒体清理] 使用配置的清理间隔: {cleanup_interval_hours}小时")
+            logger.debug(f"[媒体清理] 使用配置的清理间隔: {cleanup_interval_hours}小时")
 
             # 计算清理时间点
             current_time = datetime.now()

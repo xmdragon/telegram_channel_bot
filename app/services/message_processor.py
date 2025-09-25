@@ -446,7 +446,7 @@ class MessageProcessor:
                 pending_count = sum(1 for msg in old_messages if msg.status == 'pending')
                 approved_count = sum(1 for msg in old_messages if msg.status == 'approved')
                 rejected_count = sum(1 for msg in old_messages if msg.status == 'rejected')
-                logger.info(f"[清理任务] 检索到 {len(old_messages)} 条需要清理的消息 (pending:{pending_count}, approved:{approved_count}, rejected:{rejected_count})")
+                logger.debug(f"[清理任务] 检索到 {len(old_messages)} 条需要清理的消息 (pending:{pending_count}, approved:{approved_count}, rejected:{rejected_count})")
             else:
                 logger.debug("[清理任务] 没有找到需要清理的旧消息")
             return old_messages
