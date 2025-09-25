@@ -2,7 +2,7 @@
  * Axios全局配置 - 解决页面卡住问题
  *
  * 核心功能：
- * - 统一超时设置（10秒）
+ * - 统一超时设置（30秒）
  * - 请求/响应拦截器
  * - 网络错误处理
  * - 加载状态管理
@@ -10,15 +10,15 @@
 
 (function() {
     'use strict';
-    
+
     // 等待axios加载完成
     if (typeof axios === 'undefined') {
         console.error('Axios配置错误: axios未加载');
         return;
     }
-    
+
     // ============= 全局默认配置 =============
-    axios.defaults.timeout = 10000; // 10秒超时
+    axios.defaults.timeout = 30000; // 30秒超时
     axios.defaults.headers.common['Content-Type'] = 'application/json';
     axios.defaults.headers.common['Accept'] = 'application/json';
     
@@ -106,7 +106,7 @@
     }
     
     // ============= 带超时的Promise.all =============
-    window.PromiseAllWithTimeout = function(promises, timeout = 15000) {
+    window.PromiseAllWithTimeout = function(promises, timeout = 30000) {
         return Promise.race([
             Promise.all(promises),
             new Promise((_, reject) => {
@@ -127,10 +127,10 @@
                     10000
                 );
             }
-            
+
             // 添加刷新按钮
             addRefreshButton();
-        }, 15000); // 15秒后超时
+        }, 30000); // 30秒后超时
     }
     
     function clearPageLoadTimeout() {

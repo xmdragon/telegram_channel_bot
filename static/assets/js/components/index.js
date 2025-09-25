@@ -1713,7 +1713,6 @@ const MainApp = {
         // 处理发布开始通知
         handlePublishStarted(data) {
             // 显示发布中提示
-            console.log('发布开始:', data.message_id);
             // 保持消息的发布状态
             const messageIndex = this.messages.findIndex(msg =>
                 msg.id === data.message_id || msg.message_id === data.message_id
@@ -1727,7 +1726,6 @@ const MainApp = {
         // 处理发布成功通知
         handlePublishSuccess(data) {
             const messageId = data.message_id;
-            console.log('发布成功:', messageId);
 
             // 从正在发布集合中移除
             this.publishingMessages.delete(messageId);
@@ -1762,13 +1760,10 @@ const MainApp = {
                 // 如果当前过滤器是待审核状态，从列表中移除已发布的消息
                 if (this.filters.status === 'pending') {
                     this.messages.splice(messageIndex, 1);
-                    console.log('已从待审核列表移除消息:', messageId);
                 } else {
                     // 其他状态下，更新消息状态为已发布
                     this.messages[messageIndex].status = 'approved';
                 }
-            } else {
-                console.warn('未找到要更新的消息:', messageId);
             }
 
             // 刷新统计信息
