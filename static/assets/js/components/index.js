@@ -90,7 +90,7 @@ const MainApp = {
             },
 
             // 排序选项
-            sortOrder: 'desc',  // 默认新到旧
+            sortOrder: 'asc',  // 默认旧到新
             
             
             // 操作状态
