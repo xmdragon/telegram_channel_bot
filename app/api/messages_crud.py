@@ -968,9 +968,8 @@ async def publish_single_message(
                 detail_msg = f"请将内容缩减至{max_content_length}字以内"
 
                 if is_auto_forward:
-                    # 自动转发：在消息头部添加提示
-                    truncated_content = content[:500] + "..."  # 截断显示
-                    updated_content = f"⚠️ 消息内容超长，请手动编辑\n{error_msg}\n{detail_msg}\n\n{truncated_content}"
+                    # 自动转发：不截断文本，保持原始内容让用户编辑
+                    updated_content = f"⚠️ 消息内容超长，请手动编辑\n{error_msg}\n{detail_msg}\n\n{content}"
 
                     redis_manager.update_message(channel_id, msg_id, {
                         'filtered_content': updated_content,
