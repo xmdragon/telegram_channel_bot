@@ -782,21 +782,33 @@ async def delete_message(
                 from app.telegram.dual_session_manager import dual_session_manager
                 from app.services.config_manager import config_manager
 
-                # 从目标消息链接解析消息ID
-                target_link = message.get('target_message_link')
-                target_msg_id = extract_message_id_from_target_link(target_link)
-
-                if not target_msg_id:
-                    logger.warning(f"无法从目标消息链接解析消息ID: {target_link}")
-                    target_delete_result = "无法解析目标消息ID，仅删除本地消息"
+                # 🚀 优先使用新字段target_message_ids（支持媒体组批量删除）
+                target_msg_ids = message.get('target_message_ids')
+                if target_msg_ids and isinstance(target_msg_ids, list):
+                    # 新格式：使用批量删除
+                    msg_ids_to_delete = target_msg_ids
+                    logger.info(f"使用批量删除模式，目标消息IDs: {msg_ids_to_delete}")
                 else:
+                    # 兼容模式：从target_message_link解析单个ID
+                    target_link = message.get('target_message_link')
+                    target_msg_id = extract_message_id_from_target_link(target_link)
+
+                    if not target_msg_id:
+                        logger.warning(f"无法从目标消息链接解析消息ID: {target_link}")
+                        target_delete_result = "无法解析目标消息ID，仅删除本地消息"
+                        msg_ids_to_delete = None
+                    else:
+                        msg_ids_to_delete = [target_msg_id]
+                        logger.info(f"使用兼容删除模式，目标消息ID: {target_msg_id}")
+
+                if msg_ids_to_delete:
                     # 获取目标频道ID
                     target_channel_id = await config_manager.get_config('target.channel_id')
                     if target_channel_id:
                         # 获取发送端客户端
                         client = await dual_session_manager.get_sender_client()
                         if client:
-                            logger.info(f"准备删除目标频道消息: {target_channel_id}:{target_msg_id}")
+                            logger.info(f"准备删除目标频道消息: {target_channel_id}:{msg_ids_to_delete}")
 
                             # 转换频道ID为整数格式（Telegram API要求）
                             channel_id_int = int(target_channel_id)
@@ -806,17 +818,19 @@ async def delete_message(
                                 channel_entity = await client.get_entity(channel_id_int)
                                 logger.info(f"成功获取频道实体: {channel_entity.title}")
 
-                                # 删除目标频道中的消息
-                                await client.delete_messages(channel_entity, target_msg_id)
-                                target_delete_result = "已删除目标频道消息"
-                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{target_msg_id}")
+                                # 🚀 批量删除目标频道中的消息
+                                await client.delete_messages(channel_entity, msg_ids_to_delete)
+                                msg_count = len(msg_ids_to_delete)
+                                target_delete_result = f"已删除目标频道{msg_count}条消息"
+                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{msg_ids_to_delete}")
 
                             except Exception as entity_error:
                                 logger.warning(f"获取频道实体失败，尝试直接使用频道ID: {entity_error}")
                                 # 备用方案：直接使用整数频道ID
-                                await client.delete_messages(channel_id_int, target_msg_id)
-                                target_delete_result = "已删除目标频道消息"
-                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{target_msg_id}")
+                                await client.delete_messages(channel_id_int, msg_ids_to_delete)
+                                msg_count = len(msg_ids_to_delete)
+                                target_delete_result = f"已删除目标频道{msg_count}条消息"
+                                logger.info(f"成功删除目标频道消息: {target_channel_id}:{msg_ids_to_delete}")
                         else:
                             logger.warning("Telegram客户端未连接，无法删除目标频道消息")
                             target_delete_result = "Telegram客户端未连接，仅删除本地消息"

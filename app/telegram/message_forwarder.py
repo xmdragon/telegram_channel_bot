@@ -155,8 +155,16 @@ class MessageForwarder:
             
             # 更新数据库（如果是字典类型，需要更新Redis存储）
             if sent_message:
-                target_msg_id = sent_message[0].id if isinstance(sent_message, list) else sent_message.id
-                
+                # 🚀 修复：记录所有目标消息ID（支持媒体组批量删除）
+                if isinstance(sent_message, list):
+                    # 媒体组：记录所有消息ID
+                    target_msg_ids = [msg.id for msg in sent_message]
+                    target_msg_id = sent_message[0].id  # 保持兼容性
+                else:
+                    # 单个消息：记录一个ID
+                    target_msg_ids = [sent_message.id]
+                    target_msg_id = sent_message.id
+
                 # 如果是字典类型，更新Redis中的记录
                 if isinstance(message.data if hasattr(message, 'data') else message, dict):
                     try:
@@ -166,22 +174,27 @@ class MessageForwarder:
                             channel_id = message.get('source_channel')
                             message_id = message.get('message_id')
                             grouped_id = message.get('grouped_id')
-                            
+
                             # 🚀 优化：只更新主消息，子消息已删除无需更新
                             if channel_id and message_id:
-                                # 单个消息更新
+                                # 更新目标消息ID（保持兼容）
                                 redis_manager.update_message_field(
                                     channel_id, int(message_id), 'target_message_id', str(target_msg_id)
+                                )
+                                # 🚀 新增：记录所有目标消息ID供批量删除使用
+                                redis_manager.update_message_field(
+                                    channel_id, int(message_id), 'target_message_ids', target_msg_ids
                                 )
                                 redis_manager.update_message_field(
                                     channel_id, int(message_id), 'forwarded_time', datetime.now().isoformat()
                                 )
-                                logger.info(f"已更新Redis记录: {channel_id}:{message_id} -> 目标消息ID: {target_msg_id}")
+                                logger.info(f"已更新Redis记录: {channel_id}:{message_id} -> 目标消息IDs: {target_msg_ids}")
                     except Exception as e:
                         logger.error(f"更新Redis记录失败: {e}")
                 else:
                     # 对象类型，直接设置属性
                     message.target_message_id = target_msg_id
+                    message.target_message_ids = target_msg_ids  # 新增批量删除字段
                     message.forwarded_time = datetime.now()
             
             # 构建目标消息链接
