@@ -71,6 +71,29 @@ class MarkdownFilter:
             (过滤后内容, 移除的链接数)
         """
         try:
+            # 确保entities是列表且包含对象
+            if not entities or not isinstance(entities, list):
+                return content, 0
+
+            # 过滤掉非对象元素（如字符串）
+            valid_entities = []
+            for entity in entities:
+                if hasattr(entity, 'offset') and hasattr(entity, 'length'):
+                    valid_entities.append(entity)
+                elif isinstance(entity, dict) and 'offset' in entity and 'length' in entity:
+                    # 支持字典格式的entity
+                    class DictEntity:
+                        def __init__(self, d):
+                            self.offset = d.get('offset', 0)
+                            self.length = d.get('length', 0)
+                            self.url = d.get('url')
+                            self.__class__.__name__ = d.get('type', 'Unknown')
+                    valid_entities.append(DictEntity(entity))
+
+            if not valid_entities:
+                return content, 0
+
+            entities = valid_entities
             # 预先计算内容的UTF-16单元长度，用于过滤无效entities
             def get_utf16_length(s):
                 """计算字符串的UTF-16单元长度"""
@@ -91,6 +114,10 @@ class MarkdownFilter:
             link_entities = []
 
             for entity in entities:
+                # 确保entity有必要的属性
+                if not hasattr(entity, 'offset') or not hasattr(entity, 'length'):
+                    continue
+
                 # 检查entity是否在有效范围内
                 if entity.offset < 0 or entity.offset >= content_utf16_length:
                     continue  # 静默忽略超出范围的entity
