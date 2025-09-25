@@ -1148,7 +1148,8 @@ const MainApp = {
         async deleteApprovedMessage(messageId) {
             // 获取消息对象用于确认对话框
             const message = this.messages.find(m => m.id === messageId);
-            const hasTargetMessage = message && message.target_message_id;
+            // 检查是否有目标消息ID或目标消息链接
+            const hasTargetMessage = message && (message.target_message_id || message.target_message_link);
 
             // 构建确认消息
             let confirmMessage = '确定要删除此已发布消息吗？';
