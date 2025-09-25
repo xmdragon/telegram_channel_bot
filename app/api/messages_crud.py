@@ -18,6 +18,7 @@ from app.services.channel_manager import ChannelManager
 from app.core.media_paths import media_paths
 from app.core.route_config import ROUTES
 from telethon.errors import FloodWaitError
+import re
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,6 +30,26 @@ def get_message_processor() -> MessageProcessor:
 
 def get_channel_manager() -> ChannelManager:
     return ChannelManager()
+
+def extract_message_id_from_target_link(target_link: str) -> Optional[int]:
+    """
+    从目标消息链接中提取消息ID
+    支持格式:
+    - https://t.me/channel_name/123 -> 123
+    - https://t.me/c/1234567890/123 -> 123
+    """
+    if not target_link:
+        return None
+
+    try:
+        # 匹配最后一个数字作为消息ID
+        match = re.search(r'/(\d+)$', target_link)
+        if match:
+            return int(match.group(1))
+    except (ValueError, AttributeError) as e:
+        logger.warning(f"解析目标消息链接失败: {target_link}, 错误: {e}")
+
+    return None
 
 # 认证中间件
 async def get_current_user(
@@ -756,28 +777,37 @@ async def delete_message(
 
         # 🚀 新增：如果是已发布消息，尝试删除目标频道中的消息
         target_delete_result = None
-        if message.get('status') == 'approved' and message.get('target_message_id'):
+        if message.get('status') == 'approved' and message.get('target_message_link'):
             try:
                 from app.telegram.dual_session_manager import dual_session_manager
                 from app.services.config_manager import config_manager
 
-                # 获取目标频道ID
-                target_channel_id = await config_manager.get_config('target.channel_id')
-                if target_channel_id:
-                    # 获取发送端客户端
-                    client = await dual_session_manager.get_sender_client()
-                    if client:
-                        target_msg_id = int(message.get('target_message_id'))
+                # 从目标消息链接解析消息ID
+                target_link = message.get('target_message_link')
+                target_msg_id = extract_message_id_from_target_link(target_link)
 
-                        # 删除目标频道中的消息
-                        await client.delete_messages(target_channel_id, target_msg_id)
-                        target_delete_result = "已删除目标频道消息"
-                        logger.info(f"已删除目标频道消息: {target_channel_id}:{target_msg_id}")
-                    else:
-                        logger.warning("Telegram客户端未连接，无法删除目标频道消息")
-                        target_delete_result = "Telegram客户端未连接，仅删除本地消息"
+                if not target_msg_id:
+                    logger.warning(f"无法从目标消息链接解析消息ID: {target_link}")
+                    target_delete_result = "无法解析目标消息ID，仅删除本地消息"
                 else:
-                    logger.warning("未配置目标频道ID，无法删除目标频道消息")
+                    # 获取目标频道ID
+                    target_channel_id = await config_manager.get_config('target.channel_id')
+                    if target_channel_id:
+                        # 获取发送端客户端
+                        client = await dual_session_manager.get_sender_client()
+                        if client:
+                            logger.info(f"准备删除目标频道消息: {target_channel_id}:{target_msg_id}")
+
+                            # 删除目标频道中的消息
+                            await client.delete_messages(target_channel_id, target_msg_id)
+                            target_delete_result = "已删除目标频道消息"
+                            logger.info(f"成功删除目标频道消息: {target_channel_id}:{target_msg_id}")
+                        else:
+                            logger.warning("Telegram客户端未连接，无法删除目标频道消息")
+                            target_delete_result = "Telegram客户端未连接，仅删除本地消息"
+                    else:
+                        logger.warning("未配置目标频道ID，无法删除目标频道消息")
+                        target_delete_result = "未配置目标频道ID，仅删除本地消息"
 
             except Exception as e:
                 logger.error(f"删除目标频道消息失败: {e}")
