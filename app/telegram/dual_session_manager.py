@@ -16,6 +16,7 @@ from telethon.network.connection.tcpabridged import ConnectionTcpAbridged
 from dotenv import load_dotenv
 
 from app.services.config_manager import ConfigManager
+from app.services.telegram_config_manager import telegram_config_manager
 from app.core.telegram_config import TelegramConfig
 
 # 加载环境变量
@@ -114,9 +115,9 @@ class TelegramDualSessionManager:
         """连接采集Session - 用于长期监听，增强依赖检查"""
         try:
             # Early stop: 快速检查必要配置
-            session = await self.config_manager.get_config(TelegramConfig.LISTENER_SESSION)
-            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
-            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+            session = await telegram_config_manager.get_listener_session()
+            api_id = await telegram_config_manager.get_api_id()
+            api_hash = await telegram_config_manager.get_api_hash()
 
             if not session or session.strip() == "":
                 logger.info("监听Session未配置，跳过连接")
@@ -195,7 +196,7 @@ class TelegramDualSessionManager:
         except (AuthKeyUnregisteredError, SessionRevokedError) as e:
             logger.error(f"采集Session已失效: {e}")
             # 清除失效的Session
-            await self.config_manager.set_config(TelegramConfig.LISTENER_SESSION, "")
+            await telegram_config_manager.update_session("listener", "")
             return False
             
         except Exception as e:
@@ -208,9 +209,9 @@ class TelegramDualSessionManager:
         """连接发送Session - 用于API调用，增强依赖检查"""
         try:
             # Early stop: 快速检查必要配置
-            session = await self.config_manager.get_config(TelegramConfig.SENDER_SESSION)
-            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
-            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+            session = await telegram_config_manager.get_sender_session()
+            api_id = await telegram_config_manager.get_api_id()
+            api_hash = await telegram_config_manager.get_api_hash()
 
             if not session or session.strip() == "":
                 logger.info("发送Session未配置，跳过连接")
@@ -289,7 +290,7 @@ class TelegramDualSessionManager:
         except (AuthKeyUnregisteredError, SessionRevokedError) as e:
             logger.error(f"发送Session已失效: {e}")
             # 清除失效的Session
-            await self.config_manager.set_config(TelegramConfig.SENDER_SESSION, "")
+            await telegram_config_manager.update_session("sender", "")
             return False
             
         except Exception as e:
@@ -419,9 +420,9 @@ class TelegramDualSessionManager:
         api_hash = None
         
         try:
-            session = await self.config_manager.get_config(TelegramConfig.LISTENER_SESSION)
-            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
-            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+            session = await telegram_config_manager.get_listener_session()
+            api_id = await telegram_config_manager.get_api_id()
+            api_hash = await telegram_config_manager.get_api_hash()
             
             # 检查配置存在性
             if not session or session.strip() == "":
@@ -458,9 +459,9 @@ class TelegramDualSessionManager:
         api_hash = None
         
         try:
-            session = await self.config_manager.get_config(TelegramConfig.SENDER_SESSION)
-            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
-            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+            session = await telegram_config_manager.get_sender_session()
+            api_id = await telegram_config_manager.get_api_id()
+            api_hash = await telegram_config_manager.get_api_hash()
             
             # 检查配置存在性
             if not session or session.strip() == "":
@@ -527,8 +528,8 @@ class TelegramDualSessionManager:
         """创建用于认证的临时客户端"""
         try:
             # 获取API配置
-            api_id = await self.config_manager.get_config(TelegramConfig.API_ID)
-            api_hash = await self.config_manager.get_config(TelegramConfig.API_HASH)
+            api_id = await telegram_config_manager.get_api_id()
+            api_hash = await telegram_config_manager.get_api_hash()
 
             if not api_id or not api_hash:
                 logger.error("API ID或API Hash未配置")
@@ -580,9 +581,9 @@ class TelegramDualSessionManager:
             # 保存session
             session_string = client.session.save()
             if session_type == "listener":
-                await self.config_manager.set_config(TelegramConfig.LISTENER_SESSION, session_string)
+                await telegram_config_manager.update_session("listener", session_string)
             else:
-                await self.config_manager.set_config(TelegramConfig.SENDER_SESSION, session_string)
+                await telegram_config_manager.update_session("sender", session_string)
 
             # 获取用户信息
             me = await client.get_me()
@@ -632,9 +633,9 @@ class TelegramDualSessionManager:
             # 保存session
             session_string = client.session.save()
             if session_type == "listener":
-                await self.config_manager.set_config(TelegramConfig.LISTENER_SESSION, session_string)
+                await telegram_config_manager.update_session("listener", session_string)
             else:
-                await self.config_manager.set_config(TelegramConfig.SENDER_SESSION, session_string)
+                await telegram_config_manager.update_session("sender", session_string)
 
             # 获取用户信息
             me = await client.get_me()
@@ -676,7 +677,7 @@ class TelegramDualSessionManager:
                     self.listener_connected = False
 
                 # 删除配置
-                await self.config_manager.delete_config(TelegramConfig.LISTENER_SESSION)
+                await telegram_config_manager.update_session("listener", "")
 
             else:  # sender
                 # 断开连接
@@ -686,7 +687,7 @@ class TelegramDualSessionManager:
                     self.sender_connected = False
 
                 # 删除配置
-                await self.config_manager.delete_config(TelegramConfig.SENDER_SESSION)
+                await telegram_config_manager.update_session("sender", "")
 
             logger.info(f"✅ {session_type}Session已清除")
             return {"success": True, "message": f"{session_type}Session已清除"}

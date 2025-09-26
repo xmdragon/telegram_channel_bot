@@ -10,6 +10,7 @@ import logging
 
 from app.core.route_config import ROUTES
 from app.services.config_manager import config_manager
+from app.services.telegram_config_manager import telegram_config_manager
 from app.core.telegram_config import TelegramConfig
 from app.services.auth_service import get_auth_service
 
@@ -86,9 +87,9 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
     from app.core.config import db_settings
     
     return {
-        # Telegram API配置
-        TelegramConfig.API_ID: await config_manager.get_config(TelegramConfig.API_ID, ''),
-        TelegramConfig.API_HASH: await config_manager.get_config(TelegramConfig.API_HASH, ''),
+        # Telegram API配置（从telegram.json读取）
+        TelegramConfig.API_ID: await telegram_config_manager.get_api_id() or '',
+        TelegramConfig.API_HASH: await telegram_config_manager.get_api_hash() or '',
 
         # 采集配置
         "collection.enabled": await config_manager.get_config('collection.enabled', True),
@@ -146,8 +147,8 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
         "processor.send_message_timeout": await config_manager.get_config('processor.send_message_timeout', 120),
 
         # Telegram Session配置（脱敏显示）
-        TelegramConfig.LISTENER_SESSION: mask_session_string(await config_manager.get_config(TelegramConfig.LISTENER_SESSION, '')),
-        TelegramConfig.SENDER_SESSION: mask_session_string(await config_manager.get_config(TelegramConfig.SENDER_SESSION, ''))
+        TelegramConfig.LISTENER_SESSION: mask_session_string(await telegram_config_manager.get_listener_session() or ''),
+        TelegramConfig.SENDER_SESSION: mask_session_string(await telegram_config_manager.get_sender_session() or '')
     }
 
 # === 配置更新方法 ===

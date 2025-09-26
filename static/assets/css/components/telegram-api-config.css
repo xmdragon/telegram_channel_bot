@@ -1,0 +1,75 @@
+/* Telegram API配置样式 */
+
+.api-config-form {
+    margin-top: 2rem;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.api-config-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.api-config-form .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.api-config-form .form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.api-config-form .form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.api-config-form .prompt-actions {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.api-hint {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.api-hint p {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.api-hint ol {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+    color: var(--text-secondary);
+}
+
+.api-hint li {
+    margin-bottom: 0.25rem;
+    line-height: 1.6;
+}
+
+.api-hint a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.api-hint a:hover {
+    text-decoration: underline;
+}

@@ -62,8 +62,11 @@ temp_media/
 .env.local
 .env.*.local
 
-# System configuration (contains sensitive data like Telegram sessions)
-data/config/system.json
+# Telegram configuration (contains sensitive API keys and sessions)
+data/config/telegram.json
+
+# Backup files
+data/backups/
 
 # OS
 .DS_Store

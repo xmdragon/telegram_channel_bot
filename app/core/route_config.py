@@ -149,6 +149,11 @@ class RouteConfig:
         get = "/config"
         update = "/config"
 
+    class TelegramConfig:
+        """Telegram配置管理路由"""
+        get = "/telegram-config"
+        update = "/telegram-config"
+
     class Stats:
         """统计路由"""
         get = "/stats"
@@ -186,6 +191,7 @@ class RouteConfig:
         self.services = self.Services()
         self.system = self.System()
         self.config = self.Config()
+        self.telegram_config = self.TelegramConfig()
         self.stats = self.Stats()
         self.web = self.WebRoutes()
         self.web_server = self.WebServer()

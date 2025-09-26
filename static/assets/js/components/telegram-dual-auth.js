@@ -16,6 +16,10 @@ const DualAuthApp = {
 
             // API配置状态
             hasSharedApi: false,
+            apiConfig: {
+                api_id: '',
+                api_hash: ''
+            },
 
             // 采集Session状态
             listenerSession: {
@@ -127,19 +131,19 @@ const DualAuthApp = {
             }
         },
         
-        async checkDualSessionStatus(configs = null) {
+        async checkDualSessionStatus(config = null) {
             try {
                 // 如果没有传入配置，才去获取
-                if (!configs) {
-                    const response = await axios.get(API.admin.config);
-                    configs = response.data;
+                if (!config) {
+                    const response = await axios.get(API.telegramConfig.get);
+                    config = response.data.config;
                 }
 
-                if (configs) {
+                if (config) {
 
                     // 检查SESSION配置是否存在（非空）
-                    const listenerSession = configs['telegram.listener_session'];
-                    const senderSession = configs['telegram.sender_session'];
+                    const listenerSession = config.listener_session;
+                    const senderSession = config.sender_session;
 
                     // 根据SESSION配置的存在性来设置状态
                     if (listenerSession && listenerSession.trim() !== '') {
@@ -184,12 +188,16 @@ const DualAuthApp = {
 
         async checkApiConfig() {
             try {
-                // 直接从管理配置获取API配置
-                const response = await axios.get(API.admin.config);
-                if (response.data) {
-                    const configs = response.data;
-                    const hasApiId = configs['telegram.api_id'];
-                    const hasApiHash = configs['telegram.api_hash'];
+                // 从新的telegram-config端点获取配置
+                const response = await axios.get(API.telegramConfig.get);
+                if (response.data && response.data.config) {
+                    const config = response.data.config;
+                    const hasApiId = config.api_id;
+                    const hasApiHash = config.api_hash;
+
+                    // 设置到本地数据
+                    this.apiConfig.api_id = config.api_id || '';
+                    this.apiConfig.api_hash = config.api_hash || '';
 
                     this.hasSharedApi = !!(hasApiId && hasApiHash);
 
@@ -200,12 +208,38 @@ const DualAuthApp = {
                     }
 
                     // 返回配置数据，避免重复请求
-                    return configs;
+                    return config;
                 }
             } catch (error) {
                 console.error('检查API配置失败:', error);
                 this.hasSharedApi = false;
                 return null;
+            }
+        },
+
+        async saveApiConfig() {
+            try {
+                this.loading = true;
+                this.loadingMessage = '正在保存API配置...';
+
+                const response = await axios.post(API.telegramConfig.update, {
+                    api_id: this.apiConfig.api_id.trim(),
+                    api_hash: this.apiConfig.api_hash.trim()
+                });
+
+                if (response.data.success) {
+                    this.hasSharedApi = true;
+                    window.SimpleUI.showMessage('API配置已保存', 'success');
+
+                    // 重新检查Session状态
+                    await this.checkDualSessionStatus();
+                }
+            } catch (error) {
+                console.error('保存API配置失败:', error);
+                window.SimpleUI.showMessage('保存API配置失败: ' + (error.response?.data?.detail || error.message), 'error');
+            } finally {
+                this.loading = false;
+                this.loadingMessage = '';
             }
         },
 

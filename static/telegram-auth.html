@@ -13,6 +13,7 @@
         document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/auth.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/dual-session-auth.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/telegram-api-config.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
@@ -29,11 +30,43 @@
                         <div class="prompt-icon">🔧</div>
                         <div class="prompt-content">
                             <h3 class="prompt-title">需要配置 Telegram API</h3>
-                            <p class="prompt-text">在开始认证之前，请先在系统配置中设置您的 API ID 和 API Hash</p>
-                            <div class="prompt-actions">
-                                <button class="btn btn-primary btn-lg" @click="goToConfig">
-                                    配置 API_ID / API_HASH
-                                </button>
+                            <p class="prompt-text">在开始认证之前，请先设置您的 API ID 和 API Hash</p>
+
+                            <!-- API配置表单 -->
+                            <div class="api-config-form">
+                                <div class="form-group">
+                                    <label class="form-label">API ID</label>
+                                    <input class="form-input"
+                                           v-model="apiConfig.api_id"
+                                           placeholder="请输入 Telegram API ID"
+                                           type="text">
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">API Hash</label>
+                                    <input class="form-input"
+                                           v-model="apiConfig.api_hash"
+                                           placeholder="请输入 Telegram API Hash"
+                                           type="text">
+                                </div>
+
+                                <div class="prompt-actions">
+                                    <button class="btn btn-primary btn-lg"
+                                            @click="saveApiConfig"
+                                            :disabled="!apiConfig.api_id || !apiConfig.api_hash">
+                                        保存API配置
+                                    </button>
+                                </div>
+
+                                <div class="api-hint">
+                                    <p>💡 如何获取API凭据？</p>
+                                    <ol>
+                                        <li>访问 <a href="https://my.telegram.org/auth" target="_blank">my.telegram.org</a></li>
+                                        <li>使用手机号登录</li>
+                                        <li>点击 "API development tools"</li>
+                                        <li>创建应用获取 API ID 和 API Hash</li>
+                                    </ol>
+                                </div>
                             </div>
                         </div>
                     </div>

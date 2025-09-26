@@ -1132,21 +1132,34 @@ async def publish_single_message(
 
         # 3. 执行实际转发
         from app.telegram.message_forwarder import message_forwarder
-        target_link = await message_forwarder.forward_to_target_with_sender_session(message)
+        target_info = await message_forwarder.forward_to_target_with_sender_session(message)
+
+        # 提取返回的信息
+        target_link = target_info.get('link') if isinstance(target_info, dict) else target_info
+        target_message_id = target_info.get('target_message_id') if isinstance(target_info, dict) else None
+        target_message_ids = target_info.get('target_message_ids', []) if isinstance(target_info, dict) else []
 
         # 4. 更新状态为已发布
         redis_manager.update_message_status(message_id, "approved", user_id or "system")
 
-        # 4.5. 如果成功获取到目标消息链接，追加到消息内容
+        # 4.5. 如果成功获取到目标消息链接，追加到消息内容并保存完整的目标消息ID信息
         if target_link:
             original_content = message.get('filtered_content') or message.get('content', '')
             updated_content = f"{original_content}\n\n✅ 目标消息链接: {target_link}"
 
-            # 更新消息内容，保存带链接的版本
-            redis_manager.update_message(channel_id, msg_id, {
+            # 更新消息内容，保存带链接的版本和目标消息ID
+            update_data = {
                 'filtered_content': updated_content,
                 'target_message_link': target_link
-            })
+            }
+
+            # 保存目标消息ID信息（用于批量删除）
+            if target_message_id:
+                update_data['target_message_id'] = str(target_message_id)
+            if target_message_ids:
+                update_data['target_message_ids'] = target_message_ids
+
+            redis_manager.update_message(channel_id, msg_id, update_data)
 
         # 5. 如果是自动转发成功，清除错误标记
         if is_auto_forward:

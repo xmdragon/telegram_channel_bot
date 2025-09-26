@@ -363,17 +363,15 @@ class MessageGrouper:
             import os
             
             # 从配置文件读取Telegram设置
-            config_file = os.path.join(os.path.dirname(__file__), '../../data/config/system.json')
-            if not os.path.exists(config_file):
-                logger.error("配置文件不存在，无法初始化客户端")
-                return
-                
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
-            
-            api_id = int(config_data.get('telegram.api_id', {}).get('value', '0'))
-            api_hash = config_data.get('telegram.api_hash', {}).get('value', '')
-            session_string = config_data.get('telegram.listener_session', {}).get('value', '')
+            from app.services.telegram_config_manager import telegram_config_manager
+            from app.services.config_manager import config_manager
+
+            api_id = telegram_config_manager.get('api_id')
+            api_hash = telegram_config_manager.get('api_hash')
+            session_string = await config_manager.get_config('telegram.listener_session', '')
+
+            if api_id:
+                api_id = int(api_id)
             
             if not api_id or not api_hash or not session_string:
                 logger.error("🔧 Telegram配置不完整，无法初始化独立客户端。建议使用dual_session_manager或确保配置完整")

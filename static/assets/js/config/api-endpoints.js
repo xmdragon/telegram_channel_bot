@@ -69,6 +69,12 @@ const API_ENDPOINTS = {
         sessionStatus: (sessionType) => `/api/dual-auth/session-status/${sessionType}` // GET - 获取Session状态
     },
 
+    // Telegram配置模块 - /api/telegram-config
+    telegramConfig: {
+        get: '/api/telegram-config',                                    // GET - 获取Telegram配置
+        update: '/api/telegram-config'                                  // POST - 更新Telegram配置
+    },
+
     // 训练数据模块 - /api/training
     training: {
         // 分隔符模式管理

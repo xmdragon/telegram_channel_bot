@@ -228,7 +228,12 @@ class MessageForwarder:
                 rate_limiter.record_send_attempt(message_type, target_channel_id, True)
                 logger.debug(f"已记录发送成功: {message_type.value} -> {target_channel_id}")
 
-            return target_message_link
+            # 返回完整的目标消息信息
+            return {
+                'link': target_message_link,
+                'target_message_id': target_msg_id if sent_message else None,
+                'target_message_ids': target_msg_ids if sent_message else []
+            }
 
         except FloodWaitError as e:
             # FloodWait专门处理 - 不立即等待，让上层处理
@@ -536,7 +541,7 @@ class MessageForwarder:
             raise
 
     async def forward_to_target_with_sender_session(self, message):
-        """使用发送Session转发到目标频道（无锁设计），返回目标消息链接"""
+        """使用发送Session转发到目标频道（无锁设计），返回包含目标消息ID的完整信息"""
         from app.telegram.dual_session_manager import dual_session_manager
 
         try:
@@ -544,9 +549,9 @@ class MessageForwarder:
             if await dual_session_manager.ensure_sender_connected():
                 sender_client = await dual_session_manager.get_sender_client()
                 if sender_client:
-                    # 执行转发，返回目标链接
-                    target_link = await self.forward_to_target(sender_client, message)
-                    return target_link
+                    # 执行转发，返回完整信息（包含link, target_message_id, target_message_ids）
+                    target_info = await self.forward_to_target(sender_client, message)
+                    return target_info
                 else:
                     raise RuntimeError("发送Session客户端未可用")
             else:

@@ -14,6 +14,7 @@ from .system_maintenance import router as system_maintenance_router
 from .admin_auth import router as admin_auth_router
 from .training import router as training_router
 from .telegram_tools import router as telegram_tools_router
+from .telegram_config import router as telegram_config_router
 
 api_router = APIRouter()
 
@@ -35,6 +36,8 @@ api_router.include_router(system_maintenance_router, tags=["system-maintenance"]
 api_router.include_router(training_router, tags=["training"])
 # Telegram工具路由
 api_router.include_router(telegram_tools_router, tags=["telegram-tools"])
+# Telegram配置路由
+api_router.include_router(telegram_config_router, tags=["telegram-config"])
 
 # 服务管理路由（Supervisor集成）
 from .services import router as services_router
