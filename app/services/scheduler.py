@@ -242,7 +242,7 @@ class MessageScheduler:
             logger.error(f"清理日志文件失败: {e}")
 
     async def get_earliest_message_time(self):
-        """🚀 高效获取最早消息时间 - O(log N)复杂度"""
+        """高效获取最早消息时间"""
         try:
             from datetime import datetime
             from app.storage.redis_manager import redis_manager
@@ -261,7 +261,7 @@ class MessageScheduler:
             return None
 
     async def cleanup_orphan_media_files(self):
-        """Linus式简化媒体清理：最早消息时间-10分钟，完事！"""
+        """简化媒体清理：最早消息时间-10分钟作为清理界限"""
         try:
             from datetime import datetime, timedelta
             from app.services.config_manager import config_manager
@@ -269,7 +269,7 @@ class MessageScheduler:
 
             logger.debug(f"⏰ [媒体清理] 开始执行简化媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-            # 🚀 Linus式简化：获取最早消息时间（任何状态）
+            # 获取最早消息时间（任何状态）
             earliest_message_time = await self.get_earliest_message_time()
 
             # 确定清理界限
@@ -293,7 +293,7 @@ class MessageScheduler:
             deleted_count = 0
             deleted_size = 0
 
-            # 🚀 简化：直接扫描并清理，无复杂判断
+            # 直接扫描并清理
             for file_path in PathConfig.TEMP_MEDIA_DIR.iterdir():
                 if file_path.is_file():
                     try:
@@ -325,7 +325,7 @@ class MessageScheduler:
             else:
                 size_str = f"{deleted_size} bytes"
 
-            # 🚀 简化报告
+            # 简化报告
             if deleted_count > 0:
                 logger.info(f"✅ [媒体清理] 清理完成 - 删除{deleted_count}个过期文件，释放{size_str}空间")
             else:

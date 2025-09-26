@@ -707,7 +707,7 @@ class RedisManager:
             return 0
 
     def get_earliest_message_timestamp(self) -> Optional[float]:
-        """🚀 高效获取最早消息的时间戳 - Linus式实用主义"""
+        """高效获取最早消息的时间戳"""
         try:
             # 获取所有ZSET索引中的最小时间戳
             min_timestamp = None
