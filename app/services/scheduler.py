@@ -242,31 +242,19 @@ class MessageScheduler:
             logger.error(f"清理日志文件失败: {e}")
 
     async def get_earliest_message_time(self):
-        """获取最早消息的创建时间（任何状态）- Linus式简化"""
+        """🚀 高效获取最早消息时间 - O(log N)复杂度"""
         try:
             from datetime import datetime
             from app.storage.redis_manager import redis_manager
 
-            # 🚀 简化：获取所有消息，不区分状态
-            all_messages = redis_manager.get_all_messages(limit=1000)
+            # 直接从Redis ZSET获取最小时间戳
+            earliest_timestamp = redis_manager.get_earliest_message_timestamp()
 
-            if not all_messages:
+            if earliest_timestamp is None:
                 return None
 
-            # 找出最早的创建时间
-            earliest_time = None
-            for msg in all_messages:
-                created_at = msg.get('created_at')
-                if created_at:
-                    try:
-                        # 解析时间
-                        msg_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                        if earliest_time is None or msg_time < earliest_time:
-                            earliest_time = msg_time
-                    except Exception:
-                        continue
-
-            return earliest_time
+            # 转换为datetime对象
+            return datetime.fromtimestamp(earliest_timestamp)
 
         except Exception as e:
             logger.error(f"获取最早消息时间失败: {e}")

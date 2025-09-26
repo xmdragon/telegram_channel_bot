@@ -705,6 +705,34 @@ class RedisManager:
             return int(count) if count else 0
         except Exception:
             return 0
+
+    def get_earliest_message_timestamp(self) -> Optional[float]:
+        """🚀 高效获取最早消息的时间戳 - Linus式实用主义"""
+        try:
+            # 获取所有ZSET索引中的最小时间戳
+            min_timestamp = None
+
+            # 检查所有状态索引: pending, rejected, 以及各频道索引
+            index_keys = self.client.keys("index:msg:*")
+
+            for index_key in index_keys:
+                try:
+                    # 使用ZRANGE获取最小score（时间戳）
+                    # LIMIT 0 1：只取第一个（最小的）
+                    result = self.client.zrange(index_key, 0, 0, withscores=True)
+                    if result:
+                        timestamp = float(result[0][1])  # [0][1]是score
+                        if min_timestamp is None or timestamp < min_timestamp:
+                            min_timestamp = timestamp
+                except Exception as e:
+                    logger.debug(f"检查索引{index_key}失败: {e}")
+                    continue
+
+            return min_timestamp
+
+        except Exception as e:
+            logger.error(f"获取最早消息时间戳失败: {e}")
+            return None
     
     # ===========================================
     # 缓存功能 - 替换RedisCacheStore
