@@ -835,33 +835,46 @@ const MainApp = {
             return window.DataUtils ? window.DataUtils.getOriginalMessageLink(message) : '#';
         },
         
-        // 统计面板点击 - 没有特殊情况
+        // 统计面板点击 - 处理7种状态
         handleStatClick(statKey) {
-            
+
             // 数据驱动，直接设置状态
             this.filters.source_channel = '';
-            
+
+            // 处理所有7种新状态
             switch(statKey) {
                 case 'pending':
-                    this.filters.status = 'pending';
+                case 'send_failed':
+                case 'auto_approved':
+                case 'manual_approved':
+                case 'ad_rejected':
+                case 'dup_rejected':
+                case 'manual_rejected':
+                    this.filters.status = statKey;
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
                     break;
+
+                // 兼容旧的聚合状态
                 case 'approved':
+                    // 显示所有已发布的消息（自动+手动）
                     this.filters.status = 'approved';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
                     break;
                 case 'rejected':
+                    // 显示所有已拒绝的消息（广告+重复+手动）
                     this.filters.status = 'rejected';
                     this.filters.is_ad = null;
                     this.filters.filter_reason = null;
                     break;
+
                 default:
                     // 未知状态：不做任何操作
-                    break;
+                    console.warn('未知的状态键:', statKey);
+                    return;
             }
-            
+
             window.SimpleUI.Message.info(`已切换到「${this.getStatLabel(statKey)}」并清除频道筛选`);
             this.loadMessages();
         },
