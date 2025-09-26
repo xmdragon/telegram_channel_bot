@@ -664,39 +664,139 @@ class RedisManager:
             return self.get_approved_messages(limit, offset, reverse)
         elif status == "rejected":
             return self.get_rejected_messages(limit, offset, reverse)
+        elif status == "send_failed":
+            # 获取发送失败的消息
+            return self._get_messages_by_custom_status("send_failed", limit, offset, reverse)
         else:
             return []
-    
-    def search_messages(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """搜索消息 - 简单文本匹配"""
+
+    def _get_messages_by_custom_status(self, status: str, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
+        """获取自定义状态的消息"""
         try:
-            # 获取所有消息键
-            all_keys = self.client.keys("message:*")
-            
             messages = []
-            for key in all_keys[:limit * 2]:  # 限制搜索范围
-                try:
-                    message_data = self.client.hget(key, "data")
-                    if message_data:
-                        message = self._deserialize_json(message_data)
-                        if message and query.lower() in str(message.get('text', '')).lower():
-                            # 从键中解析channel_id和message_id
-                            parts = key.split(':')
-                            if len(parts) >= 3:
-                                message['channel_id'] = parts[1] 
-                                message['message_id'] = int(parts[2])
+            # 使用SCAN扫描所有消息
+            cursor = 0
+            count = 0
+
+            while count < (offset + limit):
+                cursor, keys = self.client.scan(cursor, match="message:*", count=100)
+
+                for key in keys:
+                    try:
+                        message_data = self.client.hget(key, "data")
+                        if message_data:
+                            message = self._deserialize_json(message_data)
+                            if message and message.get('status') == status:
                                 messages.append(message)
-                                
-                                if len(messages) >= limit:
+                                count += 1
+
+                                # 提前结束扫描
+                                if count >= (offset + limit):
                                     break
-                except Exception:
-                    continue
-            
-            return messages
-            
+                    except Exception:
+                        continue
+
+                # 游标为0表示扫描完成
+                if cursor == 0:
+                    break
+
+            # 按时间戳排序
+            messages.sort(key=lambda x: x.get('created_at', 0), reverse=reverse)
+
+            # 分页返回
+            return messages[offset:offset + limit]
+
+        except Exception as e:
+            logger.error(f"获取{status}状态消息失败: {e}")
+            return []
+    
+    def search_messages(self, query: str, limit: int = 50, offset: int = 0,
+                       status: Optional[str] = None) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        全量搜索消息 - 支持跨频道、跨状态搜索
+        返回: (消息列表, 总匹配数)
+        """
+        try:
+            if not query or not query.strip():
+                return [], 0
+
+            query_lower = query.lower().strip()
+            matched_messages = []
+
+            # 使用SCAN避免阻塞，批量处理
+            cursor = 0
+            scan_count = 100  # 每次扫描数量
+            total_scanned = 0
+            max_scan = 5000  # 最大扫描数量限制
+
+            while total_scanned < max_scan:
+                cursor, keys = self.client.scan(cursor, match="message:*", count=scan_count)
+
+                for key in keys:
+                    try:
+                        # 获取消息数据
+                        message_data = self.client.hget(key, "data")
+                        if not message_data:
+                            continue
+
+                        message = self._deserialize_json(message_data)
+                        if not message:
+                            continue
+
+                        # 状态过滤
+                        if status and message.get('status') != status:
+                            continue
+
+                        # 搜索内容匹配
+                        content = str(message.get('content', '')).lower()
+                        filtered_content = str(message.get('filtered_content', '')).lower()
+
+                        if query_lower in content or query_lower in filtered_content:
+                            # 解析键获取ID信息
+                            parts = key.decode() if isinstance(key, bytes) else key
+                            parts = parts.split(':')
+                            if len(parts) >= 3:
+                                channel_id = parts[1]
+                                message_id = parts[2]
+
+                                # 确保必要字段存在
+                                message['source_channel'] = message.get('source_channel', channel_id)
+                                message['message_id'] = int(message.get('message_id', message_id))
+                                message['id'] = f"{channel_id}:{message_id}"
+
+                                matched_messages.append(message)
+
+                    except Exception as e:
+                        logger.debug(f"处理消息键{key}失败: {e}")
+                        continue
+
+                total_scanned += len(keys)
+
+                # 如果游标为0，说明扫描完成
+                if cursor == 0:
+                    break
+
+            # 按时间戳排序（新到旧）
+            matched_messages.sort(
+                key=lambda x: x.get('created_at', 0),
+                reverse=True
+            )
+
+            # 计算总数
+            total_count = len(matched_messages)
+
+            # 分页返回
+            start_idx = offset
+            end_idx = offset + limit
+            paginated_messages = matched_messages[start_idx:end_idx]
+
+            logger.info(f"搜索'{query}'完成: 扫描{total_scanned}个键，匹配{total_count}条消息")
+
+            return paginated_messages, total_count
+
         except Exception as e:
             logger.error(f"搜索消息失败: {e}")
-            return []
+            return [], 0
     
     def get_message_count(self, channel_id: str) -> int:
         """获取频道消息数量"""

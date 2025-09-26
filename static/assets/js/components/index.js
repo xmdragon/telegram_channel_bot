@@ -514,6 +514,12 @@ const MainApp = {
             }
         },
 
+        // 清除搜索
+        clearSearch() {
+            this.searchKeyword = '';
+            this.loadMessages();
+        },
+
         async loadMessages(append = false) {
 
             if (append) {
@@ -595,6 +601,13 @@ const MainApp = {
                     // 只有在追加模式且有真正新消息时才显示提示
                     if (append && reallyNewMessages.length > 0) {
                         window.SimpleUI.Message.success(`收到 ${reallyNewMessages.length} 条新消息`);
+                    } else if (!append && this.searchKeyword) {
+                        // 搜索时显示结果数量
+                        if (newMessages.length > 0) {
+                            window.SimpleUI.Message.success(`找到 ${response.data.data.pagination?.total || newMessages.length} 条包含"${this.searchKeyword}"的消息`);
+                        } else {
+                            window.SimpleUI.Message.warning(`未找到包含"${this.searchKeyword}"的消息`);
+                        }
                     } else if (!append && this.filters.source_channel) {
                         // 频道切换时显示提示
                         const channelInfo = this.uniqueChannels[this.filters.source_channel];

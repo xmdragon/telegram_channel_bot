@@ -34,12 +34,18 @@
             <div class="toolbar">
                 <div class="filter-group">
                     <!-- 搜索框 -->
-                    <div class="search-box">
-                        <input type="text" 
-                               v-model="searchKeyword" 
-                               placeholder="搜索消息内容..." 
+                    <div class="search-box" style="position: relative;">
+                        <input type="text"
+                               v-model="searchKeyword"
+                               placeholder="搜索消息内容（全量搜索）..."
                                class="search-input"
                                @keyup.enter="loadMessages">
+                        <button v-if="searchKeyword"
+                                @click="clearSearch"
+                                class="clear-search-btn"
+                                style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px;">
+                            ✕
+                        </button>
                     </div>
                     
                     <!-- 状态筛选 -->
@@ -48,6 +54,7 @@
                         <option value="pending">待审核</option>
                         <option value="approved">已发布</option>
                         <option value="rejected">已拒绝</option>
+                        <option value="send_failed">发送失败</option>
                         <option value="auto_forwarded">自动转发</option>
                     </select>
                     

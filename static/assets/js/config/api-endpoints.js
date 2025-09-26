@@ -40,6 +40,9 @@ const API_ENDPOINTS = {
         batchReject: '/api/messages/batch/reject',                 // POST - 批量拒绝
         batchDelete: '/api/messages/batch/delete',                 // POST - 批量删除
 
+        // 重置操作
+        resetFailed: '/api/messages/reset-failed',                 // POST - 重置发送失败的消息
+
         // 统计相关
         stats: '/api/messages/stats/overview'                      // GET - 获取统计概览
     },

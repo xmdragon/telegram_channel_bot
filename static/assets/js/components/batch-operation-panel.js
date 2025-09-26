@@ -58,22 +58,24 @@ const BatchOperationPanel = {
                     pending: 0,
                     approved: 0,
                     rejected: 0,
+                    send_failed: 0,
                     total: 0
                 };
             }
-            
+
             const details = {
                 pending: 0,
                 approved: 0,
                 rejected: 0,
+                send_failed: 0,
                 total: this.selectedCount
             };
-            
+
             // 根据选中的消息ID找到对应的消息对象
-            const selectedMessageObjs = this.filteredMessages.filter(msg => 
+            const selectedMessageObjs = this.filteredMessages.filter(msg =>
                 this.selectedMessages.includes(msg.id)
             );
-            
+
             selectedMessageObjs.forEach(msg => {
                 switch (msg.status) {
                     case 'pending':
@@ -85,10 +87,18 @@ const BatchOperationPanel = {
                     case 'rejected':
                         details.rejected++;
                         break;
+                    case 'send_failed':
+                        details.send_failed++;
+                        break;
                 }
             });
-            
+
             return details;
+        },
+
+        // 检查是否有发送失败的消息
+        hasFailedMessages() {
+            return this.filteredMessages.some(msg => msg.status === 'send_failed');
         },
         
         // 按钮显示控制
@@ -144,13 +154,43 @@ const BatchOperationPanel = {
         // 批量删除（带确认）
         async batchDelete() {
             if (!this.hasSelection) return;
-            
+
             const confirmed = await this.showDeleteConfirmation();
             if (!confirmed) return;
-            
+
             await this.executeBatchOperation('delete', '删除中...');
         },
-        
+
+        // 重置所有发送失败的消息
+        async resetFailedMessages() {
+            if (!confirm('确定要重置所有发送失败的消息吗？\n这将把它们的状态重置为"已发布"，以便重新尝试发送。')) {
+                return;
+            }
+
+            this.isProcessing = true;
+            try {
+                const response = await axios.post(API.messages.resetFailed);
+                if (response.data.success) {
+                    const resetCount = response.data.data?.reset_count || 0;
+                    SimpleUI.showMessage(`成功重置 ${resetCount} 条发送失败的消息`, 'success');
+
+                    // 触发消息列表刷新
+                    this.$emit('batch-operation-complete', {
+                        operation: 'reset_failed',
+                        processedCount: resetCount,
+                        totalCount: response.data.data?.total_failed || resetCount
+                    });
+                } else {
+                    SimpleUI.showMessage(response.data.message || '重置失败', 'error');
+                }
+            } catch (error) {
+                console.error('重置失败消息错误:', error);
+                SimpleUI.showMessage('重置失败消息时发生错误', 'error');
+            } finally {
+                this.isProcessing = false;
+            }
+        },
+
         // 执行批量操作
         async executeBatchOperation(operation, statusText) {
             this.isProcessing = true;
@@ -327,8 +367,8 @@ const BatchOperationPanel = {
             
             
             <!-- 批量操作区 -->
-            <div class="batch-operations" v-if="hasSelection">
-                <div class="button-group">
+            <div class="batch-operations">
+                <div class="button-group" v-if="hasSelection">
                     <button
                         v-if="shouldShowApprove"
                         class="btn btn-success"
@@ -358,13 +398,25 @@ const BatchOperationPanel = {
                         <span v-if="isProcessing && operationProgress.status.includes('删除')" class="spinner"></span>
                         🗑️ 删除 ({{ selectedMessageDetails.approved + selectedMessageDetails.rejected }})
                     </button>
-                    
+
                     <button
                         class="btn btn-secondary"
                         @click="clearSelection"
                         :disabled="isProcessing"
                     >
                         🗑️ 清空
+                    </button>
+                </div>
+
+                <!-- 重置失败消息按钮 (独立显示) -->
+                <div class="button-group" v-if="hasFailedMessages">
+                    <button
+                        class="btn btn-info"
+                        :disabled="isProcessing"
+                        @click="resetFailedMessages"
+                    >
+                        <span v-if="isProcessing" class="spinner"></span>
+                        🔄 重置所有发送失败的消息
                     </button>
                 </div>
             </div>

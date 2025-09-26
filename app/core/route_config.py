@@ -38,6 +38,9 @@ class RouteConfig:
         batch_reject = "/messages/batch/reject"
         batch_delete = "/messages/batch/delete"
 
+        # 重置操作
+        reset_failed = "/messages/reset-failed"
+
         # 统计相关
         stats_overview = "/messages/stats/overview"
 

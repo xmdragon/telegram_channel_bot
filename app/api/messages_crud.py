@@ -90,57 +90,51 @@ async def get_messages(
     """
     try:
         redis_store = redis_manager
-        
+
         # 计算分页参数
         offset = (page - 1) * page_size
-        
-        # 🚀 性能优化：根据查询类型选择最优方法
-        reverse_order = (sort_order == "desc")  # desc=新到旧(逆序), asc=旧到新(正序)
 
-        if source_channel:
-            # 从指定频道获取消息，支持状态筛选
-            all_messages = redis_manager.get_messages_by_channel(
-                source_channel,
+        # 如果有搜索关键词，使用全量搜索
+        if search and search.strip():
+            # 使用新的全量搜索方法
+            filtered_messages, total_messages = redis_manager.search_messages(
+                query=search,
                 limit=page_size,
                 offset=offset,
-                status=status,
-                reverse=reverse_order
+                status=status  # 搜索时也支持状态过滤
             )
+
+            # 计算总页数
+            total_pages = (total_messages + page_size - 1) // page_size if total_messages > 0 else 1
+
         else:
-            # 🚀 统一逻辑：消除特殊情况
-            if status in ["pending", "approved", "rejected"]:
-                all_messages = redis_manager.get_messages_by_status(status, limit=page_size, offset=offset, reverse=reverse_order)
+            # 无搜索关键词时，使用原有逻辑
+            # 🚀 性能优化：根据查询类型选择最优方法
+            reverse_order = (sort_order == "desc")  # desc=新到旧(逆序), asc=旧到新(正序)
+
+            if source_channel:
+                # 从指定频道获取消息，支持状态筛选
+                all_messages = redis_manager.get_messages_by_channel(
+                    source_channel,
+                    limit=page_size,
+                    offset=offset,
+                    status=status,
+                    reverse=reverse_order
+                )
             else:
-                # 无状态筛选时，默认显示待审核消息
-                all_messages = redis_manager.get_messages_by_status("pending", limit=page_size, offset=offset, reverse=reverse_order)
-        
-        # 🚀 性能优化：简化过滤逻辑（单独消息已清理，无需去重）
-        filtered_messages = []
-        
-        # 单次遍历：应用基础过滤条件
-        for msg in all_messages:
-            # 状态过滤
-            if status and msg.get('status') != status:
-                continue
-            
-            # 搜索过滤
-            if search:
-                content = msg.get('content', '')
-                filtered_content = msg.get('filtered_content', '')
-                if (search.lower() not in content.lower() and 
-                    search.lower() not in filtered_content.lower()):
-                    continue
-            
-            filtered_messages.append(msg)
-        
-        # 分页处理（排序已在Redis层处理）
-        total_messages = len(filtered_messages)
-        if not source_channel:
-            # 对于非频道筛选，取前page_size条
-            filtered_messages = filtered_messages[:page_size]
-        
-        # 计算总页数
-        total_pages = (total_messages + page_size - 1) // page_size if total_messages > 0 else 1
+                # 🚀 统一逻辑：消除特殊情况
+                if status in ["pending", "approved", "rejected", "send_failed"]:
+                    all_messages = redis_manager.get_messages_by_status(status, limit=page_size, offset=offset, reverse=reverse_order)
+                else:
+                    # 无状态筛选时，默认显示待审核消息
+                    all_messages = redis_manager.get_messages_by_status("pending", limit=page_size, offset=offset, reverse=reverse_order)
+
+            # 直接使用获取到的消息
+            filtered_messages = all_messages
+
+            # 计算总数和页数
+            total_messages = len(filtered_messages)
+            total_pages = (total_messages + page_size - 1) // page_size if total_messages > 0 else 1
         
         # 🗑️ 不再需要处理媒体组标记 - 现在单独存储
         

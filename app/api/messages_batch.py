@@ -442,6 +442,97 @@ async def batch_delete_messages(
 # 注意：_handle_rejected_media_removal 和 _remove_media_from_training 函数已移除（媒体训练功能已废弃）
 
 
+@router.post(ROUTES.messages.reset_failed)
+async def reset_failed_messages(
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    重置所有发送失败的消息状态
+    将 send_failed 状态的消息重置为 approved 状态
+    """
+    try:
+        reset_count = 0
+        failed_messages = []
+
+        # 获取所有频道
+        from app.storage.json_store import get_json_channel_store
+        channel_store = get_json_channel_store()
+        all_channels = channel_store.get_all_channels()
+
+        # 遍历所有频道查找发送失败的消息
+        for channel in all_channels:
+            if isinstance(channel, dict):
+                channel_id = channel.get('channel_id', '')
+                if channel_id:
+                    # 确保频道ID格式统一
+                    if not channel_id.startswith('-100'):
+                        if channel_id.isdigit():
+                            channel_id = f"-100{channel_id}"
+                        elif channel_id.startswith('-') and not channel_id.startswith('-100'):
+                            channel_id = f"-100{channel_id[1:]}"
+
+                    # 获取该频道的所有消息
+                    messages = redis_manager.get_messages_by_channel(channel_id, limit=1000)
+
+                    # 筛选出发送失败的消息
+                    for msg in messages:
+                        if msg.get('status') == 'send_failed':
+                            failed_messages.append({
+                                'channel_id': channel_id,
+                                'message_id': msg.get('message_id')
+                            })
+
+        # 批量重置状态
+        from app.services.message_processor import MessageProcessor
+        message_processor = MessageProcessor()
+
+        for msg_info in failed_messages:
+            try:
+                # 获取消息数据
+                msg_data = redis_manager.get_message(
+                    msg_info['channel_id'],
+                    msg_info['message_id'],
+                    silent=True
+                )
+
+                if msg_data and msg_data.get('status') == 'send_failed':
+                    # 重置状态为approved
+                    msg_data['status'] = 'approved'
+                    msg_data['send_failed_count'] = 0
+                    msg_data['last_send_attempt'] = None
+                    msg_data['send_error'] = None
+
+                    # 更新消息
+                    redis_manager.update_message(
+                        msg_info['channel_id'],
+                        msg_info['message_id'],
+                        msg_data
+                    )
+
+                    reset_count += 1
+                    logger.info(f"重置消息 {msg_info['channel_id']}:{msg_info['message_id']} 状态为approved")
+
+            except Exception as e:
+                logger.error(f"重置消息 {msg_info['channel_id']}:{msg_info['message_id']} 失败: {e}")
+
+        # 发送统计更新通知
+        await _notify_stats_update()
+
+        return {
+            "success": True,
+            "message": f"成功重置 {reset_count} 条发送失败的消息",
+            "data": {
+                "reset_count": reset_count,
+                "total_failed": len(failed_messages)
+            },
+            "timestamp": format_for_api(get_current_time())
+        }
+
+    except Exception as e:
+        logger.error(f"重置发送失败消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"重置发送失败消息失败: {str(e)}")
+
+
 async def _notify_stats_update():
     """发送WebSocket通知更新统计数据"""
     try:
@@ -449,10 +540,10 @@ async def _notify_stats_update():
         from app.storage.redis_manager import redis_manager
         from datetime import datetime
         import json
-        
+
         # 获取最新统计数据
         stats = redis_manager.get_statistics()
-        
+
         # 构造通知数据
         notification_data = {
             "type": "stats_update",
@@ -464,10 +555,10 @@ async def _notify_stats_update():
                 "rejected_count": stats.get("rejected_messages", 0)
             }
         }
-        
+
         # 通过WebSocket广播统计更新
         await websocket_manager.broadcast(json.dumps(notification_data, ensure_ascii=False))
-        
+
     except Exception as e:
         # 通知失败不应该影响处理流程，只记录错误
         logger.debug(f"发送统计更新通知失败: {e}")
