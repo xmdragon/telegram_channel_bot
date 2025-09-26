@@ -65,8 +65,9 @@ temp_media/
 # Telegram configuration (contains sensitive API keys and sessions)
 data/config/telegram.json
 
-# Backup files
-data/backups/
+# Backup files (保留目录，忽略内容)
+data/backups/*
+!data/backups/.gitkeep
 
 # OS
 .DS_Store
