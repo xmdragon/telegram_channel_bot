@@ -190,30 +190,29 @@ class MessageProcessor:
             # 不抛出异常，避免影响消息保存流程
     
     async def get_message_stats(self) -> dict:
-        """获取消息统计信息 - 使用O(1)计数器"""
+        """获取消息统计信息 - 新7状态系统"""
         try:
-            from app.storage.message_stats_store import get_message_stats_store
-            stats_store = get_message_stats_store()
-            
-            # 获取消息统计数据
-            message_stats = stats_store.get_global_stats()
+            from app.core.message_status import MessageStatus
 
-            # 纯净统计：只有4个核心字段，消除所有特殊情况
-            return {
-                "total": message_stats.total,
-                "pending": message_stats.pending,
-                "approved": message_stats.approved,
-                "rejected": message_stats.rejected
-            }
-            
+            # 获取各状态的数量 - 直接从Redis索引统计
+            stats = {}
+            for status in MessageStatus:
+                count = len(redis_manager.client.zrange(f"index:msg:{status.value}", 0, -1))
+                stats[status.value] = count
+
+            return stats
+
         except Exception as e:
             logger.error(f"获取统计失败: {e}")
-            # 返回默认统计
+            # 返回默认7状态统计
             return {
-                "total": 0, 
-                "pending": 0, 
-                "approved": 0, 
-                "rejected": 0
+                MessageStatus.PENDING.value: 0,
+                MessageStatus.SEND_FAILED.value: 0,
+                MessageStatus.AUTO_APPROVED.value: 0,
+                MessageStatus.MANUAL_APPROVED.value: 0,
+                MessageStatus.AD_REJECTED.value: 0,
+                MessageStatus.DUP_REJECTED.value: 0,
+                MessageStatus.MANUAL_REJECTED.value: 0,
             }
     
     async def get_message(self, channel_id: str, message_id: int) -> Optional[Dict[str, Any]]:
@@ -303,31 +302,45 @@ class MessageProcessor:
             logger.error(f"获取频道消息失败 {channel_id}: {e}")
             return []
     
-    async def batch_update_status(self, message_ids: List[tuple], 
+    async def batch_update_status(self, message_ids: List[tuple],
                                 new_status: str, reviewed_by: str = None, reason: str = None) -> Dict[str, bool]:
         """批量更新消息状态
-        
+
         Args:
             message_ids: [(channel_id, message_id), ...] 消息ID元组列表
             new_status: 新状态
             reviewed_by: 审核人
             reason: 拒绝原因（可选）
-            
+
         Returns:
             {f"{channel_id}:{message_id}": success_status, ...}
         """
+        from app.core.message_status import MessageStatus
+
         results = {}
-        
+
         try:
+            # 根据旧状态和原因决定新状态
+            if new_status == "rejected" and reason:
+                reason_lower = reason.lower()
+                if "广告" in reason or "ad" in reason_lower:
+                    actual_status = MessageStatus.AD_REJECTED.value
+                elif "重复" in reason or "dup" in reason_lower:
+                    actual_status = MessageStatus.DUP_REJECTED.value
+                else:
+                    actual_status = MessageStatus.MANUAL_REJECTED.value
+            else:
+                actual_status = new_status
+
             for channel_id, message_id in message_ids:
                 key = f"{channel_id}:{message_id}"
                 try:
                     success = await self.update_message_status(
-                        str(channel_id), int(message_id), new_status, reviewed_by
+                        str(channel_id), int(message_id), actual_status, reviewed_by
                     )
-                    
-                    # 如果有reason且为rejected状态，记录到日志
-                    if reason and new_status == "rejected":
+
+                    # 如果有reason，记录到日志
+                    if reason:
                         logger.info(f"批量拒绝原因 {channel_id}:{message_id}: {reason}")
                     results[key] = success
                     

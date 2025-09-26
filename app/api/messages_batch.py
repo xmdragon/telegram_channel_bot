@@ -475,8 +475,9 @@ async def reset_failed_messages(
                     messages = redis_manager.get_messages_by_channel(channel_id, limit=1000)
 
                     # 筛选出发送失败的消息
+                    from app.core.message_status import MessageStatus
                     for msg in messages:
-                        if msg.get('status') == 'send_failed':
+                        if msg.get('status') == MessageStatus.SEND_FAILED.value:
                             failed_messages.append({
                                 'channel_id': channel_id,
                                 'message_id': msg.get('message_id')
@@ -495,9 +496,11 @@ async def reset_failed_messages(
                     silent=True
                 )
 
-                if msg_data and msg_data.get('status') == 'send_failed':
-                    # 重置状态为approved
-                    msg_data['status'] = 'approved'
+                from app.core.message_status import MessageStatus
+
+                if msg_data and msg_data.get('status') == MessageStatus.SEND_FAILED.value:
+                    # 重置状态为pending(需要重新审核)
+                    msg_data['status'] = MessageStatus.PENDING.value
                     msg_data['send_failed_count'] = 0
                     msg_data['last_send_attempt'] = None
                     msg_data['send_error'] = None

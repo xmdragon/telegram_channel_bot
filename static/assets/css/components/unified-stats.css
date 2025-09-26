@@ -99,6 +99,77 @@
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
+/* 新7种状态的样式定义 */
+/* 待审核 */
+.stat-badge.status-pending {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-color: #3b82f6;
+}
+
+.stat-badge.status-pending .stat-badge-number {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* 发送失败 */
+.stat-badge.status-send-failed {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #ef4444;
+}
+
+.stat-badge.status-send-failed .stat-badge-number {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* 自动发布 */
+.stat-badge.status-auto-approved {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-color: #22c55e;
+}
+
+.stat-badge.status-auto-approved .stat-badge-number {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+/* 手动发布 */
+.stat-badge.status-manual-approved {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border-color: #059669;
+}
+
+.stat-badge.status-manual-approved .stat-badge-number {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+/* 广告拒绝 */
+.stat-badge.status-ad-rejected {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-color: #f59e0b;
+}
+
+.stat-badge.status-ad-rejected .stat-badge-number {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+/* 重复拒绝 */
+.stat-badge.status-dup-rejected {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border-color: #64748b;
+}
+
+.stat-badge.status-dup-rejected .stat-badge-number {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+/* 手动拒绝 */
+.stat-badge.status-manual-rejected {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: #f87171;
+}
+
+.stat-badge.status-manual-rejected .stat-badge-number {
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+}
+
 .stat-badge.ads {
     background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
     border-color: #ec4899;

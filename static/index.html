@@ -17,6 +17,7 @@
         document.write('<link rel="stylesheet" href="assets/css/components/performance-ui.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/media-group.css?v=' + RESOURCE_VERSION + '">');
         document.write('<link rel="stylesheet" href="assets/css/components/telegram-media-grid.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/message-stats.css?v=' + RESOURCE_VERSION + '">');
     </script>
 </head>
 <body>
@@ -52,10 +53,15 @@
                     <select v-model="filters.status" @change="loadMessages" class="form-select">
                         <option value="">全部状态</option>
                         <option value="pending">待审核</option>
-                        <option value="approved">已发布</option>
-                        <option value="rejected">已拒绝</option>
                         <option value="send_failed">发送失败</option>
-                        <option value="auto_forwarded">自动转发</option>
+                        <option value="auto_approved">自动发布</option>
+                        <option value="manual_approved">手动发布</option>
+                        <option value="ad_rejected">广告拒绝</option>
+                        <option value="dup_rejected">重复拒绝</option>
+                        <option value="manual_rejected">手动拒绝</option>
+                        <!-- 兼容旧状态 -->
+                        <option value="approved">已发布（兼容）</option>
+                        <option value="rejected">已拒绝（兼容）</option>
                     </select>
                     
                     <!-- 广告筛选 -->
@@ -401,6 +407,7 @@
         document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/message-status.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
         document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');

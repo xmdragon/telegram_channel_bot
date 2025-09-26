@@ -349,8 +349,11 @@ class AutoForwarder:
             reason: 失败原因
         """
         try:
-            # 使用原子更新方法，直接更新字段
+            from app.core.message_status import MessageStatus
+
+            # 更新状态为发送失败
             update_data = {
+                'status': MessageStatus.SEND_FAILED.value,
                 'auto_forward_failed': True,
                 'auto_forward_error': reason,
                 'auto_forward_failed_at': get_current_time().isoformat(),
@@ -400,10 +403,15 @@ class AutoForwarder:
                 'auto_forward_processed_at': get_current_time().isoformat()
             }
 
-            # 如果是空内容，同时更新状态为rejected
+            # 根据原因设置不同的拒绝状态
+            from app.core.message_status import MessageStatus
+
             if reason == 'empty_content':
-                update_data['status'] = 'rejected'
+                update_data['status'] = MessageStatus.MANUAL_REJECTED.value
                 update_data['reject_reason'] = '消息内容为空'
+            elif reason == 'ad_detected':
+                update_data['status'] = MessageStatus.AD_REJECTED.value
+                update_data['reject_reason'] = '检测为广告内容'
 
             # 使用 update_message_atomic 方法（接受完整的 message_id）
             redis_manager.update_message_atomic(message_id, update_data)

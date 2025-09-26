@@ -1,0 +1,148 @@
+/* 消息统计组件样式 - 支持7种状态显示 */
+
+/* 7个状态网格布局 */
+.stats-grid-7 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .stats-grid-7 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid-7 {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+}
+
+/* 汇总视图样式 */
+.stats-summary {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e4e7ed;
+}
+
+.stats-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.stat-summary-item {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.stat-summary-item:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stat-summary-number {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: #303133;
+    margin-bottom: 5px;
+}
+
+.stat-summary-label {
+    display: block;
+    font-size: 14px;
+    color: #606266;
+}
+
+
+/* 7种状态颜色定义 */
+.status-pending .stat-detail-number,
+.status-pending .stat-detail-label {
+    color: #409EFF;
+}
+.status-pending {
+    background-color: rgba(64, 158, 255, 0.1);
+}
+
+.status-send-failed .stat-detail-number,
+.status-send-failed .stat-detail-label {
+    color: #F56C6C;
+}
+.status-send-failed {
+    background-color: rgba(245, 108, 108, 0.1);
+}
+
+.status-auto-approved .stat-detail-number,
+.status-auto-approved .stat-detail-label {
+    color: #67C23A;
+}
+.status-auto-approved {
+    background-color: rgba(103, 194, 58, 0.1);
+}
+
+.status-manual-approved .stat-detail-number,
+.status-manual-approved .stat-detail-label {
+    color: #19A77B;
+}
+.status-manual-approved {
+    background-color: rgba(25, 167, 123, 0.1);
+}
+
+.status-ad-rejected .stat-detail-number,
+.status-ad-rejected .stat-detail-label {
+    color: #E6A23C;
+}
+.status-ad-rejected {
+    background-color: rgba(230, 162, 60, 0.1);
+}
+
+.status-dup-rejected .stat-detail-number,
+.status-dup-rejected .stat-detail-label {
+    color: #909399;
+}
+.status-dup-rejected {
+    background-color: rgba(144, 147, 153, 0.1);
+}
+
+.status-manual-rejected .stat-detail-number,
+.status-manual-rejected .stat-detail-label {
+    color: #F56C6C;
+}
+.status-manual-rejected {
+    background-color: rgba(245, 108, 108, 0.1);
+}
+
+/* 切换按钮 */
+.stats-toggle {
+    text-align: center;
+    margin-top: 10px;
+}
+
+.btn-toggle {
+    padding: 4px 12px;
+    font-size: 12px;
+    background: #fff;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    color: #606266;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-toggle:hover {
+    color: #409EFF;
+    border-color: #c6e2ff;
+    background-color: #ecf5ff;
+}

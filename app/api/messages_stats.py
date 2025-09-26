@@ -50,25 +50,49 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
 
 @router.get(ROUTES.messages.stats_overview)
 async def get_message_stats(
-    user: Dict[str, Any] = Depends(require_auth),
-    message_processor: MessageProcessor = Depends(get_message_processor)
+    user: Dict[str, Any] = Depends(require_auth)
 ):
     """
-    获取消息统计概览
+    获取消息统计概览 - 直接从Redis获取
     """
     try:
-        stats = await message_processor.get_message_stats()
+        from app.core.message_status import MessageStatus
 
-        # 添加 message_status 包装和 labels，保持与前端兼容
+        # 直接从Redis索引获取各状态的数量
+        status_counts = {}
+        for status_enum in MessageStatus:
+            count = redis_manager.client.zcard(f"index:msg:{status_enum.value}")
+            status_counts[status_enum.value] = count
+
+        # 计算兼容的旧状态统计
+        approved_total = status_counts.get(MessageStatus.AUTO_APPROVED.value, 0) + status_counts.get(MessageStatus.MANUAL_APPROVED.value, 0)
+        rejected_total = (status_counts.get(MessageStatus.AD_REJECTED.value, 0) +
+                         status_counts.get(MessageStatus.DUP_REJECTED.value, 0) +
+                         status_counts.get(MessageStatus.MANUAL_REJECTED.value, 0))
+
         return {
             "success": True,
             "data": {
                 "message_status": {
-                    "pending": stats.get("pending", 0),
-                    "approved": stats.get("approved", 0),
-                    "rejected": stats.get("rejected", 0),
+                    # 新7种状态
+                    "pending": status_counts.get(MessageStatus.PENDING.value, 0),
+                    "send_failed": status_counts.get(MessageStatus.SEND_FAILED.value, 0),
+                    "auto_approved": status_counts.get(MessageStatus.AUTO_APPROVED.value, 0),
+                    "manual_approved": status_counts.get(MessageStatus.MANUAL_APPROVED.value, 0),
+                    "ad_rejected": status_counts.get(MessageStatus.AD_REJECTED.value, 0),
+                    "dup_rejected": status_counts.get(MessageStatus.DUP_REJECTED.value, 0),
+                    "manual_rejected": status_counts.get(MessageStatus.MANUAL_REJECTED.value, 0),
+                    # 兼容旧3状态
+                    "approved": approved_total,
+                    "rejected": rejected_total,
                     "labels": {
                         "pending": "待审核",
+                        "send_failed": "发送失败",
+                        "auto_approved": "自动发布",
+                        "manual_approved": "手动发布",
+                        "ad_rejected": "广告拒绝",
+                        "dup_rejected": "重复拒绝",
+                        "manual_rejected": "手动拒绝",
                         "approved": "已发布",
                         "rejected": "已拒绝"
                     }
@@ -79,16 +103,30 @@ async def get_message_stats(
 
     except Exception as e:
         logger.error(f"获取消息统计失败: {e}")
-        # 返回默认统计数据，确保前端不会出错
+        # 返回默认7种状态统计数据，确保前端不会出错
         return {
             "success": True,
             "data": {
                 "message_status": {
+                    # 新7种状态
                     "pending": 0,
+                    "send_failed": 0,
+                    "auto_approved": 0,
+                    "manual_approved": 0,
+                    "ad_rejected": 0,
+                    "dup_rejected": 0,
+                    "manual_rejected": 0,
+                    # 兼容旧3状态
                     "approved": 0,
                     "rejected": 0,
                     "labels": {
                         "pending": "待审核",
+                        "send_failed": "发送失败",
+                        "auto_approved": "自动发布",
+                        "manual_approved": "手动发布",
+                        "ad_rejected": "广告拒绝",
+                        "dup_rejected": "重复拒绝",
+                        "manual_rejected": "手动拒绝",
                         "approved": "已发布",
                         "rejected": "已拒绝"
                     }

@@ -12,14 +12,29 @@ const MessageStatsComponent = {
     data() {
         return {
             loading: false,
-            
+            showLegacySummary: false,  // 显示兼容汇总
+
             messageStatus: {
+                // 新7状态
                 pending: 0,
-                approved: 0,
-                rejected: 0,
+                send_failed: 0,
+                auto_approved: 0,
+                manual_approved: 0,
+                ad_rejected: 0,
+                dup_rejected: 0,
+                manual_rejected: 0,
+                // 兼容旧3状态
+                approved: 0,  // auto_approved + manual_approved
+                rejected: 0,  // ad_rejected + dup_rejected + manual_rejected
                 labels: {
                     pending: '待审核',
-                    approved: '已发布', 
+                    send_failed: '发送失败',
+                    auto_approved: '自动发布',
+                    manual_approved: '手动发布',
+                    ad_rejected: '广告拒绝',
+                    dup_rejected: '重复拒绝',
+                    manual_rejected: '手动拒绝',
+                    approved: '已发布',
                     rejected: '已拒绝'
                 }
             },
@@ -103,6 +118,10 @@ const MessageStatsComponent = {
                         this.messageStatus[key] = data.message_status[key];
                     }
                 });
+
+                // 计算兼容的旧状态总数
+                this.messageStatus.approved = (this.messageStatus.auto_approved || 0) + (this.messageStatus.manual_approved || 0);
+                this.messageStatus.rejected = (this.messageStatus.ad_rejected || 0) + (this.messageStatus.dup_rejected || 0) + (this.messageStatus.manual_rejected || 0);
             }
             
             this.lastUpdate = new Date();
@@ -203,20 +222,61 @@ const MessageStatsComponent = {
             
             <!-- 统计内容 - 始终显示，即使加载中 -->
             <div v-show="!loading || messageStatus.pending > 0" class="stats-content">
-                <div class="stats-grid">
-                    <!-- 消息状态统计 - 简化模板 -->
+                <div class="stats-grid stats-grid-7">
+                    <!-- 7种状态统计 -->
                     <div class="stat-badge clickable status-pending" @click="handleStatClick('pending')">
                         <span class="stat-badge-number">{{ messageStatus.pending.toLocaleString() }}</span>
-                        <span class="stat-badge-label">{{ messageStatus.labels.pending }}</span>
+                        <span class="stat-badge-label">待审核</span>
                     </div>
-                    <div class="stat-badge clickable status-approved" @click="handleStatClick('approved')">
-                        <span class="stat-badge-number">{{ messageStatus.approved.toLocaleString() }}</span>
-                        <span class="stat-badge-label">{{ messageStatus.labels.approved }}</span>
+                    <div class="stat-badge clickable status-send-failed" @click="handleStatClick('send_failed')">
+                        <span class="stat-badge-number">{{ messageStatus.send_failed.toLocaleString() }}</span>
+                        <span class="stat-badge-label">发送失败</span>
                     </div>
-                    <div class="stat-badge clickable status-rejected" @click="handleStatClick('rejected')">
-                        <span class="stat-badge-number">{{ messageStatus.rejected.toLocaleString() }}</span>
-                        <span class="stat-badge-label">{{ messageStatus.labels.rejected }}</span>
+                    <div class="stat-badge clickable status-auto-approved" @click="handleStatClick('auto_approved')">
+                        <span class="stat-badge-number">{{ messageStatus.auto_approved.toLocaleString() }}</span>
+                        <span class="stat-badge-label">自动发布</span>
                     </div>
+                    <div class="stat-badge clickable status-manual-approved" @click="handleStatClick('manual_approved')">
+                        <span class="stat-badge-number">{{ messageStatus.manual_approved.toLocaleString() }}</span>
+                        <span class="stat-badge-label">手动发布</span>
+                    </div>
+                    <div class="stat-badge clickable status-ad-rejected" @click="handleStatClick('ad_rejected')">
+                        <span class="stat-badge-number">{{ messageStatus.ad_rejected.toLocaleString() }}</span>
+                        <span class="stat-badge-label">广告拒绝</span>
+                    </div>
+                    <div class="stat-badge clickable status-dup-rejected" @click="handleStatClick('dup_rejected')">
+                        <span class="stat-badge-number">{{ messageStatus.dup_rejected.toLocaleString() }}</span>
+                        <span class="stat-badge-label">重复拒绝</span>
+                    </div>
+                    <div class="stat-badge clickable status-manual-rejected" @click="handleStatClick('manual_rejected')">
+                        <span class="stat-badge-number">{{ messageStatus.manual_rejected.toLocaleString() }}</span>
+                        <span class="stat-badge-label">手动拒绝</span>
+                    </div>
+                </div>
+
+                <!-- 兼容汇总视图 -->
+                <div v-if="showLegacySummary" class="stats-summary">
+                    <div class="stats-summary-grid">
+                        <div class="stat-summary-item">
+                            <span class="stat-summary-number">{{ (messageStatus.pending + messageStatus.send_failed).toLocaleString() }}</span>
+                            <span class="stat-summary-label">待处理</span>
+                        </div>
+                        <div class="stat-summary-item">
+                            <span class="stat-summary-number">{{ messageStatus.approved.toLocaleString() }}</span>
+                            <span class="stat-summary-label">已发布</span>
+                        </div>
+                        <div class="stat-summary-item">
+                            <span class="stat-summary-number">{{ messageStatus.rejected.toLocaleString() }}</span>
+                            <span class="stat-summary-label">已拒绝</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 切换按钮 -->
+                <div class="stats-toggle">
+                    <button @click="showLegacySummary = !showLegacySummary" class="btn-toggle">
+                        {{ showLegacySummary ? '详细状态' : '汇总视图' }}
+                    </button>
                 </div>
             </div>
         </div>

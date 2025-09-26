@@ -134,13 +134,17 @@ class RedisManager:
             pipeline.zadd(f"index:msg:{channel_id}", {message_id: current_time})
             
             # 根据消息状态添加到对应索引
+            # 导入状态定义
+            from app.core.message_status import MessageStatus, get_legacy_status
+
             status = message_data.get('status', 'pending')
-            if status == 'pending':
-                pipeline.zadd("index:msg:pending", {f"{channel_id}:{message_id}": current_time})
-            elif status == 'approved':
-                pipeline.zadd("index:msg:approved", {f"{channel_id}:{message_id}": current_time})
-            elif status == 'rejected':
-                pipeline.zadd("index:msg:rejected", {f"{channel_id}:{message_id}": current_time})
+
+            # 新状态系统：每个状态都有独立索引
+            pipeline.zadd(f"index:msg:{status}", {f"{channel_id}:{message_id}": current_time})
+
+            # 向后兼容：同时维护旧的3个索引
+            legacy_status = get_legacy_status(status)
+            pipeline.zadd(f"index:msg:{legacy_status}", {f"{channel_id}:{message_id}": current_time})
             
             # 更新消息计数
             pipeline.incr(f"channel:{channel_id}:count")
@@ -302,13 +306,21 @@ class RedisManager:
             
             # 更新索引（仅当状态变更时）
             if old_status != new_status:
-                # 从所有状态索引中移除（消除特殊情况，彻底清理）
-                for status in ['pending', 'approved', 'rejected']:
-                    pipeline.zrem(f"index:msg:{status}", message_id)
-                
+                from app.core.message_status import MessageStatus, get_legacy_status
+
+                # 从旧状态索引中移除
+                if old_status:
+                    pipeline.zrem(f"index:msg:{old_status}", message_id)
+                    # 同时从兼容索引中移除
+                    old_legacy = get_legacy_status(old_status)
+                    pipeline.zrem(f"index:msg:{old_legacy}", message_id)
+
                 # 添加到新状态索引
-                if new_status in ['pending', 'approved', 'rejected']:
+                if new_status:
                     pipeline.zadd(f"index:msg:{new_status}", {message_id: current_time})
+                    # 同时添加到兼容索引
+                    new_legacy = get_legacy_status(new_status)
+                    pipeline.zadd(f"index:msg:{new_legacy}", {message_id: current_time})
             
             # 执行原子操作
             pipeline.execute()
@@ -444,8 +456,14 @@ class RedisManager:
             
             # 3. 清理状态索引（如果消息存在）
             if message_data:
+                from app.core.message_status import get_legacy_status
+
                 status = message_data.get('status', 'pending')
+                # 清理新状态索引
                 pipeline.zrem(f"index:msg:{status}", full_message_id)
+                # 清理兼容索引
+                legacy_status = get_legacy_status(status)
+                pipeline.zrem(f"index:msg:{legacy_status}", full_message_id)
 
                 # 4. 清理媒体哈希索引（如果有媒体）
                 if message_data.get('media_hash'):
@@ -459,8 +477,14 @@ class RedisManager:
                         pipeline.srem(key, full_message_id)
                         logger.debug(f"从SimHash索引 {key} 中删除消息: {full_message_id}")
             else:
+                from app.core.message_status import MessageStatus
+
                 # 如果消息不存在，尝试清理所有可能的状态索引（防止孤儿索引）
+                # 清理旧状态索引
                 for status in ['pending', 'approved', 'rejected']:
+                    pipeline.zrem(f"index:msg:{status}", full_message_id)
+                # 清理新状态索引
+                for status in [s.value for s in MessageStatus]:
                     pipeline.zrem(f"index:msg:{status}", full_message_id)
             
             # 5. 清理全局索引
@@ -479,7 +503,8 @@ class RedisManager:
     def get_messages_by_channel(self, channel_id: str, limit: int = 50, offset: int = 0, status: str = None, reverse: bool = True) -> List[Dict[str, Any]]:
         """获取频道消息列表"""
         try:
-            if status and status in ['pending', 'approved', 'rejected']:
+            if status:
+                # 支持新状态和旧状态
                 # 当指定状态时，从状态索引中获取该频道的消息
                 if reverse:
                     status_keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
@@ -535,17 +560,33 @@ class RedisManager:
             return []
     
     def get_pending_messages(self, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
-        """获取待审核消息"""
+        """获取待审核消息（包括待审核和发送失败）"""
         try:
+            from app.core.message_status import MessageStatus
+
+            # 获取所有待处理状态的消息
+            pending_statuses = MessageStatus.get_pending_like_statuses()
+            all_keys = []
+
+            for status in pending_statuses:
+                if reverse:
+                    keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
+                else:
+                    keys = self.client.zrange(f"index:msg:{status}", 0, -1)
+                all_keys.extend([(key, status) for key in keys])
+
+            # 按时间排序并分页
             if reverse:
-                pending_keys = self.client.zrevrange("index:msg:pending", offset, offset + limit - 1)
+                all_keys.sort(reverse=True, key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
             else:
-                pending_keys = self.client.zrange("index:msg:pending", offset, offset + limit - 1)
+                all_keys.sort(key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
+
+            paginated_keys = all_keys[offset:offset + limit]
             
             messages = []
             invalid_keys = []
             
-            for key in pending_keys:
+            for key, status_index in paginated_keys:
                 # 解析消息键格式：channel_id:message_id
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
@@ -553,20 +594,20 @@ class RedisManager:
                     if message_data:
                         # 🔥 状态验证：确保消息状态与索引匹配
                         actual_status = message_data.get('status', 'pending')
-                        if actual_status == 'pending':
+                        if actual_status in pending_statuses:
                             messages.append(message_data)
                         else:
                             # 状态不匹配，添加到清理列表
-                            invalid_keys.append(key)
+                            invalid_keys.append((key, status_index))
                             logger.debug(f"状态不匹配的消息从pending索引清理: {key} (实际状态: {actual_status})")
                     else:
-                        invalid_keys.append(key)
+                        invalid_keys.append((key, status_index))
             
             # 清理无效的待审核索引
             if invalid_keys:
                 pipeline = self.client.pipeline()
-                for invalid_key in invalid_keys:
-                    pipeline.zrem("index:msg:pending", invalid_key)
+                for invalid_key, status_index in invalid_keys:
+                    pipeline.zrem(f"index:msg:{status_index}", invalid_key)
                 pipeline.execute()
                 logger.info(f"清理了 {len(invalid_keys)} 个无效的pending索引项")
             
@@ -577,36 +618,52 @@ class RedisManager:
             return []
     
     def get_approved_messages(self, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
-        """获取已审核消息"""
+        """获取已审核消息（包括自动发布和手动发布）"""
         try:
+            from app.core.message_status import MessageStatus
+
+            # 获取所有已发布状态的消息
+            approved_statuses = MessageStatus.get_approved_statuses()
+            all_keys = []
+
+            for status in approved_statuses:
+                if reverse:
+                    keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
+                else:
+                    keys = self.client.zrange(f"index:msg:{status}", 0, -1)
+                all_keys.extend([(key, status) for key in keys])
+
+            # 按时间排序并分页
             if reverse:
-                approved_keys = self.client.zrevrange("index:msg:approved", offset, offset + limit - 1)
+                all_keys.sort(reverse=True, key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
             else:
-                approved_keys = self.client.zrange("index:msg:approved", offset, offset + limit - 1)
+                all_keys.sort(key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
+
+            paginated_keys = all_keys[offset:offset + limit]
             
             messages = []
             invalid_keys = []
             
-            for key in approved_keys:
+            for key, status_index in paginated_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
                     if message_data:
                         # 验证状态匹配
                         actual_status = message_data.get('status', 'pending')
-                        if actual_status == 'approved':
+                        if actual_status in approved_statuses:
                             messages.append(message_data)
                         else:
-                            invalid_keys.append(key)
+                            invalid_keys.append((key, status_index))
                             logger.debug(f"状态不匹配的消息从approved索引清理: {key} (实际状态: {actual_status})")
                     else:
-                        invalid_keys.append(key)
+                        invalid_keys.append((key, status_index))
             
             # 清理无效索引
             if invalid_keys:
                 pipeline = self.client.pipeline()
-                for invalid_key in invalid_keys:
-                    pipeline.zrem("index:msg:approved", invalid_key)
+                for invalid_key, status_index in invalid_keys:
+                    pipeline.zrem(f"index:msg:{status_index}", invalid_key)
                 pipeline.execute()
                 logger.info(f"清理了 {len(invalid_keys)} 个无效的approved索引项")
             
@@ -617,36 +674,52 @@ class RedisManager:
             return []
     
     def get_rejected_messages(self, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
-        """获取已拒绝消息"""
+        """获取已拒绝消息（包括广告拒绝、重复拒绝和手动拒绝）"""
         try:
+            from app.core.message_status import MessageStatus
+
+            # 获取所有已拒绝状态的消息
+            rejected_statuses = MessageStatus.get_rejected_statuses()
+            all_keys = []
+
+            for status in rejected_statuses:
+                if reverse:
+                    keys = self.client.zrevrange(f"index:msg:{status}", 0, -1)
+                else:
+                    keys = self.client.zrange(f"index:msg:{status}", 0, -1)
+                all_keys.extend([(key, status) for key in keys])
+
+            # 按时间排序并分页
             if reverse:
-                rejected_keys = self.client.zrevrange("index:msg:rejected", offset, offset + limit - 1)
+                all_keys.sort(reverse=True, key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
             else:
-                rejected_keys = self.client.zrange("index:msg:rejected", offset, offset + limit - 1)
-            
+                all_keys.sort(key=lambda x: self.client.zscore(f"index:msg:{x[1]}", x[0]) or 0)
+
+            paginated_keys = all_keys[offset:offset + limit]
+
             messages = []
             invalid_keys = []
-            
-            for key in rejected_keys:
+
+            for key, status_index in paginated_keys:
                 if ':' in key:
                     channel_id, message_id = key.split(':', 1)
                     message_data = self.get_message(channel_id, int(message_id))
                     if message_data:
                         # 验证状态匹配
                         actual_status = message_data.get('status', 'pending')
-                        if actual_status == 'rejected':
+                        if actual_status in rejected_statuses:
                             messages.append(message_data)
                         else:
-                            invalid_keys.append(key)
+                            invalid_keys.append((key, status_index))
                             logger.debug(f"状态不匹配的消息从rejected索引清理: {key} (实际状态: {actual_status})")
                     else:
-                        invalid_keys.append(key)
+                        invalid_keys.append((key, status_index))
             
             # 清理无效索引
             if invalid_keys:
                 pipeline = self.client.pipeline()
-                for invalid_key in invalid_keys:
-                    pipeline.zrem("index:msg:rejected", invalid_key)
+                for invalid_key, status_index in invalid_keys:
+                    pipeline.zrem(f"index:msg:{status_index}", invalid_key)
                 pipeline.execute()
                 logger.info(f"清理了 {len(invalid_keys)} 个无效的rejected索引项")
             

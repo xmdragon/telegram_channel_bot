@@ -601,12 +601,27 @@ async def reject_message(
         if not message:
             raise HTTPException(status_code=404, detail="消息不存在")
         
-        # 更新消息状态为已拒绝
-        success = redis_manager.update_message_status(message_id, "rejected", user.get('user_id'))
+        # 根据拒绝原因设置不同的拒绝状态
+        from app.core.message_status import MessageStatus
+
+        # 根据原因判断拒绝类型
+        if reason:
+            reason_lower = reason.lower()
+            if "广告" in reason or "ad" in reason_lower:
+                new_status = MessageStatus.AD_REJECTED.value
+            elif "重复" in reason or "dup" in reason_lower:
+                new_status = MessageStatus.DUP_REJECTED.value
+            else:
+                new_status = MessageStatus.MANUAL_REJECTED.value
+        else:
+            new_status = MessageStatus.MANUAL_REJECTED.value
+
+        # 更新消息状态
+        success = redis_manager.update_message_status(message_id, new_status, user.get('user_id'))
         if not success:
             raise HTTPException(status_code=500, detail="拒绝消息失败")
-        
-        # 如果有拒绝原因，单独更新
+
+        # 保存拒绝原因
         if reason:
             # 解析消息ID获取channel_id和msg_id
             if ':' in message_id:
@@ -1133,8 +1148,10 @@ async def publish_single_message(
         target_message_id = target_info.get('target_message_id') if isinstance(target_info, dict) else None
         target_message_ids = target_info.get('target_message_ids', []) if isinstance(target_info, dict) else []
 
-        # 4. 更新状态为已发布
-        redis_manager.update_message_status(message_id, "approved", user_id or "system")
+        # 4. 更新状态为已发布（区分自动/手动）
+        from app.core.message_status import MessageStatus
+        new_status = MessageStatus.AUTO_APPROVED.value if is_auto_forward else MessageStatus.MANUAL_APPROVED.value
+        redis_manager.update_message_status(message_id, new_status, user_id or "system")
 
         # 4.5. 如果成功获取到目标消息链接，追加到消息内容并保存完整的目标消息ID信息
         if target_link:
@@ -1272,9 +1289,10 @@ async def _async_publish_with_notify(message_id: str, user_id: str = None):
             await _redis_websocket_notify("publish_failed", message_id,
                                         error_msg, is_final=True)
 
-            # 将消息状态回退到待审核
+            # 将消息状态设置为发送失败
             try:
-                redis_manager.update_message_status(message_id, "pending", user_id)
+                from app.core.message_status import MessageStatus
+                redis_manager.update_message_status(message_id, MessageStatus.SEND_FAILED.value, user_id)
                 redis_manager.update_message_field(
                     message_id.split(':')[0], int(message_id.split(':')[1]),
                     'forward_failure_reason', error_msg
