@@ -1,14 +1,73 @@
 /* Telegram API配置样式 */
 
+/* 新的配置卡片样式 */
+.api-config-section {
+    margin-bottom: 2rem;
+}
+
+.config-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.config-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.config-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color, #e5e5e5);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-secondary, #f9fafb);
+}
+
+.config-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.config-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.config-status.status-ok {
+    background: rgba(74, 222, 128, 0.1);
+    color: #16a34a;
+}
+
+.config-status.status-warning {
+    background: rgba(251, 146, 60, 0.1);
+    color: #ea580c;
+}
+
+.config-content {
+    padding: 1.5rem;
+}
+
+/* 表单样式 */
 .api-config-form {
-    margin-top: 2rem;
-    max-width: 500px;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: none;
+    margin: 0;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
 }
 
 .api-config-form .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
 }
 
 .api-config-form .form-label {
@@ -16,6 +75,7 @@
     margin-bottom: 0.5rem;
     font-weight: 600;
     color: var(--text-primary);
+    font-size: 0.875rem;
 }
 
 .api-config-form .form-input {
@@ -35,11 +95,45 @@
     box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
 }
 
-.api-config-form .prompt-actions {
-    margin-top: 2rem;
-    text-align: center;
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color, #e5e5e5);
 }
 
+.form-actions .btn {
+    flex: 0 0 auto;
+}
+
+.btn-outline-primary {
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+
+/* 旧样式兼容 */
 .api-hint {
     margin-top: 2rem;
     padding: 1rem;

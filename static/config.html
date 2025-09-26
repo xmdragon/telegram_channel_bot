@@ -617,51 +617,6 @@
                                     消息经过智能去除尾部内容后，会自动添加此落款到消息尾部
                                 </div>
                             </div>
-                            
-                            <!-- Telegram API 配置 -->
-                            <div class="form-group">
-                                <label class="form-label">📡 Telegram API 配置</label>
-                                
-                                <!-- API ID -->
-                                <div class="form-group">
-                                    <label class="form-label-small">API ID</label>
-                                    <div class="input-line">
-                                        <input 
-                                            class="form-input"
-                                            type="text"
-                                            v-model="configs['telegram.api_id']" 
-                                            placeholder="请输入 Telegram API ID"
-                                            @blur="validateApiId">
-                                        <div class="form-hint">
-                                            从 <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> 获取
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- API Hash -->
-                                <div class="form-group">
-                                    <label class="form-label-small">API Hash</label>
-                                    <div class="input-line">
-                                        <input 
-                                            class="form-input"
-                                            type="password"
-                                            v-model="configs['telegram.api_hash']" 
-                                            placeholder="请输入 Telegram API Hash"
-                                            @blur="validateApiHash">
-                                        <div class="form-hint">
-                                            从 <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> 获取
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- 配置状态提示 -->
-                                <div class="config-warning" v-if="!configs['telegram.api_id'] || !configs['telegram.api_hash']">
-                                    ⚠️ 未配置 API 信息，Telegram 认证功能将不可用
-                                </div>
-                                <div class="config-success" v-if="configs['telegram.api_id'] && configs['telegram.api_hash']">
-                                    ✅ API 配置完成
-                                </div>
-                            </div>
 
                             <div class="form-group">
                                 <label class="form-label">媒体文件大小限制</label>

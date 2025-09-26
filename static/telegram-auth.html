@@ -24,56 +24,55 @@
         <div class="container">
             <!-- 双Session认证界面 -->
             <div class="dual-session-container">
-                <!-- API配置提示 -->
-                <div v-if="!hasSharedApi" class="api-config-prompt">
-                    <div class="prompt-card">
-                        <div class="prompt-icon">🔧</div>
-                        <div class="prompt-content">
-                            <h3 class="prompt-title">需要配置 Telegram API</h3>
-                            <p class="prompt-text">在开始认证之前，请先设置您的 API ID 和 API Hash</p>
+                <!-- API配置卡片 - 始终显示 -->
+                <div class="api-config-section">
+                    <div class="config-card">
+                        <div class="config-header">
+                            <h3>🔧 Telegram API 配置</h3>
+                            <span class="config-status" :class="hasValidApi ? 'status-ok' : 'status-warning'">
+                                {{ hasValidApi ? '✅ 已配置' : '⚠️ 未配置' }}
+                            </span>
+                        </div>
 
+                        <div class="config-content">
                             <!-- API配置表单 -->
                             <div class="api-config-form">
-                                <div class="form-group">
-                                    <label class="form-label">API ID</label>
-                                    <input class="form-input"
-                                           v-model="apiConfig.api_id"
-                                           placeholder="请输入 Telegram API ID"
-                                           type="text">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">API ID</label>
+                                        <input class="form-input"
+                                               v-model="apiConfig.api_id"
+                                               placeholder="请输入 Telegram API ID"
+                                               type="text">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="form-label">API Hash</label>
+                                        <input class="form-input"
+                                               v-model="apiConfig.api_hash"
+                                               placeholder="请输入 Telegram API Hash"
+                                               type="text">
+                                    </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label class="form-label">API Hash</label>
-                                    <input class="form-input"
-                                           v-model="apiConfig.api_hash"
-                                           placeholder="请输入 Telegram API Hash"
-                                           type="text">
-                                </div>
-
-                                <div class="prompt-actions">
-                                    <button class="btn btn-primary btn-lg"
+                                <div class="form-actions">
+                                    <button class="btn btn-primary"
                                             @click="saveApiConfig"
-                                            :disabled="!apiConfig.api_id || !apiConfig.api_hash">
-                                        保存API配置
+                                            :disabled="!apiConfig.api_id || !apiConfig.api_hash || savingApi">
+                                        {{ savingApi ? '保存中...' : '保存配置' }}
                                     </button>
-                                </div>
 
-                                <div class="api-hint">
-                                    <p>💡 如何获取API凭据？</p>
-                                    <ol>
-                                        <li>访问 <a href="https://my.telegram.org/auth" target="_blank">my.telegram.org</a></li>
-                                        <li>使用手机号登录</li>
-                                        <li>点击 "API development tools"</li>
-                                        <li>创建应用获取 API ID 和 API Hash</li>
-                                    </ol>
+                                    <a href="https://my.telegram.org/auth" target="_blank" class="btn btn-outline-primary">
+                                        获取 API 凭据 →
+                                    </a>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 双Session认证区域 -->
-                <div v-if="hasSharedApi" class="dual-session-auth">
+                <div class="dual-session-auth">
                     <!-- 采集Session认证 -->
                     <div class="session-card listener-session">
                         <div class="session-header success-theme">
@@ -248,9 +247,9 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 底部操作 -->
-                <div v-if="hasSharedApi && bothSessionsCompleted" class="bottom-actions">
+                <div v-if="bothSessionsCompleted" class="bottom-actions">
                     <div class="text-center">
                         <div class="success-icon-large">🎉</div>
                         <h3 class="success-title-large">双Session认证完成！</h3>

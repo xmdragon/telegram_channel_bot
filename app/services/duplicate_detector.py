@@ -362,6 +362,35 @@ class DuplicateDetector:
         """计算两个SimHash的汉明距离"""
         return bin(hash1 ^ hash2).count('1')
 
+    def _quick_similarity_check(self, current_simhash: int, candidate_content: str) -> float:
+        """快速相似度检查（用于高相似度豁免预筛选）"""
+        try:
+            # 计算候选内容的SimHash
+            candidate_simhash = self.simhash_calculator.calculate(candidate_content)
+            if not candidate_simhash:
+                return 0.0
+
+            # 基于SimHash距离的快速相似度估算
+            # 海明距离越小，相似度越高
+            distance = self._calculate_hamming_distance(current_simhash, candidate_simhash)
+
+            # 将海明距离转换为相似度分数（0-1）
+            # 距离0 = 100%相似，距离64 = 0%相似
+            similarity = 1.0 - (distance / 64.0)
+
+            # 对于距离在12-24之间的，给予额外评估机会
+            # 因为可能只是添加了标签等小修改
+            if 12 <= distance <= 24:
+                # 简单的长度相似性补偿
+                # 如果内容长度相近，可能是高相似度
+                return min(0.90, similarity + 0.15)  # 给予15%的补偿
+
+            return similarity
+
+        except Exception as e:
+            logger.debug(f"快速相似度检查失败: {e}")
+            return 0.0
+
     async def _get_retention_ttl(self) -> int:
         """获取内容与指纹缓存的统一TTL（秒）"""
         now_ts = datetime.now().timestamp()
@@ -486,7 +515,9 @@ class DuplicateDetector:
 
             threshold = await self._get_simhash_threshold()
             filtered_candidates: List[str] = []
+            high_similarity_candidates: List[str] = []  # 高相似度豁免候选
 
+            # 第一轮：SimHash距离筛选
             for candidate_id in ordered_candidates:
                 candidate_hash = await self._get_candidate_simhash(candidate_id)
                 if candidate_hash is None:
@@ -495,9 +526,32 @@ class DuplicateDetector:
                 distance = self._calculate_hamming_distance(simhash_value, candidate_hash)
                 if distance <= threshold:
                     filtered_candidates.append(candidate_id)
+                elif distance <= threshold * 2:  # 对于距离在2倍阈值内的，保存待检查
+                    high_similarity_candidates.append(candidate_id)
 
                 if len(filtered_candidates) >= 20:
                     break
+
+            # 第二轮：高相似度豁免机制（≥90%相似度）
+            # 如果第一轮候选不足，检查高相似度候选
+            if len(filtered_candidates) < 10 and high_similarity_candidates:
+                # 获取当前消息的规范化内容（用于快速相似度评估）
+                # 注意：这里只是预筛选，详细比较在_find_best_match中进行
+                for candidate_id in high_similarity_candidates[:10]:  # 限制检查数量
+                    # 获取候选内容
+                    candidate_content = await self._get_message_content(candidate_id)
+                    if not candidate_content:
+                        continue
+
+                    # 快速相似度评估（简单的字符重合度）
+                    # 这里使用快速算法，不是精确计算
+                    quick_similarity = self._quick_similarity_check(simhash_value, candidate_content)
+                    if quick_similarity >= 0.90:
+                        filtered_candidates.append(candidate_id)
+                        logger.debug(f"高相似度豁免: {candidate_id} (快速评分: {quick_similarity:.2f})")
+
+                    if len(filtered_candidates) >= 20:
+                        break
 
             return filtered_candidates
 
@@ -608,10 +662,10 @@ class DuplicateDetector:
         """获取SimHash海明距离阈值"""
         try:
             from app.services.config_manager import config_manager
-            threshold_str = await config_manager.get_config('duplicate_detection.simhash_threshold', '3')
+            threshold_str = await config_manager.get_config('duplicate_detection.simhash_threshold', '4')
             return int(threshold_str)
         except:
-            return 3  # 默认值
+            return 4  # 默认值
 
     async def _get_similarity_threshold(self) -> float:
         """获取内容相似度阈值"""

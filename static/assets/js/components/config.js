@@ -47,9 +47,6 @@ const ConfigApp = {
                 'duplicate_detection.retention_days': '30',
                 'duplicate_detection.auto_adjust': true,
                 'duplicate_detection.ttl_hours': '24',
-                // Telegram API 配置
-                'telegram.api_id': '',
-                'telegram.api_hash': '',
                 // 过滤设置
                 'filter.enabled': true,
                 'filter.tail_filter': true,
@@ -106,8 +103,6 @@ const ConfigApp = {
                 'duplicate_detection.retention_days': 'integer',
                 'duplicate_detection.auto_adjust': 'boolean',
                 'duplicate_detection.ttl_hours': 'integer',
-                'telegram.api_id': 'string',
-                'telegram.api_hash': 'string',
                 'filter.enabled': 'boolean',
                 'filter.tail_filter': 'boolean',
                 'filter.separator': 'boolean',
@@ -256,32 +251,19 @@ const ConfigApp = {
                 let configData = {};
                 
                 if (keys === null) {
-                    // 保存所有配置，但排除session
+                    // 保存所有配置
                     for (const [key, value] of Object.entries(this.configs)) {
-                        // 跳过session配置
-                        if (key.includes('.listener_session') || key.includes('.sender_session')) {
-                            continue;
-                        }
                         configData[key] = value;
                     }
                 } else if (Array.isArray(keys)) {
                     // 保存指定的多个配置
                     keys.forEach(key => {
-                        // 跳过session配置
-                        if (key.includes('.listener_session') || key.includes('.sender_session')) {
-                            return;
-                        }
                         if (this.configs.hasOwnProperty(key)) {
                             configData[key] = this.configs[key];
                         }
                     });
                 } else if (typeof keys === 'string') {
                     // 保存单个配置
-                    // 跳过session配置
-                    if (keys.includes('.listener_session') || keys.includes('.sender_session')) {
-                        MessageManager.warning('Session配置不能通过前端修改');
-                        return;
-                    }
                     if (this.configs.hasOwnProperty(keys)) {
                         configData[keys] = this.configs[keys];
                     }
@@ -350,10 +332,6 @@ const ConfigApp = {
                 // 准备所有配置数据，进行类型转换
                 const configData = {};
                 for (const [key, value] of Object.entries(this.configs)) {
-                    // 跳过session配置，避免保存脱敏后的值
-                    if (key.includes('.listener_session') || key.includes('.sender_session')) {
-                        continue;
-                    }
                     configData[key] = this.convertConfigValue(key, value);
                 }
 
@@ -442,26 +420,6 @@ const ConfigApp = {
             } finally {
                 this.searchForm.loading = false;
             }
-        },
-        
-        
-        // Telegram API 配置验证
-        validateApiId() {
-            const apiId = this.systemConfig['telegram.api_id'];
-            if (apiId && !/^\d+$/.test(apiId)) {
-                MessageManager.warning('API ID 应该是纯数字');
-                return false;
-            }
-            return true;
-        },
-        
-        validateApiHash() {
-            const apiHash = this.systemConfig['telegram.api_hash'];
-            if (apiHash && apiHash.length !== 32) {
-                MessageManager.warning('API Hash 应该是32位字符串');
-                return false;
-            }
-            return true;
         }
     }
 };

@@ -655,10 +655,14 @@ class MessageProcessor:
             normalized_preview = message_content.strip()
 
             full_message_id = f"{channel_id}:{message_id}"
-            duplicate_found = False
-            duplicate_result = None
 
-            # Step 1: 文本去重检测（保持原逻辑）
+            # 初始化结果变量
+            text_duplicate_result = None
+            media_duplicate_result = None
+            text_is_confirmed = False  # 文本是否确认重复（≥95%）
+            text_is_suspected = False  # 文本是否疑似重复（82%-95%）
+
+            # Step 1: 文本去重检测
             if not normalized_preview:
                 logger.debug(f"消息内容为空，跳过文本去重检测: {full_message_id}")
             else:
@@ -668,17 +672,26 @@ class MessageProcessor:
                 text_duplicate_result = await duplicate_detector.detect_duplicate(message_content, full_message_id)
 
                 if text_duplicate_result.is_duplicate:
-                    # 文本检测到重复
-                    duplicate_found = True
-                    duplicate_result = text_duplicate_result
-                    logger.info(
-                        f"📝 文本重复: {full_message_id} "
-                        f"-> {text_duplicate_result.original_message_id} "
-                        f"(相似度: {text_duplicate_result.similarity_score:.3f})"
-                    )
+                    similarity = text_duplicate_result.similarity_score
 
-            # Step 2: 如果文本未检测到重复，进行媒体去重
-            if not duplicate_found:
+                    # 判断文本重复级别
+                    if similarity >= 0.95:
+                        text_is_confirmed = True
+                        logger.info(
+                            f"📝 文本确认重复: {full_message_id} "
+                            f"-> {text_duplicate_result.original_message_id} "
+                            f"(相似度: {similarity:.1%})"
+                        )
+                    elif similarity >= 0.82:
+                        text_is_suspected = True
+                        logger.info(
+                            f"📝 文本疑似重复: {full_message_id} "
+                            f"-> {text_duplicate_result.original_message_id} "
+                            f"(相似度: {similarity:.1%})"
+                        )
+
+            # Step 2: 媒体去重检测（仅在文本未确认重复时执行）
+            if not text_is_confirmed:
                 media_entries = await self._extract_media_paths(message_data)
 
                 if media_entries:
@@ -697,28 +710,57 @@ class MessageProcessor:
                         )
 
                         if media_result.is_duplicate:
+                            media_duplicate_result = media_result
                             logger.info(
                                 f"🖼️ 媒体重复: {full_message_id} "
                                 f"-> {media_result.original_message_id} "
                                 f"(相似度: {media_result.similarity_score:.3f}, 来源: {media_source})"
                             )
-                            duplicate_found = True
-                            duplicate_result = media_result
                             break  # 找到一个重复就停止
 
-            # 根据检测结果更新消息数据
-            if duplicate_found and duplicate_result:
-                # 发现重复消息
-                message_data['duplicate_status'] = 'suspected'
-                message_data['original_message_id'] = duplicate_result.original_message_id
-                message_data['similarity_score'] = duplicate_result.similarity_score
-                message_data['duplicate_reason'] = duplicate_result.detection_reason
+            # Step 3: 综合判断
+            final_duplicate = False
+            final_result = None
+            final_status = 'none'
 
-                logger.info(
-                    f"✅ 检测到重复消息: {full_message_id} "
-                    f"-> {duplicate_result.original_message_id} "
-                    f"(方式: {duplicate_result.detection_reason})"
-                )
+            if text_is_confirmed:
+                # 文本确认重复，直接判定
+                final_duplicate = True
+                final_result = text_duplicate_result
+                final_status = 'confirmed'
+                logger.info(f"✅ 确认重复（文本）: {full_message_id}")
+
+            elif text_is_suspected and media_duplicate_result and media_duplicate_result.is_duplicate:
+                # 文本疑似 + 媒体相同 = 确认重复
+                final_duplicate = True
+                final_result = text_duplicate_result  # 使用文本结果，但状态升级
+                final_status = 'confirmed'
+                logger.info(f"✅ 确认重复（文本疑似+媒体相同）: {full_message_id}")
+
+            elif text_is_suspected:
+                # 仅文本疑似，保持疑似状态
+                final_duplicate = True
+                final_result = text_duplicate_result
+                final_status = 'suspected'
+                logger.info(f"🔍 疑似重复: {full_message_id}")
+
+            elif media_duplicate_result and media_duplicate_result.is_duplicate:
+                # 仅媒体重复
+                final_duplicate = True
+                final_result = media_duplicate_result
+                final_status = 'confirmed'
+                logger.info(f"✅ 确认重复（媒体）: {full_message_id}")
+
+            # 更新消息数据
+            if final_duplicate and final_result:
+                message_data['duplicate_status'] = final_status
+                message_data['original_message_id'] = final_result.original_message_id
+                message_data['similarity_score'] = final_result.similarity_score
+                message_data['duplicate_reason'] = final_result.detection_reason
+
+                # 如果是综合判断，添加额外说明
+                if text_is_suspected and media_duplicate_result:
+                    message_data['duplicate_reason'] = "text_suspected_media_matched"
             else:
                 # 非重复消息
                 message_data['duplicate_status'] = 'none'

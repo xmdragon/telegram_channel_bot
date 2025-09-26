@@ -10,8 +10,6 @@ import logging
 
 from app.core.route_config import ROUTES
 from app.services.config_manager import config_manager
-from app.services.telegram_config_manager import telegram_config_manager
-from app.core.telegram_config import TelegramConfig
 from app.services.auth_service import get_auth_service
 
 router = APIRouter()
@@ -38,15 +36,6 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
     if not user:
         raise HTTPException(status_code=401, detail="未授权访问")
     return user
-
-def mask_session_string(session_value: str) -> str:
-    """脱敏Session字符串，保护敏感信息"""
-    if not session_value or session_value.strip() == "":
-        return "未配置"
-    # 只显示前4位和后4位，中间用*代替
-    if len(session_value) <= 8:
-        return "****已配置"
-    return f"{session_value[:4]}****{session_value[-4:]}"
 
 async def resolve_telegram_entity(entity_link: str, entity_type: str = "entity") -> Tuple[Optional[str], str]:
     """
@@ -87,10 +76,6 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
     from app.core.config import db_settings
     
     return {
-        # Telegram API配置（从telegram.json读取）
-        TelegramConfig.API_ID: await telegram_config_manager.get_api_id() or '',
-        TelegramConfig.API_HASH: await telegram_config_manager.get_api_hash() or '',
-
         # 采集配置
         "collection.enabled": await config_manager.get_config('collection.enabled', True),
         "collection.max_media_size_mb": await config_manager.get_config('collection.max_media_size_mb', 200),
@@ -144,11 +129,7 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
         "telegram.max_message_length": await config_manager.get_config('telegram.max_message_length', 1000),
         "telegram.max_message_length_vip": await config_manager.get_config('telegram.max_message_length_vip', 2000),
         "processor.timeout_seconds": await config_manager.get_config('processor.timeout_seconds', 120),
-        "processor.send_message_timeout": await config_manager.get_config('processor.send_message_timeout', 120),
-
-        # Telegram Session配置（脱敏显示）
-        TelegramConfig.LISTENER_SESSION: mask_session_string(await telegram_config_manager.get_listener_session() or ''),
-        TelegramConfig.SENDER_SESSION: mask_session_string(await telegram_config_manager.get_sender_session() or '')
+        "processor.send_message_timeout": await config_manager.get_config('processor.send_message_timeout', 120)
     }
 
 # === 配置更新方法 ===
