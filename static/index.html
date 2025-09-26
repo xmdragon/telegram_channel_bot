@@ -38,10 +38,10 @@
                     <div class="search-box" style="position: relative;">
                         <input type="text"
                                v-model="searchKeyword"
-                               placeholder="输入消息ID (如 -1002167120993:19312) 快速定位..."
+                               placeholder="消息ID或关键词..."
                                class="search-input"
                                @keyup.enter="loadMessages"
-                               title="支持: 1.消息ID精确查找(快) 2.文本内容搜索(慢)">
+                               title="消息ID格式: -1002167120993:19312">
                         <button v-if="searchKeyword"
                                 @click="clearSearch"
                                 class="clear-search-btn"
