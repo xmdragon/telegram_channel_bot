@@ -786,21 +786,59 @@ class RedisManager:
     def search_messages(self, query: str, limit: int = 50, offset: int = 0,
                        status: Optional[str] = None) -> Tuple[List[Dict[str, Any]], int]:
         """
-        全量搜索消息 - 支持跨频道、跨状态搜索
+        搜索消息 - 优先支持消息ID精确查找，大幅提升性能
+
+        支持的搜索格式:
+        1. 消息ID格式: -1002167120993:19312 (直接精确查找，O(1)性能)
+        2. 普通文本: 搜索消息内容（全量搜索，性能较差）
+
         返回: (消息列表, 总匹配数)
         """
         try:
             if not query or not query.strip():
                 return [], 0
 
-            query_lower = query.lower().strip()
+            query_str = query.strip()
+
+            # 🚀 性能优化：检查是否是消息ID格式（channel_id:message_id）
+            if ':' in query_str and query_str.count(':') == 1:
+                try:
+                    # 尝试解析为消息ID
+                    channel_id, message_id = query_str.split(':')
+
+                    # 验证格式：channel_id应该是负数，message_id应该是数字
+                    if channel_id.startswith('-') and message_id.isdigit():
+                        # 直接获取消息（O(1)性能）
+                        message = self.get_message(channel_id, int(message_id))
+
+                        if message:
+                            # 检查状态过滤
+                            if not status or message.get('status') == status:
+                                logger.info(f"通过消息ID快速定位: {query_str}")
+                                return [message], 1
+                            else:
+                                # 状态不匹配
+                                return [], 0
+                        else:
+                            # 消息不存在
+                            logger.info(f"消息ID不存在: {query_str}")
+                            return [], 0
+
+                except (ValueError, AttributeError):
+                    # 解析失败，继续作为普通搜索处理
+                    pass
+
+            # 如果不是消息ID格式，执行普通文本搜索
+            query_lower = query_str.lower()
             matched_messages = []
 
             # 使用SCAN避免阻塞，批量处理
             cursor = 0
-            scan_count = 100  # 每次扫描数量
+            scan_count = 50  # 降低每次扫描数量
             total_scanned = 0
-            max_scan = 5000  # 最大扫描数量限制
+            max_scan = 1000  # 大幅降低最大扫描数量，提升响应速度
+
+            logger.warning(f"执行全量文本搜索（性能较差）: {query_str[:50]}...")
 
             while total_scanned < max_scan:
                 cursor, keys = self.client.scan(cursor, match="message:*", count=scan_count)
@@ -839,6 +877,11 @@ class RedisManager:
 
                                 matched_messages.append(message)
 
+                                # 如果找到足够多的结果，提前结束
+                                if len(matched_messages) >= limit * 2:
+                                    cursor = 0  # 强制结束循环
+                                    break
+
                     except Exception as e:
                         logger.debug(f"处理消息键{key}失败: {e}")
                         continue
@@ -863,7 +906,7 @@ class RedisManager:
             end_idx = offset + limit
             paginated_messages = matched_messages[start_idx:end_idx]
 
-            logger.info(f"搜索'{query}'完成: 扫描{total_scanned}个键，匹配{total_count}条消息")
+            logger.info(f"全量搜索完成，扫描{total_scanned}条，匹配{total_count}条")
 
             return paginated_messages, total_count
 

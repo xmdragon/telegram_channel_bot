@@ -604,9 +604,20 @@ const MainApp = {
                     } else if (!append && this.searchKeyword) {
                         // 搜索时显示结果数量
                         if (newMessages.length > 0) {
-                            window.SimpleUI.Message.success(`找到 ${response.data.data.pagination?.total || newMessages.length} 条包含"${this.searchKeyword}"的消息`);
+                            const searchTerm = this.searchKeyword;
+                            // 检查是否是消息ID格式
+                            if (searchTerm.includes(':') && searchTerm.split(':').length === 2) {
+                                window.SimpleUI.Message.success(`找到消息: ${searchTerm}`);
+                            } else {
+                                window.SimpleUI.Message.success(`找到 ${response.data.data.pagination?.total || newMessages.length} 条包含"${searchTerm}"的消息`);
+                            }
                         } else {
-                            window.SimpleUI.Message.warning(`未找到包含"${this.searchKeyword}"的消息`);
+                            const searchTerm = this.searchKeyword;
+                            if (searchTerm.includes(':') && searchTerm.split(':').length === 2) {
+                                window.SimpleUI.Message.warning(`消息ID不存在: ${searchTerm}`);
+                            } else {
+                                window.SimpleUI.Message.warning(`未找到包含"${searchTerm}"的消息`);
+                            }
                         }
                     } else if (!append && this.filters.source_channel) {
                         // 频道切换时显示提示
