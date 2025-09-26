@@ -69,7 +69,7 @@
                     </select>
 
                     <!-- 排序选项 -->
-                    <select v-model="sortOrder" @change="loadMessages" class="form-select">
+                    <select v-model="sortOrder" @change="handleSortOrderChange" class="form-select">
                         <option value="desc">新到旧</option>
                         <option value="asc">旧到新</option>
                     </select>

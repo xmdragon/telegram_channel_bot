@@ -501,8 +501,19 @@ const MainApp = {
                 console.error('加载频道信息失败:', error);
             }
         },
-        
-        
+
+        // 处理排序切换 - 本地反转数组，避免重新请求API
+        handleSortOrderChange() {
+            if (this.messages.length > 0) {
+                // 如果有数据，直接反转数组
+                this.messages.reverse();
+                console.log(`已切换排序为: ${this.sortOrder === 'desc' ? '新到旧' : '旧到新'}`);
+            } else {
+                // 如果没有数据，正常加载
+                this.loadMessages();
+            }
+        },
+
         async loadMessages(append = false) {
 
             if (append) {
