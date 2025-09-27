@@ -324,9 +324,9 @@ async def batch_reject_messages(
         except Exception as e:
             logger.error(f"删除审核群消息失败: {e}")
         
-        # 批量更新状态为拒绝
+        # 批量更新状态为手动拒绝
         update_results = await message_processor.batch_update_status(
-            message_tuples, "rejected", reviewer_name, reason
+            message_tuples, "manual_rejected", reviewer_name, reason
         )
         
         rejected_count = sum(1 for success in update_results.values() if success)

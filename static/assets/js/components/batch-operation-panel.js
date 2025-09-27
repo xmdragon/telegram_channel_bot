@@ -51,23 +51,29 @@ const BatchOperationPanel = {
             return this.selectedCount > 0;
         },
         
-        // 分析选中消息的状态分布
+        // 分析选中消息的状态分布（支持新7状态）
         selectedMessageDetails() {
             if (!this.hasSelection || !this.filteredMessages.length) {
                 return {
                     pending: 0,
-                    approved: 0,
-                    rejected: 0,
                     send_failed: 0,
+                    auto_approved: 0,
+                    manual_approved: 0,
+                    ad_rejected: 0,
+                    dup_rejected: 0,
+                    manual_rejected: 0,
                     total: 0
                 };
             }
 
             const details = {
                 pending: 0,
-                approved: 0,
-                rejected: 0,
                 send_failed: 0,
+                auto_approved: 0,
+                manual_approved: 0,
+                ad_rejected: 0,
+                dup_rejected: 0,
+                manual_rejected: 0,
                 total: this.selectedCount
             };
 
@@ -77,19 +83,9 @@ const BatchOperationPanel = {
             );
 
             selectedMessageObjs.forEach(msg => {
-                switch (msg.status) {
-                    case 'pending':
-                        details.pending++;
-                        break;
-                    case 'approved':
-                        details.approved++;
-                        break;
-                    case 'rejected':
-                        details.rejected++;
-                        break;
-                    case 'send_failed':
-                        details.send_failed++;
-                        break;
+                const status = msg.status;
+                if (details.hasOwnProperty(status)) {
+                    details[status]++;
                 }
             });
 
@@ -111,7 +107,10 @@ const BatchOperationPanel = {
         },
         
         shouldShowDelete() {
-            return this.hasSelection && (this.selectedMessageDetails.approved > 0 || this.selectedMessageDetails.rejected > 0);
+            const details = this.selectedMessageDetails;
+            const approvedCount = details.auto_approved + details.manual_approved;
+            const rejectedCount = details.ad_rejected + details.dup_rejected + details.manual_rejected;
+            return this.hasSelection && (approvedCount > 0 || rejectedCount > 0);
         }
     },
     
@@ -396,7 +395,7 @@ const BatchOperationPanel = {
                         @click="batchDelete"
                     >
                         <span v-if="isProcessing && operationProgress.status.includes('删除')" class="spinner"></span>
-                        🗑️ 删除 ({{ selectedMessageDetails.approved + selectedMessageDetails.rejected }})
+                        🗑️ 删除 ({{ selectedMessageDetails.auto_approved + selectedMessageDetails.manual_approved + selectedMessageDetails.ad_rejected + selectedMessageDetails.dup_rejected + selectedMessageDetails.manual_rejected }})
                     </button>
 
                     <button

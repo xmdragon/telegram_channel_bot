@@ -10,10 +10,6 @@ window.MessageStatus = {
     DUP_REJECTED: 'dup_rejected',     // 重复拒绝
     MANUAL_REJECTED: 'manual_rejected',// 手动拒绝
 
-    // 兼容旧3状态系统
-    LEGACY_PENDING: 'pending',
-    LEGACY_APPROVED: 'approved',
-    LEGACY_REJECTED: 'rejected',
 
     // 状态显示信息
     getStatusInfo(status) {
@@ -68,21 +64,6 @@ window.MessageStatus = {
                 icon: 'times-circle',
                 description: '人工审核拒绝'
             },
-            // 兼容旧状态
-            'approved': {
-                label: '已发布',
-                color: '#67C23A',
-                bgColor: 'rgba(103, 194, 58, 0.1)',
-                icon: 'check-circle',
-                description: '消息已发布'
-            },
-            'rejected': {
-                label: '已拒绝',
-                color: '#F56C6C',
-                bgColor: 'rgba(245, 108, 108, 0.1)',
-                icon: 'times-circle',
-                description: '消息已拒绝'
-            }
         };
 
         return statusInfo[status] || {
@@ -96,28 +77,16 @@ window.MessageStatus = {
 
     // 判断是否为已发布状态
     isApproved(status) {
-        return [this.AUTO_APPROVED, this.MANUAL_APPROVED, this.LEGACY_APPROVED].includes(status);
+        return [this.AUTO_APPROVED, this.MANUAL_APPROVED].includes(status);
     },
 
     // 判断是否为已拒绝状态
     isRejected(status) {
-        return [this.AD_REJECTED, this.DUP_REJECTED, this.MANUAL_REJECTED, this.LEGACY_REJECTED].includes(status);
+        return [this.AD_REJECTED, this.DUP_REJECTED, this.MANUAL_REJECTED].includes(status);
     },
 
     // 判断是否为待处理状态
     isPending(status) {
         return [this.PENDING, this.SEND_FAILED].includes(status);
-    },
-
-    // 获取旧状态（向后兼容）
-    getLegacyStatus(status) {
-        if (this.isPending(status)) {
-            return this.LEGACY_PENDING;
-        } else if (this.isApproved(status)) {
-            return this.LEGACY_APPROVED;
-        } else if (this.isRejected(status)) {
-            return this.LEGACY_REJECTED;
-        }
-        return status;
     }
 };

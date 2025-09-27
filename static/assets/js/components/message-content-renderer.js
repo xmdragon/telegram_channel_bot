@@ -52,7 +52,7 @@ const MessageContentRenderer = {
 
         // 格式化的消息内容
         formattedContent() {
-            if (this.message.status === 'rejected' && this.message.filter_reason && this.message.content) {
+            if (this.isRejectedStatus(this.message.status) && this.message.filter_reason && this.message.content) {
                 return this.message.content;
             }
             return this.message.filtered_content || this.message.content || '';
@@ -77,7 +77,7 @@ const MessageContentRenderer = {
             content = this.escapeHtml(content);
 
             // 如果消息已发布，处理目标消息链接（让它可点击）
-            if (this.message.status === 'approved') {
+            if (this.isApprovedStatus(this.message.status)) {
                 content = this.makeTargetLinkClickable(content);
             }
 
@@ -367,6 +367,31 @@ const MessageContentRenderer = {
     },
     
     methods: {
+        // 状态检查辅助方法 - 安全地检查消息状态
+        isPendingStatus(status) {
+            if (window.MessageStatus && window.MessageStatus.isPending) {
+                return window.MessageStatus.isPending(status);
+            }
+            // 降级处理：直接判断
+            return status === 'pending' || status === 'send_failed';
+        },
+
+        isRejectedStatus(status) {
+            if (window.MessageStatus && window.MessageStatus.isRejected) {
+                return window.MessageStatus.isRejected(status);
+            }
+            // 降级处理：直接判断
+            return status === 'rejected' || status === 'ad_rejected' || status === 'dup_rejected' || status === 'manual_rejected';
+        },
+
+        isApprovedStatus(status) {
+            if (window.MessageStatus && window.MessageStatus.isApproved) {
+                return window.MessageStatus.isApproved(status);
+            }
+            // 降级处理：直接判断
+            return status === 'approved' || status === 'auto_approved' || status === 'manual_approved';
+        },
+
         // 切换消息选择状态
         toggleSelect() {
             this.$emit('toggle-select', this.messageId);
@@ -432,11 +457,11 @@ const MessageContentRenderer = {
                 const date = new Date(utcTimeStr);
                 const now = new Date();
                 const diffInSeconds = Math.floor((now - date) / 1000);
-                
+
                 if (diffInSeconds < 60) return `${diffInSeconds}秒前`;
                 if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}分钟前`;
                 if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}小时前`;
-                
+
                 return date.toLocaleString('zh-CN', {
                     month: 'short',
                     day: 'numeric',
@@ -445,6 +470,41 @@ const MessageContentRenderer = {
                 });
             } catch (error) {
                 return timeStr;
+            }
+        },
+
+        // 格式化原消息时间为 MM-dd HH:mm 格式
+        formatOriginalTime(timeStr) {
+            if (!timeStr) return '';
+            try {
+                // 清理时间字符串，移除可能的重复时区标识
+                let cleanTimeStr = timeStr.trim();
+
+                // 如果同时有+00:00和Z，移除Z
+                if (cleanTimeStr.includes('+00:00Z')) {
+                    cleanTimeStr = cleanTimeStr.replace('+00:00Z', '+00:00');
+                }
+                // 如果没有时区标识，添加Z
+                else if (!cleanTimeStr.endsWith('Z') && !cleanTimeStr.includes('+') && !cleanTimeStr.includes('-', 10)) {
+                    cleanTimeStr += 'Z';
+                }
+
+                const date = new Date(cleanTimeStr);
+
+                // 检查日期是否有效
+                if (isNaN(date.getTime())) {
+                    return '';
+                }
+
+                // 格式化为 MM-dd HH:mm 格式
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hour = String(date.getHours()).padStart(2, '0');
+                const minute = String(date.getMinutes()).padStart(2, '0');
+
+                return `${month}-${day} ${hour}:${minute}`;
+            } catch (error) {
+                return '';
             }
         },
         
@@ -646,7 +706,7 @@ const MessageContentRenderer = {
                           title="已标记为非重复">
                         ✅ 非重复
                     </span>
-                    <span v-if="(message.filter_reason || message.rejection_reason) && message.status === 'rejected'"
+                    <span v-if="(message.filter_reason || message.rejection_reason) && isRejectedStatus(message.status)"
                           class="tag tag-secondary reject-reason-hover"
                           :title="message.filter_reason || message.rejection_reason">
                         拒因
@@ -663,7 +723,7 @@ const MessageContentRenderer = {
                     <div class="content-column content-filtered">
                         <div class="content-column-header">
                             <!-- 对于拒绝的广告消息，显示"检测到的广告内容"标签 -->
-                            <span v-if="message.status === 'rejected' && isMessageAd(message)" class="content-label">
+                            <span v-if="isRejectedStatus(message.status) && isMessageAd(message)" class="content-label">
                                 🚫 检测到的广告内容
                             </span>
                             <span v-else class="content-label">🔍 过滤后内容</span>
@@ -709,7 +769,7 @@ const MessageContentRenderer = {
 
                             <!-- 文本内容：对于拒绝的广告消息显示高亮的原始内容，其他情况显示过滤后内容 -->
                             <!-- 拒绝的广告消息：显示原始内容并高亮关键词 -->
-                            <div v-if="message.status === 'rejected' && isMessageAd(message) && message.content"
+                            <div v-if="isRejectedStatus(message.status) && isMessageAd(message) && message.content"
                                  class="message-text" v-html="highlightedOriginalContent">
                             </div>
                             <!-- 其他消息：显示过滤后的内容 -->
@@ -845,6 +905,9 @@ const MessageContentRenderer = {
                            @click.stop>
                             原频道链接
                         </a>
+                        <span v-if="message.timestamp" class="original-time">
+                            原消息发表于{{ formatOriginalTime(message.timestamp) }}
+                        </span>
                         <!-- 疑似重复信息显示在原频道链接后面 -->
                         <!-- 疑似重复信息 -->
                         <template v-if="message.duplicate_status === 'suspected' && message.original_message_id">
@@ -877,7 +940,7 @@ const MessageContentRenderer = {
             </div>
             
             <!-- 操作按钮 -->
-            <div v-if="message.status === 'pending'" class="message-actions">
+            <div v-if="isPendingStatus(message.status)" class="message-actions">
                 <button data-action="editMessage" :data-message-id="message.id" class="btn btn-sm btn-secondary">
                     ✏️ 编辑
                 </button>
@@ -913,7 +976,7 @@ const MessageContentRenderer = {
             </div>
             
             <!-- 已拒绝消息的差异化按钮 -->
-            <div v-else-if="message.status === 'rejected'" class="message-actions">
+            <div v-else-if="isRejectedStatus(message.status)" class="message-actions">
                 <!-- 广告消息：显示"不是广告"按钮 -->
                 <button v-if="isMessageAd(message)"
                         data-action="markAsNotAd"
@@ -937,7 +1000,7 @@ const MessageContentRenderer = {
             </div>
             
             <!-- 已发送消息的操作按钮 -->
-            <div v-else-if="message.status === 'approved'" class="message-actions">
+            <div v-else-if="isApprovedStatus(message.status)" class="message-actions">
                 <button data-action="restoreMessage" :data-message-id="message.id" class="btn btn-sm btn-warning">
                     🔄 恢复
                 </button>

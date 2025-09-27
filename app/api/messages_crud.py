@@ -122,8 +122,11 @@ async def get_messages(
                     reverse=reverse_order
                 )
             else:
-                # 🚀 统一逻辑：消除特殊情况
-                if status in ["pending", "approved", "rejected", "send_failed"]:
+                # 支持所有7个新状态（移除旧状态兼容）
+                from app.core.message_status import MessageStatus
+                valid_statuses = [s.value for s in MessageStatus]
+
+                if status and status in valid_statuses:
                     all_messages = redis_manager.get_messages_by_status(status, limit=page_size, offset=offset, reverse=reverse_order)
                 else:
                     # 无状态筛选时，默认显示待审核消息
@@ -655,8 +658,16 @@ async def restore_message(
             raise HTTPException(status_code=404, detail="消息不存在")
         
         # 检查消息当前状态
+        from app.core.message_status import MessageStatus
         current_status = message.get("status", "pending")
-        if current_status not in ["rejected", "approved"]:
+
+        # 只允许恢复已拒绝或已发布的消息
+        recoverable_statuses = (
+            MessageStatus.get_approved_statuses() +
+            MessageStatus.get_rejected_statuses()
+        )
+
+        if current_status not in recoverable_statuses:
             raise HTTPException(status_code=400, detail=f"只能恢复已拒绝或已发送的消息，当前状态: {current_status}")
         
         # 恢复消息状态为未审核
@@ -785,8 +796,11 @@ async def delete_message(
             raise HTTPException(status_code=404, detail="消息不存在")
 
         # 🚀 新增：如果是已发布消息，尝试删除目标频道中的消息
+        from app.core.message_status import MessageStatus
         target_delete_result = None
-        if message.get('status') == 'approved' and message.get('target_message_link'):
+
+        current_status = message.get('status')
+        if current_status in MessageStatus.get_approved_statuses() and message.get('target_message_link'):
             try:
                 from app.telegram.dual_session_manager import dual_session_manager
                 from app.services.config_manager import config_manager
@@ -1127,7 +1141,7 @@ async def publish_single_message(
                         'auto_forward_processed': True,
                         'auto_forward_process_reason': 'empty_content',
                         'auto_forward_processed_at': datetime.now().isoformat(),
-                        'status': 'rejected',
+                        'status': 'manual_rejected',
                         'reject_reason': error_msg
                     })
                     logger.info(f"自动转发检测到空消息，已拒绝: {message_id}")

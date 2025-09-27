@@ -12,7 +12,6 @@ const MessageStatsComponent = {
     data() {
         return {
             loading: false,
-            showLegacySummary: false,  // 显示兼容汇总
 
             messageStatus: {
                 // 新7状态
@@ -23,9 +22,6 @@ const MessageStatsComponent = {
                 ad_rejected: 0,
                 dup_rejected: 0,
                 manual_rejected: 0,
-                // 兼容旧3状态
-                approved: 0,  // auto_approved + manual_approved
-                rejected: 0,  // ad_rejected + dup_rejected + manual_rejected
                 labels: {
                     pending: '待审核',
                     send_failed: '发送失败',
@@ -33,9 +29,7 @@ const MessageStatsComponent = {
                     manual_approved: '手动发布',
                     ad_rejected: '广告拒绝',
                     dup_rejected: '重复拒绝',
-                    manual_rejected: '手动拒绝',
-                    approved: '已发布',
-                    rejected: '已拒绝'
+                    manual_rejected: '手动拒绝'
                 }
             },
             
@@ -119,9 +113,6 @@ const MessageStatsComponent = {
                     }
                 });
 
-                // 计算兼容的旧状态总数
-                this.messageStatus.approved = (this.messageStatus.auto_approved || 0) + (this.messageStatus.manual_approved || 0);
-                this.messageStatus.rejected = (this.messageStatus.ad_rejected || 0) + (this.messageStatus.dup_rejected || 0) + (this.messageStatus.manual_rejected || 0);
             }
             
             this.lastUpdate = new Date();
@@ -254,30 +245,6 @@ const MessageStatsComponent = {
                     </div>
                 </div>
 
-                <!-- 兼容汇总视图 -->
-                <div v-if="showLegacySummary" class="stats-summary">
-                    <div class="stats-summary-grid">
-                        <div class="stat-summary-item">
-                            <span class="stat-summary-number">{{ (messageStatus.pending + messageStatus.send_failed).toLocaleString() }}</span>
-                            <span class="stat-summary-label">待处理</span>
-                        </div>
-                        <div class="stat-summary-item">
-                            <span class="stat-summary-number">{{ messageStatus.approved.toLocaleString() }}</span>
-                            <span class="stat-summary-label">已发布</span>
-                        </div>
-                        <div class="stat-summary-item">
-                            <span class="stat-summary-number">{{ messageStatus.rejected.toLocaleString() }}</span>
-                            <span class="stat-summary-label">已拒绝</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 切换按钮 -->
-                <div class="stats-toggle">
-                    <button @click="showLegacySummary = !showLegacySummary" class="btn-toggle">
-                        {{ showLegacySummary ? '详细状态' : '汇总视图' }}
-                    </button>
-                </div>
             </div>
         </div>
     `

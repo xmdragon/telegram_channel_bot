@@ -383,7 +383,7 @@ async def mark_as_ad(
         # 更新消息状态和广告标记
         update_data = {
             'is_ad': 'True',     # 🎯 关键：设置广告标记
-            'status': 'rejected',
+            'status': 'ad_rejected',
             'reviewed_by': user.get('username'),
             'updated_at': get_current_time().isoformat()
         }
@@ -401,7 +401,7 @@ async def mark_as_ad(
             "data": {
                 "message_id": id,
                 "keywords_added": len(keywords),
-                "status": "rejected"
+                "status": "ad_rejected"
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }

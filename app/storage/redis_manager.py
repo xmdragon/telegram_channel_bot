@@ -731,17 +731,69 @@ class RedisManager:
             return []
     
     def get_messages_by_status(self, status: str, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
-        """根据状态获取消息 - 统一接口"""
-        if status == "pending":
-            return self.get_pending_messages(limit, offset, reverse)
-        elif status == "approved":
-            return self.get_approved_messages(limit, offset, reverse)
-        elif status == "rejected":
-            return self.get_rejected_messages(limit, offset, reverse)
-        elif status == "send_failed":
-            # 获取发送失败的消息
-            return self._get_messages_by_custom_status("send_failed", limit, offset, reverse)
-        else:
+        """根据状态获取消息 - 支持所有7个新状态"""
+        try:
+            from app.core.message_status import MessageStatus
+
+            # 聚合状态的特殊处理
+            if status == "pending":
+                return self.get_pending_messages(limit, offset, reverse)
+            elif status == "approved":
+                return self.get_approved_messages(limit, offset, reverse)
+            elif status == "rejected":
+                return self.get_rejected_messages(limit, offset, reverse)
+
+            # 直接支持所有7个新状态
+            valid_statuses = [s.value for s in MessageStatus]
+            if status not in valid_statuses:
+                logger.warning(f"不支持的状态: {status}")
+                return []
+
+            # 从状态索引中获取消息
+            if reverse:
+                message_keys = self.client.zrevrange(f"index:msg:{status}", offset, offset + limit - 1)
+            else:
+                message_keys = self.client.zrange(f"index:msg:{status}", offset, offset + limit - 1)
+
+            if not message_keys:
+                return []
+
+            messages = []
+            invalid_keys = []
+
+            for key in message_keys:
+                try:
+                    if ':' in key:
+                        channel_id, message_id = key.rsplit(':', 1)
+                        message_data = self.get_message(channel_id, int(message_id))
+
+                        if message_data:
+                            # 验证状态匹配
+                            actual_status = message_data.get('status', 'pending')
+                            if actual_status == status:
+                                messages.append(message_data)
+                            else:
+                                # 状态不匹配，清理索引
+                                invalid_keys.append(key)
+                                logger.debug(f"状态不匹配的消息: {key} (期望: {status}, 实际: {actual_status})")
+                        else:
+                            invalid_keys.append(key)
+                except (ValueError, Exception) as e:
+                    logger.debug(f"处理消息键 {key} 失败: {e}")
+                    invalid_keys.append(key)
+
+            # 清理无效索引
+            if invalid_keys:
+                pipeline = self.client.pipeline()
+                for invalid_key in invalid_keys:
+                    pipeline.zrem(f"index:msg:{status}", invalid_key)
+                pipeline.execute()
+                logger.info(f"清理了 {len(invalid_keys)} 个无效的{status}索引项")
+
+            return messages
+
+        except Exception as e:
+            logger.error(f"获取{status}状态消息失败: {e}")
             return []
 
     def _get_messages_by_custom_status(self, status: str, limit: int = 100, offset: int = 0, reverse: bool = True) -> List[Dict[str, Any]]:
