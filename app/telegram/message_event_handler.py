@@ -180,8 +180,8 @@ class MessageEventHandler:
             # 获取消息
             message = await redis_manager.get_message(message_id)
             if message:
-                # 更新状态
-                message['status'] = 'approved'
+                # 更新状态为手动批准
+                message['status'] = 'manual_approved'
                 message['reviewer'] = reviewer
                 await redis_manager.update_message(message_id, message)
                 logger.info(f"✅ 消息 {message_id} 已批准")
@@ -201,8 +201,8 @@ class MessageEventHandler:
             # 获取消息
             message = await redis_manager.get_message(message_id)
             if message:
-                # 更新状态
-                message['status'] = 'rejected'
+                # 更新状态为手动拒绝
+                message['status'] = 'manual_rejected'
                 message['reviewer'] = reviewer
                 await redis_manager.update_message(message_id, message)
                 logger.info(f"✅ 消息 {message_id} 已拒绝")

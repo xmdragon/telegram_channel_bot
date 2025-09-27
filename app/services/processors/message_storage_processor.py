@@ -53,8 +53,15 @@ class MessageStorageProcessor(MessageProcessor):
             
             # 步骤2: 处理拒绝状态
             if context.should_reject:
-                context.save_data['status'] = 'rejected'
-                context.save_data['reject_reason'] = context.reject_reason
+                # 使用新的7状态系统，根据拒绝原因设置具体状态
+                reject_reason = context.reject_reason
+                if reject_reason and '广告' in reject_reason:
+                    context.save_data['status'] = 'ad_rejected'
+                elif reject_reason and '重复' in reject_reason:
+                    context.save_data['status'] = 'dup_rejected'
+                else:
+                    context.save_data['status'] = 'manual_rejected'
+                context.save_data['reject_reason'] = reject_reason
                 
             
             # 【方案1修改】检查是否为已合并的组消息
@@ -139,7 +146,7 @@ class MessageStorageProcessor(MessageProcessor):
                 await self._update_checkpoint_after_save(context, saved_message)
             
             # 如果消息已自动批准（人工审核关闭），自动提交发布任务
-            if context.save_data and context.save_data.get('status') == 'approved':
+            if context.save_data and context.save_data.get('status') == 'auto_approved':
                 # 人工审核已关闭，消息保持pending状态，scheduler + auto_forwarder会自动处理
                 message_id_str = f"{context.channel_id}:{context.save_data.get('message_id')}"
                 self.logger.info(f"人工审核已关闭，消息 {message_id_str} 保持pending状态，等待自动转发")
@@ -217,8 +224,8 @@ class MessageStorageProcessor(MessageProcessor):
             # 需要人工审核，保持待审核状态
             save_data['status'] = 'pending'
         else:
-            # 不需要人工审核，直接设置为已批准状态
-            save_data['status'] = 'approved'
+            # 不需要人工审核，直接设置为自动批准状态
+            save_data['status'] = 'auto_approved'
             self.logger.info(f"人工审核已关闭，消息 #{message.id} 自动批准")
         
         # 🔧 修复：为组合消息子消息添加特殊标记

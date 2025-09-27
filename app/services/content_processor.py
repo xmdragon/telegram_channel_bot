@@ -210,7 +210,7 @@ class ContentProcessor:
 
                     if auto_reject:
                         old_status = message.status
-                        message.status = "rejected"
+                        message.status = "ad_rejected"
                         message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
                         logger.debug(f"消息被自动拒绝 - 状态从'{old_status}'改为'rejected'")
                     else:
@@ -230,7 +230,7 @@ class ContentProcessor:
                         pass
 
                 # 如果已经是广告且被拒绝，跳过去重检测
-                if message.is_ad and message.status == 'rejected':
+                if message.is_ad and message.status == 'ad_rejected':
                     logger.debug(f"跳过广告消息的去重检测: {message.channel_id}:{message.message_id}")
                     message.duplicate_status = 'skipped'
                 elif duplicate_detection_enabled and current_content and len(current_content.strip()) >= 10:
@@ -263,7 +263,7 @@ class ContentProcessor:
                         # 根据配置的阈值判断重复状态
                         if score >= confirmed_threshold:
                             message.duplicate_status = 'confirmed'
-                            message.status = 'rejected'
+                            message.status = 'dup_rejected'
                             message.reject_reason = f"重复消息(相似度:{score:.1%})"
                             logger.info(f"🔁 拒绝重复消息: {full_message_id} -> {duplicate_result.original_message_id} (相似度: {score:.1%})")
                             filter_reasons.append(f"去重检测: 重复消息({score:.1%})")
