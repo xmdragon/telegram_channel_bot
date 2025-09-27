@@ -62,10 +62,8 @@ const ConfigApp = {
                 'target.channel_link': '',
                 'target.channel_id': '',
                 // 系统设置
-                'scheduler.enabled': true,
                 'scheduler.data_cleanup_interval_hours': '24',
                 'system.log_level': 'WARNING',
-                'storage.delete_single_messages': false,
 
                 // 性能优化
                 'telegram.rate_limit_text_interval': '5',
@@ -114,10 +112,8 @@ const ConfigApp = {
                 'target.auto_forward_delay': 'integer',
                 'target.channel_link': 'string',
                 'target.channel_id': 'string',
-                'scheduler.enabled': 'boolean',
                 'scheduler.data_cleanup_interval_hours': 'integer',
                 'system.log_level': 'string',
-                'storage.delete_single_messages': 'boolean',
 
                 // 性能优化
                 'telegram.rate_limit_text_interval': 'float',

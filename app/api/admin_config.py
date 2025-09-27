@@ -110,11 +110,7 @@ async def get_system_config(user: Dict[str, Any] = Depends(require_auth)):
         "target.signature": await config_manager.get_config('target.signature', ''),
 
         # 调度器配置
-        "scheduler.enabled": await config_manager.get_config('scheduler.enabled', True),
         "scheduler.data_cleanup_interval_hours": await config_manager.get_config('scheduler.data_cleanup_interval_hours', 24),
-
-        # 存储配置
-        "storage.delete_single_messages": await config_manager.get_config('storage.delete_single_messages', True),
 
         # 系统配置
         "system.log_level": await config_manager.get_config('system.log_level', 'INFO'),

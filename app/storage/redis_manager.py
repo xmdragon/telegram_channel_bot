@@ -1258,7 +1258,7 @@ class RedisManager:
             }
     
     def clear_all_caches(self) -> Dict[str, int]:
-        """清理所有缓存（去重缓存、媒体缓存等）
+        """清理所有缓存（去重缓存、媒体缓存、配置缓存等）
 
         Returns:
             清理统计信息
@@ -1267,10 +1267,14 @@ class RedisManager:
             cleanup_stats = {
                 "dup_text": 0,      # 文本指纹缓存
                 "dup_norm": 0,      # 规范化文本缓存
+                "dup_detection": 0, # 新格式去重检测缓存
+                "dup_content": 0,   # 新格式内容缓存
                 "lsh_bucket": 0,    # LSH bucket索引
                 "media_meta": 0,    # 媒体元数据
                 "media_phash": 0,   # 媒体感知哈希
                 "sys_detect": 0,    # 系统检测记录
+                "config_cache": 0,  # 配置缓存
+                "session": 0,       # 会话缓存（排除activity）
                 "total": 0
             }
 
@@ -1278,10 +1282,13 @@ class RedisManager:
             cache_patterns = [
                 ("dup:text:*", "dup_text"),
                 ("dup:norm:*", "dup_norm"),
+                ("dup:detection:*", "dup_detection"),  # 新格式去重检测
+                ("dup:content:*", "dup_content"),      # 新格式内容缓存
                 ("lsh:bucket:*", "lsh_bucket"),
                 ("media:meta:*", "media_meta"),
                 ("media:phash:*", "media_phash"),
-                ("sys_detect:*", "sys_detect")
+                ("sys_detect:*", "sys_detect"),
+                ("cache:config:*", "config_cache")     # 配置缓存
             ]
 
             # 使用SCAN遍历并删除匹配的键
@@ -1307,6 +1314,33 @@ class RedisManager:
                     # cursor为0表示遍历完成
                     if cursor == 0:
                         break
+
+            # 特殊处理session缓存（保留session:activity）
+            cursor = 0
+            while True:
+                cursor, keys = self.client.scan(cursor, match="session:*", count=100)
+
+                if keys:
+                    # 过滤掉session:activity
+                    session_keys = []
+                    for key in keys:
+                        key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                        if key_str != 'session:activity':  # 保留activity
+                            session_keys.append(key)
+
+                    if session_keys:
+                        # 批量删除
+                        pipeline = self.client.pipeline()
+                        for key in session_keys:
+                            pipeline.delete(key)
+                        pipeline.execute()
+
+                        # 更新统计
+                        cleanup_stats["session"] += len(session_keys)
+                        cleanup_stats["total"] += len(session_keys)
+
+                if cursor == 0:
+                    break
 
             logger.info(f"缓存清理完成: {cleanup_stats}")
             return cleanup_stats

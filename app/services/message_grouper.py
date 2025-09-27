@@ -1089,22 +1089,13 @@ class MessageGrouper:
             return None
 
     async def _cleanup_individual_messages_if_enabled(self, channel_id: str, combined_message: Dict):
-        """🚀 根据配置决定是否清理已经被组合的单独消息"""
+        """🚀 清理已经被组合的单独消息"""
         try:
-            # 检查配置开关
-            from app.services.config_manager import config_manager
-            delete_enabled = await config_manager.get_config('storage.delete_single_messages', False)
-            
-            if not delete_enabled:
-                logger.debug(f"单独消息删除功能已禁用，跳过清理: grouped_id={combined_message.get('grouped_id')}")
-                return
-            
-            # 启用了删除功能，执行清理
             logger.info(f"🗑️ 开始清理单独消息: grouped_id={combined_message.get('grouped_id')}")
             await self._cleanup_individual_messages(channel_id, combined_message)
-            
+
         except Exception as e:
-            logger.error(f"检查配置并清理单独消息时出错: {e}")
+            logger.error(f"清理单独消息时出错: {e}")
     
     async def disconnect_telegram_client(self):
         """断开Telegram客户端连接"""
