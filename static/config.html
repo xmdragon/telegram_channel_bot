@@ -91,21 +91,6 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label class="form-label">自动拒绝广告</label>
-                                <div class="input-line">
-                                    <div class="switch-container">
-                                        <label class="switch">
-                                            <input type="checkbox" v-model="configs['target.auto_reject_ads']">
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="form-hint">
-                                        启用后，检测到的广告消息将被自动拒绝，不会进入自动转发队列
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <div class="form-actions">
                                 <button type="button" class="btn btn-primary" @click="saveAllConfigs">
                                     💾 保存配置
@@ -353,6 +338,23 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="form-group">
+                                <label class="form-label">自动拒绝广告</label>
+                                <div class="input-line">
+                                    <div class="switch-container">
+                                        <label class="switch">
+                                            <input type="checkbox" v-model="configs['target.auto_reject_ads']">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="switch-label">{{ configs['target.auto_reject_ads'] ? '启用' : '禁用' }}</span>
+                                    </div>
+                                    <div class="form-hint">
+                                        采集时自动拒绝检测到的广告消息，不会进入待审核队列
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="form-actions">
                                 <button type="button" class="btn btn-primary" @click="saveAllConfigs">
                                     💾 保存采集配置
@@ -667,22 +669,6 @@
                                     </div>
                                     <div class="form-hint">
                                         后台调度服务，处理自动转发和数据清理任务
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">数据清理间隔（小时）</label>
-                                <div class="input-line">
-                                    <input 
-                                        class="form-input number-input"
-                                        type="number"
-                                        v-model.number="configs['scheduler.data_cleanup_interval_hours']" 
-                                        min="1" 
-                                        max="168" 
-                                        placeholder="24">
-                                    <div class="form-hint">
-                                        系统自动清理过期数据的时间间隔（建议24-72小时）
                                     </div>
                                 </div>
                             </div>

@@ -1151,7 +1151,19 @@ async def publish_single_message(
         # 4. 更新状态为已发布（区分自动/手动）
         from app.core.message_status import MessageStatus
         new_status = MessageStatus.AUTO_APPROVED.value if is_auto_forward else MessageStatus.MANUAL_APPROVED.value
-        redis_manager.update_message_status(message_id, new_status, user_id or "system")
+        status_updated = redis_manager.update_message_status(message_id, new_status, user_id or "system")
+
+        # 检查状态更新是否成功
+        if not status_updated:
+            logger.error(f"消息状态更新失败，消息可能已被删除: {message_id}")
+            # 从pending索引中清理这个无效的消息ID
+            redis_manager.client.zrem("index:msg:pending", message_id)
+            return {
+                "success": False,
+                "error": "message_not_found",
+                "message": "消息已被删除或不存在",
+                "message_id": message_id
+            }
 
         # 4.5. 如果成功获取到目标消息链接，追加到消息内容并保存完整的目标消息ID信息
         if target_link:

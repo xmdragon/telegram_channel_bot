@@ -55,12 +55,14 @@ class RejectionReason(Enum):
     MANUAL = "manual"        # 手动拒绝
 
 def is_valid_status(status: str) -> bool:
-    """检查状态是否有效"""
+    """检查状态是否有效（支持新7状态和旧3状态）"""
+    # 检查新的7状态
     try:
         MessageStatus(status)
         return True
     except ValueError:
-        return False
+        # 兼容旧的3状态
+        return status in [LEGACY_PENDING, LEGACY_APPROVED, LEGACY_REJECTED]
 
 def is_valid_rejection_reason(reason: str) -> bool:
     """检查拒绝原因是否有效"""

@@ -518,15 +518,32 @@ async def reset_failed_messages(
             except Exception as e:
                 logger.error(f"重置消息 {msg_info['channel_id']}:{msg_info['message_id']} 失败: {e}")
 
+        # 清理所有缓存
+        cache_cleanup_stats = {}
+        try:
+            logger.info("开始清理所有缓存...")
+            cache_cleanup_stats = redis_manager.clear_all_caches()
+            logger.info(f"缓存清理完成: {cache_cleanup_stats}")
+        except Exception as e:
+            logger.error(f"清理缓存失败: {e}")
+            # 缓存清理失败不影响主流程
+
         # 发送统计更新通知
         await _notify_stats_update()
 
+        # 构建返回信息
+        message_parts = [f"成功重置 {reset_count} 条发送失败的消息"]
+        if cache_cleanup_stats.get('total', 0) > 0:
+            message_parts.append(f"清理 {cache_cleanup_stats['total']} 个缓存条目")
+
         return {
             "success": True,
-            "message": f"成功重置 {reset_count} 条发送失败的消息",
+            "message": "，".join(message_parts),
             "data": {
                 "reset_count": reset_count,
-                "total_failed": len(failed_messages)
+                "total_failed": len(failed_messages),
+                "cache_cleaned": cache_cleanup_stats.get('total', 0),
+                "cache_cleanup_details": cache_cleanup_stats
             },
             "timestamp": format_for_api(get_current_time())
         }

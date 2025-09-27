@@ -285,8 +285,9 @@ class RedisManager:
                 existing_data['updated_by'] = user_id
             
             # 设计原则：确保所有消息都有有效status
+            from app.core.message_status import is_valid_status
             new_status = existing_data.get('status', 'pending')
-            if new_status not in ['pending', 'approved', 'rejected']:
+            if not is_valid_status(new_status):
                 logger.warning(f"强制修正无效状态 '{new_status}' -> 'pending': {message_id}")
                 existing_data['status'] = 'pending'
                 new_status = 'pending'
@@ -480,11 +481,11 @@ class RedisManager:
                 from app.core.message_status import MessageStatus
 
                 # 如果消息不存在，尝试清理所有可能的状态索引（防止孤儿索引）
-                # 清理旧状态索引
-                for status in ['pending', 'approved', 'rejected']:
-                    pipeline.zrem(f"index:msg:{status}", full_message_id)
-                # 清理新状态索引
+                # 清理新7状态索引
                 for status in [s.value for s in MessageStatus]:
+                    pipeline.zrem(f"index:msg:{status}", full_message_id)
+                # 清理兼容的旧3状态索引（如果存在的话）
+                for status in ['pending', 'approved', 'rejected']:
                     pipeline.zrem(f"index:msg:{status}", full_message_id)
             
             # 5. 清理全局索引
@@ -1144,16 +1145,23 @@ class RedisManager:
                     })
                     
                     # 更新索引
+                    from app.core.message_status import is_valid_status, get_legacy_status
                     old_status = existing_data.get('status', 'pending')
                     current_time = time.time()
-                    
-                    # 从旧状态索引中移除
-                    if old_status in ['pending', 'approved', 'rejected']:
+
+                    # 从旧状态索引中移除（支持7状态和3状态）
+                    if is_valid_status(old_status):
                         pipeline.zrem(f"index:msg:{old_status}", f"{channel_id}:{message_id}")
-                    
-                    # 添加到新状态索引
-                    if new_status in ['pending', 'approved', 'rejected']:
+                        # 同时从兼容索引中移除
+                        old_legacy = get_legacy_status(old_status)
+                        pipeline.zrem(f"index:msg:{old_legacy}", f"{channel_id}:{message_id}")
+
+                    # 添加到新状态索引（支持7状态和3状态）
+                    if is_valid_status(new_status):
                         pipeline.zadd(f"index:msg:{new_status}", {f"{channel_id}:{message_id}": current_time})
+                        # 同时添加到兼容索引
+                        new_legacy = get_legacy_status(new_status)
+                        pipeline.zadd(f"index:msg:{new_legacy}", {f"{channel_id}:{message_id}": current_time})
                     
                     updated_count += 1
             
@@ -1249,6 +1257,64 @@ class RedisManager:
                 "updated_at": get_current_time().isoformat()
             }
     
+    def clear_all_caches(self) -> Dict[str, int]:
+        """清理所有缓存（去重缓存、媒体缓存等）
+
+        Returns:
+            清理统计信息
+        """
+        try:
+            cleanup_stats = {
+                "dup_text": 0,      # 文本指纹缓存
+                "dup_norm": 0,      # 规范化文本缓存
+                "lsh_bucket": 0,    # LSH bucket索引
+                "media_meta": 0,    # 媒体元数据
+                "media_phash": 0,   # 媒体感知哈希
+                "sys_detect": 0,    # 系统检测记录
+                "total": 0
+            }
+
+            # 定义要清理的缓存模式
+            cache_patterns = [
+                ("dup:text:*", "dup_text"),
+                ("dup:norm:*", "dup_norm"),
+                ("lsh:bucket:*", "lsh_bucket"),
+                ("media:meta:*", "media_meta"),
+                ("media:phash:*", "media_phash"),
+                ("sys_detect:*", "sys_detect")
+            ]
+
+            # 使用SCAN遍历并删除匹配的键
+            for pattern, stat_key in cache_patterns:
+                cursor = 0
+                batch_size = 100
+
+                while True:
+                    # 使用SCAN命令避免阻塞
+                    cursor, keys = self.client.scan(cursor, match=pattern, count=batch_size)
+
+                    if keys:
+                        # 批量删除
+                        pipeline = self.client.pipeline()
+                        for key in keys:
+                            pipeline.delete(key)
+                        pipeline.execute()
+
+                        # 更新统计
+                        cleanup_stats[stat_key] += len(keys)
+                        cleanup_stats["total"] += len(keys)
+
+                    # cursor为0表示遍历完成
+                    if cursor == 0:
+                        break
+
+            logger.info(f"缓存清理完成: {cleanup_stats}")
+            return cleanup_stats
+
+        except Exception as e:
+            logger.error(f"清理缓存失败: {e}")
+            return {"error": str(e), "total": 0}
+
     def cleanup_invalid_references(self) -> Dict[str, int]:
         """清理无效的索引引用"""
         try:
