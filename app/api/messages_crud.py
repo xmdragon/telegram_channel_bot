@@ -1012,9 +1012,56 @@ async def publish_single_message(
         channel_id = message.get('source_channel')
         msg_id = message.get('message_id')
 
-        # 2. 验证消息（除非明确跳过）
+        # 2. 清理之前的错误标记（手动发布时）
+        if not is_auto_forward:
+            # 手动发布时清理掉之前的发送失败相关错误信息
+            error_fields_to_clear = {
+                'forward_failure_reason': None,
+                'auto_forward_error': None,
+                'auto_forwarder_status': None,
+                'needs_retry': None,
+                'flood_wait_seconds': None
+            }
+
+            # 清理发送失败时可能被修改的内容
+            current_content = message.get('filtered_content') or message.get('content', '')
+            if current_content:
+                # 移除可能的错误前缀标记
+                error_prefixes = [
+                    "❌ 转发失败",
+                    "⚠️ 消息内容超长，请手动编辑",
+                    "🚫 疑似广告，请人工审核"
+                ]
+
+                cleaned_content = current_content
+                for prefix in error_prefixes:
+                    if cleaned_content.startswith(prefix):
+                        # 找到第一个双换行，移除错误信息部分
+                        double_newline_pos = cleaned_content.find('\n\n')
+                        if double_newline_pos > 0:
+                            # 跳过错误信息，保留原始内容
+                            lines = cleaned_content.split('\n')
+                            # 找到空行后的内容
+                            content_start_index = 0
+                            for i, line in enumerate(lines):
+                                if line.strip() == '' and i > 0:
+                                    content_start_index = i + 1
+                                    break
+                            if content_start_index > 0:
+                                cleaned_content = '\n'.join(lines[content_start_index:])
+                                break
+
+                # 更新清理后的内容
+                if cleaned_content != current_content:
+                    error_fields_to_clear['filtered_content'] = cleaned_content
+                    logger.info(f"清理消息错误标记: {message_id}")
+
+            # 批量更新清理的字段
+            redis_manager.update_message(channel_id, msg_id, error_fields_to_clear)
+
+        # 3. 验证消息（除非明确跳过）
         if not skip_validation:
-            # 2.1 检查是否为广告
+            # 3.1 检查是否为广告
             is_ad = message.get('is_ad', False)
             if isinstance(is_ad, str):
                 is_ad = is_ad.lower() == 'true'
@@ -1052,7 +1099,7 @@ async def publish_single_message(
                         "message_id": message_id
                     }
 
-            # 2.2 检查内容长度（包含频道落款）
+            # 3.2 检查内容长度（包含频道落款）
             content = message.get('filtered_content') or message.get('content', '')
 
             # 获取字符限制配置（支持会员等级）
@@ -1123,7 +1170,7 @@ async def publish_single_message(
                         "limit": max_message_length
                     }
 
-            # 2.3 检查内容是否为空（文本和媒体都为空）
+            # 3.3 检查内容是否为空（文本和媒体都为空）
             media_url = message.get('media_url')
             media_type = message.get('media_type')
             is_combined = message.get('is_combined', False)
@@ -1153,7 +1200,7 @@ async def publish_single_message(
                     "message_id": message_id
                 }
 
-        # 3. 执行实际转发
+        # 4. 执行实际转发
         from app.telegram.message_forwarder import message_forwarder
         target_info = await message_forwarder.forward_to_target_with_sender_session(message)
 
@@ -1162,7 +1209,7 @@ async def publish_single_message(
         target_message_id = target_info.get('target_message_id') if isinstance(target_info, dict) else None
         target_message_ids = target_info.get('target_message_ids', []) if isinstance(target_info, dict) else []
 
-        # 4. 更新状态为已发布（区分自动/手动）
+        # 5. 更新状态为已发布（区分自动/手动）
         from app.core.message_status import MessageStatus
         new_status = MessageStatus.AUTO_APPROVED.value if is_auto_forward else MessageStatus.MANUAL_APPROVED.value
         status_updated = redis_manager.update_message_status(message_id, new_status, user_id or "system")
@@ -1179,7 +1226,7 @@ async def publish_single_message(
                 "message_id": message_id
             }
 
-        # 4.5. 如果成功获取到目标消息链接，追加到消息内容并保存完整的目标消息ID信息
+        # 5.5. 如果成功获取到目标消息链接，追加到消息内容并保存完整的目标消息ID信息
         if target_link:
             original_content = message.get('filtered_content') or message.get('content', '')
             updated_content = f"{original_content}\n\n✅ 目标消息链接: {target_link}"
@@ -1198,7 +1245,7 @@ async def publish_single_message(
 
             redis_manager.update_message(channel_id, msg_id, update_data)
 
-        # 5. 如果是自动转发成功，清除错误标记
+        # 6. 如果是自动转发成功，清除错误标记
         if is_auto_forward:
             redis_manager.update_message(channel_id, msg_id, {
                 'auto_forwarder_status': True,

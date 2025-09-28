@@ -46,6 +46,61 @@ async def require_auth(user: Optional[Dict[str, Any]] = Depends(get_current_user
     return user
 
 
+async def parse_and_collect_messages_by_statuses(message_ids: List[str], allowed_statuses: List[str]):
+    """
+    解析消息ID并收集相关的组合消息（支持多状态）
+    避免重复处理组合消息
+    """
+    redis_store = redis_manager
+    message_tuples = []
+    valid_messages = []
+    processed_group_ids = set()
+
+    for msg_id in message_ids:
+        try:
+            if ':' in str(msg_id):
+                # 新格式: "channel_id:message_id"
+                # 使用rsplit确保正确处理包含冒号的channel_id
+                channel_id, message_id = str(msg_id).rsplit(':', 1)
+                message_tuples.append((channel_id, int(message_id)))
+            else:
+                # 老格式: 纯数字ID（需要从其他地方获取channel_id）
+                logger.warning(f"无法解析消息ID格式: {msg_id}")
+                continue
+
+            # 检查消息是否存在且为允许的状态之一
+            msg_data = redis_manager.get_message(channel_id, int(message_id), silent=True)
+            if msg_data and msg_data.get('status') in allowed_statuses:
+                # 检查是否为组合消息，如果是，需要同时处理整个组
+                if msg_data.get('is_combined') and msg_data.get('grouped_id'):
+                    grouped_id = msg_data.get('grouped_id')
+                    if grouped_id not in processed_group_ids:
+                        processed_group_ids.add(grouped_id)
+                        # 查找同组的所有单独消息，一起处理
+                        group_messages = redis_manager.get_messages_by_channel(channel_id, limit=100)
+                        for group_msg in group_messages:
+                            if (group_msg.get('grouped_id') == grouped_id and
+                                group_msg.get('status') in allowed_statuses and
+                                not group_msg.get('is_combined')):  # 只处理单独消息
+                                valid_messages.append(group_msg)
+                                # 添加到message_tuples用于状态更新
+                                group_tuple = (channel_id, group_msg.get('message_id'))
+                                if group_tuple not in message_tuples:
+                                    message_tuples.append(group_tuple)
+
+                        logger.info(f"检测到组合消息，将同时处理组 {grouped_id} 的所有消息")
+
+                # 添加主消息
+                valid_messages.append(msg_data)
+
+        except (ValueError, IndexError) as e:
+            logger.error(f"解析消息ID {msg_id} 失败: {e}")
+            continue
+
+    logger.info(f"从 {len(message_ids)} 个ID中找到 {len(valid_messages)} 条有效消息")
+    return message_tuples, valid_messages
+
+
 async def parse_and_collect_messages(message_ids: List[str], status_filter: str = 'pending'):
     """
     解析消息ID并收集相关的组合消息
@@ -115,7 +170,10 @@ async def process_batch_approve(message_ids: List[str], user_id: str = None) -> 
         reviewer_name = user_id or 'auto_forward'
 
         # 解析消息ID并收集相关的组合消息
-        message_tuples, valid_messages = await parse_and_collect_messages(message_ids, 'pending')
+        # 手动审批支持待审核和发送失败的消息
+        from app.core.message_status import MessageStatus
+        pending_statuses = MessageStatus.get_pending_like_statuses()
+        message_tuples, valid_messages = await parse_and_collect_messages_by_statuses(message_ids, pending_statuses)
 
         if not valid_messages:
             return {
