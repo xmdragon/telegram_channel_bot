@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本过滤</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-common.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/training-nav.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/text-filter.css?v=' + RESOURCE_VERSION + '">');
+    </script>
+</head>
+<body>
+    <div id="app" v-cloak>
+        <!-- 导航栏 -->
+        <nav-bar page-title="🎯 训练数据"></nav-bar>
+
+        <div class="container">
+            <!-- 子导航 -->
+            <training-nav active-tab="text"></training-nav>
+
+            <!-- 文本过滤组件 -->
+            <text-filter></text-filter>
+        </div>
+    </div>
+
+    <!-- 动态加载JavaScript文件 -->
+    <script>
+        document.write('<script src="assets/js/vue.prod.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/core/simple-ui.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/axios.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/axios-config.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/config/api-endpoints.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/admin-auth.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/navbar.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/training-nav.js?v=' + RESOURCE_VERSION + '"><\/script>');
+        document.write('<script src="assets/js/components/text-filter.js?v=' + RESOURCE_VERSION + '"><\/script>');
+    </script>
+
+    <script>
+        const { createApp } = Vue;
+
+        const app = createApp({
+            data() {
+                return {};
+            },
+            async mounted() {
+                // 初始化权限检查（不阻塞组件加载）
+                try {
+                    await authManager.initPageAuth('training.view');
+                } catch (error) {
+                    console.error('权限检查失败:', error);
+                    // 继续加载页面，让组件内部处理认证
+                }
+            }
+        });
+
+        // 注册组件
+        if (window.NavBar) {
+            app.component('nav-bar', window.NavBar);
+        }
+        if (window.TrainingNav) {
+            app.component('training-nav', window.TrainingNav);
+        }
+        if (window.TextFilter) {
+            app.component('text-filter', window.TextFilter);
+        }
+
+        app.mount('#app');
+    </script>
+</body>
+</html>

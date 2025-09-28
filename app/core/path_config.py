@@ -31,6 +31,7 @@ class PathConfig:
     AD_KEYWORDS_FILE = TRAINING_DIR / "ad_keywords.json"  # 广告关键词配置
     TAIL_FILTER_SAMPLES_FILE = TRAINING_DIR / "tail_filter_samples.json"  # 尾部过滤样本
     SEPARATOR_PATTERNS_FILE = TRAINING_DIR / "separator_patterns.json"  # 分隔符模式
+    TEXT_FILTERS_FILE = TRAINING_DIR / "text_filters.json"  # 文本过滤器
     
     # 状态文件
     SUPERVISOR_STATUS_FILE = LOGS_DIR / "supervisor_status.json"

@@ -13,6 +13,7 @@ import logging
 from app.services.filters.tail_filter import TailFilter
 from app.services.filters.markdown_filter import MarkdownFilter
 from app.services.filters.separator_filter import SeparatorFilter
+from app.services.filters.text_filter import TextFilter
 from app.services.filters.ad_detector import AdDetector
 
 logger = logging.getLogger(__name__)
@@ -50,8 +51,9 @@ class ContentProcessor:
     1. 快速预筛选 - 跳过明显的正常内容
     2. 尾部过滤 - 删除推广内容（最常见）
     3. 分隔符过滤 - 删除特定内容块
-    4. Markdown过滤 - 删除链接
-    5. 广告检测 - 识别广告内容（最慢，放最后）
+    4. 文本过滤 - 删除特定关键词和正则匹配
+    5. Markdown过滤 - 删除链接
+    6. 广告检测 - 识别广告内容（最慢，放最后）
 
     性能特性：
     - 延迟初始化过滤器
@@ -66,6 +68,7 @@ class ContentProcessor:
         self._tail_filter = None
         self._markdown_filter = None
         self._separator_filter = None
+        self._text_filter = None
         self._ad_detector = None
 
     @property
@@ -88,6 +91,13 @@ class ContentProcessor:
         if self._separator_filter is None:
             self._separator_filter = SeparatorFilter()
         return self._separator_filter
+
+    @property
+    def text_filter(self):
+        """延迟初始化文本过滤器"""
+        if self._text_filter is None:
+            self._text_filter = TextFilter()
+        return self._text_filter
 
     @property
     def ad_detector(self):
@@ -122,6 +132,7 @@ class ContentProcessor:
                     'enabled': True,
                     'tail_filter': True,
                     'separator_filter': True,
+                    'text_filter': True,
                     'markdown_filter': True,
                     'ad_detector': False
                 }
@@ -155,7 +166,18 @@ class ContentProcessor:
                 filter_reasons.append(f"分隔符过滤: 移除{removed_blocks}个块({removed_chars}字符)")
                 logger.debug(f"消息 {message.message_id} 分隔符过滤: 移除{removed_blocks}个内容块")
 
-            # 3. Markdown链接过滤（中等开销）
+            # 3. 文本过滤（关键词和正则表达式过滤）
+            if filter_config.get('text_filter', True):
+                filtered_content, is_filtered, matched_keywords = self.text_filter.filter(current_content)
+            else:
+                filtered_content, is_filtered, matched_keywords = current_content, False, []
+            if is_filtered:
+                removed_chars = len(current_content) - len(filtered_content)
+                current_content = filtered_content
+                filter_reasons.append(f"文本过滤: 匹配{len(matched_keywords)}个关键词({removed_chars}字符)")
+                logger.debug(f"消息 {message.message_id} 文本过滤: 移除{len(matched_keywords)}个关键词")
+
+            # 4. Markdown链接过滤（中等开销）
             if filter_config.get('markdown_filter', True) and message.entities and len(message.entities) > 0:  # 只有有entities时才处理
                 filtered_content, links_removed = self.markdown_filter.filter(current_content, message.entities)
                 if links_removed > 0:
@@ -163,7 +185,7 @@ class ContentProcessor:
                     filter_reasons.append(f"Markdown过滤: 移除{links_removed}个链接")
                     logger.debug(f"消息 {message.message_id} Markdown过滤: 移除{links_removed}个链接")
 
-            # 4. 广告检测（最慢，放最后，支持早期退出）
+            # 5. 广告检测（最慢，放最后，支持早期退出）
             if detect_ad and filter_config.get('ad_detector', False) and current_content and len(current_content.strip()) > 10:
                 is_ad, total_weight, matched_keywords = self.ad_detector.detect(current_content)
 
@@ -216,7 +238,7 @@ class ContentProcessor:
                     else:
                         logger.debug(f"广告检测已禁用自动拒绝，消息保持待审核状态")
 
-            # 5. 🔍 去重检测（在广告检测之后）
+            # 6. 🔍 去重检测（在广告检测之后）
             try:
                 from app.services.duplicate_detector import duplicate_detector
 

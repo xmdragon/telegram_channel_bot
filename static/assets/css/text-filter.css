@@ -1,0 +1,266 @@
+/**
+ * 文本过滤管理样式
+ */
+
+.text-filter-manager {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.manager-header h4 {
+    margin: 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.filter-stats {
+    color: #666;
+    font-size: 14px;
+}
+
+.add-filter-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    align-items: center;
+}
+
+.filter-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.regex-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    color: #666;
+    cursor: pointer;
+}
+
+.regex-checkbox input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.test-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f0f8ff;
+    border-radius: 6px;
+    border: 1px solid #d0e8ff;
+}
+
+.test-section h5 {
+    margin: 0 0 10px 0;
+    color: #0066cc;
+    font-size: 16px;
+}
+
+.test-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    resize: vertical;
+    margin-bottom: 10px;
+}
+
+.test-result {
+    margin-top: 15px;
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.result-item {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.result-item strong {
+    color: #333;
+    margin-right: 5px;
+}
+
+.matched-keyword {
+    display: inline-block;
+    padding: 2px 8px;
+    margin: 2px;
+    background: #ffe6e6;
+    color: #d9534f;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.filtered-text {
+    margin-top: 5px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    word-break: break-all;
+    font-family: monospace;
+    font-size: 13px;
+    color: #666;
+}
+
+.filters-container {
+    margin-top: 20px;
+}
+
+.filters-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.filter-tag:hover {
+    background: #e8e8e8;
+    border-color: #ccc;
+}
+
+.filter-tag.regex-tag {
+    background: #e6f3ff;
+    border-color: #b3d9ff;
+}
+
+.filter-tag.regex-tag:hover {
+    background: #d1e7ff;
+    border-color: #99ccff;
+}
+
+.filter-type {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 5px;
+    color: #0066cc;
+    font-size: 12px;
+}
+
+.filter-text {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.delete-btn {
+    margin-left: 8px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: #ff6b6b;
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    transition: background 0.2s;
+}
+
+.delete-btn:hover {
+    background: #ff5252;
+    transform: scale(1.1);
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 13px;
+}

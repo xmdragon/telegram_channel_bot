@@ -8,6 +8,7 @@ from .separator_patterns import router as separator_patterns_router
 from .tail_filter import router as tail_filter_router
 from .keyword_management import router as keyword_router
 from .separator_test import router as separator_test_router
+from .text_filter import router as text_filter_router
 
 # 创建主路由器（不设置prefix，由主API路由器设置）
 router = APIRouter(tags=["training"])
@@ -18,6 +19,9 @@ def register_training_routes():
 
     # 分隔符模式管理
     router.include_router(separator_patterns_router, tags=["training-separator-patterns"])
+
+    # 文本过滤管理
+    router.include_router(text_filter_router, tags=["training-text-filter"])
 
     # 尾部过滤管理
     router.include_router(tail_filter_router, tags=["training-tail-filter"])

@@ -67,6 +67,12 @@ class RouteConfig:
         separator_patterns = "/training/separator-patterns"
         test_separator = "/training/test-separator"
 
+        # 文本过滤
+        text_filters = "/training/text-filters"
+        text_filters_by_keyword = "/training/text-filters/{keyword}"
+        text_filters_clear = "/training/text-filters/clear"
+        test_text_filter = "/training/test-text-filter"
+
         # 关键词管理
         ad_keywords = "/training/ad-keywords"
         ad_keywords_by_keyword = "/training/ad-keywords/{keyword}"

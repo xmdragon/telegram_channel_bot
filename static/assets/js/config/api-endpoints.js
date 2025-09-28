@@ -84,7 +84,12 @@ const API_ENDPOINTS = {
         separatorPatterns: '/api/training/separator-patterns',   // GET/POST - 获取/保存分隔符模式
         testSeparator: '/api/training/test-separator',   // POST - 测试分隔符过滤
 
-        
+        // 文本过滤管理
+        textFilters: '/api/training/text-filters',               // GET/POST - 获取/添加文本过滤器
+        deleteTextFilter: (keyword) => `/api/training/text-filters/${encodeURIComponent(keyword)}`, // DELETE - 删除文本过滤器
+        clearTextFilters: '/api/training/text-filters/clear',    // DELETE - 清除所有文本过滤器
+        testTextFilter: '/api/training/test-text-filter',        // POST - 测试文本过滤
+
         // 权重关键词管理系统（新）
         adKeywords: '/api/training/ad-keywords',                  // GET - 获取所有关键词及权重
         addKeyword: '/api/training/ad-keywords',                  // POST - 添加关键词
@@ -190,8 +195,9 @@ const API_ENDPOINTS = {
         // 训练模块页面
         tailFilterManager: '/static/tail-filter-manager.html',     // 尾部过滤训练管理页面
         tailFilterTraining: '/static/tail-filter-training.html',   // 尾部过滤训练独立页面
-        adVectorManager: '/static/ad-training-samples.html',       // 关键词管理页面
         separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
+        textFilter: '/static/text-filter.html',                    // 文本过滤页面
+        adVectorManager: '/static/ad-training-samples.html',       // 关键词管理页面
         telegramMessage: '/static/telegram-message.html'           // Telegram消息工具页面
     }
 };
