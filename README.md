@@ -16,10 +16,13 @@
 - **媒体支持**：图片、视频、文档等多媒体内容完整保留
 
 ### 🎯 高效审核流程
+- **7状态系统**：精细化状态管理（待审核、发送失败、自动发布、手动发布、广告拒绝、重复拒绝、手动拒绝）
 - **可视化审核**：直观的Web界面，支持消息预览和批量操作
+- **智能搜索**：支持消息ID精确查找、关键词搜索、状态筛选
 - **智能分类**：自动识别广告、推广、垃圾内容
 - **审核队列**：支持多人协作审核，状态实时同步
-- **一键操作**：批量审批、拒绝、删除等快捷操作
+- **一键操作**：批量审批、拒绝、删除、重置等快捷操作
+- **失败重试**：发送失败消息的智能重试和状态管理
 
 ### 🚀 自动化转发
 - **规则引擎**：灵活的转发规则配置
@@ -29,9 +32,11 @@
 
 ### 🎛️ 管理控制台
 - **实时监控**：系统状态、消息统计、性能指标
+- **7状态统计**：按状态分类的详细统计和可视化图表
 - **配置管理**：频道配置、过滤规则、系统参数
 - **用户管理**：管理员权限控制和操作日志
 - **数据分析**：详细的统计报表和趋势分析
+- **缓存管理**：智能缓存清理和系统优化工具
 
 ## 🚀 快速开始
 
@@ -165,8 +170,11 @@ Telegram频道 → 消息采集 → 智能过滤 → 人工审核 → 自动转�
 - **尾部过滤**: 智能识别和移除消息尾部的推广内容
 
 ### 👥 审核管理模块
-- **消息列表**: 分页展示待审核消息，支持搜索和过滤
-- **批量操作**: 多选批量审批、拒绝、删除操作
+- **7状态系统**: 精细化消息状态管理，从待审核到最终发布的完整生命周期
+- **智能搜索**: 支持消息ID精确查找、内容关键词搜索、状态筛选
+- **消息列表**: 分页展示消息，支持多维度筛选和排序
+- **批量操作**: 多选批量审批、拒绝、删除、重置操作
+- **失败重试**: 发送失败消息的智能重试机制
 - **审核历史**: 完整的操作记录和审核轨迹
 - **权限控制**: 多级管理员权限和操作日志
 
@@ -178,8 +186,10 @@ Telegram频道 → 消息采集 → 智能过滤 → 人工审核 → 自动转�
 
 ### 📊 监控统计模块
 - **实时监控**: 系统状态、服务健康度、性能指标
+- **7状态统计**: 细分状态的实时统计和历史趋势
 - **数据统计**: 消息处理量、审核通过率、错误统计
 - **可视化图表**: 时间趋势、分类统计、性能分析
+- **缓存监控**: Redis缓存使用情况和清理记录
 - **告警通知**: 异常情况的自动告警和通知
 
 ## 🛠️ 技术栈
@@ -212,38 +222,61 @@ Telegram频道 → 消息采集 → 智能过滤 → 人工审核 → 自动转�
 telegram_channel_bot/
 ├── app/                   # 应用代码
 │   ├── api/              # API路由层
-│   │   ├── messages_*.py # 消息管理API
+│   │   ├── messages_*.py # 消息管理API（CRUD、批量、过滤、统计）
 │   │   ├── admin_*.py    # 管理功能API
-│   │   └── training/     # 训练数据API
+│   │   ├── training/     # 训练数据API
+│   │   └── websocket.py  # WebSocket实时通信
 │   ├── core/             # 核心配置
 │   │   ├── config.py     # 系统配置
-│   │   └── path_config.py # 路径管理
+│   │   ├── path_config.py # 路径管理
+│   │   ├── message_status.py # 7状态系统定义
+│   │   └── route_config.py # 路由配置
 │   ├── services/         # 业务逻辑层
 │   │   ├── filters/      # 过滤器模块
-│   │   └── processors/   # 消息处理器
+│   │   ├── processors/   # 消息处理器
+│   │   ├── auth_service.py # 认证服务
+│   │   └── message_grouper.py # 消息分组
 │   ├── storage/          # 存储层
 │   │   ├── redis_manager.py # Redis管理
-│   │   └── json_store.py # JSON存储
-│   └── telegram/         # Telegram集成
-│       ├── dual_session_manager.py # 会话管理
-│       ├── message_event_handler.py # 消息事件处理
-│       └── message_forwarder.py # 消息转发
+│   │   ├── json_store.py # JSON存储
+│   │   └── message_stats_store.py # 消息统计存储
+│   ├── telegram/         # Telegram集成
+│   │   ├── dual_session_manager.py # 双会话管理
+│   │   ├── message_event_handler.py # 消息事件处理
+│   │   ├── message_forwarder.py # 消息转发
+│   │   └── telegram_link_resolver.py # 链接解析
+│   └── utils/            # 工具函数
+│       ├── timezone.py   # 时区处理
+│       └── file_manager.py # 文件管理
 ├── static/               # 前端文件
 │   ├── *.html           # 页面文件
 │   └── assets/          # 静态资源
 │       ├── css/         # 样式文件
-│       └── js/          # JavaScript
+│       ├── js/          # JavaScript
+│       │   ├── config/  # 配置文件（API端点、消息状态等）
+│       │   ├── components/ # Vue组件
+│       │   ├── modules/ # 功能模块
+│       │   └── utils/   # 工具函数
+│       └── fonts/       # 字体文件
 ├── data/                 # 数据存储
 │   ├── config/          # 配置文件
 │   ├── training/        # 训练数据
 │   └── backups/         # 备份文件
 ├── tools/                # 工具脚本
-│   └── git/             # Git工具
+│   ├── git/             # Git工具
+│   ├── deployment/      # 部署脚本
+│   └── testing/         # 测试工具
+├── config/               # 系统配置
+│   └── supervisord.conf # Supervisor配置
 ├── logs/                 # 日志文件
+├── temp_media/           # 临时媒体文件
 ├── web_server.py         # Web服务器
 ├── message_collector.py  # 消息采集服务
 ├── message_scheduler.py  # 消息调度服务
-└── dev_supervisor.py     # 进程管理器
+├── start.sh              # 启动脚本
+├── stop.sh               # 停止脚本
+├── restart.sh            # 重启脚本
+└── infra.sh              # 基础设施管理
 ```
 
 ## 🔧 开发指南
@@ -272,8 +305,37 @@ telegram_channel_bot/
 const API_ENDPOINTS = {
     messages: {
         list: '/api/messages/',
-        approve: '/api/messages/batch/approve'
+        batch: '/api/messages/batch/',
+        approve: '/api/messages/batch/approve',
+        reject: '/api/messages/batch/reject',
+        delete: '/api/messages/batch/delete',
+        reset: '/api/messages/batch/reset',
+        search: '/api/messages/search'
+    },
+    stats: {
+        overview: '/api/stats/overview',
+        byStatus: '/api/stats/by-status'
+    },
+    cache: {
+        clear: '/api/admin/cache/clear'
     }
+};
+```
+
+### 7状态系统配置
+
+新的消息状态系统提供更精细的状态管理：
+
+```javascript
+// static/assets/js/config/message-status.js
+window.MessageStatus = {
+    PENDING: 'pending',               // 待审核
+    SEND_FAILED: 'send_failed',       // 发送失败
+    AUTO_APPROVED: 'auto_approved',   // 自动发布
+    MANUAL_APPROVED: 'manual_approved', // 手动发布
+    AD_REJECTED: 'ad_rejected',       // 广告拒绝
+    DUP_REJECTED: 'dup_rejected',     // 重复拒绝
+    MANUAL_REJECTED: 'manual_rejected' // 手动拒绝
 };
 ```
 
@@ -439,4 +501,4 @@ DOMAIN_NAME=bot.example.com ENABLE_SSL=true ./start.sh
 ---
 
 **开发理念**: 简洁、高效、可维护
-**最后更新**: 2025-09-18
+**最后更新**: 2025-09-28
