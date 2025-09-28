@@ -104,11 +104,45 @@ const app = createApp({
         async copyToClipboard(data) {
             try {
                 const jsonString = JSON.stringify(data, null, 2);
-                await navigator.clipboard.writeText(jsonString);
-                SimpleUI.showMessage('已复制到剪贴板', 'success');
+
+                // 尝试使用现代 clipboard API (需要HTTPS或localhost)
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(jsonString);
+                    SimpleUI.showMessage('已复制到剪贴板', 'success');
+                } else {
+                    // 降级方案：使用传统方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = jsonString;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful) {
+                            SimpleUI.showMessage('已复制到剪贴板', 'success');
+                        } else {
+                            throw new Error('Copy command failed');
+                        }
+                    } finally {
+                        document.body.removeChild(textArea);
+                    }
+                }
             } catch (error) {
                 console.error('复制失败:', error);
-                SimpleUI.showMessage('复制失败，请手动选择复制', 'error');
+                // 提供手动复制的选项
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border:1px solid #ccc;border-radius:5px;z-index:10000;max-width:80%;max-height:80%;overflow:auto;';
+                modal.innerHTML = `
+                    <h3>请手动复制以下内容：</h3>
+                    <textarea style="width:100%;min-width:400px;height:300px;margin:10px 0;" readonly>${JSON.stringify(data, null, 2)}</textarea>
+                    <button onclick="this.parentElement.remove()" style="padding:5px 15px;">关闭</button>
+                `;
+                document.body.appendChild(modal);
+                modal.querySelector('textarea').select();
             }
         },
 
