@@ -11,6 +11,7 @@ import json
 import logging
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
+from datetime import datetime
 from app.core.path_config import PathConfig
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ class TextFilter:
 
             data = {
                 'filters': self.filters,
-                'updated_at': str(Path.ctime.__name__)
+                'updated_at': datetime.now().isoformat()
             }
 
             with open(self.filters_file, 'w', encoding='utf-8') as f:
