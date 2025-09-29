@@ -797,10 +797,10 @@ const MessageContentRenderer = {
                     </div>
                     
                     <!-- 右栏：原始内容或母本消息内容 -->
-                    <div class="content-column content-original">
-                        <div class="content-column-header">
+                    <div class="content-column content-original" :class="{ 'showing-duplicate': showingDuplicate }">
+                        <div class="content-column-header" :class="{ 'duplicate-header': showingDuplicate }">
                             <span class="content-label" v-if="!showingDuplicate">📄 原始内容</span>
-                            <span class="content-label" v-else>🔍 母本消息</span>
+                            <span class="content-label" v-else>👑 母本消息</span>
                             <!-- 切换按钮 -->
                             <button v-if="duplicateMessage"
                                     @click="showingDuplicate = !showingDuplicate"
