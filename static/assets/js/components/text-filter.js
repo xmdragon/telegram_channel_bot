@@ -26,11 +26,6 @@ const TextFilter = {
                 <button @click="addFilter" class="btn btn-primary">
                     <i class="fas fa-plus"></i> 添加
                 </button>
-                <button v-if="filters.length > 0"
-                        @click="clearAllFilters"
-                        class="btn btn-danger btn-sm">
-                    <i class="fas fa-trash-alt"></i> 清除全部
-                </button>
             </div>
 
             <div class="test-section">
@@ -191,26 +186,6 @@ const TextFilter = {
                 }
             } catch (error) {
                 window.SimpleUI.Message.error('删除失败: ' + (error.response?.data?.detail || error.message));
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        async clearAllFilters() {
-            if (!confirm('确定要清除所有文本过滤器吗？此操作不可恢复！')) {
-                return;
-            }
-
-            this.loading = true;
-            try {
-                const response = await axios.delete(window.API.training.clearTextFilters);
-
-                if (response.data.success) {
-                    this.filters = [];
-                    window.SimpleUI.Message.success('已清除所有过滤器');
-                }
-            } catch (error) {
-                window.SimpleUI.Message.error('清除失败: ' + (error.response?.data?.detail || error.message));
             } finally {
                 this.loading = false;
             }
