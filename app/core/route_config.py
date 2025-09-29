@@ -132,8 +132,7 @@ class RouteConfig:
 
     class TelegramTools:
         """Telegram工具路由"""
-        message_structure = "/message-structure"
-        test_filters = "/test-filters"
+        analyze_message = "/analyze-message"
 
     class Services:
         """服务管理路由"""
