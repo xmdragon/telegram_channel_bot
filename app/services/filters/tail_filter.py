@@ -185,8 +185,8 @@ class TailFilter:
             while filtered_lines and not filtered_lines[-1].strip():
                 filtered_lines.pop()
 
-            filtered = '\n\n'.join(filtered_lines)
-            removed = '\n\n'.join(lines[matched_idx:])
+            filtered = '\n'.join(filtered_lines)
+            removed = '\n'.join(lines[matched_idx:])
 
             logger.debug(f"✂️ 尾部过滤: {len(content)} -> {len(filtered)} 字符 ({len(lines) - matched_idx}行删除)")
 
