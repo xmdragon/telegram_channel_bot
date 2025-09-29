@@ -1980,23 +1980,43 @@
 
 /* 行内显示的重复信息 */
 .duplicate-inline-info {
+    display: inline-block;
     margin-left: 15px;
-    color: #d48806;
+    padding: 3px 8px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 4px;
+    color: #92400e;
     font-size: 13px;
-    font-weight: normal;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2);
+    animation: duplicateHighlight 2s ease-in-out;
+}
+
+@keyframes duplicateHighlight {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+    }
 }
 
 .duplicate-inline-link {
-    color: #0066cc;
+    color: #b45309;
     text-decoration: underline;
     cursor: pointer;
-    font-weight: 500;
-    transition: color 0.2s;
+    font-weight: 600;
+    transition: all 0.2s;
 }
 
 .duplicate-inline-link:hover {
-    color: #0052a3;
+    color: #92400e;
     text-decoration: none;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 0 2px;
+    border-radius: 2px;
 }
 
 /* ==============================================
