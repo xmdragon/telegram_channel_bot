@@ -124,32 +124,6 @@ async def delete_text_filter(
         raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
 
 
-@router.delete(ROUTES.training.text_filters_clear)
-async def clear_text_filters(
-    user: Dict[str, Any] = Depends(require_auth)
-):
-    """清除所有文本过滤器"""
-    try:
-        text_filter = get_text_filter()
-
-        # 清空过滤器列表
-        text_filter.filters = []
-        text_filter.compiled_regexes = {}
-
-        # 保存到文件
-        if not text_filter.save_filters():
-            raise HTTPException(status_code=500, detail="保存失败")
-
-        return {
-            "success": True,
-            "message": "成功清除所有文本过滤器"
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"清除文本过滤器失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"清除失败: {str(e)}")
-
 
 class TestFilterRequest(BaseModel):
     text: str

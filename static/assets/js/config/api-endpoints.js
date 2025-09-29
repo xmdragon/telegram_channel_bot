@@ -87,7 +87,6 @@ const API_ENDPOINTS = {
         // 文本过滤管理
         textFilters: '/api/training/text-filters',               // GET/POST - 获取/添加文本过滤器
         deleteTextFilter: (keyword) => `/api/training/text-filters/${encodeURIComponent(keyword)}`, // DELETE - 删除文本过滤器
-        clearTextFilters: '/api/training/text-filters/clear',    // DELETE - 清除所有文本过滤器
         testTextFilter: '/api/training/test-text-filter',        // POST - 测试文本过滤
 
         // 权重关键词管理系统（新）

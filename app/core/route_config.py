@@ -70,7 +70,6 @@ class RouteConfig:
         # 文本过滤
         text_filters = "/training/text-filters"
         text_filters_by_keyword = "/training/text-filters/{keyword}"
-        text_filters_clear = "/training/text-filters/clear"
         test_text_filter = "/training/test-text-filter"
 
         # 关键词管理
