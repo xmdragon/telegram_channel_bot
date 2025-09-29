@@ -187,8 +187,9 @@ class TextFilter:
                     pattern = re.compile(re.escape(keyword), re.IGNORECASE)
                     filtered_text = pattern.sub('', filtered_text)
 
-        # 清理多余的空白字符
-        filtered_text = re.sub(r'\s+', ' ', filtered_text).strip()
+        # 清理多余的空白字符，但保留换行符
+        filtered_text = re.sub(r'[ \t]+', ' ', filtered_text).strip()  # 只替换空格和制表符
+        filtered_text = re.sub(r'\n{3,}', '\n\n', filtered_text)  # 最多保留两个连续换行
 
         # 判断是否有过滤
         is_filtered = filtered_text != original_text
