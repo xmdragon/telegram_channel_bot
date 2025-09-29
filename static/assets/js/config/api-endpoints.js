@@ -60,7 +60,8 @@ const API_ENDPOINTS = {
 
 // Telegram工具模块 - /api/telegram
     telegram: {
-        messageStructure: '/api/telegram/message-structure'         // POST - 获取消息结构体
+        messageStructure: '/api/telegram/message-structure',        // POST - 获取消息结构体
+        testFilters: '/api/telegram/test-filters'                   // POST - 测试过滤器
     },
 
     // 双Session认证模块 - /api/dual-auth

@@ -50,13 +50,22 @@
                                 class="form-control"
                                 @keyup.enter="fetchMessageStructure"
                             >
-                            <button 
-                                @click="fetchMessageStructure" 
+                            <button
+                                @click="fetchMessageStructure"
                                 :disabled="loading || !messageUrl.trim()"
                                 class="btn btn-primary"
                             >
                                 <span v-if="loading">查询中...</span>
                                 <span v-else>查询结构</span>
+                            </button>
+                            <button
+                                @click="testFilters"
+                                :disabled="loadingFilters || !messageContent"
+                                class="btn btn-secondary"
+                                v-if="messageContent"
+                            >
+                                <span v-if="loadingFilters">测试中...</span>
+                                <span v-else>测试过滤检测</span>
                             </button>
                         </div>
                         <div class="help-text">
@@ -154,6 +163,112 @@
                         <!-- 完整JSON结构 -->
                         <div v-if="expandedStates[index]" class="json-container">
                             <pre class="json-display">{{ formatJSON(structure) }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 过滤测试结果 -->
+            <div v-if="filterResults" class="filter-results-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>🧪 过滤检测结果</h2>
+                        <div class="card-actions">
+                            <button @click="closeFilterResults" class="btn btn-outline btn-sm">
+                                关闭
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <!-- 总体统计 -->
+                        <div class="filter-summary">
+                            <div class="summary-item">
+                                <label>原始长度：</label>
+                                <span>{{ filterResults.original_content.length }} 字符</span>
+                            </div>
+                            <div class="summary-item">
+                                <label>最终长度：</label>
+                                <span>{{ filterResults.final_content.length }} 字符</span>
+                            </div>
+                            <div class="summary-item">
+                                <label>移除内容：</label>
+                                <span>{{ filterResults.total_removed_length }} 字符 ({{ filterResults.removal_percentage?.toFixed(1) }}%)</span>
+                            </div>
+                        </div>
+
+                        <!-- 原始内容 -->
+                        <div class="filter-section">
+                            <h3>📝 原始内容</h3>
+                            <pre class="content-display">{{ filterResults.original_content }}</pre>
+                        </div>
+
+                        <!-- 各过滤器结果 -->
+                        <div class="filters-list">
+                            <div v-for="filter in filterResults.filters" :key="filter.name"
+                                 :class="['filter-item', filter.error ? 'filter-error' : '']">
+                                <div class="filter-header">
+                                    <h4>{{ filter.name }}</h4>
+                                    <span class="filter-status" :class="filter.enabled ? 'enabled' : 'disabled'">
+                                        {{ filter.enabled ? '✅' : '❌' }}
+                                    </span>
+                                </div>
+
+                                <div v-if="filter.error" class="filter-error-message">
+                                    错误: {{ filter.error }}
+                                </div>
+
+                                <div v-else class="filter-details">
+                                    <p class="filter-description">{{ filter.description }}</p>
+
+                                    <!-- 尾部过滤、分隔符过滤、文本过滤的移除内容 -->
+                                    <div v-if="filter.removed_content && filter.removed_length > 0" class="removed-content">
+                                        <label>移除的内容：</label>
+                                        <pre class="content-removed">{{ filter.removed_content }}</pre>
+                                    </div>
+
+                                    <!-- 文本过滤的匹配关键词 -->
+                                    <div v-if="filter.matched_keywords && filter.matched_keywords.length > 0" class="matched-keywords">
+                                        <label>匹配的关键词：</label>
+                                        <span v-for="keyword in filter.matched_keywords" :key="keyword" class="keyword-tag">
+                                            {{ keyword }}
+                                        </span>
+                                    </div>
+
+                                    <!-- 广告检测结果 -->
+                                    <div v-if="filter.name === '广告检测'" class="ad-detection-result">
+                                        <div class="detection-status" :class="filter.is_ad ? 'is-ad' : 'not-ad'">
+                                            {{ filter.is_ad ? '🚫 检测为广告' : '✅ 未检测为广告' }}
+                                        </div>
+                                        <div class="detection-details">
+                                            <span>得分: {{ filter.total_score }}/{{ filter.threshold }}</span>
+                                            <span>置信度: {{ (filter.confidence * 100).toFixed(1) }}%</span>
+                                        </div>
+                                        <div v-if="filter.matched_keywords && filter.matched_keywords.length > 0" class="ad-keywords">
+                                            <label>触发词：</label>
+                                            <span v-for="kw in filter.matched_keywords" :key="kw.keyword" class="ad-keyword">
+                                                {{ kw.keyword }} (权重:{{ kw.weight }})
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- 去重检测结果 -->
+                                    <div v-if="filter.name === '去重检测'" class="duplicate-detection-result">
+                                        <div class="detection-status" :class="filter.is_duplicate ? 'is-duplicate' : 'not-duplicate'">
+                                            {{ filter.is_duplicate ? '🔁 检测到重复' : '✅ 无重复' }}
+                                        </div>
+                                        <div class="detection-details">
+                                            <span>相似度: {{ (filter.similarity * 100).toFixed(1) }}%</span>
+                                            <span v-if="filter.duplicate_id">重复ID: {{ filter.duplicate_id }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 最终内容 -->
+                        <div class="filter-section final-content">
+                            <h3>✨ 最终过滤后内容</h3>
+                            <pre class="content-display">{{ filterResults.final_content }}</pre>
                         </div>
                     </div>
                 </div>

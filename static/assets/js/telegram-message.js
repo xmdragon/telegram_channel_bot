@@ -6,12 +6,15 @@ const app = createApp({
         return {
             messageUrl: '',
             loading: false,
+            loadingFilters: false,
             errorMessage: '',
             messageData: null,
             messageInfo: null,
             messageStructures: [],
             expandedStates: [],
-            isGroupMessage: false
+            isGroupMessage: false,
+            messageContent: '',  // 存储消息内容用于过滤测试
+            filterResults: null  // 过滤测试结果
         };
     },
 
@@ -72,11 +75,23 @@ const app = createApp({
                     this.messageStructures = responseData.structures;
                     this.isGroupMessage = responseData.info?.is_group_message || this.messageStructures.length > 1;
                     this.expandedStates = new Array(this.messageStructures.length).fill(false);
+
+                    // 提取消息内容用于过滤测试
+                    if (this.messageStructures.length > 0) {
+                        // 如果是组合消息，合并所有消息内容
+                        this.messageContent = this.messageStructures
+                            .map(s => s.message || '')
+                            .filter(msg => msg)
+                            .join('\n\n');
+                    }
                 } else {
                     // 兼容旧格式
                     this.messageStructures = [responseData];
                     this.isGroupMessage = false;
                     this.expandedStates = [false];
+
+                    // 提取消息内容
+                    this.messageContent = responseData.message || '';
 
                     // 如果没有info，从第一条消息构建
                     if (!this.messageInfo) {
@@ -188,6 +203,39 @@ const app = createApp({
                 return '文档';
             }
             return '其他媒体';
+        },
+
+        // 测试过滤器
+        async testFilters() {
+            if (!this.messageContent) {
+                this.errorMessage = '请先查询消息结构获取内容';
+                return;
+            }
+
+            this.loadingFilters = true;
+            this.filterResults = null;
+            this.errorMessage = '';
+
+            try {
+                const response = await axios.post(API.telegram.testFilters, {
+                    content: this.messageContent
+                });
+
+                if (response.data.success) {
+                    this.filterResults = response.data.data;
+                } else {
+                    this.errorMessage = response.data.error || '测试过滤失败';
+                }
+            } catch (error) {
+                this.errorMessage = error.response?.data?.detail || '测试过滤失败';
+            } finally {
+                this.loadingFilters = false;
+            }
+        },
+
+        // 关闭过滤结果
+        closeFilterResults() {
+            this.filterResults = null;
         }
     }
 });
