@@ -296,7 +296,8 @@ async def _build_detailed_filter_results(
                 'enabled': True,
                 'filtered_content': filtered_content,
                 'removed_length': len(removed_tail) if is_filtered else 0,
-                'description': f"移除尾部内容: {removed_tail[:50]}..." if is_filtered and removed_tail else "未检测到尾部内容"
+                'description': f"移除尾部内容: {removed_tail[:50]}..." if is_filtered and removed_tail else "未检测到尾部内容",
+                'removed_content': removed_tail if is_filtered else ""  # 添加完整的删除内容
             }
 
             if is_filtered:
@@ -322,7 +323,9 @@ async def _build_detailed_filter_results(
                 'enabled': True,
                 'filtered_content': filtered_content,
                 'removed_length': len(current_content) - len(filtered_content),
-                'description': f"移除{removed_blocks}个内容块" if removed_blocks > 0 else "未检测到需要过滤的分隔符内容"
+                'description': f"移除{removed_blocks}个内容块" if removed_blocks > 0 else "未检测到需要过滤的分隔符内容",
+                'removed_blocks': separator_stats.get('removed_blocks', []),  # 添加具体的删除内容块
+                'matched_patterns': separator_stats.get('matched_patterns', [])  # 添加匹配的模式
             }
 
             if removed_blocks > 0:

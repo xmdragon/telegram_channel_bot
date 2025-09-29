@@ -393,6 +393,42 @@
     border-left: 3px solid #f44336;
 }
 
+/* 分隔符过滤的移除内容块 */
+.removed-blocks {
+    margin-top: 0.75rem;
+}
+
+.removed-blocks label {
+    display: block;
+    font-weight: 500;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.removed-block {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: #fff3e0;
+    border-radius: 4px;
+    border: 1px solid #ffb74d;
+}
+
+.block-info {
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.block-pattern {
+    color: #e65100;
+    font-weight: 500;
+}
+
+.block-size {
+    color: #666;
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+}
+
 .matched-keywords {
     margin-top: 0.75rem;
 }

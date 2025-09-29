@@ -227,10 +227,22 @@
                                     <div v-else class="filter-details">
                                         <p class="filter-description">{{ filter.description }}</p>
 
-                                        <!-- 尾部过滤、分隔符过滤、文本过滤的移除内容 -->
+                                        <!-- 尾部过滤的移除内容 -->
                                         <div v-if="filter.removed_content && filter.removed_length > 0" class="removed-content">
                                             <label>移除的内容：</label>
                                             <pre class="content-removed">{{ filter.removed_content }}</pre>
+                                        </div>
+
+                                        <!-- 分隔符过滤的移除内容块 -->
+                                        <div v-if="filter.removed_blocks && filter.removed_blocks.length > 0" class="removed-blocks">
+                                            <label>移除的内容块：</label>
+                                            <div v-for="(block, index) in filter.removed_blocks" :key="index" class="removed-block">
+                                                <div class="block-info">
+                                                    <span class="block-pattern">匹配规则: {{ block.matched_pattern }}</span>
+                                                    <span class="block-size">（{{ block.content_length }}字符）</span>
+                                                </div>
+                                                <pre class="content-removed">{{ block.content_preview }}</pre>
+                                            </div>
                                         </div>
 
                                         <!-- 文本过滤的匹配关键词 -->
