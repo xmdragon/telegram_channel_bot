@@ -420,8 +420,11 @@ const MessageContentRenderer = {
                     // 保存消息数据
                     this.duplicateMessage = response.data.data;
                     this.showingDuplicate = true;  // 切换到显示该消息
+                } else if (response.data.data && response.data.data.status === 'deleted') {
+                    // 消息已被清理
+                    SimpleUI.showMessage('该消息已在数据清理中被删除', 'info');
                 } else {
-                    SimpleUI.showMessage('加载消息失败', 'error');
+                    SimpleUI.showMessage(response.data.message || '加载消息失败', 'error');
                 }
             } catch (error) {
                 console.error('加载消息失败:', error);

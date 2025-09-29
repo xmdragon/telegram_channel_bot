@@ -182,7 +182,13 @@ const app = createApp({
             try {
                 this.loading = true;
                 const response = await axios.get(API.messages.getById(encodeURIComponent(messageId)));
-                
+
+                // 检查消息是否已被清理
+                if (!response.data.success && response.data.data && response.data.data.status === 'deleted') {
+                    SimpleUI.showMessage('该消息已在数据清理中被删除', 'info');
+                    return;
+                }
+
                 if (response.data.success && response.data.data) {
                     const message = response.data.data;
                     

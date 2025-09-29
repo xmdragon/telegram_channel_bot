@@ -452,7 +452,16 @@ async def get_message(
         
         message = redis_manager.get_message_by_id(normalized_id)
         if not message:
-            raise HTTPException(status_code=404, detail="消息不存在")
+            # 返回200状态码，但标记消息已被清理
+            return {
+                "success": False,
+                "message": "消息不存在或已被清理",
+                "data": {
+                    "id": normalized_id,
+                    "status": "deleted",
+                    "deleted_reason": "消息已在数据清理中被删除"
+                }
+            }
         
         # 为前端添加统一的id字段
         if 'source_channel' in message and 'message_id' in message:
