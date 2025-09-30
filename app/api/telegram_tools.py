@@ -24,7 +24,8 @@ security = HTTPBearer(auto_error=False)
 # 消息缓存，避免重复请求Telegram API
 # 缓存结构: {url_hash: (message_data, timestamp)}
 message_cache = {}
-CACHE_TTL = 300  # 缓存5分钟
+CACHE_TTL = 30  # 缓存30秒
+TELEGRAM_TIMEOUT = 30  # Telegram API超时30秒
 
 # 认证中间件
 async def get_current_user(
@@ -64,6 +65,7 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
         消息结构数据
     """
     import re
+    import asyncio
 
     # 生成缓存键
     url_hash = hashlib.md5(message_url.encode()).hexdigest()
@@ -104,9 +106,15 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
         raise RuntimeError("无法连接到Telegram")
 
     try:
-        # 获取消息（添加异常处理）
+        # 获取消息（添加超时控制和异常处理）
         try:
-            message = await client.get_messages(channel_username, ids=message_id)
+            message = await asyncio.wait_for(
+                client.get_messages(channel_username, ids=message_id),
+                timeout=TELEGRAM_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"获取消息超时({TELEGRAM_TIMEOUT}秒): {message_url}")
+            raise RuntimeError(f"获取消息超时，请稍后重试")
         except Exception as e:
             if "429" in str(e) or "Too Many Requests" in str(e):
                 logger.warning(f"遇到速率限制(429)，请稍后重试")
@@ -135,10 +143,15 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
             # 获取组合消息的所有部分
             # 减少请求范围，从21个改为11个，避免触发速率限制
             message_ids = list(range(message_id - 5, message_id + 6))
-            messages = await client.get_messages(
-                channel_username,
-                ids=message_ids
-            )
+            try:
+                messages = await asyncio.wait_for(
+                    client.get_messages(channel_username, ids=message_ids),
+                    timeout=TELEGRAM_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"获取组合消息超时({TELEGRAM_TIMEOUT}秒)")
+                # 超时时只返回单个消息
+                messages = [message]
             grouped_messages = [
                 msg for msg in messages
                 if msg and hasattr(msg, 'grouped_id') and msg.grouped_id == message.grouped_id

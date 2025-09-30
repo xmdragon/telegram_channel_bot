@@ -59,8 +59,11 @@ const app = createApp({
             this.hasContent = false;
 
             try {
+                // 设置30秒超时
                 const response = await axios.post(API.telegram.analyzeMessage, {
                     message_url: trimmedUrl
+                }, {
+                    timeout: 30000  // 30秒超时
                 });
 
                 // 处理包装的响应格式
@@ -98,7 +101,15 @@ const app = createApp({
                 this.activeTab = 'structure';
 
             } catch (error) {
-                this.errorMessage = error.response?.data?.detail || '分析消息失败';
+                // 处理超时错误
+                if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                    this.errorMessage = '请求超时(30秒)，请稍后重试或检查网络连接';
+                } else if (error.response?.data?.detail) {
+                    this.errorMessage = error.response.data.detail;
+                } else {
+                    this.errorMessage = '分析消息失败: ' + (error.message || '未知错误');
+                }
+                console.error('分析消息错误:', error);
             } finally {
                 this.loading = false;
             }
