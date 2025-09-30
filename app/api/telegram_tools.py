@@ -54,6 +54,156 @@ class MessageAnalyzeRequest(BaseModel):
     message_url: str
 
 
+def _extract_message_text(msg) -> str:
+    """
+    增强的文本提取函数 - 确保不遗漏任何文本内容
+
+    Args:
+        msg: Telegram消息对象
+
+    Returns:
+        提取的文本内容
+    """
+    # 按优先级提取文本内容，与采集器保持一致
+    text_sources = [
+        ('message', getattr(msg, 'message', None)),
+        ('text', getattr(msg, 'text', None)),
+        ('raw_text', getattr(msg, 'raw_text', None)),
+        ('caption', getattr(msg, 'caption', None))
+    ]
+
+    for source_name, text_value in text_sources:
+        if text_value and text_value.strip():
+            logger.debug(f"从 {source_name} 字段提取文本: {len(text_value)} 字符")
+            return text_value.strip()
+
+    return ""
+
+
+async def _get_complete_group_messages(client, channel_username: str, center_message_id: int, target_grouped_id) -> list:
+    """
+    智能获取组合消息的所有部分 - 动态范围扩展
+
+    Args:
+        client: Telegram客户端
+        channel_username: 频道用户名
+        center_message_id: 中心消息ID
+        target_grouped_id: 目标组ID
+
+    Returns:
+        完整的组消息列表
+    """
+    import asyncio
+
+    logger.info(f"开始智能获取组消息: 中心ID={center_message_id}, 组ID={target_grouped_id}")
+
+    grouped_messages = []
+    max_range = 15  # 最大扩展范围 ±15
+    initial_range = 5  # 初始范围 ±5
+
+    try:
+        # 第一步：获取初始范围的消息
+        current_range = initial_range
+        message_ids = list(range(center_message_id - current_range, center_message_id + current_range + 1))
+
+        logger.debug(f"第一次获取消息范围: {center_message_id - current_range} 到 {center_message_id + current_range}")
+
+        try:
+            messages = await asyncio.wait_for(
+                client.get_messages(channel_username, ids=message_ids),
+                timeout=TELEGRAM_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"获取组合消息超时({TELEGRAM_TIMEOUT}秒)，使用更小范围重试")
+            # 超时时使用更小范围重试
+            smaller_range = 3
+            message_ids = list(range(center_message_id - smaller_range, center_message_id + smaller_range + 1))
+            messages = await client.get_messages(channel_username, ids=message_ids)
+
+        # 过滤出属于目标组的消息
+        initial_grouped = [
+            msg for msg in messages
+            if msg and hasattr(msg, 'grouped_id') and msg.grouped_id == target_grouped_id
+        ]
+
+        if not initial_grouped:
+            logger.warning(f"初始范围内未找到组消息，直接返回空列表")
+            return []
+
+        grouped_messages.extend(initial_grouped)
+        logger.info(f"初始范围找到 {len(initial_grouped)} 条组消息")
+
+        # 第二步：检查是否需要向左扩展
+        leftmost_id = min(msg.id for msg in initial_grouped)
+        if leftmost_id == center_message_id - current_range and current_range < max_range:
+            logger.debug(f"检测到需要向左扩展，当前最左ID: {leftmost_id}")
+
+            # 向左扩展查找
+            extend_range = min(5, max_range - current_range)
+            left_message_ids = list(range(leftmost_id - extend_range, leftmost_id))
+
+            try:
+                left_messages = await asyncio.wait_for(
+                    client.get_messages(channel_username, ids=left_message_ids),
+                    timeout=TELEGRAM_TIMEOUT // 2  # 使用较短超时
+                )
+
+                left_grouped = [
+                    msg for msg in left_messages
+                    if msg and hasattr(msg, 'grouped_id') and msg.grouped_id == target_grouped_id
+                ]
+
+                if left_grouped:
+                    grouped_messages.extend(left_grouped)
+                    logger.info(f"向左扩展找到 {len(left_grouped)} 条组消息")
+
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning(f"向左扩展失败: {e}")
+
+        # 第三步：检查是否需要向右扩展
+        rightmost_id = max(msg.id for msg in grouped_messages)
+        if rightmost_id == center_message_id + current_range and current_range < max_range:
+            logger.debug(f"检测到需要向右扩展，当前最右ID: {rightmost_id}")
+
+            # 向右扩展查找
+            extend_range = min(5, max_range - current_range)
+            right_message_ids = list(range(rightmost_id + 1, rightmost_id + extend_range + 1))
+
+            try:
+                right_messages = await asyncio.wait_for(
+                    client.get_messages(channel_username, ids=right_message_ids),
+                    timeout=TELEGRAM_TIMEOUT // 2  # 使用较短超时
+                )
+
+                right_grouped = [
+                    msg for msg in right_messages
+                    if msg and hasattr(msg, 'grouped_id') and msg.grouped_id == target_grouped_id
+                ]
+
+                if right_grouped:
+                    grouped_messages.extend(right_grouped)
+                    logger.info(f"向右扩展找到 {len(right_grouped)} 条组消息")
+
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning(f"向右扩展失败: {e}")
+
+        # 去重并按ID排序
+        unique_messages = {}
+        for msg in grouped_messages:
+            unique_messages[msg.id] = msg
+
+        final_messages = sorted(unique_messages.values(), key=lambda x: x.id)
+
+        logger.info(f"智能获取组消息完成: 总计 {len(final_messages)} 条，ID范围: {final_messages[0].id if final_messages else 'N/A'} - {final_messages[-1].id if final_messages else 'N/A'}")
+
+        return final_messages
+
+    except Exception as e:
+        logger.error(f"智能获取组消息失败: {e}")
+        # 失败时返回空列表，让上层处理
+        return []
+
+
 async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
     """
     从Telegram URL获取消息（带5分钟缓存）
@@ -140,60 +290,61 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
 
         # 检查是否为组合消息
         if hasattr(message, 'grouped_id') and message.grouped_id:
-            # 获取组合消息的所有部分
-            # 减少请求范围，从21个改为11个，避免触发速率限制
-            message_ids = list(range(message_id - 5, message_id + 6))
-            try:
-                messages = await asyncio.wait_for(
-                    client.get_messages(channel_username, ids=message_ids),
-                    timeout=TELEGRAM_TIMEOUT
-                )
-            except asyncio.TimeoutError:
-                logger.warning(f"获取组合消息超时({TELEGRAM_TIMEOUT}秒)")
-                # 超时时只返回单个消息
-                messages = [message]
-            grouped_messages = [
-                msg for msg in messages
-                if msg and hasattr(msg, 'grouped_id') and msg.grouped_id == message.grouped_id
-            ]
+            # 智能获取组合消息的所有部分 - 动态范围扩展
+            grouped_messages = await _get_complete_group_messages(
+                client, channel_username, message_id, message.grouped_id
+            )
 
             for msg in grouped_messages:
-                # 使用与采集器完全相同的文本提取方法
-                # 采集器使用: message.message or ""
-                msg_text = ""
-                if hasattr(msg, 'message') and msg.message:
-                    msg_text = msg.message
-                elif hasattr(msg, 'text') and msg.text:
-                    msg_text = msg.text
-                elif hasattr(msg, 'raw_text') and msg.raw_text:
-                    msg_text = msg.raw_text
-                elif hasattr(msg, 'caption') and msg.caption:
-                    msg_text = msg.caption
+                # 增强文本提取逻辑 - 确保不遗漏任何文本内容
+                msg_text = _extract_message_text(msg)
+
+                # 构建媒体信息
+                media_info = None
+                if msg.media:
+                    media_info = {
+                        'type': msg.media.__class__.__name__,
+                        'has_content': bool(msg_text.strip())  # 标记是否包含文本
+                    }
 
                 message_data['structures'].append({
                     'message_id': msg.id,
-                    'message': msg_text or "",
-                    'media': {'type': msg.media.__class__.__name__} if msg.media else None
+                    'message': msg_text,
+                    'media': media_info
                 })
+
+                # 调试日志：记录文本提取情况
+                if msg_text.strip():
+                    logger.debug(f"组消息 {msg.id} 提取到文本: {len(msg_text)} 字符")
+                elif msg.media:
+                    logger.debug(f"组消息 {msg.id} 纯媒体消息: {media_info['type']}")
+                else:
+                    logger.debug(f"组消息 {msg.id} 空消息")
         else:
-            # 单个消息
-            # 使用与采集器完全相同的文本提取方法
-            # 采集器使用: message.message or ""
-            msg_text = ""
-            if hasattr(message, 'message') and message.message:
-                msg_text = message.message
-            elif hasattr(message, 'text') and message.text:
-                msg_text = message.text
-            elif hasattr(message, 'raw_text') and message.raw_text:
-                msg_text = message.raw_text
-            elif hasattr(message, 'caption') and message.caption:
-                msg_text = message.caption
+            # 单个消息 - 使用增强的文本提取
+            msg_text = _extract_message_text(message)
+
+            # 构建媒体信息
+            media_info = None
+            if message.media:
+                media_info = {
+                    'type': message.media.__class__.__name__,
+                    'has_content': bool(msg_text.strip())
+                }
 
             message_data['structures'].append({
                 'message_id': message.id,
-                'message': msg_text or "",
-                'media': {'type': message.media.__class__.__name__} if message.media else None
+                'message': msg_text,
+                'media': media_info
             })
+
+            # 调试日志
+            if msg_text.strip():
+                logger.debug(f"单个消息 {message.id} 提取到文本: {len(msg_text)} 字符")
+            elif message.media:
+                logger.debug(f"单个消息 {message.id} 纯媒体消息: {media_info['type']}")
+            else:
+                logger.debug(f"单个消息 {message.id} 空消息")
 
         # 兼容旧格式
         if len(message_data['structures']) == 1:
@@ -231,16 +382,30 @@ async def analyze_message(
         if not message_data:
             raise HTTPException(status_code=404, detail="无法获取消息数据")
 
-        # 获取消息内容
+        # 智能获取消息内容 - 改进合并逻辑
         message_content = ""
+        text_parts = []
+
         if message_data.get('structures'):
-            # 如果是组合消息，合并所有消息的内容
+            # 组合消息：收集所有非空文本内容
             for msg_struct in message_data['structures']:
-                if msg_struct.get('message'):
-                    message_content += msg_struct['message'] + "\n"
+                text = msg_struct.get('message', '').strip()
+                if text:
+                    text_parts.append(text)
+                    logger.debug(f"收集组消息文本: 消息ID={msg_struct.get('message_id')}, 长度={len(text)}")
+
+            # 用换行符连接所有文本
+            if text_parts:
+                message_content = '\n'.join(text_parts)
+                logger.info(f"组消息文本合并完成: {len(text_parts)} 个文本片段，总长度 {len(message_content)} 字符")
+            else:
+                logger.info("组消息中未找到任何文本内容")
+
         elif message_data.get('message'):
-            # 单个消息
-            message_content = message_data['message']
+            # 单个消息（兼容旧格式）
+            message_content = message_data['message'].strip()
+            if message_content:
+                logger.info(f"单个消息文本: 长度 {len(message_content)} 字符")
 
         # 准备响应数据
         result = {

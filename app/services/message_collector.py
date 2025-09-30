@@ -440,49 +440,93 @@ class TelegramMessageCollector:
             logger.info(f"本轮采集耗时 {runtime:.1f}s，立即开始下轮")
     
     async def _get_message_ids_to_collect(self, entity, channel_id: str, checkpoint: int) -> List[List[int]]:
-        """根据channel和checkpoint返回要采集的消息ID组列表"""
+        """根据channel和checkpoint返回要采集的消息ID组列表 - 修复组消息完整性问题"""
         try:
             if checkpoint == 0:
                 # 首次采集：获取历史消息ID
                 history_limit = await self.config_manager.get_history_limit()
-                # 实际获取数量 = 配置值 × 5，考虑组消息情况
-                actual_limit = history_limit * 5
+                # 🔧 修复：增加安全系数，确保组消息不被截断
+                actual_limit = history_limit * 8  # 从5倍增加到8倍，更安全
                 # 获取最新的actual_limit条消息ID
                 messages = await self.telethon_client.get_messages(entity, limit=actual_limit)
             else:
-                # 增量采集：获取checkpoint之后的消息ID
+                # 🔧 修复：增量采集时扩展范围，避免组消息边界问题
+                # 先获取checkpoint之后的消息
                 messages = await self.telethon_client.get_messages(entity, min_id=checkpoint, limit=None)
                 messages = [msg for msg in messages if msg and msg.id > checkpoint]
-            
+
+                # 🆕 新增：检查是否有不完整的组消息，向前扩展
+                if messages:
+                    earliest_msg = min(messages, key=lambda m: m.id)
+                    if hasattr(earliest_msg, 'grouped_id') and earliest_msg.grouped_id:
+                        # 如果最早的消息是组消息，向前扩展获取完整组
+                        logger.debug(f"检测到增量采集边界有组消息，向前扩展获取完整组")
+                        try:
+                            # 向前扩展10条消息，确保获取完整组
+                            extended_messages = await self.telethon_client.get_messages(
+                                entity,
+                                max_id=earliest_msg.id,
+                                limit=10
+                            )
+                            # 过滤出属于同一组的消息
+                            group_messages = [
+                                msg for msg in extended_messages
+                                if msg and hasattr(msg, 'grouped_id') and msg.grouped_id == earliest_msg.grouped_id
+                            ]
+                            # 添加到消息列表中
+                            messages.extend(group_messages)
+                            logger.debug(f"向前扩展获取到 {len(group_messages)} 条组消息")
+                        except Exception as e:
+                            logger.warning(f"向前扩展组消息失败: {e}")
+
             if not messages:
                 return []
-            
-            # 按grouped_id分组
+
+            # 🔧 修复：改进分组逻辑，确保组消息完整性
             message_groups = {}  # {grouped_id: [msg_ids]}
             single_messages = []  # 单独消息
-            
+            incomplete_groups = set()  # 记录可能不完整的组
+
             for msg in messages:
-                # 高级空消息判断
-                is_empty, reason = self._is_empty_message(msg)
-                if is_empty:
-                    # 删除空消息的日志 - 过于频繁
+                # 🔧 修复：放宽空消息判断，避免过度过滤组消息
+                if not msg:
                     continue
-                
+
+                # 只过滤明确的空消息，对组消息更宽松
                 if msg.grouped_id:
-                    # 组消息
+                    # 组消息：即使看起来是"空"的也要保留，可能是纯媒体
                     if msg.grouped_id not in message_groups:
                         message_groups[msg.grouped_id] = []
                     message_groups[msg.grouped_id].append(msg.id)
                 else:
-                    # 单独消息
-                    single_messages.append([msg.id])
-            
+                    # 单独消息：应用空消息判断
+                    is_empty, reason = self._is_empty_message(msg)
+                    if not is_empty:
+                        single_messages.append([msg.id])
+
+            # 🆕 新增：检查组消息完整性
+            for grouped_id, msg_ids in message_groups.items():
+                if len(msg_ids) < 2:
+                    # 组消息数量异常少，可能不完整
+                    incomplete_groups.add(grouped_id)
+                    logger.debug(f"检测到可能不完整的组: {grouped_id}, 消息数: {len(msg_ids)}")
+
+            # 🆕 新增：对可能不完整的组进行扩展查找
+            if incomplete_groups and checkpoint != 0:  # 只在增量采集时处理
+                logger.debug(f"尝试修复 {len(incomplete_groups)} 个可能不完整的组")
+                await self._extend_incomplete_groups(entity, message_groups, incomplete_groups)
+
             # 合并结果：组消息 + 单独消息
             all_groups = list(message_groups.values()) + single_messages
 
             # 🔧 按每组的最小ID升序排序，确保从旧到新处理，防止checkpoint倒退
             all_groups.sort(key=lambda group: min(group) if group else 0)
-            logger.debug(f"消息组已排序，共 {len(all_groups)} 个组，将按升序处理")
+
+            # 🆕 新增：记录组消息统计
+            group_count = len(message_groups)
+            single_count = len(single_messages)
+            total_msgs = sum(len(group) for group in message_groups.values()) + single_count
+            logger.debug(f"消息分组完成: {group_count}个组消息({sum(len(g) for g in message_groups.values())}条), {single_count}个单消息, 总计{total_msgs}条")
 
             # 🎯 重要：只返回最近的history_limit个消息组
             if checkpoint == 0:  # 只在首次采集时限制
@@ -490,17 +534,73 @@ class TelegramMessageCollector:
                 if len(all_groups) > history_limit:
                     # 排序后取后面的history_limit个（ID较大的，即较新的消息）
                     result = all_groups[-history_limit:]
+                    logger.debug(f"首次采集限制: 从{len(all_groups)}个组中取最新{len(result)}个")
                 else:
                     result = all_groups
             else:
                 result = all_groups  # 增量采集不限制
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"获取消息ID失败: {e}")
             return []
     
+    async def _extend_incomplete_groups(self, entity, message_groups: dict, incomplete_groups: set):
+        """扩展不完整的组消息 - 尝试获取完整的组"""
+        try:
+            for grouped_id in incomplete_groups:
+                current_msg_ids = message_groups[grouped_id]
+                if not current_msg_ids:
+                    continue
+
+                logger.debug(f"尝试扩展不完整组 {grouped_id}, 当前消息: {current_msg_ids}")
+
+                # 以当前组的消息ID为中心，向前后扩展查找
+                center_id = min(current_msg_ids)
+                extend_range = 15  # 向前后各扩展15条
+
+                try:
+                    # 向前扩展
+                    before_messages = await self.telethon_client.get_messages(
+                        entity,
+                        max_id=center_id,
+                        limit=extend_range
+                    )
+
+                    # 向后扩展
+                    after_messages = await self.telethon_client.get_messages(
+                        entity,
+                        min_id=max(current_msg_ids),
+                        limit=extend_range
+                    )
+
+                    # 合并所有消息
+                    all_messages = before_messages + after_messages
+
+                    # 过滤出属于同一组的消息
+                    group_messages = [
+                        msg for msg in all_messages
+                        if msg and hasattr(msg, 'grouped_id') and msg.grouped_id == grouped_id
+                    ]
+
+                    # 提取新的消息ID
+                    new_msg_ids = [msg.id for msg in group_messages if msg.id not in current_msg_ids]
+
+                    if new_msg_ids:
+                        # 更新组消息列表
+                        message_groups[grouped_id].extend(new_msg_ids)
+                        message_groups[grouped_id].sort()  # 保持ID顺序
+                        logger.debug(f"组 {grouped_id} 扩展成功: 新增 {len(new_msg_ids)} 条消息，总计 {len(message_groups[grouped_id])} 条")
+                    else:
+                        logger.debug(f"组 {grouped_id} 无法扩展，保持原状")
+
+                except Exception as e:
+                    logger.warning(f"扩展组 {grouped_id} 失败: {e}")
+
+        except Exception as e:
+            logger.error(f"扩展不完整组消息失败: {e}")
+
     async def _fetch_telegram_messages(self, entity, message_groups: List[int], channel: dict) -> Optional[LocalMessage]:
         """从Telegram获取消息并处理媒体下载和组消息合并"""
         try:
@@ -758,23 +858,44 @@ class TelegramMessageCollector:
             max_media_size_mb = await self.config_manager.get_max_media_size_mb()
             max_media_size_bytes = max_media_size_mb * 1024 * 1024
 
-            # 检查组内所有消息的媒体大小
+            # 🔧 修复：检查组内媒体大小，但不因单个文件过大就跳过整组
             from telethon.tl.types import MessageMediaDocument, MessageMediaPhoto
+            valid_messages = []  # 保存通过大小检查的消息
+            skipped_count = 0    # 跳过的消息数量
+
             for msg in group_messages:
+                should_include = True
+
                 if msg.media:
                     if isinstance(msg.media, MessageMediaDocument):
                         document = msg.media.document
                         if document and hasattr(document, 'size'):
                             if document.size > max_media_size_bytes:
-                                logger.warning(f"消息组 {[m.id for m in group_messages]} 中消息 {msg.id} 媒体文件 {document.size/(1024*1024):.1f}MB 超过限制 {max_media_size_mb}MB，跳过整组消息")
-                                return None  # 跳过整组消息
+                                logger.warning(f"消息组中消息 {msg.id} 媒体文件 {document.size/(1024*1024):.1f}MB 超过限制 {max_media_size_mb}MB，跳过该消息")
+                                should_include = False
+                                skipped_count += 1
                     elif isinstance(msg.media, MessageMediaPhoto):
                         photo = msg.media.photo
                         if photo and hasattr(photo, 'sizes') and photo.sizes:
                             largest_size = max(photo.sizes, key=lambda s: getattr(s, 'size', 0) if hasattr(s, 'size') else 0)
                             if hasattr(largest_size, 'size') and largest_size.size > max_media_size_bytes:
-                                logger.warning(f"消息组 {[m.id for m in group_messages]} 中图片超过限制 {max_media_size_mb}MB，跳过整组消息")
-                                return None
+                                logger.warning(f"消息组中消息 {msg.id} 图片超过限制 {max_media_size_mb}MB，跳过该消息")
+                                should_include = False
+                                skipped_count += 1
+
+                if should_include:
+                    valid_messages.append(msg)
+
+            # 🔧 修复：只有当所有消息都被跳过时才放弃整组
+            if not valid_messages:
+                logger.warning(f"消息组 {[m.id for m in group_messages]} 中所有消息都超过大小限制，跳过整组")
+                return None
+
+            if skipped_count > 0:
+                logger.info(f"消息组处理：保留 {len(valid_messages)} 条消息，跳过 {skipped_count} 条超大媒体消息")
+
+            # 使用通过检查的消息继续处理
+            group_messages = valid_messages
 
             # 确定主消息（第一条有文本的，或第一条）
             primary_msg = next((msg for msg in group_messages if msg.message), group_messages[0])

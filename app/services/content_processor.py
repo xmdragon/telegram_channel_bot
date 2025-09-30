@@ -260,72 +260,110 @@ class ContentProcessor:
                     'description': 'Markdown过滤已禁用'
                 })
 
-            # 5. 广告检测（最慢，放最后，支持早期退出）
+            # 5. 🔧 修复：双重广告检测 - 对原始内容和过滤后内容都进行检测
             if detect_ad and filter_config.get('ad_detector', False):
+                # 检测原始内容
+                original_is_ad, original_weight, original_keywords = False, 0.0, []
+                if message.content and len(message.content.strip()) > 10:
+                    original_is_ad, original_weight, original_keywords = self.ad_detector.detect(message.content)
+
+                # 检测过滤后内容
+                filtered_is_ad, filtered_weight, filtered_keywords = False, 0.0, []
                 if current_content and len(current_content.strip()) > 10:
-                    is_ad, total_weight, matched_keywords = self.ad_detector.detect(current_content)
+                    filtered_is_ad, filtered_weight, filtered_keywords = self.ad_detector.detect(current_content)
 
-                    # 收集详细信息
-                    filter_detail = {
-                        'name': '广告检测',
-                        'enabled': True,
-                        'is_ad': is_ad,
-                        'total_score': total_weight,
-                        'threshold': self.ad_detector.threshold,
-                        'confidence': total_weight / self.ad_detector.threshold if self.ad_detector.threshold > 0 else 0,
-                        'matched_keywords': matched_keywords if is_ad else [],
-                        'description': f"检测为广告，得分: {total_weight}/{self.ad_detector.threshold}" if is_ad else "未检测为广告"
+                # 🔧 修复：比较两者权重，取最大值作为最终结果
+                final_weight = max(original_weight, filtered_weight)
+                final_is_ad = final_weight >= self.ad_detector.threshold
+
+                # 选择权重更高的检测结果作为主要结果
+                if original_weight >= filtered_weight:
+                    primary_keywords = original_keywords
+                    primary_content_type = "原始内容"
+                else:
+                    primary_keywords = filtered_keywords
+                    primary_content_type = "过滤后内容"
+
+                # 🆕 新增：合并所有关键词（去重）
+                all_keywords = {}
+                for kw in original_keywords + filtered_keywords:
+                    keyword = kw['keyword']
+                    if keyword not in all_keywords or kw['weight'] > all_keywords[keyword]['weight']:
+                        all_keywords[keyword] = kw
+                merged_keywords = list(all_keywords.values())
+                merged_keywords.sort(key=lambda x: x['weight'], reverse=True)
+
+                # 收集详细信息
+                filter_detail = {
+                    'name': '广告检测',
+                    'enabled': True,
+                    'is_ad': final_is_ad,
+                    'total_score': final_weight,
+                    'threshold': self.ad_detector.threshold,
+                    'confidence': final_weight / self.ad_detector.threshold if self.ad_detector.threshold > 0 else 0,
+                    'matched_keywords': merged_keywords if final_is_ad else [],
+                    'description': f"检测为广告，得分: {final_weight}/{self.ad_detector.threshold} (基于{primary_content_type})" if final_is_ad else f"未检测为广告 (原始:{original_weight:.1f}, 过滤后:{filtered_weight:.1f})",
+                    # 🆕 新增：双重检测的详细信息
+                    'detection_details': {
+                        'original_score': original_weight,
+                        'filtered_score': filtered_weight,
+                        'original_keywords_count': len(original_keywords),
+                        'filtered_keywords_count': len(filtered_keywords),
+                        'primary_source': primary_content_type
                     }
-                    message.filter_details.append(filter_detail)
+                }
+                message.filter_details.append(filter_detail)
 
-                    # 无论是否判定为广告，只要找到了关键词就保存
-                    if matched_keywords:
-                        message.ad_weight = total_weight
-                        message.hit_keywords = matched_keywords[:10]  # 保存前10个关键词
+                # 无论是否判定为广告，只要找到了关键词就保存
+                if merged_keywords:
+                    message.ad_weight = final_weight
+                    message.hit_keywords = merged_keywords[:10]  # 保存前10个关键词
 
-                        # 详细的调试日志仅在DEBUG级别输出
-                        keyword_details = [f"{k['keyword']}({k['weight']:.1f})" for k in matched_keywords]
-                        logger.debug(f"广告检测详情 - 消息:{message.channel_id}:{message.message_id}")
-                        logger.debug(f"  命中关键词: {', '.join(keyword_details)}")
-                        logger.debug(f"  总权重: {total_weight:.1f} (阈值: 3.0)")
+                    # 详细的调试日志仅在DEBUG级别输出
+                    keyword_details = [f"{k['keyword']}({k['weight']:.1f})" for k in merged_keywords]
+                    logger.debug(f"双重广告检测详情 - 消息:{message.channel_id}:{message.message_id}")
+                    logger.debug(f"  原始内容权重: {original_weight:.1f} ({len(original_keywords)}个关键词)")
+                    logger.debug(f"  过滤后权重: {filtered_weight:.1f} ({len(filtered_keywords)}个关键词)")
+                    logger.debug(f"  最终权重: {final_weight:.1f} (基于{primary_content_type})")
+                    logger.debug(f"  合并关键词: {', '.join(keyword_details[:5])}")
 
-                        # 添加到过滤原因
-                        keyword_names = [item['keyword'] for item in matched_keywords[:3]]
-                        filter_reasons.append(f"广告检测: 权重={total_weight:.1f}, 关键词={','.join(keyword_names)}")
+                    # 添加到过滤原因
+                    keyword_names = [item['keyword'] for item in merged_keywords[:3]]
+                    filter_reasons.append(f"广告检测: 权重={final_weight:.1f}, 关键词={','.join(keyword_names)} ({primary_content_type})")
 
-                    # 只有权重≥阈值才标记为广告
-                    if is_ad:
-                        message.is_ad = True
+                # 只有权重≥阈值才标记为广告
+                if final_is_ad:
+                    message.is_ad = True
 
-                        # 获取auto_reject配置
-                        auto_reject = True  # 默认值
-                        if config_manager:
-                            try:
-                                auto_reject = await config_manager.get_auto_reject_ads()
-                            except Exception as e:
-                                logger.error(f"获取自动拒绝配置失败: {e}")
-                                auto_reject = True  # 配置失败时默认拒绝
-                        else:
-                            logger.debug("未提供config_manager，默认自动拒绝广告")
-                            auto_reject = True  # 无配置时默认拒绝
+                    # 获取auto_reject配置
+                    auto_reject = True  # 默认值
+                    if config_manager:
+                        try:
+                            auto_reject = await config_manager.get_auto_reject_ads()
+                        except Exception as e:
+                            logger.error(f"获取自动拒绝配置失败: {e}")
+                            auto_reject = True  # 配置失败时默认拒绝
+                    else:
+                        logger.debug("未提供config_manager，默认自动拒绝广告")
+                        auto_reject = True  # 无配置时默认拒绝
 
-                        # 合并为一条调试日志，避免在生产日志中刷屏
-                        keyword_names = [k['keyword'] for k in matched_keywords[:3]]
-                        logger.debug(
-                            "🚫 检测到广告: %s:%s (权重:%.1f, 关键词:%s)",
-                            message.channel_id,
-                            message.message_id,
-                            total_weight,
-                            ','.join(keyword_names)
-                        )
+                    # 合并为一条调试日志，避免在生产日志中刷屏
+                    keyword_names = [k['keyword'] for k in merged_keywords[:3]]
+                    logger.debug(
+                        "🚫 检测到广告: %s:%s (权重:%.1f, 关键词:%s)",
+                        message.channel_id,
+                        message.message_id,
+                        final_weight,
+                        ','.join(keyword_names)
+                    )
 
-                        if auto_reject:
-                            old_status = message.status
-                            message.status = "ad_rejected"
-                            message.reject_reason = f"自动拒绝广告(权重:{total_weight:.1f})"
-                            logger.debug(f"消息被自动拒绝 - 状态从'{old_status}'改为'rejected'")
-                        else:
-                            logger.debug(f"广告检测已禁用自动拒绝，消息保持待审核状态")
+                    if auto_reject:
+                        old_status = message.status
+                        message.status = "ad_rejected"
+                        message.reject_reason = f"自动拒绝广告(权重:{final_weight:.1f})"
+                        logger.debug(f"消息被自动拒绝 - 状态从'{old_status}'改为'rejected'")
+                    else:
+                        logger.debug(f"广告检测已禁用自动拒绝，消息保持待审核状态")
                 else:
                     # 内容太短，跳过广告检测
                     message.filter_details.append({
