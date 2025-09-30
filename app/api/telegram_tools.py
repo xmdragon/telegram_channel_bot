@@ -249,7 +249,7 @@ async def test_message_filters(content: str) -> Dict[str, Any]:
 
     original_content = content
 
-    # 执行过滤处理 - 使用与生产环境完全相同的方法
+    # 执行过滤处理 - 使用与生产环境完全相同的方法（只执行一次）
     processed_message = await content_processor.process(
         test_message,
         config_manager=None,  # 测试时不需要配置管理器
@@ -257,179 +257,24 @@ async def test_message_filters(content: str) -> Dict[str, Any]:
         filter_config=filter_config
     )
 
-    # 构建详细的过滤结果 - 模拟 analyze_with_details 的输出格式
-    filter_results = await _build_detailed_filter_results(
-        content_processor,
-        original_content,
-        processed_message,
-        filter_config
-    )
-
-    logger.info(f"过滤完成: {len(original_content)} -> {len(processed_message.filtered_content)} 字符")
-
-    return filter_results
-
-
-async def _build_detailed_filter_results(
-    content_processor: 'ContentProcessor',
-    original_content: str,
-    processed_message: 'LocalMessage',
-    filter_config: Dict[str, bool]
-) -> Dict[str, Any]:
-    """
-    构建详细的过滤结果，模拟 UnifiedFilterEngine.analyze_with_details 的输出格式
-    通过逐步执行每个过滤器来获取详细信息
-    """
-    from app.services.content_processor import LocalMessage
-
-    filter_details = []
-    current_content = original_content
+    # 直接使用 process() 返回的详细信息，不再重新执行过滤器
     original_length = len(original_content)
-
-    # 1. 尾部过滤
-    if filter_config.get('tail_filter', True):
-        try:
-            filtered_content, is_filtered, removed_tail, _ = content_processor.tail_filter.filter(current_content)
-
-            filter_info = {
-                'name': '尾部过滤',
-                'enabled': True,
-                'filtered_content': filtered_content,
-                'removed_length': len(removed_tail) if is_filtered else 0,
-                'description': f"移除尾部内容: {removed_tail[:50]}..." if is_filtered and removed_tail else "未检测到尾部内容",
-                'removed_content': removed_tail if is_filtered else ""  # 添加完整的删除内容
-            }
-
-            if is_filtered:
-                current_content = filtered_content
-
-            filter_details.append(filter_info)
-        except Exception as e:
-            filter_details.append({
-                'name': '尾部过滤',
-                'enabled': True,
-                'error': str(e),
-                'description': f"过滤器执行失败: {e}"
-            })
-
-    # 2. 分隔符过滤
-    if filter_config.get('separator_filter', True):
-        try:
-            filtered_content, separator_stats = content_processor.separator_filter.filter_content(current_content)
-            removed_blocks = separator_stats.get('removed_blocks_count', 0)
-
-            filter_info = {
-                'name': '分隔符过滤',
-                'enabled': True,
-                'filtered_content': filtered_content,
-                'removed_length': len(current_content) - len(filtered_content),
-                'description': f"移除{removed_blocks}个内容块" if removed_blocks > 0 else "未检测到需要过滤的分隔符内容",
-                'removed_blocks': separator_stats.get('removed_blocks', []),  # 添加具体的删除内容块
-                'matched_patterns': separator_stats.get('matched_patterns', [])  # 添加匹配的模式
-            }
-
-            if removed_blocks > 0:
-                current_content = filtered_content
-
-            filter_details.append(filter_info)
-        except Exception as e:
-            filter_details.append({
-                'name': '分隔符过滤',
-                'enabled': True,
-                'error': str(e),
-                'description': f"过滤器执行失败: {e}"
-            })
-
-    # 3. 文本过滤
-    if filter_config.get('text_filter', True):
-        try:
-            filtered_content, is_filtered, matched_keywords = content_processor.text_filter.filter(current_content)
-
-            filter_info = {
-                'name': '文本过滤',
-                'enabled': True,
-                'filtered_content': filtered_content,
-                'removed_length': len(current_content) - len(filtered_content) if is_filtered else 0,
-                'matched_keywords': [{'keyword': kw} for kw in matched_keywords] if matched_keywords else [],
-                'description': f"匹配{len(matched_keywords)}个关键词" if is_filtered and matched_keywords else "未检测到需要过滤的文本内容"
-            }
-
-            if is_filtered:
-                current_content = filtered_content
-
-            filter_details.append(filter_info)
-        except Exception as e:
-            filter_details.append({
-                'name': '文本过滤',
-                'enabled': True,
-                'error': str(e),
-                'description': f"过滤器执行失败: {e}"
-            })
-
-    # 4. Markdown过滤
-    if filter_config.get('markdown_filter', True):
-        try:
-            # 由于测试时entities为空，这里模拟处理
-            filtered_content, links_removed = content_processor.markdown_filter.filter(current_content, [])
-
-            filter_info = {
-                'name': 'Markdown过滤',
-                'enabled': True,
-                'filtered_content': filtered_content,
-                'removed_length': len(current_content) - len(filtered_content),
-                'description': f"移除{links_removed}个链接" if links_removed > 0 else "无需处理Markdown"
-            }
-
-            if links_removed > 0:
-                current_content = filtered_content
-
-            filter_details.append(filter_info)
-        except Exception as e:
-            filter_details.append({
-                'name': 'Markdown过滤',
-                'enabled': True,
-                'error': str(e),
-                'description': f"过滤器执行失败: {e}"
-            })
-
-    # 5. 广告检测
-    if filter_config.get('ad_detector', True):
-        try:
-            is_ad, total_weight, matched_keywords = content_processor.ad_detector.detect(current_content)
-
-            filter_info = {
-                'name': '广告检测',
-                'enabled': True,
-                'is_ad': is_ad,
-                'total_score': total_weight,
-                'threshold': content_processor.ad_detector.threshold,
-                'confidence': total_weight / content_processor.ad_detector.threshold if content_processor.ad_detector.threshold > 0 else 0,
-                'matched_keywords': matched_keywords if is_ad else [],
-                'description': f"检测为广告，得分: {total_weight}/{content_processor.ad_detector.threshold}" if is_ad else "未检测为广告"
-            }
-
-            filter_details.append(filter_info)
-        except Exception as e:
-            filter_details.append({
-                'name': '广告检测',
-                'enabled': True,
-                'error': str(e),
-                'description': f"广告检测失败: {e}"
-            })
-
-    # 计算总体统计
-    final_content = processed_message.filtered_content
-    total_removed = original_length - len(final_content)
+    final_length = len(processed_message.filtered_content)
+    total_removed = original_length - final_length
     removal_percentage = (total_removed / original_length * 100) if original_length > 0 else 0
 
-    return {
+    filter_results = {
         'is_ad': processed_message.is_ad,
-        'final_content': final_content,
+        'final_content': processed_message.filtered_content,
         'original_content': original_content,
         'total_removed_length': total_removed,
         'removal_percentage': removal_percentage,
-        'filters': filter_details,
+        'filters': processed_message.filter_details,  # 直接使用收集的详细信息
         'filter_reason': processed_message.filter_reason or "",
         'early_stopped': False,  # ContentProcessor 不使用早期停止
         'processing_time_ms': 0  # 暂不计算处理时间
     }
+
+    logger.info(f"过滤完成: {len(original_content)} -> {len(processed_message.filtered_content)} 字符")
+
+    return filter_results
