@@ -716,6 +716,9 @@ class MessageProcessor:
                         file_size = media_entry.get('file_size')
                         media_source = media_entry.get('source', f'media[{idx}]')
 
+                        # 添加媒体去重检测日志
+                        logger.debug(f"消息ID: {full_message_id} 图片地址: {media_path} 进行媒体去重检测")
+
                         media_result = await media_duplicate_detector.detect_duplicate(
                             media_path,
                             f"{full_message_id}:media{idx}",
@@ -725,11 +728,13 @@ class MessageProcessor:
                         if media_result.is_duplicate:
                             media_duplicate_result = media_result
                             logger.info(
-                                f"🖼️ 媒体重复: {full_message_id} "
-                                f"-> {media_result.original_message_id} "
-                                f"(相似度: {media_result.similarity_score:.3f}, 来源: {media_source})"
+                                f"消息ID: {full_message_id} 图片地址: {media_path} "
+                                f"进行媒体去重检测 结果: 有重复 "
+                                f"重复消息: {media_result.original_message_id}"
                             )
                             break  # 找到一个重复就停止
+                        else:
+                            logger.debug(f"消息ID: {full_message_id} 图片地址: {media_path} 进行媒体去重检测 结果: 无重复")
 
             # Step 3: 综合判断
             final_duplicate = False
