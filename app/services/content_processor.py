@@ -444,38 +444,78 @@ class ContentProcessor:
                         message.similarity_score = 0.0
 
                 # 7. 🖼️ 媒体去重检测（文本没有检测到重复时）
-                if message.duplicate_status == 'none' and message.media_path:
-                    try:
-                        from app.services.media_duplicate_detector import media_duplicate_detector
+                if message.duplicate_status == 'none':
+                    media_to_check = []
 
-                        logger.debug(f"消息ID: {full_message_id} 图片地址: {message.media_path} 进行媒体去重检测")
+                    # 收集需要检测的媒体
+                    if message.is_combined and message.media_group_display:
+                        # 组消息：多个媒体
+                        for idx, media_item in enumerate(message.media_group_display):
+                            if isinstance(media_item, dict) and media_item.get('file_path'):
+                                media_to_check.append({
+                                    'path': media_item['file_path'],
+                                    'size': media_item.get('file_size'),
+                                    'index': idx,
+                                    'total': len(message.media_group_display)
+                                })
+                    elif message.media_path:
+                        # 单个媒体
+                        media_to_check.append({
+                            'path': message.media_path,
+                            'size': message.media_info.get('file_size') if message.media_info else None,
+                            'index': 0,
+                            'total': 1
+                        })
 
-                        # 执行媒体去重检测
-                        media_result = await media_duplicate_detector.detect_duplicate(
-                            message.media_path,
-                            full_message_id,
-                            file_size=message.media_info.get('file_size') if message.media_info else None
-                        )
+                    # 检测每个媒体
+                    for media in media_to_check:
+                        try:
+                            from app.services.media_duplicate_detector import media_duplicate_detector
 
-                        if media_result.is_duplicate:
-                            logger.info(f"消息ID: {full_message_id} 图片地址: {message.media_path} "
-                                      f"进行媒体去重检测 结果: 有重复 "
-                                      f"重复消息: {media_result.original_message_id}")
+                            if media['total'] > 1:
+                                logger.debug(f"消息ID: {full_message_id} 图片地址: {media['path']} "
+                                           f"(组消息第{media['index']+1}/{media['total']}个) 进行媒体去重检测")
+                            else:
+                                logger.debug(f"消息ID: {full_message_id} 图片地址: {media['path']} 进行媒体去重检测")
 
-                            # 更新消息的重复状态
-                            message.duplicate_status = 'confirmed'
-                            message.status = 'dup_rejected'
-                            message.original_message_id = media_result.original_message_id
-                            message.similarity_score = media_result.similarity_score
-                            message.duplicate_reason = f"media_{media_result.detection_reason}"
-                            message.reject_reason = f"媒体重复(相似度:{media_result.similarity_score:.1%})"
-                            filter_reasons.append(f"媒体去重: 重复图片")
-                        else:
-                            logger.debug(f"消息ID: {full_message_id} 图片地址: {message.media_path} 进行媒体去重检测 结果: 无重复")
+                            # 执行检测 - 使用带索引的ID避免组内互相匹配
+                            media_message_id = f"{full_message_id}:media{media['index']}"
+                            media_result = await media_duplicate_detector.detect_duplicate(
+                                media['path'],
+                                media_message_id,
+                                file_size=media['size']
+                            )
 
-                    except Exception as media_e:
-                        logger.error(f"媒体去重检测失败: {media_e}")
-                        # 媒体去重失败不影响消息处理
+                            # 检查是否与其他消息（不是本组内）的媒体重复
+                            if media_result.is_duplicate:
+                                # 确保不是与本组内其他媒体匹配
+                                original_id = media_result.original_message_id
+                                if original_id and not original_id.startswith(f"{full_message_id}:"):
+                                    # 确认是与其他消息的媒体重复
+                                    logger.info(f"消息ID: {full_message_id} 图片地址: {media['path']} "
+                                              f"进行媒体去重检测 结果: 有重复 重复消息: {original_id}")
+
+                                    message.duplicate_status = 'confirmed'
+                                    message.status = 'dup_rejected'
+                                    message.original_message_id = original_id
+                                    message.similarity_score = media_result.similarity_score
+                                    message.duplicate_reason = f"media_{media['index']}_{media_result.detection_reason}"
+
+                                    if media['total'] > 1:
+                                        message.reject_reason = f"组消息第{media['index']+1}个媒体重复"
+                                        filter_reasons.append(f"媒体去重: 第{media['index']+1}/{media['total']}个媒体重复")
+                                    else:
+                                        message.reject_reason = f"媒体重复(相似度:{media_result.similarity_score:.1%})"
+                                        filter_reasons.append(f"媒体去重: 重复图片")
+                                    break  # 找到一个重复就停止
+                                else:
+                                    logger.debug(f"消息ID: {full_message_id} 图片地址: {media['path']} 进行媒体去重检测 结果: 无重复")
+                            else:
+                                logger.debug(f"消息ID: {full_message_id} 图片地址: {media['path']} 进行媒体去重检测 结果: 无重复")
+
+                        except Exception as media_e:
+                            logger.error(f"媒体去重检测失败 {media.get('path', 'unknown')}: {media_e}")
+                            # 媒体去重失败不影响消息处理
 
             except Exception as e:
                 logger.error(f"去重检测失败: {e}")
