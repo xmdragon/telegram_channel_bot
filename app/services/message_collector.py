@@ -15,6 +15,7 @@ from app.core.path_config import PathConfig
 from app.storage.redis_manager import redis_manager
 from app.utils.timezone import get_current_time
 from app.services.content_processor import ContentProcessor, LocalMessage as ProcessorLocalMessage
+from app.utils.error_formatter import TelethonErrorHandler
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +290,9 @@ class TelegramMessageCollector:
         
         # 初始化标志
         self._initialized = False
+
+        # 错误处理器
+        self._error_handler = TelethonErrorHandler(logger)
         
         # 信号控制标志
         self.running = True
@@ -637,7 +641,7 @@ class TelegramMessageCollector:
             return None
             
         except Exception as e:
-            logger.error(f"获取和处理Telegram消息失败: {e}")
+            self._error_handler.handle_error(e, "获取和处理Telegram消息失败")
             return None
     
     async def _process_channel_messages(self, channel: dict, checkpoint: int):

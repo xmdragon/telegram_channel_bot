@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from app.services.config_manager import ConfigManager
 from app.services.telegram_config_manager import telegram_config_manager
 from app.core.telegram_config import TelegramConfig
+from app.utils.error_formatter import TelethonErrorHandler
 
 # 加载环境变量
 load_dotenv()
@@ -30,10 +31,10 @@ class TelegramDualSessionManager:
     def __init__(self):
         self.listener_client: Optional[TelegramClient] = None
         self.sender_client: Optional[TelegramClient] = None
-        
+
         self.listener_connected = False
         self.sender_connected = False
-        
+
         # 添加连接状态缓存，避免频繁网络检查
         self._listener_last_check = 0
         self._sender_last_check = 0
@@ -43,14 +44,17 @@ class TelegramDualSessionManager:
         self._auth_info: Dict[str, Any] = {}
 
         self.config_manager = ConfigManager()
-        
+
         # 连接回调
         self._listener_callbacks: List[Callable] = []
         self._sender_callbacks: List[Callable] = []
         self._disconnection_callbacks: List[Callable] = []
-        
+
         # 获取代理配置
         self._proxy_config = self._get_proxy_config()
+
+        # 错误处理器
+        self._error_handler = TelethonErrorHandler(logger)
     
     def _get_proxy_config(self) -> Optional[Dict[str, Any]]:
         """从环境变量获取代理配置"""
@@ -200,7 +204,7 @@ class TelegramDualSessionManager:
             return False
             
         except Exception as e:
-            logger.error(f"连接采集Session失败: {e}")
+            self._error_handler.handle_error(e, "连接采集Session失败")
             self.listener_client = None
             self.listener_connected = False
             return False
@@ -294,7 +298,7 @@ class TelegramDualSessionManager:
             return False
             
         except Exception as e:
-            logger.error(f"连接发送Session失败: {e}")
+            self._error_handler.handle_error(e, "连接发送Session失败")
             self.sender_client = None
             self.sender_connected = False
             return False
@@ -320,7 +324,11 @@ class TelegramDualSessionManager:
                 self._listener_last_check = current_time
                 return True
         except Exception as e:
-            logger.debug(f"监听客户端连接检查失败: {e}")
+            # 对于连接检查失败，使用 debug 级别且简化错误信息
+            if self._error_handler.is_protocol_error(e):
+                logger.debug(f"监听客户端协议错误: {self._error_handler.handle_error(e, '', logging.DEBUG)}")
+            else:
+                logger.debug(f"监听客户端连接检查失败: {e}")
             self.listener_connected = False
             self._listener_last_check = current_time
             return False
@@ -346,7 +354,11 @@ class TelegramDualSessionManager:
                 self._sender_last_check = current_time
                 return True
         except Exception as e:
-            logger.debug(f"发送客户端连接检查失败: {e}")
+            # 对于连接检查失败，使用 debug 级别且简化错误信息
+            if self._error_handler.is_protocol_error(e):
+                logger.debug(f"发送客户端协议错误: {self._error_handler.handle_error(e, '', logging.DEBUG)}")
+            else:
+                logger.debug(f"发送客户端连接检查失败: {e}")
             self.sender_connected = False
             self._sender_last_check = current_time
             return False
