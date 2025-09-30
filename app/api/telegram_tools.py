@@ -6,6 +6,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict, Any
 from pydantic import BaseModel
 import logging
+import time
+import hashlib
 
 from app.core.route_config import ROUTES
 from app.services.auth_service import get_auth_service
@@ -18,6 +20,11 @@ router = APIRouter(
     tags=["telegram-tools"]
 )
 security = HTTPBearer(auto_error=False)
+
+# 消息缓存，避免重复请求Telegram API
+# 缓存结构: {url_hash: (message_data, timestamp)}
+message_cache = {}
+CACHE_TTL = 300  # 缓存5分钟
 
 # 认证中间件
 async def get_current_user(
@@ -48,7 +55,7 @@ class MessageAnalyzeRequest(BaseModel):
 
 async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
     """
-    从Telegram URL获取消息
+    从Telegram URL获取消息（带5分钟缓存）
 
     Args:
         message_url: 消息URL，格式如 https://t.me/channel_name/message_id
@@ -57,6 +64,25 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
         消息结构数据
     """
     import re
+
+    # 生成缓存键
+    url_hash = hashlib.md5(message_url.encode()).hexdigest()
+    current_time = time.time()
+
+    # 检查缓存
+    if url_hash in message_cache:
+        cached_data, cached_time = message_cache[url_hash]
+        if current_time - cached_time < CACHE_TTL:
+            logger.info(f"从缓存返回消息: {message_url} (剩余TTL: {CACHE_TTL - (current_time - cached_time):.1f}秒)")
+            return cached_data
+        else:
+            # 缓存过期，删除
+            del message_cache[url_hash]
+
+    # 清理过期缓存
+    expired_keys = [k for k, (_, t) in message_cache.items() if current_time - t >= CACHE_TTL]
+    for key in expired_keys:
+        del message_cache[key]
 
     # 解析URL
     pattern = r"(?:https?://)?t\.me/([^/]+)/(\d+)"
@@ -78,8 +104,14 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
         raise RuntimeError("无法连接到Telegram")
 
     try:
-        # 获取消息
-        message = await client.get_messages(channel_username, ids=message_id)
+        # 获取消息（添加异常处理）
+        try:
+            message = await client.get_messages(channel_username, ids=message_id)
+        except Exception as e:
+            if "429" in str(e) or "Too Many Requests" in str(e):
+                logger.warning(f"遇到速率限制(429)，请稍后重试")
+                raise RuntimeError("Telegram API速率限制，请稍后重试")
+            raise
 
         if not message:
             raise ValueError(f"无法找到消息: {channel_username}/{message_id}")
@@ -101,8 +133,8 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
         # 检查是否为组合消息
         if hasattr(message, 'grouped_id') and message.grouped_id:
             # 获取组合消息的所有部分
-            # 使用列表而不是range
-            message_ids = list(range(message_id - 10, message_id + 11))
+            # 减少请求范围，从21个改为11个，避免触发速率限制
+            message_ids = list(range(message_id - 5, message_id + 6))
             messages = await client.get_messages(
                 channel_username,
                 ids=message_ids
@@ -154,6 +186,10 @@ async def fetch_message_from_url(message_url: str) -> Dict[str, Any]:
         if len(message_data['structures']) == 1:
             # 单消息模式，直接添加message字段
             message_data['message'] = message_data['structures'][0]['message']
+
+        # 添加到缓存
+        message_cache[url_hash] = (message_data, current_time)
+        logger.info(f"消息已缓存: {message_url} (TTL: {CACHE_TTL}秒)")
 
         return message_data
 
