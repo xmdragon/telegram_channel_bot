@@ -13,7 +13,9 @@ const app = createApp({
             isGroupMessage: false,
             filterResults: null,
             hasContent: false,
-            activeTab: 'structure'  // 默认显示结构标签页
+            activeTab: 'structure',  // 默认显示结构标签页
+            fullApiResponse: null,  // 保存完整的API响应
+            showFullResponse: false  // 控制是否显示完整响应
         };
     },
 
@@ -63,6 +65,9 @@ const app = createApp({
 
                 // 处理包装的响应格式
                 const responseData = response.data.success ? response.data.data : response.data;
+
+                // 保存完整的API响应
+                this.fullApiResponse = responseData;
 
                 // 处理消息结构数据
                 if (responseData.structure) {

@@ -89,10 +89,44 @@
             <div v-if="showResults" class="results-section">
                 <!-- 消息结构标签页 -->
                 <div v-show="activeTab === 'structure'">
+                    <!-- 完整响应结构 -->
+                    <div v-if="fullApiResponse" class="card">
+                        <div class="card-header">
+                            <h2>🔍 完整消息结构</h2>
+                            <div class="card-actions">
+                                <button @click="showFullResponse = !showFullResponse" class="btn btn-outline btn-sm">
+                                    {{ showFullResponse ? '收起' : '展开' }}
+                                </button>
+                                <button @click="copyToClipboard(fullApiResponse)" class="btn btn-outline btn-sm">
+                                    复制完整JSON
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div v-if="!showFullResponse" class="structure-overview">
+                                <div class="structure-item">
+                                    <label>消息结构：</label>
+                                    <span class="value">包含 {{ fullApiResponse.structure?.structures?.length || 0 }} 个消息</span>
+                                </div>
+                                <div class="structure-item">
+                                    <label>过滤器结果：</label>
+                                    <span class="value">{{ fullApiResponse.filters ? '已包含' : '未包含' }}</span>
+                                </div>
+                                <div class="structure-item">
+                                    <label>数据字段：</label>
+                                    <span class="value">{{ Object.keys(fullApiResponse).length }} 个顶级字段</span>
+                                </div>
+                            </div>
+                            <div v-if="showFullResponse" class="json-container">
+                                <pre class="json-display">{{ formatJSON(fullApiResponse) }}</pre>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 基本信息 -->
                     <div class="card" v-if="messageInfo">
                         <div class="card-header">
-                            <h2>消息基本信息</h2>
+                            <h2>📊 消息基本信息</h2>
                             <div class="card-actions">
                                 <button @click="copyToClipboard(messageInfo)" class="btn btn-outline btn-sm">
                                     复制信息
@@ -139,12 +173,12 @@
                         </div>
                     </div>
 
-                    <!-- 消息结构展示 -->
+                    <!-- 各个消息结构详情 -->
                     <div v-for="(structure, index) in messageStructures" :key="index" class="card">
                         <div class="card-header">
                             <h2>
-                                <span v-if="isGroupMessage">消息 {{ index + 1 }} 结构体</span>
-                                <span v-else>消息结构体</span>
+                                <span v-if="isGroupMessage">📄 消息 {{ index + 1 }} 详情</span>
+                                <span v-else>📄 消息详情</span>
                             </h2>
                             <div class="card-actions">
                                 <button @click="toggleExpand(index)" class="btn btn-outline btn-sm">
