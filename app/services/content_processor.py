@@ -443,6 +443,40 @@ class ContentProcessor:
                         message.duplicate_status = 'none'
                         message.similarity_score = 0.0
 
+                # 7. 🖼️ 媒体去重检测（文本没有检测到重复时）
+                if message.duplicate_status == 'none' and message.media_path:
+                    try:
+                        from app.services.media_duplicate_detector import media_duplicate_detector
+
+                        logger.debug(f"消息ID: {full_message_id} 图片地址: {message.media_path} 进行媒体去重检测")
+
+                        # 执行媒体去重检测
+                        media_result = await media_duplicate_detector.detect_duplicate(
+                            message.media_path,
+                            full_message_id,
+                            file_size=message.media_info.get('file_size') if message.media_info else None
+                        )
+
+                        if media_result.is_duplicate:
+                            logger.info(f"消息ID: {full_message_id} 图片地址: {message.media_path} "
+                                      f"进行媒体去重检测 结果: 有重复 "
+                                      f"重复消息: {media_result.original_message_id}")
+
+                            # 更新消息的重复状态
+                            message.duplicate_status = 'confirmed'
+                            message.status = 'dup_rejected'
+                            message.original_message_id = media_result.original_message_id
+                            message.similarity_score = media_result.similarity_score
+                            message.duplicate_reason = f"media_{media_result.detection_reason}"
+                            message.reject_reason = f"媒体重复(相似度:{media_result.similarity_score:.1%})"
+                            filter_reasons.append(f"媒体去重: 重复图片")
+                        else:
+                            logger.debug(f"消息ID: {full_message_id} 图片地址: {message.media_path} 进行媒体去重检测 结果: 无重复")
+
+                    except Exception as media_e:
+                        logger.error(f"媒体去重检测失败: {media_e}")
+                        # 媒体去重失败不影响消息处理
+
             except Exception as e:
                 logger.error(f"去重检测失败: {e}")
                 # 去重失败不影响消息处理
