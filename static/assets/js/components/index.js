@@ -453,6 +453,11 @@ const MainApp = {
         isFiltering(messageId) {
             return this.filteringMessages.has(messageId);
         },
+
+        // 跳转到发布页面
+        goToPublish() {
+            window.location.href = '/static/publish.html';
+        },
         
         
         
