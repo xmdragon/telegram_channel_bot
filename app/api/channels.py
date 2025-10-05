@@ -77,14 +77,27 @@ async def add_channel(request: ChannelAddRequest, user: Dict[str, Any] = Depends
     try:
         from app.services.channel_manager import channel_manager
 
-        success = await channel_manager.add_channel(
+        result = await channel_manager.add_channel(
             channel_id=request.channel_id,
             channel_name=request.channel_name,
             description=request.description
         )
 
-        if success:
-            return {"success": True, "message": f"频道 {request.channel_id} 添加成功"}
+        if result:
+            # 获取刚添加的频道信息
+            channels = await channel_manager.list_channels()
+            added_channel = next((ch for ch in channels if ch.get('channel_id') == request.channel_id), None)
+
+            return {
+                "success": True,
+                "message": f"频道 {request.channel_id} 添加成功",
+                "channel": added_channel or {
+                    "channel_id": request.channel_id,
+                    "channel_name": request.channel_name,
+                    "channel_title": request.channel_name,
+                    "description": request.description
+                }
+            }
         else:
             raise HTTPException(status_code=400, detail="频道已存在或添加失败")
 
