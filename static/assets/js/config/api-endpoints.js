@@ -168,6 +168,15 @@ const API_ENDPOINTS = {
         info: '/api/services/info'                                 // GET - 获取Supervisor信息
     },
 
+    // 消息发布模块 - /api/publish
+    publish: {
+        sendMessage: '/api/publish/message',                       // POST - 发布消息到目标频道
+        uploadMedia: '/api/publish/upload-media',                  // POST - 上传媒体文件
+        deleteMedia: (fileId) => `/api/publish/delete-media/${fileId}`, // DELETE - 删除临时媒体
+        emojiList: '/api/publish/emojis',                          // GET - 获取常用emoji列表
+        preview: '/api/publish/preview'                            // POST - 预览消息（含落款）
+    },
+
     // WebSocket端点 - 统一管理：所有WebSocket连接必须使用WebSocketFactory.create()
     // 禁止直接构造WebSocket，统一使用：WebSocketFactory.create('main')
     websocket: {
@@ -197,6 +206,7 @@ const API_ENDPOINTS = {
         separatorConfig: '/static/separator-config.html',          // 分隔符配置页面
         textFilter: '/static/text-filter.html',                    // 文本过滤页面
         adVectorManager: '/static/ad-training-samples.html',       // 关键词管理页面
+        publish: '/static/publish.html',                           // 消息发布页面
         telegramMessage: '/static/telegram-message.html'           // Telegram消息工具页面
     }
 };

@@ -130,6 +130,14 @@ class RouteConfig:
         verify_password = "/verify-password"
         session_status = "/session-status/{session_type}"
 
+    class Publish:
+        """消息发布路由"""
+        send_message = "/publish/message"
+        upload_media = "/publish/upload-media"
+        delete_media = "/publish/delete-media/{file_id}"
+        emoji_list = "/publish/emojis"
+        preview = "/publish/preview"
+
     class TelegramTools:
         """Telegram工具路由"""
         analyze_message = "/analyze-message"
@@ -195,6 +203,7 @@ class RouteConfig:
         self.admin_auth = self.AdminAuth()
         self.admin = self.Admin()
         self.dual_auth = self.DualAuth()
+        self.publish = self.Publish()
         self.telegram_tools = self.TelegramTools()
         self.services = self.Services()
         self.system = self.System()

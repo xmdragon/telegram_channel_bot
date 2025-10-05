@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📤 消息发布</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <!-- 动态版本号 - 防缓存 -->
+    <script>window.RESOURCE_VERSION = Date.now();</script>
+    <script>
+        document.write('<link rel="stylesheet" href="assets/css/common.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/simple-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/modern-ui.css?v=' + RESOURCE_VERSION + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components/publish.css?v=' + RESOURCE_VERSION + '">');
+    </script>
+</head>
+<body>
+    <div id="app" v-cloak>
+        <!-- 导航栏 -->
+        <nav-bar page-title="📤 消息发布"></nav-bar>
+
+        <div class="publish-container">
+            <!-- 左侧编辑区 -->
+            <div class="edit-panel">
+                <div class="panel-header">
+                    <h3>📝 编辑消息</h3>
+                </div>
+
+                <!-- Markdown工具栏 -->
+                <div class="markdown-toolbar">
+                    <button @click="insertMarkdown('**', '**')" title="加粗 (Ctrl+B)" class="toolbar-btn">
+                        <strong>B</strong>
+                    </button>
+                    <button @click="insertMarkdown('*', '*')" title="斜体 (Ctrl+I)" class="toolbar-btn">
+                        <em>I</em>
+                    </button>
+                    <button @click="insertMarkdown('~~', '~~')" title="删除线" class="toolbar-btn">
+                        <s>S</s>
+                    </button>
+                    <button @click="insertMarkdown('`', '`')" title="代码" class="toolbar-btn">
+                        &lt;/&gt;
+                    </button>
+                    <button @click="insertLink()" title="插入链接" class="toolbar-btn">
+                        🔗
+                    </button>
+                    <div class="toolbar-divider"></div>
+                    <button @click="showEmojiPicker = !showEmojiPicker" title="插入Emoji" class="toolbar-btn">
+                        😊
+                    </button>
+                </div>
+
+                <!-- 文本编辑器 -->
+                <textarea
+                    ref="editor"
+                    v-model="content"
+                    placeholder="在此输入消息内容，支持Markdown格式..."
+                    class="content-editor"
+                    @keydown="handleKeyDown"
+                ></textarea>
+
+                <!-- Emoji选择器 -->
+                <div v-if="showEmojiPicker" class="emoji-picker">
+                    <div class="emoji-tabs">
+                        <button
+                            v-for="category in emojiCategories"
+                            :key="category.name"
+                            @click="currentEmojiTab = category.name"
+                            :class="{ active: currentEmojiTab === category.name }"
+                            class="emoji-tab"
+                        >
+                            {{ category.name }}
+                        </button>
+                    </div>
+                    <div class="emoji-grid">
+                        <button
+                            v-for="emoji in currentEmojis"
+                            :key="emoji"
+                            @click="insertEmoji(emoji)"
+                            class="emoji-btn"
+                        >
+                            {{ emoji }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 媒体上传区域 -->
+                <div class="media-upload-section">
+                    <div class="section-header">
+                        <h4>📎 媒体文件 (最多10个)</h4>
+                        <span class="media-count">{{ mediaFiles.length }}/10</span>
+                    </div>
+
+                    <!-- 上传按钮 -->
+                    <div class="upload-zone" @dragover.prevent @drop.prevent="handleDrop">
+                        <input
+                            ref="fileInput"
+                            type="file"
+                            multiple
+                            accept="image/*,video/*"
+                            @change="handleFileSelect"
+                            style="display: none"
+                        >
+                        <button
+                            @click="$refs.fileInput.click()"
+                            :disabled="mediaFiles.length >= 10"
+                            class="upload-btn"
+                        >
+                            📁 选择文件或拖拽到此处
+                        </button>
+                    </div>
+
+                    <!-- 媒体预览网格 -->
+                    <div v-if="mediaFiles.length > 0" class="media-grid">
+                        <div v-for="(file, index) in mediaFiles" :key="file.file_id" class="media-item">
+                            <img
+                                v-if="file.file_type.startsWith('image')"
+                                :src="file.preview_url"
+                                :alt="file.file_name"
+                                class="media-preview"
+                            >
+                            <div v-else class="media-preview video-preview">
+                                📹 {{ file.file_name }}
+                            </div>
+                            <button @click="removeMedia(index)" class="remove-btn">✕</button>
+                            <div class="media-info">
+                                {{ formatFileSize(file.file_size) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button @click="clearAll()" class="btn btn-secondary">
+                        🗑️ 清空
+                    </button>
+                    <button @click="publishMessage()" :disabled="isPublishing || !content.trim()" class="btn btn-primary">
+                        <span v-if="isPublishing">发布中...</span>
+                        <span v-else>📤 发布消息</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右侧预览区 -->
+            <div class="preview-panel">
+                <div class="panel-header">
+                    <h3>👁️ 实时预览</h3>
+                </div>
+
+                <div class="preview-content">
+                    <!-- 消息内容预览 -->
+                    <div class="preview-text" v-html="renderedContent"></div>
+
+                    <!-- 媒体预览 -->
+                    <div v-if="mediaFiles.length > 0" class="preview-media">
+                        <div class="preview-media-grid">
+                            <div v-for="file in mediaFiles" :key="file.file_id" class="preview-media-item">
+                                <img
+                                    v-if="file.file_type.startsWith('image')"
+                                    :src="file.preview_url"
+                                    :alt="file.file_name"
+                                >
+                                <div v-else class="video-placeholder">
+                                    📹 {{ file.file_name }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 频道落款 -->
+                    <div v-if="signature" class="preview-signature">
+                        {{ signature }}
+                    </div>
+
+                    <!-- 空状态 -->
+                    <div v-if="!content.trim() && mediaFiles.length === 0" class="preview-empty">
+                        <p>📝 在左侧编辑消息内容</p>
+                        <p>预览将实时显示在这里</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 依赖库 -->
+    <script src="assets/js/vue.prod.js"></script>
+    <script src="assets/js/axios.min.js"></script>
+
+    <!-- 核心配置 -->
+    <script type="module">
+        import API from './assets/js/config/api-endpoints.js';
+        import './assets/js/config/axios-config.js';
+        import SimpleUI from './assets/js/core/simple-ui.js';
+
+        // 导航栏组件
+        const navBarModule = await import('./assets/js/components/nav-bar.js');
+
+        const { createApp } = Vue;
+
+        createApp({
+            components: {
+                'nav-bar': navBarModule.default
+            },
+            data() {
+                return {
+                    content: '',
+                    signature: '',
+                    mediaFiles: [],
+                    isPublishing: false,
+                    showEmojiPicker: false,
+                    emojiCategories: [],
+                    currentEmojiTab: '',
+                    API: API
+                };
+            },
+            computed: {
+                currentEmojis() {
+                    const category = this.emojiCategories.find(c => c.name === this.currentEmojiTab);
+                    return category ? category.emojis : [];
+                },
+                renderedContent() {
+                    if (!this.content.trim()) return '';
+                    return this.renderMarkdown(this.content);
+                }
+            },
+            async mounted() {
+                await this.loadSignature();
+                await this.loadEmojis();
+            },
+            methods: {
+                async loadSignature() {
+                    try {
+                        const response = await axios.get(API.config.get);
+                        const signatureConfig = response.data['target.signature'];
+                        this.signature = signatureConfig ? signatureConfig.value : '';
+                    } catch (error) {
+                        console.error('加载频道落款失败:', error);
+                    }
+                },
+                async loadEmojis() {
+                    try {
+                        const response = await axios.get(API.publish.emojiList);
+                        this.emojiCategories = response.data.categories || [];
+                        if (this.emojiCategories.length > 0) {
+                            this.currentEmojiTab = this.emojiCategories[0].name;
+                        }
+                    } catch (error) {
+                        console.error('加载emoji列表失败:', error);
+                        SimpleUI.showMessage('加载emoji列表失败', 'error');
+                    }
+                },
+                insertMarkdown(before, after) {
+                    const editor = this.$refs.editor;
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    const selectedText = this.content.substring(start, end);
+                    const newText = before + selectedText + after;
+
+                    this.content = this.content.substring(0, start) + newText + this.content.substring(end);
+
+                    this.$nextTick(() => {
+                        editor.focus();
+                        editor.setSelectionRange(start + before.length, start + before.length + selectedText.length);
+                    });
+                },
+                insertLink() {
+                    const url = prompt('请输入链接地址:');
+                    if (url) {
+                        const text = prompt('请输入链接文本:', url);
+                        this.insertMarkdown(`[${text || url}](`, ')');
+                    }
+                },
+                insertEmoji(emoji) {
+                    const editor = this.$refs.editor;
+                    const start = editor.selectionStart;
+                    this.content = this.content.substring(0, start) + emoji + this.content.substring(start);
+
+                    this.$nextTick(() => {
+                        editor.focus();
+                        editor.setSelectionRange(start + emoji.length, start + emoji.length);
+                    });
+                },
+                handleKeyDown(e) {
+                    // Ctrl+B 加粗
+                    if (e.ctrlKey && e.key === 'b') {
+                        e.preventDefault();
+                        this.insertMarkdown('**', '**');
+                    }
+                    // Ctrl+I 斜体
+                    if (e.ctrlKey && e.key === 'i') {
+                        e.preventDefault();
+                        this.insertMarkdown('*', '*');
+                    }
+                },
+                async handleFileSelect(e) {
+                    const files = Array.from(e.target.files);
+                    await this.uploadFiles(files);
+                },
+                async handleDrop(e) {
+                    const files = Array.from(e.dataTransfer.files);
+                    await this.uploadFiles(files);
+                },
+                async uploadFiles(files) {
+                    if (this.mediaFiles.length + files.length > 10) {
+                        SimpleUI.showMessage('媒体文件不能超过10个', 'warning');
+                        return;
+                    }
+
+                    for (const file of files) {
+                        await this.uploadSingleFile(file);
+                    }
+                },
+                async uploadSingleFile(file) {
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        const response = await axios.post(API.publish.uploadMedia, formData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+
+                        this.mediaFiles.push(response.data);
+                        SimpleUI.showMessage(`上传成功: ${file.name}`, 'success');
+                    } catch (error) {
+                        console.error('上传失败:', error);
+                        SimpleUI.showMessage(`上传失败: ${file.name}`, 'error');
+                    }
+                },
+                async removeMedia(index) {
+                    const file = this.mediaFiles[index];
+                    try {
+                        await axios.delete(API.publish.deleteMedia(file.file_id));
+                        this.mediaFiles.splice(index, 1);
+                    } catch (error) {
+                        console.error('删除媒体失败:', error);
+                        SimpleUI.showMessage('删除失败', 'error');
+                    }
+                },
+                async publishMessage() {
+                    if (!this.content.trim()) {
+                        SimpleUI.showMessage('请输入消息内容', 'warning');
+                        return;
+                    }
+
+                    const confirmed = await SimpleUI.confirm(
+                        '确认发布',
+                        `确定要发布这条消息吗？${this.mediaFiles.length > 0 ? `\n包含${this.mediaFiles.length}个媒体文件` : ''}`
+                    );
+
+                    if (!confirmed) return;
+
+                    this.isPublishing = true;
+                    try {
+                        const response = await axios.post(API.publish.sendMessage, {
+                            content: this.content,
+                            media_files: this.mediaFiles.map(f => f.file_id),
+                            parse_mode: 'Markdown'
+                        });
+
+                        SimpleUI.showMessage('消息发布成功！', 'success');
+                        this.clearAll();
+                    } catch (error) {
+                        console.error('发布失败:', error);
+                        const msg = error.response?.data?.detail || '发布失败';
+                        SimpleUI.showMessage(msg, 'error');
+                    } finally {
+                        this.isPublishing = false;
+                    }
+                },
+                clearAll() {
+                    this.content = '';
+                    this.mediaFiles.forEach(file => {
+                        axios.delete(API.publish.deleteMedia(file.file_id)).catch(() => {});
+                    });
+                    this.mediaFiles = [];
+                    this.showEmojiPicker = false;
+                },
+                formatFileSize(bytes) {
+                    if (bytes < 1024) return bytes + ' B';
+                    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+                },
+                renderMarkdown(text) {
+                    return text
+                        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+                        .replace(/\*(.+?)\*/g, '<i>$1</i>')
+                        .replace(/~~(.+?)~~/g, '<s>$1</s>')
+                        .replace(/`(.+?)`/g, '<code>$1</code>')
+                        .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>')
+                        .replace(/\n/g, '<br>');
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
