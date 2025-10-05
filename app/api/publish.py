@@ -137,7 +137,7 @@ async def send_message(request: PublishMessageRequest):
                         media_type = 'document'
 
                     media_group.append({
-                        'media_url': f"/temp_media/publish/{file_id}",
+                        'file_path': f"/temp_media/publish/{file_id}",
                         'media_type': media_type
                     })
                 message_data['media_group_display'] = media_group
