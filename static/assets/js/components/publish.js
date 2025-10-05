@@ -42,7 +42,7 @@ createApp({
     methods: {
         async loadSignature() {
             try {
-                const response = await axios.get(API.config.get);
+                const response = await axios.get(API.admin.config);
                 const signatureConfig = response.data['target.signature'];
                 this.signature = signatureConfig ? signatureConfig.value : '';
             } catch (error) {

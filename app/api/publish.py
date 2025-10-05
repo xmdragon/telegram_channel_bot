@@ -17,7 +17,7 @@ from app.services.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["publish"])
+router = APIRouter()
 
 
 # ============= 数据模型 =============
