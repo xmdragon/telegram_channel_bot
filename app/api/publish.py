@@ -91,7 +91,7 @@ async def send_message(request: PublishMessageRequest):
         from app.telegram.dual_session_manager import dual_session_manager
 
         # 获取发布客户端
-        client = await dual_session_manager.get_publisher_client()
+        client = await dual_session_manager.get_sender_client()
         if not client:
             raise HTTPException(status_code=500, detail="Telegram客户端未连接")
 
