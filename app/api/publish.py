@@ -82,65 +82,88 @@ async def send_message(request: PublishMessageRequest):
         if len(request.media_files) > 10:
             raise HTTPException(status_code=400, detail="媒体文件数量不能超过10个")
 
-        # 4. 获取目标频道ID
-        target_channel_id = await config_manager.get_config('target.channel_id')
-        if not target_channel_id:
-            raise HTTPException(status_code=400, detail="未配置目标频道")
+        # 4. 构造消息对象（复用转发逻辑）
+        from app.telegram.message_forwarder import message_forwarder
+        from datetime import datetime
+        import uuid
 
-        # 5. 发送消息到Telegram
-        from app.telegram.dual_session_manager import dual_session_manager
-
-        # 获取发布客户端
-        client = await dual_session_manager.get_sender_client()
-        if not client:
-            raise HTTPException(status_code=500, detail="Telegram客户端未连接")
-
-        # 6. 根据媒体情况选择发送方式
-        if not request.media_files:
-            # 纯文本消息
-            message = await client.send_message(
-                target_channel_id,
-                full_content,
-                parse_mode=request.parse_mode
-            )
-        elif len(request.media_files) == 1:
-            # 单个媒体消息
-            media_path = Path(PathConfig.TEMP_MEDIA_DIR) / "publish" / request.media_files[0]
-            if not media_path.exists():
-                raise HTTPException(status_code=404, detail=f"媒体文件不存在: {request.media_files[0]}")
-
-            message = await client.send_file(
-                target_channel_id,
-                str(media_path),
-                caption=full_content,
-                parse_mode=request.parse_mode
-            )
-        else:
-            # 多媒体消息（组消息）
-            media_paths = []
-            for file_id in request.media_files:
-                media_path = Path(PathConfig.TEMP_MEDIA_DIR) / "publish" / file_id
-                if not media_path.exists():
-                    raise HTTPException(status_code=404, detail=f"媒体文件不存在: {file_id}")
-                media_paths.append(str(media_path))
-
-            # 第一个媒体带caption，其他不带
-            from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocument
-
-            messages = await client.send_file(
-                target_channel_id,
-                media_paths,
-                caption=full_content,
-                parse_mode=request.parse_mode
-            )
-            message = messages[0] if isinstance(messages, list) else messages
-
-        # 7. 返回结果
-        return {
-            "success": True,
-            "message_id": message.id,
-            "message": "消息发布成功"
+        # 构造符合转发器期望的消息结构
+        message_data = {
+            'filtered_content': request.content,  # 不包含签名，转发器会自动添加
+            'content': request.content,
+            'source_channel': 'manual_publish',  # 标记为手动发布
+            'message_id': str(uuid.uuid4()),  # 临时ID
+            'is_combined': False,
+            'media_group_display': None,
+            'media_type': None,
+            'media_url': None,
+            'grouped_id': None,
+            'created_at': datetime.now().isoformat()
         }
+
+        # 处理媒体文件
+        if request.media_files:
+            if len(request.media_files) == 1:
+                # 单个媒体
+                media_path = Path(PathConfig.TEMP_MEDIA_DIR) / "publish" / request.media_files[0]
+                if not media_path.exists():
+                    raise HTTPException(status_code=404, detail=f"媒体文件不存在: {request.media_files[0]}")
+
+                # 判断媒体类型
+                file_ext = media_path.suffix.lower()
+                if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+                    message_data['media_type'] = 'photo'
+                elif file_ext in ['.mp4', '.mpeg', '.mov']:
+                    message_data['media_type'] = 'video'
+                else:
+                    message_data['media_type'] = 'document'
+
+                message_data['media_url'] = f"/temp_media/publish/{request.media_files[0]}"
+            else:
+                # 多媒体组消息
+                message_data['is_combined'] = True
+                media_group = []
+                for file_id in request.media_files:
+                    media_path = Path(PathConfig.TEMP_MEDIA_DIR) / "publish" / file_id
+                    if not media_path.exists():
+                        raise HTTPException(status_code=404, detail=f"媒体文件不存在: {file_id}")
+
+                    file_ext = media_path.suffix.lower()
+                    if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+                        media_type = 'photo'
+                    elif file_ext in ['.mp4', '.mpeg', '.mov']:
+                        media_type = 'video'
+                    else:
+                        media_type = 'document'
+
+                    media_group.append({
+                        'media_url': f"/temp_media/publish/{file_id}",
+                        'media_type': media_type
+                    })
+                message_data['media_group_display'] = media_group
+
+        # 5. 使用转发器发送消息
+        try:
+            target_info = await message_forwarder.forward_to_target_with_sender_session(message_data)
+
+            if not target_info:
+                raise HTTPException(status_code=500, detail="消息发送失败")
+
+            # 提取消息ID
+            if isinstance(target_info, dict):
+                message_id = target_info.get('target_message_id')
+            else:
+                message_id = None
+
+            # 6. 返回结果
+            return {
+                "success": True,
+                "message_id": message_id,
+                "message": "消息发布成功"
+            }
+        except Exception as e:
+            logger.error(f"发布消息失败: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"发布失败: {str(e)}")
 
     except HTTPException:
         raise
