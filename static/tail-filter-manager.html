@@ -55,6 +55,10 @@
                             </div>
                             <div class="toolbar-right">
                                 <div class="btn-group">
+                                    <button @click="addNewSample" class="btn btn-primary">
+                                        <span class="btn-icon">➕</span>
+                                        添加样本
+                                    </button>
                                     <button @click="deleteSelected" class="btn btn-danger" :disabled="!selectedSamples.length">
                                         <span class="btn-icon">🗑️</span>
                                         批量删除 ({{ selectedSamples.length }})
@@ -163,6 +167,38 @@
                             <div class="detail-content">{{ currentSample.rule }}</div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加样本模态框 -->
+        <div v-if="addDialog" class="modal-overlay" @click="addDialog = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3 class="modal-title">添加尾部过滤样本</h3>
+                    <button @click="addDialog = false" class="modal-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="saveNewSample">
+                        <div class="form-group">
+                            <label class="form-label required">过滤规则</label>
+                            <textarea
+                                v-model="newSample.rule"
+                                class="form-textarea"
+                                rows="8"
+                                placeholder="输入过滤规则（正则表达式）..."
+                                required
+                            ></textarea>
+                            <div class="char-count">{{ newSample.rule ? newSample.rule.length : 0 }} 字符</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button @click="addDialog = false" class="btn btn-secondary">取消</button>
+                    <button @click="saveNewSample" :disabled="submitting" class="btn btn-primary">
+                        <span v-if="submitting" class="loading-text">添加中...</span>
+                        <span v-else>添加</span>
+                    </button>
                 </div>
             </div>
         </div>

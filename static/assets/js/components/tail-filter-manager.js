@@ -24,6 +24,10 @@ const app = createApp({
             detailDialog: false,
             currentSample: null,
             
+            // 添加样本模态框
+            addDialog: false,
+            newSample: { rule: '' },
+
             // 编辑模态框
             editDialog: false,
             editingSample: null,
@@ -238,6 +242,41 @@ const app = createApp({
             }
         },
         
+        // 打开添加样本对话框
+        addNewSample() {
+            this.newSample = { rule: '' };
+            this.addDialog = true;
+        },
+
+        // 保存新样本
+        async saveNewSample() {
+            if (!this.newSample.rule || !this.newSample.rule.trim()) {
+                SimpleUI.showMessage('请输入规则内容', 'warning');
+                return;
+            }
+
+            this.submitting = true;
+            try {
+                const response = await axios.post(API.training.tailFilterSamples, {
+                    tail_part: this.newSample.rule.trim()
+                });
+
+                if (response.data.success) {
+                    SimpleUI.showMessage('添加成功', 'success');
+                    this.addDialog = false;
+                    this.newSample = { rule: '' };
+                    await this.loadSamples();
+                } else {
+                    SimpleUI.showMessage(response.data.message || '添加失败', 'error');
+                }
+            } catch (error) {
+                console.error('添加样本失败:', error);
+                SimpleUI.showMessage(error.response?.data?.detail || '添加失败', 'error');
+            } finally {
+                this.submitting = false;
+            }
+        },
+
         // 编辑样本
         editSample(sample) {
             this.editingSample = {
