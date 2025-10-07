@@ -52,10 +52,7 @@ const MessageContentRenderer = {
 
         // 格式化的消息内容
         formattedContent() {
-            if (this.isRejectedStatus(this.message.status) && this.message.filter_reason && this.message.content) {
-                return this.message.content;
-            }
-            return this.message.filtered_content || this.message.content || '';
+            return this.message.filtered_content || '';
         },
         
         // 高亮命中关键词的过滤后内容
@@ -772,11 +769,8 @@ const MessageContentRenderer = {
 
                             <!-- 文本内容：对于拒绝的广告消息显示高亮的原始内容，其他情况显示过滤后内容 -->
                             <!-- 拒绝的广告消息：显示原始内容并高亮关键词 -->
-                            <div v-if="isRejectedStatus(message.status) && isMessageAd(message) && message.content"
-                                 class="message-text" v-html="highlightedOriginalContent">
-                            </div>
-                            <!-- 其他消息：显示过滤后的内容 -->
-                            <div v-else-if="message.filtered_content" class="message-text" v-html="highlightedFilteredContent">
+                            <!-- 左栏：只显示过滤后的内容 -->
+                            <div v-if="message.filtered_content" class="message-text" v-html="highlightedFilteredContent">
                             </div>
                             <div v-else-if="!message.media_type" class="content-empty">
                                 暂无过滤后内容
