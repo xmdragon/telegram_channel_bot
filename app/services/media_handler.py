@@ -266,7 +266,7 @@ class MediaHandler:
                 
                 # 🔥 修复：下载功能保持简单，不做额外处理
                 media_info.update({
-                    "file_path": f"/temp_media/{file_name}",
+                    "file_path": f"temp_media/{file_name}",
                     "file_name": file_name,
                     "file_size": file_path.stat().st_size if file_path.exists() else 0,
                     "mime_type": "image/jpeg"
@@ -369,7 +369,7 @@ class MediaHandler:
                 
                 # 更新媒体信息
                 media_info.update({
-                    "file_path": f"/temp_media/{file_name}",
+                    "file_path": f"temp_media/{file_name}",
                     "file_name": file_name,
                     "file_size": file_path.stat().st_size if file_path.exists() else 0,
                     "mime_type": mime_type,
@@ -441,7 +441,7 @@ class MediaHandler:
                     
                     # 🔥 简化：专注于下载，不做额外处理
                     media_info.update({
-                        "file_path": f"/temp_media/{file_name}",
+                        "file_path": f"temp_media/{file_name}",
                         "file_name": file_name,
                         "file_size": file_path.stat().st_size if file_path.exists() else 0,
                         "mime_type": "image/jpeg",
@@ -505,7 +505,7 @@ class MediaHandler:
                         pass
                     
                     media_info.update({
-                        "file_path": f"/temp_media/{file_name}",
+                        "file_path": f"temp_media/{file_name}",
                         "file_name": file_name,
                         "file_size": file_path.stat().st_size if file_path.exists() else 0,
                         "mime_type": mime_type,
