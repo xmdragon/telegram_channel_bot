@@ -20,15 +20,21 @@ class UnifiedFilterEngine:
     """统一过滤引擎"""
 
     def __init__(self):
+        # 初始化过滤管道并添加过滤器（按顺序执行）
         self.filter_pipeline = FilterPipeline()
+
+        # 导入过滤器适配器
+        from app.services.filters.filter_adapters import MarkdownFilterAdapter, SeparatorFilterAdapter
+
+        # 初始化广告检测器
         self.ad_detector = AdDetector()
 
         # 初始化所有过滤器并添加到管道
         # 注意：顺序很重要，这是过滤的执行顺序
         self.filter_pipeline.add_filter(TailFilter())
-        self.filter_pipeline.add_filter(SeparatorFilter())
+        self.filter_pipeline.add_filter(MarkdownFilterAdapter())  # 使用适配器
+        self.filter_pipeline.add_filter(SeparatorFilterAdapter())  # 使用适配器
         self.filter_pipeline.add_filter(TextFilter())
-        self.filter_pipeline.add_filter(MarkdownFilter())
         self.filter_pipeline.add_filter(DuplicateDetector())
 
         logger.info(f"统一过滤引擎已初始化，包含 {len(self.filter_pipeline.filters)} 个过滤器")
@@ -40,20 +46,18 @@ class UnifiedFilterEngine:
         message_obj: Optional[Dict[str, Any]] = None,
         media_files: Optional[List] = None
     ) -> Tuple[bool, str, str]:
-        """检测广告内容
+        """检测广告内容 - 分阶段过滤和检测
+
+        执行顺序：
+        1. 先执行完整过滤管道（Markdown -> 分隔符）
+        2. 检测最终过滤后的内容
+        3. 如果未检测到，检测Markdown过滤后的内容
+        4. 判断广告位置是否在分隔符过滤掉的尾部
 
         Returns:
             (是否为广告, 过滤后内容, 过滤原因)
         """
         try:
-            # 使用广告检测器
-            is_ad, score, keywords = self.ad_detector.detect(content)
-
-            if is_ad:
-                keyword_list = [kw['keyword'] for kw in keywords]
-                reason = f"广告检测: 权重={score:.1f}, 关键词={','.join(keyword_list[:5])}"
-                return True, "", reason
-
             # 创建过滤上下文
             context = FilterContext(
                 channel_id=channel_id or "unknown",
@@ -61,16 +65,64 @@ class UnifiedFilterEngine:
                 metadata={}
             )
 
-            # 使用过滤管道处理
+            # 阶段1：执行完整过滤管道
             result = await self.filter_pipeline.process(content, context)
+            final_filtered = result.final_content
 
-            if result.final_content != content:
-                return False, result.final_content, "内容已过滤"
+            # 获取中间结果（Markdown过滤后的内容）
+            # 注意：适配器的name是 "MarkdownFilter"
+            markdown_filtered = content  # 默认值
+            if 'MarkdownFilter' in result.filter_results:
+                markdown_filtered = result.filter_results['MarkdownFilter'].filtered_content
 
-            return False, content, ""
+            logger.debug(f"过滤结果: 原始={len(content)}字符, "
+                        f"Markdown过滤后={len(markdown_filtered)}字符, "
+                        f"最终过滤后={len(final_filtered)}字符")
+
+            # 阶段2：检测 final_filtered（最干净的内容）
+            is_ad, score, keywords = self.ad_detector.detect(final_filtered)
+
+            if is_ad:
+                keyword_list = [kw['keyword'] for kw in keywords[:5]]
+                reason = f"广告检测(保留内容): 权重={score:.1f}, 关键词={','.join(keyword_list)}"
+                logger.info(f"检测到广告(保留内容): {reason}")
+                return True, "", reason
+
+            # 阶段3：检测 markdown_filtered（如果与 final_filtered 不同）
+            if markdown_filtered != final_filtered:
+                is_ad, score, keywords = self.ad_detector.detect(markdown_filtered)
+
+                if is_ad:
+                    # 检查广告是否仅在分隔符过滤掉的尾部
+                    final_len = len(final_filtered)
+
+                    # 遍历所有关键词的所有位置
+                    has_ad_in_kept_part = False
+                    for kw in keywords:
+                        for pos in kw['positions']:
+                            if pos['start'] < final_len:
+                                # 至少有一个关键词在保留部分
+                                has_ad_in_kept_part = True
+                                break
+                        if has_ad_in_kept_part:
+                            break
+
+                    if has_ad_in_kept_part:
+                        # 广告在保留部分，确实是广告
+                        keyword_list = [kw['keyword'] for kw in keywords[:5]]
+                        reason = f"广告检测(Markdown过滤后): 权重={score:.1f}, 关键词={','.join(keyword_list)}"
+                        logger.info(f"检测到广告(Markdown过滤后): {reason}")
+                        return True, "", reason
+                    else:
+                        # 所有广告都在分隔符过滤掉的尾部，不算广告
+                        logger.info(f"广告仅在尾部被过滤部分，视为无广告: 权重={score:.1f}")
+                        return False, final_filtered, "尾部广告已过滤"
+
+            # 没有检测到广告
+            return False, final_filtered, ""
 
         except Exception as e:
-            logger.error(f"过滤引擎处理失败: {e}")
+            logger.error(f"过滤引擎处理失败: {e}", exc_info=True)
             return False, content, ""
 
     async def analyze_with_details(
