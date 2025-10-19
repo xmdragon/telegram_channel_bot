@@ -125,6 +125,7 @@ class SeparatorFilter:
         removed_blocks = []
         matched_patterns = []
         matched_rules_detail = [] if return_matched_rules else None
+        cut_position = None  # 记录截断位置
 
         # 对每个正则模式进行处理 - 统一作为尾部过滤的兜底机制
         for pattern_idx, pattern in enumerate(self.regex_patterns):
@@ -143,6 +144,9 @@ class SeparatorFilter:
             # 查找匹配
             match = pattern.search(filtered_content)
             if match:
+                # 记录截断位置（在原始content中的位置）
+                cut_position = match.start()
+
                 # 删除匹配位置及之后的所有内容
                 removed_content = filtered_content[match.start():]
                 filtered_content = filtered_content[:match.start()]
@@ -188,7 +192,8 @@ class SeparatorFilter:
             'removed_blocks_count': len(removed_blocks),
             'patterns_matched_count': len(set(matched_patterns)),
             'removed_blocks': removed_blocks,
-            'matched_patterns': list(set(matched_patterns))
+            'matched_patterns': list(set(matched_patterns)),
+            'cut_position': cut_position  # 分隔符截断位置（如果有匹配）
         }
 
         # 添加详细的规则匹配信息

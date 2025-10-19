@@ -93,19 +93,29 @@ class UnifiedFilterEngine:
                 is_ad, score, keywords = self.ad_detector.detect(markdown_filtered)
 
                 if is_ad:
-                    # 检查广告是否仅在分隔符过滤掉的尾部
-                    final_len = len(final_filtered)
+                    # 获取分隔符截断位置
+                    separator_cut_position = None
+                    if 'SeparatorFilter' in result.filter_results:
+                        separator_details = result.filter_results['SeparatorFilter'].details
+                        separator_cut_position = separator_details.get('cut_position')
 
-                    # 遍历所有关键词的所有位置
+                    # 检查广告是否仅在分隔符过滤掉的尾部
                     has_ad_in_kept_part = False
-                    for kw in keywords:
-                        for pos in kw['positions']:
-                            if pos['start'] < final_len:
-                                # 至少有一个关键词在保留部分
-                                has_ad_in_kept_part = True
+
+                    if separator_cut_position is not None:
+                        # 使用分隔符截断位置判断
+                        for kw in keywords:
+                            for pos in kw['positions']:
+                                if pos['start'] < separator_cut_position:
+                                    # 至少有一个关键词在分隔符之前
+                                    has_ad_in_kept_part = True
+                                    break
+                            if has_ad_in_kept_part:
                                 break
-                        if has_ad_in_kept_part:
-                            break
+                    else:
+                        # 没有分隔符截断，说明是其他方式过滤（如尾部过滤）
+                        # 此时所有广告都算在保留部分
+                        has_ad_in_kept_part = True
 
                     if has_ad_in_kept_part:
                         # 广告在保留部分，确实是广告
@@ -115,7 +125,7 @@ class UnifiedFilterEngine:
                         return True, "", reason
                     else:
                         # 所有广告都在分隔符过滤掉的尾部，不算广告
-                        logger.info(f"广告仅在尾部被过滤部分，视为无广告: 权重={score:.1f}")
+                        logger.info(f"广告仅在尾部被过滤部分，视为无广告: 权重={score:.1f}, 截断位置={separator_cut_position}")
                         return False, final_filtered, "尾部广告已过滤"
 
             # 没有检测到广告

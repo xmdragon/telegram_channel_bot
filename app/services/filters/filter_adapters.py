@@ -97,7 +97,8 @@ class SeparatorFilterAdapter:
                 details={
                     "matched_separators": stats.get("matched_count", 0),
                     "original_length": len(content),
-                    "filtered_length": len(filtered_content)
+                    "filtered_length": len(filtered_content),
+                    "cut_position": stats.get("cut_position")  # 截断位置
                 },
                 processing_time_ms=processing_time_ms,
                 should_early_stop=False
