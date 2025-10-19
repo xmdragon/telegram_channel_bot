@@ -468,6 +468,69 @@ class MessageProcessor:
         except Exception as e:
             logger.error(f"获取旧消息失败: {e}")
             return []
+
+    async def get_oldest_message_after_time(self, start_time):
+        """获取指定时间之后最旧的一条消息"""
+        try:
+            # 确保redis_store已初始化
+            if self.redis_store is None:
+                try:
+                    self.redis_store = redis_manager
+                except RuntimeError:
+                    logger.error("Redis连接失败")
+                    return None
+
+            oldest_message = None
+            oldest_time = None
+
+            # 遍历所有状态的消息
+            for status in ['approved', 'rejected', 'pending']:
+                try:
+                    # 获取指定状态的消息
+                    message_keys = self.redis_store.redis.zrange(f"index:msg:{status}", 0, -1)
+
+                    for key in message_keys:
+                        if ':' not in key:
+                            continue
+
+                        channel_id, message_id = key.split(':', 1)
+                        msg_data = await self.get_message(channel_id, int(message_id))
+
+                        if not msg_data:
+                            continue
+
+                        # 获取创建时间
+                        created_at = msg_data.get('created_at')
+                        if not created_at:
+                            continue
+
+                        # 解析创建时间
+                        try:
+                            from datetime import datetime
+                            created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        except:
+                            continue
+
+                        # 只考虑start_time之后的消息
+                        if created_time >= start_time:
+                            if oldest_time is None or created_time < oldest_time:
+                                oldest_time = created_time
+                                oldest_message = type('Message', (), {
+                                    'channel_id': channel_id,
+                                    'message_id': int(message_id),
+                                    'created_at': created_time,
+                                    'status': msg_data.get('status')
+                                })()
+
+                except Exception as status_e:
+                    logger.error(f"处理状态 {status} 的消息时出错: {status_e}")
+                    continue
+
+            return oldest_message
+
+        except Exception as e:
+            logger.error(f"获取最旧消息失败: {e}")
+            return None
     
     async def mark_as_not_ad(self, channel_id: str, message_id: int, user_id: str = None) -> bool:
         """

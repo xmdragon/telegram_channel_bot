@@ -261,29 +261,33 @@ class MessageScheduler:
             return None
 
     async def cleanup_orphan_media_files(self):
-        """简化媒体清理：最早消息时间-10分钟作为清理界限"""
+        """媒体文件清理：基于清理间隔内最旧消息时间-5分钟"""
         try:
             from datetime import datetime, timedelta
             from app.services.config_manager import config_manager
             from app.core.path_config import PathConfig
 
-            logger.debug(f"⏰ [媒体清理] 开始执行简化媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.debug(f"⏰ [媒体清理] 开始执行媒体文件清理 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-            # 获取最早消息时间（任何状态）
-            earliest_message_time = await self.get_earliest_message_time()
+            # 获取配置的清理间隔（小时）
+            cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)
+            cleanup_interval_hours = int(cleanup_interval_hours)
 
-            # 确定清理界限
-            if earliest_message_time:
-                # 有消息：最早消息时间-10分钟
-                cutoff_time = earliest_message_time - timedelta(minutes=10)
-                logger.info(f"[媒体清理] 基于最早消息时间 {earliest_message_time.strftime('%Y-%m-%d %H:%M:%S')} 清理")
+            # 计算清理间隔的起点时间
+            cleanup_start_time = get_current_time() - timedelta(hours=cleanup_interval_hours)
+
+            # 获取清理间隔内最旧的一条消息
+            oldest_message_in_range = await self.message_processor.get_oldest_message_after_time(cleanup_start_time)
+
+            # 确定清理界限时间
+            if oldest_message_in_range:
+                # 有消息：以该消息创建时间为基准回退5分钟
+                cutoff_time = oldest_message_in_range.created_at - timedelta(minutes=5)
+                logger.info(f"[媒体清理] 基于清理间隔内最旧消息({oldest_message_in_range.created_at.strftime('%Y-%m-%d %H:%M:%S')})回退5分钟，清理界限: {cutoff_time.strftime('%Y-%m-%d %H:%M:%S')}")
             else:
                 # 无消息：使用配置间隔
-                cleanup_interval_hours = await config_manager.get_config('scheduler.data_cleanup_interval_hours', 8)
-                cutoff_time = datetime.now() - timedelta(hours=int(cleanup_interval_hours))
-                logger.info(f"[媒体清理] 无消息，使用配置间隔 {cleanup_interval_hours}小时 清理")
-
-            logger.debug(f"[媒体清理] 清理界限时间: {cutoff_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                cutoff_time = datetime.now() - timedelta(hours=cleanup_interval_hours)
+                logger.info(f"[媒体清理] 清理间隔内无消息，使用配置间隔 {cleanup_interval_hours}小时，清理界限: {cutoff_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
             # 确保媒体目录存在
             if not PathConfig.TEMP_MEDIA_DIR.exists():

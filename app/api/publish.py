@@ -155,7 +155,19 @@ async def send_message(request: PublishMessageRequest):
             else:
                 message_id = None
 
-            # 6. 返回结果
+            # 6. 清理临时媒体文件
+            if request.media_files:
+                publish_dir = Path(PathConfig.TEMP_MEDIA_DIR) / "publish"
+                for file_id in request.media_files:
+                    try:
+                        file_path = publish_dir / file_id
+                        if file_path.exists():
+                            file_path.unlink()
+                            logger.debug(f"发布成功，已清理临时媒体: {file_id}")
+                    except Exception as e:
+                        logger.warning(f"清理临时媒体文件失败 {file_id}: {e}")
+
+            # 7. 返回结果
             return {
                 "success": True,
                 "message_id": message_id,
