@@ -1390,13 +1390,12 @@ async def _redis_websocket_notify(event_type: str, message_id: str, message: str
         }
         
         # 发布到Redis频道（跨进程通信）
-        redis_client = redis_manager.client
-        if redis_client:
-            message_json = json.dumps(websocket_message, ensure_ascii=False)
-            redis_client.publish("websocket:broadcast", message_json)
-            logger.info(f"📡 已发布直接转发通知到Redis频道: {message_id} - {event_type}")
+        from app.storage.redis_manager import redis_pubsub
+        message_json = json.dumps(websocket_message, ensure_ascii=False)
+        if redis_pubsub.publish("websocket:broadcast", message_json):
+            logger.info(f"📡 已发布通知到Redis频道: {message_id} - {event_type}")
         else:
-            logger.error("Redis客户端不可用，无法发送WebSocket通知")
+            logger.warning("Redis pub/sub不可用，WebSocket通知未发送")
             
     except Exception as e:
         logger.error(f"发送Redis WebSocket通知失败: {e}")
