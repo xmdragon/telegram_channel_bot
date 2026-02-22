@@ -30,15 +30,15 @@ async def get_message_stats(
     user: Dict[str, Any] = Depends(require_auth)
 ):
     """
-    获取消息统计概览 - 直接从Redis获取
+    获取消息统计概览 - 直接从数据库获取
     """
     try:
         from app.core.message_status import MessageStatus
 
-        # 直接从Redis索引获取各状态的数量
+        # 直接从数据库获取各状态的数量
         status_counts = {}
         for status_enum in MessageStatus:
-            count = redis_manager.client.zcard(f"index:msg:{status_enum.value}")
+            count = redis_manager.get_message_count_by_status(status_enum.value)
             status_counts[status_enum.value] = count
 
         # 计算兼容的旧状态统计

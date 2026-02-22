@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from app.storage.json_store import get_json_channel_store
 from app.storage.channel_store import RedisChannelStore
-from app.storage.redis_manager import redis_manager
 from app.services.telegram_resolver import telegram_resolver
 from app.utils.timezone import get_current_time
 
@@ -34,7 +33,7 @@ class UnifiedChannelService:
         """延迟获取Redis存储实例"""
         if self._redis_channel_store is None:
             try:
-                self._redis_channel_store = RedisChannelStore(redis_manager.client)
+                self._redis_channel_store = RedisChannelStore()
             except Exception as e:
                 logger.error(f"Redis存储层初始化失败: {e}")
                 return None

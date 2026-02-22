@@ -1,22 +1,17 @@
 """
-媒体文件去重检测器
-使用感知哈希（pHash）进行图片/视频缩略图相似度检测
-作为文本去重的补充
-
-Author: Claude
-Created: 2025-09-24
+媒体文件去重检测器 - 使用感知哈希（pHash）进行图片/视频缩略图相似度检测
 """
-
 import logging
-import hashlib
 import time
+from datetime import timedelta
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.utils.timezone import get_current_time
+
 logger = logging.getLogger(__name__)
 
-# 延迟导入，避免启动时依赖问题
 imagehash = None
 Image = None
 
@@ -29,12 +24,9 @@ def _ensure_dependencies():
             from PIL import Image as PILImage
             imagehash = ih
             Image = PILImage
-            logger.info("媒体去重依赖库加载成功")
         except ImportError as e:
             logger.error(f"媒体去重依赖库未安装: {e}")
-            logger.error("请运行: pip install imagehash pillow")
             raise ImportError("需要安装imagehash和pillow库")
-
 
 @dataclass
 class MediaDuplicateResult:
@@ -43,20 +35,16 @@ class MediaDuplicateResult:
     original_message_id: Optional[str] = None
     similarity_score: float = 0.0
     detection_reason: str = ""
-    detection_method: str = "media"  # 标记是媒体检测
-
+    detection_method: str = "media"
 
 class MediaDuplicateDetector:
-    """
-    媒体文件去重检测器
-    使用感知哈希进行相似度检测
-    """
+    """媒体文件去重检测器 - 使用感知哈希进行相似度检测"""
 
     def __init__(self):
-        self.redis = None  # 延迟初始化
-        self.phash_threshold = 5  # 汉明距离阈值（<=5认为相似）
-        self.standard_size = (256, 256)  # 标准化尺寸
-        self._hash_cache = {}  # 缓存已计算的哈希 {path: hash_values}
+        self._db = None
+        self.phash_threshold = 5
+        self.standard_size = (256, 256)
+        self._hash_cache = {}
         self._phash_segment_bits = 16
         self._phash_segment_hex = max(1, self._phash_segment_bits // 4)
         self._phash_segment_count = max(1, 64 // self._phash_segment_bits)
@@ -65,516 +53,384 @@ class MediaDuplicateDetector:
         self._retention_ttl_seconds: Optional[int] = None
         self._retention_ttl_last_fetch: float = 0.0
 
-        logger.info("MediaDuplicateDetector初始化完成")
-
     @property
-    def redis_manager(self):
-        """延迟初始化Redis管理器"""
-        if self.redis is None:
-            from app.storage.redis_manager import redis_manager
-            self.redis = redis_manager
-        return self.redis
+    def db_manager(self):
+        """延迟初始化数据库管理器"""
+        if self._db is None:
+            from app.storage.database import db_manager
+            self._db = db_manager
+        return self._db
+
+    def _get_conn(self):
+        return self.db_manager._get_connection()
+
+    def _calc_expires(self, ttl_seconds: int) -> str:
+        return (get_current_time() + timedelta(seconds=ttl_seconds)).isoformat()
 
     async def detect_duplicate(
-        self,
-        media_path: str,
-        message_id: str,
+        self, media_path: str, message_id: str,
         file_size: Optional[int] = None
     ) -> MediaDuplicateResult:
-        """
-        检测媒体文件是否重复
-
-        Args:
-            media_path: 媒体文件路径
-            message_id: 消息ID (格式: "channel_id:message_id")
-            file_size: 文件大小（字节），用于快速比对
-
-        Returns:
-            MediaDuplicateResult对象
-        """
+        """检测媒体文件是否重复"""
         try:
-            # 确保依赖已加载
             _ensure_dependencies()
-
-            # 1. 快速检查：如果提供了文件大小，先进行文件大小比对
-            if file_size:
-                size_duplicates = await self._find_by_file_size(file_size, message_id)
-                if size_duplicates:
-                    logger.info(
-                        f"📏 通过文件大小发现潜在重复: {message_id} "
-                        f"(大小: {file_size} bytes, 匹配数: {len(size_duplicates)})"
-                    )
-                    # 如果文件不存在，仅基于文件大小判断（适用于远程Redis场景）
-                    if not Path(media_path).exists():
-                        # 返回第一个匹配的作为重复
-                        return MediaDuplicateResult(
-                            is_duplicate=True,
-                            original_message_id=size_duplicates[0],
-                            similarity_score=0.95,  # 文件大小相同给高分
-                            detection_reason=f"same_file_size_{file_size}"
-                        )
-
-            # 2. 验证文件存在（如果需要进行哈希计算）
-            if not Path(media_path).exists():
-                logger.warning(f"媒体文件不存在: {media_path}")
-                return MediaDuplicateResult(
-                    is_duplicate=False,
-                    detection_reason="file_not_found"
-                )
-
-            # 3. 计算图片哈希
-            hash_values = await self._calculate_hashes(media_path)
-            if not hash_values:
-                return MediaDuplicateResult(
-                    is_duplicate=False,
-                    detection_reason="hash_calculation_failed"
-                )
-
-            # 4. 查找相似图片
-            similar_images = await self._find_similar_images(
-                hash_values['phash'],
-                message_id
-            )
-
-            if similar_images:
-                # 找到相似图片
-                best_match = similar_images[0]  # 最相似的
-                # 汉明距离转换为相似度分数 (0-1)
-                similarity = 1.0 - (best_match['distance'] / 64.0)
-
-                logger.info(
-                    f"🖼️ 发现相似媒体: {message_id} -> {best_match['message_id']} "
-                    f"(汉明距离: {best_match['distance']}, 相似度: {similarity:.3f})"
-                )
-
-                return MediaDuplicateResult(
-                    is_duplicate=True,
-                    original_message_id=best_match['message_id'],
-                    similarity_score=similarity,
-                    detection_reason=f"phash_distance_{best_match['distance']}"
-                )
-
-            # 5. 无相似图片，保存新哈希和文件大小
-            await self._save_hash(hash_values, message_id, file_size)
-
-            logger.debug(f"未发现相似媒体: {message_id}")
-            return MediaDuplicateResult(
-                is_duplicate=False,
-                detection_reason="no_similar_media"
-            )
-
+            return await self._do_detect(media_path, message_id, file_size)
         except ImportError:
-            # 依赖未安装
-            logger.error("媒体去重功能不可用：缺少依赖库")
             return MediaDuplicateResult(
-                is_duplicate=False,
-                detection_reason="dependencies_missing"
-            )
+                is_duplicate=False, detection_reason="dependencies_missing")
         except Exception as e:
             logger.error(f"媒体去重检测失败 {media_path}: {e}")
             return MediaDuplicateResult(
                 is_duplicate=False,
-                detection_reason=f"error_{str(e)[:50]}"
-            )
+                detection_reason=f"error_{str(e)[:50]}")
 
-    async def _find_by_file_size(self, file_size: int, exclude_id: str) -> List[str]:
-        """
-        根据文件大小查找可能重复的消息
+    async def _do_detect(
+        self, media_path: str, message_id: str,
+        file_size: Optional[int]
+    ) -> MediaDuplicateResult:
+        """执行去重检测核心逻辑"""
+        if file_size:
+            result = await self._check_size_match(
+                file_size, message_id, media_path)
+            if result:
+                return result
+        if not Path(media_path).exists():
+            return MediaDuplicateResult(
+                is_duplicate=False, detection_reason="file_not_found")
+        hash_values = await self._calculate_hashes(media_path)
+        if not hash_values:
+            return MediaDuplicateResult(
+                is_duplicate=False, detection_reason="hash_calculation_failed")
+        similar = await self._find_similar_images(
+            hash_values['phash'], message_id)
+        if similar:
+            best = similar[0]
+            similarity = 1.0 - (best['distance'] / 64.0)
+            logger.info(
+                f"发现相似媒体: {message_id} -> {best['message_id']} "
+                f"(距离: {best['distance']}, 相似度: {similarity:.3f})")
+            return MediaDuplicateResult(
+                is_duplicate=True,
+                original_message_id=best['message_id'],
+                similarity_score=similarity,
+                detection_reason=f"phash_distance_{best['distance']}")
+        await self._save_hash(hash_values, message_id, file_size)
+        return MediaDuplicateResult(
+            is_duplicate=False, detection_reason="no_similar_media")
 
-        Args:
-            file_size: 文件大小（字节）
-            exclude_id: 要排除的消息ID
+    async def _check_size_match(
+        self, file_size: int, message_id: str, media_path: str
+    ) -> Optional[MediaDuplicateResult]:
+        """检查文件大小匹配"""
+        dupes = await self._find_by_file_size(file_size, message_id)
+        if not dupes:
+            return None
+        logger.info(
+            f"文件大小重复: {message_id} "
+            f"(size={file_size}, matches={len(dupes)})")
+        if not Path(media_path).exists():
+            return MediaDuplicateResult(
+                is_duplicate=True, original_message_id=dupes[0],
+                similarity_score=0.95,
+                detection_reason=f"same_file_size_{file_size}")
+        return None
 
-        Returns:
-            匹配的消息ID列表
-        """
+    async def _find_by_file_size(
+        self, file_size: int, exclude_id: str
+    ) -> List[str]:
+        """根据文件大小查找可能重复的消息"""
         try:
-            size_key = f"media:size:{file_size}"
-            all_ids = self.redis_manager.client.smembers(size_key)
-
-            if not all_ids:
-                return []
-
-            decoded_ids = [
-                value.decode('utf-8') if isinstance(value, bytes) else value
-                for value in all_ids
+            conn = self._get_conn()
+            now = get_current_time().isoformat()
+            rows = conn.execute(
+                """SELECT message_id FROM media_sizes
+                   WHERE file_size = ?
+                   AND (expires_at IS NULL OR expires_at > ?)""",
+                (file_size, now),
+            ).fetchall()
+            real_exclude = self._get_real_message_id(exclude_id)
+            return [
+                r[0] for r in rows
+                if r[0] and r[0] != real_exclude and r[0] != exclude_id
             ]
-
-            real_exclude_id = self._get_real_message_id(exclude_id)
-
-            matched_ids = [
-                msg_id for msg_id in decoded_ids
-                if msg_id and msg_id != real_exclude_id and msg_id != exclude_id
-            ]
-
-            try:
-                ttl = await self._get_retention_ttl()
-                self.redis_manager.client.expire(size_key, ttl)
-            except Exception:
-                pass
-
-            return matched_ids
-
         except Exception as e:
             logger.error(f"按文件大小查找失败: {e}")
             return []
 
     async def detect_duplicate_batch(
-        self,
-        media_paths: List[str],
-        message_id: str
+        self, media_paths: List[str], message_id: str
     ) -> MediaDuplicateResult:
-        """
-        批量检测多个媒体文件（用于组消息）
-        任一媒体重复则整组标记为重复
-
-        Args:
-            media_paths: 媒体文件路径列表
-            message_id: 消息ID
-
-        Returns:
-            MediaDuplicateResult对象
-        """
+        """批量检测多个媒体文件（用于组消息）"""
         for idx, media_path in enumerate(media_paths):
             sub_id = f"{message_id}:media{idx}"
             result = await self.detect_duplicate(media_path, sub_id)
-
             if result.is_duplicate:
-                # 找到重复，立即返回
                 result.detection_reason = f"media_{idx}_in_group_duplicate"
-                logger.info(f"组消息媒体 {idx} 检测到重复")
                 return result
-
-        # 都不重复
         return MediaDuplicateResult(
             is_duplicate=False,
-            detection_reason="no_media_duplicate_in_group"
-        )
+            detection_reason="no_media_duplicate_in_group")
 
     def _split_phash_into_segments(self, phash: str) -> List[str]:
         if not phash:
             return []
-        segment_len = self._phash_segment_hex
-        required_length = segment_len * self._phash_segment_count
-        if len(phash) < required_length:
-            phash = phash.ljust(required_length, '0')
+        seg_len = self._phash_segment_hex
+        req_len = seg_len * self._phash_segment_count
+        if len(phash) < req_len:
+            phash = phash.ljust(req_len, '0')
         return [
-            phash[i * segment_len:(i + 1) * segment_len]
+            phash[i * seg_len:(i + 1) * seg_len]
             for i in range(self._phash_segment_count)
         ]
 
-    def _compose_band_bucket_key(self, band_index: int, segment: str) -> str:
-        return f"media:phash:band:{band_index}:{segment}"
+    def _compose_band_bucket_key(self, band_idx: int, seg: str) -> str:
+        return f"media:phash:band:{band_idx}:{seg}"
 
-    def _generate_segment_neighbors(self, segment: str, limit: int = 8) -> List[str]:
+    def _generate_segment_neighbors(
+        self, segment: str, limit: int = 8
+    ) -> List[str]:
         neighbors: List[str] = []
         try:
             value = int(segment, 16)
         except ValueError:
             return neighbors
-
         for bit in range(self._phash_segment_bits):
-            neighbor_val = value ^ (1 << bit)
-            neighbors.append(f"{neighbor_val:0{self._phash_segment_hex}x}")
+            neighbors.append(
+                f"{(value ^ (1 << bit)):0{self._phash_segment_hex}x}")
             if len(neighbors) >= limit:
                 break
         return neighbors
 
     def _generate_band_bucket_keys(self, phash: str) -> List[str]:
         segments = self._split_phash_into_segments(phash)
-        bucket_keys: List[str] = []
-        for index, segment in enumerate(segments):
-            bucket_keys.append(self._compose_band_bucket_key(index, segment))
-            for neighbor in self._generate_segment_neighbors(segment):
-                bucket_keys.append(self._compose_band_bucket_key(index, neighbor))
-                if len(bucket_keys) >= self._max_bucket_queries:
+        keys: List[str] = []
+        for idx, seg in enumerate(segments):
+            keys.append(self._compose_band_bucket_key(idx, seg))
+            for nb in self._generate_segment_neighbors(seg):
+                keys.append(self._compose_band_bucket_key(idx, nb))
+                if len(keys) >= self._max_bucket_queries:
                     break
-            if len(bucket_keys) >= self._max_bucket_queries:
+            if len(keys) >= self._max_bucket_queries:
                 break
-        return bucket_keys
+        return keys
 
     def _get_band_bucket_keys_for_storage(self, phash: str) -> List[str]:
         segments = self._split_phash_into_segments(phash)
-        return [self._compose_band_bucket_key(index, segment) for index, segment in enumerate(segments)]
+        return [
+            self._compose_band_bucket_key(i, s)
+            for i, s in enumerate(segments)
+        ]
 
     def _generate_legacy_bucket_keys(self, phash: str) -> List[str]:
         if not phash:
             return []
         prefix = phash[:6]
-        bucket_keys = {f"media:phash:bucket:{prefix}"}
-
+        keys = {f"media:phash:bucket:{prefix}"}
         if prefix:
-            last_char = prefix[-1]
-            for alt_char in '0123456789abcdef':
-                if alt_char == last_char:
+            last = prefix[-1]
+            for c in '0123456789abcdef':
+                if c == last:
                     continue
-                candidate = prefix[:-1] + alt_char
-                bucket_keys.add(f"media:phash:bucket:{candidate}")
-                if len(bucket_keys) >= 6:
+                keys.add(f"media:phash:bucket:{prefix[:-1]}{c}")
+                if len(keys) >= 6:
                     break
-        return list(bucket_keys)
+        return list(keys)
 
     async def _get_retention_ttl(self) -> int:
         now = time.time()
-        if self._retention_ttl_seconds and (now - self._retention_ttl_last_fetch) < 300:
+        if self._retention_ttl_seconds and (
+            now - self._retention_ttl_last_fetch) < 300:
             return self._retention_ttl_seconds
-
         try:
             from app.services.config_manager import config_manager
-            retention_days = await config_manager.get_config('duplicate_detection.retention_days', 30)
-            retention_days = float(retention_days)
+            days = await config_manager.get_config(
+                'duplicate_detection.retention_days', 30)
+            days = float(days)
         except Exception:
-            retention_days = 30.0
-
-        ttl_seconds = max(1, int(retention_days * 24 * 3600))
-        self._retention_ttl_seconds = ttl_seconds
+            days = 30.0
+        self._retention_ttl_seconds = max(1, int(days * 86400))
         self._retention_ttl_last_fetch = now
-        return ttl_seconds
+        return self._retention_ttl_seconds
 
-    async def _calculate_hashes(self, media_path: str) -> Optional[Dict[str, str]]:
-        """
-        计算图片的感知哈希
-
-        Args:
-            media_path: 图片路径
-
-        Returns:
-            哈希值字典
-        """
-        # 检查缓存
+    async def _calculate_hashes(
+        self, media_path: str
+    ) -> Optional[Dict[str, str]]:
+        """计算图片的感知哈希"""
         if media_path in self._hash_cache:
-            logger.debug(f"使用缓存的哈希值: {media_path}")
             return self._hash_cache[media_path]
-
         try:
-            # 打开图片
             img = Image.open(media_path)
-
-            # 转换为RGB模式（处理RGBA、灰度等）
             if img.mode != 'RGB':
                 img = img.convert('RGB')
-
-            # 标准化尺寸，减少尺寸差异的影响
             img = img.resize(self.standard_size, Image.Resampling.LANCZOS)
-
-            # 计算多种哈希值
-            hash_values = {
-                'phash': str(imagehash.phash(img)),  # 感知哈希，最稳定
-                'dhash': str(imagehash.dhash(img)),  # 差异哈希
-                'whash': str(imagehash.whash(img)),  # 小波哈希
-                'average_hash': str(imagehash.average_hash(img))  # 平均哈希
+            hv = {
+                'phash': str(imagehash.phash(img)),
+                'dhash': str(imagehash.dhash(img)),
+                'whash': str(imagehash.whash(img)),
+                'average_hash': str(imagehash.average_hash(img)),
             }
-
-            # 缓存结果（限制缓存大小）
             if len(self._hash_cache) > 1000:
-                # 清理一半缓存
-                keys_to_remove = list(self._hash_cache.keys())[:500]
-                for key in keys_to_remove:
-                    del self._hash_cache[key]
-
-            self._hash_cache[media_path] = hash_values
-
-            logger.debug(f"计算哈希成功: {media_path} -> phash={hash_values['phash'][:16]}...")
-            return hash_values
-
+                for k in list(self._hash_cache.keys())[:500]:
+                    del self._hash_cache[k]
+            self._hash_cache[media_path] = hv
+            return hv
         except Exception as e:
             logger.error(f"计算图片哈希失败 {media_path}: {e}")
             return None
 
     async def _find_similar_images(
-        self,
-        phash: str,
-        current_message_id: str
+        self, phash: str, current_message_id: str
     ) -> List[Dict[str, Any]]:
-        """
-        查找相似的图片
-
-        Args:
-            phash: 感知哈希值
-            current_message_id: 当前消息ID
-
-        Returns:
-            相似图片列表
-        """
+        """查找相似的图片"""
         try:
-            ttl = await self._get_retention_ttl()
-            bucket_sequence: List[str] = []
-            seen_bucket_keys = set()
-
-            for bucket_key in self._generate_band_bucket_keys(phash) + self._generate_legacy_bucket_keys(phash):
-                if bucket_key not in seen_bucket_keys:
-                    seen_bucket_keys.add(bucket_key)
-                    bucket_sequence.append(bucket_key)
-
-            raw_candidates: List[str] = []
-
-            for bucket_key in bucket_sequence:
-                try:
-                    bucket_candidates = self.redis_manager.client.smembers(bucket_key)
-                except Exception as redis_error:
-                    logger.debug(f"读取桶失败 {bucket_key}: {redis_error}")
-                    continue
-
-                if bucket_candidates:
-                    for candidate in bucket_candidates:
-                        if isinstance(candidate, bytes):
-                            candidate = candidate.decode('utf-8')
-                        if candidate:
-                            raw_candidates.append(candidate)
-                    try:
-                        self.redis_manager.client.expire(bucket_key, ttl)
-                    except Exception:
-                        pass
-
-                if len(raw_candidates) >= self._max_similarity_candidates:
-                    break
-
-            if raw_candidates:
-                raw_candidates = list(dict.fromkeys(raw_candidates))
-
-            current_real_id = self._get_real_message_id(current_message_id)
-            seen_message_ids = set()
-            similar: List[Dict[str, Any]] = []
-
-            for candidate in raw_candidates:
-                if ':' not in candidate:
-                    continue
-
-                parts = candidate.split(':', 1)
-                if len(parts) != 2:
-                    continue
-
-                stored_hash, full_msg_id = parts
-                real_msg_id = self._get_real_message_id(full_msg_id)
-
-                if not real_msg_id or real_msg_id == current_real_id or real_msg_id in seen_message_ids:
-                    continue
-
-                distance = self._hamming_distance(phash, stored_hash)
-                if distance <= self.phash_threshold:
-                    similar.append({
-                        'message_id': real_msg_id,
-                        'distance': distance,
-                        'hash': stored_hash
-                    })
-                    seen_message_ids.add(real_msg_id)
-
-                    meta_key = f"media:meta:{real_msg_id}"
-                    try:
-                        self.redis_manager.client.expire(meta_key, ttl)
-                    except Exception:
-                        pass
-
-                    logger.debug(f"发现相似图片: {real_msg_id} (距离: {distance})")
-
-            similar.sort(key=lambda x: x['distance'])
-            return similar
-
+            seen_keys = set()
+            bucket_seq = []
+            for k in (self._generate_band_bucket_keys(phash)
+                      + self._generate_legacy_bucket_keys(phash)):
+                if k not in seen_keys:
+                    seen_keys.add(k)
+                    bucket_seq.append(k)
+            raw = self._query_buckets(bucket_seq)
+            if raw:
+                raw = list(dict.fromkeys(raw))
+            return self._filter_candidates(
+                raw, phash, current_message_id)
         except Exception as e:
             logger.error(f"查找相似图片失败: {e}")
             return []
 
-    async def _save_hash(self, hash_values: Dict[str, str], message_id: str, file_size: Optional[int] = None):
-        """
-        保存图片哈希到Redis
+    def _query_buckets(self, bucket_keys: List[str]) -> List[str]:
+        """从SQLite查询桶中的候选项"""
+        conn = self._get_conn()
+        now = get_current_time().isoformat()
+        candidates: List[str] = []
+        for bk in bucket_keys:
+            try:
+                rows = conn.execute(
+                    """SELECT payload FROM media_lsh_buckets
+                       WHERE bucket_key = ?
+                       AND (expires_at IS NULL OR expires_at > ?)""",
+                    (bk, now),
+                ).fetchall()
+                for r in rows:
+                    if r[0]:
+                        candidates.append(r[0])
+            except Exception as e:
+                logger.debug(f"读取桶失败 {bk}: {e}")
+            if len(candidates) >= self._max_similarity_candidates:
+                break
+        return candidates
 
-        Args:
-            hash_values: 哈希值字典
-            message_id: 消息ID
-            file_size: 文件大小（可选）
-        """
+    def _filter_candidates(
+        self, candidates: List[str], phash: str,
+        current_message_id: str
+    ) -> List[Dict[str, Any]]:
+        """过滤候选项，计算汉明距离"""
+        cur_real = self._get_real_message_id(current_message_id)
+        seen_ids = set()
+        similar: List[Dict[str, Any]] = []
+        for cand in candidates:
+            if ':' not in cand:
+                continue
+            parts = cand.split(':', 1)
+            if len(parts) != 2:
+                continue
+            stored_hash, full_id = parts
+            real_id = self._get_real_message_id(full_id)
+            if not real_id or real_id == cur_real or real_id in seen_ids:
+                continue
+            dist = self._hamming_distance(phash, stored_hash)
+            if dist <= self.phash_threshold:
+                seen_ids.add(real_id)
+                similar.append({
+                    'message_id': real_id,
+                    'distance': dist, 'hash': stored_hash})
+        similar.sort(key=lambda x: x['distance'])
+        return similar
+
+    async def _save_hash(
+        self, hash_values: Dict[str, str],
+        message_id: str, file_size: Optional[int] = None
+    ):
+        """保存图片哈希到SQLite"""
         try:
             phash = hash_values['phash']
-
-            real_msg_id = self._get_real_message_id(message_id)
+            real_id = self._get_real_message_id(message_id)
             ttl = await self._get_retention_ttl()
-
-            payload = f"{phash}:{real_msg_id}"
-
-            for bucket_key in self._get_band_bucket_keys_for_storage(phash):
-                try:
-                    self.redis_manager.client.sadd(bucket_key, payload)
-                    self.redis_manager.client.expire(bucket_key, ttl)
-                except Exception as redis_error:
-                    logger.debug(f"写入分段桶失败 {bucket_key}: {redis_error}")
-
-            legacy_bucket_key = f"media:phash:bucket:{phash[:6]}"
-            try:
-                self.redis_manager.client.sadd(legacy_bucket_key, payload)
-                self.redis_manager.client.expire(legacy_bucket_key, ttl)
-            except Exception:
-                pass
-
-            meta_key = f"media:meta:{real_msg_id}"
-            hash_values['original_id'] = message_id
-            self.redis_manager.client.hset(meta_key, mapping=hash_values)
-            self.redis_manager.client.expire(meta_key, ttl)
-
-            if ':media' in message_id:
-                mapping_key = f"media:mapping:{message_id}"
-                self.redis_manager.client.set(mapping_key, real_msg_id)
-                self.redis_manager.client.expire(mapping_key, ttl)
-
+            expires = self._calc_expires(ttl)
+            payload = f"{phash}:{real_id}"
+            self._save_lsh_buckets(phash, payload, expires)
+            self._save_fingerprint(
+                hash_values, real_id, message_id, expires)
             if file_size:
-                size_key = f"media:size:{file_size}"
-                self.redis_manager.client.sadd(size_key, real_msg_id)
-                self.redis_manager.client.expire(size_key, ttl)
-                logger.debug(f"保存文件大小索引: {file_size} -> {real_msg_id}")
-
-            logger.debug(f"保存媒体哈希: {real_msg_id} -> phash:{phash[:8]}...")
-
+                self._save_file_size(file_size, real_id, expires)
+            logger.debug(f"保存媒体哈希: {real_id} -> phash:{phash[:8]}...")
         except Exception as e:
             logger.error(f"保存图片哈希失败: {e}")
 
+    def _save_lsh_buckets(
+        self, phash: str, payload: str, expires: str
+    ):
+        """保存LSH桶数据（分段桶+遗留桶）"""
+        conn = self._get_conn()
+        all_keys = self._get_band_bucket_keys_for_storage(phash)
+        all_keys.append(f"media:phash:bucket:{phash[:6]}")
+        for bk in all_keys:
+            try:
+                conn.execute(
+                    """INSERT OR IGNORE INTO media_lsh_buckets
+                       (bucket_key, payload, expires_at)
+                       VALUES (?, ?, ?)""",
+                    (bk, payload, expires))
+            except Exception as e:
+                logger.debug(f"写入桶失败 {bk}: {e}")
+        conn.commit()
+
+    def _save_fingerprint(
+        self, hv: Dict[str, str],
+        real_id: str, original_id: str, expires: str
+    ):
+        """保存指纹记录"""
+        conn = self._get_conn()
+        conn.execute(
+            """INSERT OR REPLACE INTO media_fingerprints
+               (message_id, phash, dhash, whash, average_hash,
+                original_id, created_at, expires_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (real_id, hv['phash'], hv['dhash'], hv['whash'],
+             hv['average_hash'], original_id,
+             get_current_time().isoformat(), expires))
+        conn.commit()
+
+    def _save_file_size(
+        self, file_size: int, real_id: str, expires: str
+    ):
+        """保存文件大小索引"""
+        conn = self._get_conn()
+        conn.execute(
+            """INSERT OR IGNORE INTO media_sizes
+               (file_size, message_id, expires_at)
+               VALUES (?, ?, ?)""",
+            (file_size, real_id, expires))
+        conn.commit()
+
     def _get_real_message_id(self, message_id: str) -> str:
-        """
-        获取真实的消息ID（移除:media后缀）
-
-        Args:
-            message_id: 可能包含:media后缀的消息ID
-
-        Returns:
-            真实的消息ID
-        """
+        """获取真实的消息ID（移除:media后缀）"""
         return message_id.split(':media')[0] if ':media' in message_id else message_id
 
     def _hamming_distance(self, hash1: str, hash2: str) -> int:
-        """
-        计算两个哈希的汉明距离
-
-        Args:
-            hash1: 第一个哈希值（16进制字符串）
-            hash2: 第二个哈希值（16进制字符串）
-
-        Returns:
-            汉明距离（不同位的数量）
-        """
+        """计算两个哈希的汉明距离"""
         if len(hash1) != len(hash2):
-            return 64  # 最大距离
-
+            return 64
         try:
-            # 转换为整数
-            int1 = int(hash1, 16)
-            int2 = int(hash2, 16)
-
-            # XOR操作找出不同的位
-            xor = int1 ^ int2
-
-            # 计算1的个数（汉明距离）
-            distance = bin(xor).count('1')
-
-            return distance
-
+            return bin(int(hash1, 16) ^ int(hash2, 16)).count('1')
         except ValueError:
-            logger.error(f"无效的哈希值: {hash1[:8]}... or {hash2[:8]}...")
             return 64
 
 
 # 创建全局实例
 media_duplicate_detector = MediaDuplicateDetector()
 
-
-# 导出
 __all__ = [
     'MediaDuplicateDetector',
     'MediaDuplicateResult',

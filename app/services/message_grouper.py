@@ -817,7 +817,7 @@ class MessageGrouper:
             
             if message_ids:
                 max_msg_id = max(message_ids)
-                channel_store = RedisChannelStore(redis_manager.client)
+                channel_store = RedisChannelStore()
                 success = channel_store.set_checkpoint(channel_id, max_msg_id)
                 
                 if success:

@@ -102,18 +102,13 @@ class HealthMonitor:
         await self.update_status()
     
     async def update_status(self):
-        """更新服务状态到Redis"""
+        """更新服务状态到缓存"""
         try:
             from app.storage.redis_manager import redis_manager
-            
-            redis = redis_manager.client
-            if not redis:
-                logger.warning(f"[{self.service_name}] Redis客户端不可用，无法更新健康状态")
-                return
-            
+
             uptime = (datetime.now() - self.start_time).total_seconds()
             self.last_heartbeat = datetime.now()
-            
+
             health = ServiceHealth(
                 service_name=self.service_name,
                 status=self.status,
@@ -122,22 +117,18 @@ class HealthMonitor:
                 metadata=self.metadata,
                 error_message=self.error_message
             )
-            
+
             key = f"service_health:{self.service_name}"
             value = json.dumps(health.to_dict(), ensure_ascii=False)
-            
-            # 设置30分钟过期时间，防止僵尸记录
-            result = redis.setex(key, 1800, value)
-            
+
+            # 设置30分钟过期时间
+            result = redis_manager.cache_set(key, value, expire=1800)
+
             if result:
-                logger.debug(f"[{self.service_name}] 健康状态已更新到Redis: {key}")
-            else:
-                logger.warning(f"[{self.service_name}] Redis写入返回False: {key}")
-                
+                logger.debug(f"[{self.service_name}] 健康状态已更新: {key}")
+
         except Exception as e:
             logger.error(f"[{self.service_name}] 更新服务状态失败: {e}")
-            import traceback
-            logger.error(f"[{self.service_name}] 错误详情: {traceback.format_exc()}")
     
     async def _heartbeat_loop(self):
         """心跳循环"""
@@ -166,45 +157,37 @@ class HealthCheckService:
         """获取所有服务的健康状态"""
         try:
             from app.storage.redis_manager import redis_manager
-            
-            redis = redis_manager.client
-            if not redis:
-                return {}
-            
+
             # 查找所有服务健康状态键
-            pattern = "service_health:*"
-            keys = redis.keys(pattern)
-            
+            keys = redis_manager.cache_keys("service_health:")
+
             if not keys:
                 return {}
-            
-            # 批量获取所有服务状态
-            values = redis.mget(keys)
-            
+
             services = {}
-            for key, value in zip(keys, values):
-                if value:
-                    try:
-                        # 从键中提取服务名
-                        service_name = key.replace("service_health:", "")
-                        
-                        # 解析JSON数据
-                        data = json.loads(value)
-                        health = ServiceHealth.from_dict(data)
-                        
-                        # 修复：更合理的心跳超时时间（3倍心跳间隔 = 90秒）
-                        heartbeat_timeout = 90  # 30秒心跳间隔的3倍
-                        if (datetime.now() - health.last_heartbeat).total_seconds() > heartbeat_timeout:
-                            health.status = ServiceStatus.UNKNOWN
-                            health.error_message = "服务心跳超时"
-                        
-                        services[service_name] = health
-                        
-                    except Exception as e:
-                        logger.error(f"解析服务状态失败 {key}: {e}")
-            
+            for key in keys:
+                try:
+                    value = redis_manager.cache_get(key)
+                    if not value:
+                        continue
+
+                    service_name = key.replace("service_health:", "")
+                    data = json.loads(value) if isinstance(value, str) else value
+
+                    health = ServiceHealth.from_dict(data)
+
+                    heartbeat_timeout = 90
+                    if (datetime.now() - health.last_heartbeat).total_seconds() > heartbeat_timeout:
+                        health.status = ServiceStatus.UNKNOWN
+                        health.error_message = "服务心跳超时"
+
+                    services[service_name] = health
+
+                except Exception as e:
+                    logger.error(f"解析服务状态失败 {key}: {e}")
+
             return services
-            
+
         except Exception as e:
             logger.error(f"获取服务健康状态失败: {e}")
             return {}

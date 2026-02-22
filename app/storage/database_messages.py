@@ -367,6 +367,33 @@ class DatabaseMessagesMixin:
         except Exception:
             return 0
 
+    def get_message_count_by_status(self, status: str) -> int:
+        """获取指定状态的消息数量"""
+        try:
+            conn = self._get_connection()
+            row = conn.execute(
+                "SELECT COUNT(*) FROM messages WHERE status = ?",
+                (status,),
+            ).fetchone()
+            return row[0] if row else 0
+        except Exception:
+            return 0
+
+    def get_today_message_count(self) -> int:
+        """获取今日消息数量"""
+        try:
+            conn = self._get_connection()
+            today = get_current_time().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ).isoformat()
+            row = conn.execute(
+                "SELECT COUNT(*) FROM messages WHERE created_at >= ?",
+                (today,),
+            ).fetchone()
+            return row[0] if row else 0
+        except Exception:
+            return 0
+
     def get_earliest_message_timestamp(self) -> Optional[float]:
         """获取最早消息的时间戳"""
         try:

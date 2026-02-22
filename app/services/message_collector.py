@@ -93,12 +93,6 @@ class CollectorConfigManager:
         self.auto_reject_ads: bool = True  # 是否自动拒绝广告
         self.max_media_size_mb: int = 200  # 媒体文件大小限制(MB)
         self._system_mtime = 0
-        # 过滤器配置默认值（避免load_config前调用get_filter_config崩溃）
-        self.filter_enabled: bool = False
-        self.tail_filter: bool = True
-        self.separator_filter: bool = True
-        self.markdown_filter: bool = True
-        self.ad_detector: bool = False
     
     async def load_config(self):
         """检测系统配置文件变化并动态加载"""
@@ -234,45 +228,28 @@ class ChannelManager:
 
 class CheckpointManager:
     """Checkpoint管理器"""
-    
+
+    def __init__(self):
+        from app.storage.channel_store import RedisChannelStore
+        self._store = RedisChannelStore()
+
     def get_checkpoint(self, channel_id: str) -> int:
-        """从Redis获取checkpoint，默认返回0"""
+        """获取checkpoint，默认返回0"""
         try:
-            checkpoint = redis_manager.client.hget("channel:checkpoint", channel_id)
-            return int(checkpoint) if checkpoint else 0
+            result = self._store.get_checkpoint(channel_id)
+            return result if result is not None else 0
         except Exception as e:
             logger.error(f"获取checkpoint失败 {channel_id}: {e}")
             return 0
-    
+
     async def update_checkpoint(self, channel_id: str, message_id: int):
-        """异步更新checkpoint到Redis（保持单调递增）"""
+        """异步更新checkpoint（保持单调递增）"""
         try:
-            # 🔧 获取当前checkpoint，确保只向前更新
-            current_checkpoint = self.get_checkpoint(channel_id)
-            if message_id <= current_checkpoint:
-                logger.debug(f"跳过checkpoint更新：新值 {message_id} <= 当前值 {current_checkpoint}")
+            current = self.get_checkpoint(channel_id)
+            if message_id <= current:
                 return
-
-            current_time = get_current_time().isoformat()
-
-            # 异步更新checkpoint和时间戳
             await asyncio.get_event_loop().run_in_executor(
-                None,
-                redis_manager.client.hset,
-                "channel:checkpoint",
-                channel_id,
-                str(message_id)
-            )
-
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                redis_manager.client.hset,
-                "channel:checkpoint:time",
-                channel_id,
-                current_time
-            )
-
-            logger.debug(f"checkpoint已更新: {channel_id} -> {message_id}, time: {current_time}")
+                None, self._store.set_checkpoint, channel_id, message_id)
         except Exception as e:
             logger.error(f"更新checkpoint失败 {channel_id}: {e}")
 
@@ -293,8 +270,7 @@ class TelegramMessageCollector:
         # 业务组件
         self.checkpoint_manager = CheckpointManager()
         self.content_processor = ContentProcessor()
-        self._media_handler = None
-
+        
         # 初始化标志
         self._initialized = False
 
@@ -303,15 +279,7 @@ class TelegramMessageCollector:
         
         # 信号控制标志
         self.running = True
-
-    @property
-    def media_handler(self):
-        """延迟初始化MediaHandler单例"""
-        if self._media_handler is None:
-            from app.services.media_handler import MediaHandler
-            self._media_handler = MediaHandler()
-        return self._media_handler
-
+    
     async def initialize(self):
         """初始化采集器"""
         logger.info("初始化TelegramMessageCollector")
@@ -386,7 +354,7 @@ class TelegramMessageCollector:
 
         # 2. 获取上次中断的位置（断点续传）
         try:
-            last_index = redis_manager.client.get("collector:current_channel_index")
+            last_index = redis_manager.cache_get("collector:current_channel_index")
             start_index = int(last_index) if last_index else 0
 
             if start_index > 0 and start_index < len(channels):
@@ -416,19 +384,19 @@ class TelegramMessageCollector:
                 # 保存下一个要处理的频道索引
                 next_index = i + 1
                 if next_index < len(channels):
-                    redis_manager.client.set("collector:current_channel_index", str(next_index))
+                    redis_manager.cache_set("collector:current_channel_index", str(next_index), expire=3600)
                     logger.debug(f"已保存采集进度: 下次从第 {next_index + 1} 个频道开始")
                 else:
                     # 所有频道处理完成，清除进度记录
-                    redis_manager.client.delete("collector:current_channel_index")
+                    redis_manager.cache_delete("collector:current_channel_index")
                     logger.debug("本轮所有频道处理完成，清除进度记录")
             except Exception as e:
                 logger.error(f"保存采集进度失败: {e}")
 
         # 5. 确保一轮完成后清除进度（防止遗留）
         try:
-            redis_manager.client.delete("collector:current_channel_index")
-        except Exception:
+            redis_manager.cache_delete("collector:current_channel_index")
+        except:
             pass
 
         # 删除单轮采集完成的日志
@@ -686,7 +654,6 @@ class TelegramMessageCollector:
         
         # 2. 循环处理每个消息组
         processed_count = 0
-        media_count = 0
         
         for message_group in message_groups:
             # 检查采集是否仍然启用（消息级别的最细粒度检查）
@@ -764,10 +731,7 @@ class TelegramMessageCollector:
                 
                 if success:
                     processed_count += 1
-                    # 统计媒体消息
-                    if collected_message.media_info or collected_message.media_group_display:
-                        media_count += 1
-
+                    
                     # 5. 立即更新checkpoint
                     checkpoint_id = collected_message.message_id
                     
@@ -795,6 +759,17 @@ class TelegramMessageCollector:
                 logger.error(f"处理消息组 {message_group} 时发生错误: {e}")
                 continue
         
+        # 计算媒体消息数量
+        media_count = 0
+        for message_group in message_groups:
+            try:
+                messages = await self.telethon_client.get_messages(entity, ids=message_group)
+                for msg in messages:
+                    if msg and msg.media:
+                        media_count += 1
+            except:
+                continue
+
         # 只记录有处理消息的频道
         if processed_count > 0:
             logger.info(f"频道{channel_name}/{channel_id}采集成功（包含{media_count}个媒体）")
@@ -829,7 +804,9 @@ class TelegramMessageCollector:
             # 下载媒体（如果有）
             media_info = None
             if message.media:
-                media_info = await self.media_handler.download_media_with_retry(
+                from app.services.media_handler import MediaHandler
+                media_handler = MediaHandler()
+                media_info = await media_handler.download_media_with_retry(
                     self.telethon_client, message, message.id
                 )
             
@@ -916,10 +893,12 @@ class TelegramMessageCollector:
 
             # 批量下载所有媒体
             media_files = []
+            from app.services.media_handler import MediaHandler
+            media_handler = MediaHandler()
 
             for msg in group_messages:
                 if msg.media:
-                    media_info = await self.media_handler.download_media_with_retry(
+                    media_info = await media_handler.download_media_with_retry(
                         self.telethon_client, msg, msg.id
                     )
                     if media_info:

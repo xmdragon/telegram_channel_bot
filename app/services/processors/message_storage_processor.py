@@ -510,7 +510,7 @@ class MessageStorageProcessor(MessageProcessor):
             
             # 创建channel store
             try:
-                channel_store = RedisChannelStore(redis_manager.client)
+                channel_store = RedisChannelStore()
                 
                 # 设置checkpoint
                 success = channel_store.set_checkpoint(channel_id, int(message_id))

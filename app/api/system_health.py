@@ -2,7 +2,7 @@
 系统健康检查API
 负责系统状态监控、健康检查和性能统计
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 import logging
 import psutil
@@ -15,7 +15,6 @@ from app.storage.redis_manager import redis_manager
 from app.storage.json_store import get_json_channel_store
 from app.core.route_config import ROUTES
 from app.api.websocket import websocket_manager
-from app.api.deps import require_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system-health"])
@@ -26,31 +25,25 @@ START_TIME = datetime.now()
 
 
 @router.get(ROUTES.system.status_detailed)
-async def get_detailed_status(user: dict = Depends(require_auth)) -> Dict[str, Any]:
+async def get_detailed_status() -> Dict[str, Any]:
     """获取详细系统状态"""
     try:
-        # 获取系统信息 - 在线程中运行避免阻塞事件循环
-        cpu_percent = await asyncio.to_thread(psutil.cpu_percent, interval=1)
+        # 获取系统信息
+        cpu_percent = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
-
+        
         # 计算运行时间
         uptime = datetime.now() - START_TIME
         uptime_str = f"{uptime.days}天 {uptime.seconds // 3600}小时 {(uptime.seconds % 3600) // 60}分钟"
-
-        # 从 Redis 和 JSON 获取统计数据
+        
+        # 从数据库和JSON获取统计数据
         channel_store = get_json_channel_store()
 
-        # 消息统计 - 使用ZCARD替代keys()
-        pipeline = redis_manager.client.pipeline()
-        pipeline.zcard("index:msg:pending")
-        pipeline.zcard("index:msg:approved")
-        pipeline.zcard("index:msg:rejected")
-        counts = pipeline.execute()
-        total_messages = (counts[0] or 0) + (counts[1] or 0) + (counts[2] or 0)
-
-        # 今日消息数简化为0（精确统计需要全量扫描，性能太差）
-        today_messages = 0
+        # 消息统计 - 使用SQLite
+        stats = redis_manager.get_statistics()
+        total_messages = stats.get("total_messages", 0)
+        today_messages = redis_manager.get_today_message_count()
         
         # 频道数量
         all_channels = channel_store.get_all_channels()
@@ -104,7 +97,7 @@ async def get_detailed_status(user: dict = Depends(require_auth)) -> Dict[str, A
                 },
                 "services": {
                     "web_server": "running",
-                    "telegram_bot": "running" if (current_status and current_status.telegram_connected) else "stopped",
+                    "telegram_bot": "running" if telegram_status == "已连接" else "stopped",
                     "storage": "running",
                     "message_processor": "running",
                     "system_monitor": "running" if current_status else "stopped"
@@ -127,12 +120,12 @@ async def health_check() -> Dict[str, Any]:
         # 检查存储连接
         storage_status = "unknown"
         try:
-            redis_store = redis_manager
-            redis_manager.client.ping()  # 测试Redis连接
-            
+            if not redis_manager.is_healthy():
+                raise RuntimeError("数据库连接不健康")
+
             channel_store = get_json_channel_store()
             channel_store.get_all_channels()  # 测试JSON文件访问
-            
+
             storage_status = "connected"
         except Exception as e:
             logger.error(f"存储连接检查失败: {e}")

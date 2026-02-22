@@ -194,16 +194,11 @@ class MessageProcessor:
         try:
             from app.core.message_status import MessageStatus
 
-            # 获取各状态的数量 - 使用ZCARD替代ZRANGE全量获取
-            pipeline = redis_manager.client.pipeline()
-            statuses = list(MessageStatus)
-            for status in statuses:
-                pipeline.zcard(f"index:msg:{status.value}")
-            counts = pipeline.execute()
-
+            # 获取各状态的数量
             stats = {}
-            for status, count in zip(statuses, counts):
-                stats[status.value] = count or 0
+            for status in MessageStatus:
+                count = redis_manager.get_message_count_by_status(status.value)
+                stats[status.value] = count
 
             return stats
 
@@ -408,44 +403,26 @@ class MessageProcessor:
             
             old_messages = []
             
-            # 所有状态的消息都使用统一的配置时间进行清理
-            # 不再硬编码，完全依赖于配置的scheduler.data_cleanup_interval_hours
-            from datetime import datetime
-            
             # 获取所有状态的消息
             for status in ['approved', 'rejected', 'pending']:
                 try:
-                    # 使用Redis存储获取指定状态的消息
-                    message_keys = self.redis_store.redis.zrange(f"index:msg:{status}", 0, -1)
-                    
-                    for key in message_keys:
-                        if ':' not in key:
-                            continue
-                        
-                        channel_id, message_id = key.split(':', 1)
-                        msg_data = await self.get_message(channel_id, int(message_id))
-                        
-                        if not msg_data:
-                            # 清理孤儿索引条目
-                            logger.debug(f"清理孤儿索引: {status} -> {key}")
-                            self.redis_store.redis.zrem(f"index:msg:{status}", key)
-                            continue
-                        
-                        # 简化：只检查消息创建时间
+                    messages = self.redis_store.get_messages_by_status(
+                        status, limit=1000)
+
+                    for msg_data in messages:
                         created_at = msg_data.get('created_at')
                         if not created_at:
                             continue
 
-                        # 解析创建时间
                         try:
-                            from datetime import datetime
-                            created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                        except:
+                            created_time = datetime.fromisoformat(
+                                created_at.replace('Z', '+00:00'))
+                        except Exception:
                             continue
 
-                        # 只根据创建时间判断是否清理
                         if created_time < cutoff_time:
-                            # 构造消息对象以兼容原有清理逻辑
+                            channel_id = msg_data.get('channel_id', '')
+                            message_id = msg_data.get('message_id', 0)
                             message_obj = type('Message', (), {
                                 'channel_id': channel_id,
                                 'message_id': int(message_id),
@@ -456,7 +433,7 @@ class MessageProcessor:
                                 'created_at': created_at
                             })()
                             old_messages.append(message_obj)
-                            
+
                 except Exception as status_e:
                     logger.error(f"处理状态 {status} 的消息时出错: {status_e}")
                     continue
@@ -491,35 +468,25 @@ class MessageProcessor:
             # 遍历所有状态的消息
             for status in ['approved', 'rejected', 'pending']:
                 try:
-                    # 获取指定状态的消息
-                    message_keys = self.redis_store.redis.zrange(f"index:msg:{status}", 0, -1)
+                    messages = self.redis_store.get_messages_by_status(
+                        status, limit=1000)
 
-                    for key in message_keys:
-                        if ':' not in key:
-                            continue
-
-                        channel_id, message_id = key.split(':', 1)
-                        msg_data = await self.get_message(channel_id, int(message_id))
-
-                        if not msg_data:
-                            continue
-
-                        # 获取创建时间
+                    for msg_data in messages:
                         created_at = msg_data.get('created_at')
                         if not created_at:
                             continue
 
-                        # 解析创建时间
                         try:
-                            from datetime import datetime
-                            created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                        except:
+                            created_time = datetime.fromisoformat(
+                                created_at.replace('Z', '+00:00'))
+                        except Exception:
                             continue
 
-                        # 只考虑start_time之后的消息
                         if created_time >= start_time:
                             if oldest_time is None or created_time < oldest_time:
                                 oldest_time = created_time
+                                channel_id = msg_data.get('channel_id', '')
+                                message_id = msg_data.get('message_id', 0)
                                 oldest_message = type('Message', (), {
                                     'channel_id': channel_id,
                                     'message_id': int(message_id),

@@ -1204,8 +1204,7 @@ async def publish_single_message(
         # 检查状态更新是否成功
         if not status_updated:
             logger.error(f"消息状态更新失败，消息可能已被删除: {message_id}")
-            # 从pending索引中清理这个无效的消息ID
-            redis_manager.client.zrem("index:msg:pending", message_id)
+            # SQLite中状态是列字段，无需手动清理索引
             return {
                 "success": False,
                 "error": "message_not_found",

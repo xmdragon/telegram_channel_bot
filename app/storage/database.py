@@ -153,6 +153,20 @@ class DatabaseManager(DatabaseMessagesMixin):
         except Exception:
             return False
 
+    def cache_keys(self, prefix: str) -> list:
+        """获取匹配前缀的缓存键列表"""
+        try:
+            conn = self._get_connection()
+            rows = conn.execute(
+                """SELECT key FROM cache
+                   WHERE key LIKE ?
+                   AND (expires_at IS NULL OR expires_at > ?)""",
+                (prefix + "%", get_current_time().isoformat()),
+            ).fetchall()
+            return [r[0] for r in rows]
+        except Exception:
+            return []
+
     # =============================================
     # 会话操作
     # =============================================
@@ -323,6 +337,21 @@ class DatabaseManager(DatabaseMessagesMixin):
     # =============================================
     # 清理和维护
     # =============================================
+
+    def reset_all_message_data(self) -> Dict[str, int]:
+        """重置所有消息数据 - 用于系统重置"""
+        try:
+            conn = self._get_connection()
+            msg_count = conn.execute(
+                "SELECT COUNT(*) FROM messages"
+            ).fetchone()[0]
+            conn.execute("DELETE FROM messages")
+            conn.commit()
+            logger.info(f"已清除所有消息数据: {msg_count} 条")
+            return {"messages_deleted": msg_count}
+        except Exception as e:
+            logger.error(f"重置消息数据失败: {e}")
+            return {"error": str(e), "messages_deleted": 0}
 
     def clear_all_caches(self) -> Dict[str, int]:
         """清理所有缓存"""

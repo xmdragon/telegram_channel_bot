@@ -239,53 +239,95 @@ class DuplicateDetector:
 
     @property
     def redis_manager(self):
-        """延迟初始化Redis管理器"""
+        """延迟初始化数据库管理器"""
         if self._redis_manager is None:
             from app.storage.redis_manager import redis_manager
             self._redis_manager = redis_manager
         return self._redis_manager
 
+    # =============================================
+    # 缓存包装方法 - 用SQLite cache替代Redis数据结构
+    # =============================================
+
     async def _redis_smembers(self, key: str):
-        client = self.redis_manager.client
-        return await asyncio.to_thread(client.smembers, key)
+        """获取集合全部成员 - 缓存实现"""
+        data = await asyncio.to_thread(
+            self.redis_manager.cache_get, key)
+        if isinstance(data, list):
+            return set(data)
+        return set()
 
     async def _redis_sscan(self, key: str, cursor: int, count: int):
-        client = self.redis_manager.client
-        def run_scan():
-            return client.sscan(key, cursor=cursor, count=count)
-        return await asyncio.to_thread(run_scan)
+        """扫描集合成员 - 简化为一次性返回"""
+        members = await self._redis_smembers(key)
+        return 0, members
 
     async def _redis_sadd(self, key: str, member: str):
-        client = self.redis_manager.client
-        await asyncio.to_thread(client.sadd, key, member)
+        """添加集合成员 - 缓存实现"""
+        def _add():
+            data = self.redis_manager.cache_get(key)
+            members = list(data) if isinstance(data, list) else []
+            if member not in members:
+                members.append(member)
+            self.redis_manager.cache_set(key, members, expire=0)
+        await asyncio.to_thread(_add)
 
     async def _redis_hget(self, key: str, field: str):
-        client = self.redis_manager.client
-        return await asyncio.to_thread(client.hget, key, field)
+        """获取哈希字段 - 缓存实现"""
+        data = await asyncio.to_thread(
+            self.redis_manager.cache_get, key)
+        if isinstance(data, dict):
+            return data.get(field)
+        return None
 
     async def _redis_hset(self, key: str, mapping: Dict[str, Any]):
-        client = self.redis_manager.client
-        await asyncio.to_thread(client.hset, key, mapping=mapping)
+        """设置哈希字段 - 缓存实现"""
+        def _set():
+            data = self.redis_manager.cache_get(key)
+            current = data if isinstance(data, dict) else {}
+            current.update(mapping)
+            self.redis_manager.cache_set(key, current, expire=0)
+        await asyncio.to_thread(_set)
 
     async def _redis_hgetall(self, key: str):
-        client = self.redis_manager.client
-        return await asyncio.to_thread(client.hgetall, key)
+        """获取整个哈希 - 缓存实现"""
+        data = await asyncio.to_thread(
+            self.redis_manager.cache_get, key)
+        return data if isinstance(data, dict) else {}
 
     async def _redis_expire(self, key: str, ttl: int):
-        client = self.redis_manager.client
-        await asyncio.to_thread(client.expire, key, ttl)
+        """设置过期时间 - 通过重写缓存实现"""
+        def _expire():
+            data = self.redis_manager.cache_get(key)
+            if data is not None:
+                self.redis_manager.cache_set(key, data, expire=ttl)
+        await asyncio.to_thread(_expire)
 
     async def _redis_lpush(self, key: str, value: str):
-        client = self.redis_manager.client
-        await asyncio.to_thread(client.lpush, key, value)
+        """列表头部插入 - 缓存实现"""
+        def _push():
+            data = self.redis_manager.cache_get(key)
+            items = list(data) if isinstance(data, list) else []
+            items.insert(0, value)
+            self.redis_manager.cache_set(key, items, expire=0)
+        await asyncio.to_thread(_push)
 
     async def _redis_ltrim(self, key: str, start: int, end: int):
-        client = self.redis_manager.client
-        await asyncio.to_thread(client.ltrim, key, start, end)
+        """裁剪列表 - 缓存实现"""
+        def _trim():
+            data = self.redis_manager.cache_get(key)
+            if isinstance(data, list):
+                trimmed = data[start:end + 1]
+                self.redis_manager.cache_set(key, trimmed, expire=0)
+        await asyncio.to_thread(_trim)
 
     async def _redis_lrange(self, key: str, start: int, end: int):
-        client = self.redis_manager.client
-        return await asyncio.to_thread(client.lrange, key, start, end)
+        """获取列表范围 - 缓存实现"""
+        data = await asyncio.to_thread(
+            self.redis_manager.cache_get, key)
+        if isinstance(data, list):
+            return data[start:end + 1] if end >= 0 else data[start:]
+        return []
 
     async def detect_duplicate(self, message_content: str, message_id: str) -> DuplicateResult:
         """
